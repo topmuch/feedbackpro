@@ -60,3 +60,6 @@ server.log
 # sandbox artifacts
 tool-results/
 .zscripts/dev.pid
+
+# allow example env file
+!.env.example
