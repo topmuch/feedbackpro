@@ -12,7 +12,7 @@ import { ok, fail } from "@/lib/session"
 import { requirePro, unauthorized } from "@/lib/guards"
 import { SUPPORTS, TypeSupportId } from "@/lib/constants"
 import { commandeSchema, firstError } from "@/lib/validation"
-import { sendEmail, emailConfirmationCommande } from "@/lib/email"
+import { creerCommandeAvecConfirmation } from "@/lib/commandes"
 
 export async function GET(req: NextRequest) {
   try {
@@ -49,35 +49,16 @@ export async function POST(req: NextRequest) {
     }
 
     // Quantité du catalogue : 50 autocollants, 1 chevalet, 1 affiche
-    const quantite = typeSupport === "STICKERS_50" ? 50 : 1
+    // (dérivée du type de support dans creerCommande)
 
     // === Paiement Stripe simulé (sandbox sans clés API) ===
     console.log(`[STRIPE SIMULÉ] Paiement ${support.price} EUR pour ${ctx.pro.nomEtablissement} - ${support.label}`)
 
-    const commande = await db.commande.create({
-      data: {
-        proId: ctx.pro.id,
-        zoneId: zoneId || null,
-        typeSupport,
-        quantite,
-        prixEuros: support.price,
-        adresseLivraison,
-        statut: "A_IMPRIMER",
-      },
-    })
-
-    // Email de confirmation : non bloquant — un échec d'envoi ne doit
-    // jamais faire échouer la création de la commande.
-    try {
-      const destinataire = ctx.pro.email || ctx.user.email
-      await sendEmail(
-        destinataire,
-        "Confirmation de votre commande FeedbackPro",
-        emailConfirmationCommande(ctx.pro.nomEtablissement, support.label, support.price, adresseLivraison)
-      )
-    } catch (e) {
-      console.warn("Email de confirmation de commande non envoyé (non bloquant)", e)
-    }
+    const commande = await creerCommandeAvecConfirmation(
+      ctx.pro,
+      { proId: ctx.pro.id, typeSupport: typeSupport as TypeSupportId, adresseLivraison, zoneId },
+      ctx.pro.email || ctx.user.email
+    )
 
     return ok({ commande }, 201)
   } catch (e) {

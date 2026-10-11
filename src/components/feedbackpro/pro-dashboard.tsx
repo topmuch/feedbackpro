@@ -27,6 +27,7 @@ import {
   Menu,
   LogOut,
   AlertTriangle,
+  ShoppingBag,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -45,6 +46,7 @@ import { QrcodeTab } from "@/components/feedbackpro/qrcode-tab"
 import { StatsTab } from "@/components/feedbackpro/stats-tab"
 import { ActionsTab } from "@/components/feedbackpro/actions-tab"
 import { BillingTab } from "@/components/feedbackpro/billing-tab"
+import { CommanderTab } from "@/components/feedbackpro/commander-tab"
 import { RecompensesTab } from "@/components/feedbackpro/recompenses-tab"
 import { SettingsTab } from "@/components/feedbackpro/settings-tab"
 
@@ -60,6 +62,7 @@ type Onglet =
   | "recompenses"
   | "actions"
   | "billing"
+  | "commander"
 
 /** Slug URL → onglet interne (ex. /dashboard/qr-codes → "qrcode") */
 const SLUG_TO_TAB: Record<string, Onglet> = {
@@ -73,6 +76,7 @@ const SLUG_TO_TAB: Record<string, Onglet> = {
   "qr-code": "qrcode", // alias legacy (singulier, QR déjà imprimés/bookmarks)
   rapports: "rapports", // Session 4 : historique complet des rapports IA
   recompenses: "recompenses",
+  commander: "commander", // Session 6 : supports physiques
   stats: "stats",
   actions: "actions",
   billing: "billing",
@@ -89,6 +93,7 @@ const TAB_TO_SLUG: Record<Onglet, string> = {
   qrcode: "qr-codes",
   rapports: "rapports",
   recompenses: "recompenses",
+  commander: "commander",
   stats: "stats",
   actions: "actions",
   billing: "billing",
@@ -112,6 +117,7 @@ const ONGLETS_PRINCIPAUX: EntreeNav[] = [
 
 /** Onglets secondaires, après le séparateur « Gestion » */
 const ONGLETS_GESTION: EntreeNav[] = [
+  { id: "commander", label: "Commander", icon: ShoppingBag },
   { id: "rapports", label: "Rapports IA", icon: FileText },
   { id: "recompenses", label: "Récompenses", icon: Gift },
   { id: "actions", label: "Actions", icon: ClipboardCheck },
@@ -319,6 +325,7 @@ export function ProDashboard() {
         {onglet === "recompenses" && <RecompensesTab />}
         {onglet === "stats" && <StatsTab />}
         {onglet === "actions" && <ActionsTab />}
+        {onglet === "commander" && <CommanderTab />}
         {onglet === "billing" && <BillingTab />}
         {onglet === "settings" && <SettingsTab />}
       </main>

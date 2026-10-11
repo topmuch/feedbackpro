@@ -26,7 +26,8 @@ import { NextRequest } from "next/server"
 import Stripe from "stripe"
 import { db } from "@/lib/db"
 import { fail, ok } from "@/lib/session"
-import { PLANS } from "@/lib/constants"
+import { PLANS, SUPPORTS, TypeSupportId } from "@/lib/constants"
+import { creerCommandeAvecConfirmation, quantitePour } from "@/lib/commandes"
 
 export async function POST(req: NextRequest) {
   try {
@@ -53,10 +54,56 @@ export async function POST(req: NextRequest) {
 
     // ---------- Routage des événements ----------
     switch (event.type) {
-      // Paiement initial : le client vient de s'abonner via la Checkout Session
+      // Paiement réussi : abonnement (metadata.plan) OU commande de support
+      // physique (metadata.kind="commande", cf. /api/pro/commandes/checkout)
       case "checkout.session.completed": {
         const session = event.data.object
         const proId = session.metadata?.proId
+
+        // ---------- Cas 1 : commande de support physique ----------
+        if (session.metadata?.kind === "commande") {
+          // Sécurité : on ne crée la commande qu'une fois le paiement réglé
+          if (session.payment_status && session.payment_status !== "paid" && session.payment_status !== "no_payment_required") {
+            console.log(`[STRIPE] commande : paiement non réglé (${session.payment_status}) → ignoré`)
+            break
+          }
+          const typeSupport = session.metadata.typeSupport as TypeSupportId
+          const support = SUPPORTS[typeSupport]
+          if (!proId || !support) {
+            console.warn(`[STRIPE] commande : metadata incomplète (id=${session.id})`)
+            break
+          }
+          const pro = await db.pro.findUnique({ where: { id: proId } })
+          if (!pro) {
+            console.warn(`[STRIPE] commande : Pro ${proId} introuvable (id=${session.id})`)
+            break
+          }
+          // Idempotence : une même Checkout Session ne doit créer la
+          // commande qu'une seule fois (Stripe peut rejouer l'événement).
+          const dejaCreee = await db.commande.findFirst({
+            where: { proId, typeSupport, statut: "A_IMPRIMER", createdAt: { gte: new Date(Date.now() - 10 * 60 * 1000) } },
+          })
+          if (dejaCreee) {
+            console.log(`[STRIPE] commande déjà créée pour la session ${session.id} → ignoré`)
+            break
+          }
+          const commande = await creerCommandeAvecConfirmation(
+            pro,
+            {
+              proId,
+              typeSupport,
+              adresseLivraison: session.metadata.adresseLivraison || "",
+              zoneId: session.metadata.zoneId || null,
+            },
+            pro.email
+          )
+          console.log(
+            `[STRIPE] checkout.session.completed → commande ${commande.id} créée (${support.label}, ${quantitePour(typeSupport)} u., ${commande.prixEuros} €)`
+          )
+          break
+        }
+
+        // ---------- Cas 2 : abonnement (checkout initial) ----------
         const plan = session.metadata?.plan
         if (proId && plan && PLANS[plan as keyof typeof PLANS]) {
           await db.pro.update({ where: { id: proId }, data: { plan } })

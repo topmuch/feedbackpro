@@ -13,7 +13,7 @@
 // ============================================================
 
 import { useEffect, useState } from "react"
-import { CreditCard, Check, Loader2, Receipt, ShieldCheck, Lock } from "lucide-react"
+import { CreditCard, Check, Loader2, Receipt, ShieldCheck, Lock, Settings2 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -64,6 +64,39 @@ export function BillingTab() {
 
   // ---------- Changement de plan ----------
   const [planEnCours, setPlanEnCours] = useState<PlanId | null>(null)
+
+  // ---------- Portail client Stripe (Customer Portal) ----------
+  const [portailEnCours, setPortailEnCours] = useState(false)
+
+  /**
+   * Ouvre le portail de facturation Stripe (moyens de paiement, factures,
+   * résiliation). Sans clés Stripe : message explicite, aucune redirection.
+   */
+  async function ouvrirPortail() {
+    if (portailEnCours) return
+    setPortailEnCours(true)
+    try {
+      const res = await fetch("/api/pro/billing/portal", { method: "POST" })
+      const json = await res.json()
+      if (!json.ok) {
+        toast({ title: "Erreur", description: json.error, variant: "destructive" })
+        return
+      }
+      if (json.data?.url) {
+        window.location.href = json.data.url as string
+        return
+      }
+      toast({
+        title: "Mode démo : Stripe sera activé avec vos clés",
+        description:
+          "Le portail client (moyens de paiement, factures, résiliation) s'ouvrira ici dès que vos clés Stripe seront configurées.",
+      })
+    } catch {
+      toast({ title: "Erreur réseau", variant: "destructive" })
+    } finally {
+      setPortailEnCours(false)
+    }
+  }
 
   useEffect(() => {
     async function charger() {
@@ -176,10 +209,26 @@ export function BillingTab() {
             Gérez votre abonnement au Coach IA et consultez vos factures.
           </p>
         </div>
-        <Badge variant="secondary" className="gap-1.5 px-3 py-1.5 text-sm">
-          <CreditCard className="h-3.5 w-3.5" aria-hidden />
-          Plan actuel : {planActuelDef.name}
-        </Badge>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <Badge variant="secondary" className="gap-1.5 px-3 py-1.5 text-sm">
+            <CreditCard className="h-3.5 w-3.5" aria-hidden />
+            Plan actuel : {planActuelDef.name}
+          </Badge>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={ouvrirPortail}
+            disabled={portailEnCours}
+            aria-label="Gérer mon abonnement via le portail Stripe"
+          >
+            {portailEnCours ? (
+              <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <Settings2 className="mr-1.5 h-4 w-4" aria-hidden />
+            )}
+            Gérer mon abonnement
+          </Button>
+        </div>
       </div>
 
       {/* ---------- Grille comparative des plans (29 / 99 / 249 €) ---------- */}
