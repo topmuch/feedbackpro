@@ -174,6 +174,15 @@ export const settingsSchema = z.object({
   messageWhatsapp: z.string().trim().max(160, "Message trop long").nullable().optional(),
   frequenceRapport: frequenceRapportField,
   recompense: z.string().trim().max(120, "Récompense trop longue").nullable().optional(),
+  // Récompenses structurées (Session 3)
+  recompenseActive: z.boolean().optional(),
+  recompenseType: z.enum(["cafe", "reduction", "autre"], { message: "Type de récompense invalide" }).optional(),
+  recompenseCode: z
+    .string()
+    .trim()
+    .max(32, "Code promo trop long")
+    .transform((v) => v.toUpperCase())
+    .optional(),
   smsAlertes: z.boolean().optional(),
 })
 

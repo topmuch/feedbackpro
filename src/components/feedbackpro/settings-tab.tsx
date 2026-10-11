@@ -11,7 +11,7 @@
 // ============================================================
 
 import { useEffect, useRef, useState } from "react"
-import { Save, Loader2, Check, Image as ImageIcon, Upload, TriangleAlert, Sparkles, Trash2 } from "lucide-react"
+import { Save, Loader2, Check, Image as ImageIcon, Upload, TriangleAlert, Sparkles, Trash2, Gift } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -69,7 +69,9 @@ export function SettingsTab() {
   const [frequenceRapport, setFrequenceRapport] = useState("quotidien")
 
   // ---------- (d) Expérience client ----------
-  const [recompense, setRecompense] = useState("")
+  // La micro-récompense est désormais configurée dans l'onglet dédié
+  // « Récompenses » (/dashboard/recompenses — Session 3) : elle n'est plus
+  // éditable ici pour éviter deux sources de vérité.
   const [messageWhatsapp, setMessageWhatsapp] = useState("")
 
   const [saving, setSaving] = useState(false)
@@ -99,7 +101,6 @@ export function SettingsTab() {
     setEmail(pro.email || "")
     setSmsAlertes(pro.smsAlertes !== false)
     setFrequenceRapport(pro.frequenceRapport === "hebdomadaire" ? "hebdomadaire" : "quotidien")
-    setRecompense(pro.recompense || "")
     setMessageWhatsapp(pro.messageWhatsapp || "Envoyé via FeedbackPro ✨")
     setLogoActuel(pro.logoUrl || null)
   }, [pro])
@@ -119,7 +120,6 @@ export function SettingsTab() {
         email,
         messageWhatsapp,
         frequenceRapport,
-        recompense,
         smsAlertes,
       }
       if (logoModifie !== undefined) payload.logoUrl = logoModifie
@@ -307,18 +307,26 @@ export function SettingsTab() {
 
             {/* ================= (d) Expérience client ================= */}
             <div className="grid grid-cols-1 gap-4 pt-2">
-              <div className="space-y-1.5">
-                <Label htmlFor="st-recompense">Micro-récompense client</Label>
-                <Input
-                  id="st-recompense"
-                  value={recompense}
-                  onChange={(e) => setRecompense(e.target.value)}
-                  placeholder="☕ Café offert sur votre prochaine visite"
-                  className="h-10"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Affichée au client après son retour. Laisser vide pour désactiver.
-                </p>
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3.5">
+                <div className="min-w-0">
+                  <p className="text-sm font-medium">Micro-récompense client</p>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    Café offert, réduction, code promo… se configure désormais dans l&apos;onglet
+                    dédié « Récompenses ».
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0"
+                  onClick={() => {
+                    window.location.href = "/dashboard/recompenses"
+                  }}
+                >
+                  <Gift className="mr-1.5 h-4 w-4" aria-hidden />
+                  Configurer
+                </Button>
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="st-msg">Message WhatsApp personnalisé (fin de message)</Label>

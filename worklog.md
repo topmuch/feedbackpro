@@ -565,3 +565,36 @@ Stage Summary:
 - 5 bugs trouvés/corrigés/re-testés pendant l'E2E (transparence totale dans ce log)
 - Preuves : proofs/e2e-01..33.png + vérifications BDD citées + comptes admin@feedbackpro.fr/admin123 et demo@pizzeria.fr/demo1234 (3 zones)
 - Divergences documentées : auth maison équivalente Credentials (next-auth v4 incompatible Next 16), SQLite (migration Supabase documentée README), jsPDF (au lieu de @react-pdf/renderer), LLM z-ai-web-dev-sdk (au lieu d'OpenAI GPT-4o)
+
+---
+Task ID: S3 (Session 3)
+Agent: Z.ai Code (orchestrateur)
+Task: Session 3 — QR Codes par Zone (carte par zone, PNG/A4/étiquettes, Commander stickers) + Page de Scan Contextuelle (tags contextuels, WhatsApp spec, récompense avec code promo) + /dashboard/recompenses + GET /api/zone/[qrToken]
+
+Work Log:
+- Audit complet de l'existant (scan-view, qrcode-tab, APIs public/scan + retour, libs qr/pdf/whatsapp/twilio, pro-dashboard 9 onglets) : le flux de scan 3 étapes, POST /api/retour (Zod, ville IP, SMS ≤2★) et les PDF jsPDF existaient déjà ; écarts spec identifiés
+- constants.ts : tags CONTEXTUELS par type de zone (POSITIVE/NEGATIVE_TAGS_PROPRIETE/RESTAURATION/ACCUEIL avec ids stables), PRESETS_TAGS_ZONE + presetPourZone() (détection par mots-clés « Toilettes RDC » → Propre/Sale/Manque de papier/Odeur), catalogues étendus, TAG_CATEGORIES complétée (11 nouveaux ids)
+- zones-tab.tsx : auto-présélection des tags du preset détecté à la saisie du nom (création uniquement, flag tagsManuels), chips sur catalogue étendu, encart « ✨ Tags contextuels présélectionnés »
+- prisma/schema.prisma : Pro.recompenseActive (Boolean), recompenseType ("cafe"|"reduction"|"autre"), recompenseCode (String) → db:push OK (Prisma Client 6.19.2)
+- session.ts serializePro + store ProData : 3 nouveaux champs récompense exposés au frontend
+- API : POST/GET /api/pro/recompenses (validation zod, code en MAJUSCULES, 400 si active sans texte) ; gating récompense dans /api/public/scan + /api/retour (recompenseActive && recompense) ; /api/retour renvoie désormais codeRecompense (dévoilé seulement après envoi) ; messageWhatsapp exposé côté scan ; GET /api/zone/[qrToken] (route dynamique publique, contrat = POST /api/public/scan) ; GET /api/pro/qrcode?taille=apercu → vignette 320px noyau nearest (~5 Ko vs 8 Ko 1000px)
+- qrcode-tab.tsx réécrit : UNE CARTE PAR ZONE (grille responsive sm:2/xl:3) — aperçu QR vignette lazy par carte, badge nbRetours + score moyen (⭐/5), copie /r/<token>, 4 actions : PNG 1000×1000+logo (fetch à la demande), PDF A4 « VOTRE AVIS COMPTE » avec sous-titre ADAPTÉ À LA ZONE (sousTitreZone() dans lib/pdf.ts : toilettes → « L'entretien de cet espace est-il à la hauteur ? »), planche 20 étiquettes 5×5 cm, « Commander stickers » → dialogue (catalogue SUPPORTS.STICKERS_50 29 €, adresse préremplie du profil, POST /api/pro/commandes {typeSupport, adresseLivraison, zoneId})
+- pro-dashboard.tsx : 10e onglet « Récompenses » (Gift), slug canonique /dashboard/qr-codes (alias legacy qr-code conservé), TAB_TO_SLUG mis à jour
+- recompenses-tab.tsx (nouveau) : Switch activer/désactiver, Select type (café/réduction -X%/autre), % → texte auto-composé (input verrouillé en mode réduction), code promo, aperçu LIVE 2 panneaux (teaser étape 3 SANS code + écran de remerciement AVEC puce code pointillée), POST /api/pro/recompenses + updatePro
+- settings-tab.tsx : champ récompense retiré (source unique = onglet Récompenses), carte lien « Configurer » → /dashboard/recompenses ; recompense retiré du payload PUT settings (plus d'écrasement accidentel)
+- scan-view.tsx : titres spec exacts (« Comment évaluez-vous {zone} ? » / « 🎉 Super ! Qu'avez-vous particulièrement apprécié ? » / « 😔 Nous sommes désolés. Qu'est-ce qui n'a pas été ? »), FOND CONTEXTUEL de la carte (green-50 / orange-50 à l'étape 2), message WhatsApp via lib partagée buildWhatsAppMessage (format spec : 🎉/⚠️ · 📍 Établissement - Zone · ⭐ Note · 📅 Date+heure · 🏷️ Tags émojis · 👤 · 💬 · pied messageWhatsapp), teaser « Petite attention offerte » à l'étape 3 (SANS code), puce code promo dévoilée à l'écran de succès (Ticket, bordure pointillée)
+- lib/whatsapp.ts : format 📍 aligné sur la spec (« {établissement} - {zone} »)
+- seed.ts : 3 zones en tags contextuels (Accueil→accueil_*, Salle→plat_excellent/service_lent…, Toilettes RDC→propre/sale/manque_papier/odeur_*) + demoPro récompenseActive=true/type cafe/code CAFE-OFFERT ; db:seed OK (118 retours, 9 zones)
+- Décision documentée : jsPDF conservé (@react-pdf/renderer non introduit — même livrable PDF, dépendance et réécriture évitées)
+
+Tests + preuves (proofs/39 à 52) :
+- curl : GET /api/pro/zones (stats + tags contextuels), GET /api/zone/<token> (récompense + tags), QR aperçu 5 Ko / complet 8 Ko, POST /api/retour 5★ (recompense + codeRecompense CAFE-OFFERT), 1★ (alerte 🚨 en BDD canal SMS + « 📱 SMS simulé » dans dev.log), GET/POST /api/pro/recompenses (round-trip café→réduction→café, 400 sans texte), POST /api/pro/commandes STICKERS_50 29 € zoneId lié, POST /api/public/scan (compat)
+- Agent Browser E2E : login demo@pizzeria.fr → /dashboard/qr-codes (3 cartes : Accueil 18 retours 3.8/5, Salle 37 retours 4.0/5, Toilettes 11 retours 3.0/5) → dialogue Commander (adresse préremplie) → commande confirmée + vérif BDD → /dashboard/recompenses (toggle, type réduction -15% + code BIENVENUE15 persistés en BDD, toast, aperçu live, restauration café) → /r/<token> iPhone 16 : étape 1 titre spec, 5★ → étape 2 fond vert + chips ✨Propre/🧻Bien approvisionné/🌸Odeur agréable → étape 3 teaser + bouton WhatsApp géant → succès avec puce CAFE-OFFERT ; 1★ → fond orange + chips 🟫Sale/🧻Manque de papier/🤢Odeur désagréable → onglet WhatsApp intercepté : message EXACTEMENT au format spec → alerte + retour en BDD (122 retours)
+- Téléchargements : clics PNG/PDF A4/PDF étiquettes → 3 GET /api/pro/qrcode 1000px 200 OK, zéro erreur console
+- Alias /dashboard/qr-code OK ; middleware : /dashboard/qr-codes sans cookie → /login?next=%2Fdashboard%2Fqr-codes ; mobile 393px sans débordement horizontal
+- Qualité : tsc --noEmit 0 erreur (src), eslint 0 erreur/0 warning, dev.log sans erreur runtime
+
+Stage Summary:
+- Session 3 livrée intégralement : QR par ZONE (cartes + exports + commande stickers), scan contextuel (tags par zone, couleurs adaptatives, WhatsApp format spec), récompenses configurables avec code promo dévoilé après envoi
+- Contrats nouveaux : GET /api/zone/[qrToken], GET/POST /api/pro/recompenses, ?taille=apercu, codeRecompense dans POST /api/retour, champs Pro.recompense{Active,Type,Code}
+- Comptes inchangés : admin@feedbackpro.fr/admin123 · demo@pizzeria.fr/demo1234 (récompense café + code CAFE-OFFERT active)

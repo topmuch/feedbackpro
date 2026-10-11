@@ -53,7 +53,10 @@ model Pro {
   logoUrl           String?
   plan              String    @default("STARTER") // STARTER (29€) | PRO (99€) | ENTERPRISE (249€)
   frequenceRapport  String    @default("quotidien") // quotidien | hebdomadaire (rapports IA)
-  recompense        String? // Micro-récompense affichée au client après son retour, ex: "☕ Café offert"
+  recompense        String? // Texte de la micro-récompense affiché au client (ex: "☕ Café offert sur votre prochaine visite")
+  recompenseActive  Boolean @default(false) // Toggle : récompense activée ou non (Session 3)
+  recompenseType    String  @default("cafe") // cafe | reduction | autre (Session 3)
+  recompenseCode    String  @default("") // Code promo communiqué au client après son retour (Session 3)
   messageWhatsapp   String? // Personnalisation du pied du message WhatsApp
   onboardingDone    Boolean   @default(false)
   suspendu          Boolean   @default(false) // Commerçant suspendu par le superadmin

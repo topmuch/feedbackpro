@@ -20,13 +20,21 @@ import {
   AlertCircle,
   ArrowLeft,
   Check,
+  Gift,
   Loader2,
   MessageCircle,
   ShieldCheck,
   Star,
+  Ticket,
   X,
 } from "lucide-react"
-import { ALL_TAGS, NEGATIVE_TAGS, POSITIVE_TAGS, type TagDef } from "@/lib/constants"
+import {
+  ALL_TAGS,
+  NEGATIVE_TAGS_ETENDUS,
+  POSITIVE_TAGS_ETENDUS,
+  type TagDef,
+} from "@/lib/constants"
+import { buildWhatsAppMessage } from "@/lib/whatsapp"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -45,6 +53,8 @@ type ScanData = {
     // Non listé dans le contrat minimal mais indispensable pour le bouton WhatsApp :
     // s'il est absent, le bouton WhatsApp est masqué (uniquement « Terminer »).
     whatsapp?: string | null
+    // Signature personnalisée du pied du message WhatsApp (optionnel)
+    messageWhatsapp?: string | null
   }
   tagsPositifs: string[]
   tagsNegatifs: string[]
@@ -81,39 +91,14 @@ const variantesEtape = {
 // On cherche d'abord dans la liste correspondant au contexte (positif/négatif),
 // puis dans les deux listes, et en dernier recours on affiche l'id brut.
 function definitionTag(id: string, positif: boolean): TagDef {
-  const liste = positif ? POSITIVE_TAGS : NEGATIVE_TAGS
+  const liste = positif ? POSITIVE_TAGS_ETENDUS : NEGATIVE_TAGS_ETENDUS
   return (
     liste.find((t) => t.id === id) ?? ALL_TAGS.find((t) => t.id === id) ?? { id, label: id, emoji: "🏷️" }
   )
 }
 
-// Message WhatsApp construit côté client : le gérant le reçoit en direct
-function construireMessageWhatsApp(args: {
-  positif: boolean
-  nomZone: string
-  note: number
-  tags: string[]
-  personnel?: string | null
-  commentaire?: string | null
-}): string {
-  const lignes = [
-    args.positif ? "🎉 RETOUR POSITIF" : "⚠️ RÉCLAMATION",
-    `📍 Zone : ${args.nomZone}`,
-    `⭐ Note : ${args.note}/5`,
-  ]
-  if (args.tags.length > 0) {
-    const labels = args.tags.map((id) => {
-      const def = definitionTag(id, args.positif)
-      return `${def.emoji} ${def.label}`
-    })
-    lignes.push(`🏷️ ${labels.join(", ")}`)
-  }
-  if (args.personnel) lignes.push(`👤 Personnel : ${args.personnel}`)
-  if (args.commentaire) lignes.push(`💬 ${args.commentaire}`)
-  lignes.push("")
-  lignes.push("Envoyé via FeedbackPro ✨")
-  return lignes.join("\n")
-}
+// Message WhatsApp : construit par la lib partagée (format spec Session 3 :
+// 📍 Établissement - Zone · ⭐ Note · 📅 Date+heure · 🏷️ Tags · 👤 · 💬 · pied)
 
 // ---------- Écran de chargement : skeleton + spinner léger ----------
 
@@ -271,6 +256,8 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
   const [dernierCanal, setDernierCanal] = useState<CanalEnvoi>("whatsapp")
   const [erreurEnvoi, setErreurEnvoi] = useState<string | null>(null)
   const [recompenseGagnee, setRecompenseGagnee] = useState<string | null>(null)
+  // Code promo dévoilé sur l'écran de remerciement (Session 3)
+  const [codeRecompense, setCodeRecompense] = useState<string | null>(null)
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
@@ -310,6 +297,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
       setPersonnel("")
       setCommentaire("")
       setRecompenseGagnee(null)
+      setCodeRecompense(null)
       setSens(1)
       setPhase("step1")
     } catch (e) {
@@ -409,17 +397,30 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
       if (typeof json.data?.recompense === "string" && json.data.recompense) {
         setRecompenseGagnee(json.data.recompense as string)
       }
+      // Code promo dévoilé APRÈS l'envoi effectif (jamais avant — Session 3)
+      if (typeof json.data?.codeRecompense === "string" && json.data.codeRecompense) {
+        setCodeRecompense(json.data.codeRecompense as string)
+      }
 
       // Ouvre WhatsApp avec le message pré-rempli (uniquement si un numéro est configuré)
       if (canal === "whatsapp" && numero) {
-        const message = construireMessageWhatsApp({
-          positif: estPositif,
-          nomZone: scanData.zone.nom,
-          note,
-          tags,
-          personnel: personnel.trim() || null,
-          commentaire: commentaire.trim() || null,
-        })
+        // Message structuré selon la spec (lib partagée) :
+        // 🎉/⚠️ · 📍 Établissement - Zone · ⭐ Note · 📅 Date+heure ·
+        // 🏷️ Tags (avec émojis) · 👤 Personnel · 💬 Détails · pied FeedbackPro
+        const message = buildWhatsAppMessage(
+          {
+            nomEtablissement: scanData.pro.nomEtablissement,
+            whatsapp: numero,
+            messageWhatsapp: scanData.pro.messageWhatsapp ?? null,
+          },
+          {
+            note,
+            tags,
+            commentaire: commentaire.trim() || null,
+            personnelMentionne: personnel.trim() || null,
+            zoneNom: scanData.zone.nom,
+          }
+        )
         // api.whatsapp.com/send plutôt que wa.me : wa.me corrompt les emojis
         // (hors BMP) lors de sa redirection — vérifié par test A/B
         const lien = `https://api.whatsapp.com/send?phone=${numero}&text=${encodeURIComponent(message)}`
@@ -450,7 +451,16 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
   return (
     <div className="flex min-h-dvh items-center justify-center overflow-x-hidden bg-stone-100 p-3 sm:p-6">
       <div className="w-full max-w-md">
-        <div className="relative overflow-hidden rounded-3xl border border-stone-200 bg-white shadow-lg">
+        <div
+          className={cn(
+            "relative overflow-hidden rounded-3xl border shadow-lg transition-colors duration-300",
+            // Fond contextuel de l'étape 2 (spec Session 3) :
+            // vert clair si 4-5★ · rouge/orange clair si 1-3★
+            phase === "step2" && estPositif && "border-green-200 bg-green-50",
+            phase === "step2" && !estPositif && "border-orange-200 bg-orange-50",
+            phase !== "step2" && "border-stone-200 bg-white"
+          )}
+        >
           {/* Barre de progression fine : 3 segments */}
           {phase !== "error" && (
             <div className="flex gap-1.5 px-6 pt-5 sm:px-8" aria-hidden>
@@ -539,8 +549,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                 {phase === "step1" && scanData && (
                   <div className="flex flex-col items-center text-center">
                     <h1 className="text-balance text-xl font-bold leading-snug text-stone-900 sm:text-2xl">
-                      Comment s&apos;est passée votre expérience dans{" "}
-                      <span className="text-primary">{scanData.zone.nom}</span>&nbsp;?
+                      Comment évaluez-vous <span className="text-primary">{scanData.zone.nom}</span>&nbsp;?
                     </h1>
 
                     {/* 5 étoiles très grandes (hauteur 68 px ≥ 60 px de zone tactile).
@@ -625,8 +634,8 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                   <div>
                     <h1 className="text-balance text-xl font-bold leading-snug text-stone-900 sm:text-2xl">
                       {estPositif
-                        ? "Qu'est-ce qui a fait la différence\u00a0?"
-                        : "Qu'est-ce qui n'a pas été à la hauteur\u00a0?"}
+                        ? "🎉 Super ! Qu'avez-vous particulièrement apprécié ?"
+                        : "😔 Nous sommes désolés. Qu'est-ce qui n'a pas été ?"}
                     </h1>
                     <p className="mt-1 text-sm text-muted-foreground">
                       Sélectionnez tout ce qui s&apos;applique (optionnel)
@@ -758,6 +767,20 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                       </div>
                     )}
 
+                    {/* Teaser micro-récompense (Session 3) : montrée AVANT l'envoi
+                        SANS le code promo, qui n'est dévoilé qu'à l'écran suivant */}
+                    {scanData.pro.recompense && (
+                      <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-left">
+                        <Gift className="mt-0.5 size-5 shrink-0 text-amber-600" aria-hidden />
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-amber-900">Petite attention offerte 🎁</p>
+                          <p className="mt-0.5 text-xs leading-relaxed text-amber-800">
+                            {scanData.pro.recompense} — dévoilée juste après l&apos;envoi&nbsp;!
+                          </p>
+                        </div>
+                      </div>
+                    )}
+
                     <div className="mt-5 flex flex-col gap-2.5">
                       {/* Bouton GÉANT vert WhatsApp (masqué si aucun numéro configuré) */}
                       {aWhatsApp && (
@@ -839,7 +862,8 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                     </h1>
 
                     {recompenseFinale ? (
-                      /* Carte récompense mise en valeur (data.recompense ou pro.recompense) */
+                      /* Carte récompense mise en valeur (data.recompense ou pro.recompense)
+                         + CODE PROMO dévoilé dans une puce dédiée (Session 3) */
                       <motion.div
                         initial={{ opacity: 0, y: 12, scale: 0.96 }}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -849,6 +873,15 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                         <p className="text-balance text-lg font-bold leading-snug text-amber-900">
                           🎁 Votre récompense : {recompenseFinale}
                         </p>
+                        {codeRecompense && (
+                          <span
+                            className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg border-2 border-dashed border-amber-400 bg-white px-3 py-1.5 font-mono text-base font-bold tracking-wide text-amber-900"
+                            aria-label={`Votre code promo : ${codeRecompense}`}
+                          >
+                            <Ticket className="size-4" aria-hidden />
+                            {codeRecompense}
+                          </span>
+                        )}
                         <p className="mt-1.5 text-sm text-amber-800/90">
                           Montrez cet écran au personnel pour en profiter
                         </p>

@@ -173,8 +173,11 @@ export async function POST(req: NextRequest) {
         zone: { nom: zone.nom },
         employe: retour.employe?.nom ? { nom: retour.employe.nom } : null,
       },
-      // Micro-récompense affichée à l'écran de remerciement
-      recompense: pro.recompense ?? null,
+      // Micro-récompense affichée à l'écran de remerciement — uniquement si
+      // le commerçant l'a activée (Session 3) ; le code promo est transmis
+      // séparément pour être mis en valeur dans une puce dédiée.
+      recompense: pro.recompenseActive && pro.recompense ? pro.recompense : null,
+      codeRecompense: pro.recompenseActive ? pro.recompenseCode || null : null,
     })
   } catch (e) {
     console.error("retour error", e)

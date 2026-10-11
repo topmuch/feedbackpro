@@ -26,6 +26,10 @@ export type ProData = {
   frequenceRapport: string
   /** Micro-récompense affichée au client après son retour */
   recompense: string | null
+  /** Récompenses structurées (Session 3) : toggle, type et code promo */
+  recompenseActive?: boolean
+  recompenseType?: string
+  recompenseCode?: string
   messageWhatsapp: string | null
   onboardingDone: boolean
   suspendu: boolean

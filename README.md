@@ -17,8 +17,8 @@ Plans : **Starter 29 €/mois** · **Pro 99 €/mois** · **Enterprise 249 €/m
 
 | Rôle | Fonctionnalités |
 |---|---|
-| **Client Mystère** (sans compte) | Scan du QR d'une zone → note 1-5 ★ → tags de la zone → commentaire → micro-récompense affichée + partage WhatsApp optionnel |
-| **Établissement (PRO)** | **Coach IA** (rapport quotidien/hebdo, priorités du jour, historique des scores), vue d'ensemble (score global 30 j, évolution, taux d'interception), **zones** avec QR code par zone (PNG 1000 px + affiche A4 « VOTRE AVIS COMPTE » + planche d'étiquettes), retours filtrables + réponses + actions managériales, équipe (employés affectés aux zones + leaderboard gamifié), statistiques (courbe 30 j, tags, heatmap 7 j × 24 h, performance par zone), commandes de supports physiques, facturation (plans + Stripe), paramètres (logo, WhatsApp, récompense, fréquence des rapports) |
+| **Client Mystère** (sans compte) | Scan du QR d'une zone → « Comment évaluez-vous [zone] ? » → note 1-5 ★ (étoiles 68 px) → **tags contextuels de la zone** (fond vert si 4-5★, orange si 1-3★) → commentaire → **bouton WhatsApp géant** (message structuré établissement + zone + date) → **écran de remerciement avec code promo** |
+| **Établissement (PRO)** | **Coach IA** (rapport quotidien/hebdo, priorités du jour, historique des scores), vue d'ensemble (score global 30 j, évolution, taux d'interception), **zones** avec **QR code par zone** (carte dédiée : aperçu, nb de retours, score moyen, **PNG 1000×1000 avec logo**, **PDF A4 « VOTRE AVIS COMPTE »** au sous-titre adapté à la zone, **planche de 20 étiquettes 5×5 cm**, **commande de stickers** intégrée) + **page Récompenses** (toggle, type café/réduction/autre, code promo dévoilé après l'envoi, aperçu client en direct), retours filtrables + réponses + actions managériales, équipe (employés affectés aux zones + leaderboard gamifié), statistiques (courbe 30 j, tags, heatmap 7 j × 24 h, performance par zone), commandes de supports physiques, facturation (plans + Stripe), paramètres (logo, WhatsApp, récompense, fréquence des rapports) |
 | **Superadmin** | Vue plateforme (MRR 29/99/249, Pros actifs, commandes en cours), gestion des établissements (plan, suspension, suppression), workflow des commandes (À imprimer → Imprimé → Expédié + n° de suivi → Livré) + bon d'impression PDF, revenus, paramètres plateforme |
 | **Plateforme** | Emails transactionnels (bienvenue, commande, alerte, récap hebdo, **rapport IA**), SMS d'alerte (note ≤ 2★), **crons** (rapports quotidiens 7h UTC + récap hebdo lundi 8h UTC), pages légales RGPD |
 
@@ -201,7 +201,9 @@ Toutes les réponses suivent le format `{ ok: true, data }` ou `{ ok: false, err
 | `GET /api/pro/stats` | PRO | `courbe30j`, `parTag`, `parHeure` (7 j × 24 h), `parZone`, `kpis` |
 | `GET /api/pro/qrcode?zoneId=` | PRO | `{ zone, urlScan: `${APP_URL}/r/<qrToken>`, pngDataUrl }` — PNG 1000×1000 avec logo composé (sharp) |
 | `GET/POST /api/pro/commandes` | PRO | Commandes de supports (quantité/prix du catalogue + **email de confirmation**) |
-| `PUT /api/pro/settings` | PRO | Paramètres établissement (logo, WhatsApp, récompense, fréquence rapports…) |
+| `PUT /api/pro/settings` | PRO | Paramètres établissement (logo, WhatsApp, fréquence rapports…) |
+| `GET/POST /api/pro/recompenses` | PRO | Micro-récompense client : toggle, type (café/réduction/autre), code promo, texte affiché |
+| `GET /api/zone/[qrToken]` | public | Infos de la zone scannée : nom, établissement, tags contextuels, récompense (teaser) |
 | `DELETE /api/pro/account` | PRO | Suppression définitive (cascade) + déconnexion |
 | `POST /api/pro/plan` | PRO | Changement de plan (paiement simulé en mode démo) |
 | `GET/PATCH /api/pro/alertes` | PRO | Alertes temps réel (marquer lu / tout marquer) |

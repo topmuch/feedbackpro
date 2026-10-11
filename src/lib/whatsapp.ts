@@ -27,10 +27,11 @@ export function formatDateFr(d: Date): string {
 }
 
 /**
- * Construit le message WhatsApp structuré :
+ * Construit le message WhatsApp structuré (format spec Session 3) :
  * 🎉 RETOUR POSITIF / ⚠️ RÉCLAMATION
- * 📍 Zone (nom)
+ * 📍 Établissement - Zone
  * ⭐ Note : X/5
+ * 📅 Date + heure
  * 🏷️ Tags · 👤 Personnel · 💬 Détails
  * Pied : messageWhatsapp personnalisé ou mention FeedbackPro ✨
  */
@@ -43,7 +44,7 @@ export function buildWhatsAppMessage(
   const lignes: string[] = []
 
   lignes.push(estPositif ? "🎉 RETOUR POSITIF" : "⚠️ RÉCLAMATION")
-  lignes.push(`📍 Zone : ${retour.zoneNom || "Général"} — ${pro.nomEtablissement}`)
+  lignes.push(`📍 ${pro.nomEtablissement} - ${retour.zoneNom || "Général"}`)
   lignes.push(`⭐ Note : ${retour.note}/5`)
   lignes.push(`📅 ${formatDateFr(new Date())}`)
 

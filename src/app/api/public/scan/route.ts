@@ -31,10 +31,14 @@ export async function POST(req: NextRequest) {
       pro: {
         nomEtablissement: zone.pro.nomEtablissement,
         logoUrl: zone.pro.logoUrl,
-        recompense: zone.pro.recompense,
+        // Récompense affichée en AVANCEMENT (teaser de l'étape 3) — uniquement
+        // si le commerçant l'a activée (Session 3)
+        recompense: zone.pro.recompenseActive && zone.pro.recompense ? zone.pro.recompense : null,
         // Numéro utilisé par la page de scan pour construire le lien
         // « Envoyer via WhatsApp » (canalChoisi = "whatsapp")
         whatsapp: zone.pro.whatsapp,
+        // Signature personnalisée du pied de message WhatsApp du Pro
+        messageWhatsapp: zone.pro.messageWhatsapp,
       },
       tagsPositifs: parseJsonArray(zone.tagsPositifs),
       tagsNegatifs: parseJsonArray(zone.tagsNegatifs),

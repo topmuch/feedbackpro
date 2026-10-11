@@ -1,9 +1,10 @@
 // ============================================================
 // API Pro - QR Code d'une ZONE
-// GET /api/pro/qrcode?zoneId=xxx
+// GET /api/pro/qrcode?zoneId=xxx[&taille=apercu]
 // → { zone, urlScan: `${APP_URL}/r/<qrToken>`, pngDataUrl }
-// PNG 1000×1000, avec le logo de l'établissement composé au centre
-// (sharp côté serveur ; tolérance d'erreur H du QR).
+// PNG 1000×1000 (ou 320×320 si taille=apercu, pour les vignettes des
+// cartes de l'onglet QR Codes), avec le logo de l'établissement composé
+// au centre (sharp côté serveur ; tolérance d'erreur H du QR).
 // ============================================================
 
 import { NextRequest } from "next/server"
@@ -15,6 +16,7 @@ import { requirePro, unauthorized } from "@/lib/guards"
 import { serialiserZone } from "@/lib/serialise"
 
 const TAILLE_QR = 1000
+const TAILLE_APERCU = 320 // vignette pour les cartes de l'onglet QR Codes
 const BOITE_LOGO = 240 // ~24 % de la surface : marge sous la limite de 30 %
 const MARGE_BLANCHE = 14
 
@@ -98,6 +100,22 @@ export async function GET(req: NextRequest) {
       if (logo) pngDataUrl = await composerAvecLogo(dataUrl, logo)
     } catch (e) {
       console.warn("Composition du logo sur le QR impossible (QR livré sans logo)", e)
+    }
+
+    // Vignette 320×320 pour les aperçus de cartes (Session 3) :
+    // noyau "nearest" → bords de modules nets (pas d'anti-aliasing),
+    // PNG bicolore léger (~8 Ko) et scannable même en petit
+    if (req.nextUrl.searchParams.get("taille") === "apercu") {
+      try {
+        const base64 = pngDataUrl.split(",")[1] ?? ""
+        const petit = await sharp(Buffer.from(base64, "base64"))
+          .resize(TAILLE_APERCU, TAILLE_APERCU, { kernel: "nearest" })
+          .png()
+          .toBuffer()
+        pngDataUrl = `data:image/png;base64,${petit.toString("base64")}`
+      } catch (e) {
+        console.warn("Redimensionnement de l'aperçu impossible (QR livré en 1000px)", e)
+      }
     }
 
     return ok({ zone: serialiserZone(zone), urlScan, pngDataUrl })

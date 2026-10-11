@@ -36,7 +36,15 @@ import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/app-store"
 import { Stars } from "@/components/feedbackpro/shared"
 import { cn } from "@/lib/utils"
-import { NEGATIVE_TAGS, POSITIVE_TAGS, PLANS, PLAN_LIMITS, type PlanId, type TagDef } from "@/lib/constants"
+import {
+  NEGATIVE_TAGS_ETENDUS,
+  POSITIVE_TAGS_ETENDUS,
+  PLANS,
+  PLAN_LIMITS,
+  presetPourZone,
+  type PlanId,
+  type TagDef,
+} from "@/lib/constants"
 
 // ---------- Types (contrat GET/POST/PATCH/DELETE /api/pro/zones) ----------
 
@@ -75,6 +83,10 @@ export function ZonesTab({ onOpenQr }: { onOpenQr: (zoneId: string) => void }) {
   const [description, setDescription] = useState("")
   const [tagsPos, setTagsPos] = useState<string[]>([])
   const [tagsNeg, setTagsNeg] = useState<string[]>([])
+  // Les tags contextuels sont suggérés automatiquement selon le nom de la zone
+  // (ex. « Toilettes RDC » → Propre / Sale / Manque de papier / Odeur) tant que
+  // l'utilisateur n'a pas fait sa propre sélection.
+  const [tagsManuels, setTagsManuels] = useState(false)
   const [saving, setSaving] = useState(false)
 
   // Suppression
@@ -112,6 +124,7 @@ export function ZonesTab({ onOpenQr }: { onOpenQr: (zoneId: string) => void }) {
     setDescription("")
     setTagsPos([])
     setTagsNeg([])
+    setTagsManuels(false)
     setDialogOuvert(true)
   }
 
@@ -121,6 +134,8 @@ export function ZonesTab({ onOpenQr }: { onOpenQr: (zoneId: string) => void }) {
     setDescription(zone.description ?? "")
     setTagsPos(zone.tagsPositifs ?? [])
     setTagsNeg(zone.tagsNegatifs ?? [])
+    // En édition : on ne touche JAMAIS à la sélection existante automatiquement
+    setTagsManuels(true)
     setDialogOuvert(true)
   }
 
@@ -130,7 +145,22 @@ export function ZonesTab({ onOpenQr }: { onOpenQr: (zoneId: string) => void }) {
     setZoneEnEdition(null)
   }
 
+  /**
+   * Saisie du nom : dès qu'un contexte ressort (« Toilettes », « Salle »,
+   * « Accueil »…), les tags contextuels correspondants sont présélectionnés
+   * (uniquement en création et tant que l'utilisateur n'a rien coché lui-même).
+   */
+  function changerNom(valeur: string) {
+    setNom(valeur)
+    if (!zoneEnEdition && !tagsManuels) {
+      const preset = presetPourZone(valeur)
+      setTagsPos(preset ? preset.positifs.map((t) => t.id) : [])
+      setTagsNeg(preset ? preset.negatifs.map((t) => t.id) : [])
+    }
+  }
+
   function basculerTag(liste: string[], setListe: (v: string[]) => void, id: string) {
+    setTagsManuels(true)
     setListe(liste.includes(id) ? liste.filter((t) => t !== id) : [...liste, id])
   }
 
@@ -338,10 +368,16 @@ export function ZonesTab({ onOpenQr }: { onOpenQr: (zoneId: string) => void }) {
               <Input
                 id="zone-nom"
                 value={nom}
-                onChange={(e) => setNom(e.target.value)}
-                placeholder="ex. Accueil"
+                onChange={(e) => changerNom(e.target.value)}
+                placeholder="ex. Accueil, Toilettes RDC, Restaurant…"
                 maxLength={60}
               />
+              {!zoneEnEdition && !tagsManuels && presetPourZone(nom) && (
+                <p className="text-xs font-medium text-primary">
+                  ✨ Tags contextuels « {presetPourZone(nom)?.label} » présélectionnés — ajustez-les ci-dessous
+                  si besoin.
+                </p>
+              )}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="zone-description">Description (optionnel)</Label>
@@ -355,14 +391,14 @@ export function ZonesTab({ onOpenQr }: { onOpenQr: (zoneId: string) => void }) {
             </div>
             <ChipsTags
               titre="Tags positifs proposés aux clients"
-              defs={POSITIVE_TAGS}
+              defs={POSITIVE_TAGS_ETENDUS}
               selection={tagsPos}
               onToggle={(id) => basculerTag(tagsPos, setTagsPos, id)}
               variante="positif"
             />
             <ChipsTags
               titre="Tags négatifs proposés aux clients"
-              defs={NEGATIVE_TAGS}
+              defs={NEGATIVE_TAGS_ETENDUS}
               selection={tagsNeg}
               onToggle={(id) => basculerTag(tagsNeg, setTagsNeg, id)}
               variante="negatif"

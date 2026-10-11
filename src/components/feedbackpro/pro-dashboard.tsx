@@ -20,6 +20,7 @@ import {
   ClipboardCheck,
   CreditCard,
   Settings,
+  Gift,
   Menu,
   LogOut,
   AlertTriangle,
@@ -40,6 +41,7 @@ import { QrcodeTab } from "@/components/feedbackpro/qrcode-tab"
 import { StatsTab } from "@/components/feedbackpro/stats-tab"
 import { ActionsTab } from "@/components/feedbackpro/actions-tab"
 import { BillingTab } from "@/components/feedbackpro/billing-tab"
+import { RecompensesTab } from "@/components/feedbackpro/recompenses-tab"
 import { SettingsTab } from "@/components/feedbackpro/settings-tab"
 
 type Onglet =
@@ -48,12 +50,13 @@ type Onglet =
   | "team"
   | "zones"
   | "qrcode"
+  | "recompenses"
   | "stats"
   | "actions"
   | "billing"
   | "settings"
 
-/** Slug URL → onglet interne (ex. /dashboard/qr-code → "qrcode") */
+/** Slug URL → onglet interne (ex. /dashboard/qr-codes → "qrcode") */
 const SLUG_TO_TAB: Record<string, Onglet> = {
   coach: "coach",
   overview: "coach", // slug legacy (ancienne « Vue d'ensemble ») → Coach IA
@@ -61,7 +64,9 @@ const SLUG_TO_TAB: Record<string, Onglet> = {
   equipe: "team",
   team: "team",
   zones: "zones",
-  "qr-code": "qrcode",
+  "qr-codes": "qrcode", // slug canonique Session 3 (pluriel)
+  "qr-code": "qrcode", // alias legacy (singulier, QR déjà imprimés/bookmarks)
+  recompenses: "recompenses",
   stats: "stats",
   actions: "actions",
   billing: "billing",
@@ -69,13 +74,14 @@ const SLUG_TO_TAB: Record<string, Onglet> = {
   settings: "settings", // alias anglophone du slug canonique « parametres »
 }
 
-/** Onglet interne → slug URL (ex. "qrcode" → /dashboard/qr-code) */
+/** Onglet interne → slug URL (ex. "qrcode" → /dashboard/qr-codes) */
 const TAB_TO_SLUG: Record<Onglet, string> = {
   coach: "coach",
   retours: "retours",
   team: "equipe",
   zones: "zones",
-  qrcode: "qr-code",
+  qrcode: "qr-codes",
+  recompenses: "recompenses",
   stats: "stats",
   actions: "actions",
   billing: "billing",
@@ -88,6 +94,7 @@ const ONGLETS: { id: Onglet; label: string; icon: React.ComponentType<{ classNam
   { id: "team", label: "Équipe", icon: Users },
   { id: "zones", label: "Zones", icon: MapPin },
   { id: "qrcode", label: "QR Codes", icon: QrCode },
+  { id: "recompenses", label: "Récompenses", icon: Gift },
   { id: "stats", label: "Statistiques", icon: BarChart3 },
   { id: "actions", label: "Actions", icon: ClipboardCheck },
   { id: "billing", label: "Facturation", icon: CreditCard },
@@ -288,6 +295,7 @@ export function ProDashboard() {
         {onglet === "team" && <TeamTab />}
         {onglet === "zones" && <ZonesTab onOpenQr={ouvrirQr} />}
         {onglet === "qrcode" && <QrcodeTab zoneInitiale={zonePourQr ?? undefined} />}
+        {onglet === "recompenses" && <RecompensesTab />}
         {onglet === "stats" && <StatsTab />}
         {onglet === "actions" && <ActionsTab />}
         {onglet === "billing" && <BillingTab />}

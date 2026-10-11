@@ -1,31 +1,59 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Onglet « QR Codes » du dashboard Pro (multi-zones)
-// Un QR par zone : aperçu, lien de scan, PNG 1000×1000,
-// affiche A4 et planche de 20 étiquettes 5×5 cm (jsPDF local)
+// FeedbackPro - Onglet « Mes QR Codes » du dashboard Pro (Session 3)
+// UNE CARTE PAR ZONE : aperçu du QR, nombre de retours, score moyen
+// et 4 actions : PNG 1000×1000 · PDF A4 (sous-titre adapté à la zone)
+// · PDF planche de 20 étiquettes 5×5 cm · Commander stickers (50 u.)
 // ============================================================
 
-import { useEffect, useState } from "react"
-import { QrCode, Download, FileText, Printer, Copy, Check, MapPin } from "lucide-react"
+import { useEffect, useRef, useState } from "react"
+import {
+  QrCode,
+  Download,
+  FileText,
+  Printer,
+  Copy,
+  Check,
+  MapPin,
+  MessageSquare,
+  ShoppingCart,
+  Loader2,
+} from "lucide-react"
 import { jsPDF } from "jspdf"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/app-store"
 import { logoVersDataUrl } from "@/lib/qr"
+import { sousTitreZone } from "@/lib/pdf"
+import { SUPPORTS } from "@/lib/constants"
+import { cn } from "@/lib/utils"
 
-// ---------- Types (contrats GET /api/pro/zones + GET /api/pro/qrcode?zoneId=) ----------
+// ---------- Types (contrats GET /api/pro/zones + GET /api/pro/qrcode) ----------
 
-type ZoneLegere = { id: string; nom: string; qrToken?: string }
-
-type QrInfo = {
-  zone?: { id: string; nom: string; qrToken: string } | null
-  urlScan: string
-  pngDataUrl: string
+type ZoneQr = {
+  id: string
+  nom: string
+  description?: string | null
+  qrToken: string
+  nbRetours?: number
+  noteMoyenne?: number | null
 }
+
+type Telechargement = "png" | "a4" | "etiquettes" | null
 
 /** Lit un champ du ProData en tolérant les évolutions de schéma */
 function champPro(pro: unknown, cles: string[], defaut = ""): string {
@@ -39,15 +67,15 @@ function champPro(pro: unknown, cles: string[], defaut = ""): string {
 
 /** Slug de fichier : minuscules sans accents ni caractères spéciaux */
 function slugifier(s: string): string {
-  return s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "") || "zone"
+  return (
+    s
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "") || "zone"
+  )
 }
-
-// ---------- Exports PDF (logique éprouvée de l'ancien onglet, adaptée multi-zones) ----------
 
 /** Télécharge une image PNG (dataURL) sous forme de fichier */
 function telechargerPng(dataUrl: string, nomFichier: string) {
@@ -60,8 +88,10 @@ function telechargerPng(dataUrl: string, nomFichier: string) {
 }
 
 /**
- * Affiche A4 « VOTRE AVIS COMPTE » : double cadre bleu, sous-titre 15 secondes,
- * établissement + zone, QR 8×8 cm centré, logo du Pro (si présent), marque FeedbackPro.
+ * Affiche A4 « VOTRE AVIS COMPTE » (spec Session 3) : double cadre bleu,
+ * SOUS-TITRE ADAPTÉ AU CONTEXTE DE LA ZONE (ex. toilettes → « L'entretien de
+ * cet espace est-il à la hauteur ? »), QR 8×8 cm centré, logo du commerce,
+ * mention « Propulsé par FeedbackPro ».
  */
 function genererAffichePdf(
   qrDataUrl: string,
@@ -80,17 +110,17 @@ function genererAffichePdf(
   doc.setLineWidth(0.5)
   doc.rect(14, 14, W - 28, H - 28)
 
-  // Titre
+  // Titre (spec)
   doc.setFont("helvetica", "bold")
   doc.setFontSize(40)
   doc.setTextColor(37, 99, 235)
   doc.text("VOTRE AVIS COMPTE", W / 2, 52, { align: "center" })
 
-  // Sous-titre
+  // Sous-titre adapté à la zone (spec Session 3)
   doc.setFont("helvetica", "normal")
   doc.setFontSize(14)
   doc.setTextColor(80, 80, 80)
-  doc.text("Scannez pour évaluer votre expérience en 15 secondes", W / 2, 66, { align: "center" })
+  doc.text(sousTitreZone(nomZone), W / 2, 66, { align: "center" })
 
   // Établissement + zone concernée
   doc.setFont("helvetica", "bold")
@@ -120,7 +150,7 @@ function genererAffichePdf(
   doc.setTextColor(37, 99, 235)
   doc.text("Merci pour votre confiance !", W / 2, 224, { align: "center" })
 
-  // Logo du Pro en bas (si disponible, proportions conservées)
+  // Logo du commerce (si disponible, proportions conservées)
   if (logoDataUrl) {
     try {
       const props = doc.getImageProperties(logoDataUrl)
@@ -135,7 +165,7 @@ function genererAffichePdf(
     }
   }
 
-  // Marque discrète
+  // Marque discrète (spec)
   doc.setFont("helvetica", "normal")
   doc.setFontSize(9)
   doc.setTextColor(150, 150, 150)
@@ -206,24 +236,33 @@ export function QrcodeTab({ zoneInitiale }: { zoneInitiale?: string }) {
   const session = useAppStore((s) => s.session)
   const { toast } = useToast()
 
-  const [zones, setZones] = useState<ZoneLegere[]>([])
+  const [zones, setZones] = useState<ZoneQr[]>([])
   const [zonesLoading, setZonesLoading] = useState(true)
-  const [zoneId, setZoneId] = useState<string | undefined>(zoneInitiale)
-  const [qr, setQr] = useState<QrInfo | null>(null)
-  const [qrLoading, setQrLoading] = useState(true)
-  const [copied, setCopied] = useState(false)
-  const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null)
 
   const nomEtablissement = champPro(session?.pro, ["nomEtablissement", "nomCommerce"], "Mon établissement")
   const logoUrl = champPro(session?.pro, ["logoUrl"]) || null
+  const adressePro = champPro(session?.pro, ["adresse"])
+  const villePro = champPro(session?.pro, ["ville"])
 
-  // Zone effective : sélection courante, sinon première zone disponible
-  // (état dérivé — évite une resynchronisation par effet)
-  const zoneEffective = zoneId && zones.some((z) => z.id === zoneId) ? zoneId : zones[0]?.id
-  const nomZone =
-    qr?.zone?.nom ?? zones.find((z) => z.id === zoneEffective)?.nom ?? (zoneInitiale ? "zone" : "—")
+  // Logo normalisé (dataURL) pour l'affiche A4 — une seule fois pour toutes les cartes
+  const [logoDataUrl, setLogoDataUrl] = useState<string | null>(null)
 
-  // Zones disponibles (pour le sélecteur)
+  // Dialogue « Commander stickers » (une zone à la fois)
+  const [zoneCommande, setZoneCommande] = useState<ZoneQr | null>(null)
+
+  // Mise en évidence de la zone arrivée depuis l'onglet Zones (zoneInitiale)
+  const refZoneInitiale = useRef<HTMLDivElement | null>(null)
+
+  useEffect(() => {
+    let annule = false
+    logoVersDataUrl(logoUrl).then((l) => {
+      if (!annule) setLogoDataUrl(l)
+    })
+    return () => {
+      annule = true
+    }
+  }, [logoUrl])
+
   useEffect(() => {
     fetch("/api/pro/zones", { cache: "no-store" })
       .then((r) => r.json())
@@ -236,95 +275,30 @@ export function QrcodeTab({ zoneInitiale }: { zoneInitiale?: string }) {
       .finally(() => setZonesLoading(false))
   }, [toast])
 
-  // Logo normalisé (dataURL) pour l'affiche A4
+  // Zone présélectionnée (arrivée depuis l'onglet Zones) : défilement doux
   useEffect(() => {
-    let annule = false
-    logoVersDataUrl(logoUrl).then((l) => {
-      if (!annule) setLogoDataUrl(l)
-    })
-    return () => {
-      annule = true
-    }
-  }, [logoUrl])
-
-  // QR de la zone sélectionnée (le squelette s'affiche via qrLoading initial + reset au changement)
-  useEffect(() => {
-    if (!zoneEffective) return
-    let annule = false
-    fetch(`/api/pro/qrcode?zoneId=${encodeURIComponent(zoneEffective)}`, { cache: "no-store" })
-      .then((r) => r.json())
-      .then((j) => {
-        if (annule) return
-        if (j?.ok) setQr(j.data as QrInfo)
-        else toast({ title: "Erreur", description: j?.error || "Impossible de générer ce QR code", variant: "destructive" })
-      })
-      .catch(() => {
-        if (!annule)
-          toast({ title: "Erreur", description: "Impossible de générer le QR code", variant: "destructive" })
-      })
-      .finally(() => {
-        if (!annule) setQrLoading(false)
-      })
-    return () => {
-      annule = true
-    }
-  }, [zoneEffective, toast])
-
-  /** Changement de zone depuis le sélecteur (handler : setState autorisé ici) */
-  function changerZone(v: string) {
-    setQrLoading(true)
-    setQr(null)
-    setZoneId(v)
-  }
-
-  function copierLien() {
-    if (!qr?.urlScan) return
-    if (!navigator.clipboard) {
-      toast({ title: "Copie impossible", description: qr.urlScan, variant: "destructive" })
-      return
-    }
-    navigator.clipboard
-      .writeText(qr.urlScan)
-      .then(() => {
-        setCopied(true)
-        toast({ title: "Lien copié 🔗", description: qr.urlScan })
-        setTimeout(() => setCopied(false), 1500)
-      })
-      .catch(() => toast({ title: "Copie impossible", variant: "destructive" }))
-  }
-
-  const qrPret = !!qr?.pngDataUrl
+    if (!zoneInitiale || zonesLoading) return
+    refZoneInitiale.current?.scrollIntoView({ behavior: "smooth", block: "center" })
+  }, [zoneInitiale, zonesLoading])
 
   return (
     <div className="space-y-5">
-      {/* En-tête + sélecteur de zone */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">QR Codes de vos zones</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Un QR code par zone de contact — imprimez, affichez, collectez.
-          </p>
-        </div>
-        {zonesLoading ? (
-          <Skeleton className="h-9 w-full sm:w-72" />
-        ) : zones.length > 0 ? (
-          <Select value={zoneEffective} onValueChange={changerZone}>
-            <SelectTrigger className="w-full sm:w-72" aria-label="Choisir une zone">
-              <MapPin className="h-4 w-4 text-primary" aria-hidden />
-              <SelectValue placeholder="Choisir une zone" />
-            </SelectTrigger>
-            <SelectContent>
-              {zones.map((z) => (
-                <SelectItem key={z.id} value={z.id}>
-                  {z.nom}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        ) : null}
+      {/* En-tête */}
+      <div>
+        <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Mes QR Codes</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Un QR code par zone de contact — téléchargez, imprimez, collectez. Chaque QR ouvre un
+          formulaire adapté à <span className="font-medium text-foreground">cette</span> zone.
+        </p>
       </div>
 
-      {!zonesLoading && zones.length === 0 ? (
+      {zonesLoading ? (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-[26rem] rounded-xl" />
+          ))}
+        </div>
+      ) : zones.length === 0 ? (
         // Empty state : aucune zone
         <Card>
           <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
@@ -333,116 +307,416 @@ export function QrcodeTab({ zoneInitiale }: { zoneInitiale?: string }) {
             </div>
             <p className="font-medium">Aucun QR code disponible</p>
             <p className="max-w-md text-sm text-muted-foreground">
-              Créez d&apos;abord une zone de contact dans l&apos;onglet « Zones » : son QR code dédié
-              apparaîtra ici, prêt à imprimer.
+              Créez d&apos;abord une zone de contact dans l&apos;onglet « Zones » : sa carte QR avec
+              téléchargements et commandes d&apos;autocollants apparaîtra ici.
             </p>
           </CardContent>
         </Card>
       ) : (
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-          {/* ---------- Aperçu du QR de la zone ---------- */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                <QrCode className="h-5 w-5 text-primary" aria-hidden />
-                {nomZone}
-              </CardTitle>
-              <CardDescription className="break-all">
-                Pointe vers votre page de notation : {qr?.urlScan || "…"}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col items-center">
-              <div className="w-full max-w-56 rounded-2xl border-2 border-primary/20 bg-white p-3 shadow-sm">
-                {qrLoading || !qr ? (
-                  <Skeleton className="aspect-square w-full" />
-                ) : (
-                  <img
-                    src={qr.pngDataUrl}
-                    alt={`QR code de la zone ${nomZone}`}
-                    className="w-full rounded-lg"
-                  />
-                )}
-                <p className="mt-2 text-center text-xs font-semibold uppercase tracking-wide text-primary">
-                  Votre avis compte
-                </p>
-                <p className="truncate text-center text-xs text-muted-foreground">{nomEtablissement}</p>
-              </div>
-              <Button variant="outline" size="sm" className="mt-4" onClick={copierLien} disabled={!qr?.urlScan}>
-                {copied ? (
-                  <Check className="mr-1.5 h-4 w-4 text-primary" aria-hidden />
-                ) : (
-                  <Copy className="mr-1.5 h-4 w-4" aria-hidden />
-                )}
-                {copied ? "Lien copié !" : "Copier le lien de scan"}
-              </Button>
-            </CardContent>
-          </Card>
-
-          {/* ---------- Exports & impressions ---------- */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base sm:text-lg">Téléchargements gratuits</CardTitle>
-              <CardDescription>Prêts à imprimer, haute résolution — pour la zone sélectionnée</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-3">
-              <BoutonExport
-                icone={Download}
-                titre="PNG haute résolution"
-                description="1000×1000 px, avec votre logo au centre — idéal pour vos mises en page"
-                disabled={!qrPret || qrLoading}
-                onClick={() => qr && telechargerPng(qr.pngDataUrl, `qr-${slugifier(nomZone)}.png`)}
-              />
-              <BoutonExport
-                icone={FileText}
-                titre="Affiche A4 « VOTRE AVIS COMPTE »"
-                description={`QR 8×8 cm centré, zone « ${nomZone} », logo et sous-titre inclus`}
-                disabled={!qrPret || qrLoading}
-                onClick={() => qr && genererAffichePdf(qr.pngDataUrl, nomEtablissement, nomZone, logoDataUrl)}
-              />
-              <BoutonExport
-                icone={Printer}
-                titre="Planche de 20 étiquettes (5×5 cm)"
-                description="PDF A4, grille 4×5 avec repères de découpe"
-                disabled={!qrPret || qrLoading}
-                onClick={() => qr && genererPlanchePdf(qr.pngDataUrl, nomEtablissement, nomZone)}
-              />
-            </CardContent>
-          </Card>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {zones.map((zone) => (
+            <CarteZone
+              key={zone.id}
+              zone={zone}
+              nomEtablissement={nomEtablissement}
+              logoDataUrl={logoDataUrl}
+              adressePro={adressePro}
+              villePro={villePro}
+              enEvidence={zone.id === zoneInitiale}
+              refCarte={zone.id === zoneInitiale ? refZoneInitiale : undefined}
+              onCommanderStickers={() => setZoneCommande(zone)}
+            />
+          ))}
         </div>
       )}
+
+      {/* ---------- Dialogue : Commander des stickers pour une zone ---------- */}
+      <DialogStickers
+        zone={zoneCommande}
+        onClose={() => setZoneCommande(null)}
+        adresseInitiale={[adressePro, villePro].filter(Boolean).join(", ")}
+      />
     </div>
   )
 }
 
-// ---------- Ligne de bouton d'export (empilée pleine largeur en mobile) ----------
+// ---------- Carte d'une zone (QR + stats + 4 actions) ----------
 
-function BoutonExport({
+function CarteZone({
+  zone,
+  nomEtablissement,
+  logoDataUrl,
+  adressePro,
+  villePro,
+  enEvidence,
+  refCarte,
+  onCommanderStickers,
+}: {
+  zone: ZoneQr
+  nomEtablissement: string
+  logoDataUrl: string | null
+  adressePro: string
+  villePro: string
+  enEvidence: boolean
+  refCarte?: React.RefObject<HTMLDivElement | null>
+  onCommanderStickers: () => void
+}) {
+  const { toast } = useToast()
+
+  // Aperçu 320×320 (vignette légère chargée à l'affichage de la carte)
+  const [apercu, setApercu] = useState<string | null>(null)
+  const [lienScan, setLienScan] = useState<string>("")
+  const [copied, setCopied] = useState(false)
+  // Téléchargement en cours sur cette carte (PNG / A4 / étiquettes)
+  const [telechargement, setTelechargement] = useState<Telechargement>(null)
+
+  useEffect(() => {
+    let annule = false
+    fetch(`/api/pro/qrcode?zoneId=${encodeURIComponent(zone.id)}&taille=apercu`, { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (annule) return
+        if (j?.ok) {
+          setApercu(j.data.pngDataUrl)
+          setLienScan(j.data.urlScan)
+        }
+      })
+      .catch(() => {
+        /* silencieux : la carte reste sans aperçu */
+      })
+    return () => {
+      annule = true
+    }
+  }, [zone.id])
+
+  /** Récupère le QR 1000×1000 (pleine résolution) pour les exports */
+  async function chargerQrComplet(): Promise<string | null> {
+    try {
+      const res = await fetch(`/api/pro/qrcode?zoneId=${encodeURIComponent(zone.id)}`, { cache: "no-store" })
+      const json = await res.json()
+      if (json?.ok) return json.data.pngDataUrl as string
+      toast({ title: "Erreur", description: json?.error || "QR indisponible", variant: "destructive" })
+      return null
+    } catch {
+      toast({ title: "Erreur réseau", description: "QR indisponible", variant: "destructive" })
+      return null
+    }
+  }
+
+  async function telecharger(type: Exclude<Telechargement, null>) {
+    if (telechargement) return
+    setTelechargement(type)
+    try {
+      const qr = await chargerQrComplet()
+      if (!qr) return
+      if (type === "png") {
+        telechargerPng(qr, `qr-${slugifier(zone.nom)}-1000x1000.png`)
+      } else if (type === "a4") {
+        genererAffichePdf(qr, nomEtablissement, zone.nom, logoDataUrl)
+      } else {
+        genererPlanchePdf(qr, nomEtablissement, zone.nom)
+      }
+    } finally {
+      setTelechargement(null)
+    }
+  }
+
+  function copierLien() {
+    if (!lienScan) return
+    if (!navigator.clipboard) {
+      toast({ title: "Copie impossible", description: lienScan, variant: "destructive" })
+      return
+    }
+    navigator.clipboard
+      .writeText(lienScan)
+      .then(() => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 1500)
+      })
+      .catch(() => toast({ title: "Copie impossible", variant: "destructive" }))
+  }
+
+  const nbRetours = zone.nbRetours ?? 0
+  const moyenne = zone.noteMoyenne ?? 0
+
+  return (
+    <Card
+      ref={refCarte}
+      className={cn(
+        "flex scroll-mt-24 flex-col",
+        enEvidence && "border-primary ring-2 ring-primary/40"
+      )}
+    >
+      <CardContent className="flex flex-1 flex-col gap-4 p-4">
+        {/* En-tête : nom + stats de la zone */}
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 items-start gap-2.5">
+            <div className="shrink-0 rounded-lg bg-primary/10 p-2" aria-hidden>
+              <MapPin className="h-4 w-4 text-primary" />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate font-semibold leading-tight">{zone.nom}</p>
+              <p className="text-xs text-muted-foreground">{nomEtablissement}</p>
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-col items-end gap-1">
+            <Badge variant="secondary" className="gap-1 text-[11px]">
+              <MessageSquare className="h-3 w-3" aria-hidden />
+              {nbRetours} retour{nbRetours > 1 ? "s" : ""}
+            </Badge>
+            <span
+              className="text-[11px] font-medium text-muted-foreground"
+              aria-label={`Score moyen de la zone : ${moyenne ? moyenne.toFixed(1) : "aucun"} sur 5`}
+            >
+              ⭐ {moyenne ? moyenne.toFixed(1) : "—"}/5
+            </span>
+          </div>
+        </div>
+
+        {/* Aperçu du QR code */}
+        <div className="flex flex-col items-center">
+          <div className="w-36 rounded-xl border-2 border-primary/20 bg-white p-2 shadow-sm">
+            {apercu ? (
+              <img
+                src={apercu}
+                alt={`QR code de la zone ${zone.nom}`}
+                className="w-full rounded-md"
+              />
+            ) : (
+              <Skeleton className="aspect-square w-full" />
+            )}
+          </div>
+          {/* Token court : clic = copie du lien /r/<token> */}
+          <button
+            type="button"
+            onClick={copierLien}
+            title="Copier le lien de scan"
+            className="mt-2 flex w-fit items-center gap-1 rounded-md border bg-muted/50 px-2 py-0.5 font-mono text-[10px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-primary"
+          >
+            {copied ? (
+              <Check className="h-3 w-3 text-primary" aria-hidden />
+            ) : (
+              <Copy className="h-3 w-3" aria-hidden />
+            )}
+            /r/{zone.qrToken}
+          </button>
+        </div>
+
+        {/* 4 actions (grid 2×2) */}
+        <div className="mt-auto grid grid-cols-2 gap-2 border-t pt-3">
+          <BoutonAction
+            icone={telechargement === "png" ? Loader2 : Download}
+            tourne={telechargement === "png"}
+            label="PNG"
+            sousTitre="1000×1000 + logo"
+            onClick={() => telecharger("png")}
+            disabled={telechargement !== null || !apercu}
+          />
+          <BoutonAction
+            icone={telechargement === "a4" ? Loader2 : FileText}
+            tourne={telechargement === "a4"}
+            label="PDF A4"
+            sousTitre="Affiche « VOTRE AVIS COMPTE »"
+            onClick={() => telecharger("a4")}
+            disabled={telechargement !== null || !apercu}
+          />
+          <BoutonAction
+            icone={telechargement === "etiquettes" ? Loader2 : Printer}
+            tourne={telechargement === "etiquettes"}
+            label="PDF étiquettes"
+            sousTitre="20 étiquettes 5×5 cm"
+            onClick={() => telecharger("etiquettes")}
+            disabled={telechargement !== null || !apercu}
+          />
+          <BoutonAction
+            icone={ShoppingCart}
+            label="Commander"
+            sousTitre={`Stickers 50 u. · ${SUPPORTS.STICKERS_50.price} €`}
+            onClick={onCommanderStickers}
+            variante="primaire"
+          />
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+/** Petit bouton d'action de carte (icône + label + sous-titre) */
+function BoutonAction({
   icone: Icon,
-  titre,
-  description,
-  disabled,
+  label,
+  sousTitre,
   onClick,
+  disabled,
+  tourne,
+  variante = "neutre",
 }: {
   icone: React.ComponentType<{ className?: string }>
-  titre: string
-  description: string
-  disabled?: boolean
+  label: string
+  sousTitre: string
   onClick: () => void
+  disabled?: boolean
+  tourne?: boolean
+  variante?: "neutre" | "primaire"
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="flex w-full items-center gap-3 rounded-xl border p-3.5 text-left transition-colors hover:border-primary/40 hover:bg-primary/5 disabled:opacity-50"
+      className={cn(
+        "flex min-h-[3.25rem] flex-col items-start justify-center gap-0.5 rounded-lg border px-2.5 py-1.5 text-left transition-colors disabled:opacity-50",
+        variante === "primaire"
+          ? "border-primary/30 bg-primary/5 hover:border-primary/60 hover:bg-primary/10"
+          : "hover:border-primary/40 hover:bg-primary/5"
+      )}
     >
-      <div className="shrink-0 rounded-lg bg-primary/10 p-2.5" aria-hidden>
-        <Icon className="h-5 w-5 text-primary" />
-      </div>
-      <div className="min-w-0">
-        <p className="text-sm font-medium">{titre}</p>
-        <p className="text-xs text-muted-foreground">{description}</p>
-      </div>
+      <span className="flex items-center gap-1.5 text-xs font-semibold">
+        <Icon className={cn("h-3.5 w-3.5 text-primary", tourne && "animate-spin")} aria-hidden />
+        {label}
+      </span>
+      <span className="truncate text-[10px] text-muted-foreground">{sousTitre}</span>
     </button>
+  )
+}
+
+// ---------- Dialogue : commande de stickers (Pack 50 autocollants) ----------
+
+function DialogStickers({
+  zone,
+  onClose,
+  adresseInitiale,
+}: {
+  zone: ZoneQr | null
+  onClose: () => void
+  adresseInitiale: string
+}) {
+  const { toast } = useToast()
+  const [adresse, setAdresse] = useState(adresseInitiale)
+  const [envoi, setEnvoi] = useState(false)
+  const [succes, setSucces] = useState(false)
+
+  // Réinitialisation à chaque ouverture (adresse préremplie depuis le profil)
+  useEffect(() => {
+    if (zone) {
+      setAdresse(adresseInitiale)
+      setSucces(false)
+    }
+  }, [zone, adresseInitiale])
+
+  const support = SUPPORTS.STICKERS_50
+
+  async function commander() {
+    if (!zone || envoi) return
+    if (adresse.trim().length < 10) {
+      toast({
+        title: "Adresse incomplète",
+        description: "Indiquez une adresse de livraison complète.",
+        variant: "destructive",
+      })
+      return
+    }
+    setEnvoi(true)
+    try {
+      const res = await fetch("/api/pro/commandes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ typeSupport: "STICKERS_50", adresseLivraison: adresse.trim(), zoneId: zone.id }),
+      })
+      const json = await res.json()
+      if (res.ok && json?.ok) {
+        setSucces(true)
+        toast({ title: "Commande créée 🎉", description: "Vos autocollants partent en impression sous 48 h." })
+      } else {
+        toast({ title: "Erreur", description: json?.error || "Commande impossible", variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Erreur réseau", variant: "destructive" })
+    } finally {
+      setEnvoi(false)
+    }
+  }
+
+  return (
+    <Dialog open={!!zone} onOpenChange={(o) => (!o ? onClose() : undefined)}>
+      <DialogContent className="sm:max-w-md">
+        {zone && (
+          <>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5 text-primary" aria-hidden />
+                {succes ? "Commande confirmée 🎉" : "Commander des stickers"}
+              </DialogTitle>
+              <DialogDescription>
+                {succes
+                  ? `Vos autocollants pour la zone « ${zone.nom} » sont en file d'impression.`
+                  : `Autocollants dédiés au QR de la zone « ${zone.nom} ».`}
+              </DialogDescription>
+            </DialogHeader>
+
+            {succes ? (
+              <div className="space-y-3">
+                <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+                  <p className="font-semibold">Merci pour votre commande !</p>
+                  <p className="mt-1">
+                    Suivez son avancement (À imprimer → Expédié → Livré) dans l&apos;onglet
+                    « Facturation ».
+                  </p>
+                </div>
+                <DialogFooter>
+                  <Button onClick={onClose}>Fermer</Button>
+                </DialogFooter>
+              </div>
+            ) : (
+              <>
+                <div className="flex items-center gap-3 rounded-xl border p-3">
+                  <span className="text-2xl" aria-hidden>
+                    {support.emoji}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold">{support.label}</p>
+                    <p className="text-xs text-muted-foreground">{support.description}</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">⏱ {support.delai}</p>
+                  </div>
+                  <span className="shrink-0 text-lg font-bold">{support.price} €</span>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="cmd-adresse">Adresse de livraison</Label>
+                  <Input
+                    id="cmd-adresse"
+                    value={adresse}
+                    onChange={(e) => setAdresse(e.target.value)}
+                    placeholder="12 rue des Lilas, 75011 Paris"
+                    autoComplete="street-address"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Préremplie depuis votre profil — modifiez-la si besoin.
+                  </p>
+                </div>
+
+                <DialogFooter>
+                  <Button variant="outline" onClick={onClose} disabled={envoi}>
+                    Annuler
+                  </Button>
+                  <Button onClick={commander} disabled={envoi}>
+                    {envoi ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+                        Commande en cours…
+                      </>
+                    ) : (
+                      <>
+                        Confirmer — {support.price} €
+                      </>
+                    )}
+                  </Button>
+                </DialogFooter>
+              </>
+            )}
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   )
 }

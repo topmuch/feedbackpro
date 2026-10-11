@@ -109,20 +109,25 @@ async function main() {
       email: "gerant@bellanapoli.fr",
       plan: "PRO",
       frequenceRapport: "quotidien",
+      // Micro-récompense (Session 3) : active + code promo dévoilé après l'envoi
       recompense: "☕ Café offert sur votre prochaine visite",
+      recompenseActive: true,
+      recompenseType: "cafe",
+      recompenseCode: "CAFE-OFFERT",
       messageWhatsapp: "Envoyé via FeedbackPro ✨",
       onboardingDone: true,
     },
   })
 
-  // 3 zones avec des tags spécifiques à chaque point de contact
+  // 3 zones avec des tags CONTEXTUELS propres à chaque point de contact (Session 3) :
+  // le QR des Toilettes ne propose pas les mêmes tags que celui de la Salle.
   const zoneAccueil = await db.zone.create({
     data: {
       proId: demoPro.id,
       nom: "Accueil",
       description: "Réception et prise de commande en début de visite",
-      tagsPositifs: JSON.stringify(["accueillant", "rapide"]),
-      tagsNegatifs: JSON.stringify(["impoli", "attente"]),
+      tagsPositifs: JSON.stringify(["accueil_chaleureux", "prise_en_charge_rapide", "bien_renseigne_accueil"]),
+      tagsNegatifs: JSON.stringify(["accueil_froid", "attente_accueil", "personnel_distrait_accueil"]),
     },
   })
   const zoneSalle = await db.zone.create({
@@ -130,8 +135,8 @@ async function main() {
       proId: demoPro.id,
       nom: "Salle / Restaurant",
       description: "Expérience à table : service, plats, rangement",
-      tagsPositifs: JSON.stringify(["rapide", "competent", "pro"]),
-      tagsNegatifs: JSON.stringify(["attente", "mal_renseigne", "distrait", "mal_range"]),
+      tagsPositifs: JSON.stringify(["plat_excellent", "service_rapide_repas", "serveur_accueillant"]),
+      tagsNegatifs: JSON.stringify(["service_lent", "plat_tiede", "personnel_impoli_repas"]),
     },
   })
   const zoneToilettes = await db.zone.create({
@@ -139,8 +144,8 @@ async function main() {
       proId: demoPro.id,
       nom: "Toilettes RDC",
       description: "Propreté et état des installations",
-      tagsPositifs: JSON.stringify(["pro"]),
-      tagsNegatifs: JSON.stringify(["mal_range", "erreur"]),
+      tagsPositifs: JSON.stringify(["propre", "bien_approvisionne", "odeur_agreable"]),
+      tagsNegatifs: JSON.stringify(["sale", "manque_papier", "odeur_desagreable"]),
     },
   })
   const demoZones = [zoneAccueil, zoneSalle, zoneToilettes]

@@ -120,6 +120,7 @@ export const PROBLEMES: { id: string; label: string; emoji: string }[] = [
 
 export type TagDef = { id: string; label: string; emoji: string }
 
+// Tags génériques (catalogue de base, toutes zones)
 export const POSITIVE_TAGS: TagDef[] = [
   { id: "accueillant", label: "Très accueillant", emoji: "😊" },
   { id: "rapide", label: "Ultra rapide", emoji: "⚡" },
@@ -136,7 +137,119 @@ export const NEGATIVE_TAGS: TagDef[] = [
   { id: "erreur", label: "Erreur / Problème technique", emoji: "🟧" },
 ]
 
-export const ALL_TAGS: TagDef[] = [...POSITIVE_TAGS, ...NEGATIVE_TAGS]
+// ---------- Tags CONTEXTUELS par type de zone (Session 3) ----------
+// Chaque QR de zone propose des tags adaptés à son contexte :
+// le QR des Toilettes ne demande pas la même chose que celui du Restaurant.
+
+// Propreté / entretien (toilettes, piscine, spa, plages…)
+export const POSITIVE_TAGS_PROPRIETE: TagDef[] = [
+  { id: "propre", label: "Propre", emoji: "✨" },
+  { id: "bien_approvisionne", label: "Bien approvisionné", emoji: "🧻" },
+  { id: "odeur_agreable", label: "Odeur agréable", emoji: "🌸" },
+]
+export const NEGATIVE_TAGS_PROPRIETE: TagDef[] = [
+  { id: "sale", label: "Sale", emoji: "🟫" },
+  { id: "manque_papier", label: "Manque de papier", emoji: "🧻" },
+  { id: "odeur_desagreable", label: "Odeur désagréable", emoji: "🤢" },
+]
+
+// Restauration (restaurant, salle, cuisine, bar…)
+export const POSITIVE_TAGS_RESTAURATION: TagDef[] = [
+  { id: "plat_excellent", label: "Plat excellent", emoji: "🍽️" },
+  { id: "service_rapide_repas", label: "Service rapide", emoji: "⚡" },
+  { id: "serveur_accueillant", label: "Serveur accueillant", emoji: "😊" },
+]
+export const NEGATIVE_TAGS_RESTAURATION: TagDef[] = [
+  { id: "service_lent", label: "Service lent", emoji: "🐌" },
+  { id: "plat_tiede", label: "Plat tiède", emoji: "🥶" },
+  { id: "personnel_impoli_repas", label: "Personnel impoli", emoji: "🟥" },
+]
+
+// Accueil / réception (check-in, comptoir, boutique…)
+export const POSITIVE_TAGS_ACCUEIL: TagDef[] = [
+  { id: "accueil_chaleureux", label: "Accueil chaleureux", emoji: "🤗" },
+  { id: "prise_en_charge_rapide", label: "Prise en charge rapide", emoji: "🚀" },
+  { id: "bien_renseigne_accueil", label: "Personnel bien renseigné", emoji: "💡" },
+]
+export const NEGATIVE_TAGS_ACCUEIL: TagDef[] = [
+  { id: "accueil_froid", label: "Accueil froid / désagréable", emoji: "🧊" },
+  { id: "attente_accueil", label: "Attente trop longue", emoji: "⏳" },
+  { id: "personnel_distrait_accueil", label: "Personnel distrait", emoji: "💬" },
+]
+
+/**
+ * Presets de tags par CONTEXTE de zone (Session 3).
+ * Le nom de la zone est analysé par mots-clés pour proposer
+ * automatiquement les tags les plus pertinents à la création.
+ */
+export const PRESETS_TAGS_ZONE: {
+  id: string
+  label: string
+  motsCles: string[]
+  positifs: TagDef[]
+  negatifs: TagDef[]
+}[] = [
+  {
+    id: "toilettes",
+    label: "Toilettes / Sanitaires",
+    motsCles: ["toilette", "toilettes", "wc", "sanitaire", "douch", "vestiaire"],
+    positifs: POSITIVE_TAGS_PROPRIETE,
+    negatifs: NEGATIVE_TAGS_PROPRIETE,
+  },
+  {
+    id: "entretien",
+    label: "Piscine / Spa / Espace bien-être",
+    motsCles: ["piscine", "spa", "hammam", "sauna", "jacuzzi", "salle de sport", "fitness"],
+    positifs: POSITIVE_TAGS_PROPRIETE,
+    negatifs: NEGATIVE_TAGS_PROPRIETE,
+  },
+  {
+    id: "restauration",
+    label: "Restaurant / Salle / Bar",
+    motsCles: ["restaurant", "salle", "cuisine", "bar", "terrasse", "pizzeria", "brasserie", "cafeteria", "cafété"],
+    positifs: POSITIVE_TAGS_RESTAURATION,
+    negatifs: NEGATIVE_TAGS_RESTAURATION,
+  },
+  {
+    id: "accueil",
+    label: "Accueil / Réception / Comptoir",
+    motsCles: ["accueil", "réception", "reception", "check-in", "checkin", "comptoir", "caisse", "boutique", "entrée"],
+    positifs: POSITIVE_TAGS_ACCUEIL,
+    negatifs: NEGATIVE_TAGS_ACCUEIL,
+  },
+]
+
+/**
+ * Détecte le preset adapté au nom d'une zone (ex. « Toilettes RDC » → propreté).
+ * Retourne null si aucun contexte ne ressort (→ catalogue générique).
+ */
+export function presetPourZone(nomZone: string) {
+  const nom = nomZone
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+  if (!nom.trim()) return null
+  return PRESETS_TAGS_ZONE.find((p) => p.motsCles.some((m) => nom.includes(m))) ?? null
+}
+
+/**
+ * Catalogue ÉLARGI pour le sélecteur de tags de l'onglet Zones :
+ * tags génériques + tags contextuels (aucun doublon d'id).
+ */
+export const POSITIVE_TAGS_ETENDUS: TagDef[] = [
+  ...POSITIVE_TAGS,
+  ...POSITIVE_TAGS_PROPRIETE,
+  ...POSITIVE_TAGS_RESTAURATION,
+  ...POSITIVE_TAGS_ACCUEIL,
+]
+export const NEGATIVE_TAGS_ETENDUS: TagDef[] = [
+  ...NEGATIVE_TAGS,
+  ...NEGATIVE_TAGS_PROPRIETE,
+  ...NEGATIVE_TAGS_RESTAURATION,
+  ...NEGATIVE_TAGS_ACCUEIL,
+]
+
+export const ALL_TAGS: TagDef[] = [...POSITIVE_TAGS_ETENDUS, ...NEGATIVE_TAGS_ETENDUS]
 
 // Mapping tag → catégorie (pour les statistiques)
 export const TAG_CATEGORIES: Record<
@@ -153,6 +266,25 @@ export const TAG_CATEGORIES: Record<
   erreur: "Qualité",
   distrait: "Attention",
   mal_range: "Propreté",
+  // Tags contextuels (Session 3)
+  propre: "Propreté",
+  bien_approvisionne: "Qualité",
+  odeur_agreable: "Propreté",
+  sale: "Propreté",
+  manque_papier: "Propreté",
+  odeur_desagreable: "Propreté",
+  plat_excellent: "Qualité",
+  service_rapide_repas: "Rapidité",
+  serveur_accueillant: "Accueil",
+  service_lent: "Rapidité",
+  plat_tiede: "Qualité",
+  personnel_impoli_repas: "Accueil",
+  accueil_chaleureux: "Accueil",
+  prise_en_charge_rapide: "Rapidité",
+  bien_renseigne_accueil: "Compétence",
+  accueil_froid: "Accueil",
+  attente_accueil: "Rapidité",
+  personnel_distrait_accueil: "Attention",
 }
 
 export function tagLabel(id: string): string {

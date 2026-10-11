@@ -11,6 +11,28 @@ import { STATUT_COMMANDE_LABEL, SUPPORTS, TypeSupportId } from "./constants"
 
 const MM = "mm"
 
+/**
+ * Sous-titre de l'affiche A4 adapté au CONTEXTE de la zone (spec Session 3).
+ * Ex. « Toilettes RDC » → « L'entretien de cet espace est-il à la hauteur ? »
+ * Détection par mots-clés sur le nom de la zone, repli = sous-titre générique.
+ */
+export function sousTitreZone(nomZone: string): string {
+  const nom = nomZone
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+  if (/toilette|wc|sanitaire|douch|vestiaire|piscine|spa|hammam|sauna|jacuzzi/.test(nom)) {
+    return "L'entretien de cet espace est-il à la hauteur ?"
+  }
+  if (/restaurant|salle|cuisine|bar|terrasse|pizzeria|brasserie|cafe|cafete/.test(nom)) {
+    return "Votre repas et le service ont-ils été à la hauteur ?"
+  }
+  if (/accueil|reception|check-?in|comptoir|caisse|boutique|entree/.test(nom)) {
+    return "L'accueil que vous avez reçu est-il à la hauteur ?"
+  }
+  return "Scannez pour évaluer votre expérience en 15 secondes"
+}
+
 /** Télécharge une image PNG (dataURL) sous forme de fichier */
 export function downloadPng(dataUrl: string, filename: string) {
   const a = document.createElement("a")

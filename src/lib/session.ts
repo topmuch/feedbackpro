@@ -34,6 +34,10 @@ export type ProData = {
   plan: string
   frequenceRapport: string
   recompense: string | null
+  /** Récompenses structurées (Session 3) : toggle, type et code promo */
+  recompenseActive: boolean
+  recompenseType: string
+  recompenseCode: string
   messageWhatsapp: string | null
   onboardingDone: boolean
   suspendu: boolean
@@ -58,6 +62,10 @@ export function serializePro(pro: Pro): ProData {
     plan: pro.plan,
     frequenceRapport: pro.frequenceRapport,
     recompense: pro.recompense,
+    // Récompenses structurées (Session 3)
+    recompenseActive: pro.recompenseActive,
+    recompenseType: pro.recompenseType,
+    recompenseCode: pro.recompenseCode,
     messageWhatsapp: pro.messageWhatsapp,
     onboardingDone: pro.onboardingDone,
     suspendu: pro.suspendu,
