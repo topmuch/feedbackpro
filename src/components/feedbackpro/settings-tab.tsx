@@ -43,6 +43,8 @@ export function SettingsTab() {
   const [whatsapp, setWhatsapp] = useState("")
   const [googleUrl, setGoogleUrl] = useState("")
   const [messageWhatsapp, setMessageWhatsapp] = useState("")
+  // Session 6 : alertes SMS pour les réclamations (note ≤ 2★) — repli email si désactivé
+  const [smsAlertes, setSmsAlertes] = useState(true)
   const [saving, setSaving] = useState(false)
 
   // ---------- Logo ----------
@@ -72,6 +74,7 @@ export function SettingsTab() {
       setWhatsapp(p.whatsapp || "")
       setGoogleUrl(p.googleUrl || "")
       setMessageWhatsapp(p.messageWhatsapp || "Envoyé via FeedbackPro ✨")
+      setSmsAlertes(p.smsAlertes !== false)
       setLogoActuel(p.logoUrl || null)
     }
   }, [session?.pro])
@@ -95,7 +98,7 @@ export function SettingsTab() {
     setSaving(true)
     try {
       // logoUrl : undefined (absent) = ne pas modifier · dataUrl = nouveau logo · null = suppression
-      const payload: Record<string, string | null> = { nomCommerce, categorie, adresse, ville, whatsapp, googleUrl, messageWhatsapp }
+      const payload: Record<string, string | null | boolean> = { nomCommerce, categorie, adresse, ville, whatsapp, googleUrl, messageWhatsapp, smsAlertes }
       if (logoModifie !== undefined) payload.logoUrl = logoModifie
       const res = await fetch("/api/pro/settings", {
         method: "PUT",
@@ -257,6 +260,21 @@ export function SettingsTab() {
             <div className="space-y-1.5">
               <Label htmlFor="st-msg">Message WhatsApp personnalisé (fin de message)</Label>
               <Textarea id="st-msg" value={messageWhatsapp} onChange={(e) => setMessageWhatsapp(e.target.value)} rows={2} />
+            </div>
+            {/* Session 6 : alertes SMS pour les réclamations (note ≤ 2★) */}
+            <div className="flex items-center justify-between gap-4 rounded-xl border p-3.5">
+              <div className="min-w-0">
+                <Label htmlFor="st-sms" className="cursor-pointer">Alertes SMS pour les réclamations</Label>
+                <p className="text-xs text-muted-foreground mt-0.5">
+                  Envoie un SMS urgent pour chaque retour ≤ 2★. Si désactivé, une alerte email est envoyée à la place.
+                </p>
+              </div>
+              <Switch
+                id="st-sms"
+                checked={smsAlertes}
+                onCheckedChange={setSmsAlertes}
+                aria-label="Activer ou désactiver les alertes SMS"
+              />
             </div>
             <Button type="submit" disabled={saving} className="h-10">
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : <Save className="mr-2 h-4 w-4" aria-hidden />}

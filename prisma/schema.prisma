@@ -52,6 +52,8 @@ model Pro {
   qrToken        String    @unique @default(cuid())
   plan           String    @default("STARTER") // STARTER | PRO | ENTERPRISE
   onboardingDone Boolean   @default(false)
+  suspendu       Boolean   @default(false) // Commerçant suspendu par le superadmin (S5)
+  smsAlertes     Boolean   @default(true) // Alertes SMS activées pour les retours ≤ 2★ (S6, optionnel)
   createdAt      DateTime  @default(now())
   updatedAt      DateTime  @updatedAt
 
@@ -117,6 +119,13 @@ model Retour {
 
 // ---------- Commandes de supports physiques ----------
 
+// Réglages plateforme (S5) : clés/valeurs simples éditables par le superadmin
+model Setting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}
+
 model Commande {
   id               String   @id @default(cuid())
   proId            String
@@ -126,9 +135,11 @@ model Commande {
   prixEuros        Int
   adresseLivraison String
   statut           String   @default("A_IMPRIMER") // A_IMPRIMER | IMPRIME | EXPEDIE | LIVRE
+  numeroSuivi      String?  // Numéro de suivi d'expédition (S5, ajouté par le superadmin)
   createdAt        DateTime @default(now())
 
   @@index([proId])
+  @@index([statut])
 }
 
 // ---------- Alertes temps réel (notes ≤ 2, SMS simulé) ----------

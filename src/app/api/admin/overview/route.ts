@@ -46,6 +46,32 @@ export async function GET(req: NextRequest) {
         createdAt: p.createdAt,
       }))
 
+    // Croissance du nombre de Pros : nouveaux inscriptions par jour (30 derniers jours)
+    const croissancePros: { jour: string; nouveaux: number }[] = []
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date()
+      d.setHours(0, 0, 0, 0)
+      d.setDate(d.getDate() - i)
+      const suivant = new Date(d)
+      suivant.setDate(d.getDate() + 1)
+      croissancePros.push({
+        jour: `${String(d.getDate()).padStart(2, "0")}/${String(d.getMonth() + 1).padStart(2, "0")}`,
+        nouveaux: pros.filter((p) => p.createdAt >= d && p.createdAt < suivant).length,
+      })
+    }
+
+    // Top 10 des Pros par nombre de retours (via les boutiques)
+    const retoursParBoutique = await db.retour.groupBy({ by: ["boutiqueId"], _count: { _all: true } })
+    const boutiques = await db.boutique.findMany({ select: { id: true, nom: true, pro: { select: { nomCommerce: true } } } })
+    const topPros = boutiques
+      .map((b) => ({
+        nomCommerce: b.pro.nomCommerce,
+        boutique: b.nom,
+        retours: retoursParBoutique.find((r) => r.boutiqueId === b.id)?._count._all ?? 0,
+      }))
+      .sort((a, b) => b.retours - a.retours)
+      .slice(0, 10)
+
     return ok({
       kpis: {
         nbPros: pros.length,
@@ -60,6 +86,8 @@ export async function GET(req: NextRequest) {
         alertes30j: alertes,
       },
       derniersPros,
+      croissancePros,
+      topPros,
     })
   } catch (e) {
     console.error("admin overview error", e)

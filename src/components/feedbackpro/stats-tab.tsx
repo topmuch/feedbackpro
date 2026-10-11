@@ -136,7 +136,7 @@ export function StatsTab() {
           <a href="/api/pro/retours/export" download>
             <Button variant="outline" size="sm" className="h-9">
               <Download className="mr-1.5 h-4 w-4" aria-hidden />
-              Export CSV
+              Exporter CSV
             </Button>
           </a>
         </div>

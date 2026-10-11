@@ -112,8 +112,13 @@ export function AppHeader({ subtitle }: { subtitle?: string }) {
 // ---------- Pied de page global (collé en bas via mt-auto dans le shell) ----------
 
 export function AppFooter() {
-  // Liens légaux (pages placeholder en démo — empêche le saut de scroll)
-  const liens = ["À propos", "Contact", "CGU", "Confidentialité"]
+  // Liens légaux : vraies routes App Router (S6 §4) — accessibles sans session
+  const liens = [
+    { label: "Mentions légales", href: "/mentions-legales" },
+    { label: "CGU", href: "/cgu" },
+    { label: "Confidentialité", href: "/confidentialite" },
+    { label: "Cookies", href: "/cookies" },
+  ]
   return (
     <footer className="mt-auto border-t bg-stone-50">
       <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-5 text-xs text-muted-foreground sm:flex-row sm:px-6">
@@ -124,12 +129,11 @@ export function AppFooter() {
         <nav aria-label="Liens légaux" className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
           {liens.map((l) => (
             <a
-              key={l}
-              href="#"
-              onClick={(e) => e.preventDefault()}
+              key={l.href}
+              href={l.href}
               className="transition-colors hover:text-primary"
             >
-              {l}
+              {l.label}
             </a>
           ))}
         </nav>

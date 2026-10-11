@@ -8,6 +8,7 @@ import bcrypt from "bcryptjs"
 import { db } from "@/lib/db"
 import { createSession, attachSessionCookie } from "@/lib/session"
 import { registerSchema, firstError } from "@/lib/validation"
+import { sendEmail, emailBienvenue } from "@/lib/email"
 
 export async function POST(req: NextRequest) {
   try {
@@ -45,6 +46,14 @@ export async function POST(req: NextRequest) {
     await db.boutique.create({
       data: { proId: pro.id, nom: nomCommerce, adresse: "" },
     })
+
+    // Email de bienvenue : strictement non bloquant (S6 §3) — un échec
+    // d'envoi ne doit jamais empêcher l'inscription de réussir.
+    try {
+      await sendEmail(email, "Bienvenue sur FeedbackPro 🎉", emailBienvenue(nomCommerce))
+    } catch (e) {
+      console.warn("Email de bienvenue non envoyé (non bloquant)", e)
+    }
 
     const sessionId = await createSession(user.id)
     const res = NextResponse.json({

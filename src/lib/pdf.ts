@@ -162,16 +162,24 @@ export function generateLabelsPdf(qrDataUrl: string, nomCommerce: string) {
   doc.save(`planche-etiquettes-${slug(nomCommerce)}.pdf`)
 }
 
-/** Bon d'impression d'une commande de supports (utilisé par le Superadmin) */
-export function generateCommandePdf(commande: {
-  id: string
-  typeSupport: string
-  quantite: number
-  prixEuros: number
-  adresseLivraison: string
-  statut: string
-  createdAt: string
-}, pro: { nomCommerce: string; ville: string; email: string }) {
+/**
+ * Bon d'impression d'une commande de supports (utilisé par le Superadmin).
+ * qrDataUrl (optionnel) : QR de scan du commerce imprimé en bas du bon —
+ * permet à l'atelier de vérifier le support avant expédition.
+ */
+export function generateCommandePdf(
+  commande: {
+    id: string
+    typeSupport: string
+    quantite: number
+    prixEuros: number
+    adresseLivraison: string
+    statut: string
+    createdAt: string
+  },
+  pro: { nomCommerce: string; ville: string; email: string },
+  qrDataUrl?: string
+) {
   const doc = new jsPDF({ unit: MM, format: "a4" })
   const W = 210
 
@@ -231,7 +239,23 @@ export function generateCommandePdf(commande: {
   doc.setTextColor(120, 120, 120)
   doc.text("Visa atelier / date d'impression :", 18, 208)
 
-  // QR de suivi (contient la référence)
+  // QR de scan du commerce (optionnel) : vérification du support avant expédition
+  if (qrDataUrl) {
+    try {
+      const qr = 40 // 4 x 4 cm
+      doc.setDrawColor(200, 200, 200)
+      doc.rect(W - qr - 20, 205, qr + 8, qr + 14)
+      doc.addImage(qrDataUrl, "PNG", W - qr - 16, 209, qr, qr)
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(7)
+      doc.setTextColor(110, 110, 110)
+      doc.text("Vérification QR avant expédition", W - qr / 2 - 16, 242, { align: "center" })
+    } catch {
+      /* QR illisible : le bon est généré sans */
+    }
+  }
+
+  // Référence interne
   doc.setFontSize(8)
   doc.setTextColor(150, 150, 150)
   doc.text(`Réf. interne : ${commande.id}`, 15, 250)

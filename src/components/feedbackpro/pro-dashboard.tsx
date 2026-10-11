@@ -14,6 +14,7 @@ import {
   QrCode,
   Trophy,
   BarChart3,
+  CreditCard,
   Settings,
   Menu,
   LogOut,
@@ -30,8 +31,9 @@ import { QrcodeTab } from "@/components/feedbackpro/qrcode-tab"
 import { TeamTab } from "@/components/feedbackpro/team-tab"
 import { StatsTab } from "@/components/feedbackpro/stats-tab"
 import { SettingsTab } from "@/components/feedbackpro/settings-tab"
+import { BillingTab } from "@/components/feedbackpro/billing-tab"
 
-type Onglet = "overview" | "retours" | "qrcode" | "team" | "stats" | "settings"
+type Onglet = "overview" | "retours" | "qrcode" | "team" | "stats" | "billing" | "settings"
 
 /** Slug URL → onglet interne (ex. /dashboard/qr-code → "qrcode") */
 const SLUG_TO_TAB: Record<string, Onglet> = {
@@ -40,6 +42,7 @@ const SLUG_TO_TAB: Record<string, Onglet> = {
   "qr-code": "qrcode",
   equipe: "team",
   stats: "stats",
+  billing: "billing",
   parametres: "settings",
 }
 
@@ -50,6 +53,7 @@ const TAB_TO_SLUG: Record<Onglet, string> = {
   qrcode: "qr-code",
   team: "equipe",
   stats: "stats",
+  billing: "billing",
   settings: "parametres",
 }
 
@@ -59,6 +63,7 @@ const ONGLETS: { id: Onglet; label: string; icon: React.ComponentType<{ classNam
   { id: "qrcode", label: "Mon QR Code", icon: QrCode },
   { id: "team", label: "Équipe", icon: Trophy },
   { id: "stats", label: "Statistiques", icon: BarChart3 },
+  { id: "billing", label: "Facturation", icon: CreditCard },
   { id: "settings", label: "Paramètres", icon: Settings },
 ]
 
@@ -170,6 +175,7 @@ export function ProDashboard() {
         {onglet === "qrcode" && <QrcodeTab />}
         {onglet === "team" && <TeamTab />}
         {onglet === "stats" && <StatsTab />}
+        {onglet === "billing" && <BillingTab />}
         {onglet === "settings" && <SettingsTab />}
       </main>
     </div>

@@ -353,3 +353,64 @@ Stage Summary:
 - 结论：4 个 Session 的功能全部已实现且验证可用；用户看不到 QR 生成器的根因是容器重启导致空库→登录失败
 - 访问路径：登录 demo@pizzeria.fr/demo1234 → 侧边栏"Mon QR Code" → 或直达 /dashboard/qr-code
 - .env.example 已入库（28dafee..318e8e4）
+
+---
+Task ID: 2-B
+Agent: Z.ai Code (backend-integrations, Session 6)
+Task: S6 — production-ready conditionné par variables d'env : pages légales, Twilio/Resend, intégrations API (bienvenue/commande/alerte ≤2★), onglet Facturation + Stripe (checkout/webhooks), cron récap hebdo, .env.example + README
+
+Work Log:
+- Lu worklog.md + contrats vérifiés : constants.ts (PLANS/PLAN_LIMITS/SUPPORTS/STATUT_COMMANDE_LABEL), guards (requirePro → ctx.user.email), session (ok/fail), /api/pro/plan (POST { plan } → { pro }), /api/pro/commandes (GET/POST), /api/retour (canonique, réexporté par /api/public/retour, appelé par scan-view), settings (smsAlertes lu côté serveur), store (session.pro/updatePro/refreshSession), middleware (matcher limité à /dashboard/* + /superadmin/* → pages légales accessibles)
+- Pages légales (vraies routes App Router, composants serveur) : src/components/feedbackpro/legal-layout.tsx (header sticky + logo + lien "← Retour" vers /, Card contenu, footer croisé 4 pages avec aria-current) + /mentions-legales (éditeur FeedbackPro, hébergeur Vercel, propriété intellectuelle), /cgu (abonnements 0/19/79 €, Stripe, supports physiques, résiliation), /confidentialite (RGPD : collecte IP→ville uniquement, retours, bases légales, durées, sous-traitants Vercel/Stripe/Resend/Twilio/ipapi, droit de suppression via Paramètres→Zone dangereuse), /cookies (table fp_session httpOnly 30 j, aucun traceur, pas de bandeau requis) — metadata FR, responsive, sans bleu/indigo hors tokens
+- shared.tsx (AppFooter) : liens placeholder "#"/preventDefault remplacés par 4 <a href> réels /mentions-legales · /cgu · /confidentialite · /cookies
+- src/lib/twilio.ts : sendSMS(to, message) via API REST Twilio (fetch POST Messages.json, Basic auth Buffer(sid:token), normalisation E.164 sans "+", timeout 8 s) ; sans TWILIO_SID/TOKEN/PHONE → log "📱 SMS simulé (mode démo)" + true ; try/catch global, jamais d'exception
+- src/lib/email.ts : sendEmail(to, sujet, html) via API Resend (Bearer RESEND_API_KEY, from EMAIL_FROM || "FeedbackPro <onboarding@resend.dev>") ; sans clé → "📧 Email simulé (mode démo)" + true ; gabarit commun inline-CSS responsive bleu #2563EB + escapeHtml ; templates emailBienvenue(nomCommerce), emailConfirmationCommande(nomCommerce, typeSupport, prix, adresse), emailAlerteRetour(nomCommerce, note, tags, dashboardUrl), emailRecapHebdo(nomCommerce, stats{total, noteMoyenne, alertes})
+- Intégrations API (non bloquantes, try/catch) : register → sendEmail "Bienvenue sur FeedbackPro 🎉" après création boutique ; /api/pro/commandes POST → emailConfirmationCommande (email via ctx.user.email) ; /api/retour → include user{email} sur le Pro, après Alerte : si pro.smsAlertes && pro.whatsapp → void sendSMS(whatsapp, "🚨 FeedbackPro : Alerte réclamation - Note X/5 - Motif : [tagLabel(tags)]. Connectez-vous : {APP_URL}/dashboard") sinon fallback void sendEmail(emailAlerteRetour) — ancien log [SMS SIMULÉ] remplacé, Alerte dashboard conservée
+- billing-tab.tsx ("use client") : badge "Plan actuel", grille 3 Cards (PLANS + PLAN_LIMITS, features Check, limites employés/boutiques), bouton "Plan actuel" désactivé / "Passer au plan X" / "Rétrograder vers X" ; flux : STARTER → POST /api/pro/plan direct ; sinon POST /api/pro/billing/checkout → data.url → window.location.href, ou mode "DEMO" → toast "Mode démo : Stripe sera activé avec vos clés" + appliquerPlan (POST /api/pro/plan → updatePro) ; bandeau sécurité Stripe ; "Historique des factures" = GET /api/pro/commandes (max-h-96 overflow-y-auto custom-scrollbar, prix/date fr-FR/statut Badge coloré) + empty state "Factures Stripe : disponibles après connexion de vos clés Stripe" ; ?paiement=succes → toast + replaceState propre + refreshSession
+- pro-dashboard.tsx : Onglet + "billing", SLUG_TO_TAB/TAB_TO_SLUG.billing, ONGLETS entrée CreditCard "Facturation" (entre Stats et Paramètres), rendu {onglet === "billing" && <BillingTab />} — sidebar/Sheet régénèrent automatiquement l'item ; onglet Paramètres (changement de plan existant) intact
+- Stripe : bun add stripe@23 ; /api/webhooks/stripe → 501 sans clés, constructEvent(body, sig, whsec_...) → 400 si signature invalide, checkout.session.completed + customer.subscription.updated (metadata.proId/plan → db.pro.update plan), subscription.deleted → STARTER, invoice.* → log ; commentaires "Comment créer les Price IDs" ; /api/pro/billing/checkout → 501-like DEMO sans STRIPE_SECRET_KEY ({ ok, data:{ mode:"DEMO" } }), 400 si STARTER (gratuit), 500 si Price ID manquant, sinon Checkout Session mode subscription (metadata + subscription_data.metadata proId/plan, client_reference_id, success_url APP_URL/dashboard/billing?paiement=succes, cancel_url APP_URL/dashboard/billing)
+- Cron : /api/cron/recap-weekly → 501 sans CRON_SECRET, 401 si Bearer ≠ secret ; retours 7 derniers jours (include boutique.pro.user) agrégés en mémoire par Pro (skip suspendu/sans email), envoi emailRecapHebdo si total > 0 ; { ok, data:{ envois } } ; vercel.json crons "0 8 * * 1"
+- .env.example réécrit (FR commenté) : DATABASE_URL, NEXT_PUBLIC_APP_URL, TWILIO_*, RESEND_API_KEY/EMAIL_FROM, STRIPE_SECRET_KEY/WEBHOOK_SECRET/PRICE_PRO/PRICE_ENTERPRISE, CRON_SECRET + modes démo documentés ; README.md à jour (fonctionnalités S6, variables env en tableau, intégrations optionnelles pas-à-pas, API table enrichie, déploiement Vercel+Supabase, roadmap S1-S6)
+- Vérifications : bunx tsc --noEmit → 0 erreur app (restent 4 préexistantes hors src : examples/websocket, skills/) ; bun run lint → 0 erreur 0 warning (directive eslint-disable inutilisée retirée) ; E2E curl : /mentions-legales /cgu /confidentialite /cookies 200, webhook → 501 sans clés, cron → 501 sans CRON_SECRET, checkout sans session → 401, checkout session demo@pizzeria.fr → { mode:"DEMO" }, /dashboard/billing → 307 anonyme / 200 connecté ; retour 1★ → Alerte + "📱 SMS simulé … Motif : 🟦 Attente trop longue", retour 2★ avec smsAlertes=false → "📧 Email simulé → demo@pizzeria.fr : 🚨 Alerte réclamation 2/5 — Pizzeria Bella Napoli", register → "📧 Email simulé : Bienvenue sur FeedbackPro 🎉" ; retours/alertes/user de test supprimés, smsAlertes restauré (DB de démo intacte) ; dev.log sans erreur de compilation
+
+Stage Summary:
+- Session 6 livrée : 4 pages légales RGPD reliées au footer, SMS Twilio + emails Resend en mode démo sans clés (jamais bloquants), alertes réclamation ≤2★ (SMS si smsAlertes && whatsapp, sinon email via User inclus), onglet Facturation (slug /dashboard/billing) avec checkout Stripe réel ou simulé + webhook signé via metadata.proId (aucune colonne ajoutée), cron récap hebdo + vercel.json, .env.example/README complets
+- Divergences assumées : envois en void+catch (non-bloquants, recommandé) pour alertes/commandes ; STARTER géré hors checkout (gratuit, POST /api/pro/plan direct) ; lang="en" du layout racine non modifié (fichier partagé avec l'agent parallèle sur page.tsx)
+- Fichiers créés : legal-layout.tsx, billing-tab.tsx, twilio.ts, email.ts, app/{mentions-legales,cgu,confidentialite,cookies}/page.tsx, api/webhooks/stripe/route.ts, api/pro/billing/checkout/route.ts, api/cron/recap-weekly/route.ts, vercel.json
+- Fichiers modifiés : api/auth/register/route.ts, api/pro/commandes/route.ts, api/retour/route.ts, components/feedbackpro/{pro-dashboard,shared}.tsx, .env.example, README.md, package.json+bun.lock (stripe)
+
+---
+Task ID: 2-C
+Agent: Z.ai Code (récupération après expiration de l'agent)
+Task: S5 — Dashboard Superadmin complet : Revenus, Paramètres plateforme, actions commerçants, workflow commandes
+
+Work Log:
+- Travail réalisé par l'agent 2-C avant expiration (context deadline), vérifié et intégré par l'agent principal :
+- src/lib/guards.ts : MESSAGE_SUSPENSION + blocage 403 des Pro.suspendu dans requirePro()
+- src/app/api/admin/pros/route.ts : actions Zod changerPlan | suspendre | reactiver | supprimer (cascade, jamais le superadmin)
+- src/app/api/admin/commandes/route.ts : PATCH { id, statut, numeroSuivi? } (n° de suivi uniquement à l'EXPEDIE), GET inclut numeroSuivi
+- src/app/api/admin/revenus/route.ts (nouveau) : CA abonnements mensuel, CA supports total + par type, évolution mensuelle 12 mois
+- src/app/api/admin/settings/route.ts (nouveau) : GET/PATCH model Setting (défauts auto-créés)
+- admin-dashboard.tsx : 5 onglets (Vue d'ensemble · Commerçants · Commandes · Revenus · Paramètres), Revenus (KPIs + PieChart + BarChart Recharts), Paramètres (formulaire settings), Commerçants (badges Suspendu + Suspendre/Réactiver/Supprimer avec Dialogs de confirmation + détails + mailto + filtre statut), Commandes (Générer PDF via generateCommandePdf, changement statut, Dialog n° de suivi à l'EXPEDIE), sync URL /superadmin/<slug> + popstate, Skeletons
+
+Stage Summary:
+- Session 5 livrée et vérifiée : tsc 0 erreur app, lint OK, toutes les exigences S5 implémentées
+- Section rédigée par l'agent principal (l'agent 2-C a expiré avant de pouvoir l'écrire)
+
+---
+Task ID: 3
+Agent: main (Z.ai Code)
+Task: Tests E2E complets des 6 Sessions + corrections finales + preuves photographiques
+
+Work Log:
+- Preuves S1/S2 : landing complète (hero/3 cards problème/solution 4 étapes/6 fonctionnalités/pricing 0-19-79€/témoignages/FAQ), /login + /register rewrites fonctionnels, erreurs Zod FR affichées via react-hook-form + zodResolver, wizard onboarding 3 étapes jusqu'au QR généré, middleware 307 /dashboard→/login?next et /superadmin→/login?next, /cgu public 200
+- Preuves S3 : scan mobile iPhone 5★→tags positifs (🎉, fond vert, 4 emojis)→"⭐ Partager sur Google"→deep link api.whatsapp.com/send?phone=33612345678&text=🎉+RETOUR+POSITIF suivi par le navigateur ; réclamation 1★→réclamation→SMS ; DB : note=5 tags=["accueillant","rapide"] canal=whatsapp
+- Preuves S4 : 4 KPIs + 2 Recharts, Retours (50 lignes, 5 filtres, 2 date pickers, modal détail complète + réponse Pro enregistrée), Équipe (🥇🥈🥉 + "Employé du mois" 22 positives + "Entretien recommandé — 12 mentions négatives" après création de 12 retours négatifs), Stats (7 graphiques + heatmap + Export CSV réel 10 Ko + Export PDF), QR (PNG 1000×1000 + A4 + 20 étiquettes)
+- Preuves S5 : 5 onglets superadmin, suspension (alertdialog → badge Suspendu → API 403 "compte suspendu"), suppression cascade (user disparu de la DB), commande chevalet 49€ → IMPRIME → EXPEDIE + numeroSuivi COLI-2026-FR-847291 en DB, PDF d'impression 1 Mo généré, Revenus (6 charts + CA), Vue d'ensemble enrichie par l'agent : AreaChart croissance Pros 30j + BarChart Top 10 retours (ajoutés car manquants)
+- Preuves S6 : 4 pages légales (titres h1 corrects), SMS exact du prompt en log, emails bienvenue/confirmation simulés, onglet Facturation (plan actuel + 3 plans + historique), webhook Stripe 501 sans clés, cron 501 sans CRON_SECRET
+- Corrections : toggle smsAlertes (API PUT settings + Switch UI + ProData type), libellé "Exporter CSV", harmonisation, graphs superadmin
+- 38 captures dans proofs/ (committées) + CSV + PDF d'impression
+
+Stage Summary:
+- 6/6 Sessions livrées et vérifiées visuellement + en DB + logs ; tsc 0 erreur app ; lint OK ; dev.log propre
+- Divergences documentées : auth maison vs NextAuth (fonctionnel équivalent : bcrypt + sessions DB + guards + middleware), SQLite vs PostgreSQL (sandbox ; migration Supabase documentée au README), jsPDF vs @react-pdf/renderer (livrables PDF identiques)

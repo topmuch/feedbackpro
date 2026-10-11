@@ -24,6 +24,9 @@ export async function PUT(req: NextRequest) {
     const whatsapp = String(body.whatsapp || "").replace(/[^0-9]/g, "")
     const googleUrl = String(body.googleUrl || "").trim()
     const messageWhatsapp = String(body.messageWhatsapp || "").trim()
+    // Session 6 : alertes SMS pour les réclamations (note ≤ 2★)
+    // undefined = ne pas modifier · true/false = définir
+    const smsAlertes = typeof body.smsAlertes === "boolean" ? body.smsAlertes : undefined
 
     if (nomCommerce.length < 2) return fail("Le nom du commerce est requis", 400)
     if (!CATEGORIES_COMMERCE.includes(categorie)) return fail("Catégorie invalide", 400)
@@ -53,6 +56,7 @@ export async function PUT(req: NextRequest) {
         googleUrl: googleUrl || null,
         messageWhatsapp: messageWhatsapp || null,
         logoUrl,
+        ...(smsAlertes !== undefined ? { smsAlertes } : {}),
       },
     })
 

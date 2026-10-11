@@ -28,12 +28,23 @@ export default function Home() {
   const setView = useAppStore((s) => s.setView)
 
   // Démarrage : détecte le QR scanné (/r/<token> via rewrite, ou ?scan=<token>)
-  // puis charge la session
+  // puis charge la session. Session 2 : gère aussi /login et /register
+  // (rewrités vers /?auth=…) pour afficher la vue auth si pas de session.
   useEffect(() => {
     const token = tokenDepuisUrl()
     if (token) openScan(token)
-    refreshSession()
-  }, [openScan, refreshSession])
+    refreshSession().then(() => {
+      try {
+        const params = new URLSearchParams(window.location.search)
+        const auth = params.get("auth")
+        if ((auth === "login" || auth === "register") && !useAppStore.getState().session) {
+          setAuthMode(auth === "login" ? "login" : "signup")
+        }
+      } catch {
+        /* ignore */
+      }
+    })
+  }, [openScan, refreshSession, setAuthMode])
 
   // Bouton retour navigateur : resynchronise le token de scan
   useEffect(() => {

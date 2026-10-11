@@ -22,6 +22,8 @@ export type ProData = {
   qrToken: string
   plan: string
   onboardingDone: boolean
+  /** Alertes SMS activées pour les réclamations (note ≤ 2★) — Session 6 */
+  smsAlertes?: boolean
   createdAt: string
 }
 
@@ -36,8 +38,12 @@ type AppState = {
   scanToken: string | null
   session: SessionData | null
   booted: boolean
+  /** Pré-remplissage du formulaire de connexion (comptes de démo) */
+  prefillLogin: { email: string; password: string } | null
 
   setAuthMode: (mode: "login" | "signup") => void
+  /** Bascule sur la vue Connexion avec identifiants pré-remplis (démo) */
+  demoLogin: (kind: "pro" | "admin") => void
   setView: (v: View) => void
   openScan: (token: string) => void
   closeScan: () => void
@@ -78,8 +84,20 @@ export const useAppStore = create<AppState>((set, get) => ({
   scanToken: null,
   session: null,
   booted: false,
+  prefillLogin: null,
 
   setAuthMode: (mode) => set({ authMode: mode, view: "auth" }),
+
+  // Comptes de démonstration : bascule sur Connexion + pré-remplit le formulaire
+  demoLogin: (kind) =>
+    set({
+      authMode: "login",
+      view: "auth",
+      prefillLogin:
+        kind === "pro"
+          ? { email: "demo@pizzeria.fr", password: "demo1234" }
+          : { email: "admin@feedbackpro.fr", password: "admin123" },
+    }),
   setView: (v) => set({ view: v }),
 
   // Ouvre le flux de scan (depuis un QR scanné : /r/<token> ou ?scan=<token>)

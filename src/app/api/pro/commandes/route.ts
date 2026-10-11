@@ -9,6 +9,7 @@ import { db } from "@/lib/db"
 import { ok, fail } from "@/lib/session"
 import { requirePro, unauthorized } from "@/lib/guards"
 import { SUPPORTS, TypeSupportId } from "@/lib/constants"
+import { sendEmail, emailConfirmationCommande } from "@/lib/email"
 
 export async function GET(req: NextRequest) {
   try {
@@ -54,6 +55,18 @@ export async function POST(req: NextRequest) {
         statut: "A_IMPRIMER",
       },
     })
+
+    // Email de confirmation de commande (S6 §3) : non bloquant — un échec
+    // d'envoi ne doit jamais faire échouer la création de la commande.
+    try {
+      await sendEmail(
+        ctx.user.email,
+        "Confirmation de votre commande FeedbackPro",
+        emailConfirmationCommande(ctx.pro.nomCommerce, support.label, support.price, adresseLivraison)
+      )
+    } catch (e) {
+      console.warn("Email de confirmation de commande non envoyé (non bloquant)", e)
+    }
 
     return ok({ commande }, 201)
   } catch (e) {

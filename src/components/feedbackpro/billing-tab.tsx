@@ -1,0 +1,312 @@
+"use client"
+
+// ============================================================
+// FeedbackPro - Onglet "Facturation" du dashboard Pro (S6 §1)
+// ------------------------------------------------------------
+// - Plan actuel (badge) + grille comparative des 3 plans
+//   (PLANS + PLAN_LIMITS de src/lib/constants.ts)
+// - Changement de plan via POST /api/pro/billing/checkout :
+//   · Stripe configuré → redirection vers la Checkout Session
+//   · Sans clés (mode démo) → paiement simulé via POST /api/pro/plan
+//   · Starter étant gratuit, le downgrade appelle /api/pro/plan direct
+// - Historique des factures : commandes du Pro (GET /api/pro/commandes)
+// ============================================================
+
+import { useEffect, useState } from "react"
+import { CreditCard, Check, Loader2, Receipt, ShieldCheck, Lock } from "lucide-react"
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
+import { Separator } from "@/components/ui/separator"
+import { Skeleton } from "@/components/ui/skeleton"
+import { useToast } from "@/hooks/use-toast"
+import { useAppStore } from "@/store/app-store"
+import { PLANS, PLAN_LIMITS, planPriceLabel, STATUT_COMMANDE_LABEL, SUPPORTS, type PlanId } from "@/lib/constants"
+
+// ---------- Types locaux ----------
+
+type Commande = {
+  id: string
+  typeSupport: string
+  quantite: number
+  prixEuros: number
+  statut: string
+  createdAt: string
+}
+
+/** Couleur du badge selon le statut de la commande */
+function classeStatut(statut: string): string {
+  switch (statut) {
+    case "A_IMPRIMER":
+      return "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-50"
+    case "IMPRIME":
+      return "border-primary/30 bg-primary/5 text-primary hover:bg-primary/5"
+    case "EXPEDIE":
+      return "border-stone-300 bg-stone-100 text-stone-700 hover:bg-stone-100"
+    case "LIVRE":
+      return "border-green-300 bg-green-50 text-green-800 hover:bg-green-50"
+    default:
+      return ""
+  }
+}
+
+export function BillingTab() {
+  const session = useAppStore((s) => s.session)
+  const updatePro = useAppStore((s) => s.updatePro)
+  const refreshSession = useAppStore((s) => s.refreshSession)
+  const { toast } = useToast()
+
+  const planActuel = ((session?.pro?.plan as PlanId) || "STARTER") as PlanId
+
+  // ---------- Factures (commandes de supports) ----------
+  const [commandes, setCommandes] = useState<Commande[]>([])
+  const [chargementFactures, setChargementFactures] = useState(true)
+
+  // ---------- Changement de plan ----------
+  const [planEnCours, setPlanEnCours] = useState<PlanId | null>(null)
+
+  useEffect(() => {
+    async function charger() {
+      try {
+        const res = await fetch("/api/pro/commandes", { cache: "no-store" })
+        const json = await res.json()
+        if (json.ok) setCommandes(json.data.commandes)
+      } catch {
+        /* silencieux : liste simplement vide */
+      } finally {
+        setChargementFactures(false)
+      }
+    }
+    charger()
+  }, [])
+
+  // Retour de la Checkout Stripe : /dashboard/billing?paiement=succes
+  // (rewrité en /?tab=billing&paiement=succes par next.config)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get("paiement") === "succes") {
+        toast({
+          title: "Paiement confirmé 🎉",
+          description: "Votre abonnement a été mis à jour. Bienvenue à bord !",
+        })
+        // Nettoie l'URL et resynchronise la session (le webhook a déjà mis à jour le plan)
+        params.delete("paiement")
+        const qs = params.toString()
+        window.history.replaceState({}, "", "/dashboard/billing" + (qs ? `?${qs}` : ""))
+        void refreshSession()
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  /** Applique le plan en base (paiement simulé / downgrade gratuit) */
+  async function appliquerPlan(plan: PlanId) {
+    const res = await fetch("/api/pro/plan", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ plan }),
+    })
+    const json = await res.json()
+    if (json.ok) {
+      updatePro(json.data.pro)
+      toast({ title: `Plan ${PLANS[plan as PlanId].name} activé ✓` })
+    } else {
+      toast({ title: "Erreur", description: json.error, variant: "destructive" })
+    }
+  }
+
+  /**
+   * Flux de changement de plan :
+   * 1. Starter (gratuit) → changement direct, sans paiement
+   * 2. Plans payants → POST /api/pro/billing/checkout :
+   *    · data.url (Stripe actif) → redirection Checkout Session
+   *    · data.mode "DEMO" (sans clés) → paiement simulé + toast explicite
+   */
+  async function changerPlan(plan: PlanId) {
+    if (plan === planActuel || planEnCours) return
+    setPlanEnCours(plan)
+    try {
+      if (plan === "STARTER") {
+        await appliquerPlan(plan)
+        return
+      }
+
+      const res = await fetch("/api/pro/billing/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      })
+      const json = await res.json()
+
+      if (!json.ok) {
+        toast({ title: "Erreur", description: json.error, variant: "destructive" })
+        return
+      }
+
+      if (json.data?.url) {
+        // Stripe actif : redirection vers la page de paiement hébergée
+        window.location.href = json.data.url as string
+        return
+      }
+
+      // Mode démo : Stripe sera activé avec les clés du commerçant
+      toast({
+        title: "Mode démo : Stripe sera activé avec vos clés",
+        description: `Le plan ${PLANS[plan].name} est appliqué localement, sans prélèvement réel.`,
+      })
+      await appliquerPlan(plan)
+    } catch {
+      toast({ title: "Erreur réseau", variant: "destructive" })
+    } finally {
+      setPlanEnCours(null)
+    }
+  }
+
+  const planActuelDef = PLANS[planActuel] ?? PLANS.STARTER
+
+  return (
+    <div className="space-y-6">
+      {/* ---------- En-tête ---------- */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Facturation</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Gérez votre abonnement et consultez vos factures.
+          </p>
+        </div>
+        <Badge variant="secondary" className="gap-1.5 px-3 py-1.5 text-sm">
+          <CreditCard className="h-3.5 w-3.5" aria-hidden />
+          Plan actuel : {planActuelDef.name}
+        </Badge>
+      </div>
+
+      {/* ---------- Grille comparative des plans ---------- */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {(Object.keys(PLANS) as PlanId[]).map((id) => {
+          const p = PLANS[id]
+          const estActuel = id === planActuel
+          const estSuperieur = p.price > planActuelDef.price
+          const limites = PLAN_LIMITS[id]
+          return (
+            <Card
+              key={id}
+              className={
+                estActuel
+                  ? "border-primary shadow-sm ring-1 ring-primary"
+                  : "transition-shadow hover:shadow-sm"
+              }
+            >
+              <CardHeader className="pb-3">
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="text-base">{p.name}</CardTitle>
+                  {estActuel && <Badge className="bg-primary text-primary-foreground hover:bg-primary">Plan actuel</Badge>}
+                </div>
+                <CardDescription className="pt-1">{p.tagline}</CardDescription>
+                <p className="pt-2 text-2xl font-bold tracking-tight">
+                  {planPriceLabel(p.price)}
+                  {p.price > 0 && <span className="text-sm font-normal text-muted-foreground"> /mois</span>}
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <ul className="space-y-2">
+                  {p.features.map((f) => (
+                    <li key={f} className="flex items-start gap-2 text-sm">
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-muted-foreground">
+                  {limites.employes === 999 ? "Employés illimités" : `${limites.employes} employés`} ·{" "}
+                  {limites.boutiques === 999 ? "boutiques illimitées" : `${limites.boutiques} boutique${limites.boutiques > 1 ? "s" : ""}`}
+                </p>
+                <Button
+                  className="w-full"
+                  variant={estActuel ? "outline" : "default"}
+                  disabled={estActuel || planEnCours !== null}
+                  onClick={() => changerPlan(id)}
+                >
+                  {planEnCours === id && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+                  {estActuel ? "Votre plan actuel" : estSuperieur ? `Passer au plan ${p.name}` : `Rétrograder vers ${p.name}`}
+                </Button>
+              </CardContent>
+            </Card>
+          )
+        })}
+      </div>
+
+      {/* ---------- Bandeau sécurité paiement ---------- */}
+      <div className="flex items-start gap-2.5 rounded-lg border bg-muted/40 px-4 py-3 text-xs text-muted-foreground">
+        <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+        <p>
+          Paiements sécurisés par <strong>Stripe</strong> (PCI-DSS). Sans clés Stripe configurées,
+          l&apos;environnement reste en mode démonstration : aucun prélèvement réel n&apos;est effectué.
+          Les changements de plan sont immédiats, sans engagement.
+        </p>
+      </div>
+
+      {/* ---------- Historique des factures ---------- */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Receipt className="h-4 w-4 text-primary" aria-hidden />
+            Historique des factures
+          </CardTitle>
+          <CardDescription>
+            Commandes de supports physiques et paiements d&apos;abonnement.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {chargementFactures ? (
+            <div className="space-y-2.5">
+              {[0, 1, 2].map((i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : commandes.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-10 text-center">
+              <Lock className="h-8 w-8 text-muted-foreground/50" aria-hidden />
+              <p className="text-sm text-muted-foreground">
+                Factures Stripe : disponibles après connexion de vos clés Stripe.
+              </p>
+              <p className="text-xs text-muted-foreground/80">
+                En attendant, vos commandes de supports imprimés apparaîtront ici.
+              </p>
+            </div>
+          ) : (
+            <div className="max-h-96 space-y-1 overflow-y-auto pr-1 custom-scrollbar">
+              {commandes.map((c, idx) => (
+                <div key={c.id}>
+                  <div className="flex items-center justify-between gap-3 py-3">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">
+                        {SUPPORTS[c.typeSupport as keyof typeof SUPPORTS]?.label ?? c.typeSupport}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(c.createdAt).toLocaleDateString("fr-FR", {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        })}
+                        {c.quantite > 1 && ` · ${c.quantite} unités`}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <span className="text-sm font-semibold">{c.prixEuros} €</span>
+                      <Badge variant="outline" className={classeStatut(c.statut)}>
+                        {STATUT_COMMANDE_LABEL[c.statut] ?? c.statut}
+                      </Badge>
+                    </div>
+                  </div>
+                  {idx < commandes.length - 1 && <Separator />}
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}

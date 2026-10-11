@@ -3,15 +3,18 @@
 // POST /api/retour
 // Body : { token, note, tags[], commentaire?, personnelMentionne?, employeId?, canalChoisi? }
 // - Validation Zod (schéma partagé client/serveur src/lib/validation.ts)
-// - Note <= 2 → création d'une Alerte (SMS simulé côté serveur)
+// - Note <= 2 → création d'une Alerte + notification commerçant
+//   (SMS Twilio si activé, sinon email de secours — S6)
 // - Ville approximative du client via IP (ipapi.co, optionnelle et silencieuse)
 // ============================================================
 
 import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
 import { ok, fail } from "@/lib/session"
-import { POSITIVE_TAGS, NEGATIVE_TAGS } from "@/lib/constants"
+import { POSITIVE_TAGS, NEGATIVE_TAGS, tagLabel } from "@/lib/constants"
 import { retourSchema, firstError } from "@/lib/validation"
+import { sendSMS } from "@/lib/twilio"
+import { sendEmail, emailAlerteRetour } from "@/lib/email"
 
 /** Adresses locales/privées : aucune recherche géo (inutile et hors RGPD utile) */
 function estIpPrivee(ip: string): boolean {
@@ -71,9 +74,13 @@ export async function POST(req: NextRequest) {
       return fail("Tags incohérents avec la note", 400)
 
     // ---------- Résolution du commerce via le token du QR ----------
+    // `user` est inclus pour récupérer l'email du commerçant (alerte email de secours, S6)
     const pro = await db.pro.findUnique({
       where: { qrToken: token },
-      include: { boutiques: { orderBy: { createdAt: "asc" } } },
+      include: {
+        boutiques: { orderBy: { createdAt: "asc" } },
+        user: { select: { email: true } },
+      },
     })
     if (!pro) return fail("QR code invalide", 404)
     const boutique = pro.boutiques[0]
@@ -129,8 +136,29 @@ export async function POST(req: NextRequest) {
           lu: false,
         },
       })
-      // Simulation d'envoi SMS (Twilio en V2) : log serveur
-      console.log(`[SMS SIMULÉ] → ${pro.whatsapp ?? "numéro non configuré"} : Réclamation ${note}/5 pour ${pro.nomCommerce}`)
+
+      // ---------- Notification commerçant (S6) : SMS Twilio ou email de secours ----------
+      // Strictement non bloquant : un échec d'envoi ne doit jamais faire
+      // échouer l'enregistrement du retour (le client attend sa réponse).
+      const motifs = validTags.length ? validTags.map(tagLabel).join(", ") : "non précisé"
+      const dashboardUrl = `${(process.env.NEXT_PUBLIC_APP_URL || "https://feedbackpro.fr").replace(/\/$/, "")}/dashboard`
+      try {
+        if (pro.smsAlertes && pro.whatsapp) {
+          void sendSMS(
+            pro.whatsapp,
+            `🚨 FeedbackPro : Alerte réclamation - Note ${note}/5 - Motif : ${motifs}. Connectez-vous : ${dashboardUrl}`
+          ).catch((e) => console.warn("SMS d'alerte non envoyé (non bloquant)", e))
+        } else if (pro.user?.email) {
+          // Fallback email : SMS désactivé (pro.smsAlertes = false) ou numéro manquant
+          void sendEmail(
+            pro.user.email,
+            `🚨 Alerte réclamation ${note}/5 — ${pro.nomCommerce}`,
+            emailAlerteRetour(pro.nomCommerce, note, motifs, dashboardUrl)
+          ).catch((e) => console.warn("Email d'alerte non envoyé (non bloquant)", e))
+        }
+      } catch (e) {
+        console.warn("Notification d'alerte non envoyée (non bloquant)", e)
+      }
       alerteEnvoyee = true
     }
 
