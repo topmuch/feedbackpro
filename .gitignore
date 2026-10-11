@@ -56,3 +56,7 @@ server.log
 /db/*.db
 /db/*.db-journal
 /prisma/*.db
+
+# sandbox artifacts
+tool-results/
+.zscripts/dev.pid
