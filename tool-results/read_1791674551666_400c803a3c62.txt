@@ -1,0 +1,746 @@
+     1→"use client"
+     2→
+     3→// ============================================================
+     4→// FeedbackPro - Onglet "Retours clients" du dashboard Pro
+     5→// Tableau filtrable (note, statut, tag, dates, employé, lu) +
+     6→// modale de détail avec réponse et historique des statuts
+     7→// ============================================================
+     8→
+     9→import { useCallback, useEffect, useRef, useState } from "react"
+    10→import {
+    11→  Search,
+    12→  Download,
+    13→  MailOpen,
+    14→  MessageSquareReply,
+    15→  RefreshCw,
+    16→  Loader2,
+    17→  Eye,
+    18→  MoreHorizontal,
+    19→  Clock,
+    20→  CheckCircle2,
+    21→  X,
+    22→} from "lucide-react"
+    23→import { Card, CardContent } from "@/components/ui/card"
+    24→import { Button } from "@/components/ui/button"
+    25→import { Input } from "@/components/ui/input"
+    26→import { Badge } from "@/components/ui/badge"
+    27→import { Skeleton } from "@/components/ui/skeleton"
+    28→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+    29→import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+    30→import { Textarea } from "@/components/ui/textarea"
+    31→import {
+    32→  Table,
+    33→  TableBody,
+    34→  TableCell,
+    35→  TableHead,
+    36→  TableHeader,
+    37→  TableRow,
+    38→} from "@/components/ui/table"
+    39→import {
+    40→  DropdownMenu,
+    41→  DropdownMenuContent,
+    42→  DropdownMenuItem,
+    43→  DropdownMenuTrigger,
+    44→} from "@/components/ui/dropdown-menu"
+    45→import { Stars, formatDate } from "@/components/feedbackpro/shared"
+    46→import { useToast } from "@/hooks/use-toast"
+    47→import { ALL_TAGS, STATUT_RETOUR_LABEL, tagLabel } from "@/lib/constants"
+    48→
+    49→type StatutRetour = "NEW" | "IN_PROGRESS" | "RESOLVED"
+    50→
+    51→type Retour = {
+    52→  id: string
+    53→  note: number
+    54→  tags: string[]
+    55→  commentaire: string | null
+    56→  personnelMentionne: string | null
+    57→  employeNom: string | null
+    58→  canalChoisi: string | null
+    59→  statut: StatutRetour
+    60→  lu: boolean
+    61→  reponsePro: string | null
+    62→  ipCity: string | null
+    63→  historique: { statut: string; at: string }[]
+    64→  createdAt: string
+    65→}
+    66→
+    67→type Employe = { id: string; nom: string }
+    68→
+    69→const PAGE_SIZE = 50
+    70→
+    71→// ---------- Helpers d'affichage ----------
+    72→
+    73→/** Tronque un commentaire à ~60 caractères */
+    74→function tronquer(texte: string, max = 60): string {
+    75→  return texte.length > max ? `${texte.slice(0, max)}…` : texte
+    76→}
+    77→
+    78→/** Libellé du canal d'envoi */
+    79→function canalLabel(canal: string | null): string {
+    80→  if (!canal) return "—"
+    81→  if (canal === "whatsapp") return "via WhatsApp"
+    82→  if (canal === "google") return "via Google"
+    83→  return "via formulaire"
+    84→}
+    85→
+    86→/** Couleurs du badge de statut (tokens sémantiques) */
+    87→function statutBadgeClass(statut: string): string {
+    88→  if (statut === "RESOLVED") return "text-green-700 border-green-300"
+    89→  if (statut === "IN_PROGRESS") return "text-amber-700 border-amber-300"
+    90→  return "text-stone-600"
+    91→}
+    92→
+    93→/** Couleur de la pastille de la timeline de suivi */
+    94→function pastilleClass(statut: string): string {
+    95→  if (statut === "RESOLVED") return "bg-green-500"
+    96→  if (statut === "IN_PROGRESS") return "bg-amber-500"
+    97→  return "bg-stone-400"
+    98→}
+    99→
+   100→export function RetoursTab() {
+   101→  const [items, setItems] = useState<Retour[]>([])
+   102→  const [employes, setEmployes] = useState<Employe[]>([])
+   103→  const [total, setTotal] = useState(0)
+   104→  const [page, setPage] = useState(1)
+   105→  const [loading, setLoading] = useState(true)
+   106→
+   107→  // Filtres
+   108→  const [fNote, setFNote] = useState("all")
+   109→  const [fStatut, setFStatut] = useState("all")
+   110→  const [fTag, setFTag] = useState("all")
+   111→  const [fEmploye, setFEmploye] = useState("all")
+   112→  const [fLu, setFLu] = useState("all")
+   113→  const [q, setQ] = useState("")
+   114→  const [fDu, setFDu] = useState("") // from (AAAA-MM-JJ)
+   115→  const [fAu, setFAu] = useState("") // to (AAAA-MM-JJ)
+   116→
+   117→  // Modale de détail
+   118→  const [detail, setDetail] = useState<Retour | null>(null)
+   119→  const [editionReponse, setEditionReponse] = useState(false)
+   120→  const [texteReponse, setTexteReponse] = useState("")
+   121→  const [envoiReponse, setEnvoiReponse] = useState(false)
+   122→  const reponseRef = useRef<HTMLTextAreaElement>(null)
+   123→
+   124→  const { toast } = useToast()
+   125→
+   126→  const load = useCallback(
+   127→    async (p = page) => {
+   128→      setLoading(true)
+   129→      try {
+   130→        const params = new URLSearchParams({ page: String(p) })
+   131→        if (fNote !== "all") params.set("note", fNote)
+   132→        if (fStatut !== "all") params.set("statut", fStatut)
+   133→        if (fTag !== "all") params.set("tag", fTag)
+   134→        if (fEmploye !== "all") params.set("employeId", fEmploye)
+   135→        if (fLu !== "all") params.set("lu", fLu)
+   136→        if (fDu) params.set("from", fDu)
+   137→        if (fAu) params.set("to", fAu)
+   138→        if (q.trim()) params.set("q", q.trim())
+   139→        const res = await fetch(`/api/pro/retours?${params.toString()}`, { cache: "no-store" })
+   140→        const json = await res.json()
+   141→        if (json.ok) {
+   142→          setItems(json.data.items)
+   143→          setTotal(json.data.total)
+   144→          setEmployes(json.data.employes)
+   145→        } else {
+   146→          toast({ title: "Erreur", description: "Impossible de charger les retours", variant: "destructive" })
+   147→        }
+   148→      } catch {
+   149→        toast({ title: "Erreur", description: "Impossible de charger les retours", variant: "destructive" })
+   150→      } finally {
+   151→        setLoading(false)
+   152→      }
+   153→    },
+   154→    [fNote, fStatut, fTag, fEmploye, fLu, fDu, fAu, q, page]
+   155→  )
+   156→
+   157→  // Rechargement quand un filtre ou la page change
+   158→  useEffect(() => {
+   159→    load(page)
+   160→
+   161→  }, [fNote, fStatut, fTag, fEmploye, fLu, fDu, fAu, page])
+   162→
+   163→  // Recherche texte avec délai (debounce 350 ms)
+   164→  const premierRendu = useRef(true)
+   165→  useEffect(() => {
+   166→    if (premierRendu.current) {
+   167→      premierRendu.current = false
+   168→      return
+   169→    }
+   170→    const t = setTimeout(() => load(1), 350)
+   171→    return () => clearTimeout(t)
+   172→
+   173→  }, [q])
+   174→
+   175→  // Focus sur la zone de réponse dès que le mode édition s'ouvre
+   176→  useEffect(() => {
+   177→    if (editionReponse) reponseRef.current?.focus()
+   178→  }, [editionReponse, detail?.id])
+   179→
+   180→  // Mise à jour d'un retour : synchronise la liste ET l'item affiché dans la modale
+   181→  async function majRetour(id: string, data: { statut?: StatutRetour; lu?: boolean; reponsePro?: string }) {
+   182→    try {
+   183→      const res = await fetch("/api/pro/retours", {
+   184→        method: "PATCH",
+   185→        headers: { "Content-Type": "application/json" },
+   186→        body: JSON.stringify({ id, ...data }),
+   187→      })
+   188→      const json = await res.json()
+   189→      if (json.ok) {
+   190→        // Merge de la réponse serveur { id, statut, lu, reponsePro, historique }
+   191→        setItems((prev) => prev.map((r) => (r.id === id ? { ...r, ...json.data } : r)))
+   192→        setDetail((prev) => (prev && prev.id === id ? { ...prev, ...json.data } : prev))
+   193→      } else {
+   194→        toast({ title: "Erreur", description: json.error || "Mise à jour impossible", variant: "destructive" })
+   195→      }
+   196→    } catch {
+   197→      toast({ title: "Erreur", description: "Mise à jour impossible", variant: "destructive" })
+   198→    }
+   199→  }
+   200→
+   201→  // Ouverture de la modale
+   202→  function ouvrirDetail(r: Retour) {
+   203→    setDetail(r)
+   204→    setTexteReponse(r.reponsePro || "")
+   205→    setEditionReponse(false)
+   206→  }
+   207→
+   208→  function ouvrirReponse(r: Retour) {
+   209→    setDetail(r)
+   210→    setTexteReponse(r.reponsePro || "")
+   211→    setEditionReponse(true)
+   212→  }
+   213→
+   214→  function fermerDetail() {
+   215→    setDetail(null)
+   216→    setEditionReponse(false)
+   217→  }
+   218→
+   219→  // Enregistrement de la réponse du commerçant
+   220→  async function enregistrerReponse() {
+   221→    if (!detail || !texteReponse.trim()) return
+   222→    setEnvoiReponse(true)
+   223→    const statutPasse = detail.statut === "NEW"
+   224→    await majRetour(detail.id, {
+   225→      reponsePro: texteReponse.trim(),
+   226→      lu: true,
+   227→      ...(statutPasse ? { statut: "IN_PROGRESS" as StatutRetour } : {}),
+   228→    })
+   229→    setEnvoiReponse(false)
+   230→    setEditionReponse(false)
+   231→    toast({
+   232→      title: "Réponse enregistrée",
+   233→      ...(statutPasse ? { description: "Le statut du retour est passé à « En cours »" } : {}),
+   234→    })
+   235→  }
+   236→
+   237→  const nbPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
+   238→  const datesActives = fDu !== "" || fAu !== ""
+   239→
+   240→  // Timeline de suivi : historique trié chronologiquement, ou entrée unique "Nouveau"
+   241→  const historiqueAffiche: { statut: string; at: string }[] = detail
+   242→    ? detail.historique.length > 0
+   243→      ? [...detail.historique].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
+   244→      : [{ statut: "NEW", at: detail.createdAt }]
+   245→    : []
+   246→
+   247→  return (
+   248→    <div className="space-y-4">
+   249→      {/* ---------- Barre de filtres ---------- */}
+   250→      <Card>
+   251→        <CardContent className="p-4">
+   252→          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
+   253→            {/* Recherche texte (debounce 350 ms) */}
+   254→            <div className="relative sm:col-span-2 md:col-span-1">
+   255→              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+   256→              <Input
+   257→                placeholder="Rechercher (commentaire, tags…)"
+   258→                value={q}
+   259→                onChange={(e) => setQ(e.target.value)}
+   260→                className="h-10 pl-8"
+   261→                aria-label="Rechercher dans les retours"
+   262→              />
+   263→            </div>
+   264→
+   265→            {/* Note */}
+   266→            <Select value={fNote} onValueChange={(v) => { setPage(1); setFNote(v) }}>
+   267→              <SelectTrigger className="h-10 w-full" aria-label="Filtrer par note">
+   268→                <SelectValue placeholder="Note" />
+   269→              </SelectTrigger>
+   270→              <SelectContent>
+   271→                <SelectItem value="all">Toutes notes</SelectItem>
+   272→                {[5, 4, 3, 2, 1].map((n) => (
+   273→                  <SelectItem key={n} value={String(n)}>
+   274→                    {"★".repeat(n)}
+   275→                  </SelectItem>
+   276→                ))}
+   277→              </SelectContent>
+   278→            </Select>
+   279→
+   280→            {/* Statut */}
+   281→            <Select value={fStatut} onValueChange={(v) => { setPage(1); setFStatut(v) }}>
+   282→              <SelectTrigger className="h-10 w-full" aria-label="Filtrer par statut">
+   283→                <SelectValue placeholder="Statut" />
+   284→              </SelectTrigger>
+   285→              <SelectContent>
+   286→                <SelectItem value="all">Tous statuts</SelectItem>
+   287→                <SelectItem value="NEW">Nouveau</SelectItem>
+   288→                <SelectItem value="IN_PROGRESS">En cours</SelectItem>
+   289→                <SelectItem value="RESOLVED">Résolu</SelectItem>
+   290→              </SelectContent>
+   291→            </Select>
+   292→
+   293→            {/* Tag */}
+   294→            <Select value={fTag} onValueChange={(v) => { setPage(1); setFTag(v) }}>
+   295→              <SelectTrigger className="h-10 w-full" aria-label="Filtrer par tag">
+   296→                <SelectValue placeholder="Tag" />
+   297→              </SelectTrigger>
+   298→              <SelectContent>
+   299→                <SelectItem value="all">Tous les tags</SelectItem>
+   300→                {ALL_TAGS.map((t) => (
+   301→                  <SelectItem key={t.id} value={t.id}>
+   302→                    {`${t.emoji} ${t.label}`}
+   303→                  </SelectItem>
+   304→                ))}
+   305→              </SelectContent>
+   306→            </Select>
+   307→
+   308→            {/* Dates (Du / Au) + réinitialisation */}
+   309→            <div className="flex items-center gap-1.5 sm:col-span-2">
+   310→              <Input
+   311→                type="date"
+   312→                value={fDu}
+   313→                onChange={(e) => { setPage(1); setFDu(e.target.value) }}
+   314→                className="h-10 min-w-0 flex-1 text-muted-foreground"
+   315→                aria-label="Date de début"
+   316→              />
+   317→              <Input
+   318→                type="date"
+   319→                value={fAu}
+   320→                onChange={(e) => { setPage(1); setFAu(e.target.value) }}
+   321→                className="h-10 min-w-0 flex-1 text-muted-foreground"
+   322→                aria-label="Date de fin"
+   323→              />
+   324→              {datesActives && (
+   325→                <Button
+   326→                  variant="ghost"
+   327→                  size="icon"
+   328→                  className="h-10 w-9 shrink-0"
+   329→                  onClick={() => { setPage(1); setFDu(""); setFAu("") }}
+   330→                  aria-label="Réinitialiser les dates"
+   331→                >
+   332→                  <X className="h-4 w-4" aria-hidden />
+   333→                </Button>
+   334→              )}
+   335→            </div>
+   336→
+   337→            {/* Employé */}
+   338→            <Select value={fEmploye} onValueChange={(v) => { setPage(1); setFEmploye(v) }}>
+   339→              <SelectTrigger className="h-10 w-full" aria-label="Filtrer par employé">
+   340→                <SelectValue placeholder="Employé" />
+   341→              </SelectTrigger>
+   342→              <SelectContent>
+   343→                <SelectItem value="all">Tous employés</SelectItem>
+   344→                {employes.map((e) => (
+   345→                  <SelectItem key={e.id} value={e.id}>
+   346→                    {e.nom}
+   347→                  </SelectItem>
+   348→                ))}
+   349→              </SelectContent>
+   350→            </Select>
+   351→
+   352→            {/* Lu */}
+   353→            <Select value={fLu} onValueChange={(v) => { setPage(1); setFLu(v) }}>
+   354→              <SelectTrigger className="h-10 w-full" aria-label="Filtrer par lecture">
+   355→                <SelectValue placeholder="Lu" />
+   356→              </SelectTrigger>
+   357→              <SelectContent>
+   358→                <SelectItem value="all">Tous</SelectItem>
+   359→                <SelectItem value="false">Non lus</SelectItem>
+   360→              </SelectContent>
+   361→            </Select>
+   362→
+   363→            {/* Rafraîchir */}
+   364→            <div className="flex items-center">
+   365→              <Button variant="outline" size="icon" className="h-10 w-10" onClick={() => load()} aria-label="Rafraîchir">
+   366→                <RefreshCw className="h-4 w-4" aria-hidden />
+   367→              </Button>
+   368→            </div>
+   369→          </div>
+   370→
+   371→          {/* Ligne info + export */}
+   372→          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+   373→            <p className="text-sm text-muted-foreground">
+   374→              {total} retour{total > 1 ? "s" : ""}
+   375→              {total > PAGE_SIZE ? ` — page ${page}/${nbPages}` : ""}
+   376→            </p>
+   377→            <a href="/api/pro/retours/export" download>
+   378→              <Button variant="outline" size="sm" className="h-10 px-3">
+   379→                <Download className="mr-1.5 h-4 w-4" aria-hidden />
+   380→                Exporter en CSV
+   381→              </Button>
+   382→            </a>
+   383→          </div>
+   384→        </CardContent>
+   385→      </Card>
+   386→
+   387→      {/* ---------- Tableau des retours ---------- */}
+   388→      {loading ? (
+   389→        <Card className="py-0">
+   390→          <CardContent className="space-y-3 p-4">
+   391→            {[0, 1, 2, 3, 4].map((i) => (
+   392→              <Skeleton key={i} className="h-16 rounded-lg" />
+   393→            ))}
+   394→          </CardContent>
+   395→        </Card>
+   396→      ) : items.length === 0 ? (
+   397→        <Card>
+   398→          <CardContent className="py-14 text-center text-muted-foreground">
+   399→            Aucun retour ne correspond à ces filtres.
+   400→          </CardContent>
+   401→        </Card>
+   402→      ) : (
+   403→        <Card className="overflow-hidden py-0">
+   404→          <CardContent className="p-0">
+   405→            <Table>
+   406→              <TableHeader>
+   407→                <TableRow className="bg-muted/50 hover:bg-muted/50">
+   408→                  <TableHead className="pl-4">Date</TableHead>
+   409→                  <TableHead>Note</TableHead>
+   410→                  <TableHead className="hidden md:table-cell">Tags</TableHead>
+   411→                  <TableHead className="hidden lg:table-cell">Commentaire</TableHead>
+   412→                  <TableHead className="hidden md:table-cell">Personnel</TableHead>
+   413→                  <TableHead>Statut</TableHead>
+   414→                  <TableHead className="pr-4 text-right">Actions</TableHead>
+   415→                </TableRow>
+   416→              </TableHeader>
+   417→              <TableBody>
+   418→                {items.map((r) => (
+   419→                  <TableRow key={r.id} className="cursor-pointer" onClick={() => ouvrirDetail(r)}>
+   420→                    {/* Date */}
+   421→                    <TableCell className="pl-4 text-xs whitespace-nowrap text-muted-foreground">
+   422→                      {formatDate(r.createdAt)}
+   423→                    </TableCell>
+   424→
+   425→                    {/* Note */}
+   426→                    <TableCell>
+   427→                      <div className="flex items-center gap-1.5">
+   428→                        <Stars note={r.note} size={14} />
+   429→                        {!r.lu && <Badge className="h-5 px-1.5 text-[10px]">Nouveau</Badge>}
+   430→                      </div>
+   431→                    </TableCell>
+   432→
+   433→                    {/* Tags (masqué < md) */}
+   434→                    <TableCell className="hidden md:table-cell">
+   435→                      {r.tags.length === 0 ? (
+   436→                        <span className="text-muted-foreground">—</span>
+   437→                      ) : (
+   438→                        <div className="flex max-w-56 flex-wrap gap-1">
+   439→                          {r.tags.slice(0, 3).map((t) => (
+   440→                            <Badge
+   441→                              key={t}
+   442→                              variant="outline"
+   443→                              className="h-5 min-w-0 max-w-full px-1.5 text-xs font-normal"
+   444→                              title={tagLabel(t)}
+   445→                            >
+   446→                              <span className="truncate">{tagLabel(t)}</span>
+   447→                            </Badge>
+   448→                          ))}
+   449→                          {r.tags.length > 3 && (
+   450→                            <Badge variant="outline" className="h-5 px-1.5 text-xs font-normal">
+   451→                              +{r.tags.length - 3}
+   452→                            </Badge>
+   453→                          )}
+   454→                        </div>
+   455→                      )}
+   456→                    </TableCell>
+   457→
+   458→                    {/* Commentaire (masqué < lg) */}
+   459→                    <TableCell className="hidden max-w-72 whitespace-normal lg:table-cell">
+   460→                      {r.commentaire ? (
+   461→                        <span className="text-sm italic leading-snug">{tronquer(r.commentaire)}</span>
+   462→                      ) : (
+   463→                        <span className="text-muted-foreground">—</span>
+   464→                      )}
+   465→                    </TableCell>
+   466→
+   467→                    {/* Personnel (masqué < md) */}
+   468→                    <TableCell className="hidden text-xs md:table-cell">
+   469→                      {r.employeNom || r.personnelMentionne || <span className="text-muted-foreground">—</span>}
+   470→                    </TableCell>
+   471→
+   472→                    {/* Statut */}
+   473→                    <TableCell>
+   474→                      <Badge variant="outline" className={statutBadgeClass(r.statut)}>
+   475→                        {STATUT_RETOUR_LABEL[r.statut] ?? r.statut}
+   476→                      </Badge>
+   477→                    </TableCell>
+   478→
+   479→                    {/* Actions (clics isolés du clic-ligne) */}
+   480→                    <TableCell className="pr-4 text-right" onClick={(e) => e.stopPropagation()}>
+   481→                      <div className="flex items-center justify-end gap-0.5">
+   482→                        <Button
+   483→                          variant="ghost"
+   484→                          size="icon"
+   485→                          className="h-8 w-8"
+   486→                          aria-label="Voir le détail"
+   487→                          onClick={() => ouvrirDetail(r)}
+   488→                        >
+   489→                          <Eye className="h-4 w-4" aria-hidden />
+   490→                        </Button>
+   491→                        <Button
+   492→                          variant="ghost"
+   493→                          size="icon"
+   494→                          className="h-8 w-8"
+   495→                          aria-label="Répondre"
+   496→                          onClick={() => ouvrirReponse(r)}
+   497→                        >
+   498→                          <MessageSquareReply className="h-4 w-4" aria-hidden />
+   499→                        </Button>
+   500→                        <DropdownMenu>
+   501→                          <DropdownMenuTrigger asChild>
+   502→                            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Plus d'actions">
+   503→                              <MoreHorizontal className="h-4 w-4" aria-hidden />
+   504→                            </Button>
+   505→                          </DropdownMenuTrigger>
+   506→                          <DropdownMenuContent align="end" className="w-44">
+   507→                            {!r.lu && (
+   508→                              <DropdownMenuItem onClick={() => majRetour(r.id, { lu: true })}>
+   509→                                <MailOpen aria-hidden />
+   510→                                Marquer comme lu
+   511→                              </DropdownMenuItem>
+   512→                            )}
+   513→                            {r.statut !== "IN_PROGRESS" && (
+   514→                              <DropdownMenuItem onClick={() => majRetour(r.id, { statut: "IN_PROGRESS" })}>
+   515→                                <Clock aria-hidden />
+   516→                                Passer en cours
+   517→                              </DropdownMenuItem>
+   518→                            )}
+   519→                            {r.statut !== "RESOLVED" && (
+   520→                              <DropdownMenuItem onClick={() => majRetour(r.id, { statut: "RESOLVED" })}>
+   521→                                <CheckCircle2 aria-hidden />
+   522→                                Marquer résolu
+   523→                              </DropdownMenuItem>
+   524→                            )}
+   525→                          </DropdownMenuContent>
+   526→                        </DropdownMenu>
+   527→                      </div>
+   528→                    </TableCell>
+   529→                  </TableRow>
+   530→                ))}
+   531→              </TableBody>
+   532→            </Table>
+   533→          </CardContent>
+   534→        </Card>
+   535→      )}
+   536→
+   537→      {/* ---------- Pagination ---------- */}
+   538→      {nbPages > 1 && (
+   539→        <div className="flex items-center justify-center gap-3">
+   540→          <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
+   541→            Précédent
+   542→          </Button>
+   543→          <span className="text-sm text-muted-foreground">
+   544→            Page {page} / {nbPages}
+   545→          </span>
+   546→          <Button variant="outline" size="sm" disabled={page >= nbPages} onClick={() => setPage((p) => p + 1)}>
+   547→            Suivant
+   548→          </Button>
+   549→        </div>
+   550→      )}
+   551→
+   552→      {/* ---------- Modale de détail ---------- */}
+   553→      <Dialog open={!!detail} onOpenChange={(o) => { if (!o) fermerDetail() }}>
+   554→        <DialogContent
+   555→          className="max-h-[85vh] overflow-y-auto custom-scrollbar sm:max-w-2xl"
+   556→          onOpenAutoFocus={(e) => {
+   557→            // Focus direct sur la réponse quand la modale est ouverte via « Répondre »
+   558→            if (editionReponse) {
+   559→              e.preventDefault()
+   560→              reponseRef.current?.focus()
+   561→            }
+   562→          }}
+   563→        >
+   564→          <DialogHeader>
+   565→            <DialogTitle>Détail du retour</DialogTitle>
+   566→            <DialogDescription>Consultez toutes les informations et suivez son traitement.</DialogDescription>
+   567→          </DialogHeader>
+   568→
+   569→          {detail && (
+   570→            <div className="space-y-5">
+   571→              {/* En-tête : note, badges, date */}
+   572→              <div className="flex flex-wrap items-center gap-2">
+   573→                <Stars note={detail.note} size={16} />
+   574→                {!detail.lu && <Badge className="h-5 px-1.5 text-[10px]">Nouveau</Badge>}
+   575→                <Badge variant="outline" className={statutBadgeClass(detail.statut)}>
+   576→                  {STATUT_RETOUR_LABEL[detail.statut] ?? detail.statut}
+   577→                </Badge>
+   578→                <span className="ml-auto text-xs text-muted-foreground">{formatDate(detail.createdAt)}</span>
+   579→              </div>
+   580→
+   581→              {/* Grille d'infos */}
+   582→              <div className="grid gap-x-4 gap-y-3 text-sm sm:grid-cols-2">
+   583→                <div className="min-w-0">
+   584→                  <p className="mb-1 text-xs font-medium text-muted-foreground">Tags</p>
+   585→                  {detail.tags.length > 0 ? (
+   586→                    <div className="flex flex-wrap gap-1.5">
+   587→                      {detail.tags.map((t) => (
+   588→                        <Badge
+   589→                          key={t}
+   590→                          variant="outline"
+   591→                          className="h-6 min-w-0 max-w-full px-2 text-xs font-normal"
+   592→                          title={tagLabel(t)}
+   593→                        >
+   594→                          <span className="truncate">{tagLabel(t)}</span>
+   595→                        </Badge>
+   596→                      ))}
+   597→                    </div>
+   598→                  ) : (
+   599→                    <span className="text-muted-foreground">—</span>
+   600→                  )}
+   601→                </div>
+   602→                <div className="min-w-0">
+   603→                  <p className="mb-1 text-xs font-medium text-muted-foreground">Personnel concerné</p>
+   604→                  {detail.employeNom || detail.personnelMentionne ? (
+   605→                    <p>
+   606→                      {detail.employeNom}
+   607→                      {detail.employeNom && detail.personnelMentionne ? ` (${detail.personnelMentionne})` : detail.personnelMentionne || ""}
+   608→                    </p>
+   609→                  ) : (
+   610→                    <span className="text-muted-foreground">—</span>
+   611→                  )}
+   612→                </div>
+   613→                <div className="min-w-0">
+   614→                  <p className="mb-1 text-xs font-medium text-muted-foreground">Canal</p>
+   615→                  <p>{canalLabel(detail.canalChoisi)}</p>
+   616→                </div>
+   617→                <div className="min-w-0">
+   618→                  <p className="mb-1 text-xs font-medium text-muted-foreground">Ville</p>
+   619→                  {detail.ipCity ? <p>{detail.ipCity}</p> : <span className="text-muted-foreground">—</span>}
+   620→                </div>
+   621→              </div>
+   622→
+   623→              {/* Commentaire client */}
+   624→              <div>
+   625→                <p className="mb-1.5 text-xs font-medium text-muted-foreground">Commentaire client</p>
+   626→                {detail.commentaire ? (
+   627→                  <blockquote className="border-l-4 border-primary/30 bg-muted/50 px-4 py-3 text-sm italic leading-relaxed">
+   628→                    &ldquo;{detail.commentaire}&rdquo;
+   629→                  </blockquote>
+   630→                ) : (
+   631→                  <p className="text-sm italic text-muted-foreground">Aucun commentaire</p>
+   632→                )}
+   633→              </div>
+   634→
+   635→              {/* Réponse du commerçant */}
+   636→              <div>
+   637→                <p className="mb-1.5 text-xs font-medium text-muted-foreground">Réponse du commerçant</p>
+   638→                {editionReponse ? (
+   639→                  <div className="space-y-2">
+   640→                    <Textarea
+   641→                      ref={reponseRef}
+   642→                      id="reponse-pro"
+   643→                      rows={4}
+   644→                      value={texteReponse}
+   645→                      onChange={(e) => setTexteReponse(e.target.value)}
+   646→                      placeholder="Ex : Client rappelé, geste commercial offert, employé sensibilisé."
+   647→                      aria-label="Votre réponse"
+   648→                    />
+   649→                    <div className="flex justify-end gap-2">
+   650→                      {detail.reponsePro && (
+   651→                        <Button
+   652→                          variant="ghost"
+   653→                          className="h-10"
+   654→                          onClick={() => { setTexteReponse(detail.reponsePro || ""); setEditionReponse(false) }}
+   655→                        >
+   656→                          Annuler
+   657→                        </Button>
+   658→                      )}
+   659→                      <Button
+   660→                        className="h-10 px-4"
+   661→                        onClick={enregistrerReponse}
+   662→                        disabled={envoiReponse || !texteReponse.trim()}
+   663→                      >
+   664→                        {envoiReponse && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
+   665→                        Enregistrer
+   666→                      </Button>
+   667→                    </div>
+   668→                  </div>
+   669→                ) : detail.reponsePro ? (
+   670→                  <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+   671→                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{detail.reponsePro}</p>
+   672→                    <Button
+   673→                      variant="ghost"
+   674→                      size="sm"
+   675→                      className="mt-2 h-9"
+   676→                      onClick={() => { setTexteReponse(detail.reponsePro || ""); setEditionReponse(true) }}
+   677→                    >
+   678→                      <MessageSquareReply className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+   679→                      Modifier la réponse
+   680→                    </Button>
+   681→                  </div>
+   682→                ) : (
+   683→                  <Button
+   684→                    variant="outline"
+   685→                    className="h-10"
+   686→                    onClick={() => { setTexteReponse(""); setEditionReponse(true) }}
+   687→                  >
+   688→                    <MessageSquareReply className="mr-1.5 h-4 w-4" aria-hidden />
+   689→                    Rédiger une réponse
+   690→                  </Button>
+   691→                )}
+   692→              </div>
+   693→
+   694→              {/* Suivi du retour : historique des statuts */}
+   695→              <div>
+   696→                <p className="mb-2 text-xs font-medium text-muted-foreground">Suivi du retour</p>
+   697→                <ol>
+   698→                  {historiqueAffiche.map((h, i) => (
+   699→                    <li key={`${h.statut}-${h.at}-${i}`} className="relative flex items-start gap-2.5 pb-4 last:pb-0">
+   700→                      {i < historiqueAffiche.length - 1 && (
+   701→                        <span className="absolute top-4 bottom-0 left-[6px] w-px bg-border" aria-hidden />
+   702→                      )}
+   703→                      <span className={`mt-0.5 h-3 w-3 shrink-0 rounded-full ${pastilleClass(h.statut)}`} aria-hidden />
+   704→                      <div className="min-w-0 text-xs">
+   705→                        <p className="font-medium">{STATUT_RETOUR_LABEL[h.statut] ?? h.statut}</p>
+   706→                        <p className="mt-0.5 text-muted-foreground">{formatDate(h.at)}</p>
+   707→                      </div>
+   708→                    </li>
+   709→                  ))}
+   710→                </ol>
+   711→              </div>
+   712→            </div>
+   713→          )}
+   714→
+   715→          <DialogFooter className="gap-2 sm:items-center">
+   716→            {detail && !detail.lu && (
+   717→              <Button variant="outline" className="h-10" onClick={() => majRetour(detail.id, { lu: true })}>
+   718→                <MailOpen className="mr-1.5 h-4 w-4" aria-hidden />
+   719→                Marquer comme lu
+   720→              </Button>
+   721→            )}
+   722→            {detail && (
+   723→              <Select
+   724→                value={detail.statut}
+   725→                onValueChange={(v) => majRetour(detail.id, { statut: v as StatutRetour })}
+   726→              >
+   727→                <SelectTrigger className="h-10 w-36" aria-label="Changer le statut">
+   728→                  <SelectValue />
+   729→                </SelectTrigger>
+   730→                <SelectContent>
+   731→                  <SelectItem value="NEW">Nouveau</SelectItem>
+   732→                  <SelectItem value="IN_PROGRESS">En cours</SelectItem>
+   733→                  <SelectItem value="RESOLVED">Résolu</SelectItem>
+   734→                </SelectContent>
+   735→              </Select>
+   736→            )}
+   737→            <Button variant="outline" className="h-10" onClick={fermerDetail}>
+   738→              Fermer
+   739→            </Button>
+   740→          </DialogFooter>
+   741→        </DialogContent>
+   742→      </Dialog>
+   743→    </div>
+   744→  )
+   745→}
+   746→

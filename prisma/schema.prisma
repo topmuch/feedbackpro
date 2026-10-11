@@ -1,0 +1,148 @@
+// ============================================================
+// FeedbackPro - Schéma de base de données
+// SQLite : les enums Prisma ne sont pas supportés → String + validation applicative
+// Les tableaux (tags) sont stockés en JSON sérialisé
+// ============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ---------- Utilisateurs & Sessions ----------
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  role         String    @default("PRO") // SUPERADMIN | PRO
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  pro          Pro?
+  sessions     Session[]
+}
+
+// Sessions en base : le cookie ne contient que l'ID de session (httpOnly)
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+// ---------- Commerçant (Pro) ----------
+
+model Pro {
+  id             String    @id @default(cuid())
+  userId         String    @unique
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nomCommerce    String
+  categorie      String    @default("Restaurant")
+  adresse        String    @default("")
+  ville          String    @default("")
+  whatsapp       String? // Numéro international sans + ni espaces, ex: 33612345678
+  logoUrl        String?
+  googleUrl      String? // Lien Google Maps / review (redirection légale avis positifs)
+  messageWhatsapp String?  // Personnalisation du pied du message WhatsApp
+  qrToken        String    @unique @default(cuid())
+  plan           String    @default("STARTER") // STARTER | PRO | ENTERPRISE
+  onboardingDone Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  boutiques Boutique[]
+  commandes Commande[]
+  alertes   Alerte[]
+}
+
+// ---------- Boutique (une par Pro en MVP, multi-boutiques Enterprise) ----------
+
+model Boutique {
+  id        String    @id @default(cuid())
+  proId     String
+  pro       Pro       @relation(fields: [proId], references: [id], onDelete: Cascade)
+  nom       String
+  adresse   String    @default("")
+  qrToken   String    @unique @default(cuid())
+  createdAt DateTime  @default(now())
+
+  retours  Retour[]
+  employes Employe[]
+}
+
+// ---------- Employés (gamification / leaderboard) ----------
+
+model Employe {
+  id         String   @id @default(cuid())
+  boutiqueId String
+  boutique   Boutique @relation(fields: [boutiqueId], references: [id], onDelete: Cascade)
+  nom        String
+  poste      String?
+  actif      Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  retours Retour[]
+}
+
+// ---------- Retour client (cœur du produit) ----------
+
+model Retour {
+  id                 String    @id @default(cuid())
+  boutiqueId         String
+  boutique           Boutique  @relation(fields: [boutiqueId], references: [id], onDelete: Cascade)
+  employeId          String?
+  employe            Employe?  @relation(fields: [employeId], references: [id])
+
+  note               Int // 1 à 5
+  tags               String    @default("[]") // JSON : ["impoli","attente"]
+  commentaire        String?
+  personnelMentionne String? // Nom ou description libre du personnel concerné
+
+  canalChoisi        String? // "whatsapp" | "google" | "aucun"
+  ipCity             String? // Ville approximative du client (détection IP optionnelle, RGPD-friendly)
+  statut             String    @default("NEW") // NEW | IN_PROGRESS | RESOLVED
+  historique         String    @default("[]") // JSON : [{ statut: "NEW", at: ISO }] — historique des changements de statut
+  lu                 Boolean   @default(false)
+  reponsePro         String?
+
+  createdAt          DateTime  @default(now())
+
+  @@index([boutiqueId, createdAt])
+}
+
+// ---------- Commandes de supports physiques ----------
+
+model Commande {
+  id               String   @id @default(cuid())
+  proId            String
+  pro              Pro      @relation(fields: [proId], references: [id], onDelete: Cascade)
+  typeSupport      String // STICKERS_50 | CHEVALET_ACRYLIQUE | AFFICHE_A4
+  quantite         Int
+  prixEuros        Int
+  adresseLivraison String
+  statut           String   @default("A_IMPRIMER") // A_IMPRIMER | IMPRIME | EXPEDIE | LIVRE
+  createdAt        DateTime @default(now())
+
+  @@index([proId])
+}
+
+// ---------- Alertes temps réel (notes ≤ 2, SMS simulé) ----------
+
+model Alerte {
+  id        String   @id @default(cuid())
+  proId     String
+  pro       Pro      @relation(fields: [proId], references: [id], onDelete: Cascade)
+  retourId  String?
+  titre     String
+  message   String
+  canal     String   @default("DASHBOARD") // DASHBOARD | SMS (simulé)
+  lu        Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([proId, lu])
+}
