@@ -317,3 +317,21 @@ Stage Summary:
 - Session 4 close : les 7 blocs du dashboard Pro (layout, overview, retours, QR, équipe, stats, paramètres) sont fonctionnels et vérifiés navigateur desktop + mobile, exports PDF/CSV inclus
 - Correctif Radix appliqué (Select dans <form>) : settings-tab.tsx + onboarding-view.tsx uniquement
 - Comptes de démo inchangés : demo@pizzeria.fr / demo1234 · admin@feedbackpro.fr / admin1234
+
+---
+Task ID: GIT-1
+Agent: main (Z.ai Code)
+Task: 创建 GitHub 仓库 topmuch/feedbackpro 并推送项目代码
+
+Work Log:
+- 验证 PAT（账号 topmuch，含 repo/workflow 权限）
+- 通过 API 创建私有仓库 topmuch/feedbackpro（默认分支 main）
+- 推送 main 分支后发现历史提交中含 .env 与 db/custom.db（敏感文件，早于 .gitignore 规则被跟踪）
+- 重建历史：orphan 分支 → git rm --cached .env db/custom.db → 追加 .gitignore 数据库规则 → 单一 Initial commit → force push 覆盖远程
+- 修复 .git/config 中误写入的 token（branch.main.remote 重置为干净 origin）
+- force fetch 更新 origin/main 引用，验证远程 143 个文件无任何敏感文件
+
+Stage Summary:
+- 仓库: https://github.com/topmuch/feedbackpro (private, main = 2470737 单一干净提交)
+- 敏感文件已从远程历史彻底移除；.gitignore 现含 /db/*.db 规则
+- 建议：PAT 已在对话中暴露，建议用户在 GitHub 设置中轮换
