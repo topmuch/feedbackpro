@@ -1,31 +1,79 @@
 // ============================================================
-// FeedbackPro - Le Coach IA (cœur du produit, pivot Session 1)
+// FeedbackPro - Le Moteur IA : Coach Quotidien et Hebdomadaire
+// (cœur du produit, Session 5)
 // ------------------------------------------------------------
-// Chaque jour (ou semaine), agrège les retours des Clients Mystères
-// et génère un rapport d'audit qualité : score global /100, rapport
-// markdown FR, 3 priorités du jour, recommandations et prédictions.
+// genererRapportIA(proId, type) — la fonction principale :
+//   1. Récupère tous les retours de la période (Prisma)
+//   2. Agrège : score global, score par zone, tags fréquents,
+//      employés mentionnés, créneaux problématiques (pics d'alertes),
+//      thèmes cachés (analyse sémantique) et ÉVOLUTION vs période
+//      précédente
+//   3. Construit le prompt (le « Prompt IA parfait »)
+//   4. Appelle le LLM (z-ai-web-dev-sdk, backend uniquement)
+//   5. Parse la réponse (JSON robuste)
+//   6. Sauvegarde dans la table RapportIA (avec la source : ia|fallback)
+//   7. Envoie l'email au Pro (Resend — mode démo simulé sans clé)
+//   (Les SMS d'alerte critiques sont gérés dans src/lib/alertes.ts)
 //
-// - LLM : z-ai-web-dev-sdk (BACKEND UNIQUEMENT)
-// - Parsing robuste : le JSON est extrait même s'il est enveloppé
-//   dans des blocs ```json … ```
 // - FALLBACK DÉTERMINISTE : en cas d'échec LLM (réseau, JSON invalide,
 //   timeout…), un rapport calculé depuis les statistiques est produit.
 //   Cette fonction ne lève JAMAIS d'exception vers la route appelante.
+// - Les crons (src/lib/cron.ts) appellent genererRapportIA en boucle.
 // ============================================================
 
 import ZAI from "z-ai-web-dev-sdk"
 import { db } from "@/lib/db"
 import { tagLabel } from "@/lib/constants"
 import { sendEmail, emailRapportIA } from "@/lib/email"
+import { analyserSemantique } from "@/lib/semantic"
 import type { Pro, RapportIA } from "@prisma/client"
 
-/** Consigne système du Coach IA (FR strict, sortie JSON uniquement) */
-export const SYSTEM_PROMPT_FR =
-  "Tu es le Coach IA de FeedbackPro, expert en management de la qualité de service en établissement " +
-  "(restaurants, hôtels, salons, boutiques…). Tu analyses les retours anonymes de « Clients Mystères » " +
-  "(note 1-5, tags, commentaires) collectés par zone (Accueil, Salle, Toilettes…) et tu rédiges un audit " +
-  "actionnable pour le gérant. Ton ton est direct, bienveillant et concret, comme un coach de terrain. " +
-  'Réponds UNIQUEMENT avec un JSON valide : {"scoreGlobal": <0-100>, "contenuMarkdown": "<rapport markdown FR avec sections Points forts / Points de vigilance / Analyse>", "priorites": [3 actions précises], "recommandations": [2-4 strings], "predictions": [1-3 strings]}'
+/**
+ * Le « Prompt IA parfait » (Session 5) — consigne système du Coach IA.
+ * Le modèle doit parler comme un coach humain, être concret, citer des
+ * chiffres, suggérer un ENTRETIEN (jamais un licenciement) pour un
+ * employé cité en négatif et une FÉLICITATION PUBLIQUE pour un employé
+ * cité en positif. Sortie : JSON strict (contenuMarkdown + tableaux)
+ * pour rester compatible avec le parsing et le dashboard.
+ */
+export const SYSTEM_PROMPT_FR = `Tu es le Coach IA de FeedbackPro, un expert en management de la qualité pour les commerces.
+
+Tu analyses les retours clients (Clients Mystères) de l'établissement, transmis au format JSON : score global, nombre de retours, répartition par zone (score, volume, tags fréquents), évolution vs période précédente, employés les plus mentionnés, créneaux problématiques, thèmes cachés détectés dans les commentaires libres.
+
+TA MISSION :
+Rédige un rapport d'audit qualité en markdown (champ "contenuMarkdown"), structuré ainsi :
+
+## 📊 RAPPORT D'AUDIT QUALITÉ [PÉRIODE]
+### 🏢 [Nom de l'établissement]
+
+### 🎯 SCORE GLOBAL : [X]/100 ([hausse/baisse/stable] de [X] points vs période précédente)
+
+### 🔍 ANALYSE PAR ZONE :
+[Pour chaque zone : score + commentaire court + points forts/faibles]
+
+### 🧠 ANALYSE & RECOMMANDATIONS :
+[Identifie 3 problèmes prioritaires. Pour chacun :]
+1. **Problème détecté** : [description avec données précises]
+👉 **ACTION RECOMMANDÉE** : [solution concrète et actionnable]
+👥 **Personnes concernées** : [employés ou zones]
+
+### 🏆 POINTS POSITIFS À VALORISER :
+[Liste des employés/zones performants + suggestions de félicitations]
+
+### 📈 PRÉDICTION :
+[Anticipe ce qui risque de se passer si rien n'est fait]
+
+RÈGLES :
+- Parle comme un coach humain, pas comme un robot
+- Sois concret et actionnable (pas de généralités)
+- Cite des chiffres précis
+- Propose des solutions réalisables (pas juste "améliorez le service")
+- Si un employé est cité en négatif, suggère un entretien, pas un licenciement
+- Si un employé est cité en positif, suggère une félicitation publique
+- Longueur totale : 500-800 mots
+
+FORMAT DE RÉPONSE : UNIQUEMENT un JSON valide, sans texte autour :
+{"scoreGlobal": <0-100>, "contenuMarkdown": "<le rapport markdown ci-dessus>", "priorites": [<les 3 problèmes prioritaires, résumés en une ligne actionnable chacun>], "recommandations": [<2-4 actions concrètes>], "predictions": [<1-3 prédictions du champ PRÉDICTION>]}`
 
 // ---------- Types publics ----------
 
@@ -41,6 +89,20 @@ export type DonneesRapport = {
   topTagsNegatifs: { tag: string; count: number }[]
   heuresPics: string[]
   employesCites: { nom: string; positifs: number; negatifs: number; noteMoyenne: number }[]
+  /** Session 5 : évolution vs période précédente (équivalente immédiatement antérieure) */
+  evolution: {
+    direction: "hausse" | "baisse" | "stable"
+    /** Delta en points /100 (arrondi) */
+    deltaPoints: number
+    scoreActuel: number
+    scorePrecedent: number
+  }
+  /** Session 5 : créneaux horaires des pics d'alertes (retours ≤ 2★) */
+  creneauxAlertes: string[]
+  /** Session 5 : thèmes cachés détectés par l'analyse sémantique des commentaires */
+  themesDetectes: { nom: string; occurrences: number; noteMoyenne: number }[]
+  /** Session 5 : mots-clés récurrents des commentaires libres */
+  motsClesRecuvents: string[]
 }
 
 /** Contenu d'un rapport généré (par le LLM ou par le fallback déterministe) */
@@ -65,6 +127,8 @@ export type RapportSerialise = {
   priorites: string[]
   recommandations: string[]
   predictions: string[]
+  /** "ia" = généré par le LLM · "fallback" = analyse locale déterministe */
+  source: "ia" | "fallback"
   envoyeParEmail: boolean
   envoyeParSMS: boolean
   createdAt: string
@@ -95,6 +159,7 @@ export function serialiserRapport(r: RapportIA): RapportSerialise {
     priorites: parseJsonArray(r.priorites),
     recommandations: parseJsonArray(r.recommandations),
     predictions: parseJsonArray(r.predictions),
+    source: r.source === "fallback" ? "fallback" : "ia",
     envoyeParEmail: r.envoyeParEmail,
     envoyeParSMS: r.envoyeParSMS,
     createdAt: r.createdAt.toISOString(),
@@ -116,7 +181,9 @@ export function periodePourType(type: "quotidien" | "hebdomadaire"): { periodeDe
 
 /**
  * Agrège les retours d'un Pro sur une période : notes, zones, tags,
- * heures de pointe et employés cités. C'est la matière première du Coach IA.
+ * heures de pointe, employés cités, ÉVOLUTION vs période précédente,
+ * CRÉNEAUX D'ALERTES (note ≤ 2) et THÈMES CACHÉS (analyse sémantique).
+ * C'est la matière première du Coach IA (Session 5).
  */
 export async function agregerDonnees(
   pro: Pick<Pro, "id" | "nomEtablissement" | "typeEtablissement">,
@@ -139,6 +206,31 @@ export async function agregerDonnees(
     note: n,
     count: retours.filter((r) => r.note === n).length,
   }))
+
+  // ---------- Session 5 : ÉVOLUTION vs période précédente ----------
+  // La période précédente = fenêtre de MÊME durée, immédiatement avant.
+  const dureeMs = Math.max(1, periodeFin.getTime() - periodeDebut.getTime())
+  const prevFin = new Date(periodeDebut.getTime() - 1)
+  const prevDebut = new Date(prevFin.getTime() - dureeMs)
+  const prevRetours = await db.retour.findMany({
+    where: { proId: pro.id, createdAt: { gte: prevDebut, lte: prevFin } },
+    select: { note: true },
+  })
+  const notePrecedente = prevRetours.length
+    ? prevRetours.reduce((s, r) => s + r.note, 0) / prevRetours.length
+    : 0
+  const scoreActuel = Math.round(noteMoyenne * 20)
+  const scorePrecedent = Math.round(notePrecedente * 20)
+  const deltaBrut = prevRetours.length > 0 && total > 0 ? scoreActuel - scorePrecedent : 0
+  const evolution = {
+    direction: (Math.abs(deltaBrut) < 2 ? "stable" : deltaBrut > 0 ? "hausse" : "baisse") as
+      | "hausse"
+      | "baisse"
+      | "stable",
+    deltaPoints: Math.abs(deltaBrut),
+    scoreActuel,
+    scorePrecedent,
+  }
 
   // ----- Par zone : note moyenne + tags les plus cités -----
   const zonesMap = new Map<string, { notes: number[]; tags: Map<string, number> }>()
@@ -195,6 +287,63 @@ export async function agregerDonnees(
     .slice(0, 3)
     .map(([h]) => `${h}h`)
 
+  // ---------- Session 5 : CRÉNEAUX PROBLÉMATIQUES (pics d'alertes ≤ 2★) ----------
+  // On regroupe les alertes par heure, on fusionne les heures contiguës en
+  // plages (« entre 14h et 16h ») et on garde les 3 plus critiques.
+  const alertesParHeure = new Map<number, number>()
+  for (const r of retours) {
+    if (r.note <= 2) {
+      const h = r.createdAt.getHours()
+      alertesParHeure.set(h, (alertesParHeure.get(h) ?? 0) + 1)
+    }
+  }
+  const heuresAlertes = [...alertesParHeure.keys()].sort((a, b) => a - b)
+  const plagesAlertes: { label: string; total: number }[] = []
+  let debutPlage: number | null = null
+  let precedente: number | null = null
+  const clorePlage = () => {
+    if (debutPlage !== null && precedente !== null) {
+      const totalPlage = Array.from(
+        { length: precedente - debutPlage + 1 },
+        (_, i) => alertesParHeure.get(debutPlage! + i) ?? 0
+      ).reduce((s, n) => s + n, 0)
+      const label =
+        debutPlage === precedente
+          ? `vers ${debutPlage}h`
+          : `entre ${debutPlage}h et ${precedente + 1}h`
+      plagesAlertes.push({ label: `${label} (${totalPlage} alerte${totalPlage > 1 ? "s" : ""} ≤ 2★)`, total: totalPlage })
+    }
+    debutPlage = null
+    precedente = null
+  }
+  for (const h of heuresAlertes) {
+    if (debutPlage === null) debutPlage = h
+    else if (h === precedente! + 1) {
+      // contigu : la plage s'étend
+    } else {
+      clorePlage()
+      debutPlage = h
+    }
+    precedente = h
+  }
+  clorePlage()
+  const creneauxAlertes = plagesAlertes.sort((a, b) => b.total - a.total).slice(0, 3).map((p) => p.label)
+
+  // ---------- Session 5 : ANALYSE SÉMANTIQUE (thèmes cachés + mots-clés) ----------
+  const semantique = analyserSemantique(
+    retours.map((r) => ({
+      commentaire: r.commentaire ?? "",
+      note: r.note,
+      zoneNom: r.zone?.nom,
+    }))
+  )
+  const themesDetectes = semantique.themes.slice(0, 3).map((t) => ({
+    nom: t.nom,
+    occurrences: t.occurrences,
+    noteMoyenne: t.noteMoyenne,
+  }))
+  const motsClesRecuvents = semantique.motsCles.slice(0, 5).map((m) => m.mot)
+
   const employesCites = [...employesMap.entries()]
     .map(([nom, e]) => ({
       nom,
@@ -218,6 +367,10 @@ export async function agregerDonnees(
     topTagsNegatifs,
     heuresPics,
     employesCites,
+    evolution,
+    creneauxAlertes,
+    themesDetectes,
+    motsClesRecuvents,
   }
 }
 
@@ -302,6 +455,12 @@ export function rapportFallback(donnees: DonneesRapport): ContenuRapport {
     .map((r) => `${r.note}★ : ${r.count}`)
     .join(" · ")
 
+  // Évolution vs période précédente (format du Prompt IA parfait)
+  const evoTxt =
+    d.evolution.direction === "stable"
+      ? "stable"
+      : `${d.evolution.direction} de ${d.evolution.deltaPoints} points`
+
   // Points forts : zones avec la meilleure note + tags positifs les plus cités
   const zonesTriees = [...d.parZone].sort((a, b) => b.noteMoyenne - a.noteMoyenne)
   const meilleureZone = zonesTriees[0]
@@ -329,48 +488,6 @@ export function rapportFallback(donnees: DonneesRapport): ContenuRapport {
     )
   }
 
-  const lignes: string[] = []
-  lignes.push(`# 📋 Rapport d'audit qualité — ${d.nomEtablissement}`)
-  lignes.push("")
-  lignes.push(`**Score global : ${scoreGlobal}/100** (période du ${d.periode}, ${d.totalRetours} retour(s) de Clients Mystères)`)
-  lignes.push("")
-  lignes.push(`Répartition des notes : ${d.totalRetours > 0 ? repartitionTxt : "aucun retour sur la période"}`)
-  lignes.push("")
-  lignes.push("## Points forts")
-  for (const p of pointsForts) lignes.push(`- ${p}`)
-  lignes.push("")
-  lignes.push("## Points de vigilance")
-  if (pointsVigilance.length === 0) {
-    lignes.push("- Aucun point de vigilance majeur détecté sur la période 👏")
-  } else {
-    for (const p of pointsVigilance) lignes.push(`- ${p}`)
-  }
-  lignes.push("")
-  lignes.push("## Analyse")
-  if (d.totalRetours === 0) {
-    lignes.push(
-      "Aucun retour collecté sur la période. Rendez vos QR codes plus visibles à l'entrée, en salle et aux toilettes : chaque zone scannée est une zone auditée."
-    )
-  } else if (d.heuresPics.length > 0) {
-    lignes.push(
-      `L'activité de vos retours se concentre autour de ${d.heuresPics.join(", ")} : faites coïncider vos renforts avec ces créneaux. ` +
-        (d.topTagsNegatifs.length > 0
-          ? `Le motif « ${d.topTagsNegatifs[0].tag} » revient le plus souvent dans les retours négatifs — c'est votre levier d'amélioration n°1.`
-          : "Peu de réclamations : maintenez vos standards actuels.")
-    )
-  } else {
-    lignes.push(
-      d.topTagsNegatifs.length > 0
-        ? `Le motif « ${d.topTagsNegatifs[0].tag} » revient le plus souvent dans les retours négatifs — c'est votre levier d'amélioration n°1.`
-        : "Vos Clients Mystères sont globalement satisfaits : maintenez vos standards actuels."
-    )
-  }
-  const cites = d.employesCites.filter((e) => e.negatifs >= 2)
-  if (cites.length > 0) {
-    lignes.push("")
-    lignes.push(`Personnel à accompagner : ${cites.map((e) => `${e.nom} (${e.negatifs} retour(s) négatif(s))`).join(", ")}.`)
-  }
-
   // Priorités = top 3 tags négatifs, transformés en actions concrètes
   const verbeParTag: Record<string, string> = {
     "🟥 Personnel impoli / Froid": "Recadrer l'accueil",
@@ -380,9 +497,82 @@ export function rapportFallback(donnees: DonneesRapport): ContenuRapport {
     "🧹 Lieu mal rangé / sale": "Renforcer le nettoyage",
     "🟧 Erreur / Problème technique": "Corriger les erreurs récurrentes",
   }
+
+  const lignes: string[] = []
+  lignes.push(`## 📊 RAPPORT D'AUDIT QUALITÉ — ${d.periode}`)
+  lignes.push("")
+  lignes.push(`### 🏢 ${d.nomEtablissement}`)
+  lignes.push("")
+  lignes.push(`### 🎯 SCORE GLOBAL : ${scoreGlobal}/100 (${evoTxt})`)
+  lignes.push("")
+  lignes.push(`**Période auditée :** ${d.periode} — ${d.totalRetours} retour(s) de Clients Mystères`)
+  lignes.push("")
+  lignes.push(`Répartition des notes : ${d.totalRetours > 0 ? repartitionTxt : "aucun retour sur la période"}`)
+  lignes.push("")
+  lignes.push("### 🔍 ANALYSE PAR ZONE :")
+  if (d.parZone.length === 0) {
+    lignes.push("- Aucune zone scannée sur la période : rendez vos QR codes plus visibles.")
+  } else {
+    for (const z of [...d.parZone].sort((a, b) => b.noteMoyenne - a.noteMoyenne)) {
+      const tagsTxt = z.tagsFrequents.length ? ` — tags : ${z.tagsFrequents.map((t) => t.tag).join(", ")}` : ""
+      lignes.push(`- **${z.zone}** : ${z.noteMoyenne.toFixed(2).replace(".", ",")}/5 sur ${z.total} retours${tagsTxt}`)
+    }
+  }
+  lignes.push("")
+  lignes.push("### 🧠 ANALYSE & RECOMMANDATIONS :")
+  if (pointsVigilance.length === 0 && d.totalRetours === 0) {
+    lignes.push(
+      "Aucun retour collecté sur la période. Rendez vos QR codes plus visibles à l'entrée, en salle et aux toilettes : chaque zone scannée est une zone auditée."
+    )
+  } else {
+    // 3 problèmes prioritaires au format du Prompt IA parfait
+    const nbPriorites = Math.max(pointsVigilance.length, Math.min(3, d.topTagsNegatifs.length), 1)
+    for (let i = 0; i < Math.min(3, Math.max(nbPriorites, pointsVigilance.length)); i++) {
+      const probleme =
+        pointsVigilance[i] ??
+        (d.creneauxAlertes[i] ? `Pic d'alertes ${d.creneauxAlertes[i]}` : "Volume de retours insuffisant pour identifier un problème précis")
+      const action =
+        d.topTagsNegatifs[i] !== undefined
+          ? verbeParTag[d.topTagsNegatifs[i].tag] ?? "Traiter ce motif avec l'équipe"
+          : i === 0
+            ? "Relancer la collecte : objectif +20 % de retours la semaine prochaine"
+            : "Repositionner les QR codes dans les zones les moins scannées"
+      const concernes =
+        i === 0 && zoneFragile && d.parZone.length > 1
+          ? `zone « ${zoneFragile.zone} »`
+          : d.employesCites[0]
+            ? `${d.employesCites[0].nom} et l'équipe en place`
+            : "toute l'équipe"
+      lignes.push(`${i + 1}. **Problème détecté** : ${probleme}`)
+      lignes.push(`   👉 **ACTION RECOMMANDÉE** : ${action}`)
+      lignes.push(`   👥 **Personnes concernées** : ${concernes}`)
+    }
+  }
+  if (d.creneauxAlertes.length > 0) {
+    lignes.push("")
+    lignes.push(`⏰ Créneaux problématiques (alertes ≤ 2★) : ${d.creneauxAlertes.join(" · ")}`)
+  }
+  if (d.themesDetectes.length > 0) {
+    lignes.push("")
+    lignes.push(
+      `🧩 Thèmes cachés détectés dans les commentaires : ${d.themesDetectes
+        .map((t) => `${t.nom} (${t.occurrences} mention(s), note moy. ${t.noteMoyenne.toFixed(2).replace(".", ",")}/5)`)
+        .join(" · ")}`
+    )
+  }
+  lignes.push("")
+  lignes.push("### 🏆 POINTS POSITIFS À VALORISER :")
+  for (const p of pointsForts) lignes.push(`- ${p}`)
+  const valoriser = d.employesCites.filter((e) => e.noteMoyenne >= 4 && e.positifs > 0)
+  for (const e of valoriser.slice(0, 2)) {
+    lignes.push(`- 👏 Félicitez publiquement **${e.nom}** : ${e.positifs} mention(s) positive(s), note moyenne ${e.noteMoyenne.toFixed(2).replace(".", ",")}/5`)
+  }
+  lignes.push("")
+
+  // Priorités (tableau UI) = top 3 tags négatifs, transformés en actions concrètes
   const priorites = d.topTagsNegatifs
     .slice(0, 3)
-    .map((t, i) => `${verbeParTag[t.tag] ?? "Traiter"} : ${t.tag} (${t.count} mention(s) sur la période)`)
+    .map((t) => `${verbeParTag[t.tag] ?? "Traiter"} : ${t.tag} (${t.count} mention(s) sur la période)`)
   if (priorites.length === 0) {
     priorites.push("Repositionner les QR codes dans les zones les moins scannées")
     if (meilleureZone) priorites.push(`Féliciter l'équipe de la zone « ${meilleureZone.zone} » pour sa note`)
@@ -416,6 +606,9 @@ export function rapportFallback(donnees: DonneesRapport): ContenuRapport {
   if (d.totalRetours < 5) {
     predictions.push("Volume de retours faible : le rapport sera plus fiable avec davantage de scans")
   }
+
+  lignes.push("### 📈 PRÉDICTION :")
+  for (const p of predictions.slice(0, 3)) lignes.push(`- ${p}`)
 
   return {
     scoreGlobal,
@@ -497,6 +690,9 @@ export async function genererEtEnregistrerRapport(
       priorites: JSON.stringify(contenu.priorites),
       recommandations: JSON.stringify(contenu.recommandations),
       predictions: JSON.stringify(contenu.predictions),
+      // Session 5 : la source est stockée pour prouver si le rapport a été
+      // généré par le LLM ("ia") ou par l'analyse locale ("fallback")
+      source: contenu.source,
     },
   })
 
@@ -518,4 +714,33 @@ export async function genererEtEnregistrerRapport(
   }
 
   return { rapport, source: contenu.source }
+}
+
+// ---------- Fonction principale (signature Session 5) ----------
+
+/**
+ * FONCTION PRINCIPALE DU MOTEUR IA (Session 5) :
+ * genererRapportIA(proId, type: "quotidien" | "hebdomadaire")
+ *
+ * 1. Récupère le Pro (et son email de réception)
+ * 2. Récupère tous les retours de la période (Prisma) et les agrège
+ *    (score global, score par zone, tags, employés, créneaux
+ *    problématiques, évolution vs période précédente, thèmes cachés)
+ * 3. Construit le prompt (Prompt IA parfait) et appelle le LLM
+ * 4. Parse la réponse et sauvegarde dans la table RapportIA
+ * 5. Envoie l'email au Pro (Resend — simulé en mode démo)
+ * → Les SMS d'alerte temps réel sont gérés séparément (src/lib/alertes.ts)
+ *
+ * Utilisée par : POST /api/pro/coach, /api/cron/rapports-quotidiens,
+ * /api/cron/rapports-hebdomadaires. Ne lève jamais d'exception pour la
+ * partie génération (fallback déterministe garanti).
+ */
+export async function genererRapportIA(
+  proId: string,
+  type: "quotidien" | "hebdomadaire",
+  options?: { envoyerEmail?: boolean }
+): Promise<{ rapport: RapportIA; source: "ia" | "fallback" }> {
+  const pro = await db.pro.findUnique({ where: { id: proId } })
+  if (!pro) throw new Error(`Pro introuvable : ${proId}`)
+  return genererEtEnregistrerRapport(pro, type, options)
 }

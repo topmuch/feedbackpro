@@ -6,6 +6,10 @@
       "schedule": "0 7 * * *"
     },
     {
+      "path": "/api/cron/rapports-hebdomadaires",
+      "schedule": "0 7 * * 1"
+    },
+    {
       "path": "/api/cron/recap-weekly",
       "schedule": "0 8 * * 1"
     }

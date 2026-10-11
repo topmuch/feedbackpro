@@ -5,8 +5,9 @@
 // Liste complète des rapports du Coach IA (quotidiens + hebdo) :
 // ouverture détaillée (markdown), régénération, envoi par email.
 // Contrats :
-//   GET  /api/pro/coach/rapports → { rapports: RapportIA[] }
-//   POST /api/pro/coach { type? } → { rapport } (5-15 s, LLM)
+//   GET  /api/pro/coach/rapports → { rapports: RapportIA[] } (chaque rapport
+//        porte source: "ia" | "fallback" depuis la Session 5)
+//   POST /api/pro/coach { type? } → { rapport } (5-15 s, LLM, avec source)
 //   POST /api/pro/coach/email { rapportId } → { envoye, email }
 // ============================================================
 
@@ -49,6 +50,10 @@ type RapportIA = {
   priorites: string[]
   recommandations: string[]
   predictions: string[]
+  /** Session 5 : « ia » = généré par le LLM (Coach IA), « fallback » = analyse locale
+   *  déterministe. Optionnel : les rapports antérieurs à la Session 5 n'ont pas ce
+   *  champ et sont traités comme « ia » par défaut. */
+  source?: string
   envoyeParEmail: boolean
   envoyeParSMS: boolean
   createdAt: string
@@ -77,6 +82,13 @@ function badgeType(type: string): { label: string; variant: "secondary" | "outli
   const t = (type || "").toLowerCase()
   if (t.includes("hebdo")) return { label: "Hebdomadaire", variant: "outline" }
   return { label: "Quotidien", variant: "secondary" }
+}
+
+/** Badge de source du rapport (Session 5) : « fallback » → analyse locale (secondary),
+ *  sinon (source « ia » ou absente sur les anciens rapports) → généré par IA (default) */
+function badgeSource(source?: string): { label: string; variant: "default" | "secondary" } {
+  if (source === "fallback") return { label: "📋 Analyse locale", variant: "secondary" }
+  return { label: "🤖 Généré par IA", variant: "default" }
 }
 
 /** Couleur du badge de score (identique à coach-ia-tab scoreTone) */
@@ -122,6 +134,9 @@ export function RapportsTab() {
   const [emailId, setEmailId] = useState<string | null>(null)
   // Rapport ouvert dans le modal de lecture
   const [rapportOuvert, setRapportOuvert] = useState<RapportIA | null>(null)
+
+  // Badge de source du rapport ouvert (valeur par défaut si modal fermé, sans effet)
+  const sourceOuvert = badgeSource(rapportOuvert?.source)
 
   // ---------- Chargement de la liste ----------
   const charger = useCallback(async () => {
@@ -286,15 +301,19 @@ export function RapportsTab() {
         <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           {rapports.map((rapport) => {
             const type = badgeType(rapport.type)
+            const source = badgeSource(rapport.source)
             const regenEnCours = regenId === rapport.id
             const emailEnCours = emailId === rapport.id
             const occupe = regenEnCours || emailEnCours || generation
             return (
               <Card key={rapport.id} className="flex flex-col">
                 <CardContent className="flex flex-1 flex-col gap-3 p-4">
-                  {/* Badges type + score */}
+                  {/* Badges type + source + score */}
                   <div className="flex flex-wrap items-center justify-between gap-2">
-                    <Badge variant={type.variant}>{type.label}</Badge>
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <Badge variant={type.variant}>{type.label}</Badge>
+                      <Badge variant={source.variant}>{source.label}</Badge>
+                    </div>
                     <Badge variant="outline" className={scoreTone(rapport.scoreGlobal)}>
                       Score {Math.round(rapport.scoreGlobal)}/100
                     </Badge>
@@ -378,6 +397,7 @@ export function RapportsTab() {
                     <Bot className="h-5 w-5 text-primary" aria-hidden />
                     {badgeType(rapportOuvert.type).label}
                   </DialogTitle>
+                  <Badge variant={sourceOuvert.variant}>{sourceOuvert.label}</Badge>
                   <Badge variant="outline" className={scoreTone(rapportOuvert.scoreGlobal)}>
                     Score {Math.round(rapportOuvert.scoreGlobal)}/100
                   </Badge>

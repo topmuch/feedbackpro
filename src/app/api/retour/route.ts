@@ -2,10 +2,12 @@
 // API publique (canonique) - Enregistrement d'un retour Client Mystère
 // POST /api/retour
 // Body : { qrToken, note, tags[], commentaire?, personnelMentionne?, canalChoisi? }
-// → { retour, recompense: string | null }
+// → { retour, recompense: string | null, alerte?: { recurrente, nbSignalements, canal } }
 // - Résout la ZONE par son qrToken (chaque zone a son QR)
 // - Crée le Retour avec proId + zoneId (+ rattachement employé par nom)
-// - Note ≤ 2 → Alerte + SMS (si activé) ou email de secours
+// - Note ≤ 2 → alerte temps réel (Session 5 §4) : analyse de récurrence
+//   dans la zone (src/lib/alertes.ts) → SMS si récurrent, sinon
+//   notification dashboard uniquement
 // - Récompense (micro-avantage) renvoyée pour l'écran de remerciement
 // ============================================================
 
@@ -15,8 +17,7 @@ import { ok, fail } from "@/lib/session"
 import { retourSchema, firstError } from "@/lib/validation"
 import { tagLabel } from "@/lib/constants"
 import { parseJsonArray } from "@/lib/ia"
-import { sendSMS } from "@/lib/twilio"
-import { sendEmail, emailAlerteRetour } from "@/lib/email"
+import { analyserEtAlerterRetour } from "@/lib/alertes"
 
 /** Adresses locales/privées : aucune recherche géo (inutile et hors RGPD utile) */
 function estIpPrivee(ip: string): boolean {
@@ -124,42 +125,17 @@ export async function POST(req: NextRequest) {
     })
 
     // ---------- Alerte temps réel pour les réclamations (note <= 2) ----------
+    // Session 5 §4 : sauvegarde déjà faite ; analyse rapide de récurrence
+    // dans la zone → SMS (Twilio) si problème récurrent, sinon simple
+    // notification dashboard. Strictement non bloquant.
+    let infoAlerte: { recurrente: boolean; nbSignalements: number; canal: "SMS" | "DASHBOARD" } | null = null
     if (note <= 2) {
-      const tagsTxt = validTags.length ? ` Tags : ${validTags.map(tagLabel).join(", ")}.` : ""
-      const persTxt = personnelMentionne ? ` Personnel : ${personnelMentionne}.` : ""
-      await db.alerte.create({
-        data: {
-          proId: pro.id,
-          retourId: retour.id,
-          titre: `🚨 Réclamation ${note}/5 - ${zone.nom}`,
-          message: `Un Client Mystère vient de laisser un retour ${note}/5 sur la zone « ${zone.nom} ».${tagsTxt}${persTxt} ${commentaire ? `"${commentaire.slice(0, 140)}"` : ""} Intervenez vite !`,
-          canal: "SMS",
-          lu: false,
-        },
-      })
-
-      // ---------- Notification (S6) : SMS Twilio ou email de secours ----------
-      // Strictement non bloquant : un échec d'envoi ne doit jamais faire
-      // échouer l'enregistrement du retour (le client attend sa réponse).
-      const motifs = validTags.length ? validTags.map(tagLabel).join(", ") : "non précisé"
-      const dashboardUrl = `${(process.env.NEXT_PUBLIC_APP_URL || "https://feedbackpro.fr").replace(/\/$/, "")}/dashboard`
-      try {
-        if (pro.smsAlertes && pro.whatsapp) {
-          void sendSMS(
-            pro.whatsapp,
-            `🚨 FeedbackPro : Alerte réclamation - Zone ${zone.nom} - Note ${note}/5 - Motif : ${motifs}. Connectez-vous : ${dashboardUrl}`
-          ).catch((e) => console.warn("SMS d'alerte non envoyé (non bloquant)", e))
-        } else if (pro.user?.email) {
-          // Fallback email : SMS désactivé (pro.smsAlertes = false) ou numéro manquant
-          void sendEmail(
-            pro.user.email,
-            `🚨 Alerte réclamation ${note}/5 — ${pro.nomEtablissement}`,
-            emailAlerteRetour(pro.nomEtablissement, note, motifs, dashboardUrl)
-          ).catch((e) => console.warn("Email d'alerte non envoyé (non bloquant)", e))
-        }
-      } catch (e) {
-        console.warn("Notification d'alerte non envoyée (non bloquant)", e)
-      }
+      infoAlerte = await analyserEtAlerterRetour(
+        pro,
+        { id: zone.id, nom: zone.nom },
+        { id: retour.id, note: retour.note },
+        validTags.map(tagLabel)
+      )
     }
 
     return ok({
@@ -178,6 +154,8 @@ export async function POST(req: NextRequest) {
       // séparément pour être mis en valeur dans une puce dédiée.
       recompense: pro.recompenseActive && pro.recompense ? pro.recompense : null,
       codeRecompense: pro.recompenseActive ? pro.recompenseCode || null : null,
+      // Session 5 : info d'alerte temps réel (récurrente ? SMS ou dashboard ?)
+      alerte: infoAlerte,
     })
   } catch (e) {
     console.error("retour error", e)

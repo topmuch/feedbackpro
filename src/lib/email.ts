@@ -159,36 +159,44 @@ export function emailConfirmationCommande(
   return enveloppe("Confirmation de commande FeedbackPro", corps)
 }
 
-/** Alerte email envoyée à l'établissement quand un client laisse une note ≤ 2 (fallback si SMS désactivé) */
-export function emailAlerteRetour(
+/**
+ * Email de secours pour un PROBLÈME RÉCURRENT (Session 5 §4) : envoyé
+ * à la place du SMS quand les alertes SMS sont désactivées ou que le
+ * numéro WhatsApp/SMS du Pro est manquant.
+ */
+export function emailAlerteRecurrente(
   nomEtablissement: string,
-  note: number,
-  tags: string,
+  zoneNom: string,
+  nbSignalements: number,
+  motif: string,
   dashboardUrl: string
 ): string {
   const corps = `
-    <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;color:#dc2626;">🚨 Alerte réclamation client</h1>
+    <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;color:#dc2626;">🚨 Problème récurrent détecté — ${escapeHtml(zoneNom)}</h1>
     <p style="margin:0 0 12px;font-size:15px;line-height:1.7;color:#44403c;">
       Bonjour <strong>${escapeHtml(nomEtablissement)}</strong>,
     </p>
     <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#44403c;">
-      Un Client Mystère vient de laisser un retour <strong style="color:#dc2626;">${note}/5</strong>
-      ${tags ? `avec les motifs suivants : <strong>${escapeHtml(tags)}</strong>` : "sans préciser de motif"}.
+      Votre Coach IA a détecté un <strong style="color:#dc2626;">problème récurrent</strong> :
+      <strong>${nbSignalements} réclamation(s) ≤ 2★</strong> sur la zone
+      « <strong>${escapeHtml(zoneNom)}</strong> » au cours des 48 dernières heures
+      (dernier motif : <strong>${escapeHtml(motif)}</strong>).
     </p>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#fef2f2;border:1px solid #fecaca;border-radius:8px;margin:0 0 16px;">
       <tr><td style="padding:16px 20px;">
         <p style="margin:0;font-size:14px;line-height:1.7;color:#991b1b;">
-          ⏱️ Chaque minute compte : une réponse rapide permet de résoudre le problème
-          <strong>avant</strong> que le client n'aille poster un avis public négatif.
+          ⏱️ Quand un motif se répète, il devient le premier avis que vos clients laissent
+          en ligne. Une action aujourd'hui (passage ciblé, entretien équipe, correction)
+          évite une spirale de mauvaises notes.
         </p>
       </td></tr>
     </table>
-    ${bouton("Voir le retour et répondre", dashboardUrl)}
+    ${bouton("Voir les retours concernés", dashboardUrl)}
     <p style="margin:20px 0 0;font-size:13px;line-height:1.7;color:#78716c;">
       Vous recevez cet email car les alertes SMS ne sont pas activées sur votre compte.
       Activez-les dans Paramètres pour être alerté en temps réel sur votre mobile.
     </p>`
-  return enveloppe(`Alerte réclamation ${note}/5 — ${nomEtablissement}`, corps)
+  return enveloppe(`Problème récurrent — ${zoneNom} — ${nomEtablissement}`, corps)
 }
 
 /** Statistiques agrégées pour le récap hebdomadaire */

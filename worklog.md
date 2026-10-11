@@ -728,3 +728,64 @@ Stage Summary:
 - Aucune migration BDD : tout calculé à la volée (RapportIA/Retour/Zone existants)
 - 19 captures proofs/s4-*.png + preuves BDD/logs citées
 - Comptes inchangés : admin@feedbackpro.fr/admin123 · demo@pizzeria.fr/demo1234
+
+---
+Task ID: S5-front
+Agent: frontend (Z.ai Code)
+Task: Session 5 — Front : section « Analyse sémantique — thèmes cachés » dans le Coach IA + badge source (IA / analyse locale) dans Rapports IA
+
+Work Log:
+- Lu worklog.md (entrées S4-backend/S4/S4-front-2a-2b-2c pour les conventions) ; contrat GET /api/pro/coach/themes non encore visible dans le code au moment du travail (route en cours côté S5-backend, dossier vide) → codé strictement sur le contrat fourni (ok/fail standard) ; champ source vérifié côté backend dans src/lib/ia.ts (serialiserRapport expose source: "ia"|"fallback")
+- coach-ia-tab.tsx : nouvelle section « 🧠 Analyse sémantique — thèmes cachés » insérée APRÈS « 🔮 Prédictions » et AVANT « Historique + Évolution 30 j » :
+  * Types locaux ThemeDetecte + ThemesData alignés sur le contrat (jours, commentairesAnalyses, totalRetours, themes{nom,emoji,occurrences,noteMoyenne,motsDetectes,exemples}, motsCles, groupes{taille,exemple,noteMoyenne,notes})
+  * Fetch indépendant au montage GET /api/pro/coach/themes (cache no-store) — pattern stats-tab.tsx (chaîne .then/.catch/.finally + guard de démontage `annule`, aucun setState synchrone dans le corps de l'effet, règle react-hooks/set-state-in-effect respectée) ; échec/404/JSON invalide → catch silencieux, section masquée, pas de toast (non bloquant)
+  * En-tête de section : icône Brain (lucide-react) + titre « 🧠 Analyse sémantique — thèmes cachés » + sous-titre « N commentaire(s) analysé(s) sur X jours — détecté même sans tag sélectionné » (compteur en font-semibold)
+  * Grille de cartes md:grid-cols-2 (composant local CarteTheme, même style que CartePriorite) : emoji + nom (font-medium), Badge secondary « ×N » occurrences (title natif), Badge outline noteMoyenne coloré via tonaliteTheme() (< 3 → rose border-rose-300/bg-rose-50 irritant, ≥ 4 → vert bg-green-50, sinon ambre) au format noteFr()/5 ; chips mots détectés Badge outline « mot ×count » (max 5) ; 1 à 2 exemples de commentaires text-xs italic text-muted-foreground tronqués à 120 caractères via tronquer() (+ zoneNom en suffixe si présent)
+  * Card récapitulative sous la grille : ligne « Mots-clés récurrents » (chips Badge secondary « mot ×count », masquée si vide) + ligne « Commentaires similaires regroupés » (lignes compactes « N commentaire(s) similaire(s) (note moy. X/5) : « exemple » », masquée si vide)
+  * Visibilité propre : section rendue seulement si themesData && commentairesAnalyses > 0 && (themes OU motsCles OU groupes non vides), sinon null ; Skeleton dédié h-64 pendant le fetch (et squelette ajouté dans le bloc de chargement global, entre Prédictions et Historique)
+- rapports-tab.tsx : badge « source » du rapport (génération/régénération/email intacts) :
+  * RapportIA += `source?: string` (optionnel : les anciens rapports sans le champ continuent de s'afficher)
+  * Helper badgeSource() : "fallback" → Badge variant "secondary" « 📋 Analyse locale » ; sinon (ia ou absent) → Badge variant "default" « 🤖 Généré par IA »
+  * Cartes de la liste : badge source à côté du Badge type (Quotidien/Hebdomadaire), groupe type+source à gauche, score à droite (structure flex-wrap inchangée)
+  * Modal « Ouvrir » : même badge inséré entre le titre (type) et le Badge score, calculé une fois via const sourceOuvert = badgeSource(rapportOuvert?.source)
+- Périmètre strict : SEULS coach-ia-tab.tsx et rapports-tab.tsx modifiés (aucun autre fichier touché, aucun serveur démarré ; les autres fichiers modifiés visibles dans git status appartiennent à l'agent S5-backend en parallèle) ; commentaires et libellés en français, emojis uniquement dans les libellés UI, aucun emoji dans le code JS
+
+Stage Summary:
+- Coach IA : section « 🧠 Analyse sémantique — thèmes cachés » livrée (grille de cartes thèmes avec badges occurrences/note colorée, chips mots détectés, exemples tronqués, mots-clés récurrents, groupes de commentaires similaires) — fetch indépendant non bloquant, masquage propre si vide ou si le contrat n'est pas encore servi
+- Rapports IA : badge source « 🤖 Généré par IA » / « 📋 Analyse locale » sur chaque carte et dans le modal, tolérant aux rapports antérieurs sans le champ
+- Contrats consommés : GET /api/pro/coach/themes (data.themes/motsCles/groupes/commentairesAnalyses/jours), champ source des rapports (GET /api/pro/coach/rapports + POST /api/pro/coach)
+- Tollgates qualité : bunx tsc --noEmit 2>&1 | grep -v examples | grep -v skills → VIDE (0 erreur ; seules les erreurs préexistantes examples/skills hors périmètre) ; bun run lint → exit 0 (0 erreur/0 warning, y compris eslint ciblé sur les 2 fichiers) ; worklog appendu uniquement
+
+---
+Task ID: S5-backend
+Agent: Z.ai Code (orchestrateur)
+Task: Session 5 — Le Moteur IA : Coach Quotidien et Hebdomadaire (genererRapportIA, Prompt IA parfait, crons 7h, alertes récurrence SMS, analyse sémantique)
+
+Work Log:
+- AUDIT PRÉALABLE : Sessions 1-4 déjà livrées (moteur IA v1 dans ia.ts, cron quotidien, alertes SMS systématiques, RapportIA sans source). Écarts spec S5 identifiés : pas de genererRapportIA(proId, type), prompt ≠ « Prompt IA parfait », pas d'évolution vs période précédente ni de créneaux d'alertes, cron hebdo = simple email récap (pas de rapport IA hebdo), SMS envoyé pour TOUT ≤2★ (pas d'analyse de récurrence), aucune analyse sémantique, source LLM non stockée
+- src/lib/semantic.ts (NOUVEAU) : analyse sémantique 100 % locale déterministe — 8 lexiques de thèmes FR (Température des plats 🌡️, Temps d'attente ⏳, Propreté 🧹, Accueil & service 🙋, Qualité des plats 🍽️, Erreurs de commande 📝, Rapport qualité-prix 💶, Ambiance & bruit 🔊), normalisation NFD sans accents, détection même sans tag sélectionné (ex. spec : froid/tiède → « Température des plats »), mots-clés récurrents (hors stopwords, ≥2 occurrences), regroupement commentaires similaires par clustering glouton Jaccard (seuil 0.4, max 5 groupes). Smoke tests bun : exemples du spec validés, cluster de 3 commentaires pizzas similaires détecté
+- src/lib/ia.ts (enrichi) :
+  * DonneesRapport += evolution {direction hausse/baisse/stable, deltaPoints, scoreActuel, scorePrecedent} (période précédente = fenêtre de même durée immédiatement antérieure), creneauxAlertes[] (alertes ≤2★ groupées par heure → plages contiguës « entre 18h et 19h (N alertes ≤ 2★) », top 3), themesDetectes[] (top 3 avec noteMoyenne), motsClesRecuvents[] (top 5)
+  * SYSTEM_PROMPT_FR remplacé par le « Prompt IA parfait » Session 5 : structure exacte (📊 RAPPORT D'AUDIT QUALITÉ / 🏢 / 🎯 SCORE GLOBAL avec évolution / 🔍 ANALYSE PAR ZONE / 🧠 ANALYSE & RECOMMANDATIONS 3 problèmes avec **Problème détecté** + 👉 **ACTION RECOMMANDÉE** + 👥 **Personnes concernées** / 🏆 POINTS POSITIFS / 📈 PRÉDICTION), règles (coach humain, chiffres précis, ENTRETIEN jamais licenciement, FÉLICITATION PUBLIQUE, 500-800 mots), sortie JSON conservée pour compat dashboard
+  * rapportFallback réécrit au même format (zones, 3 problèmes au format parfait, créneaux, thèmes cachés, félicitations publiques, prédictions)
+  * RapportIA.source stocké ("ia"|"fallback") + serialiserRapport expose source
+  * genererRapportIA(proId, type, options?) NOUVEAU (signature spec) : charge le Pro puis délègue à genererEtEnregistrerRapport (pipeline complet : agrégation → prompt → LLM z-ai-web-dev-sdk → parse JSON robuste → save → email Resend simulé)
+- src/lib/alertes.ts (NOUVEAU) : analyserEtAlerterRetour(pro, zone, retour, tags) — SEUIL_RECURRENCE=3, FENETRE_RECURRENCE_HEURES=48 ; récurrent → Alerte canal "SMS" + sendSMS Twilio (email emailAlerteRecurrente en secours si SMS désactivé/sans numéro) ; isolé → Alerte canal "DASHBOARD" uniquement. Jamais d'exception (catch global)
+- src/app/api/retour/route.ts refactor : inline SMS supprimé → analyserEtAlerterRetour ; réponse += alerte {recurrente, nbSignalements, canal}
+- src/lib/email.ts : emailAlerteRecurrente (template HTML problème récurrent, remplace l'ancien emailAlerteRetour supprimé)
+- Planification (spec §3) : src/lib/cron.ts (NOUVEAU) cronRapportQuotidien() (tous les jours 7h, plan PRO+ = PRO/ENTERPRISE, frequenceRapport=quotidien, non suspendus, ≥1 retour 24h) + cronRapportHebdomadaire() (lundi 7h, TOUS les PRO+ non suspendus avec retours 7j) ; /api/cron/rapports-quotidiens refactoré sur la lib ; /api/cron/rapports-hebdomadaires NOUVEAU ; vercel.json += cron hebdo "0 7 * * 1" (recap-weekly 8h conservé) ; CRON_SECRET généré dans .env
+- GET /api/pro/coach/themes?jours=30 (NOUVEAU) : analyse sémantique sur la fenêtre (max 365j)
+- Prisma : RapportIA.source String @default("ia") + bun run db:push OK
+- FRONTEND (sous-agent S5-front, voir son entrée) : section « 🧠 Analyse sémantique — thèmes cachés » dans coach-ia-tab (fetch themes, cartes thèmes avec badges note colorée, chips mots détectés, exemples, mots-clés récurrents, groupes similaires, masquage propre) ; badge source « 🤖 Généré par IA » / « 📋 Analyse locale » sur cartes + modal rapports-tab
+- TESTS RÉELS (preuves dev.log + BDD + screenshots proofs/s5-01..04) :
+  * Récurrence zone Accueil (0/48h au départ) : retour 1★ → {recurrente:false, 1, DASHBOARD} ; 2★ → {false, 2, DASHBOARD} ; 1★ → {true, 3, SMS} ; log « 📱 SMS simulé (mode démo) → 33612345678 : 🚨 FeedbackPro - PROBLÈME RÉCURRENT : 3 alertes ≤2★ zone Accueil en 48h » ; Toilettes RDC (déjà 2/48h) → SMS immédiat {true, 3, SMS} ; 4 alertes BDD vérifiées (2 SMS, 2 DASHBOARD)
+  * Cron quotidien : 401 sans Bearer ; avec Bearer → {cibles:1, rapport source:"ia", score 43, emailEnvoye:true} (STARTER exclus : Salon Élégance/Garage AutoPlus absents) ; cron hebdomadaire → {cibles:2, Bella Napoli 43 + Pain d'Or 75, tous deux source:"ia", emails envoyés}
+  * Contenu LLM en BDD conforme au Prompt IA parfait : « ### 🎯 SCORE GLOBAL : 43/100 (baisse de 25 points vs période précédente) », 3 problèmes numérotés avec ACTION RECOMMANDÉE + Personnes concernées, « Féliciter publiquement Sophie lors du prochain briefing », PRÉDICTION en 3 points — priorites[] parsées pour le dashboard
+  * GET themes → ok:true, 26/48 commentaires analysés, 5 thèmes (🧹 Propreté ×8 note 3,13…), 10 mots-clés, 3 groupes similaires réels
+  * UI (agent-browser) : login démo → rapport inline S5 complet rendu, section sémantique remplie (7 cartes thèmes, chips, exemples), Rapports IA : badges « 🤖 Généré par IA » sur toutes les cartes, badge « 📋 Analyse locale » vérifié en basculant temporairement un rapport en fallback puis restauré en ia ; modal avec badge + rapport complet ; mobile 390px : burger + drawer 11 onglets OK ; 0 erreur console/page/dev.log
+  * bunx tsc --noEmit (filtré examples/skills) : VIDE ; bun run lint : exit 0
+
+Stage Summary:
+- Livrables Session 5 complets : genererRapportIA(proId, type) fonctionnelle (LLM z-ai-web-dev-sdk + fallback), « Prompt IA parfait » appliqué aux rapports quotidien ET hebdomadaire, crons 7h configurés (vercel.json + CRON_SECRET + boucle plan PRO+), alertes temps réel à récurrence (SMS si récurrent sinon dashboard), analyse sémantique des commentaires (thèmes cachés + mots-clés + regroupement) exposée dans le dashboard
+- Choix documentés : analyse sémantique 100 % locale (pas de clé OpenAI — l'équivalent embeddings est le clustering Jaccard + lexiques FR, déterministe et testable) ; le cron hebdo cible tous les PRO+ (spec §3) et le quotidien ceux en fréquence quotidienne ; le rapport hebdo IA s'ajoute au récap email simple existant (recap-weekly conservé)
+- Preuves : proofs/s5-01-semantique-coach.png, s5-02-rapport-modal.png, s5-03-rapports-badges.png, s5-04-mobile-dashboard.png ; comptes inchangés : admin@feedbackpro.fr/admin123 · demo@pizzeria.fr/demo1234

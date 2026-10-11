@@ -156,6 +156,7 @@ model RapportIA {
   priorites        String @default("[]") // JSON : Top 3 priorités
   recommandations  String @default("[]") // JSON : Actions suggérées
   predictions      String @default("[]") // JSON : Prédictions
+  source           String @default("ia") // "ia" = généré par le LLM | "fallback" = analyse locale déterministe (Session 5)
 
   envoyeParEmail Boolean @default(false)
   envoyeParSMS   Boolean @default(false)

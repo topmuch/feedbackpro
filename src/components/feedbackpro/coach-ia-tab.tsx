@@ -9,6 +9,8 @@
 //      « Marquer traité » (PATCH retours) et « Voir détails » (dialog)
 //   3. Points positifs à valoriser (employés, zones, félicitations)
 //   4. Prédictions de la semaine
+//   5. (Session 5) Analyse sémantique — thèmes cachés extraits des
+//      commentaires libres (GET /api/pro/coach/themes)
 // Conservé des sessions précédentes : KPIs, rapport IA inline
 // (markdown), historique cliquable et courbe 30 j.
 // ============================================================
@@ -17,6 +19,7 @@ import { useCallback, useEffect, useState } from "react"
 import ReactMarkdown, { type Components } from "react-markdown"
 import {
   Bot,
+  Brain,
   Sparkles,
   Target,
   Lightbulb,
@@ -120,6 +123,26 @@ type RetourDetail = {
   createdAt: string
 }
 
+/** Session 5 : thème sémantique détecté dans les commentaires libres (trié par occurrences) */
+type ThemeDetecte = {
+  nom: string
+  emoji: string
+  occurrences: number
+  noteMoyenne: number
+  motsDetectes: { mot: string; count: number }[]
+  exemples: { commentaire: string; note: number; zoneNom?: string }[]
+}
+
+/** Session 5 : contrat GET /api/pro/coach/themes */
+type ThemesData = {
+  jours: number
+  commentairesAnalyses: number
+  totalRetours: number
+  themes: ThemeDetecte[]
+  motsCles: { mot: string; count: number }[]
+  groupes: { taille: number; exemple: string; noteMoyenne: number; notes: number[] }[]
+}
+
 type CoachData = {
   dernierRapport?: RapportCoach | null
   prioritesDuJour?: string[]
@@ -219,6 +242,14 @@ function noteFr(note: number): string {
   return note.toFixed(2).replace(".", ",")
 }
 
+/** Session 5 : couleur du badge de note d'un thème — rose < 3 (irritant),
+ *  vert ≥ 4 (satisfaction), ambre entre les deux */
+function tonaliteTheme(note: number): string {
+  if (note < 3) return "border-rose-300 bg-rose-50 text-rose-700"
+  if (note >= 4) return "border-green-300 bg-green-50 text-green-700"
+  return "border-amber-300 bg-amber-50 text-amber-700"
+}
+
 /** Styles par niveau de priorité : carte, badge et icône lucide */
 const STYLES_PRIORITE: Record<
   NiveauPriorite,
@@ -289,6 +320,10 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
   const [retoursDialog, setRetoursDialog] = useState<RetourDetail[] | null>(null)
   const [chargementDialog, setChargementDialog] = useState(false)
 
+  // Session 5 : analyse sémantique des commentaires (thèmes cachés)
+  const [themesData, setThemesData] = useState<ThemesData | null>(null)
+  const [themesLoading, setThemesLoading] = useState(true)
+
   const nomEtablissement = champPro(session?.pro, ["nomEtablissement", "nomCommerce"], "votre établissement")
   const frequence = champPro(session?.pro, ["frequenceRapport"], "quotidien").toLowerCase()
 
@@ -318,6 +353,29 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
   useEffect(() => {
     charger()
   }, [charger])
+
+  // ---------- Session 5 : analyse sémantique (thèmes cachés) ----------
+  // Fetch indépendant au montage (même pattern que stats-tab : guard de démontage).
+  // Échec ou route indisponible → la section reste simplement masquée
+  // (non bloquant, pas de toast).
+  useEffect(() => {
+    let annule = false
+    fetch("/api/pro/coach/themes", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (annule) return
+        if (j?.ok && j.data) setThemesData(j.data as ThemesData)
+      })
+      .catch(() => {
+        // Silencieux : sans données, la section ne s'affiche pas
+      })
+      .finally(() => {
+        if (!annule) setThemesLoading(false)
+      })
+    return () => {
+      annule = true
+    }
+  }, [])
 
   // ---------- Génération d'un rapport (POST, 5-15 s côté IA) ----------
   async function generer() {
@@ -480,6 +538,16 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
   /** Prédictions : accueil en priorité, sinon celles du dernier rapport */
   const predictions = accueil ? (accueil.predictions ?? []) : (dernier?.predictions ?? [])
 
+  /** Session 5 : analyse sémantique — données dérivées (tolérantes aux champs absents) */
+  const themes = themesData?.themes ?? []
+  const motsCles = themesData?.motsCles ?? []
+  const groupesSimilaires = themesData?.groupes ?? []
+  /** Section masquée si rien analysé ou si thèmes/mots-clés/groupes sont tous vides */
+  const themesVisibles =
+    themesData != null &&
+    themesData.commentairesAnalyses > 0 &&
+    (themes.length > 0 || motsCles.length > 0 || groupesSimilaires.length > 0)
+
   /** Ancienne liste de textes bruts (fallback si accueil indisponible) */
   const prioritesAffichees = (coachData?.prioritesDuJour?.length
     ? coachData.prioritesDuJour
@@ -532,6 +600,8 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
         </div>
         {/* Prédictions */}
         <Skeleton className="h-36 rounded-xl" />
+        {/* Analyse sémantique — thèmes cachés (Session 5) */}
+        <Skeleton className="h-64 rounded-xl" />
         {/* Historique + courbe */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <Skeleton className="h-64 rounded-xl" />
@@ -949,6 +1019,79 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
         </section>
       )}
 
+      {/* ---------- 🧠 Analyse sémantique — thèmes cachés (Session 5) ---------- */}
+      {themesLoading ? (
+        // Squelette dédié : fetch indépendant du reste de la page
+        <Skeleton className="h-64 rounded-xl" aria-hidden />
+      ) : themesVisibles && themesData ? (
+        <section aria-labelledby="titre-themes">
+          <div className="mb-3">
+            <h2 id="titre-themes" className="flex items-center gap-2 text-base font-semibold sm:text-lg">
+              <Brain className="h-4.5 w-4.5 text-primary" aria-hidden />
+              🧠 Analyse sémantique — thèmes cachés
+            </h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              <span className="font-semibold text-foreground">{themesData.commentairesAnalyses}</span>{" "}
+              commentaire{themesData.commentairesAnalyses > 1 ? "s" : ""} analysé
+              {themesData.commentairesAnalyses > 1 ? "s" : ""} sur {themesData.jours} jours — détecté
+              même sans tag sélectionné
+            </p>
+          </div>
+
+          {/* Cartes des thèmes (triés par occurrences, ordre fourni par l'API) */}
+          {themes.length > 0 && (
+            <div className="grid gap-3 md:grid-cols-2">
+              {themes.map((t) => (
+                <CarteTheme key={t.nom} theme={t} />
+              ))}
+            </div>
+          )}
+
+          {/* Mots-clés récurrents + commentaires similaires regroupés */}
+          {(motsCles.length > 0 || groupesSimilaires.length > 0) && (
+            <Card className="mt-3">
+              <CardContent className="space-y-4 p-4">
+                {motsCles.length > 0 && (
+                  <div>
+                    <p className="mb-2 text-sm font-semibold">Mots-clés récurrents</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {motsCles.map((m) => (
+                        <Badge key={m.mot} variant="secondary" className="font-normal">
+                          {m.mot} ×{m.count}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {groupesSimilaires.length > 0 && (
+                  <div>
+                    <p className="mb-2 text-sm font-semibold">Commentaires similaires regroupés</p>
+                    <ul className="space-y-1.5">
+                      {groupesSimilaires.map((g, i) => (
+                        <li
+                          key={i}
+                          className="flex items-start gap-2 text-sm leading-relaxed text-muted-foreground"
+                        >
+                          <span
+                            className="mt-[7px] h-1.5 w-1.5 shrink-0 rounded-full bg-muted-foreground/40"
+                            aria-hidden
+                          />
+                          <span className="min-w-0">
+                            {g.taille} commentaire{g.taille > 1 ? "s" : ""} similaire
+                            {g.taille > 1 ? "s" : ""} (note moy. {noteFr(g.noteMoyenne)}/5) : «{" "}
+                            {tronquer(g.exemple, 120)} »
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+        </section>
+      ) : null}
+
       {/* ---------- Historique + Évolution 30 j ---------- */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card>
@@ -1155,6 +1298,61 @@ function BadgeEvolution({ pct, label }: { pct: number | null; label: string }) {
       <Icon className="h-3 w-3 shrink-0" aria-hidden />
       {texte}
     </Badge>
+  )
+}
+
+// ---------- Carte d'un thème caché (Session 5 : analyse sémantique) ----------
+
+function CarteTheme({ theme: t }: { theme: ThemeDetecte }) {
+  return (
+    <Card className="flex flex-col">
+      <CardContent className="flex flex-1 flex-col gap-2.5 p-4">
+        {/* Nom du thème + badges occurrences / note moyenne */}
+        <div className="flex items-start justify-between gap-2">
+          <p className="font-medium leading-snug">
+            <span className="mr-1.5" aria-hidden>
+              {t.emoji}
+            </span>
+            {t.nom}
+          </p>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <Badge variant="secondary" title={`${t.occurrences} occurrence(s)`}>
+              ×{t.occurrences}
+            </Badge>
+            <Badge variant="outline" className={tonaliteTheme(t.noteMoyenne)}>
+              {noteFr(t.noteMoyenne)}/5
+            </Badge>
+          </div>
+        </div>
+
+        {/* Mots détectés ayant alimenté le thème (max 5) */}
+        {t.motsDetectes.length > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {t.motsDetectes.slice(0, 5).map((m) => (
+              <Badge
+                key={m.mot}
+                variant="outline"
+                className="text-[11px] font-normal text-muted-foreground"
+              >
+                {m.mot} ×{m.count}
+              </Badge>
+            ))}
+          </div>
+        )}
+
+        {/* 1 à 2 exemples de commentaires réels, tronqués */}
+        {t.exemples.length > 0 && (
+          <ul className="mt-auto space-y-1.5">
+            {t.exemples.slice(0, 2).map((ex, i) => (
+              <li key={i} className="text-xs italic leading-relaxed text-muted-foreground">
+                « {tronquer(ex.commentaire, 120)} »
+                {ex.zoneNom ? ` — ${ex.zoneNom}` : ""}
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 
