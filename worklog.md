@@ -335,3 +335,21 @@ Stage Summary:
 - 仓库: https://github.com/topmuch/feedbackpro (private, main = 2470737 单一干净提交)
 - 敏感文件已从远程历史彻底移除；.gitignore 现含 /db/*.db 规则
 - 建议：PAT 已在对话中暴露，建议用户在 GitHub 设置中轮换
+
+---
+Task ID: AUDIT-1
+Agent: main (Z.ai Code)
+Task: 审计项目与各 Session prompt 的符合度 + 诊断"用户看不到 QR 生成器"
+
+Work Log:
+- 逐一审计组件：landing(986行)、auth(238)、onboarding(493)、scan(677)、pro-dashboard(6 tabs+sidebar)、admin-dashboard、qrcode-tab(303: PNG 1000×1000 + A4 海报 + 20 标签拼版 + 实体支持订购)
+- 核对 API：pro(qrcode/retours/employes/leaderboard/stats/settings/plan/commandes/alertes/overview/onboarding/account) + public(scan/retour) + admin(3) 全部存在
+- 浏览器诊断发现：POST /api/auth/login 401 → 数据库空（容器重启后 db/custom.db 重建为空库，seed 数据丢失）
+- 修复：bun run db:seed 恢复（4 商家/122 retours/admin+demo）
+- 修复：.env.example 被 .gitignore 的 .env* 规则误排除 → 加 !.env.example，重建文件，提交推送
+- E2E 验证：landing→login(200)→dashboard 6 tabs→QR 生成器完整渲染(PNG/A4/标签+复制链接)→/dashboard/qr-code 直达→/r/<token> 扫码流 1★→投诉表单→提交入库(note=1,tags=[attente],statut=NEW)
+
+Stage Summary:
+- 结论：4 个 Session 的功能全部已实现且验证可用；用户看不到 QR 生成器的根因是容器重启导致空库→登录失败
+- 访问路径：登录 demo@pizzeria.fr/demo1234 → 侧边栏"Mon QR Code" → 或直达 /dashboard/qr-code
+- .env.example 已入库（28dafee..318e8e4）
