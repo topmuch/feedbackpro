@@ -1,6 +1,8 @@
 // ============================================================
 // API Pro - Gestion des ZONES (points de contact avec QR code)
-// GET    /api/pro/zones → { zones: [...] } (nbRetours + noteMoyenne)
+// GET    /api/pro/zones → { zones: [...] }
+//        nbRetours + noteMoyenne + tendance Session 4
+//        (hausse/baisse : delta de note sur 7 j vs 7 j précédents)
 // POST   /api/pro/zones { nom, description?, tagsPositifs?, tagsNegatifs? }
 //        → 403 si la limite de zones du plan est atteinte
 // PATCH  /api/pro/zones { id, nom?, description?, tagsPositifs?, tagsNegatifs? }
@@ -16,6 +18,24 @@ import { PLAN_LIMITS, type PlanId } from "@/lib/constants"
 import { zoneCreateSchema, zoneUpdateSchema, firstError } from "@/lib/validation"
 import type { Prisma } from "@prisma/client"
 
+/** Calcule la tendance d'une série de retours (note 7 j vs 7 j précédents) */
+function tendanceDe(retours: { note: number; createdAt: Date }[]): {
+  delta: number | null
+  sens: "hausse" | "baisse" | "stable"
+} {
+  const now = new Date()
+  const debut7j = new Date(now.getTime() - 7 * 24 * 3600 * 1000)
+  const debut14j = new Date(now.getTime() - 14 * 24 * 3600 * 1000)
+  const notes7j = retours.filter((r) => r.createdAt >= debut7j).map((r) => r.note)
+  const notesAvant = retours.filter((r) => r.createdAt < debut7j && r.createdAt >= debut14j).map((r) => r.note)
+  if (notes7j.length === 0 || notesAvant.length === 0) return { delta: null, sens: "stable" }
+  const moy7 = notes7j.reduce((s, n) => s + n, 0) / notes7j.length
+  const moyAvant = notesAvant.reduce((s, n) => s + n, 0) / notesAvant.length
+  const delta = Number((moy7 - moyAvant).toFixed(2))
+  if (Math.abs(delta) < 0.05) return { delta: 0, sens: "stable" }
+  return { delta, sens: delta > 0 ? "hausse" : "baisse" }
+}
+
 export async function GET(req: NextRequest) {
   try {
     const ctx = await requirePro(req)
@@ -24,17 +44,23 @@ export async function GET(req: NextRequest) {
     const zones = await db.zone.findMany({
       where: { proId: ctx.pro.id },
       orderBy: { createdAt: "asc" },
-      include: { retours: { select: { note: true } } },
+      include: { retours: { select: { note: true, createdAt: true } } },
     })
 
     return ok({
-      zones: zones.map((z) => ({
-        ...serialiserZone(z),
-        nbRetours: z.retours.length,
-        noteMoyenne: z.retours.length
-          ? Number((z.retours.reduce((s, r) => s + r.note, 0) / z.retours.length).toFixed(2))
-          : 0,
-      })),
+      zones: zones.map((z) => {
+        const tendance = tendanceDe(z.retours)
+        return {
+          ...serialiserZone(z),
+          nbRetours: z.retours.length,
+          noteMoyenne: z.retours.length
+            ? Number((z.retours.reduce((s, r) => s + r.note, 0) / z.retours.length).toFixed(2))
+            : 0,
+          // Session 4 : tendance (hausse/baisse/stable) + delta de note
+          tendance: tendance.sens,
+          tendanceDelta: tendance.delta,
+        }
+      }),
     })
   } catch (e) {
     console.error("zones GET error", e)

@@ -49,6 +49,7 @@ export function SettingsTab() {
   const session = useAppStore((s) => s.session)
   const setView = useAppStore((s) => s.setView)
   const updatePro = useAppStore((s) => s.updatePro)
+  const logout = useAppStore((s) => s.logout)
   const { toast } = useToast()
 
   // Le Pro à jour vient de la session (le store est migré en parallèle par l'agent backend)
@@ -198,6 +199,12 @@ export function SettingsTab() {
       const json = await res.json()
       if (json.ok) {
         toast({ title: "Compte supprimé", description: "Toutes vos données ont été effacées." })
+        // Purge de la session du store (logout fait déjà POST /api/auth/logout +
+        // remise à zéro ; si la session a été détruite côté serveur par la
+        // suppression du compte, l'échec silencieux du POST est acceptable),
+        // puis retour à la landing — sinon la session peuplée risquerait de
+        // re-dériver vers le dashboard.
+        await logout()
         setView("landing")
       } else {
         toast({ title: "Erreur", description: json.error, variant: "destructive" })

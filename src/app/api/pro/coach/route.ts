@@ -1,10 +1,14 @@
 // ============================================================
-// API Pro - Le Coach IA (pivot Session 1)
+// API Pro - Le Coach IA (pivot Session 1, enrichi Session 4)
 // GET  /api/pro/coach → dernier rapport + priorités du jour + indicateurs
+//                      + accueil Session 4 (rapport du jour, priorités
+//                        structurées 🔥/⚠️/💡, points positifs, prédictions)
 // POST /api/pro/coach { type?: "quotidien" | "hebdomadaire" } → { rapport }
 //
 // La génération passe par src/lib/ia.ts : en cas d'échec du LLM,
 // un rapport déterministe est produit — jamais d'erreur 500 brute.
+// Les sections d'accueil Session 4 passent par src/lib/coach-accueil.ts
+// (calcul déterministe à la volée, jamais d'erreur 500 non plus).
 // ============================================================
 
 import { NextRequest } from "next/server"
@@ -12,6 +16,7 @@ import { db } from "@/lib/db"
 import { ok, fail } from "@/lib/session"
 import { requirePro, unauthorized } from "@/lib/guards"
 import { serialiserRapport, genererEtEnregistrerRapport } from "@/lib/ia"
+import { calculerAccueil } from "@/lib/coach-accueil"
 
 export async function GET(req: NextRequest) {
   try {
@@ -56,9 +61,14 @@ export async function GET(req: NextRequest) {
         ? Math.round(((note30j - note30jPrecedentes) / note30jPrecedentes) * 100)
         : 0
 
-    const [retours24h, alertesNonLues] = await Promise.all([
+    const [retours24h, alertesNonLues, accueil] = await Promise.all([
       db.retour.count({ where: { proId: pro.id, createdAt: { gte: ilYA24h } } }),
       db.alerte.count({ where: { proId: pro.id, lu: false } }),
+      // Sections Session 4 de l'accueil (calcul déterministe, jamais d'exception)
+      calculerAccueil(pro).catch((e) => {
+        console.warn("coach GET : calcul accueil impossible (non bloquant)", e)
+        return null
+      }),
     ])
 
     // ---------- Historique des rapports (10 derniers) ----------
@@ -79,6 +89,8 @@ export async function GET(req: NextRequest) {
         scoreGlobal30j,
         evolutionPct,
       },
+      // Session 4 : rapport du jour, priorités structurées, points positifs, prédictions
+      accueil,
       historique: rapports.map((r) => ({
         id: r.id,
         type: r.type,

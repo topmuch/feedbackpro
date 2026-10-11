@@ -2,8 +2,15 @@
 
 // ============================================================
 // FeedbackPro - Onglet « Coach IA » (ACCUEIL du dashboard Pro)
-// Cœur produit Session 1 : rapport IA quotidien/hebdomadaire,
-// 3 priorités du jour, indicateurs clés, historique et courbe 30 j
+// Session 4 : page d'accueil repensée —
+//   1. Rapport du jour (score du jour, évolutions, retours du jour)
+//   2. 3 priorités du jour STRUCTURÉES (🔥 critique / ⚠️ important /
+//      💡 suggestion) avec recommandation du Coach + actions
+//      « Marquer traité » (PATCH retours) et « Voir détails » (dialog)
+//   3. Points positifs à valoriser (employés, zones, félicitations)
+//   4. Prédictions de la semaine
+// Conservé des sessions précédentes : KPIs, rapport IA inline
+// (markdown), historique cliquable et courbe 30 j.
 // ============================================================
 
 import { useCallback, useEffect, useState } from "react"
@@ -22,14 +29,28 @@ import {
   BellRing,
   Loader2,
   History,
+  Flame,
+  AlertTriangle,
+  Check,
+  Eye,
+  Clipboard,
+  FileText,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/app-store"
 import { cn } from "@/lib/utils"
+import { tagLabel } from "@/lib/constants"
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid, Legend } from "recharts"
 
 // ---------- Types (contrats GET/POST /api/pro/coach + GET /api/pro/overview) ----------
@@ -44,6 +65,9 @@ type RapportCoach = {
   priorites: string[]
   recommandations: string[]
   predictions: string[]
+  /** Session 4 : canaux d'envoi déjà utilisés pour ce rapport */
+  envoyeParEmail?: boolean
+  envoyeParSMS?: boolean
   createdAt: string
 }
 
@@ -52,6 +76,48 @@ type HistoriqueEntry = {
   type: string
   createdAt: string
   scoreGlobal: number
+}
+
+/** Priorité STRUCTURÉE (Session 4) — calcul déterministe côté serveur */
+type NiveauPriorite = "critique" | "important" | "suggestion"
+
+type PrioriteDetaillee = {
+  niveau: NiveauPriorite
+  titre: string
+  description: string
+  recommandation: string
+  zoneNom?: string
+  retourIds: string[]
+}
+
+/** Sections d'accueil Session 4 renvoyées par GET /api/pro/coach */
+type AccueilData = {
+  scoreDuJour: {
+    score: number
+    score7j: number
+    retoursAujourdhui: number
+    vsHierPct: number | null
+    vsSemainePct: number | null
+  }
+  priorites: PrioriteDetaillee[]
+  pointsPositifs: {
+    employes: { nom: string; positifs: number; detail: string }[]
+    zones: { nom: string; noteMoy: number; total: number }[]
+    messages: string[]
+  }
+  predictions: string[]
+}
+
+/** Forme RetourDetail renvoyée par GET /api/pro/retours (filte ?ids=) */
+type RetourDetail = {
+  id: string
+  note: number
+  tags: string[]
+  commentaire: string | null
+  statut: string
+  zone: { nom: string } | null
+  employe: { nom: string } | null
+  createdAt: string
 }
 
 type CoachData = {
@@ -64,6 +130,8 @@ type CoachData = {
     scoreGlobal30j?: number
     evolutionPct?: number
   }
+  /** Session 4 : sections d'accueil (null si le calcul a échoué côté serveur) */
+  accueil?: AccueilData | null
   historique?: HistoriqueEntry[]
 }
 
@@ -94,6 +162,18 @@ function formatDateCourt(d: string | Date): string {
   return date.toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" })
 }
 
+/** Date + heure compactes pour le détail des réclamations (dialog) */
+function formatDateHeure(d: string): string {
+  const date = new Date(d)
+  if (Number.isNaN(date.getTime())) return "—"
+  return date.toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  })
+}
+
 /** Version compacte sans année, pour l'axe X de la courbe 30 j.
  *  Le backend fournit déjà « JJ/MM » → on l'affiche tel quel.
  *  (Un re-parsing new Date("12/09") lirait MM/JJ → « 9 déc. » — bug corrigé.) */
@@ -122,6 +202,51 @@ function scoreTone(score: number): string {
   return "border-rose-300 text-rose-700"
 }
 
+/** Clé stable d'une priorité (retrait d'état local + suivi du bouton en cours) */
+function clePriorite(p: PrioriteDetaillee): string {
+  return `${p.niveau}::${p.titre}`
+}
+
+/** Tronque un commentaire long pour l'affichage compact du dialog */
+function tronquer(texte: string | null, max = 140): string {
+  const t = (texte ?? "").trim()
+  if (!t) return "Aucun commentaire"
+  return t.length > max ? t.slice(0, max).trimEnd() + "…" : t
+}
+
+/** Formatage d'une note moyenne « 3,8 » (virgule française) */
+function noteFr(note: number): string {
+  return note.toFixed(2).replace(".", ",")
+}
+
+/** Styles par niveau de priorité : carte, badge et icône lucide */
+const STYLES_PRIORITE: Record<
+  NiveauPriorite,
+  { carte: string; badge: string; libelle: string; emoji: string; Icon: React.ComponentType<{ className?: string }> }
+> = {
+  critique: {
+    carte: "border-red-200 bg-red-50/40",
+    badge: "border-red-300 bg-red-100 text-red-700",
+    libelle: "Urgent",
+    emoji: "🔥",
+    Icon: Flame,
+  },
+  important: {
+    carte: "border-amber-200 bg-amber-50/40",
+    badge: "border-amber-300 bg-amber-100 text-amber-700",
+    libelle: "Important",
+    emoji: "⚠️",
+    Icon: AlertTriangle,
+  },
+  suggestion: {
+    carte: "border-violet-200 bg-violet-50/40",
+    badge: "border-violet-300 bg-violet-100 text-violet-700",
+    libelle: "Suggestion",
+    emoji: "💡",
+    Icon: Lightbulb,
+  },
+}
+
 /** Styles propres pour le rendu markdown du rapport (titres, paragraphes, listes) */
 const mdComposants: Components = {
   h1: ({ node, ...props }) => <h3 className="mb-2 mt-4 text-base font-bold text-foreground first:mt-0" {...props} />,
@@ -144,7 +269,7 @@ const mdComposants: Components = {
 
 // ---------- Composant principal ----------
 
-export function CoachIaTab() {
+export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void }) {
   const session = useAppStore((s) => s.session)
   const { toast } = useToast()
 
@@ -154,6 +279,15 @@ export function CoachIaTab() {
   const [generation, setGeneration] = useState(false)
   /** Rapport sélectionné (historique) — null = dernier rapport */
   const [rapportId, setRapportId] = useState<string | null>(null)
+
+  // Session 4 : actions sur les priorités structurées
+  /** Clé de la priorité dont le « Marquer traité » est en cours */
+  const [traitementEnCours, setTraitementEnCours] = useState<string | null>(null)
+  /** Priorité ouverte dans le dialog « Voir détails » */
+  const [prioriteDialog, setPrioriteDialog] = useState<PrioriteDetaillee | null>(null)
+  /** Réclamations chargées pour le dialog (null = chargement) */
+  const [retoursDialog, setRetoursDialog] = useState<RetourDetail[] | null>(null)
+  const [chargementDialog, setChargementDialog] = useState(false)
 
   const nomEtablissement = champPro(session?.pro, ["nomEtablissement", "nomCommerce"], "votre établissement")
   const frequence = champPro(session?.pro, ["frequenceRapport"], "quotidien").toLowerCase()
@@ -224,6 +358,108 @@ export function CoachIaTab() {
     }
   }
 
+  // ---------- Session 4 : « Marquer traité » sur une priorité ----------
+  async function marquerTraite(p: PrioriteDetaillee) {
+    setTraitementEnCours(clePriorite(p))
+    try {
+      // Suggestion sans réclamation liée : on note et on rafraîchit les données
+      if (p.retourIds.length === 0) {
+        toast({ title: "Suggestion notée, aucune réclamation liée" })
+        retirerPriorite(p)
+        await charger()
+        return
+      }
+      // Résolution de toutes les réclamations liées (PATCH en parallèle)
+      const resultats = await Promise.all(
+        p.retourIds.map(async (id) => {
+          try {
+            const res = await fetch("/api/pro/retours", {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ id, statut: "RESOLVED", actionPrise: p.recommandation }),
+            })
+            return res.ok
+          } catch {
+            return false
+          }
+        })
+      )
+      const succes = resultats.filter(Boolean).length
+      if (succes === 0) throw new Error("aucune résolution")
+      toast({
+        title: `Priorité marquée comme traitée — ${succes} réclamation(s) résolue(s)`,
+      })
+      // Retrait local : l'ancien calcul reste affiché jusqu'au rechargement
+      retirerPriorite(p)
+    } catch {
+      toast({
+        title: "Erreur",
+        description: "Impossible de marquer cette priorité comme traitée. Réessayez.",
+        variant: "destructive",
+      })
+    } finally {
+      setTraitementEnCours(null)
+    }
+  }
+
+  /** Retire une priorité de l'état local (après traitement réussi) */
+  function retirerPriorite(p: PrioriteDetaillee) {
+    setCoachData((prev) => {
+      if (!prev?.accueil) return prev
+      return {
+        ...prev,
+        accueil: {
+          ...prev.accueil,
+          priorites: prev.accueil.priorites.filter((x) => clePriorite(x) !== clePriorite(p)),
+        },
+      }
+    })
+  }
+
+  // ---------- Session 4 : dialog « Voir détails » ----------
+  async function ouvrirDetails(p: PrioriteDetaillee) {
+    setPrioriteDialog(p)
+    setRetoursDialog(null)
+    // Priorité sans réclamation liée : le dialog montre juste l'analyse
+    if (p.retourIds.length === 0) return
+    setChargementDialog(true)
+    try {
+      const res = await fetch(`/api/pro/retours?ids=${encodeURIComponent(p.retourIds.join(","))}`, {
+        cache: "no-store",
+      })
+      const json = await res.json()
+      setRetoursDialog(json?.ok ? ((json.data.retours ?? []) as RetourDetail[]) : [])
+    } catch {
+      setRetoursDialog([])
+      toast({
+        title: "Erreur",
+        description: "Impossible de charger le détail des réclamations.",
+        variant: "destructive",
+      })
+    } finally {
+      setChargementDialog(false)
+    }
+  }
+
+  function fermerDialog() {
+    setPrioriteDialog(null)
+    setRetoursDialog(null)
+  }
+
+  // ---------- Session 4 : copie des félicitations ----------
+  async function copierMessage(message: string) {
+    try {
+      await navigator.clipboard.writeText(message)
+      toast({ title: "Copié" })
+    } catch {
+      toast({
+        title: "Copie impossible",
+        description: "Votre navigateur a refusé l'accès au presse-papiers.",
+        variant: "destructive",
+      })
+    }
+  }
+
   // ---------- Valeurs dérivées ----------
 
   const dernier = coachData?.dernierRapport ?? null
@@ -232,6 +468,19 @@ export function CoachIaTab() {
   const rapportComplet = estDernier ? dernier : null
   const entreeHisto = coachData?.historique?.find((h) => h.id === idSelectionne) ?? null
 
+  // Sections d'accueil Session 4 (fallback : ancien calcul si accueil absent)
+  const accueil = coachData?.accueil ?? null
+
+  /** Score du jour affiché : repli sur la moyenne 7 j si pas de retour aujourd'hui */
+  const scoreDuJour = accueil?.scoreDuJour ?? null
+  const repli7j = (scoreDuJour?.retoursAujourdhui ?? 0) === 0 && (scoreDuJour?.score7j ?? 0) > 0
+  const scoreAffiche = scoreDuJour ? (repli7j ? scoreDuJour.score7j : scoreDuJour.score) : null
+  const mentionScore = repli7j ? "moyenne 7 jours" : "aujourd'hui"
+
+  /** Prédictions : accueil en priorité, sinon celles du dernier rapport */
+  const predictions = accueil ? (accueil.predictions ?? []) : (dernier?.predictions ?? [])
+
+  /** Ancienne liste de textes bruts (fallback si accueil indisponible) */
   const prioritesAffichees = (coachData?.prioritesDuJour?.length
     ? coachData.prioritesDuJour
     : dernier?.priorites) ?? []
@@ -259,17 +508,31 @@ export function CoachIaTab() {
           </div>
           <Skeleton className="h-10 w-56" />
         </div>
+        {/* Rapport du jour */}
+        <Skeleton className="h-40 rounded-xl" />
+        {/* 3 priorités du jour */}
         <div className="grid gap-3 sm:grid-cols-3">
           {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-20 rounded-xl" />
+            <Skeleton key={i} className="h-48 rounded-xl" />
           ))}
         </div>
+        {/* KPIs */}
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => (
             <Skeleton key={i} className="h-28 rounded-xl" />
           ))}
         </div>
+        {/* Rapport IA */}
         <Skeleton className="h-80 rounded-xl" />
+        {/* Points positifs */}
+        <div className="grid gap-3 md:grid-cols-3">
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-40 rounded-xl" />
+          ))}
+        </div>
+        {/* Prédictions */}
+        <Skeleton className="h-36 rounded-xl" />
+        {/* Historique + courbe */}
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <Skeleton className="h-64 rounded-xl" />
           <Skeleton className="h-64 rounded-xl lg:col-span-2" />
@@ -304,37 +567,105 @@ export function CoachIaTab() {
         </Button>
       </div>
 
-      {/* ---------- 🎯 Les 3 priorités du jour ---------- */}
+      {/* ---------- 📊 Rapport du jour (Session 4) ---------- */}
+      {scoreDuJour && (
+        <section aria-labelledby="titre-rapport-jour">
+          <h2 id="titre-rapport-jour" className="mb-3 text-base font-semibold sm:text-lg">
+            📊 Rapport du jour
+          </h2>
+          <Card className="border-primary/20 bg-primary/[0.03]">
+            <CardContent className="flex flex-col gap-4 p-4 lg:flex-row lg:items-center">
+              {/* Gros score (repli moyenne 7 j si aucun retour aujourd'hui) */}
+              <div className="text-center lg:w-32 lg:shrink-0">
+                <p className="text-5xl font-extrabold tracking-tight text-primary">
+                  {scoreAffiche != null ? Math.round(scoreAffiche) : "—"}
+                </p>
+                <p className="mt-0.5 text-xs text-muted-foreground">score {mentionScore} / 100</p>
+              </div>
+
+              <div className="hidden h-16 w-px bg-border lg:block" aria-hidden />
+
+              {/* Évolutions + retours du jour */}
+              <div className="flex-1 space-y-2.5">
+                <div className="flex flex-wrap gap-1.5">
+                  <BadgeEvolution pct={scoreDuJour.vsHierPct ?? null} label="vs hier" />
+                  <BadgeEvolution pct={scoreDuJour.vsSemainePct ?? null} label="vs semaine dernière" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  <span className="font-semibold text-foreground">{scoreDuJour.retoursAujourdhui}</span>{" "}
+                  retour{scoreDuJour.retoursAujourdhui > 1 ? "s" : ""} collecté
+                  {scoreDuJour.retoursAujourdhui > 1 ? "s" : ""} aujourd&apos;hui via vos QR codes
+                </p>
+              </div>
+
+              {/* CTA vers l'onglet Rapports IA (liste complète) */}
+              <Button onClick={onOuvrirRapports} disabled={!onOuvrirRapports} className="shrink-0">
+                <FileText className="mr-2 h-4 w-4" aria-hidden />
+                Voir le rapport complet
+              </Button>
+            </CardContent>
+          </Card>
+        </section>
+      )}
+
+      {/* ---------- 🎯 Les 3 priorités du jour (Session 4 : structurées) ---------- */}
       <section aria-labelledby="titre-priorites">
         <h2 id="titre-priorites" className="mb-3 text-base font-semibold sm:text-lg">
           🎯 Vos 3 priorités du jour
         </h2>
-        <div className="grid gap-3 sm:grid-cols-3">
-          {prioritesAffichees.length === 0 ? (
-            <Card className="sm:col-span-3">
-              <CardContent className="flex items-center justify-center gap-3 py-6 text-center">
-                <Target className="h-5 w-5 shrink-0 text-primary" aria-hidden />
-                <p className="text-sm text-muted-foreground">
-                  Vos priorités apparaîtront dès que vos premiers retours seront collectés.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            prioritesAffichees.slice(0, 3).map((texte, i) => (
-              <Card key={i}>
-                <CardContent className="flex items-start gap-3 p-4">
-                  <span
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground"
-                    aria-hidden
-                  >
-                    {i + 1}
-                  </span>
-                  <p className="text-sm leading-relaxed">{texte}</p>
+        {accueil ? (
+          // Priorités STRUCTURÉES (🔥 critique / ⚠️ important / 💡 suggestion)
+          <div className="grid gap-3 sm:grid-cols-3">
+            {accueil.priorites.length === 0 ? (
+              <Card className="sm:col-span-3">
+                <CardContent className="flex items-center justify-center gap-3 py-6 text-center">
+                  <Target className="h-5 w-5 shrink-0 text-primary" aria-hidden />
+                  <p className="text-sm text-muted-foreground">
+                    Vos priorités apparaîtront dès que vos premiers retours seront collectés.
+                  </p>
                 </CardContent>
               </Card>
-            ))
-          )}
-        </div>
+            ) : (
+              accueil.priorites.map((p) => (
+                <CartePriorite
+                  key={clePriorite(p)}
+                  priorite={p}
+                  enCours={traitementEnCours === clePriorite(p)}
+                  onTraiter={marquerTraite}
+                  onDetails={ouvrirDetails}
+                />
+              ))
+            )}
+          </div>
+        ) : (
+          // FALLBACK : accueil indisponible → ancienne liste de textes bruts
+          <div className="grid gap-3 sm:grid-cols-3">
+            {prioritesAffichees.length === 0 ? (
+              <Card className="sm:col-span-3">
+                <CardContent className="flex items-center justify-center gap-3 py-6 text-center">
+                  <Target className="h-5 w-5 shrink-0 text-primary" aria-hidden />
+                  <p className="text-sm text-muted-foreground">
+                    Vos priorités apparaîtront dès que vos premiers retours seront collectés.
+                  </p>
+                </CardContent>
+              </Card>
+            ) : (
+              prioritesAffichees.slice(0, 3).map((texte, i) => (
+                <Card key={i}>
+                  <CardContent className="flex items-start gap-3 p-4">
+                    <span
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground"
+                      aria-hidden
+                    >
+                      {i + 1}
+                    </span>
+                    <p className="text-sm leading-relaxed">{texte}</p>
+                  </CardContent>
+                </Card>
+              ))
+            )}
+          </div>
+        )}
       </section>
 
       {/* ---------- Indicateurs clés (2×2 mobile / 4 desktop) ---------- */}
@@ -489,6 +820,135 @@ export function CoachIaTab() {
         </CardContent>
       </Card>
 
+      {/* ---------- 💙 Points positifs à valoriser (Session 4) ---------- */}
+      {accueil && (
+        <section aria-labelledby="titre-positifs">
+          <h2 id="titre-positifs" className="mb-3 text-base font-semibold sm:text-lg">
+            💙 Points positifs à valoriser
+          </h2>
+          <div className="grid gap-3 md:grid-cols-3">
+            {/* 👏 Employés salués par les clients */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm sm:text-base">👏 Employés du jour</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {accueil.pointsPositifs.employes.length === 0 ? (
+                  <p className="py-4 text-center text-sm text-muted-foreground">
+                    Aucune mention positive cette semaine
+                  </p>
+                ) : (
+                  <ul className="space-y-3">
+                    {accueil.pointsPositifs.employes.map((e) => (
+                      <li key={e.nom} className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">{e.nom}</p>
+                          <p className="text-xs text-muted-foreground">{e.detail}</p>
+                        </div>
+                        <Badge variant="secondary" className="shrink-0">
+                          +{e.positifs}
+                        </Badge>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* 🌟 Zones les mieux notées */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm sm:text-base">🌟 Zones performantes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {accueil.pointsPositifs.zones.length === 0 ? (
+                  <p className="py-4 text-center text-sm text-muted-foreground">
+                    Aucune zone ne ressort pour l&apos;instant — il faut au moins 2 retours par zone.
+                  </p>
+                ) : (
+                  <ul className="space-y-3">
+                    {accueil.pointsPositifs.zones.map((z) => (
+                      <li key={z.nom} className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-medium">{z.nom}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {z.total} retour{z.total > 1 ? "s" : ""} cette semaine
+                          </p>
+                        </div>
+                        <Badge variant="outline" className="shrink-0 border-green-300 bg-green-50 text-green-700">
+                          {noteFr(z.noteMoy)}/5
+                        </Badge>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* 💌 Félicitations prêtes à partager (copie en un clic) */}
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm sm:text-base">💌 Félicitations à partager</CardTitle>
+              </CardHeader>
+              <CardContent>
+                {accueil.pointsPositifs.messages.length === 0 ? (
+                  <p className="py-4 text-center text-sm text-muted-foreground">
+                    Les félicitations arrivent avec vos premiers retours positifs.
+                  </p>
+                ) : (
+                  <ul className="space-y-2.5">
+                    {accueil.pointsPositifs.messages.map((message, i) => (
+                      <li key={i} className="flex items-start justify-between gap-2 rounded-lg border bg-muted/30 p-2.5">
+                        <p className="min-w-0 text-xs leading-relaxed text-muted-foreground">{message}</p>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 shrink-0"
+                          onClick={() => copierMessage(message)}
+                          aria-label="Copier le message"
+                        >
+                          <Clipboard className="h-3.5 w-3.5" aria-hidden />
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </section>
+      )}
+
+      {/* ---------- 🔮 Prédictions de la semaine (Session 4) ---------- */}
+      {predictions.length > 0 && (
+        <section aria-labelledby="titre-predictions">
+          <h2 id="titre-predictions" className="mb-3 text-base font-semibold sm:text-lg">
+            🔮 Prédictions
+          </h2>
+          <Card className="border-amber-200 bg-amber-50/50">
+            <CardHeader className="pb-2">
+              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                <TrendingUp className="h-4.5 w-4.5 text-amber-600" aria-hidden />
+                Prédictions de la semaine
+              </CardTitle>
+              <CardDescription>
+                Anticipations de votre Coach si aucune action n&apos;est menée sur vos priorités.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <ul className="space-y-2.5">
+                {predictions.map((prediction, i) => (
+                  <li key={i} className="flex items-start gap-2.5 text-sm leading-relaxed">
+                    <TrendingUp className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden />
+                    <span>{prediction}</span>
+                  </li>
+                ))}
+              </ul>
+            </CardContent>
+          </Card>
+        </section>
+      )}
+
       {/* ---------- Historique + Évolution 30 j ---------- */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
         <Card>
@@ -604,7 +1064,177 @@ export function CoachIaTab() {
           </CardContent>
         </Card>
       </div>
+
+      {/* ---------- Dialog « Voir détails » d'une priorité (Session 4) ---------- */}
+      <Dialog
+        open={prioriteDialog != null}
+        onOpenChange={(ouvert) => {
+          if (!ouvert) fermerDialog()
+        }}
+      >
+        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
+          {prioriteDialog && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="text-left">
+                  {STYLES_PRIORITE[prioriteDialog.niveau].emoji} {prioriteDialog.titre}
+                </DialogTitle>
+                <DialogDescription className="text-left">{prioriteDialog.description}</DialogDescription>
+              </DialogHeader>
+
+              {/* Rappel de la recommandation du Coach */}
+              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+                <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-primary">
+                  <Sparkles className="h-3.5 w-3.5" aria-hidden />
+                  Recommandation du Coach
+                </p>
+                <p className="text-sm leading-relaxed">{prioriteDialog.recommandation}</p>
+              </div>
+
+              {/* Réclamations liées (chargées via GET /api/pro/retours?ids=) */}
+              {prioriteDialog.retourIds.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Aucune réclamation liée à cette priorité — il s&apos;agit d&apos;une suggestion d&apos;amélioration.
+                </p>
+              ) : chargementDialog || retoursDialog == null ? (
+                <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground" role="status">
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  Chargement des réclamations…
+                </div>
+              ) : retoursDialog.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  Aucun retour retrouvé pour cette priorité (peut-être déjà résolu).
+                </p>
+              ) : (
+                <ul className="space-y-2.5">
+                  {retoursDialog.map((r) => (
+                    <li key={r.id} className="rounded-lg border p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <Etoiles note={r.note} />
+                        <p className="text-xs text-muted-foreground">{formatDateHeure(r.createdAt)}</p>
+                      </div>
+                      <p className="mt-1.5 text-sm leading-relaxed">{tronquer(r.commentaire)}</p>
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        {r.zone?.nom && <Badge variant="secondary">📍 {r.zone.nom}</Badge>}
+                        {r.tags.map((tag) => (
+                          <Badge key={tag} variant="outline" className="text-[11px] text-muted-foreground">
+                            {tagLabel(tag)}
+                          </Badge>
+                        ))}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
+  )
+}
+
+// ---------- Badge d'évolution (vs hier / vs semaine dernière) ----------
+
+function BadgeEvolution({ pct, label }: { pct: number | null; label: string }) {
+  const Icon = pct == null || pct === 0 ? Minus : pct > 0 ? TrendingUp : TrendingDown
+  const tone =
+    pct == null || pct === 0
+      ? "border-border text-muted-foreground"
+      : pct > 0
+        ? "border-green-300 bg-green-50 text-green-700"
+        : "border-rose-300 bg-rose-50 text-rose-700"
+  const texte =
+    pct == null
+      ? "Pas assez de données"
+      : pct === 0
+        ? `Stable ${label}`
+        : `${pct > 0 ? "+" : ""}${pct} % ${label}`
+  return (
+    <Badge variant="outline" className={cn("gap-1", tone)}>
+      <Icon className="h-3 w-3 shrink-0" aria-hidden />
+      {texte}
+    </Badge>
+  )
+}
+
+// ---------- Carte d'une priorité structurée (Session 4) ----------
+
+function CartePriorite({
+  priorite: p,
+  enCours,
+  onTraiter,
+  onDetails,
+}: {
+  priorite: PrioriteDetaillee
+  enCours: boolean
+  onTraiter: (p: PrioriteDetaillee) => void
+  onDetails: (p: PrioriteDetaillee) => void
+}) {
+  const style = STYLES_PRIORITE[p.niveau]
+  const IconeNiveau = style.Icon
+  return (
+    <Card className={cn("flex flex-col", style.carte)}>
+      <CardContent className="flex flex-1 flex-col gap-3 p-4">
+        {/* Titre + badge d'urgence */}
+        <div className="flex items-start justify-between gap-2">
+          <p className="font-semibold leading-snug">
+            {style.emoji} {p.titre}
+          </p>
+          <Badge variant="outline" className={cn("shrink-0 gap-1", style.badge)}>
+            <IconeNiveau className="h-3 w-3" aria-hidden />
+            {style.libelle}
+          </Badge>
+        </div>
+
+        {/* Description courte avec données */}
+        <p className="text-sm leading-relaxed text-muted-foreground">{p.description}</p>
+
+        {/* Recommandation du Coach dans un encart distinct */}
+        <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+          <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-primary">
+            <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden />
+            Recommandation du Coach
+          </p>
+          <p className="text-sm leading-relaxed">{p.recommandation}</p>
+        </div>
+
+        {/* Boutons d'action */}
+        <div className="mt-auto flex flex-wrap gap-2 pt-1">
+          <Button variant="outline" size="sm" onClick={() => onTraiter(p)} disabled={enCours}>
+            {enCours ? (
+              <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden />
+            ) : (
+              <Check className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+            )}
+            {enCours ? "Traitement…" : "Marquer traité"}
+          </Button>
+          <Button variant="ghost" size="sm" onClick={() => onDetails(p)}>
+            <Eye className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+            Voir détails
+          </Button>
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ---------- Note en étoiles (dialog détails) ----------
+
+function Etoiles({ note }: { note: number }) {
+  return (
+    <span className="flex items-center gap-0.5" aria-label={`Note ${note} sur 5`}>
+      {[1, 2, 3, 4, 5].map((i) => (
+        <Star
+          key={i}
+          className={cn(
+            "h-3.5 w-3.5",
+            i <= note ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"
+          )}
+          aria-hidden
+        />
+      ))}
+    </span>
   )
 }
 

@@ -1,6 +1,6 @@
 // ============================================================
 // API Pro - Retours des Clients Mystères
-// GET   /api/pro/retours?note=&zoneId=&statut=&tag=&dateDebut=&dateFin=&page=
+// GET   /api/pro/retours?note=&zoneId=&statut=&tag=&employeId=&ids=a,b,c&dateDebut=&dateFin=&page=
 //       → { retours: RetourDetail[], total } (RetourDetail = Retour + zone + employe)
 // PATCH /api/pro/retours { id, statut?, reponsePro?, actionPrise?, lu? }
 //       → { retour } — le changement de statut est journalisé dans l'historique
@@ -25,6 +25,11 @@ export async function GET(req: NextRequest) {
     const zoneId = sp.get("zoneId") || undefined
     const statut = sp.get("statut") || undefined
     const tag = sp.get("tag") || undefined
+    // Session 4 : filtre par employé rattaché au retour
+    const employeId = sp.get("employeId") || undefined
+    // Session 4 : récupération par liste d'IDs (priorités du Coach IA « Voir détails »)
+    const idsBrut = sp.get("ids")
+    const ids = idsBrut ? idsBrut.split(",").map((s) => s.trim()).filter(Boolean) : undefined
     const q = sp.get("q")?.trim().toLowerCase() || ""
     const lu = sp.get("lu")
     const dateDebut = sp.get("dateDebut") ? new Date(sp.get("dateDebut") + "T00:00:00") : undefined
@@ -45,6 +50,11 @@ export async function GET(req: NextRequest) {
     if (note) filtered = filtered.filter((r) => r.note === note)
     if (zoneId) filtered = filtered.filter((r) => r.zoneId === zoneId)
     if (statut) filtered = filtered.filter((r) => r.statut === statut)
+    if (employeId) filtered = filtered.filter((r) => r.employeId === employeId)
+    if (ids && ids.length > 0) {
+      const setIds = new Set(ids)
+      filtered = filtered.filter((r) => setIds.has(r.id))
+    }
     if (tag) filtered = filtered.filter((r) => serialiserRetour(r).tags.includes(tag))
     if (dateDebut) filtered = filtered.filter((r) => r.createdAt >= dateDebut)
     if (dateFin) filtered = filtered.filter((r) => r.createdAt <= dateFin)

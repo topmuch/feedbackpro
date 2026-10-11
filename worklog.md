@@ -598,3 +598,133 @@ Stage Summary:
 - Session 3 livrée intégralement : QR par ZONE (cartes + exports + commande stickers), scan contextuel (tags par zone, couleurs adaptatives, WhatsApp format spec), récompenses configurables avec code promo dévoilé après envoi
 - Contrats nouveaux : GET /api/zone/[qrToken], GET/POST /api/pro/recompenses, ?taille=apercu, codeRecompense dans POST /api/retour, champs Pro.recompense{Active,Type,Code}
 - Comptes inchangés : admin@feedbackpro.fr/admin123 · demo@pizzeria.fr/demo1234 (récompense café + code CAFE-OFFERT active)
+
+---
+Task ID: S4-backend
+Agent: Z.ai Code (orchestrateur)
+Task: Session 4 — Backend Coach IA d'accueil + rapports + détails zone + périodes stats + filtres
+
+Work Log:
+- src/lib/coach-accueil.ts (NOUVEAU) : moteur déterministe des sections d'accueil — scoreDuJour (score jour + vs hier + vs semaine), priorites[] (🔥 critique = zone la plus réclamée ≤2★ sur 48h avec plage horaire + tag dominant, ⚠️ important = tag négatif le plus fréquent 7j, 💡 suggestion = valorisation employé / relance collecte), pointsPositifs (employés 7j, zones ≥2 retours, messages de félicitations), predictions (« Si rien n'est fait sur X, vous risquez Y… »). Chaque priorité porte retourIds (base de « Marquer traité » / « Voir détails »)
+- GET /api/pro/coach enrichi : data.accueil = calculerAccueil(pro) (non bloquant, catch)
+- GET /api/pro/coach/rapports (NOUVEAU) : liste complète des rapports AVEC contenuMarkdown (?limite=50)
+- POST /api/pro/coach/email (NOUVEAU) : { rapportId } → envoie le rapport via lib/email.ts à pro.email + marque envoyeParEmail
+- GET /api/pro/zones enrichi : tendance (hausse/baisse/stable) + tendanceDelta (note 7j vs 7j précédents)
+- GET /api/pro/zones/details?id= (NOUVEAU) : noteMoy/total/tendance + evolution 30j [{date,score,retours}] + tagsFrequents (positif/negatif/libre) + derniersRetours (6, RetourDetail) + recommandations déterministes
+- GET /api/pro/retours : nouveaux filtres employeId= et ids=a,b,c
+- GET /api/pro/leaderboard enrichi : recommandations [{employeId, nom, texte, gravite: attention|positif}] (phrases motivées avec tag dominant)
+- GET /api/pro/stats : ?periode=7j|30j|90j|1an (défaut 30j) ; courbe + alias courbe30j ; agrégation par semaine si >180j ; heatmap/tags/zone/kpis sur la période
+- bunx tsc --noEmit : 0 erreur
+
+Stage Summary:
+- Contrats Session 4 prêts pour le frontend ; aucune migration BDD nécessaire (tout calculé à la volée depuis Retour/RapportIA)
+- Comptes inchangés : admin@feedbackpro.fr/admin123 · demo@pizzeria.fr/demo1234
+
+---
+Task ID: S4-front-2c
+Agent: frontend (Z.ai Code)
+Task: Session 4 — Front stats (périodes + graphiques spec), filtre Employé retours, Recommandations Coach IA équipe, fix logout suppression compte
+
+Work Log:
+- Lu worklog.md (contrats S4-backend) + routes API stats/leaderboard/employes/retours pour vérifier les formes exactes
+- stats-tab.tsx : sélecteur de période (Select shadcn, 7j|30j|90j|1an, défaut 30j) en haut à droite du titre → re-fetch GET /api/pro/stats?periode=… avec re-skeleton (setLoading dans onValueChange, pas dans l'effet — règle react-hooks/set-state-in-effect) ; types StatsApi/PointCourbeApi alignés sur le nouveau contrat (periode, nbJours, courbe + alias courbe30j, parTag {id,label,count,type}, kpis enrichis) en conservant la normalisation tolérante (jour ?? date, note ?? score, count ?? retours, enArray)
+- stats-tab.tsx graphiques : LineChart « Évolution des scores ({libellé période}) » avec XAxis interval dynamique Math.max(0, Math.floor(nbPoints/8)-1) (lisible sur ~53 points hebdo de 1 an) + axe Y auto-détecté /20 (score Session 4) ou /5 (legacy, domain [1,5]) ; « Volume par zone » BarChart remplacé par PieChart Répartition des retours par zone (dataKey=total, nameKey=zoneNom, innerRadius 50, Legend + Tooltip, palette 6 couleurs thème) ; PieChart parTag remplacé par BarChart horizontal « Tags les plus fréquents » (layout=vertical, YAxis category width=180 fontSize 11, XAxis number allowDecimals=false, top 8, Cell verts #16a34a positifs / rouges #e11d48 négatifs / bleu #2563eb neutres, ordre inversé pour top en haut) ; « Note moyenne par zone » conservé en BarChart (bonus) ; heatmap 7j×24h inchangée
+- stats-tab.tsx : KPIs et sous-titre adaptés à la période (Note moyenne/Retours (7j|30j|90j|1 an)), titre PDF « Période : {libellé} » + ligne KPI Retours ({période}) ; skeletons enrichis (bloc h-80 tags) ; exports CSV/PDF conservés
+- retours-tab.tsx : nouveau filtre « Employé » (Select, « Tous les employés » + liste GET /api/pro/employes, inactifs suffixés « (inactif) ») ; état fEmploye ("" = tous, contournement Radix SelectItem value="") → param employeId dans le fetch, page=1 réinitialisée au changement (comme les autres filtres) ; fetch employés ajouté en parallèle du fetch zones au montage ; grille filtres lg:grid-cols-6→lg:grid-cols-4 (rangée 2 : tag, dates span-2, refresh) ; rien d'autre touché (modal détail/PATCH intacts ; aucun résumé global de filtres existant → rien à étendre)
+- team-tab.tsx : type Recommandation {employeId, nom, texte, gravite} + état alimenté par GET /api/pro/leaderboard (jTop.data.recommandations, enArray) ; nouvelle section « Recommandations du Coach IA » (🤖) juste SOUS le Top 5 : cartes compactes AlertTriangle rose (border-rose-200 bg-rose-50/60) pour "attention", ThumbsUp vert (border-green-200 bg-green-50/60) pour "positif", texte backend en text-sm ; section masquée si liste vide ; skeletons génériques existants conservés
+- settings-tab.tsx : fix bug suppression compte — après DELETE /api/pro/account ok, appel de await logout() (sélecteur useAppStore((s) => s.logout) ; logout purge session + view, POST /api/auth/logout en échec silencieux acceptable si session déjà détruite) PUIS setView("landing") → plus de risque de re-dérivation vers le dashboard ; rien d'autre modifié
+- Vérifs : bunx tsc --noEmit (filtré examples/skills) = vide ; eslint sur les 4 fichiers = 0 erreur/0 warning ; aucun autre fichier touché (ni pro-dashboard, ni coach-ia/zones/rapports-tabs)
+
+Stage Summary:
+- 4 fichiers livrés : stats-tab (périodes + camembert zones + barres tags + axe dynamique), retours-tab (filtre Employé → employeId), team-tab (Recommandations du Coach IA), settings-tab (logout après suppression compte)
+- Contrats consommés : GET /api/pro/stats?periode=, GET /api/pro/retours?employeId=, GET /api/pro/leaderboard → recommandations, GET /api/pro/employes
+- Tollgates qualité : tsc filtré vide, lint périmètre propre, worklog appendu uniquement
+
+---
+Task ID: S4-front-2a
+Agent: frontend (Z.ai Code)
+Task: Session 4 — Front Coach IA accueil (rapport du jour, priorités structurées avec actions, points positifs, prédictions) + navigation dashboard réordonnée + onglet Rapports IA
+
+Work Log:
+- Lu worklog.md (contrats S4-backend : GET /api/pro/coach avec data.accueil, GET /api/pro/retours?ids=, PATCH statut RESOLVED) + audit coach-ia-tab.tsx, pro-dashboard.tsx, src/lib/coach-accueil.ts, api/pro/coach/route.ts, api/pro/retours/route.ts, badge/dialog UI, globals.css (thème clair → classes amber/red/violet OK)
+- rapports-tab.tsx : n'existait pas à ma lecture → créé STUB minimal (export function RapportsTab → <div>Rapports IA</div>) avec commentaire « à remplacer par l'agent parallèle » (aucune surcharge si l'autre agent l'écrit entre-temps : je n'y ai plus touché)
+- pro-dashboard.tsx : type Onglet + "rapports", SLUG_TO_TAB + TAB_TO_SLUG (rapports → /dashboard/rapports, rewrite next.config existant intact) ; navigation réordonnée selon spec : ONGLETS_PRINCIPAUX = Coach IA(Bot) · Zones(MapPin) · Retours(Inbox) · Équipe(Users) · Statistiques(BarChart3) · QR Codes(QrCode) · Paramètres(Settings), puis séparateur label « Gestion » (text-[11px] uppercase text-muted-foreground px-3 pt-3) puis ONGLETS_GESTION = Rapports IA(FileText) · Récompenses(Gift) · Actions(ClipboardCheck) · Facturation(CreditCard) ; bouton d'onglet factorisé (BoutonOnglet) partagé desktop + drawer mobile ; CoachIaTab reçoit onOuvrirRapports={() => naviguer("rapports")} ; {onglet === "rapports" && <RapportsTab />} ajouté
+- coach-ia-tab.tsx réécrit (prop onOuvrirRapports?: () => void) — ordre vertical : En-tête → Rapport du jour → Priorités → KPIs → Rapport IA → Points positifs → Prédictions → Historique+Courbe :
+  (A) Section « 📊 Rapport du jour » : Card border-primary/20 bg-primary/[0.03], gros score /100 avec repli score7j + mention « moyenne 7 jours » si retoursAujourdhui === 0, BadgeEvolution (TrendingUp/TrendingDown/Minus, vert/rose/gris, « Stable » si 0, « Pas assez de données » si null) pour vsHierPct et vsSemainePct, compteur retours du jour, bouton « Voir le rapport complet » onClick=onOuvrirRapports (disabled sans la prop)
+  (B) Priorités STRUCTURÉES depuis accueil.priorites : CartePriorite avec style par niveau (🔥 critique = Flame, border-red-200 bg-red-50/40, Badge « Urgent » ; ⚠️ important = AlertTriangle, amber, « Important » ; 💡 suggestion = Lightbulb, violet, « Suggestion »), titre font-semibold + emoji, description muted, encart « Recommandation du Coach » (border-primary/20 bg-primary/5, icône Sparkles), boutons [Marquer traité] (outline sm, Check ; Loader2 animate-spin pendant PATCH ; Promise.all des PATCH /api/pro/retours { id, statut: "RESOLVED", actionPrise: recommandation } ; succès → toast « Priorité marquée comme traitée — N réclamation(s) résolue(s) » + retrait de l'état local via filtrage par clé niveau::titre ; retourIds vide → toast « Suggestion notée, aucune réclamation liée » + retrait local + charger()) et [Voir détails] (ghost sm, Eye → Dialog) ; FALLBACK conservé : accueil null → ancienne liste prioritesAffichees (textes bruts) à l'identique
+  (C) Dialog « Voir détails » : fetch GET /api/pro/retours?ids=<jointes par virgule> → data.retours, liste compacte (Etoiles 5★ fill-amber, date fr-FR + heure, Badge zone 📍, commentaire tronqué 140 chars, tags mappés via tagLabel) ; titre + description + recommandation rappelés en haut ; retourIds vide → suggestion seule ; états chargement (Loader2) / vide gérés
+  (D) Section « 💙 Points positifs à valoriser » : grille gap-3 md:grid-cols-3 — « 👏 Employés du jour » (nom font-medium + detail text-xs + Badge +N, empty « Aucune mention positive cette semaine »), « 🌟 Zones performantes » (Badge vert noteMoy/5 format fr + total retours), « 💌 Félicitations à partager » (message + bouton Copier Clipboard → navigator.clipboard.writeText + toast « Copié »)
+  (E) Section « 🔮 Prédictions » : Card border-amber-200 bg-amber-50/50 « Prédictions de la semaine », lignes TrendingUp amber, masquée si vide ; fallback dernierRapport.predictions si accueil null
+  (F) Conservé intégralement : génération POST (5-15 s + bandeau d'attente), 4 KpiCards, rapport IA inline markdown (mdComposants), rapport archivé + historique cliquable, courbe 30 j Recharts ; squelettes étendus aux nouvelles sections (rapport du jour h-40, 3 priorités h-48, points positifs h-40, prédictions h-36) ; commentaires en français, aucun emoji dans le code JS (libellés UI uniquement)
+- Vérifications : bunx tsc --noEmit filtré hors examples/skills → vide (0 erreur, y compris après stabilisation des fichiers parallèles) ; bun run lint → exit 0 (0 erreur/0 warning projet entier, rien sur pro-dashboard/coach-ia/rapports-tab) ; aucune autre touche : pas de serveur, pas de prisma, pas de next.config
+
+Stage Summary:
+- Accueil Coach IA conforme spec Session 4 : rapport du jour avec score/évolutions/CTA vers Rapports IA, 3 priorités structurées 🔥/⚠️/💡 actionnables (Marquer traité = résolution réelle des réclamations liées en BDD, Voir détails = dialog retours), points positifs valorisables (copie félicitations), prédictions semaine ; fallback propre vers l'ancien rendu si accueil indisponible
+- Navigation dashboard à 11 onglets dans l'ordre spec + groupe « Gestion » ; /dashboard/rapports fonctionnel via rewrite existant ; prop onOuvrirRapports câblée Coach → Rapports IA
+- Périmètre respecté : 3 fichiers seulement (pro-dashboard.tsx, coach-ia-tab.tsx, rapports-tab.tsx stub) ; tsc 0 erreur, lint 0/0 ; worklog appendu
+
+---
+Task ID: S4-front-2b
+Agent: frontend (Z.ai Code)
+Task: Session 4 — Front « Rapports IA » (page complète) + enrichissement « Zones » (badges tendance + modal de détail)
+
+Work Log:
+- Lu worklog.md (contrats S4-backend) puis audité les routes réelles : GET /api/pro/coach/rapports, POST /api/pro/coach { type? } → { rapport }, POST /api/pro/coach/email { rapportId } → { envoye, email }, GET /api/pro/zones (tendance/tendanceDelta), GET /api/pro/zones/details?id= (zone{noteMoy,total,tendance,tendanceDelta} + evolution 30j + tagsFrequents + derniersRetours + recommandations) — signature de serialiserRapport (envoyeParEmail/envoyeParSMS) vérifiée dans src/lib/ia.ts
+- Fichier 1 (NOUVEAU) src/components/feedbackpro/rapports-tab.tsx : exporte RapportsTab() — en-tête « 🤖 Rapports de votre Coach IA » + bouton « Générer un nouveau rapport » (POST /api/pro/coach {} avec Loader2 animate-spin + « Analyse en cours… », 5-15 s) → toast succès + rechargement ; grille responsive gap-3 sm:grid-cols-2 xl:grid-cols-3 de cartes (Badge type Quotidien=secondary / Hebdomadaire=outline, badge score coloré scoreTone copié de coach-ia-tab ≥80 vert / ≥60 ambre / sinon rouge, date création fr-FR + heure, période auditée debut → fin, badge « 📧 Envoyé par email » si envoyeParEmail) et 3 actions : 📖 Ouvrir (primaire) · Régénérer (outline, RefreshCw) · Envoyer par email (ghost, Mail, libellé « Email » sur mobile)
+- rapports-tab : modal Ouvrir (Dialog sm:max-w-3xl, corps scrollable max-h-[65vh] sm:max-h-[80vh] overflow-y-auto custom-scrollbar) = badges type + score/100 + période en header, rendu ReactMarkdown de contenuMarkdown avec mdComposants copié de coach-ia-tab (h1/h2/h3/p/ul/ol/li/strong/hr), puis 3 blocs ListeRapport Priorités (primary) / Recommandations (ambre) / Prédictions (vert), pied = badge envoyeParEmail + bouton « Envoyer par email »
+- rapports-tab : Régénérer → POST /api/pro/coach { type: "hebdomadaire"|"quotidien" } avec bouton en loading (Loader2 + « Régénération en cours… », disabled, autres actions gelées via occupe) → toast « Rapport régénéré ✨ » + rechargement (nouveau rapport en tête) ; Envoyer par email → POST /api/pro/coach/email { rapportId } → si envoye : toast « Rapport envoyé à <email> » + maj locale envoyeParEmail=true (liste ET modal ouvert) sinon toast destructive avec l'erreur backend ; skeletons (6 cartes) pendant le chargement + empty state élégant (Bot, « Aucun rapport pour l'instant », bouton générer) ; toasts useToast, commentaires FR
+- Fichier 2 zones-tab.tsx (enrichi sans casser) : type Zone += tendance?: "hausse"|"baisse"|"stable" + tendanceDelta?: number|null ; BadgeTendance() (composant local) : TrendingUp vert « +0,25 pt » / TrendingDown rouge « −0,40 pt » (toFixed(2).replace(".", ",")) / Minus gris « stable », delta null → rien d'affiché ; badge ajouté sur chaque carte (rangée nbRetours/note) ET dans l'en-tête du modal
+- zones-tab : bouton « Voir détails » (Eye, outline) ajouté à côté de QR/Modifier/Supprimer → modal Dialog sm:max-w-3xl avec fetch GET /api/pro/zones/details?id=<zone.id> (cache no-store) + skeletons dans le dialog pendant le chargement + état d'erreur ; contenu en 5 sections : (a) mini-stats noteMoy étoiles X/5 · N retours sur 30 j · badge tendance, (b) AreaChart Recharts « Évolution du score (30 jours) » h-56 sm:h-64, gradient bleu #2563eb id gradZoneScore, XAxis dataKey=date scale="point" fontSize 11 interval={4}, YAxis domain [0,100], (c) tags fréquents en chips Badge outline triés count desc (max 8, « ×N », positifs border-green-300/text-green-700, négatifs border-rose-300/text-rose-700, libres neutres, empty « Aucun tag sur 30 jours »), (d) 6 derniers retours en liste max-h-64 overflow-y-auto custom-scrollbar (étoiles texte ★★★★☆ ambre, date fr-FR courte + heure, 👤 employé / 📍 zone si présents, commentaire tronqué à 100 caractères via tronquer(), tags avec tagLabel() de constants, empty « Aucun retour sur 30 jours »), (e) « Recommandations du Coach pour cette zone » avec icône Lightbulb ambre ; footer « Voir le QR code » → ferme le modal puis onOpenQr(zone.id) ; CRUD/tags/QR/copie de lien et limite plan conservés à l'identique, mobile-first, commentaires FR
+- Vérifications : bunx tsc --noEmit 2>&1 | grep -v examples | grep -v skills → VIDE (seules les erreurs préexistantes examples/skills restent hors filtre) ; bun run lint → 0 erreur/0 warning (exit 0, aucune mention rapports-tab/zones-tab) ; aucun serveur démarré/arrêté (consigne)
+
+Stage Summary:
+- 2 fichiers livrés et propres (tsc filtré vide + lint 0/0) : page « Rapports IA » complète (liste, génération, modal de lecture markdown, régénération, envoi email avec maj locale) et onglet Zones enrichi Session 4 (badges tendance sur cartes + modal de détail 5 sections : mini-stats, courbe 30 j Recharts, tags fréquents, derniers retours, recommandations IA)
+- Exports stables : RapportsTab (sans props, prêt à être branché dans pro-dashboard) et ZonesTab({ onOpenQr }) inchangé — aucun autre fichier modifié
+- Contrats consommés exactement comme décrits dans S4-backend ; robustesse améliorée : erreurs réseau/404 gérées par toasts + états d'erreur dans les dialogs, skeletons partout
+
+---
+Task ID: S4
+Agent: Z.ai Code (orchestrateur)
+Task: Session 4 — Dashboard Pro avec Coach IA (8 pages : accueil Coach, Rapports, Zones, Retours, Équipe, Stats, Paramètres + layout sidebar)
+
+Work Log:
+- AUDIT PRÉALABLE : Sessions 1-3 déjà livrées (SPA /dashboard à onglets + rewrites next.config + middleware). Écarts spec Session 4 identifiés via agent Explore : priorités structurées absentes, pas de page Rapports, pas de tendance/modal détail zones, pas de filtre employé, pas de recommandations motivées équipe, stats figées 30j, tags/camembert inversés, logout manquant après suppression compte
+- BACKEND (S4-backend) :
+  * src/lib/coach-accueil.ts NOUVEAU : moteur déterministe — scoreDuJour (jour + 7j + vsHierPct + vsSemainePct), priorites[] 🔥(zone la plus réclamée ≤2★ 48h, plage horaire, tag dominant, retourIds) / ⚠️(tag négatif 7j, ≥2 mentions) / 💡(valorisation employé ou relance collecte), pointsPositifs (employés 7j, zones ≥2 retours, messages copiables), predictions (« Si rien n'est fait sur X, vous risquez Y… »)
+  * GET /api/pro/coach : + data.accueil (calcul non bloquant)
+  * GET /api/pro/coach/rapports NOUVEAU (liste complète avec contenuMarkdown, ?limite=50)
+  * POST /api/pro/coach/email NOUVEAU ({rapportId} → lib/email.ts → envoyeParEmail)
+  * GET /api/pro/zones : + tendance (hausse/baisse/stable) + tendanceDelta (7j vs 7j précédents)
+  * GET /api/pro/zones/details NOUVEAU : noteMoy/total/tendance + evolution 30j + tagsFrequents colorés + 6 derniersRetours + recommandations déterministes
+  * GET /api/pro/retours : + filtres employeId= et ids=a,b,c (Voir détails du Coach)
+  * GET /api/pro/leaderboard : + recommandations [{texte motivé, gravite attention|positif}] avec tag dominant
+  * GET /api/pro/stats : + ?periode=7j|30j|90j|1an (agrégation hebdo >180j, alias courbe30j conservé)
+  * Affinage : les priorités EXCLUENT les réclamations RESOLVED → « Marquer traité » fait disparaître la priorité au recalcul
+- FRONTEND (S4-front-2a/2b/2c en parallèle) :
+  * pro-dashboard.tsx : nav réordonnée spec §1 (Coach IA, Zones, Retours, Équipe, Statistiques, QR Codes, Paramètres) + séparateur « Gestion » (Rapports IA, Récompenses, Actions, Facturation) · CoachIaTab onOuvrirRapports
+  * coach-ia-tab.tsx : Rapport du jour (score, badges évolution, CTA), 3 priorités structurées (Flame/AlertTriangle/Lightbulb, encart Recommandation, Marquer traité → PATCH RESOLVED+actionPrise en masse, Voir détails → GET ?ids= dialog), Points positifs (3 cartes + copier), Prédictions (fond ambre), fallback ancien format conservé
+  * rapports-tab.tsx NOUVEAU : grille cartes (type, score, période, badge email) + modal ReactMarkdown + Régénérer (POST) + Envoyer par email
+  * zones-tab.tsx : BadgeTendance + modal Voir détails (AreaChart 30j, chips tags, 6 retours, recommandations, Voir le QR)
+  * stats-tab.tsx : Select période (7j/30j/90j/1an), PieChart répartition par zone, BarChart horizontal tags (verts/rouges), interval XAxis dynamique
+  * retours-tab.tsx : Select filtre Employé (employeId)
+  * team-tab.tsx : section Recommandations du Coach IA (cartes rose/vert)
+  * settings-tab.tsx : await logout() avant setView après DELETE /api/pro/account
+- TESTS E2E RÉELS (agent-browser, preuves proofs/s4-01..18) :
+  * Login démo → accueil : toutes sections rendues, priorité critique 🔥 « 🟫 Sale — Toilettes RDC » avec « 2 signalement(s) entre 18h et 19h » + recommandation
+  * Voir détails : dialog avec les 2 réclamations réelles (1★, tags, commentaires)
+  * Marquer traité : toast « 2 réclamation(s) résolue(s) » → PREUVE BDD : 2 retours RESOLVED, actionPrise=« Ajouter un passage nettoyage à Toilettes RDC vers 18h… », historique journalisé ; au rechargement la priorité a disparu du recalcul
+  * Rapports IA : liste, modal markdown, Régénérer (toast + 2 rapports BDD), Envoyer par email (log « 📧 Email simulé → gerant@bellanapoli.fr — Score 82/100 » + envoyeParEmail=true)
+  * Zones : badge « ↗ +0,50 pt » sur Toilettes RDC, modal détail complet (courbe 30j, tags ×N, 6 retours)
+  * Stats : périodes 30j/1an/7j testées (titres et KPIs s'adaptent), camembert 3 zones + barres tags + heatmap 7j×24h
+  * Retours : filtre Julie Martin → GET employeId=… 200, tableau filtré
+  * Équipe : 3 recommandations motivées affichées (Karim/Marc rose, Julie verte)
+  * Mobile 393px : burger + drawer complet + aucun débordement ; footer sticky visible
+  * Suppression compte : cycle API réel (register test → DELETE {deleted:true} → session purgée → 0 en BDD) — sans toucher au compte démo
+  * « Voir le rapport complet » → /dashboard/rapports OK
+- QUALITÉ : tsc 0 erreur, eslint 0 erreur/0 warning, dev.log sans erreur runtime, 0 erreur console navigateur
+
+Stage Summary:
+- Session 4 livrée intégralement : layout sidebar (7 nav + Gestion), accueil Coach IA « aide à la décision » (rapport du jour, 3 priorités actionnables avec Marquer traité réel en BDD, points positifs, prédictions), page Rapports IA complète, zones avec tendance + audit par zone, retours avec filtre employé, équipe avec recommandations motivées, stats multi-périodes, paramètres durcis
+- Aucune migration BDD : tout calculé à la volée (RapportIA/Retour/Zone existants)
+- 19 captures proofs/s4-*.png + preuves BDD/logs citées
+- Comptes inchangés : admin@feedbackpro.fr/admin123 · demo@pizzeria.fr/demo1234

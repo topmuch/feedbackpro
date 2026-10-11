@@ -11,7 +11,7 @@
 // ============================================================
 
 import { useCallback, useEffect, useState } from "react"
-import { Loader2, Lock, MapPin, Pencil, Plus, Sparkles, Trash2, Trophy, Users } from "lucide-react"
+import { AlertTriangle, Loader2, Lock, MapPin, Pencil, Plus, Sparkles, ThumbsUp, Trash2, Trophy, Users } from "lucide-react"
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -39,7 +39,7 @@ import { PLANS, PLAN_LIMITS, PlanId } from "@/lib/constants"
 
 // ---------- Contrats API (pivot Zones) ----------
 
-// GET /api/pro/leaderboard → { top: [...] }
+// GET /api/pro/leaderboard → { top: [...], recommandations: [...] }
 type TopLigne = {
   employeId: string
   nom: string
@@ -48,6 +48,14 @@ type TopLigne = {
   negatifs: number
   noteMoy: number
   badge: "Employé du mois" | "Entretien recommandé" | null
+}
+
+// Recommandation du Coach IA (Session 4, §6) : max 5, phrases motivées
+type Recommandation = {
+  employeId: string
+  nom: string
+  texte: string
+  gravite: "attention" | "positif"
 }
 
 // GET /api/pro/employes → { employes: [...] }
@@ -87,6 +95,7 @@ export function TeamTab() {
   const [zones, setZones] = useState<ZoneRef[]>([])
   const [employes, setEmployes] = useState<Employe[]>([])
   const [top, setTop] = useState<TopLigne[]>([])
+  const [recommandations, setRecommandations] = useState<Recommandation[]>([])
   const [loading, setLoading] = useState(true)
 
   // Création
@@ -126,7 +135,10 @@ export function TeamTab() {
       }
       setEmployes(enArray(jEmployes.data.employes))
       if (jZones.ok) setZones(enArray(jZones.data.zones))
-      if (jTop.ok) setTop(enArray(jTop.data.top))
+      if (jTop.ok) {
+        setTop(enArray(jTop.data.top))
+        setRecommandations(enArray(jTop.data.recommandations))
+      }
     } catch {
       toast({ title: "Erreur", description: "Impossible de charger l'équipe", variant: "destructive" })
     } finally {
@@ -416,6 +428,39 @@ export function TeamTab() {
           )}
         </CardContent>
       </Card>
+
+      {/* ================= Section 1 bis : Recommandations du Coach IA ================= */}
+      {recommandations.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" aria-hidden />
+              Recommandations du Coach IA
+            </CardTitle>
+            <CardDescription>🤖 Actions suggérées automatiquement à partir des retours de votre équipe</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-2.5">
+            {recommandations.map((r, i) => {
+              const positif = r.gravite === "positif"
+              return (
+                <div
+                  key={`${r.employeId}-${i}`}
+                  className={`flex items-start gap-3 rounded-xl border p-3.5 ${
+                    positif ? "border-green-200 bg-green-50/60" : "border-rose-200 bg-rose-50/60"
+                  }`}
+                >
+                  {positif ? (
+                    <ThumbsUp className="mt-0.5 h-4 w-4 shrink-0 text-green-600" aria-hidden />
+                  ) : (
+                    <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" aria-hidden />
+                  )}
+                  <p className="min-w-0 text-sm leading-relaxed">{r.texte}</p>
+                </div>
+              )
+            })}
+          </CardContent>
+        </Card>
+      )}
 
       {/* ================= Section 2 : Liste des employés ================= */}
       <Card>

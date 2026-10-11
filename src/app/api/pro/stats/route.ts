@@ -1,10 +1,12 @@
 // ============================================================
-// API Pro - Statistiques avancées (pivot Zones)
-// GET /api/pro/stats
-// → courbe30j, parTag, parHeure (7 jours × 24 h), parZone, kpis
+// API Pro - Statistiques avancées (pivot Zones, enrichi Session 4)
+// GET /api/pro/stats?periode=7j|30j|90j|1an   (défaut : 30j)
+// → courbe (courbe30j), parTag, parHeure (7 jours × 24 h), parZone, kpis
 // Forme de parHeure : lignes { jour (0=Lundi…6=Dimanche), heure, total }
 // (contrat attendu par stats-tab.tsx) — la matrice complète est aussi
 // fournie sous `parHeureMatrice` pour tout autre consommateur.
+// Session 4 : la période est paramétrable (7j / 30j / 90j / 1 an) et
+// s'applique à la courbe, aux tags, à la heatmap et aux KPIs.
 // ============================================================
 
 import { NextRequest } from "next/server"
@@ -14,15 +16,21 @@ import { requirePro, unauthorized } from "@/lib/guards"
 import { POSITIVE_TAGS, NEGATIVE_TAGS, tagLabel } from "@/lib/constants"
 import { parseJsonArray } from "@/lib/ia"
 
+const PERIODES: Record<string, number> = { "7j": 7, "30j": 30, "90j": 90, "1an": 365 }
+
 export async function GET(req: NextRequest) {
   try {
     const ctx = await requirePro(req)
     if (!ctx) return unauthorized()
 
+    // ---------- Période (Session 4) ----------
+    const periodeBrute = req.nextUrl.searchParams.get("periode") || "30j"
+    const nbJours = PERIODES[periodeBrute] ?? 30
+
     const now = new Date()
     const debut = new Date(now)
     debut.setHours(0, 0, 0, 0)
-    debut.setDate(debut.getDate() - 29) // 30 jours glissants, jour courant inclus
+    debut.setDate(debut.getDate() - (nbJours - 1)) // période glissante, jour courant inclus
 
     const retours = await db.retour.findMany({
       where: { proId: ctx.pro.id, createdAt: { gte: debut } },
@@ -30,34 +38,62 @@ export async function GET(req: NextRequest) {
       orderBy: { createdAt: "asc" },
     })
 
-    // ---------- Courbe 30 jours ----------
+    // ---------- Courbe (N jours selon la période) ----------
     // Alias `jour`/`note`/`count` : consommés par stats-tab.tsx en plus de
     // `date`/`score`/`retours` (le composant lit p.jour ?? p.date, etc.).
-    const courbe30j: {
+    type PointCourbe = {
       date: string
       jour: string
       score: number
       note: number
       retours: number
       count: number
-    }[] = []
-    for (let d = 0; d < 30; d++) {
-      const jour = new Date(debut)
-      jour.setDate(jour.getDate() + d)
-      const lendemain = new Date(jour)
-      lendemain.setDate(lendemain.getDate() + 1)
-      const duJour = retours.filter((r) => r.createdAt >= jour && r.createdAt < lendemain)
-      const score = duJour.length
-        ? Math.round((duJour.reduce((s, r) => s + r.note, 0) / duJour.length) * 20)
-        : 0
-      courbe30j.push({
-        date: jour.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }),
-        jour: jour.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }),
-        score,
-        note: score,
-        retours: duJour.length,
-        count: duJour.length,
-      })
+    }
+    const courbe: PointCourbe[] = []
+    // Sur 1 an, un point par jour alourdirait la lecture : agrégation par semaine
+    const pasSemaine = nbJours > 180
+    if (pasSemaine) {
+      for (let d = nbJours - 1; d >= 0; d -= 7) {
+        const fin = new Date(now)
+        fin.setHours(23, 59, 59, 999)
+        fin.setDate(fin.getDate() - d)
+        const debutSem = new Date(fin)
+        debutSem.setHours(0, 0, 0, 0)
+        debutSem.setDate(debutSem.getDate() - 6)
+        const deLaSemaine = retours.filter((r) => r.createdAt >= debutSem && r.createdAt <= fin)
+        const score = deLaSemaine.length
+          ? Math.round((deLaSemaine.reduce((s, r) => s + r.note, 0) / deLaSemaine.length) * 20)
+          : 0
+        const date = fin.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })
+        courbe.push({
+          date,
+          jour: date,
+          score,
+          note: score,
+          retours: deLaSemaine.length,
+          count: deLaSemaine.length,
+        })
+      }
+    } else {
+      for (let d = 0; d < nbJours; d++) {
+        const jour = new Date(debut)
+        jour.setDate(jour.getDate() + d)
+        const lendemain = new Date(jour)
+        lendemain.setDate(lendemain.getDate() + 1)
+        const duJour = retours.filter((r) => r.createdAt >= jour && r.createdAt < lendemain)
+        const score = duJour.length
+          ? Math.round((duJour.reduce((s, r) => s + r.note, 0) / duJour.length) * 20)
+          : 0
+        const date = jour.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })
+        courbe.push({
+          date,
+          jour: date,
+          score,
+          note: score,
+          retours: duJour.length,
+          count: duJour.length,
+        })
+      }
     }
 
     // ---------- Répartition par tag (identifiés + libellés) ----------
@@ -112,14 +148,18 @@ export async function GET(req: NextRequest) {
       }))
       .sort((a, b) => b.total - a.total)
 
-    // ---------- KPIs (30 jours) ----------
+    // ---------- KPIs (période sélectionnée) ----------
     const total = retours.length
     const noteMoyenne = total ? retours.reduce((s, r) => s + r.note, 0) / total : 0
     const reclamations = retours.filter((r) => r.note <= 3)
     const interceptees = reclamations.filter((r) => r.statut !== "NEW")
 
     return ok({
-      courbe30j,
+      periode: periodeBrute,
+      nbJours,
+      courbe,
+      // Alias rétro-compatible (les consommateurs Session 1-3 lisent courbe30j)
+      courbe30j: courbe,
       parTag,
       parHeure,
       parHeureMatrice: matriceHeure,

@@ -2,7 +2,7 @@
 
 // ============================================================
 // FeedbackPro - Onglet "Retours clients" du dashboard Pro (pivot Zones)
-// Tableau filtrable (note, zone, statut, tag, dates) + pagination +
+// Tableau filtrable (note, zone, employé, statut, tag, dates) + pagination +
 // modale de détail : réponse Pro éditable, action managériale éditable,
 // timeline de l'historique des statuts
 // ============================================================
@@ -71,6 +71,9 @@ type Retour = {
 
 type ZoneFiltre = { id: string; nom: string }
 
+// Employé du filtre (GET /api/pro/employes → { employes: [{ id, nom, poste, actif, … }] })
+type EmployeFiltre = { id: string; nom: string; poste?: string | null; actif?: boolean }
+
 const PAGE_SIZE = 50
 
 /** Garde-fou : renvoie toujours un tableau (l'API peut être en cours de migration) */
@@ -110,13 +113,15 @@ function pastilleClass(statut: string): string {
 export function RetoursTab() {
   const [items, setItems] = useState<Retour[]>([])
   const [zones, setZones] = useState<ZoneFiltre[]>([])
+  const [employes, setEmployes] = useState<EmployeFiltre[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
 
-  // Filtres (contrat API : note, zoneId, statut, tag, dateDebut, dateFin, page)
+  // Filtres (contrat API : note, zoneId, employeId, statut, tag, dateDebut, dateFin, page)
   const [fNote, setFNote] = useState("all")
   const [fZone, setFZone] = useState("all")
+  const [fEmploye, setFEmploye] = useState("") // "" = tous les employés
   const [fStatut, setFStatut] = useState("all")
   const [fTag, setFTag] = useState("all")
   const [fDu, setFDu] = useState("") // dateDebut (AAAA-MM-JJ)
@@ -135,7 +140,7 @@ export function RetoursTab() {
 
   const { toast } = useToast()
 
-  // Chargement de la liste des zones (filtre « Toutes les zones »)
+  // Chargement des listes de filtrage : zones + employés (en parallèle)
   useEffect(() => {
     let annule = false
     fetch("/api/pro/zones", { cache: "no-store" })
@@ -145,6 +150,14 @@ export function RetoursTab() {
       })
       .catch(() => {
         /* silencieux : le filtre zone restera simplement vide */
+      })
+    fetch("/api/pro/employes", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (!annule && j.ok) setEmployes(enArray(j.data.employes))
+      })
+      .catch(() => {
+        /* silencieux : le filtre employé restera simplement vide */
       })
     return () => {
       annule = true
@@ -158,6 +171,7 @@ export function RetoursTab() {
         const params = new URLSearchParams({ page: String(p) })
         if (fNote !== "all") params.set("note", fNote)
         if (fZone !== "all") params.set("zoneId", fZone)
+        if (fEmploye) params.set("employeId", fEmploye)
         if (fStatut !== "all") params.set("statut", fStatut)
         if (fTag !== "all") params.set("tag", fTag)
         if (fDu) params.set("dateDebut", fDu)
@@ -176,13 +190,13 @@ export function RetoursTab() {
         setLoading(false)
       }
     },
-    [fNote, fZone, fStatut, fTag, fDu, fAu, page, toast]
+    [fNote, fZone, fEmploye, fStatut, fTag, fDu, fAu, page, toast]
   )
 
   // Rechargement quand un filtre ou la page change
   useEffect(() => {
     load(page)
-  }, [fNote, fZone, fStatut, fTag, fDu, fAu, page, load])
+  }, [fNote, fZone, fEmploye, fStatut, fTag, fDu, fAu, page, load])
 
   // Focus sur la zone de texte dès que le mode édition s'ouvre
   useEffect(() => {
@@ -297,7 +311,7 @@ export function RetoursTab() {
       {/* ---------- Barre de filtres ---------- */}
       <Card>
         <CardContent className="p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
             {/* Zone (pivot : chaque retour est rattaché à une zone de contact) */}
             <Select value={fZone} onValueChange={(v) => { setPage(1); setFZone(v) }}>
               <SelectTrigger className="h-10 w-full" aria-label="Filtrer par zone">
@@ -308,6 +322,25 @@ export function RetoursTab() {
                 {zones.map((z) => (
                   <SelectItem key={z.id} value={z.id}>
                     {z.nom}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+
+            {/* Employé (Session 4 : filtre par employé mentionné/affecté) */}
+            <Select
+              value={fEmploye || "all"}
+              onValueChange={(v) => { setPage(1); setFEmploye(v === "all" ? "" : v) }}
+            >
+              <SelectTrigger className="h-10 w-full" aria-label="Filtrer par employé">
+                <SelectValue placeholder="Employé" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les employés</SelectItem>
+                {employes.map((e) => (
+                  <SelectItem key={e.id} value={e.id}>
+                    {e.nom}
+                    {e.actif === false ? " (inactif)" : ""}
                   </SelectItem>
                 ))}
               </SelectContent>

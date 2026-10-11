@@ -1,9 +1,11 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Dashboard Commerçant — coquille à 9 onglets (Session 1)
-// Coach IA (accueil) · Retours · Équipe · Zones · QR Codes · Statistiques
-// · Actions · Facturation · Paramètres
+// FeedbackPro - Dashboard Commerçant — coquille à 11 onglets (Session 4)
+// Navigation principale : Coach IA (accueil) · Zones · Retours · Équipe
+// · Statistiques · QR Codes · Paramètres
+// Groupe « Gestion » (secondaire) : Rapports IA · Récompenses · Actions
+// · Facturation
 // Sidebar fixe desktop (lg+) · drawer mobile (Sheet) · header sticky
 // Les URLs /dashboard/* sont REWRITTÉES par next.config vers /?tab=<slug> :
 // le slug est résolu côté client via window.location (SPA route unique).
@@ -21,6 +23,7 @@ import {
   CreditCard,
   Settings,
   Gift,
+  FileText,
   Menu,
   LogOut,
   AlertTriangle,
@@ -34,6 +37,7 @@ import { cn } from "@/lib/utils"
 import { useAppStore } from "@/store/app-store"
 import { PLANS, type PlanId } from "@/lib/constants"
 import { CoachIaTab } from "@/components/feedbackpro/coach-ia-tab"
+import { RapportsTab } from "@/components/feedbackpro/rapports-tab"
 import { RetoursTab } from "@/components/feedbackpro/retours-tab"
 import { TeamTab } from "@/components/feedbackpro/team-tab"
 import { ZonesTab } from "@/components/feedbackpro/zones-tab"
@@ -46,15 +50,16 @@ import { SettingsTab } from "@/components/feedbackpro/settings-tab"
 
 type Onglet =
   | "coach"
+  | "zones"
   | "retours"
   | "team"
-  | "zones"
-  | "qrcode"
-  | "recompenses"
   | "stats"
+  | "qrcode"
+  | "settings"
+  | "rapports"
+  | "recompenses"
   | "actions"
   | "billing"
-  | "settings"
 
 /** Slug URL → onglet interne (ex. /dashboard/qr-codes → "qrcode") */
 const SLUG_TO_TAB: Record<string, Onglet> = {
@@ -66,6 +71,7 @@ const SLUG_TO_TAB: Record<string, Onglet> = {
   zones: "zones",
   "qr-codes": "qrcode", // slug canonique Session 3 (pluriel)
   "qr-code": "qrcode", // alias legacy (singulier, QR déjà imprimés/bookmarks)
+  rapports: "rapports", // Session 4 : historique complet des rapports IA
   recompenses: "recompenses",
   stats: "stats",
   actions: "actions",
@@ -81,6 +87,7 @@ const TAB_TO_SLUG: Record<Onglet, string> = {
   team: "equipe",
   zones: "zones",
   qrcode: "qr-codes",
+  rapports: "rapports",
   recompenses: "recompenses",
   stats: "stats",
   actions: "actions",
@@ -88,18 +95,31 @@ const TAB_TO_SLUG: Record<Onglet, string> = {
   settings: "parametres",
 }
 
-const ONGLETS: { id: Onglet; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+// ---------- Navigation (Session 4) : 7 onglets principaux + groupe « Gestion » ----------
+
+type EntreeNav = { id: Onglet; label: string; icon: React.ComponentType<{ className?: string }> }
+
+/** Onglets principaux — l'ordre ci-dessous est la spec Session 4 */
+const ONGLETS_PRINCIPAUX: EntreeNav[] = [
   { id: "coach", label: "Coach IA", icon: Bot },
+  { id: "zones", label: "Zones", icon: MapPin },
   { id: "retours", label: "Retours", icon: Inbox },
   { id: "team", label: "Équipe", icon: Users },
-  { id: "zones", label: "Zones", icon: MapPin },
-  { id: "qrcode", label: "QR Codes", icon: QrCode },
-  { id: "recompenses", label: "Récompenses", icon: Gift },
   { id: "stats", label: "Statistiques", icon: BarChart3 },
-  { id: "actions", label: "Actions", icon: ClipboardCheck },
-  { id: "billing", label: "Facturation", icon: CreditCard },
+  { id: "qrcode", label: "QR Codes", icon: QrCode },
   { id: "settings", label: "Paramètres", icon: Settings },
 ]
+
+/** Onglets secondaires, après le séparateur « Gestion » */
+const ONGLETS_GESTION: EntreeNav[] = [
+  { id: "rapports", label: "Rapports IA", icon: FileText },
+  { id: "recompenses", label: "Récompenses", icon: Gift },
+  { id: "actions", label: "Actions", icon: ClipboardCheck },
+  { id: "billing", label: "Facturation", icon: CreditCard },
+]
+
+/** Liste plate (squelettes de chargement uniquement) */
+const ONGLETS: EntreeNav[] = [...ONGLETS_PRINCIPAUX, ...ONGLETS_GESTION]
 
 /**
  * Lit un champ du ProData en tolérant les évolutions de schéma
@@ -290,7 +310,8 @@ export function ProDashboard() {
 
       {/* ---------- Contenu ---------- */}
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-5 sm:px-6 sm:py-7 lg:px-8">
-        {onglet === "coach" && <CoachIaTab />}
+        {onglet === "coach" && <CoachIaTab onOuvrirRapports={() => naviguer("rapports")} />}
+        {onglet === "rapports" && <RapportsTab />}
         {onglet === "retours" && <RetoursTab />}
         {onglet === "team" && <TeamTab />}
         {onglet === "zones" && <ZonesTab onOpenQr={ouvrirQr} />}
@@ -302,6 +323,42 @@ export function ProDashboard() {
         {onglet === "settings" && <SettingsTab />}
       </main>
     </div>
+  )
+}
+
+// ---------- Bouton d'onglet (partagé : principaux + groupe Gestion) ----------
+
+function BoutonOnglet({
+  entree,
+  actif,
+  onNaviguer,
+}: {
+  entree: EntreeNav
+  actif: boolean
+  onNaviguer: (o: Onglet) => void
+}) {
+  const Icon = entree.icon
+  return (
+    <button
+      type="button"
+      onClick={() => onNaviguer(entree.id)}
+      aria-current={actif ? "page" : undefined}
+      className={cn(
+        "relative mx-3 flex h-10 shrink-0 items-center gap-3 rounded-lg px-3 text-sm transition-colors",
+        actif
+          ? "bg-primary/10 font-medium text-primary"
+          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+      )}
+    >
+      {actif && (
+        <span
+          className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-primary"
+          aria-hidden
+        />
+      )}
+      <Icon className="h-4 w-4 shrink-0" aria-hidden />
+      <span className="truncate">{entree.label}</span>
+    </button>
   )
 }
 
@@ -330,35 +387,23 @@ function ContenuSidebar({
         </div>
       </div>
 
-      {/* Navigation verticale */}
+      {/* Navigation verticale : principaux, séparateur « Gestion », secondaires */}
       <nav aria-label="Navigation du dashboard" className="flex flex-col gap-1 overflow-y-auto py-2 custom-scrollbar">
-        {ONGLETS.map((o) => {
-          const Icon = o.icon
-          const actif = ongletActif === o.id
-          return (
-            <button
-              key={o.id}
-              type="button"
-              onClick={() => onNaviguer(o.id)}
-              aria-current={actif ? "page" : undefined}
-              className={cn(
-                "relative mx-3 flex h-10 shrink-0 items-center gap-3 rounded-lg px-3 text-sm transition-colors",
-                actif
-                  ? "bg-primary/10 font-medium text-primary"
-                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              )}
-            >
-              {actif && (
-                <span
-                  className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-primary"
-                  aria-hidden
-                />
-              )}
-              <Icon className="h-4 w-4 shrink-0" aria-hidden />
-              <span className="truncate">{o.label}</span>
-            </button>
-          )
-        })}
+        {ONGLETS_PRINCIPAUX.map((o) => (
+          <BoutonOnglet key={o.id} entree={o} actif={ongletActif === o.id} onNaviguer={onNaviguer} />
+        ))}
+
+        {/* Séparateur visuel : label « Gestion » en majuscules */}
+        <p
+          className="px-3 pt-3 pb-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground"
+          role="presentation"
+        >
+          Gestion
+        </p>
+
+        {ONGLETS_GESTION.map((o) => (
+          <BoutonOnglet key={o.id} entree={o} actif={ongletActif === o.id} onNaviguer={onNaviguer} />
+        ))}
       </nav>
 
       {/* Bas de sidebar : rappel de la promesse produit */}

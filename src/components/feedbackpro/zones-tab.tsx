@@ -7,10 +7,27 @@
 // ============================================================
 
 import { useCallback, useEffect, useState } from "react"
-import { MapPin, MessageSquare, QrCode, Pencil, Trash2, Plus, Loader2, AlertTriangle, Copy } from "lucide-react"
+import {
+  MapPin,
+  MessageSquare,
+  QrCode,
+  Pencil,
+  Trash2,
+  Plus,
+  Loader2,
+  AlertTriangle,
+  Copy,
+  Eye,
+  TrendingUp,
+  TrendingDown,
+  Minus,
+  Lightbulb,
+} from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from "recharts"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -42,6 +59,7 @@ import {
   PLANS,
   PLAN_LIMITS,
   presetPourZone,
+  tagLabel,
   type PlanId,
   type TagDef,
 } from "@/lib/constants"
@@ -57,6 +75,44 @@ type Zone = {
   tagsNegatifs?: string[]
   nbRetours?: number
   noteMoyenne?: number | null
+  // Session 4 : tendance sur 7 j (note 7 j vs 7 j précédents) + delta de note
+  tendance?: "hausse" | "baisse" | "stable"
+  tendanceDelta?: number | null
+}
+
+// ---------- Types (contrat GET /api/pro/zones/details?id= — Session 4) ----------
+
+type TagFrequent = {
+  id: string
+  label: string
+  count: number
+  type: "positif" | "negatif" | "libre"
+}
+
+type RetourZone = {
+  id: string
+  note: number
+  tags: string[]
+  commentaire: string | null
+  statut: string
+  zone: { nom: string } | null
+  employe: { nom: string } | null
+  createdAt: string
+}
+
+type ZoneDetails = {
+  zone: {
+    id: string
+    nom: string
+    noteMoy: number
+    total: number
+    tendance: "hausse" | "baisse" | "stable"
+    tendanceDelta: number | null
+  }
+  evolution: { date: string; score: number; retours: number }[]
+  tagsFrequents: TagFrequent[]
+  derniersRetours: RetourZone[]
+  recommandations: string[]
 }
 
 /** Lit un champ du ProData en tolérant les évolutions de schéma */
@@ -67,6 +123,20 @@ function champPro(pro: unknown, cles: string[], defaut = ""): string {
     if (typeof valeur === "string" && valeur) return valeur
   }
   return defaut
+}
+
+/** Tronque un commentaire à ~100 caractères (ellipsis) */
+function tronquer(texte: string, max = 100): string {
+  return texte.length > max ? `${texte.slice(0, max).trimEnd()}…` : texte
+}
+
+/** Date courte d'un retour : « 12 janv. · 14:32 » */
+function dateRetourCourt(d: string | Date): string {
+  const date = typeof d === "string" ? new Date(d) : d
+  if (Number.isNaN(date.getTime())) return "—"
+  const jour = date.toLocaleDateString("fr-FR", { day: "numeric", month: "short" })
+  const heure = date.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
+  return `${jour} · ${heure}`
 }
 
 export function ZonesTab({ onOpenQr }: { onOpenQr: (zoneId: string) => void }) {
@@ -92,6 +162,12 @@ export function ZonesTab({ onOpenQr }: { onOpenQr: (zoneId: string) => void }) {
   // Suppression
   const [suppressionZone, setSuppressionZone] = useState<Zone | null>(null)
   const [supprimeEnCours, setSupprimeEnCours] = useState(false)
+
+  // Modal de détails d'une zone (Session 4 : évolution, tags, retours, reco IA)
+  const [detailsZone, setDetailsZone] = useState<Zone | null>(null)
+  const [details, setDetails] = useState<ZoneDetails | null>(null)
+  const [detailsLoading, setDetailsLoading] = useState(false)
+  const [detailsErreur, setDetailsErreur] = useState(false)
 
   // Limite du plan
   const planKey = (champPro(session?.pro, ["plan"], "STARTER") || "STARTER") as PlanId
@@ -235,6 +311,41 @@ export function ZonesTab({ onOpenQr }: { onOpenQr: (zoneId: string) => void }) {
       .catch(() => toast({ title: "Copie impossible", variant: "destructive" }))
   }
 
+  // ---------- Modal de détails (Session 4) ----------
+
+  /** Ouvre le modal et charge GET /api/pro/zones/details?id=<zone.id> */
+  async function ouvrirDetails(zone: Zone) {
+    setDetailsZone(zone)
+    setDetails(null)
+    setDetailsErreur(false)
+    setDetailsLoading(true)
+    try {
+      const res = await fetch(`/api/pro/zones/details?id=${encodeURIComponent(zone.id)}`, { cache: "no-store" })
+      const json = await res.json()
+      if (res.ok && json?.ok) {
+        setDetails(json.data as ZoneDetails)
+      } else {
+        setDetailsErreur(true)
+        toast({
+          title: "Erreur",
+          description: json?.error || "Impossible de charger les détails de la zone",
+          variant: "destructive",
+        })
+      }
+    } catch {
+      setDetailsErreur(true)
+      toast({ title: "Erreur réseau", description: "Impossible de charger les détails", variant: "destructive" })
+    } finally {
+      setDetailsLoading(false)
+    }
+  }
+
+  function fermerDetails() {
+    setDetailsZone(null)
+    setDetails(null)
+    setDetailsErreur(false)
+  }
+
   // ---------- Rendu ----------
   return (
     <div className="space-y-5">
@@ -314,6 +425,8 @@ export function ZonesTab({ onOpenQr }: { onOpenQr: (zoneId: string) => void }) {
                     <Stars note={zone.noteMoyenne ?? 0} size={13} />
                     {zone.noteMoyenne ? zone.noteMoyenne.toFixed(1) : "—"}/5
                   </span>
+                  {/* Session 4 : évolution de la note sur 7 j */}
+                  <BadgeTendance tendance={zone.tendance} delta={zone.tendanceDelta} />
                 </div>
 
                 {/* Token court : clic = copie du lien de scan /r/<token> */}
@@ -328,10 +441,14 @@ export function ZonesTab({ onOpenQr }: { onOpenQr: (zoneId: string) => void }) {
                 </button>
 
                 {/* Actions */}
-                <div className="mt-auto flex items-center gap-1 border-t pt-3">
+                <div className="mt-auto flex flex-wrap items-center gap-1 border-t pt-3">
                   <Button size="sm" variant="outline" className="h-8" onClick={() => onOpenQr(zone.id)}>
                     <QrCode className="mr-1.5 h-3.5 w-3.5" aria-hidden />
                     QR
+                  </Button>
+                  <Button size="sm" variant="outline" className="h-8" onClick={() => ouvrirDetails(zone)}>
+                    <Eye className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                    Voir détails
                   </Button>
                   <Button size="sm" variant="ghost" className="h-8" onClick={() => ouvrirEdition(zone)}>
                     <Pencil className="mr-1.5 h-3.5 w-3.5" aria-hidden />
@@ -442,7 +559,206 @@ export function ZonesTab({ onOpenQr }: { onOpenQr: (zoneId: string) => void }) {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ---------- Modal de détails d'une zone (Session 4) ---------- */}
+      <Dialog open={!!detailsZone} onOpenChange={(o) => (!o ? fermerDetails() : undefined)}>
+        <DialogContent className="sm:max-w-3xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MapPin className="h-5 w-5 text-primary" aria-hidden />
+              {detailsZone?.nom ?? "Détails de la zone"}
+            </DialogTitle>
+            <DialogDescription>
+              Audit IA de la zone sur les 30 derniers jours — évolution, tags et retours clients.
+            </DialogDescription>
+          </DialogHeader>
+
+          {detailsLoading ? (
+            // Squelettes pendant le chargement des détails
+            <div className="space-y-3" aria-busy="true">
+              <Skeleton className="h-12 rounded-xl" />
+              <Skeleton className="h-56 rounded-xl" />
+              <Skeleton className="h-16 rounded-xl" />
+              <Skeleton className="h-28 rounded-xl" />
+              <Skeleton className="h-24 rounded-xl" />
+            </div>
+          ) : detailsErreur || !details ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              Impossible de charger les détails de cette zone. Réessayez dans un instant.
+            </p>
+          ) : (
+            <div className="max-h-[65vh] space-y-5 overflow-y-auto custom-scrollbar pr-1 sm:max-h-[80vh]">
+              {/* a. En-tête : mini-stats de la zone */}
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border bg-muted/40 px-3.5 py-2.5 text-sm">
+                <span className="flex items-center gap-1.5">
+                  <Stars note={details.zone.noteMoy} size={14} />
+                  <span className="font-medium">{details.zone.noteMoy.toFixed(2).replace(".", ",")}/5</span>
+                </span>
+                <span className="text-muted-foreground">
+                  {details.zone.total} retour{details.zone.total > 1 ? "s" : ""} sur 30 j
+                </span>
+                <BadgeTendance tendance={details.zone.tendance} delta={details.zone.tendanceDelta} />
+              </div>
+
+              {/* b. Graphique d'évolution du score sur 30 jours */}
+              <section>
+                <h3 className="mb-2 text-sm font-semibold">Évolution du score (30 jours)</h3>
+                <div className="h-56 sm:h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={details.evolution} margin={{ top: 5, right: 5, left: -18, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="gradZoneScore" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#2563eb" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e7e5e4" />
+                      {/* scale="point" : les labels « JJ/MM » restent affichés tels quels (pas de parse US) */}
+                      <XAxis dataKey="date" scale="point" tick={{ fontSize: 11 }} interval={4} tickLine={false} axisLine={false} />
+                      <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={36} />
+                      <Tooltip labelStyle={{ color: "#1c1917" }} />
+                      <Area
+                        type="monotone"
+                        dataKey="score"
+                        name="Score"
+                        stroke="#2563eb"
+                        strokeWidth={2.5}
+                        fill="url(#gradZoneScore)"
+                        connectNulls
+                        dot={false}
+                        activeDot={{ r: 4 }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </section>
+
+              {/* c. Tags les plus fréquents (déjà triés par count desc côté API) */}
+              <section>
+                <h3 className="mb-2 text-sm font-semibold">Tags les plus fréquents</h3>
+                {details.tagsFrequents.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Aucun tag sur 30 jours</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {details.tagsFrequents.slice(0, 8).map((t) => (
+                      <Badge
+                        key={t.id}
+                        variant="outline"
+                        className={cn(
+                          t.type === "positif" && "border-green-300 text-green-700",
+                          t.type === "negatif" && "border-rose-300 text-rose-700"
+                        )}
+                      >
+                        {t.label} ×{t.count}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              {/* d. Derniers retours (6, les plus récents) */}
+              <section>
+                <h3 className="mb-2 text-sm font-semibold">Derniers retours</h3>
+                {details.derniersRetours.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Aucun retour sur 30 jours</p>
+                ) : (
+                  <div className="max-h-64 space-y-2 overflow-y-auto custom-scrollbar pr-1">
+                    {details.derniersRetours.map((r) => (
+                      <div key={r.id} className="rounded-lg border px-3 py-2.5">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                          {/* Note en étoiles texte : ★★★★☆ */}
+                          <span aria-label={`Note ${r.note} sur 5`}>
+                            <span className="text-amber-500">{"★".repeat(r.note)}</span>
+                            <span className="text-stone-300">{"☆".repeat(Math.max(0, 5 - r.note))}</span>
+                          </span>
+                          <span className="text-muted-foreground">{dateRetourCourt(r.createdAt)}</span>
+                          {r.employe?.nom && <span className="text-muted-foreground">👤 {r.employe.nom}</span>}
+                          {r.zone?.nom && <span className="text-muted-foreground">📍 {r.zone.nom}</span>}
+                        </div>
+                        {r.commentaire && <p className="mt-1 text-sm">{tronquer(r.commentaire)}</p>}
+                        {r.tags.length > 0 && (
+                          <div className="mt-1.5 flex flex-wrap gap-1">
+                            {r.tags.map((t) => (
+                              <Badge key={t} variant="secondary" className="text-[11px] font-normal">
+                                {tagLabel(t)}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </section>
+
+              {/* e. Recommandations du Coach IA pour cette zone */}
+              <section>
+                <h3 className="mb-2 text-sm font-semibold">Recommandations du Coach pour cette zone</h3>
+                <ul className="space-y-1.5">
+                  {details.recommandations.map((rec, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm leading-relaxed text-muted-foreground">
+                      <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" aria-hidden />
+                      <span className="min-w-0">{rec}</span>
+                    </li>
+                  ))}
+                </ul>
+              </section>
+            </div>
+          )}
+
+          <DialogFooter>
+            {detailsZone && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  const id = detailsZone.id
+                  fermerDetails()
+                  onOpenQr(id)
+                }}
+              >
+                <QrCode className="mr-2 h-4 w-4" aria-hidden />
+                Voir le QR code
+              </Button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
+  )
+}
+
+// ---------- Badge de tendance (Session 4) : hausse vert / baisse rouge / stable gris ----------
+
+function BadgeTendance({
+  tendance,
+  delta,
+}: {
+  tendance?: "hausse" | "baisse" | "stable"
+  delta?: number | null
+}) {
+  // Pas assez de données (delta null) : on n'affiche rien
+  if (delta === null || delta === undefined) return null
+  if (tendance === "hausse") {
+    return (
+      <Badge variant="outline" className="border-green-300 text-green-700">
+        <TrendingUp className="mr-1 h-3 w-3" aria-hidden />
+        +{delta.toFixed(2).replace(".", ",")} pt
+      </Badge>
+    )
+  }
+  if (tendance === "baisse") {
+    return (
+      <Badge variant="outline" className="border-rose-300 text-rose-700">
+        <TrendingDown className="mr-1 h-3 w-3" aria-hidden />
+        −{Math.abs(delta).toFixed(2).replace(".", ",")} pt
+      </Badge>
+    )
+  }
+  return (
+    <Badge variant="outline" className="border-border text-muted-foreground">
+      <Minus className="mr-1 h-3 w-3" aria-hidden />
+      stable
+    </Badge>
   )
 }
 

@@ -2,9 +2,11 @@
 
 // ============================================================
 // FeedbackPro - Onglet "Statistiques" du dashboard Pro (pivot Zones)
-// Données : GET /api/pro/stats → { courbe30j, parTag, parHeure, parZone, kpis }
-// Graphiques : courbe 30j · note moyenne par zone · volume par zone ·
-// camembert par tag · heatmap jour × heure (7j × 24h)
+// Données : GET /api/pro/stats?periode=7j|30j|90j|1an (défaut 30j)
+//   → { periode, nbJours, courbe (+alias courbe30j), parTag, parHeure,
+//      parHeureMatrice, parZone, kpis }
+// Graphiques : courbe des scores · camembert répartition par zone ·
+// barres horizontales tags · note moyenne par zone · heatmap 7j × 24h
 // Exports : CSV (API) + PDF (jsPDF, généré localement)
 // ============================================================
 
@@ -14,6 +16,7 @@ import { jsPDF } from "jspdf"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { StatCard } from "@/components/feedbackpro/shared"
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/app-store"
@@ -35,11 +38,24 @@ import {
 
 // ---------- Contrat API (avec normalisation tolérante aux champs) ----------
 
+type PointCourbeApi = {
+  jour?: string
+  date?: string
+  score?: number | null
+  note?: number | null
+  retours?: number
+  count?: number
+}
+
 type StatsApi = {
-  /** Courbe des 30 derniers jours : [{ jour | date, note, count? }] */
-  courbe30j?: { jour?: string; date?: string; note?: number | null; count?: number }[]
-  /** Mentions par tag : [{ tag | id, count }] */
-  parTag?: { tag?: string; id?: string; count?: number }[]
+  periode?: string
+  nbJours?: number
+  /** Courbe de la période sélectionnée */
+  courbe?: PointCourbeApi[]
+  /** Alias rétro-compatible de `courbe` (consommateurs Session 1-3) */
+  courbe30j?: PointCourbeApi[]
+  /** Mentions par tag : [{ tag | id, label?, type?, count }] trié par count desc */
+  parTag?: { tag?: string; id?: string; label?: string; type?: string; count?: number }[]
   /** Heatmap 7 jours × 24h : [{ jour (0-6 ou nom), heure, total }] */
   parHeure?: { jour?: number | string; heure?: number; total?: number; count?: number }[]
   /** [{ zoneNom, noteMoy, total }] */
@@ -48,8 +64,26 @@ type StatsApi = {
   kpis?: Record<string, number>
 }
 
+// ---------- Périodes (contrat API : ?periode=7j|30j|90j|1an) ----------
+
+type Periode = "7j" | "30j" | "90j" | "1an"
+
+const PERIODES: { value: Periode; label: string }[] = [
+  { value: "7j", label: "7 derniers jours" },
+  { value: "30j", label: "30 derniers jours" },
+  { value: "90j", label: "90 derniers jours" },
+  { value: "1an", label: "1 an" },
+]
+
+function libellePeriode(p: Periode): string {
+  return PERIODES.find((x) => x.value === p)?.label ?? "30 derniers jours"
+}
+
 const BLEU = "#2563eb"
-const TAG_COLORS = ["#2563eb", "#f59e0b", "#0891b2", "#e11d48", "#16a34a", "#7c3aed"]
+const VERT = "#16a34a"
+const ROUGE = "#e11d48"
+/** Palette du thème (6 teintes distinctes) pour le camembert des zones */
+const ZONE_COLORS = ["#2563eb", "#0891b2", "#7c3aed", "#f59e0b", "#16a34a", "#e11d48"]
 
 /** Garde-fou : renvoie toujours un tableau (l'API peut être en cours de migration) */
 function enArray<T>(v: T[] | null | undefined): T[] {
@@ -63,11 +97,12 @@ export function StatsTab() {
       ?.nomEtablissement ?? "Mon établissement"
   const [data, setData] = useState<StatsApi | null>(null)
   const [loading, setLoading] = useState(true)
+  const [periode, setPeriode] = useState<Periode>("30j")
   const { toast } = useToast()
 
   useEffect(() => {
     let annule = false
-    fetch("/api/pro/stats", { cache: "no-store" })
+    fetch(`/api/pro/stats?periode=${periode}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((j) => {
         if (annule) return
@@ -83,7 +118,7 @@ export function StatsTab() {
     return () => {
       annule = true
     }
-  }, [toast])
+  }, [periode, toast])
 
   // ---------- Normalisation des données ----------
   const k = data?.kpis ?? {}
@@ -91,17 +126,33 @@ export function StatsTab() {
   const totalRetours = k.total ?? k.totalRetours ?? k.retours30j ?? 0
   const alertes = k.alertes ?? k.nbAlertes ?? k.alertes30j ?? 0
 
-  // Courbe 30 jours
-  const courbe = enArray(data?.courbe30j).map((p) => ({
-    jour: p.jour ?? p.date ?? "",
-    note: p.note ?? null,
-    count: p.count ?? 0,
-  }))
+  // Courbe de la période (alias courbe30j rétro-compatible).
+  // Un jour/sans semaine sans retour → note nulle pour ne pas tirer la ligne
+  // vers 0 (connectNulls assure la continuité visuelle).
+  const courbe = enArray(data?.courbe30j ?? data?.courbe).map((p) => {
+    const count = p.count ?? p.retours ?? 0
+    const note = p.note ?? p.score ?? null
+    return { jour: p.jour ?? p.date ?? "", note: count > 0 ? note : null, count }
+  })
+  // Échelle de l'axe Y : depuis la Session 4 l'API renvoie un score sur 20
+  // (note moyenne × 20) ; on reste compatible avec un éventuel retour sur 5.
+  const echelle20 = courbe.some((p) => (p.note ?? 0) > 5)
+  // Intervalle des labels X calculé pour rester lisible même sur ~53 points
+  // (agrégation hebdomadaire de la période 1 an).
+  const intervalleX = Math.max(0, Math.floor(courbe.length / 8) - 1)
 
-  // Camembert par tag (libellés FR via tagLabel)
+  // Tags les plus fréquents (déjà triés par count desc côté API, top 8)
   const parTag = enArray(data?.parTag)
-    .map((t) => ({ label: tagLabel(t.tag ?? t.id ?? "?"), count: t.count ?? 0 }))
+    .map((t) => ({
+      label: t.label ?? tagLabel(t.tag ?? t.id ?? "?"),
+      count: t.count ?? 0,
+      type: t.type ?? "libre",
+    }))
     .filter((t) => t.count > 0)
+    .slice(0, 8)
+  // Inversé pour l'affichage : en BarChart vertical, la 1re catégorie se
+  // dessine en bas → on inverse pour avoir le tag n°1 en haut.
+  const parTagGraphique = [...parTag].reverse()
 
   // Par zone : note moyenne + volume
   const parZone = enArray(data?.parZone).map((z) => ({
@@ -138,9 +189,14 @@ export function StatsTab() {
           <Skeleton className="h-72 rounded-xl" />
           <Skeleton className="h-72 rounded-xl" />
         </div>
+        <Skeleton className="h-80 rounded-xl" />
       </div>
     )
   }
+
+  // Libellés adaptés à la période sélectionnée
+  const periodeLabel = libellePeriode(periode)
+  const periodeCourt = periode === "1an" ? "1 an" : periode
 
   // ---------- Export PDF (généré localement avec jsPDF) ----------
   function exporterPdf() {
@@ -155,7 +211,7 @@ export function StatsTab() {
     doc.text("Rapport statistiques", M, 16)
     doc.setFontSize(11)
     doc.setFont("helvetica", "normal")
-    doc.text(`${nomEtablissement} — 30 derniers jours`, M, 26)
+    doc.text(`${nomEtablissement} — Période : ${periodeLabel}`, M, 26)
     doc.text(
       `Généré le ${new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`,
       W - M,
@@ -172,7 +228,7 @@ export function StatsTab() {
     y += 4
     const kpis: [string, string][] = [
       ["Note moyenne", noteMoyenne ? `${noteMoyenne.toFixed(2)} / 5` : "—"],
-      ["Retours (30j)", String(totalRetours)],
+      [`Retours (${periodeCourt})`, String(totalRetours)],
       ["Alertes (≤ 2★)", String(alertes)],
       ["Zones suivies", String(parZone.length)],
     ]
@@ -273,15 +329,35 @@ export function StatsTab() {
 
   return (
     <div className="space-y-6">
-      {/* ---------- En-tête : exports ---------- */}
+      {/* ---------- En-tête : sélecteur de période + exports ---------- */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Statistiques</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Audit qualité continu de vos zones — 30 derniers jours.
+            Audit qualité continu de vos zones — {periodeLabel}.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Select
+            value={periode}
+            onValueChange={(v) => {
+              // setLoading ici (et non dans l'effet) : re-skeleton immédiat
+              // pendant le re-chargement de la nouvelle période
+              setLoading(true)
+              setPeriode(v as Periode)
+            }}
+          >
+            <SelectTrigger className="h-9 w-[176px]" aria-label="Période d'analyse">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {PERIODES.map((p) => (
+                <SelectItem key={p.value} value={p.value}>
+                  {p.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <Button variant="outline" size="sm" className="h-9" onClick={exporterPdf}>
             <FileText className="mr-1.5 h-4 w-4" aria-hidden />
             Exporter PDF
@@ -295,33 +371,43 @@ export function StatsTab() {
         </div>
       </div>
 
-      {/* ---------- KPIs ---------- */}
+      {/* ---------- KPIs (période sélectionnée) ---------- */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard icon={() => <span className="text-lg">⭐</span>} label="Note moyenne (30j)" value={noteMoyenne ? noteMoyenne.toFixed(2) : "—"} />
-        <StatCard icon={() => <span className="text-lg">💬</span>} label="Retours (30 jours)" value={totalRetours} />
+        <StatCard icon={() => <span className="text-lg">⭐</span>} label={`Note moyenne (${periodeCourt})`} value={noteMoyenne ? noteMoyenne.toFixed(2) : "—"} />
+        <StatCard icon={() => <span className="text-lg">💬</span>} label={`Retours (${periodeCourt})`} value={totalRetours} />
         <StatCard icon={() => <span className="text-lg">🚨</span>} label="Alertes (note ≤ 2)" value={alertes} />
         <StatCard icon={() => <span className="text-lg">📍</span>} label="Zones suivies" value={parZone.length} />
       </div>
 
-      {/* ---------- Courbe 30 jours ---------- */}
+      {/* ---------- Évolution des scores sur la période ---------- */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base sm:text-lg">Évolution des notes (30 jours)</CardTitle>
+          <CardTitle className="text-base sm:text-lg">Évolution des scores ({periodeLabel})</CardTitle>
         </CardHeader>
         <CardContent className="h-72">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={courbe} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-              {/* scale="point" : empêche Recharts de parser les labels « JJ/MM » comme dates US */}
-              <XAxis dataKey="jour" scale="point" tick={{ fontSize: 10 }} interval={3} tickLine={false} axisLine={false} />
-              <YAxis domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-              <Tooltip formatter={(v) => [v ? `${v} ★` : "—", "Note moyenne"]} labelStyle={{ color: "#1c1917" }} />
+              {/* scale="point" : empêche Recharts de parser les labels « JJ/MM » comme dates US ;
+                  intervalle dynamique pour rester lisible même sur ~53 points (1 an hebdo) */}
+              <XAxis dataKey="jour" scale="point" tick={{ fontSize: 10 }} interval={intervalleX} tickLine={false} axisLine={false} />
+              <YAxis
+                domain={echelle20 ? [0, 20] : [1, 5]}
+                ticks={echelle20 ? [0, 5, 10, 15, 20] : [1, 2, 3, 4, 5]}
+                tick={{ fontSize: 11 }}
+                tickLine={false}
+                axisLine={false}
+              />
+              <Tooltip
+                formatter={(v) => [v ? (echelle20 ? `${v}/20` : `${v} ★`) : "—", echelle20 ? "Score moyen" : "Note moyenne"]}
+                labelStyle={{ color: "#1c1917" }}
+              />
               <Line type="monotone" dataKey="note" stroke={BLEU} strokeWidth={2.5} dot={false} connectNulls activeDot={{ r: 4 }} />
             </LineChart>
           </ResponsiveContainer>
         </CardContent>
       </Card>
 
-      {/* ---------- Par zone : note moyenne + volume ---------- */}
+      {/* ---------- Par zone : note moyenne + répartition ---------- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Card>
           <CardHeader className="pb-2">
@@ -355,8 +441,8 @@ export function StatsTab() {
 
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base sm:text-lg">Volume par zone</CardTitle>
-            <p className="text-sm text-muted-foreground">Nombre de retours collectés par point de contact</p>
+            <CardTitle className="text-base sm:text-lg">Répartition des retours par zone</CardTitle>
+            <p className="text-sm text-muted-foreground">Part de chaque point de contact dans le volume total</p>
           </CardHeader>
           <CardContent className="h-72">
             {parZone.length === 0 ? (
@@ -365,44 +451,51 @@ export function StatsTab() {
               </p>
             ) : (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={parZone} layout="vertical" margin={{ top: 4, right: 16, left: 8, bottom: 0 }}>
-                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                  <YAxis
-                    type="category"
-                    dataKey="zoneNom"
-                    width={110}
-                    tick={{ fontSize: 11 }}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <Tooltip formatter={(v) => [`${v} retours`, "Volume"]} labelStyle={{ color: "#1c1917" }} />
-                  <Bar dataKey="total" fill="#f59e0b" radius={[0, 6, 6, 0]} barSize={16} />
-                </BarChart>
+                <PieChart>
+                  <Pie data={parZone} dataKey="total" nameKey="zoneNom" innerRadius={50} outerRadius={85} paddingAngle={3}>
+                    {parZone.map((z, i) => (
+                      <Cell key={z.zoneNom} fill={ZONE_COLORS[i % ZONE_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip formatter={(v) => [`${v} retours`, ""]} labelStyle={{ color: "#1c1917" }} />
+                  <Legend iconType="circle" wrapperStyle={{ fontSize: 13 }} />
+                </PieChart>
               </ResponsiveContainer>
             )}
           </CardContent>
         </Card>
       </div>
 
-      {/* ---------- Camembert par tag ---------- */}
+      {/* ---------- Tags les plus fréquents (barres horizontales) ---------- */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base sm:text-lg">Mentions clients par tag</CardTitle>
+          <CardTitle className="text-base sm:text-lg">Tags les plus fréquents</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Top 8 des mentions clients — vert : positif · rouge : négatif · bleu : neutre
+          </p>
         </CardHeader>
-        <CardContent className="h-72">
-          {parTag.length === 0 ? (
+        <CardContent className="h-80">
+          {parTagGraphique.length === 0 ? (
             <p className="flex h-full items-center justify-center text-sm text-muted-foreground">Aucun tag sur la période</p>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={parTag} dataKey="count" nameKey="label" innerRadius={55} outerRadius={90} paddingAngle={3}>
-                  {parTag.map((_, i) => (
-                    <Cell key={i} fill={TAG_COLORS[i % TAG_COLORS.length]} />
+              <BarChart data={parTagGraphique} layout="vertical" margin={{ top: 4, right: 24, left: 8, bottom: 0 }}>
+                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                <YAxis
+                  type="category"
+                  dataKey="label"
+                  width={180}
+                  tick={{ fontSize: 11 }}
+                  tickLine={false}
+                  axisLine={false}
+                />
+                <Tooltip formatter={(v) => [`${v} mention(s)`, ""]} labelStyle={{ color: "#1c1917" }} />
+                <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={18}>
+                  {parTagGraphique.map((t, i) => (
+                    <Cell key={`${t.label}-${i}`} fill={t.type === "positif" ? VERT : t.type === "negatif" ? ROUGE : BLEU} />
                   ))}
-                </Pie>
-                <Tooltip formatter={(v) => [`${v} mentions`, ""]} labelStyle={{ color: "#1c1917" }} />
-                <Legend iconType="circle" wrapperStyle={{ fontSize: 13 }} />
-              </PieChart>
+                </Bar>
+              </BarChart>
             </ResponsiveContainer>
           )}
         </CardContent>
