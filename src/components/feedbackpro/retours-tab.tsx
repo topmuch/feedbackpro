@@ -1,14 +1,14 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Onglet "Retours clients" du dashboard Pro
-// Tableau filtrable (note, statut, tag, dates, employé, lu) +
-// modale de détail avec réponse et historique des statuts
+// FeedbackPro - Onglet "Retours clients" du dashboard Pro (pivot Zones)
+// Tableau filtrable (note, zone, statut, tag, dates) + pagination +
+// modale de détail : réponse Pro éditable, action managériale éditable,
+// timeline de l'historique des statuts
 // ============================================================
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import {
-  Search,
   Download,
   MailOpen,
   MessageSquareReply,
@@ -18,7 +18,10 @@ import {
   MoreHorizontal,
   Clock,
   CheckCircle2,
+  ClipboardCheck,
+  MapPin,
   X,
+  Inbox,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -48,25 +51,32 @@ import { ALL_TAGS, STATUT_RETOUR_LABEL, tagLabel } from "@/lib/constants"
 
 type StatutRetour = "NEW" | "IN_PROGRESS" | "RESOLVED"
 
+// Retour renvoyé par GET/PATCH /api/pro/retours (pivot Zones)
 type Retour = {
   id: string
   note: number
   tags: string[]
   commentaire: string | null
   personnelMentionne: string | null
-  employeNom: string | null
   canalChoisi: string | null
   statut: StatutRetour
+  historique: { statut: string; at: string }[]
   lu: boolean
   reponsePro: string | null
-  ipCity: string | null
-  historique: { statut: string; at: string }[]
+  actionPrise: string | null
   createdAt: string
+  zone: { nom: string } | null
+  employe: { nom: string } | null
 }
 
-type Employe = { id: string; nom: string }
+type ZoneFiltre = { id: string; nom: string }
 
 const PAGE_SIZE = 50
+
+/** Garde-fou : renvoie toujours un tableau (l'API peut être en cours de migration) */
+function enArray<T>(v: T[] | null | undefined): T[] {
+  return Array.isArray(v) ? v : []
+}
 
 // ---------- Helpers d'affichage ----------
 
@@ -83,45 +93,63 @@ function canalLabel(canal: string | null): string {
   return "via formulaire"
 }
 
-/** Couleurs du badge de statut (tokens sémantiques) */
+/** Badge de statut coloré : Nouveau rouge / En cours orange / Résolu vert */
 function statutBadgeClass(statut: string): string {
-  if (statut === "RESOLVED") return "text-green-700 border-green-300"
-  if (statut === "IN_PROGRESS") return "text-amber-700 border-amber-300"
-  return "text-stone-600"
+  if (statut === "RESOLVED") return "border-green-300 bg-green-50 text-green-800"
+  if (statut === "IN_PROGRESS") return "border-amber-300 bg-amber-50 text-amber-800"
+  return "border-rose-300 bg-rose-50 text-rose-800"
 }
 
 /** Couleur de la pastille de la timeline de suivi */
 function pastilleClass(statut: string): string {
   if (statut === "RESOLVED") return "bg-green-500"
   if (statut === "IN_PROGRESS") return "bg-amber-500"
-  return "bg-stone-400"
+  return "bg-rose-500"
 }
 
 export function RetoursTab() {
   const [items, setItems] = useState<Retour[]>([])
-  const [employes, setEmployes] = useState<Employe[]>([])
+  const [zones, setZones] = useState<ZoneFiltre[]>([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
 
-  // Filtres
+  // Filtres (contrat API : note, zoneId, statut, tag, dateDebut, dateFin, page)
   const [fNote, setFNote] = useState("all")
+  const [fZone, setFZone] = useState("all")
   const [fStatut, setFStatut] = useState("all")
   const [fTag, setFTag] = useState("all")
-  const [fEmploye, setFEmploye] = useState("all")
-  const [fLu, setFLu] = useState("all")
-  const [q, setQ] = useState("")
-  const [fDu, setFDu] = useState("") // from (AAAA-MM-JJ)
-  const [fAu, setFAu] = useState("") // to (AAAA-MM-JJ)
+  const [fDu, setFDu] = useState("") // dateDebut (AAAA-MM-JJ)
+  const [fAu, setFAu] = useState("") // dateFin (AAAA-MM-JJ)
 
   // Modale de détail
   const [detail, setDetail] = useState<Retour | null>(null)
   const [editionReponse, setEditionReponse] = useState(false)
   const [texteReponse, setTexteReponse] = useState("")
   const [envoiReponse, setEnvoiReponse] = useState(false)
+  const [editionAction, setEditionAction] = useState(false)
+  const [texteAction, setTexteAction] = useState("")
+  const [envoiAction, setEnvoiAction] = useState(false)
   const reponseRef = useRef<HTMLTextAreaElement>(null)
+  const actionRef = useRef<HTMLTextAreaElement>(null)
 
   const { toast } = useToast()
+
+  // Chargement de la liste des zones (filtre « Toutes les zones »)
+  useEffect(() => {
+    let annule = false
+    fetch("/api/pro/zones", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (!annule && j.ok) setZones(enArray(j.data.zones))
+      })
+      .catch(() => {
+        /* silencieux : le filtre zone restera simplement vide */
+      })
+    return () => {
+      annule = true
+    }
+  }, [])
 
   const load = useCallback(
     async (p = page) => {
@@ -129,19 +157,16 @@ export function RetoursTab() {
       try {
         const params = new URLSearchParams({ page: String(p) })
         if (fNote !== "all") params.set("note", fNote)
+        if (fZone !== "all") params.set("zoneId", fZone)
         if (fStatut !== "all") params.set("statut", fStatut)
         if (fTag !== "all") params.set("tag", fTag)
-        if (fEmploye !== "all") params.set("employeId", fEmploye)
-        if (fLu !== "all") params.set("lu", fLu)
-        if (fDu) params.set("from", fDu)
-        if (fAu) params.set("to", fAu)
-        if (q.trim()) params.set("q", q.trim())
+        if (fDu) params.set("dateDebut", fDu)
+        if (fAu) params.set("dateFin", fAu)
         const res = await fetch(`/api/pro/retours?${params.toString()}`, { cache: "no-store" })
         const json = await res.json()
         if (json.ok) {
-          setItems(json.data.items)
-          setTotal(json.data.total)
-          setEmployes(json.data.employes)
+          setItems(enArray(json.data.retours))
+          setTotal(json.data.total ?? 0)
         } else {
           toast({ title: "Erreur", description: "Impossible de charger les retours", variant: "destructive" })
         }
@@ -151,34 +176,26 @@ export function RetoursTab() {
         setLoading(false)
       }
     },
-    [fNote, fStatut, fTag, fEmploye, fLu, fDu, fAu, q, page]
+    [fNote, fZone, fStatut, fTag, fDu, fAu, page, toast]
   )
 
   // Rechargement quand un filtre ou la page change
   useEffect(() => {
     load(page)
+  }, [fNote, fZone, fStatut, fTag, fDu, fAu, page, load])
 
-  }, [fNote, fStatut, fTag, fEmploye, fLu, fDu, fAu, page])
-
-  // Recherche texte avec délai (debounce 350 ms)
-  const premierRendu = useRef(true)
-  useEffect(() => {
-    if (premierRendu.current) {
-      premierRendu.current = false
-      return
-    }
-    const t = setTimeout(() => load(1), 350)
-    return () => clearTimeout(t)
-
-  }, [q])
-
-  // Focus sur la zone de réponse dès que le mode édition s'ouvre
+  // Focus sur la zone de texte dès que le mode édition s'ouvre
   useEffect(() => {
     if (editionReponse) reponseRef.current?.focus()
   }, [editionReponse, detail?.id])
 
-  // Mise à jour d'un retour : synchronise la liste ET l'item affiché dans la modale
-  async function majRetour(id: string, data: { statut?: StatutRetour; lu?: boolean; reponsePro?: string }) {
+  useEffect(() => {
+    if (editionAction) actionRef.current?.focus()
+  }, [editionAction, detail?.id])
+
+  // Mise à jour d'un retour (statut / lu / réponse / action) :
+  // synchronise la liste ET l'item affiché dans la modale
+  async function majRetour(id: string, data: { statut?: StatutRetour; lu?: boolean; reponsePro?: string; actionPrise?: string }) {
     try {
       const res = await fetch("/api/pro/retours", {
         method: "PATCH",
@@ -187,9 +204,10 @@ export function RetoursTab() {
       })
       const json = await res.json()
       if (json.ok) {
-        // Merge de la réponse serveur { id, statut, lu, reponsePro, historique }
-        setItems((prev) => prev.map((r) => (r.id === id ? { ...r, ...json.data } : r)))
-        setDetail((prev) => (prev && prev.id === id ? { ...prev, ...json.data } : prev))
+        // La réponse serveur contient le retour à jour ({ retour })
+        const maj = json.data.retour ?? json.data
+        setItems((prev) => prev.map((r) => (r.id === id ? { ...r, ...maj } : r)))
+        setDetail((prev) => (prev && prev.id === id ? { ...prev, ...maj } : prev))
       } else {
         toast({ title: "Erreur", description: json.error || "Mise à jour impossible", variant: "destructive" })
       }
@@ -202,21 +220,26 @@ export function RetoursTab() {
   function ouvrirDetail(r: Retour) {
     setDetail(r)
     setTexteReponse(r.reponsePro || "")
+    setTexteAction(r.actionPrise || "")
     setEditionReponse(false)
+    setEditionAction(false)
   }
 
   function ouvrirReponse(r: Retour) {
     setDetail(r)
     setTexteReponse(r.reponsePro || "")
+    setTexteAction(r.actionPrise || "")
     setEditionReponse(true)
+    setEditionAction(false)
   }
 
   function fermerDetail() {
     setDetail(null)
     setEditionReponse(false)
+    setEditionAction(false)
   }
 
-  // Enregistrement de la réponse du commerçant
+  // Enregistrement de la réponse du commerçant (passe NEW → IN_PROGRESS)
   async function enregistrerReponse() {
     if (!detail || !texteReponse.trim()) return
     setEnvoiReponse(true)
@@ -234,6 +257,24 @@ export function RetoursTab() {
     })
   }
 
+  // Enregistrement de l'action managériale (passe NEW → IN_PROGRESS)
+  async function enregistrerAction() {
+    if (!detail || !texteAction.trim()) return
+    setEnvoiAction(true)
+    const statutPasse = detail.statut === "NEW"
+    await majRetour(detail.id, {
+      actionPrise: texteAction.trim(),
+      lu: true,
+      ...(statutPasse ? { statut: "IN_PROGRESS" as StatutRetour } : {}),
+    })
+    setEnvoiAction(false)
+    setEditionAction(false)
+    toast({
+      title: "Action managériale enregistrée",
+      description: statutPasse ? "Le statut du retour est passé à « En cours »" : undefined,
+    })
+  }
+
   const nbPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const datesActives = fDu !== "" || fAu !== ""
 
@@ -242,7 +283,7 @@ export function RetoursTab() {
   // afin que le suivi commence toujours par « Nouveau ».
   const historiqueAffiche: { statut: string; at: string }[] = detail
     ? (() => {
-        const hist = [...detail.historique].sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
+        const hist = enArray(detail.historique).sort((a, b) => new Date(a.at).getTime() - new Date(b.at).getTime())
         if (hist.length === 0) return [{ statut: "NEW", at: detail.createdAt }]
         if (!hist.some((h) => h.statut === "NEW")) {
           return [{ statut: "NEW", at: detail.createdAt }, ...hist]
@@ -257,17 +298,20 @@ export function RetoursTab() {
       <Card>
         <CardContent className="p-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-2.5">
-            {/* Recherche texte (debounce 350 ms) */}
-            <div className="relative sm:col-span-2 md:col-span-1">
-              <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-              <Input
-                placeholder="Rechercher (commentaire, tags…)"
-                value={q}
-                onChange={(e) => setQ(e.target.value)}
-                className="h-10 pl-8"
-                aria-label="Rechercher dans les retours"
-              />
-            </div>
+            {/* Zone (pivot : chaque retour est rattaché à une zone de contact) */}
+            <Select value={fZone} onValueChange={(v) => { setPage(1); setFZone(v) }}>
+              <SelectTrigger className="h-10 w-full" aria-label="Filtrer par zone">
+                <SelectValue placeholder="Zone" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes les zones</SelectItem>
+                {zones.map((z) => (
+                  <SelectItem key={z.id} value={z.id}>
+                    {z.nom}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
 
             {/* Note */}
             <Select value={fNote} onValueChange={(v) => { setPage(1); setFNote(v) }}>
@@ -341,32 +385,6 @@ export function RetoursTab() {
               )}
             </div>
 
-            {/* Employé */}
-            <Select value={fEmploye} onValueChange={(v) => { setPage(1); setFEmploye(v) }}>
-              <SelectTrigger className="h-10 w-full" aria-label="Filtrer par employé">
-                <SelectValue placeholder="Employé" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous employés</SelectItem>
-                {employes.map((e) => (
-                  <SelectItem key={e.id} value={e.id}>
-                    {e.nom}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-
-            {/* Lu */}
-            <Select value={fLu} onValueChange={(v) => { setPage(1); setFLu(v) }}>
-              <SelectTrigger className="h-10 w-full" aria-label="Filtrer par lecture">
-                <SelectValue placeholder="Lu" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous</SelectItem>
-                <SelectItem value="false">Non lus</SelectItem>
-              </SelectContent>
-            </Select>
-
             {/* Rafraîchir */}
             <div className="flex items-center">
               <Button variant="outline" size="icon" className="h-10 w-10" onClick={() => load()} aria-label="Rafraîchir">
@@ -401,142 +419,163 @@ export function RetoursTab() {
           </CardContent>
         </Card>
       ) : items.length === 0 ? (
+        // Empty state soigné
         <Card>
-          <CardContent className="py-14 text-center text-muted-foreground">
-            Aucun retour ne correspond à ces filtres.
+          <CardContent className="flex flex-col items-center gap-3 py-14 text-center">
+            <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted" aria-hidden>
+              <Inbox className="h-7 w-7 text-muted-foreground" />
+            </span>
+            <div>
+              <p className="font-medium">Aucun retour ne correspond à ces filtres</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Essayez d&apos;élargir la période ou de sélectionner « Toutes les zones ».
+              </p>
+            </div>
           </CardContent>
         </Card>
       ) : (
         <Card className="overflow-hidden py-0">
           <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow className="bg-muted/50 hover:bg-muted/50">
-                  <TableHead className="pl-4">Date</TableHead>
-                  <TableHead>Note</TableHead>
-                  <TableHead className="hidden md:table-cell">Tags</TableHead>
-                  <TableHead className="hidden lg:table-cell">Commentaire</TableHead>
-                  <TableHead className="hidden md:table-cell">Personnel</TableHead>
-                  <TableHead>Statut</TableHead>
-                  <TableHead className="pr-4 text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {items.map((r) => (
-                  <TableRow key={r.id} className="cursor-pointer" onClick={() => ouvrirDetail(r)}>
-                    {/* Date */}
-                    <TableCell className="pl-4 text-xs whitespace-nowrap text-muted-foreground">
-                      {formatDate(r.createdAt)}
-                    </TableCell>
-
-                    {/* Note */}
-                    <TableCell>
-                      <div className="flex items-center gap-1.5">
-                        <Stars note={r.note} size={14} />
-                        {!r.lu && <Badge className="h-5 px-1.5 text-[10px]">Nouveau</Badge>}
-                      </div>
-                    </TableCell>
-
-                    {/* Tags (masqué < md) */}
-                    <TableCell className="hidden md:table-cell">
-                      {r.tags.length === 0 ? (
-                        <span className="text-muted-foreground">—</span>
-                      ) : (
-                        <div className="flex max-w-56 flex-wrap gap-1">
-                          {r.tags.slice(0, 3).map((t) => (
-                            <Badge
-                              key={t}
-                              variant="outline"
-                              className="h-5 min-w-0 max-w-full px-1.5 text-xs font-normal"
-                              title={tagLabel(t)}
-                            >
-                              <span className="truncate">{tagLabel(t)}</span>
-                            </Badge>
-                          ))}
-                          {r.tags.length > 3 && (
-                            <Badge variant="outline" className="h-5 px-1.5 text-xs font-normal">
-                              +{r.tags.length - 3}
-                            </Badge>
-                          )}
-                        </div>
-                      )}
-                    </TableCell>
-
-                    {/* Commentaire (masqué < lg) */}
-                    <TableCell className="hidden max-w-72 whitespace-normal lg:table-cell">
-                      {r.commentaire ? (
-                        <span className="text-sm italic leading-snug">{tronquer(r.commentaire)}</span>
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </TableCell>
-
-                    {/* Personnel (masqué < md) */}
-                    <TableCell className="hidden text-xs md:table-cell">
-                      {r.employeNom || r.personnelMentionne || <span className="text-muted-foreground">—</span>}
-                    </TableCell>
-
-                    {/* Statut */}
-                    <TableCell>
-                      <Badge variant="outline" className={statutBadgeClass(r.statut)}>
-                        {STATUT_RETOUR_LABEL[r.statut] ?? r.statut}
-                      </Badge>
-                    </TableCell>
-
-                    {/* Actions (clics isolés du clic-ligne) */}
-                    <TableCell className="pr-4 text-right" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-end gap-0.5">
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          aria-label="Voir le détail"
-                          onClick={() => ouvrirDetail(r)}
-                        >
-                          <Eye className="h-4 w-4" aria-hidden />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8"
-                          aria-label="Répondre"
-                          onClick={() => ouvrirReponse(r)}
-                        >
-                          <MessageSquareReply className="h-4 w-4" aria-hidden />
-                        </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Plus d'actions">
-                              <MoreHorizontal className="h-4 w-4" aria-hidden />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end" className="w-44">
-                            {!r.lu && (
-                              <DropdownMenuItem onClick={() => majRetour(r.id, { lu: true })}>
-                                <MailOpen aria-hidden />
-                                Marquer comme lu
-                              </DropdownMenuItem>
-                            )}
-                            {r.statut !== "IN_PROGRESS" && (
-                              <DropdownMenuItem onClick={() => majRetour(r.id, { statut: "IN_PROGRESS" })}>
-                                <Clock aria-hidden />
-                                Passer en cours
-                              </DropdownMenuItem>
-                            )}
-                            {r.statut !== "RESOLVED" && (
-                              <DropdownMenuItem onClick={() => majRetour(r.id, { statut: "RESOLVED" })}>
-                                <CheckCircle2 aria-hidden />
-                                Marquer résolu
-                              </DropdownMenuItem>
-                            )}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    </TableCell>
+            {/* Tableau scrollable horizontalement sur mobile */}
+            <div className="overflow-x-auto">
+              <Table className="min-w-[640px]">
+                <TableHeader>
+                  <TableRow className="bg-muted/50 hover:bg-muted/50">
+                    <TableHead className="pl-4">Date</TableHead>
+                    <TableHead>Note</TableHead>
+                    <TableHead>Zone</TableHead>
+                    <TableHead className="hidden md:table-cell">Tags</TableHead>
+                    <TableHead className="hidden lg:table-cell">Commentaire</TableHead>
+                    <TableHead className="hidden md:table-cell">Personnel</TableHead>
+                    <TableHead>Statut</TableHead>
+                    <TableHead className="pr-4 text-right">Actions</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+                </TableHeader>
+                <TableBody>
+                  {items.map((r) => (
+                    <TableRow key={r.id} className="cursor-pointer" onClick={() => ouvrirDetail(r)}>
+                      {/* Date */}
+                      <TableCell className="pl-4 text-xs whitespace-nowrap text-muted-foreground">
+                        {formatDate(r.createdAt)}
+                      </TableCell>
+
+                      {/* Note */}
+                      <TableCell>
+                        <div className="flex items-center gap-1.5">
+                          <Stars note={r.note} size={14} />
+                          {!r.lu && <Badge className="h-5 px-1.5 text-[10px]">Nouveau</Badge>}
+                        </div>
+                      </TableCell>
+
+                      {/* Zone */}
+                      <TableCell className="max-w-40">
+                        <Badge variant="outline" className="h-6 min-w-0 max-w-full gap-1 px-2 text-xs font-normal">
+                          <MapPin className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
+                          <span className="truncate">{r.zone?.nom ?? "—"}</span>
+                        </Badge>
+                      </TableCell>
+
+                      {/* Tags (masqué < md) */}
+                      <TableCell className="hidden md:table-cell">
+                        {r.tags.length === 0 ? (
+                          <span className="text-muted-foreground">—</span>
+                        ) : (
+                          <div className="flex max-w-56 flex-wrap gap-1">
+                            {r.tags.slice(0, 3).map((t) => (
+                              <Badge
+                                key={t}
+                                variant="outline"
+                                className="h-5 min-w-0 max-w-full px-1.5 text-xs font-normal"
+                                title={tagLabel(t)}
+                              >
+                                <span className="truncate">{tagLabel(t)}</span>
+                              </Badge>
+                            ))}
+                            {r.tags.length > 3 && (
+                              <Badge variant="outline" className="h-5 px-1.5 text-xs font-normal">
+                                +{r.tags.length - 3}
+                              </Badge>
+                            )}
+                          </div>
+                        )}
+                      </TableCell>
+
+                      {/* Commentaire (masqué < lg) */}
+                      <TableCell className="hidden max-w-72 whitespace-normal lg:table-cell">
+                        {r.commentaire ? (
+                          <span className="text-sm italic leading-snug">{tronquer(r.commentaire)}</span>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+
+                      {/* Personnel (masqué < md) */}
+                      <TableCell className="hidden text-xs md:table-cell">
+                        {r.employe?.nom || r.personnelMentionne || <span className="text-muted-foreground">—</span>}
+                      </TableCell>
+
+                      {/* Statut */}
+                      <TableCell>
+                        <Badge variant="outline" className={statutBadgeClass(r.statut)}>
+                          {STATUT_RETOUR_LABEL[r.statut] ?? r.statut}
+                        </Badge>
+                      </TableCell>
+
+                      {/* Actions (clics isolés du clic-ligne) */}
+                      <TableCell className="pr-4 text-right" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-0.5">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            aria-label="Voir le détail"
+                            onClick={() => ouvrirDetail(r)}
+                          >
+                            <Eye className="h-4 w-4" aria-hidden />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            aria-label="Répondre"
+                            onClick={() => ouvrirReponse(r)}
+                          >
+                            <MessageSquareReply className="h-4 w-4" aria-hidden />
+                          </Button>
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Plus d'actions">
+                                <MoreHorizontal className="h-4 w-4" aria-hidden />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-44">
+                              {!r.lu && (
+                                <DropdownMenuItem onClick={() => majRetour(r.id, { lu: true })}>
+                                  <MailOpen aria-hidden />
+                                  Marquer comme lu
+                                </DropdownMenuItem>
+                              )}
+                              {r.statut !== "IN_PROGRESS" && (
+                                <DropdownMenuItem onClick={() => majRetour(r.id, { statut: "IN_PROGRESS" })}>
+                                  <Clock aria-hidden />
+                                  Passer en cours
+                                </DropdownMenuItem>
+                              )}
+                              {r.statut !== "RESOLVED" && (
+                                <DropdownMenuItem onClick={() => majRetour(r.id, { statut: "RESOLVED" })}>
+                                  <CheckCircle2 aria-hidden />
+                                  Marquer résolu
+                                </DropdownMenuItem>
+                              )}
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           </CardContent>
         </Card>
       )}
@@ -561,10 +600,10 @@ export function RetoursTab() {
         <DialogContent
           className="max-h-[85vh] overflow-y-auto custom-scrollbar sm:max-w-2xl"
           onOpenAutoFocus={(e) => {
-            // Focus direct sur la réponse quand la modale est ouverte via « Répondre »
-            if (editionReponse) {
+            // Focus direct sur la zone de texte quand la modale est ouverte en mode édition
+            if (editionReponse || editionAction) {
               e.preventDefault()
-              reponseRef.current?.focus()
+              ;(editionReponse ? reponseRef : actionRef).current?.focus()
             }
           }}
         >
@@ -585,36 +624,28 @@ export function RetoursTab() {
                 <span className="ml-auto text-xs text-muted-foreground">{formatDate(detail.createdAt)}</span>
               </div>
 
-              {/* Grille d'infos */}
+              {/* Grille d'infos : zone, employé, canal */}
               <div className="grid gap-x-4 gap-y-3 text-sm sm:grid-cols-2">
                 <div className="min-w-0">
-                  <p className="mb-1 text-xs font-medium text-muted-foreground">Tags</p>
-                  {detail.tags.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5">
-                      {detail.tags.map((t) => (
-                        <Badge
-                          key={t}
-                          variant="outline"
-                          className="h-6 min-w-0 max-w-full px-2 text-xs font-normal"
-                          title={tagLabel(t)}
-                        >
-                          <span className="truncate">{tagLabel(t)}</span>
-                        </Badge>
-                      ))}
-                    </div>
+                  <p className="mb-1 text-xs font-medium text-muted-foreground">Zone concernée</p>
+                  {detail.zone?.nom ? (
+                    <Badge variant="outline" className="h-6 gap-1 px-2 text-xs font-normal">
+                      <MapPin className="h-3 w-3 text-muted-foreground" aria-hidden />
+                      {detail.zone.nom}
+                    </Badge>
                   ) : (
                     <span className="text-muted-foreground">—</span>
                   )}
                 </div>
                 <div className="min-w-0">
-                  <p className="mb-1 text-xs font-medium text-muted-foreground">Personnel concerné</p>
-                  {detail.employeNom || detail.personnelMentionne ? (
-                    <p>
-                      {detail.employeNom}
-                      {detail.employeNom && detail.personnelMentionne ? ` (${detail.personnelMentionne})` : detail.personnelMentionne || ""}
+                  <p className="mb-1 text-xs font-medium text-muted-foreground">Employé concerné</p>
+                  {detail.employe?.nom || detail.personnelMentionne ? (
+                    <p className="truncate">
+                      {detail.employe?.nom}
+                      {detail.employe?.nom && detail.personnelMentionne ? ` (${detail.personnelMentionne})` : detail.personnelMentionne || ""}
                     </p>
                   ) : (
-                    <span className="text-muted-foreground">—</span>
+                    <span className="text-muted-foreground">Non spécifié</span>
                   )}
                 </div>
                 <div className="min-w-0">
@@ -622,9 +653,30 @@ export function RetoursTab() {
                   <p>{canalLabel(detail.canalChoisi)}</p>
                 </div>
                 <div className="min-w-0">
-                  <p className="mb-1 text-xs font-medium text-muted-foreground">Ville</p>
-                  {detail.ipCity ? <p>{detail.ipCity}</p> : <span className="text-muted-foreground">—</span>}
+                  <p className="mb-1 text-xs font-medium text-muted-foreground">Reçu le</p>
+                  <p>{formatDate(detail.createdAt)}</p>
                 </div>
+              </div>
+
+              {/* Tags */}
+              <div>
+                <p className="mb-1.5 text-xs font-medium text-muted-foreground">Tags</p>
+                {detail.tags.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {detail.tags.map((t) => (
+                      <Badge
+                        key={t}
+                        variant="outline"
+                        className="h-6 min-w-0 max-w-full px-2 text-xs font-normal"
+                        title={tagLabel(t)}
+                      >
+                        <span className="truncate">{tagLabel(t)}</span>
+                      </Badge>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-sm text-muted-foreground">Aucun tag</span>
+                )}
               </div>
 
               {/* Commentaire client */}
@@ -639,7 +691,7 @@ export function RetoursTab() {
                 )}
               </div>
 
-              {/* Réponse du commerçant */}
+              {/* Réponse du commerçant (éditable → PATCH reponsePro) */}
               <div>
                 <p className="mb-1.5 text-xs font-medium text-muted-foreground">Réponse du commerçant</p>
                 {editionReponse ? (
@@ -698,7 +750,66 @@ export function RetoursTab() {
                 )}
               </div>
 
-              {/* Suivi du retour : historique des statuts */}
+              {/* Action managériale prise (éditable → PATCH actionPrise) */}
+              <div>
+                <p className="mb-1.5 text-xs font-medium text-muted-foreground">Action managériale prise</p>
+                {editionAction ? (
+                  <div className="space-y-2">
+                    <Textarea
+                      ref={actionRef}
+                      id="action-prise"
+                      rows={4}
+                      value={texteAction}
+                      onChange={(e) => setTexteAction(e.target.value)}
+                      placeholder="Ex : Recadrage verbal, formation produit programmée, réorganisation du créneau du soir…"
+                      aria-label="Action managériale prise"
+                    />
+                    <div className="flex justify-end gap-2">
+                      {detail.actionPrise && (
+                        <Button
+                          variant="ghost"
+                          className="h-10"
+                          onClick={() => { setTexteAction(detail.actionPrise || ""); setEditionAction(false) }}
+                        >
+                          Annuler
+                        </Button>
+                      )}
+                      <Button
+                        className="h-10 px-4"
+                        onClick={enregistrerAction}
+                        disabled={envoiAction || !texteAction.trim()}
+                      >
+                        {envoiAction && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
+                        Enregistrer
+                      </Button>
+                    </div>
+                  </div>
+                ) : detail.actionPrise ? (
+                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
+                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{detail.actionPrise}</p>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="mt-2 h-9"
+                      onClick={() => { setTexteAction(detail.actionPrise || ""); setEditionAction(true) }}
+                    >
+                      <ClipboardCheck className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                      Modifier l&apos;action
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    className="h-10"
+                    onClick={() => { setTexteAction(""); setEditionAction(true) }}
+                  >
+                    <ClipboardCheck className="mr-1.5 h-4 w-4" aria-hidden />
+                    Consigner une action managériale
+                  </Button>
+                )}
+              </div>
+
+              {/* Suivi du retour : timeline de l'historique des statuts */}
               <div>
                 <p className="mb-2 text-xs font-medium text-muted-foreground">Suivi du retour</p>
                 <ol>
@@ -707,10 +818,12 @@ export function RetoursTab() {
                       {i < historiqueAffiche.length - 1 && (
                         <span className="absolute top-4 bottom-0 left-[6px] w-px bg-border" aria-hidden />
                       )}
-                      <span className={`mt-0.5 h-3 w-3 shrink-0 rounded-full ${pastilleClass(h.statut)}`} aria-hidden />
+                      <span className={`mt-1 h-3 w-3 shrink-0 rounded-full ${pastilleClass(h.statut)}`} aria-hidden />
                       <div className="min-w-0 text-xs">
-                        <p className="font-medium">{STATUT_RETOUR_LABEL[h.statut] ?? h.statut}</p>
-                        <p className="mt-0.5 text-muted-foreground">{formatDate(h.at)}</p>
+                        <Badge variant="outline" className={`h-5 px-1.5 text-[11px] ${statutBadgeClass(h.statut)}`}>
+                          {STATUT_RETOUR_LABEL[h.statut] ?? h.statut}
+                        </Badge>
+                        <p className="mt-1 text-muted-foreground">{formatDate(h.at)}</p>
                       </div>
                     </li>
                   ))}

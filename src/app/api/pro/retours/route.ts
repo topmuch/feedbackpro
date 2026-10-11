@@ -1,14 +1,17 @@
 // ============================================================
-// API Pro - Liste des retours (filtres + pagination) & mise à jour
-// GET  /api/pro/retours?note=&statut=&employeId=&tag=&q=&from=&to=&lu=&page=
-// PATCH /api/pro/retours { id, statut?, lu?, reponsePro? }
-// Le changement de statut est journalisé dans Retour.historique (JSON)
+// API Pro - Retours des Clients Mystères
+// GET   /api/pro/retours?note=&zoneId=&statut=&tag=&dateDebut=&dateFin=&page=
+//       → { retours: RetourDetail[], total } (RetourDetail = Retour + zone + employe)
+// PATCH /api/pro/retours { id, statut?, reponsePro?, actionPrise?, lu? }
+//       → { retour } — le changement de statut est journalisé dans l'historique
 // ============================================================
 
 import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
 import { ok, fail } from "@/lib/session"
 import { requirePro, unauthorized } from "@/lib/guards"
+import { serialiserRetour } from "@/lib/serialise"
+import { retourPatchSchema, firstError } from "@/lib/validation"
 
 const PAGE_SIZE = 50
 
@@ -16,33 +19,35 @@ export async function GET(req: NextRequest) {
   try {
     const ctx = await requirePro(req)
     if (!ctx) return unauthorized()
-    const { boutique } = ctx
 
     const sp = req.nextUrl.searchParams
     const note = sp.get("note") ? Number(sp.get("note")) : undefined
+    const zoneId = sp.get("zoneId") || undefined
     const statut = sp.get("statut") || undefined
-    const employeId = sp.get("employeId") || undefined
     const tag = sp.get("tag") || undefined
     const q = sp.get("q")?.trim().toLowerCase() || ""
-    const from = sp.get("from") ? new Date(sp.get("from") + "T00:00:00") : undefined
-    const to = sp.get("to") ? new Date(sp.get("to") + "T23:59:59") : undefined
     const lu = sp.get("lu")
+    const dateDebut = sp.get("dateDebut") ? new Date(sp.get("dateDebut") + "T00:00:00") : undefined
+    const dateFin = sp.get("dateFin") ? new Date(sp.get("dateFin") + "T23:59:59") : undefined
     const page = Math.max(1, Number(sp.get("page") || 1))
 
-    // Filtres en mémoire (volume modéré, logique de recherche simple et robuste)
+    // Volume modéré : filtres en mémoire (recherche simple et robuste)
     const all = await db.retour.findMany({
-      where: { boutiqueId: boutique.id },
+      where: { proId: ctx.pro.id },
       orderBy: { createdAt: "desc" },
-      include: { employe: { select: { nom: true } } },
+      include: {
+        zone: { select: { nom: true } },
+        employe: { select: { nom: true } },
+      },
     })
 
     let filtered = all
     if (note) filtered = filtered.filter((r) => r.note === note)
+    if (zoneId) filtered = filtered.filter((r) => r.zoneId === zoneId)
     if (statut) filtered = filtered.filter((r) => r.statut === statut)
-    if (employeId) filtered = filtered.filter((r) => r.employeId === employeId)
-    if (tag) filtered = filtered.filter((r) => (JSON.parse(r.tags) as string[]).includes(tag))
-    if (from) filtered = filtered.filter((r) => r.createdAt >= from)
-    if (to) filtered = filtered.filter((r) => r.createdAt <= to)
+    if (tag) filtered = filtered.filter((r) => serialiserRetour(r).tags.includes(tag))
+    if (dateDebut) filtered = filtered.filter((r) => r.createdAt >= dateDebut)
+    if (dateFin) filtered = filtered.filter((r) => r.createdAt <= dateFin)
     if (lu === "false") filtered = filtered.filter((r) => !r.lu)
     if (q) {
       filtered = filtered.filter(
@@ -55,30 +60,11 @@ export async function GET(req: NextRequest) {
     }
 
     const total = filtered.length
-    const items = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE).map((r) => ({
-      id: r.id,
-      note: r.note,
-      tags: JSON.parse(r.tags) as string[],
-      commentaire: r.commentaire,
-      personnelMentionne: r.personnelMentionne,
-      employeNom: r.employe?.nom ?? null,
-      canalChoisi: r.canalChoisi,
-      statut: r.statut,
-      lu: r.lu,
-      reponsePro: r.reponsePro,
-      ipCity: r.ipCity,
-      historique: JSON.parse(r.historique || "[]") as { statut: string; at: string }[],
-      createdAt: r.createdAt,
-    }))
+    const retours = filtered
+      .slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE)
+      .map(serialiserRetour)
 
-    // Liste des employés pour les filtres
-    const employes = await db.employe.findMany({
-      where: { boutiqueId: boutique.id, actif: true },
-      select: { id: true, nom: true },
-      orderBy: { nom: "asc" },
-    })
-
-    return ok({ items, total, page, pageSize: PAGE_SIZE, employes })
+    return ok({ retours, total, page, pageSize: PAGE_SIZE })
   } catch (e) {
     console.error("retours GET error", e)
     return fail("Erreur serveur", 500)
@@ -90,34 +76,56 @@ export async function PATCH(req: NextRequest) {
     const ctx = await requirePro(req)
     if (!ctx) return unauthorized()
 
-    const body = await req.json()
-    const id = String(body.id || "")
-    if (!id) return fail("ID manquant", 400)
+    const parsed = retourPatchSchema.safeParse(await req.json().catch(() => null))
+    if (!parsed.success) return fail(firstError(parsed.error), 400)
+    const { id, ...champs } = parsed.data
 
-    // Vérifie que le retour appartient bien au commerçant
-    const existing = await db.retour.findFirst({ where: { id, boutiqueId: ctx.boutique.id } })
+    // Vérifie que le retour appartient bien à l'établissement
+    const existing = await db.retour.findFirst({
+      where: { id, proId: ctx.pro.id },
+      include: {
+        zone: { select: { nom: true } },
+        employe: { select: { nom: true } },
+      },
+    })
     if (!existing) return fail("Retour introuvable", 404)
 
-    const data: { statut?: string; lu?: boolean; reponsePro?: string; historique?: string } = {}
-    if (body.statut && ["NEW", "IN_PROGRESS", "RESOLVED"].includes(body.statut)) data.statut = body.statut
-    if (typeof body.lu === "boolean") data.lu = body.lu
-    if (typeof body.reponsePro === "string") data.reponsePro = body.reponsePro.slice(0, 2000)
+    const data: {
+      statut?: string
+      lu?: boolean
+      reponsePro?: string | null
+      actionPrise?: string | null
+      historique?: string
+    } = {}
+    if (champs.statut) data.statut = champs.statut
+    if (typeof champs.lu === "boolean") data.lu = champs.lu
+    if (champs.reponsePro !== undefined) data.reponsePro = champs.reponsePro
+    if (champs.actionPrise !== undefined) data.actionPrise = champs.actionPrise
 
-    // Journalise le changement de statut dans l'historique (JSON)
+    // Journalise le changement de statut dans l'historique (STRING JSON)
     if (data.statut && data.statut !== existing.statut) {
-      const hist = JSON.parse(existing.historique || "[]") as { statut: string; at: string }[]
+      let hist: { statut: string; at: string }[] = []
+      try {
+        const parse = JSON.parse(existing.historique || "[]") as unknown
+        if (Array.isArray(parse)) hist = parse as { statut: string; at: string }[]
+      } catch {
+        hist = []
+      }
       hist.push({ statut: data.statut, at: new Date().toISOString() })
       data.historique = JSON.stringify(hist)
     }
 
-    const updated = await db.retour.update({ where: { id }, data })
-    return ok({
-      id: updated.id,
-      statut: updated.statut,
-      lu: updated.lu,
-      reponsePro: updated.reponsePro,
-      historique: JSON.parse(updated.historique || "[]"),
+    await db.retour.update({ where: { id }, data })
+
+    // Renvoie le retour complet actualisé (forme RetourDetail)
+    const retour = await db.retour.findUnique({
+      where: { id },
+      include: {
+        zone: { select: { nom: true } },
+        employe: { select: { nom: true } },
+      },
     })
+    return ok({ retour: retour ? serialiserRetour(retour) : null })
   } catch (e) {
     console.error("retours PATCH error", e)
     return fail("Erreur serveur", 500)

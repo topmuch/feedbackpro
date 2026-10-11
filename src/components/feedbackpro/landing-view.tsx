@@ -1,986 +1,794 @@
 "use client"
 
 // ============================================================
-// FeedbackPro — LandingView (SPA monopage)
-// Aucun fetch, aucune route : toutes les actions passent par
-// les callbacks onLogin / onSignup fournis par le parent.
+// FeedbackPro — Landing « Le Coach IA d'Audit Qualité Continu »
+// Pivot Session 1 : on ne vend pas un outil d'avis Google, on
+// transforme chaque client réel en auditeur qualité et on livre
+// chaque matin un rapport d'audit IA.
+// Aucun fetch, aucune route : toutes les actions passent par les
+// callbacks onLogin / onSignup fournis par le parent (page.tsx).
+// Note : la page est rendue à l'intérieur du <main> de page.tsx,
+// on n'imbrique donc pas de second <main> ici (header/section/footer).
 // ============================================================
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react"
-import { PLANS, planPriceLabel } from "@/lib/constants"
+import { useState, type ReactNode } from "react"
+import { PLANS, PROBLEMES, planPriceLabel, type PlanId } from "@/lib/constants"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
-import { Card, CardContent } from "@/components/ui/card"
 import {
   Accordion,
   AccordionContent,
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
+import { motion } from "framer-motion"
 import {
   ArrowRight,
   BarChart3,
-  BellRing,
+  Bot,
   Check,
-  EyeOff,
+  MapPin,
   Menu,
-  MessageCircle,
+  MessageCircleMore,
+  MessageCircleWarning,
   Package,
-  QrCode,
+  ScanLine,
   ShieldCheck,
   Star,
-  StarOff,
-  Tags,
-  TrendingUp,
   Trophy,
-  UserX,
   X,
   type LucideIcon,
 } from "lucide-react"
-import { motion, useInView } from "framer-motion"
 
-// ---------- Données statiques de la page ----------
+// ============================================================
+// Données statiques de la page (textes 100 % français)
+// ============================================================
 
-// Bande de chiffres (compteurs animés)
-const STATS = [
-  { prefix: "+", valeur: 25000, decimales: 0, suffixe: "", label: "retours collectés" },
-  { prefix: "", valeur: 87, decimales: 0, suffixe: "%", label: "de réclamations interceptées" },
-  { prefix: "", valeur: 4.6, decimales: 1, suffixe: "★", label: "note moyenne gagnée" },
-  { prefix: "", valeur: 500, decimales: 0, suffixe: "+", label: "commerces équipés" },
+const NAV_LIENS = [
+  { id: "probleme", label: "Le problème" },
+  { id: "solution", label: "La solution" },
+  { id: "fonctionnalites", label: "Fonctionnalités" },
+  { id: "tarifs", label: "Tarifs" },
+  { id: "faq", label: "FAQ" },
+] as const
+
+// Les 4 étapes de la section Solution (textes exacts du pivot)
+const ETAPES_SOLUTION: { numero: number; icone: LucideIcon; texte: string }[] = [
+  { numero: 1, icone: ScanLine, texte: "Le client scanne le QR code de la zone" },
+  { numero: 2, icone: Star, texte: "Il note son expérience sur 5 étoiles" },
+  { numero: 3, icone: MessageCircleMore, texte: "Il sélectionne des tags en un clic (sourires 😊 / signalements ⚠️)" },
+  { numero: 4, icone: Bot, texte: "Votre Coach IA livre chaque matin vos 3 priorités" },
 ]
 
-// Section problème : 3 constats douloureux
-const PROBLEMES: { icone: LucideIcon; texte: string }[] = [
-  { icone: UserX, texte: "Vos clients mécontents partent sans rien dire" },
-  { icone: StarOff, texte: "Ou détruisent votre note Google en 1 clic" },
-  { icone: EyeOff, texte: "Vous n'avez aucune donnée sur la qualité de votre service" },
-]
-
-// Section solution : parcours client en 4 étapes
-const ETAPES_SOLUTION: {
-  numero: number
-  titre: string
-  description: string
-  icone: LucideIcon
-  vert?: boolean
-}[] = [
-  { numero: 1, titre: "Scan", description: "Le client flashe en 2 secondes", icone: QrCode },
-  { numero: 2, titre: "Note", description: "Il note son expérience de 1 à 5 ★", icone: Star },
-  { numero: 3, titre: "Tags", description: "Il coche ce qui a plu ou déplu", icone: Tags },
+// Les 6 fonctionnalités mises en avant
+const FONCTIONNALITES: { icone: LucideIcon; titre: string; texte: string }[] = [
   {
-    numero: 4,
-    titre: "WhatsApp privé",
-    description: "Le retour arrive directement chez vous",
-    icone: MessageCircle,
-    vert: true,
-  },
-]
-
-// Section fonctionnalités : 6 cartes
-const FONCTIONNALITES: { icone: LucideIcon; titre: string; description: string }[] = [
-  {
-    icone: BellRing,
-    titre: "Alerte WhatsApp instantanée",
-    description:
-      "Une note ≤ 2★ ? Vous êtes alerté à l'instant, avant que l'avis ne parte en ligne.",
+    icone: Bot,
+    titre: "Coach IA quotidien",
+    texte: "Chaque matin, votre Coach IA analyse les retours de la veille et vous livre un rapport d'audit avec des recommandations précises.",
   },
   {
-    icone: Tags,
-    titre: "Tags dynamiques",
-    description: "Le client coche en un tap ce qui a plu ou déplu. Zéro friction, zéro clavier.",
+    icone: MapPin,
+    titre: "Zones & QR dédiés",
+    texte: "Une zone par point de contact (accueil, salle, terrasse…) et son QR code prêt à imprimer, livré chez vous.",
   },
   {
-    icone: BarChart3,
-    titre: "Dashboard avec KPIs",
-    description:
-      "Note moyenne, taux d'interception, évolution mensuelle : vos chiffres en direct.",
+    icone: MessageCircleWarning,
+    titre: "Alertes WhatsApp en temps réel",
+    texte: "Un client signale un problème ? Vous êtes alerté immédiatement sur WhatsApp pour corriger avant qu'il ne parte.",
   },
   {
     icone: Trophy,
-    titre: "Leaderboard employés",
-    description: "Classement des mentions positives pour motiver et récompenser vos équipes.",
+    titre: "Leaderboard & formation équipe",
+    texte: "Classez vos employés, valorisez les meilleurs et repérez objectivement les besoins de formation.",
   },
   {
-    icone: QrCode,
-    titre: "QR code personnalisé",
-    description:
-      "Votre nom, vos couleurs : PNG haute résolution, affiche A4 et planche d'étiquettes.",
+    icone: BarChart3,
+    titre: "Statistiques & heatmap",
+    texte: "Suivez vos scores par zone, par jour et par heure pour piloter votre service avec des données, pas des impressions.",
   },
   {
     icone: Package,
-    titre: "Supports physiques",
-    description: "Stickers vinyle, chevalet acrylique, affiche A4 : imprimés et livrés chez vous.",
+    titre: "Supports imprimés livrés",
+    texte: "Autocollants, chevalets et affiches de qualité, commandés en un clic et livrés prêts à poser sur le terrain.",
   },
 ]
 
-// Tags affichés dans la miniature du formulaire de scan (téléphone)
-const PILLS_TELEPHONE = ["😊 Accueillant", "⚡ Rapide"]
-
+// Témoignages d'exemple (honnêteté : mention explicite sous chaque carte)
 const TEMOIGNAGES = [
   {
-    initiale: "S",
-    nom: "Sophie Martin",
-    commerce: "Boulangerie Le Fournil · Lyon",
-    citation:
-      "Une cliente mécontente a été interceptée un mardi matin. On l'a rappelée dans la minute, elle est repartie ravie — et l'avis négatif n'a jamais vu le jour sur Google.",
+    initiales: "AK",
+    nom: "Amine K.",
+    contexte: "Restaurant · Lyon",
+    texte:
+      "Le rapport du matin a remplacé nos réunions à vide. On sait exactement quoi corriger avant l'ouverture, zone par zone.",
   },
   {
-    initiale: "K",
-    nom: "Karim Benali",
-    commerce: "Pizzeria Napoli · Marseille",
-    citation:
-      "Le leaderboard a changé l'ambiance en salle : mes serveurs se battent pour la première place. Le service s'est amélioré tout seul, sans que j'aie à répéter quoi que ce soit.",
+    initiales: "SL",
+    nom: "Sophie L.",
+    contexte: "Salon de coiffure · Paris",
+    texte:
+      "Mes clientes scannent en partant. En trois semaines, j'ai formé toute mon équipe grâce aux priorités du Coach IA.",
   },
   {
-    initiale: "C",
-    nom: "Claire Dubois",
-    commerce: "Institut Élégance · Bordeaux",
-    citation:
-      "La heatmap m'a montré que le créneau de 14h à 16h était notre point faible. Une réorganisation plus tard : notre note Google est passée de 4,1 à 4,7 en trois mois.",
+    initiales: "MD",
+    nom: "Marc D.",
+    contexte: "Boutique · Bordeaux",
+    texte:
+      "Les alertes WhatsApp m'évitent les mauvaises surprises. Mes clients se sentent enfin réellement écoutés.",
   },
 ]
 
+// FAQ (accordéon shadcn, 4 questions)
 const FAQ = [
   {
-    q: "Le client a-t-il besoin d'une app ?",
-    r: "Non. Le client flashe le QR code avec la caméra de son téléphone et la page de notation s'ouvre directement dans son navigateur. Aucun téléchargement, aucune inscription, rien à saisir : tout se fait en 30 secondes.",
+    question: "Comment fonctionne le Coach IA ?",
+    reponse:
+      "Chaque retour collecté via vos QR codes est analysé par votre Coach IA. Chaque matin, il vous livre un rapport d'audit : votre score qualité, l'évolution de chaque zone et vos 3 priorités du jour, avec des recommandations concrètes adaptées à votre établissement.",
   },
   {
-    q: "Que se passe-t-il pour un client mécontent ?",
-    r: "Pour une note de 1 ou 2 étoiles, le formulaire devient privé : le commentaire n'est jamais publié en ligne. Vous recevez immédiatement une alerte WhatsApp pour réagir sur place ou rappeler le client, avant que son mécontentement n'endommage votre réputation.",
+    question: "Mes clients doivent-ils installer une application ?",
+    reponse:
+      "Non. Vos clients scannent simplement le QR code de la zone avec l'appareil photo de leur téléphone, puis laissent leur retour en moins de 30 secondes. Aucune application à télécharger, aucun compte à créer.",
   },
   {
-    q: "Est-ce légal de rediriger vers Google ?",
-    r: "Oui. Inviter vos clients satisfaits à laisser un avis Google est parfaitement légal : c'est une simple invitation, sans contrepartie ni compensation. FeedbackPro ne publie rien automatiquement — il intercepte d'abord les problèmes en interne, puis suggère Google aux clients heureux.",
+    question: "Les retours négatifs sont-ils publics ?",
+    reponse:
+      "Non, jamais. Les retours de 1 à 3 étoiles restent 100 % confidentiels : ils alimentent uniquement votre rapport d'audit et déclenchent une alerte WhatsApp en temps réel pour que vous puissiez réagir immédiatement.",
   },
   {
-    q: "Puis-je changer de plan ?",
-    r: "Oui, à tout moment depuis vos réglages. Le changement est immédiat et la facturation est ajustée au prorata. Vous pouvez aussi résilier en deux clics : il n'y a aucun engagement de durée.",
-  },
-  {
-    q: "Comment reçoit-on le QR code ?",
-    r: "Dès votre inscription, votre QR code personnalisé est téléchargeable depuis votre tableau de bord (affiche A4, planche d'autocollants). Vous pouvez également commander des supports physiques premium, livrés chez vous en quelques jours.",
+    question: "Puis-je résilier à tout moment ?",
+    reponse:
+      "Oui. Tous les plans sont sans engagement : vous pouvez résilier en quelques clics depuis votre tableau de bord, sans justification ni frais cachés.",
   },
 ]
 
-const LIENS_FOOTER = ["À propos", "Contact", "CGU", "Confidentialité"]
+// Contenu du rapport IA affiché dans la maquette téléphone
+const PRIORITES_MOCKUP = [
+  { titre: "Former l'équipe sur les produits", detail: "7 signalements « mal renseigné » cette semaine" },
+  { titre: "Réduire l'attente en salle", detail: "6 mentions entre 12 h et 14 h sur la zone Salle" },
+  { titre: "Vérifier la propreté de la terrasse", detail: "3 retours négatifs sur la zone Terrasse" },
+]
 
-// ---------- Helpers internes ----------
+// ============================================================
+// Helpers UI
+// ============================================================
 
-// Apparition douce au scroll (framer-motion), utilisée sur les blocs clés
-function Apparition({
-  children,
-  delai = 0,
-  className,
-}: {
-  children: ReactNode
-  delai?: number
-  className?: string
-}) {
+/** Défilement fluide vers une ancre (en tenant compte du header sticky) */
+function allerVers(id: string) {
+  document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" })
+}
+
+/** Enveloppe d'animation : fade-up discret à l'apparition au scroll */
+function Fondu({ children, className, delai = 0 }: { children: ReactNode; className?: string; delai?: number }) {
   return (
     <motion.div
       className={className}
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 24 }}
       whileInView={{ opacity: 1, y: 0 }}
       viewport={{ once: true, margin: "-60px" }}
-      transition={{ duration: 0.5, delay: delai, ease: "easeOut" }}
+      transition={{ duration: 0.55, ease: "easeOut", delay: delai }}
     >
       {children}
     </motion.div>
   )
 }
 
-// En-tête de section réutilisable (kicker + titre + description)
-function EnTeteSection({
-  kicker,
-  titre,
-  description,
-}: {
-  kicker: string
-  titre: string
-  description?: string
-}) {
+/** Logo FeedbackPro (carré primary + wordmark) */
+function Logo({ className = "" }: { className?: string }) {
   return (
-    <Apparition className="mx-auto max-w-2xl text-center">
-      <p className="text-sm font-semibold uppercase tracking-wider text-primary">{kicker}</p>
-      <h2 className="mt-2 text-2xl font-bold tracking-tight text-stone-900 sm:text-3xl lg:text-4xl">
-        {titre}
-      </h2>
-      {description ? (
-        <p className="mt-3 text-base text-stone-600 sm:text-lg">{description}</p>
-      ) : null}
-    </Apparition>
-  )
-}
-
-// Compteur animé déclenché quand la stat entre dans le viewport
-function Compteur({ fin, decimales = 0 }: { fin: number; decimales?: number }) {
-  const ref = useRef<HTMLSpanElement>(null)
-  const visible = useInView(ref, { once: true, amount: 0.6 })
-  const [valeur, setValeur] = useState(0)
-
-  useEffect(() => {
-    if (!visible) return
-    const duree = 1400
-    const debut = performance.now()
-    let id = 0
-    const boucle = (t: number) => {
-      const p = Math.min((t - debut) / duree, 1)
-      setValeur(fin * (1 - Math.pow(1 - p, 3))) // easing easeOutCubic
-      if (p < 1) id = requestAnimationFrame(boucle)
-    }
-    id = requestAnimationFrame(boucle)
-    return () => cancelAnimationFrame(id)
-  }, [visible, fin])
-
-  return (
-    <span ref={ref}>
-      {Intl.NumberFormat("fr-FR", {
-        minimumFractionDigits: decimales,
-        maximumFractionDigits: decimales,
-      }).format(valeur)}
+    <span className={`inline-flex items-center gap-2.5 ${className}`}>
+      <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
+        <ScanLine className="h-5 w-5" aria-hidden />
+      </span>
+      <span className="text-lg font-bold tracking-tight">FeedbackPro</span>
     </span>
   )
 }
 
-// Génère une grille 21x21 pseudo-aléatoire DÉTERMINISTE (même rendu serveur/client)
-function genererGrilleQr(taille: number, graine: number): boolean[][] {
-  let etat = graine
-  const alea = () => {
-    etat = (etat * 1103515245 + 12345) % 2147483648
-    return etat / 2147483648
-  }
-  const grille: boolean[][] = Array.from({ length: taille }, () =>
-    Array<boolean>(taille).fill(false)
-  )
-  // Les 3 motifs de repérage (coins) sont dessinés à part
-  const estFinder = (r: number, c: number) =>
-    (r < 7 && c < 7) || (r < 7 && c >= taille - 7) || (r >= taille - 7 && c < 7)
+// ============================================================
+// Maquette téléphone (CSS pur) : le rapport IA du Coach
+// ============================================================
 
-  for (let r = 0; r < taille; r++) {
-    for (let c = 0; c < taille; c++) {
-      if (estFinder(r, c)) continue
-      if (r === 6 || c === 6) {
-        grille[r][c] = (r + c) % 2 === 0 // motif de synchronisation
-      } else {
-        grille[r][c] = alea() > 0.52
-      }
-    }
-  }
-  return grille
-}
-
-// QR code stylisé dessiné en SVG (purement décoratif)
-function MotifQr({ className }: { className?: string }) {
-  const taille = 21
-  const grille = useMemo(() => genererGrilleQr(taille, 42), [])
-
+function MaquetteTelephone() {
   return (
-    <svg
-      viewBox={`0 0 ${taille} ${taille}`}
-      className={className}
-      aria-hidden="true"
-      shapeRendering="crispEdges"
-    >
-      {/* Modules aléatoires déterministes + motif de synchronisation */}
-      <g fill="currentColor">
-        {grille.map((ligne, r) =>
-          ligne.map((plein, c) =>
-            plein ? <rect key={`${r}-${c}`} x={c} y={r} width={1} height={1} /> : null
-          )
-        )}
-      </g>
-      {/* Motifs de repérage : carré plein, liseré blanc, carré central */}
-      {[
-        [0, 0],
-        [0, taille - 7],
-        [taille - 7, 0],
-      ].map(([r, c]) => (
-        <g key={`finder-${r}-${c}`}>
-          <rect x={c} y={r} width={7} height={7} rx={1.5} fill="currentColor" />
-          <rect x={c + 1} y={r + 1} width={5} height={5} rx={1} fill="#ffffff" />
-          <rect x={c + 2} y={r + 2} width={3} height={3} rx={0.5} fill="currentColor" />
-        </g>
-      ))}
-    </svg>
-  )
-}
+    <div className="relative mx-auto w-[290px] max-w-full sm:w-[315px]" aria-hidden="true">
+      {/* Halo décoratif derrière le téléphone */}
+      <div className="absolute inset-4 -z-10 scale-110 rounded-[3rem] bg-primary/15 blur-3xl" />
 
-// 5 étoiles dorées (décoratif)
-function CinqEtoiles({ className }: { className?: string }) {
-  return (
-    <div
-      className={`flex items-center gap-0.5 ${className ?? ""}`}
-      role="img"
-      aria-label="Note : 5 étoiles sur 5"
-    >
-      {Array.from({ length: 5 }).map((_, i) => (
-        <Star key={i} className="size-4 fill-amber-400 text-amber-400" aria-hidden="true" />
-      ))}
+      {/* Cadre du téléphone */}
+      <div className="rounded-[2.75rem] border border-slate-200 bg-slate-900 p-2.5 shadow-2xl shadow-primary/20">
+        <div className="overflow-hidden rounded-[2.1rem] bg-white">
+          {/* Barre d'état */}
+          <div className="relative flex items-center justify-between bg-slate-50 px-5 pb-1 pt-2.5">
+            <span className="text-[10px] font-semibold text-slate-700">8:00</span>
+            <div className="absolute left-1/2 top-2 h-4 w-20 -translate-x-1/2 rounded-full bg-slate-900" />
+            <div className="flex items-center gap-1">
+              <span className="h-1.5 w-3 rounded-sm bg-slate-400" />
+              <span className="h-1.5 w-3 rounded-sm bg-slate-400" />
+              <span className="h-2.5 w-5 rounded-[3px] border border-slate-400 bg-slate-300" />
+            </div>
+          </div>
+
+          {/* En-tête du rapport (Coach IA) */}
+          <div className="bg-primary px-4 pb-3 pt-2 text-primary-foreground">
+            <div className="flex items-center gap-2">
+              <span className="flex h-6 w-6 items-center justify-center rounded-lg bg-white/15">
+                <Bot className="h-3.5 w-3.5" />
+              </span>
+              <p className="text-sm font-semibold">Rapport d'audit du jour</p>
+            </div>
+            <p className="mt-0.5 text-[10px] opacity-85">Généré par votre Coach IA · ce matin à 8 h 00</p>
+          </div>
+
+          {/* Score qualité global */}
+          <div className="flex flex-col items-center border-b border-slate-100 bg-white py-4">
+            <p className="text-4xl font-extrabold tracking-tight text-primary">
+              82<span className="text-base font-semibold text-slate-400">/100</span>
+            </p>
+            <p className="mt-0.5 text-[11px] font-medium text-slate-500">Score qualité global</p>
+            <div className="mt-2.5 h-1.5 w-3/4 overflow-hidden rounded-full bg-slate-100">
+              <div className="h-full w-[82%] rounded-full bg-primary" />
+            </div>
+          </div>
+
+          {/* Les 3 priorités du jour */}
+          <div className="space-y-2 px-4 py-4">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Vos 3 priorités</p>
+            {PRIORITES_MOCKUP.map((p, i) => (
+              <div key={p.titre} className="flex items-start gap-2.5 rounded-xl border border-slate-100 bg-slate-50/80 p-2.5">
+                <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary text-[10px] font-bold text-white">
+                  {i + 1}
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold leading-snug text-slate-800">{p.titre}</p>
+                  <p className="mt-0.5 text-[10px] leading-snug text-slate-500">{p.detail}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Pied de la maquette */}
+          <div className="flex items-center justify-between border-t border-slate-100 px-4 py-2.5">
+            <span className="text-[10px] font-bold text-primary">FeedbackPro</span>
+            <span className="text-[9px] text-slate-400">Coach IA · Audit qualité continu</span>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
 
 // ============================================================
-// Composant principal
+// En-tête sticky (nav ancres + CTA + burger mobile)
 // ============================================================
 
-export function LandingView({ onLogin, onSignup }: { onLogin: () => void; onSignup: () => void }) {
-  // Menu mobile (burger)
+function Entete({ onLogin, onSignup }: { onLogin: () => void; onSignup: () => void }) {
   const [menuOuvert, setMenuOuvert] = useState(false)
 
-  const liensNav = [
-    { href: "#fonctionnalites", label: "Fonctionnalités" },
-    { href: "#pricing", label: "Tarifs" },
-    { href: "#faq", label: "FAQ" },
-  ]
+  function naviguer(id: string) {
+    setMenuOuvert(false)
+    allerVers(id)
+  }
 
   return (
-    <div className="min-h-screen bg-white">
-      {/* ============ 1. NAVBAR STICKY ============ */}
-      <header className="sticky top-0 z-50 border-b border-stone-200/70 bg-white/80 backdrop-blur-md">
-        <nav
-          aria-label="Navigation principale"
-          className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8"
+    <header className="sticky top-0 z-50 w-full border-b border-border/70 bg-white/80 backdrop-blur-md supports-[backdrop-filter]:bg-white/65">
+      <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6">
+        <button
+          type="button"
+          onClick={() => {
+            setMenuOuvert(false)
+            window.scrollTo({ top: 0, behavior: "smooth" })
+          }}
+          aria-label="FeedbackPro — retour en haut de page"
+          className="rounded-md outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         >
-          {/* Logo */}
-          <a
-            href="#"
-            onClick={(e) => {
-              e.preventDefault()
-              window.scrollTo({ top: 0, behavior: "smooth" })
-            }}
-            className="flex items-center gap-2.5"
-            aria-label="FeedbackPro — retour en haut de page"
-          >
-            <span className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-              <QrCode className="size-5" aria-hidden="true" />
-            </span>
-            <span className="text-lg font-bold tracking-tight text-stone-900">FeedbackPro</span>
-          </a>
+          <Logo />
+        </button>
 
-          {/* Liens d'ancrage (desktop) */}
-          <div className="hidden items-center gap-8 md:flex">
-            {liensNav.map((lien) => (
+        {/* Navigation desktop */}
+        <nav aria-label="Navigation principale" className="hidden items-center gap-1 lg:flex">
+          {NAV_LIENS.map((lien) => (
+            <a
+              key={lien.id}
+              href={`#${lien.id}`}
+              onClick={(e) => {
+                e.preventDefault()
+                naviguer(lien.id)
+              }}
+              className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+            >
+              {lien.label}
+            </a>
+          ))}
+        </nav>
+
+        {/* CTA desktop */}
+        <div className="hidden items-center gap-2 lg:flex">
+          <Button variant="ghost" onClick={onLogin} className="h-10 px-4">
+            Connexion
+          </Button>
+          <Button onClick={onSignup} className="h-10 px-4">
+            Essayer gratuitement
+          </Button>
+        </div>
+
+        {/* Burger mobile */}
+        <button
+          type="button"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-md text-foreground transition-colors hover:bg-accent lg:hidden"
+          aria-label={menuOuvert ? "Fermer le menu" : "Ouvrir le menu"}
+          aria-expanded={menuOuvert}
+          aria-controls="menu-mobile"
+          onClick={() => setMenuOuvert((o) => !o)}
+        >
+          {menuOuvert ? <X className="h-5 w-5" aria-hidden /> : <Menu className="h-5 w-5" aria-hidden />}
+        </button>
+      </div>
+
+      {/* Panneau mobile */}
+      {menuOuvert && (
+        <div id="menu-mobile" className="border-t border-border/70 bg-white/95 backdrop-blur-md lg:hidden">
+          <nav aria-label="Navigation mobile" className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-3">
+            {NAV_LIENS.map((lien) => (
               <a
-                key={lien.href}
-                href={lien.href}
-                className="text-sm font-medium text-stone-600 transition-colors hover:text-primary"
+                key={lien.id}
+                href={`#${lien.id}`}
+                onClick={(e) => {
+                  e.preventDefault()
+                  naviguer(lien.id)
+                }}
+                className="rounded-md px-3 py-3 text-sm font-medium text-foreground transition-colors hover:bg-accent"
               >
                 {lien.label}
               </a>
             ))}
-          </div>
-
-          {/* Actions (desktop) */}
-          <div className="hidden items-center gap-2 md:flex">
-            <Button variant="ghost" onClick={onLogin}>
-              Se connecter
-            </Button>
-            <Button onClick={onSignup}>Essai gratuit</Button>
-          </div>
-
-          {/* Burger (mobile) */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden"
-            aria-expanded={menuOuvert}
-            aria-label={menuOuvert ? "Fermer le menu" : "Ouvrir le menu"}
-            onClick={() => setMenuOuvert((ouvert) => !ouvert)}
-          >
-            {menuOuvert ? <X aria-hidden="true" /> : <Menu aria-hidden="true" />}
-          </Button>
-        </nav>
-
-        {/* Panneau mobile */}
-        {menuOuvert && (
-          <div className="border-t border-stone-200 bg-white md:hidden">
-            <div className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-3">
-              {liensNav.map((lien) => (
-                <a
-                  key={lien.href}
-                  href={lien.href}
-                  onClick={() => setMenuOuvert(false)}
-                  className="rounded-md px-3 py-2 text-sm font-medium text-stone-700 hover:bg-primary/10 hover:text-primary"
-                >
-                  {lien.label}
-                </a>
-              ))}
-              <div className="mt-2 flex flex-col gap-2 border-t border-stone-100 pt-3">
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setMenuOuvert(false)
-                    onLogin()
-                  }}
-                >
-                  Se connecter
-                </Button>
-                <Button
-                  onClick={() => {
-                    setMenuOuvert(false)
-                    onSignup()
-                  }}
-                >
-                  Essai gratuit
-                </Button>
-              </div>
+            <div className="mt-2 flex flex-col gap-2 border-t border-border/70 pt-3">
+              <Button variant="outline" className="h-11 w-full" onClick={() => { setMenuOuvert(false); onLogin() }}>
+                Connexion
+              </Button>
+              <Button className="h-11 w-full" onClick={() => { setMenuOuvert(false); onSignup() }}>
+                Essayer gratuitement
+              </Button>
             </div>
-          </div>
-        )}
-      </header>
+          </nav>
+        </div>
+      )}
+    </header>
+  )
+}
 
-      <main>
-        {/* ============ 2. HERO ============ */}
-        <section aria-label="Présentation de FeedbackPro" className="relative overflow-hidden">
-          {/* Halos décoratifs bleus */}
-          <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10">
-            <div className="absolute -top-24 right-0 size-96 rounded-full bg-primary/10 blur-3xl" />
-            <div className="absolute left-0 top-48 size-72 rounded-full bg-primary/5 blur-3xl" />
-          </div>
+// ============================================================
+// Vue Landing complète
+// ============================================================
 
-          <div className="mx-auto grid max-w-6xl grid-cols-1 items-center gap-14 px-4 pb-16 pt-12 sm:px-6 lg:grid-cols-2 lg:gap-8 lg:px-8 lg:pb-28 lg:pt-20">
-            {/* Colonne texte */}
-            <Apparition>
-              <Badge className="border border-primary/20 bg-primary/10 px-3 py-1 text-xs font-medium text-primary hover:bg-primary/20">
-                <span className="relative flex size-2" aria-hidden="true">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
-                  <span className="relative inline-flex size-2 rounded-full bg-primary" />
-                </span>
-                Alerte WhatsApp en temps réel
-              </Badge>
+export function LandingView({ onLogin, onSignup }: { onLogin: () => void; onSignup: () => void }) {
+  return (
+    <>
+      <Entete onLogin={onLogin} onSignup={onSignup} />
 
-              <h1 className="mt-5 text-3xl font-bold tracking-tight text-stone-900 sm:text-4xl lg:text-5xl">
-                Protégez votre <span className="text-primary">réputation</span>. Motivez vos{" "}
-                <span className="text-primary">équipes</span>.
-              </h1>
+      {/* ======================================================== */}
+      {/* HERO                                                      */}
+      {/* ======================================================== */}
+      <section aria-label="Présentation" className="relative overflow-hidden bg-gradient-to-b from-blue-50/70 via-white to-white">
+        <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 pb-16 pt-12 sm:px-6 sm:pb-20 sm:pt-16 lg:grid-cols-2 lg:gap-8 lg:pb-24">
+          {/* Colonne texte */}
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            className="text-center lg:text-left"
+          >
+            <p className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-xs font-semibold text-primary sm:text-sm">
+              🤖 Le Coach IA d'Audit Qualité Continu
+            </p>
 
-              <p className="mt-5 max-w-xl text-base leading-relaxed text-stone-600 sm:text-lg">
-                Le QR code intelligent qui transforme chaque retour client en levier de croissance.
+            <h1 className="mt-5 text-3xl font-extrabold leading-tight tracking-tight sm:text-4xl lg:text-[2.75rem] lg:leading-[1.15]">
+              Transformez vos clients en <span className="text-primary">auditeurs qualité</span>
+            </h1>
+
+            <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-muted-foreground sm:text-lg lg:mx-0">
+              Notre IA analyse chaque retour et vous livre chaque matin un rapport d'audit avec des recommandations
+              précises pour améliorer votre service.
+            </p>
+
+            <div className="mt-7 flex flex-col items-center gap-3 sm:flex-row sm:justify-center lg:justify-start">
+              <Button onClick={onSignup} size="lg" className="h-12 w-full px-7 text-base sm:w-auto">
+                Essayer gratuitement
+              </Button>
+              <Button variant="outline" size="lg" asChild className="h-12 w-full px-7 text-base sm:w-auto">
+                <a
+                  href="#solution"
+                  onClick={(e) => {
+                    e.preventDefault()
+                    allerVers("solution")
+                  }}
+                >
+                  Découvrir comment ça marche
+                  <ArrowRight className="h-4 w-4" aria-hidden />
+                </a>
+              </Button>
+            </div>
+
+            {/* Preuve sociale rapide */}
+            <div className="mt-7 flex flex-col items-center gap-2 lg:items-start" aria-label="Preuve sociale">
+              <div className="flex gap-0.5" aria-hidden="true">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <Star key={i} className="h-4 w-4 fill-amber-400 text-amber-400" />
+                ))}
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Déjà adopté par des restaurants, salons et boutiques en France
               </p>
+            </div>
+          </motion.div>
 
-              <div className="mt-8 flex flex-col gap-3 sm:flex-row">
-                <Button size="lg" className="h-12 px-6 text-base" onClick={onSignup}>
-                  Essayer gratuitement
-                  <ArrowRight aria-hidden="true" />
-                </Button>
-                <Button
-                  size="lg"
-                  variant="outline"
-                  className="h-12 px-6 text-base"
-                  onClick={onLogin}
-                >
-                  Voir la démo
-                </Button>
-              </div>
+          {/* Colonne maquette téléphone (lg+) */}
+          <motion.div
+            initial={{ opacity: 0, y: 32 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, ease: "easeOut", delay: 0.15 }}
+            className="hidden lg:block"
+          >
+            <MaquetteTelephone />
+          </motion.div>
+        </div>
+      </section>
 
-              {/* Barre de confiance */}
-              <div className="mt-8 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm text-stone-500">
-                {["Sans carte bancaire", "Installé en 5 minutes", "Annulable à tout moment"].map(
-                  (argument) => (
-                    <span key={argument} className="flex items-center gap-1.5">
-                      <Check className="size-4 text-primary" aria-hidden="true" />
-                      {argument}
+      {/* ======================================================== */}
+      {/* PROBLÈME — les 7 vrais problèmes                          */}
+      {/* ======================================================== */}
+      <section id="probleme" aria-labelledby="titre-probleme" className="scroll-mt-20 bg-[#F3F4F6] py-16 sm:py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <Fondu className="mx-auto max-w-3xl text-center">
+            <h2 id="titre-probleme" className="text-2xl font-bold tracking-tight sm:text-3xl">
+              Les 7 vrais problèmes que vos clients détectent... et que vous ne voyez jamais
+            </h2>
+            <p className="mt-4 text-base leading-relaxed text-muted-foreground">
+              Vos clients vivent ces problèmes chaque jour, mais ils ne le disent presque jamais au moment où vous
+              pouvez encore agir. Chaque scan QR transforme leur silence en signal exploitable.
+            </p>
+          </Fondu>
+
+          <ul className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {PROBLEMES.map((probleme, i) => (
+              <li key={probleme.id}>
+                <Fondu delai={Math.min(i * 0.05, 0.25)} className="h-full">
+                  <div className="flex h-full items-center gap-4 rounded-xl border border-border/70 bg-white p-4 shadow-sm transition-shadow hover:shadow-md sm:p-5">
+                    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xl" aria-hidden="true">
+                      {probleme.emoji}
                     </span>
-                  )
-                )}
-              </div>
-            </Apparition>
+                    <span className="text-sm font-medium leading-snug">{probleme.label}</span>
+                  </div>
+                </Fondu>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </section>
 
-            {/* Colonne visuelle : mockup de téléphone en CSS pur */}
-            <Apparition delai={0.15} className="relative flex justify-center">
-              <div className="relative w-64 sm:w-72">
-                {/* Cadre du téléphone */}
-                <div
-                  role="img"
-                  aria-label="Aperçu du formulaire de scan FeedbackPro sur mobile : Pizzeria Napoli, note 4,5 sur 5, tags Accueillant et Rapide, envoi via WhatsApp"
-                  className="relative overflow-hidden rounded-[2.5rem] border-8 border-stone-900 bg-white shadow-xl"
-                >
-                  {/* Encoche (notch) */}
-                  <div
-                    aria-hidden="true"
-                    className="absolute left-1/2 top-2 z-10 h-4 w-20 -translate-x-1/2 rounded-full bg-stone-900"
-                  />
+      {/* ======================================================== */}
+      {/* SOLUTION — chaque client devient un Client Mystère        */}
+      {/* ======================================================== */}
+      <section id="solution" aria-labelledby="titre-solution" className="scroll-mt-20 bg-white py-16 sm:py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <Fondu className="mx-auto max-w-3xl text-center">
+            <h2 id="titre-solution" className="text-2xl font-bold tracking-tight sm:text-3xl">
+              Chaque client réel devient un <span className="text-primary">Client Mystère</span>
+            </h2>
+            <p className="mt-4 text-base leading-relaxed text-muted-foreground">
+              Pas de NDA, pas d'agence, pas d'attente : vos clients existants audite votre service à chaque visite,
+              en moins de 30 secondes.
+            </p>
+          </Fondu>
 
-                  {/* Écran : miniature fidèle du formulaire de scan */}
-                  <div className="flex min-h-[480px] flex-col bg-white px-4 pb-3 pt-9 sm:min-h-[520px]">
-                    {/* En-tête commerce */}
-                    <div className="flex items-center gap-2.5 border-b border-stone-100 pb-3">
-                      <span
-                        aria-hidden="true"
-                        className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground"
-                      >
-                        P
-                      </span>
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-stone-900">
-                          Pizzeria Napoli
-                        </p>
-                        <p className="text-[11px] text-stone-400">Votre avis compte !</p>
-                      </div>
-                    </div>
-
-                    {/* Étoiles (4,5 / 5) */}
-                    <div className="mt-5 flex flex-col items-center">
-                      <div className="flex items-center gap-1" aria-hidden="true">
-                        {[0, 1, 2, 3].map((i) => (
-                          <Star key={i} className="size-6 fill-amber-400 text-amber-400" />
-                        ))}
-                        <span className="relative inline-flex">
-                          <Star className="size-6 fill-stone-200 text-stone-200" />
-                          <span className="absolute inset-y-0 left-0 w-1/2 overflow-hidden">
-                            <Star className="size-6 fill-amber-400 text-amber-400" />
-                          </span>
+          <ol className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8">
+            {ETAPES_SOLUTION.map((etape, i) => {
+              const Icone = etape.icone
+              return (
+                <li key={etape.numero} className="relative">
+                  <Fondu delai={i * 0.08} className="h-full">
+                    <div className="flex h-full flex-col rounded-2xl border border-border/70 bg-white p-6 shadow-sm transition-shadow hover:shadow-md">
+                      {/* Flèche de liaison (desktop) */}
+                      {i < ETAPES_SOLUTION.length - 1 && (
+                        <ArrowRight className="absolute -right-6 top-8 z-10 hidden h-5 w-5 text-primary/40 lg:block" aria-hidden="true" />
+                      )}
+                      <div className="flex items-center justify-between">
+                        <span className="flex h-8 w-8 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
+                          {etape.numero}
                         </span>
+                        <Icone className="h-6 w-6 text-primary/60" aria-hidden="true" />
                       </div>
-                      <p className="mt-1.5 text-[11px] font-medium text-stone-400">
-                        Votre note : 4,5 / 5
-                      </p>
+                      <p className="mt-4 text-sm font-medium leading-relaxed text-foreground">{etape.texte}</p>
                     </div>
+                  </Fondu>
+                </li>
+              )
+            })}
+          </ol>
 
-                    {/* Pills de tags */}
-                    <div className="mt-4 flex flex-wrap justify-center gap-2">
-                      {PILLS_TELEPHONE.map((tag) => (
-                        <span
-                          key={tag}
-                          className="rounded-full border border-primary/30 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                    </div>
+          {/* Bandeau confidentialité */}
+          <Fondu delai={0.1}>
+            <div className="mx-auto mt-10 flex max-w-3xl items-center justify-center gap-3 rounded-2xl border border-primary/20 bg-primary/5 px-5 py-4 text-center">
+              <ShieldCheck className="h-6 w-6 shrink-0 text-primary" aria-hidden="true" />
+              <p className="text-sm leading-relaxed sm:text-base">
+                <span className="font-semibold text-primary">100 % confidentiel :</span> les retours 1-3★ restent
+                privés et vous êtes alerté en temps réel sur WhatsApp
+              </p>
+            </div>
+          </Fondu>
+        </div>
+      </section>
 
-                    {/* Commentaire optionnel */}
-                    <div className="mt-4 rounded-xl border border-stone-200 bg-stone-50 px-3 py-2.5 text-[11px] leading-snug text-stone-400">
-                      Un commentaire pour l&apos;équipe ? (optionnel)
-                    </div>
+      {/* ======================================================== */}
+      {/* FONCTIONNALITÉS                                           */}
+      {/* ======================================================== */}
+      <section id="fonctionnalites" aria-labelledby="titre-fonctionnalites" className="scroll-mt-20 bg-[#F3F4F6] py-16 sm:py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <Fondu className="mx-auto max-w-3xl text-center">
+            <h2 id="titre-fonctionnalites" className="text-2xl font-bold tracking-tight sm:text-3xl">
+              Tout l'outillage de votre audit qualité
+            </h2>
+            <p className="mt-4 text-base leading-relaxed text-muted-foreground">
+              Du QR code au rapport du matin, FeedbackPro couvre la chaîne complète : collecte, analyse, alerte et
+              action terrain.
+            </p>
+          </Fondu>
 
-                    {/* Bouton WhatsApp */}
-                    <div className="mt-auto pt-5">
-                      <div className="flex h-11 items-center justify-center gap-2 rounded-xl bg-green-500 text-sm font-semibold text-white shadow-sm">
-                        <MessageCircle className="size-4" aria-hidden="true" />
-                        Envoyer via WhatsApp
-                      </div>
-                      <p className="mt-2 text-center text-[10px] text-stone-400">
-                        30 secondes, sans app à installer
-                      </p>
-                    </div>
-
-                    {/* Barre d'accueil */}
-                    <div aria-hidden="true" className="mt-3 flex justify-center">
-                      <div className="h-1 w-16 rounded-full bg-stone-200" />
-                    </div>
+          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
+            {FONCTIONNALITES.map((f, i) => {
+              const Icone = f.icone
+              return (
+                <Fondu key={f.titre} delai={Math.min(i * 0.06, 0.3)} className="h-full">
+                  <div className="h-full rounded-2xl border border-border/70 bg-white p-6 shadow-sm transition-shadow hover:shadow-md">
+                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                      <Icone className="h-5.5 w-5.5" aria-hidden="true" />
+                    </span>
+                    <h3 className="mt-4 text-base font-semibold">{f.titre}</h3>
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.texte}</p>
                   </div>
-                </div>
-
-                {/* Carte flottante : interception en action */}
-                <div className="absolute -left-2 top-16 z-10 -rotate-2 rounded-xl border border-rose-200 bg-white px-3 py-2 shadow-xl sm:-left-10">
-                  <div className="flex items-center gap-2.5">
-                    <BellRing className="size-4 shrink-0 text-rose-500" aria-hidden="true" />
-                    <div className="text-xs">
-                      <p className="font-semibold text-rose-600">Note ★☆☆☆☆ interceptée</p>
-                      <p className="text-stone-500">Alerte WhatsApp envoyée</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Badge flottant : croissance */}
-                <div className="absolute -right-2 top-4 z-10 rotate-3 rounded-xl border border-stone-200 bg-white px-3 py-2 shadow-xl sm:-right-6">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="size-4 shrink-0 text-green-600" aria-hidden="true" />
-                    <p className="text-xs font-bold text-stone-900">+38 % de retours</p>
-                  </div>
-                </div>
-              </div>
-            </Apparition>
+                </Fondu>
+              )
+            })}
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* ============ 3. BANDE DE CHIFFRES ============ */}
-        <section aria-label="Chiffres clés" className="border-y border-stone-200 bg-stone-50">
-          <div className="mx-auto grid max-w-6xl grid-cols-1 gap-8 px-4 py-12 text-center sm:px-6 md:grid-cols-2 lg:grid-cols-4 lg:px-8">
-            {STATS.map((stat, i) => (
-              <Apparition key={stat.label} delai={i * 0.08}>
-                <p className="text-3xl font-bold tracking-tight text-primary sm:text-4xl">
-                  {stat.prefix}
-                  <Compteur fin={stat.valeur} decimales={stat.decimales} />
-                  {stat.suffixe}
-                </p>
-                <p className="mt-1.5 text-sm text-stone-600">{stat.label}</p>
-              </Apparition>
+      {/* ======================================================== */}
+      {/* TARIFS — depuis PLANS (Starter 29 € · Pro 99 € · Ent. 249 €) */}
+      {/* ======================================================== */}
+      <section id="tarifs" aria-labelledby="titre-tarifs" className="scroll-mt-20 bg-white py-16 sm:py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <Fondu className="mx-auto max-w-3xl text-center">
+            <h2 id="titre-tarifs" className="text-2xl font-bold tracking-tight sm:text-3xl">
+              Des tarifs simples, sans surprise
+            </h2>
+            <p className="mt-4 text-base leading-relaxed text-muted-foreground">
+              Choisissez le plan adapté à votre établissement. Changez ou arrêtez quand vous voulez.
+            </p>
+          </Fondu>
+
+          <div className="mx-auto mt-12 grid max-w-5xl items-stretch gap-6 lg:grid-cols-3 lg:gap-6">
+            {(Object.keys(PLANS) as PlanId[]).map((idPlan) => {
+              const plan = PLANS[idPlan]
+              const populaire = idPlan === "PRO"
+              return (
+                <Fondu key={plan.id} className="h-full">
+                  <div
+                    className={
+                      populaire
+                        ? "relative flex h-full flex-col rounded-2xl border-2 border-primary bg-white p-6 shadow-xl shadow-primary/10 sm:p-8 lg:-translate-y-3"
+                        : "relative flex h-full flex-col rounded-2xl border border-border/70 bg-white p-6 shadow-sm sm:p-8"
+                    }
+                  >
+                    {populaire && (
+                      <span className="absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-primary px-4 py-1 text-xs font-semibold text-primary-foreground shadow">
+                        Le plus populaire
+                      </span>
+                    )}
+
+                    <h3 className="text-lg font-bold">{plan.name}</h3>
+                    <p className="mt-1 min-h-10 text-sm text-muted-foreground">{plan.tagline}</p>
+
+                    <p className="mt-4 flex items-baseline gap-1.5">
+                      <span className="text-4xl font-extrabold tracking-tight">{planPriceLabel(plan.price)}</span>
+                      {plan.price > 0 && <span className="text-sm font-medium text-muted-foreground">/mois</span>}
+                    </p>
+
+                    <ul className="mt-6 flex-1 space-y-2.5">
+                      {plan.features.map((feature) =>
+                        feature.startsWith("Tout ") ? (
+                          <li key={feature} className="border-b border-border/60 pb-2.5 text-sm font-semibold text-foreground">
+                            {feature}
+                          </li>
+                        ) : (
+                          <li key={feature} className="flex items-start gap-2.5 text-sm leading-snug">
+                            <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                            {feature}
+                          </li>
+                        ),
+                      )}
+                    </ul>
+
+                    <Button
+                      onClick={onSignup}
+                      variant={populaire ? "default" : "outline"}
+                      className="mt-7 h-11 w-full text-sm"
+                      aria-label={`Commencer avec le plan ${plan.name}`}
+                    >
+                      Commencer avec {plan.name}
+                    </Button>
+                  </div>
+                </Fondu>
+              )
+            })}
+          </div>
+
+          <p className="mt-10 text-center text-sm text-muted-foreground">Sans engagement. Résiliable à tout moment.</p>
+        </div>
+      </section>
+
+      {/* ======================================================== */}
+      {/* TÉMOIGNAGES (d'exemple — mention d'honnêteté)             */}
+      {/* ======================================================== */}
+      <section aria-labelledby="titre-temoignages" className="bg-[#F3F4F6] py-16 sm:py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <Fondu className="mx-auto max-w-3xl text-center">
+            <h2 id="titre-temoignages" className="text-2xl font-bold tracking-tight sm:text-3xl">
+              Ils pilotent leur qualité chaque matin
+            </h2>
+          </Fondu>
+
+          <div className="mt-10 grid gap-5 md:grid-cols-3 lg:gap-6">
+            {TEMOIGNAGES.map((t, i) => (
+              <Fondu key={t.nom} delai={i * 0.08} className="h-full">
+                <figure className="flex h-full flex-col rounded-2xl border border-border/70 bg-white p-6 shadow-sm">
+                  <div className="flex gap-0.5" aria-label="Note : 5 étoiles sur 5">
+                    {Array.from({ length: 5 }).map((_, j) => (
+                      <Star key={j} className="h-4 w-4 fill-amber-400 text-amber-400" aria-hidden="true" />
+                    ))}
+                  </div>
+                  <blockquote className="mt-3 flex-1 text-sm leading-relaxed text-foreground">« {t.texte} »</blockquote>
+                  <figcaption className="mt-5 flex items-center gap-3 border-t border-border/60 pt-4">
+                    <span
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary"
+                      aria-hidden="true"
+                    >
+                      {t.initiales}
+                    </span>
+                    <span className="min-w-0">
+                      <span className="block text-sm font-semibold">{t.nom}</span>
+                      <span className="block text-xs text-muted-foreground">{t.contexte}</span>
+                    </span>
+                    <span className="ml-auto shrink-0 text-[10px] italic text-muted-foreground/80">
+                      Témoignage d'exemple
+                    </span>
+                  </figcaption>
+                </figure>
+              </Fondu>
             ))}
           </div>
-        </section>
+        </div>
+      </section>
 
-        {/* ============ 4. PROBLÈME ============ */}
-        <section id="probleme" aria-label="Le problème" className="scroll-mt-20 py-16 sm:py-20 lg:py-24">
-          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <EnTeteSection
-              kicker="Le problème"
-              titre="Le constat qui coûte cher"
-              description="96 % des clients insatisfaits ne se plaignent jamais auprès de vous. Ils partent."
-            />
+      {/* ======================================================== */}
+      {/* FAQ                                                       */}
+      {/* ======================================================== */}
+      <section id="faq" aria-labelledby="titre-faq" className="scroll-mt-20 bg-white py-16 sm:py-20">
+        <div className="mx-auto max-w-3xl px-4 sm:px-6">
+          <Fondu className="text-center">
+            <h2 id="titre-faq" className="text-2xl font-bold tracking-tight sm:text-3xl">
+              Questions fréquentes
+            </h2>
+          </Fondu>
 
-            <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3">
-              {PROBLEMES.map((probleme, i) => (
-                <Apparition key={probleme.texte} delai={i * 0.1} className="h-full">
-                  <Card className="h-full gap-0 border-stone-200 transition-shadow hover:shadow-md">
-                    <CardContent className="flex flex-col items-center gap-4 text-center">
-                      <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-rose-50 text-rose-600">
-                        <probleme.icone className="size-6" aria-hidden="true" />
-                      </span>
-                      <h3 className="text-base font-semibold leading-snug text-stone-900">
-                        {probleme.texte}
-                      </h3>
-                    </CardContent>
-                  </Card>
-                </Apparition>
+          <Fondu delai={0.1}>
+            <Accordion type="single" collapsible className="mt-8 rounded-2xl border border-border/70 bg-white px-4 shadow-sm sm:px-6">
+              {FAQ.map((item) => (
+                <AccordionItem key={item.question} value={item.question}>
+                  <AccordionTrigger className="py-5 text-left text-sm font-semibold sm:text-base">
+                    {item.question}
+                  </AccordionTrigger>
+                  <AccordionContent className="pb-5 text-sm leading-relaxed text-muted-foreground">
+                    {item.reponse}
+                  </AccordionContent>
+                </AccordionItem>
               ))}
-            </div>
-          </div>
-        </section>
+            </Accordion>
+          </Fondu>
+        </div>
+      </section>
 
-        {/* ============ 5. SOLUTION ============ */}
-        <section
-          id="solution"
-          aria-label="La solution"
-          className="scroll-mt-20 border-y border-stone-200 bg-stone-50 py-16 sm:py-20 lg:py-24"
-        >
-          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <EnTeteSection
-              kicker="Comment ça marche"
-              titre="La solution : un QR code intelligent"
-              description="Posé en caisse ou en vitrine, il transforme chaque visite en donnée actionnable"
-            />
-
-            {/* Flow visuel en 4 étapes connectées */}
-            <div className="relative mt-16">
-              {/* Ligne pointillée verticale (mobile) */}
-              <div
-                aria-hidden="true"
-                className="absolute bottom-0 left-1/2 top-0 -translate-x-1/2 border-l-2 border-dashed border-primary/30 md:hidden"
-              />
-              {/* Ligne pointillée horizontale (md+) */}
-              <div
-                aria-hidden="true"
-                className="absolute left-[12.5%] right-[12.5%] top-0 hidden -translate-y-1/2 border-t-2 border-dashed border-primary/30 md:block"
-              />
-
-              <div className="grid grid-cols-1 gap-12 md:grid-cols-4 md:gap-6">
-                {ETAPES_SOLUTION.map((etape, i) => (
-                  <Apparition key={etape.numero} delai={i * 0.1}>
-                    <div className="relative">
-                      {/* Numéro de l'étape, à cheval sur la ligne */}
-                      <span className="absolute -top-5 left-1/2 z-10 flex size-10 -translate-x-1/2 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground shadow-md ring-4 ring-white">
-                        {etape.numero}
-                      </span>
-                      <Card className="gap-0 pt-10 text-center">
-                        <CardContent className="flex flex-col items-center gap-3">
-                          <span
-                            className={`flex size-12 items-center justify-center rounded-xl ${
-                              etape.vert ? "bg-green-100 text-green-600" : "bg-primary/10 text-primary"
-                            }`}
-                          >
-                            <etape.icone className="size-6" aria-hidden="true" />
-                          </span>
-                          <h3 className="text-lg font-semibold text-stone-900">{etape.titre}</h3>
-                          <p className="text-sm leading-relaxed text-stone-600">
-                            {etape.description}
-                          </p>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </Apparition>
-                ))}
-              </div>
-            </div>
-
-            {/* Bandeau conformité Google */}
-            <Apparition className="mt-12">
-              <div className="mx-auto flex max-w-3xl flex-col items-start gap-3 rounded-xl border border-primary/20 bg-primary/5 px-5 py-4 sm:flex-row sm:items-center">
-                <ShieldCheck className="size-5 shrink-0 text-primary" aria-hidden="true" />
-                <p className="text-sm leading-relaxed text-stone-700">
-                  100 % conforme aux règles Google : le partage d&apos;avis reste optionnel et
-                  n&apos;est jamais automatique
-                </p>
-              </div>
-            </Apparition>
-          </div>
-        </section>
-
-        {/* ============ 6. FONCTIONNALITÉS ============ */}
-        <section
-          id="fonctionnalites"
-          aria-label="Fonctionnalités"
-          className="scroll-mt-20 py-16 sm:py-20 lg:py-24"
-        >
-          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <EnTeteSection titre="Tout ce qu'il faut pour écouter vos clients" kicker="Fonctionnalités" />
-
-            <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {FONCTIONNALITES.map((fonctionnalite, i) => (
-                <Apparition key={fonctionnalite.titre} delai={i * 0.08} className="h-full">
-                  <Card className="h-full gap-0 transition-shadow hover:shadow-md">
-                    <CardContent className="flex h-full flex-col gap-3">
-                      <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-primary">
-                        <fonctionnalite.icone className="size-5" aria-hidden="true" />
-                      </span>
-                      <h3 className="text-lg font-semibold text-stone-900">
-                        {fonctionnalite.titre}
-                      </h3>
-                      <p className="text-sm leading-relaxed text-stone-600">
-                        {fonctionnalite.description}
-                      </p>
-                    </CardContent>
-                  </Card>
-                </Apparition>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ============ 7. PRICING ============ */}
-        <section
-          id="pricing"
-          aria-label="Tarifs"
-          className="scroll-mt-20 border-y border-stone-200 bg-stone-50 py-16 sm:py-20 lg:py-24"
-        >
-          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <EnTeteSection
-              kicker="Tarifs"
-              titre="Un plan pour chaque commerce"
-              description="Commencez petit, grandissez quand vous voulez. Sans engagement, résiliation en deux clics."
-            />
-
-            <div className="mt-12 grid grid-cols-1 items-stretch gap-6 pt-4 md:grid-cols-2 lg:grid-cols-3">
-              {Object.values(PLANS).map((plan, i) => {
-                const populaire = plan.id === "PRO" // mise en avant du plan Pro
-                const badge = populaire
-                  ? "Le plus populaire"
-                  : plan.id === "STARTER"
-                    ? "Pour commencer"
-                    : null
-                return (
-                  <Apparition key={plan.id} delai={i * 0.1} className="h-full">
-                    <Card
-                      className={`relative h-full gap-0 ${
-                        populaire ? "border-primary shadow-xl ring-2 ring-primary" : ""
-                      }`}
-                    >
-                      {badge && (
-                        <Badge
-                          variant={populaire ? "default" : "outline"}
-                          className={`absolute -top-3 left-1/2 -translate-x-1/2 whitespace-nowrap shadow-md ${
-                            populaire ? "" : "border-stone-300 bg-white text-stone-600"
-                          }`}
-                        >
-                          {badge}
-                        </Badge>
-                      )}
-                      <CardContent className="flex h-full flex-col gap-5">
-                        <div>
-                          <h3 className="text-lg font-semibold text-stone-900">{plan.name}</h3>
-                          <p className="mt-1 text-sm text-stone-500">{plan.tagline}</p>
-                        </div>
-                        <p className="flex items-baseline gap-1.5">
-                          <span className="text-4xl font-bold tracking-tight text-stone-900">
-                            {planPriceLabel(plan.price)}
-                          </span>
-                          {plan.price > 0 && (
-                            <span className="text-sm text-stone-500">/mois</span>
-                          )}
-                        </p>
-                        <ul className="flex flex-col gap-2.5 text-sm">
-                          {plan.features.map((feature) => {
-                            // "Tout X, plus :" sert d'intitulé de groupe, sans coche
-                            const intituleGroupe = feature.endsWith("plus :")
-                            return (
-                              <li
-                                key={feature}
-                                className={
-                                  intituleGroupe
-                                    ? "pt-1 font-semibold text-stone-900"
-                                    : "flex items-start gap-2 text-stone-600"
-                                }
-                              >
-                                {!intituleGroupe && (
-                                  <Check
-                                    className="mt-0.5 size-4 shrink-0 text-primary"
-                                    aria-hidden="true"
-                                  />
-                                )}
-                                {feature}
-                              </li>
-                            )
-                          })}
-                        </ul>
-                        <Button
-                          className="mt-auto w-full"
-                          size="lg"
-                          variant={populaire ? "default" : "outline"}
-                          onClick={onSignup}
-                        >
-                          {plan.id === "STARTER"
-                            ? "Commencer gratuitement"
-                            : plan.id === "PRO"
-                              ? "Choisir Pro"
-                              : "Nous contacter"}
-                        </Button>
-                      </CardContent>
-                    </Card>
-                  </Apparition>
-                )
-              })}
-            </div>
-
-            <p className="mt-8 text-center text-sm text-stone-500">
-              Sans engagement. Passez au plan supérieur quand vous voulez.
+      {/* ======================================================== */}
+      {/* CTA FINAL                                                 */}
+      {/* ======================================================== */}
+      <section aria-labelledby="titre-cta-final" className="bg-primary py-16 sm:py-20">
+        <div className="mx-auto max-w-3xl px-4 text-center text-primary-foreground sm:px-6">
+          <Fondu>
+            <h2 id="titre-cta-final" className="text-2xl font-bold tracking-tight sm:text-4xl">
+              Prêt à transformer vos clients en auditeurs qualité ?
+            </h2>
+            <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-primary-foreground/85 sm:text-base">
+              Configuration en quelques minutes, sans engagement.
             </p>
-          </div>
-        </section>
-
-        {/* ============ 8. TÉMOIGNAGES ============ */}
-        <section aria-label="Témoignages clients" className="py-16 sm:py-20 lg:py-24">
-          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <EnTeteSection
-              kicker="Témoignages"
-              titre="Ils ont transformé leurs avis"
-              description="Des centaines de commerces interceptent leurs réclamations et font grimper leur note chaque semaine."
-            />
-            <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {TEMOIGNAGES.map((temoignage, i) => (
-                <Apparition key={temoignage.nom} delai={i * 0.1} className="h-full">
-                  <Card className="h-full gap-0">
-                    <CardContent className="flex h-full flex-col gap-4">
-                      <CinqEtoiles />
-                      <blockquote className="text-sm leading-relaxed text-stone-700">
-                        « {temoignage.citation} »
-                      </blockquote>
-                      <div className="mt-auto flex items-center gap-3 border-t border-stone-100 pt-4">
-                        <span
-                          className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground"
-                          aria-hidden="true"
-                        >
-                          {temoignage.initiale}
-                        </span>
-                        <div>
-                          <p className="text-sm font-semibold text-stone-900">{temoignage.nom}</p>
-                          <p className="text-xs text-stone-500">{temoignage.commerce}</p>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </Apparition>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* ============ 9. FAQ ============ */}
-        <section
-          id="faq"
-          aria-label="Questions fréquentes"
-          className="scroll-mt-20 border-y border-stone-200 bg-stone-50 py-16 sm:py-20 lg:py-24"
-        >
-          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <EnTeteSection
-              kicker="FAQ"
-              titre="Questions fréquentes"
-              description="Tout ce que vous devez savoir avant de vous lancer."
-            />
-            <Apparition className="mt-10">
-              <Accordion
-                type="single"
-                collapsible
-                className="mx-auto max-w-3xl rounded-xl border border-stone-200 bg-white px-4 shadow-sm sm:px-6"
-              >
-                {FAQ.map((item, i) => (
-                  <AccordionItem key={item.q} value={`faq-${i}`}>
-                    <AccordionTrigger className="text-left text-base font-medium text-stone-900 hover:text-primary hover:no-underline">
-                      {item.q}
-                    </AccordionTrigger>
-                    <AccordionContent className="text-sm leading-relaxed text-stone-600">
-                      {item.r}
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-            </Apparition>
-          </div>
-        </section>
-
-        {/* ============ 10. CTA FINAL ============ */}
-        <section aria-label="Créer un compte" className="py-16 sm:py-20 lg:py-24">
-          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
-            <Apparition>
-              <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-blue-500 via-blue-600 to-blue-800 px-6 py-14 text-center shadow-2xl sm:px-12 lg:py-20">
-                {/* Filigrane QR décoratif */}
-                <MotifQr className="pointer-events-none absolute -right-10 -top-10 h-56 w-56 text-blue-300/20" />
-                <MotifQr className="pointer-events-none absolute -bottom-14 -left-14 h-56 w-56 text-blue-300/10" />
-
-                <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl">
-                  Prêt à transformer vos avis en croissance ?
-                </h2>
-                <p className="mx-auto mt-4 max-w-xl text-base text-blue-50 sm:text-lg">
-                  Créez votre compte en 2 minutes, imprimez votre QR code et recevez votre premier
-                  retour dès aujourd'hui.
-                </p>
-                <div className="mt-8">
-                  <Button
-                    size="lg"
-                    className="h-12 bg-white px-8 text-base font-semibold text-blue-700 shadow-lg hover:bg-blue-50"
-                    onClick={onSignup}
-                  >
-                    Créer mon compte gratuit
-                    <ArrowRight aria-hidden="true" />
-                  </Button>
-                </div>
-                <p className="mt-4 text-xs text-blue-100">
-                  Aucune carte requise · Installation en 5 minutes · Annulable à tout moment
-                </p>
-              </div>
-            </Apparition>
-          </div>
-        </section>
-      </main>
-
-      {/* ============ 11. FOOTER ============ */}
-      <footer className="border-t border-stone-200 bg-stone-50">
-        <div className="mx-auto max-w-6xl px-4 py-10 sm:px-6 lg:px-8">
-          {/* Rangée haut : logo + liens */}
-          <div className="flex flex-col items-center justify-between gap-6 sm:flex-row">
-            <div className="flex items-center gap-2.5">
-              <span className="flex size-9 items-center justify-center rounded-lg bg-primary text-primary-foreground shadow-sm">
-                <QrCode className="size-5" aria-hidden="true" />
-              </span>
-              <span className="text-lg font-bold tracking-tight text-stone-900">FeedbackPro</span>
-            </div>
-            <nav
-              aria-label="Liens de pied de page"
-              className="flex flex-wrap items-center justify-center gap-x-6 gap-y-1"
+            <Button
+              onClick={onSignup}
+              size="lg"
+              className="mt-8 h-12 bg-white px-8 text-base font-semibold text-primary hover:bg-blue-50"
             >
-              {LIENS_FOOTER.map((label) => (
-                <a
-                  key={label}
-                  href="#"
-                  aria-label={label}
-                  onClick={(e) => e.preventDefault()}
-                  className="px-1 py-2 text-sm font-medium text-stone-600 transition-colors hover:text-primary"
-                >
-                  {label}
-                </a>
-              ))}
+              Démarrer gratuitement
+            </Button>
+          </Fondu>
+        </div>
+      </section>
+
+      {/* ======================================================== */}
+      {/* FOOTER                                                    */}
+      {/* ======================================================== */}
+      <footer className="border-t border-border/70 bg-white">
+        <div className="mx-auto max-w-6xl px-4 py-12 sm:px-6">
+          <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-4">
+            {/* Marque */}
+            <div>
+              <Logo />
+              <p className="mt-3 max-w-xs text-sm leading-relaxed text-muted-foreground">
+                Le Coach IA d'Audit Qualité Continu : vos clients auditeurs, votre service mesuré chaque matin.
+              </p>
+            </div>
+
+            {/* Produit */}
+            <nav aria-label="Produit (pied de page)">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Produit</h3>
+              <ul className="mt-3 space-y-2">
+                {NAV_LIENS.map((lien) => (
+                  <li key={lien.id}>
+                    <a
+                      href={`#${lien.id}`}
+                      onClick={(e) => {
+                        e.preventDefault()
+                        allerVers(lien.id)
+                      }}
+                      className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      {lien.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
             </nav>
+
+            {/* Légal (vraies routes) */}
+            <nav aria-label="Légal (pied de page)">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Légal</h3>
+              <ul className="mt-3 space-y-2">
+                <li><a href="/mentions-legales" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Mentions légales</a></li>
+                <li><a href="/cgu" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Conditions générales</a></li>
+                <li><a href="/confidentialite" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Confidentialité</a></li>
+                <li><a href="/cookies" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Cookies</a></li>
+              </ul>
+            </nav>
+
+            {/* Contact */}
+            <div>
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Contact</h3>
+              <ul className="mt-3 space-y-2">
+                <li>
+                  <a
+                    href="mailto:support@feedbackpro.fr"
+                    className="text-sm text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    support@feedbackpro.fr
+                  </a>
+                </li>
+                <li className="text-sm text-muted-foreground">Réponse sous 24 h ouvrées</li>
+              </ul>
+            </div>
           </div>
 
-          {/* Rangée bas : copyright */}
-          <div className="mt-8 flex flex-col items-center justify-between gap-2 border-t border-stone-200 pt-6 text-sm text-stone-500 sm:flex-row">
-            <p>© 2026 FeedbackPro — Tous droits réservés.</p>
-            <p>Fait avec ❤️ en France</p>
+          <div className="mt-10 border-t border-border/60 pt-6 text-center">
+            <p className="text-xs text-muted-foreground">© FeedbackPro 2026 — Tous droits réservés</p>
           </div>
         </div>
       </footer>
-    </div>
+    </>
   )
 }

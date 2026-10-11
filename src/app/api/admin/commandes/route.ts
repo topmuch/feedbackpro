@@ -2,22 +2,15 @@
 // API Superadmin - Module commandes de supports physiques
 // GET   /api/admin/commandes?statut=
 // PATCH /api/admin/commandes { id, statut, numeroSuivi? }
-//   numeroSuivi : enregistré uniquement lors du passage au statut EXPEDIE
+//   → le numéro de suivi est EXIGÉ lors du passage au statut EXPEDIE
 // ============================================================
 
 import { NextRequest } from "next/server"
-import { z } from "zod"
 import { db } from "@/lib/db"
 import { ok, fail } from "@/lib/session"
 import { requireAdmin, unauthorized } from "@/lib/guards"
 import { STATUT_COMMANDE_ORDRE } from "@/lib/constants"
-import { firstError } from "@/lib/validation"
-
-const patchSchema = z.object({
-  id: z.string().trim().min(1, "id manquant"),
-  statut: z.string().trim().min(1, "Statut manquant"),
-  numeroSuivi: z.string().trim().max(100, "Numéro de suivi trop long").optional(),
-})
+import { adminCommandePatchSchema, firstError } from "@/lib/validation"
 
 export async function GET(req: NextRequest) {
   try {
@@ -27,33 +20,52 @@ export async function GET(req: NextRequest) {
     const statut = req.nextUrl.searchParams.get("statut") || ""
 
     const commandes = await db.commande.findMany({
-      include: { pro: { include: { user: { select: { email: true } } } } },
+      include: {
+        pro: {
+          include: {
+            user: { select: { email: true } },
+            // Zones du Pro : pour fournir un qrToken de scan imprimable
+            // sur le bon / la planche (pro.qrToken = 1re zone, défaut Accueil)
+            zones: { select: { id: true, nom: true, qrToken: true }, orderBy: { createdAt: "asc" } },
+          },
+        },
+      },
       orderBy: { createdAt: "desc" },
     })
 
     const filtered = statut ? commandes.filter((c) => c.statut === statut) : commandes
 
     return ok({
-      commandes: filtered.map((c) => ({
-        id: c.id,
-        typeSupport: c.typeSupport,
-        quantite: c.quantite,
-        prixEuros: c.prixEuros,
-        adresseLivraison: c.adresseLivraison,
-        statut: c.statut,
-        numeroSuivi: c.numeroSuivi,
-        createdAt: c.createdAt,
-        pro: {
-          id: c.pro.id,
-          nomCommerce: c.pro.nomCommerce,
-          ville: c.pro.ville,
-          email: c.pro.user.email,
-          qrToken: c.pro.qrToken,
-        },
-      })),
+      commandes: filtered.map((c) => {
+        // Zone dédiée si la commande y est rattachée, sinon 1re zone du Pro
+        const zone = c.zoneId
+          ? (c.pro.zones.find((z) => z.id === c.zoneId) ?? c.pro.zones[0] ?? null)
+          : (c.pro.zones[0] ?? null)
+        return {
+          id: c.id,
+          typeSupport: c.typeSupport,
+          quantite: c.quantite,
+          prixEuros: c.prixEuros,
+          adresseLivraison: c.adresseLivraison,
+          statut: c.statut,
+          numeroSuivi: c.numeroSuivi,
+          zoneId: c.zoneId,
+          createdAt: c.createdAt,
+          pro: {
+            id: c.pro.id,
+            nomEtablissement: c.pro.nomEtablissement,
+            ville: c.pro.ville,
+            email: c.pro.user.email,
+            // Token de la zone par défaut : sert à générer le QR de vérification
+            qrToken: zone?.qrToken ?? null,
+          },
+          zone: zone ? { id: zone.id, nom: zone.nom, qrToken: zone.qrToken } : null,
+        }
+      }),
       stats: {
         total: commandes.length,
         aImprimer: commandes.filter((c) => c.statut === "A_IMPRIMER").length,
+        enCours: commandes.filter((c) => c.statut !== "LIVRE").length,
         chiffreAffaires: commandes.reduce((s, c) => s + c.prixEuros, 0),
       },
     })
@@ -68,7 +80,7 @@ export async function PATCH(req: NextRequest) {
     const admin = await requireAdmin(req)
     if (!admin) return unauthorized()
 
-    const parse = patchSchema.safeParse(await req.json().catch(() => null))
+    const parse = adminCommandePatchSchema.safeParse(await req.json().catch(() => null))
     if (!parse.success) return fail(firstError(parse.error), 400)
     const body = parse.data
 
@@ -76,8 +88,11 @@ export async function PATCH(req: NextRequest) {
     const existing = await db.commande.findUnique({ where: { id: body.id } })
     if (!existing) return fail("Commande introuvable", 404)
 
-    // Le numéro de suivi n'a de sens qu'à l'expédition : on l'enregistre (ou on
-    // le conserve) uniquement lors du passage au statut EXPEDIE
+    // Le passage à EXPEDIE exige un numéro de suivi (spécification Session 5)
+    if (body.statut === "EXPEDIE" && !body.numeroSuivi?.trim() && !existing.numeroSuivi) {
+      return fail("Le numéro de suivi est requis pour expédier une commande", 400)
+    }
+
     const data: { statut: string; numeroSuivi?: string | null } = { statut: body.statut }
     if (body.statut === "EXPEDIE") {
       data.numeroSuivi = body.numeroSuivi?.trim() || existing.numeroSuivi || null

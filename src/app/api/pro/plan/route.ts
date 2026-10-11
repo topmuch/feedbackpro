@@ -1,32 +1,33 @@
 // ============================================================
 // API Pro - Changement de plan (Stripe simulé)
-// POST /api/pro/plan { plan: "STARTER" | "PRO" | "ENTERPRISE" }
+// POST /api/pro/plan { plan: "STARTER" | "PRO" | "ENTERPRISE" } → { pro }
+// Plans Session 1 : Starter 29 € · Pro 99 € · Enterprise 249 €
 // ============================================================
 
 import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
-import { ok, fail } from "@/lib/session"
+import { ok, fail, serializePro } from "@/lib/session"
 import { requirePro, unauthorized } from "@/lib/guards"
-import { PLANS } from "@/lib/constants"
+import { planSchema, firstError } from "@/lib/validation"
 
 export async function POST(req: NextRequest) {
   try {
     const ctx = await requirePro(req)
     if (!ctx) return unauthorized()
 
-    const body = await req.json()
-    const plan = String(body.plan || "")
-    if (!PLANS[plan as keyof typeof PLANS]) return fail("Plan invalide", 400)
+    const parsed = planSchema.safeParse(await req.json().catch(() => null))
+    if (!parsed.success) return fail(firstError(parsed.error), 400)
+    const { plan } = parsed.data
 
     // === Checkout Stripe simulé (sandbox sans clés API) ===
-    console.log(`[STRIPE SIMULÉ] ${ctx.pro.nomCommerce} change de plan → ${plan}`)
+    console.log(`[STRIPE SIMULÉ] ${ctx.pro.nomEtablissement} change de plan → ${plan}`)
 
     const updated = await db.pro.update({
       where: { id: ctx.pro.id },
       data: { plan },
     })
 
-    return ok({ pro: updated })
+    return ok({ pro: serializePro(updated) })
   } catch (e) {
     console.error("plan error", e)
     return fail("Erreur serveur", 500)

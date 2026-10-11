@@ -1,12 +1,17 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Onglet "Paramètres" du dashboard Pro
-// Infos boutique, WhatsApp, gestion des employés, plan d'abonnement
+// FeedbackPro - Onglet "Paramètres" du dashboard Pro (pivot Zones)
+// Sections :
+//   (a) Informations de l'établissement  (b) Contact & alertes
+//   (c) Coach IA (fréquence des rapports) (d) Expérience client (récompense)
+//   (e) Logo  → PUT /api/pro/settings + updatePro
+//   (f) Changement de plan (POST /api/pro/plan)
+//   (g) Zone de danger (DELETE /api/pro/account, confirmation par saisie)
 // ============================================================
 
 import { useEffect, useRef, useState } from "react"
-import { Save, Loader2, Plus, Trash2, UserRound, Check, Image as ImageIcon, Upload, TriangleAlert } from "lucide-react"
+import { Save, Loader2, Check, Image as ImageIcon, Upload, TriangleAlert, Sparkles, Trash2 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -19,86 +24,104 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/app-store"
 import { fileToLogoDataUrl } from "@/lib/image"
-import { CATEGORIES_COMMERCE, PLANS, PLAN_LIMITS, planPriceLabel, PlanId } from "@/lib/constants"
+import { PLANS, TYPES_ETABLISSEMENT, planPriceLabel, PlanId } from "@/lib/constants"
 
-type Employe = {
+// ProData finale (pivot Zones) — cast local pendant la migration du store
+type ProFinal = {
   id: string
-  nom: string
-  poste: string | null
-  actif: boolean
-  nbRetours: number
-  noteMoyenne: number
+  nomEtablissement: string
+  typeEtablissement: string
+  adresse: string
+  ville: string
+  whatsapp: string | null
+  email: string
+  logoUrl: string | null
+  plan: string
+  frequenceRapport: string
+  recompense: string | null
+  messageWhatsapp: string | null
+  onboardingDone: boolean
+  suspendu: boolean
+  smsAlertes: boolean
 }
 
 export function SettingsTab() {
   const session = useAppStore((s) => s.session)
+  const setView = useAppStore((s) => s.setView)
   const updatePro = useAppStore((s) => s.updatePro)
   const { toast } = useToast()
 
-  // ---------- Paramètres boutique ----------
-  const [nomCommerce, setNomCommerce] = useState("")
-  const [categorie, setCategorie] = useState("Restaurant")
+  // Le Pro à jour vient de la session (le store est migré en parallèle par l'agent backend)
+  const pro = (session?.pro ?? null) as unknown as ProFinal | null
+
+  // ---------- (a) Informations de l'établissement ----------
+  const [nomEtablissement, setNomEtablissement] = useState("")
+  const [typeEtablissement, setTypeEtablissement] = useState("Restaurant")
   const [adresse, setAdresse] = useState("")
   const [ville, setVille] = useState("")
+
+  // ---------- (b) Contact & alertes ----------
   const [whatsapp, setWhatsapp] = useState("")
-  const [googleUrl, setGoogleUrl] = useState("")
-  const [messageWhatsapp, setMessageWhatsapp] = useState("")
-  // Session 6 : alertes SMS pour les réclamations (note ≤ 2★) — repli email si désactivé
+  const [email, setEmail] = useState("")
   const [smsAlertes, setSmsAlertes] = useState(true)
+
+  // ---------- (c) Coach IA ----------
+  const [frequenceRapport, setFrequenceRapport] = useState("quotidien")
+
+  // ---------- (d) Expérience client ----------
+  const [recompense, setRecompense] = useState("")
+  const [messageWhatsapp, setMessageWhatsapp] = useState("")
+
   const [saving, setSaving] = useState(false)
 
-  // ---------- Logo ----------
-  // logoActuel : dernière valeur enregistrée (session.pro.logoUrl)
+  // ---------- (e) Logo ----------
+  // logoActuel : dernière valeur enregistrée (pro.logoUrl)
   // logoModifie : undefined = inchangé · dataUrl = nouveau logo · null = suppression demandée
   const [logoActuel, setLogoActuel] = useState<string | null>(null)
   const [logoModifie, setLogoModifie] = useState<string | null | undefined>(undefined)
   const logoInputRef = useRef<HTMLInputElement>(null)
   const logoAffiche = logoModifie === undefined ? logoActuel : logoModifie
 
-  // ---------- Zone dangereuse ----------
+  // ---------- (g) Zone de danger ----------
   const [confirmationSuppression, setConfirmationSuppression] = useState("")
 
-  // ---------- Employés ----------
-  const [employes, setEmployes] = useState<Employe[]>([])
-  const [nouveauNom, setNouveauNom] = useState("")
-  const [nouveauPoste, setNouveauPoste] = useState("")
-  const [addingEmploye, setAddingEmploye] = useState(false)
-
+  // Pré-remplissage depuis la session
   useEffect(() => {
-    if (session?.pro) {
-      const p = session.pro
-      setNomCommerce(p.nomCommerce || "")
-      setCategorie(p.categorie || "Restaurant")
-      setAdresse(p.adresse || "")
-      setVille(p.ville || "")
-      setWhatsapp(p.whatsapp || "")
-      setGoogleUrl(p.googleUrl || "")
-      setMessageWhatsapp(p.messageWhatsapp || "Envoyé via FeedbackPro ✨")
-      setSmsAlertes(p.smsAlertes !== false)
-      setLogoActuel(p.logoUrl || null)
-    }
-  }, [session?.pro])
+    if (!pro) return
+    setNomEtablissement(pro.nomEtablissement || "")
+    // Correspondance insensible à la casse (données anciennes possiblement en minuscules)
+    const typeActuel = pro.typeEtablissement || "Restaurant"
+    const typeConnu = TYPES_ETABLISSEMENT.find((t) => t.toLowerCase() === typeActuel.toLowerCase())
+    setTypeEtablissement(typeConnu ?? "Restaurant")
+    setAdresse(pro.adresse || "")
+    setVille(pro.ville || "")
+    setWhatsapp(pro.whatsapp || "")
+    setEmail(pro.email || "")
+    setSmsAlertes(pro.smsAlertes !== false)
+    setFrequenceRapport(pro.frequenceRapport === "hebdomadaire" ? "hebdomadaire" : "quotidien")
+    setRecompense(pro.recompense || "")
+    setMessageWhatsapp(pro.messageWhatsapp || "Envoyé via FeedbackPro ✨")
+    setLogoActuel(pro.logoUrl || null)
+  }, [pro])
 
-  async function loadEmployes() {
-    try {
-      const res = await fetch("/api/pro/employes", { cache: "no-store" })
-      const json = await res.json()
-      if (json.ok) setEmployes(json.data.employes)
-    } catch {
-      /* silencieux */
-    }
-  }
-
-  useEffect(() => {
-    loadEmployes()
-  }, [])
-
+  // ---------- Enregistrement : PUT /api/pro/settings ----------
   async function saveSettings(e: React.FormEvent) {
     e.preventDefault()
     setSaving(true)
     try {
-      // logoUrl : undefined (absent) = ne pas modifier · dataUrl = nouveau logo · null = suppression
-      const payload: Record<string, string | null | boolean> = { nomCommerce, categorie, adresse, ville, whatsapp, googleUrl, messageWhatsapp, smsAlertes }
+      // logoUrl : absent = ne pas modifier · dataUrl = nouveau logo · null = suppression
+      const payload: Record<string, string | null | boolean> = {
+        nomEtablissement,
+        typeEtablissement,
+        adresse,
+        ville,
+        whatsapp,
+        email,
+        messageWhatsapp,
+        frequenceRapport,
+        recompense,
+        smsAlertes,
+      }
       if (logoModifie !== undefined) payload.logoUrl = logoModifie
       const res = await fetch("/api/pro/settings", {
         method: "PUT",
@@ -121,6 +144,7 @@ export function SettingsTab() {
     }
   }
 
+  // ---------- Logo : upload dataURL + preview ----------
   async function onLogoChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     // Réinitialise l'input pour permettre de re-sélectionner le même fichier
@@ -140,13 +164,41 @@ export function SettingsTab() {
     toast({ title: "Logo retiré — cliquez sur Enregistrer pour l'appliquer" })
   }
 
+  // ---------- (f) Changement de plan ----------
+  const planActuel = ((pro?.plan as PlanId) || "STARTER") as PlanId
+  const [planEnCours, setPlanEnCours] = useState<PlanId | null>(null)
+
+  async function changerPlan(plan: PlanId) {
+    if (plan === planActuel || planEnCours) return
+    setPlanEnCours(plan)
+    try {
+      const res = await fetch("/api/pro/plan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ plan }),
+      })
+      const json = await res.json()
+      if (json.ok) {
+        updatePro(json.data.pro)
+        toast({ title: `Plan ${PLANS[plan].name} activé 🎉`, description: "Paiement simulé (démo)." })
+      } else {
+        toast({ title: "Erreur", description: json.error, variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Erreur réseau", variant: "destructive" })
+    } finally {
+      setPlanEnCours(null)
+    }
+  }
+
+  // ---------- (g) Suppression du compte ----------
   async function supprimerCompte() {
     try {
       const res = await fetch("/api/pro/account", { method: "DELETE" })
       const json = await res.json()
       if (json.ok) {
-        toast({ title: "Compte supprimé" })
-        await useAppStore.getState().logout()
+        toast({ title: "Compte supprimé", description: "Toutes vos données ont été effacées." })
+        setView("landing")
       } else {
         toast({ title: "Erreur", description: json.error, variant: "destructive" })
       }
@@ -155,78 +207,33 @@ export function SettingsTab() {
     }
   }
 
-  async function ajouterEmploye(e: React.FormEvent) {
-    e.preventDefault()
-    if (nouveauNom.trim().length < 2) return
-    setAddingEmploye(true)
-    try {
-      const res = await fetch("/api/pro/employes", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ nom: nouveauNom.trim(), poste: nouveauPoste.trim() || null }),
-      })
-      const json = await res.json()
-      if (json.ok) {
-        setEmployes(json.data.employes)
-        setNouveauNom("")
-        setNouveauPoste("")
-        toast({ title: "Employé ajouté ✓" })
-      } else {
-        toast({ title: "Limite atteinte", description: json.error, variant: "destructive" })
-      }
-    } finally {
-      setAddingEmploye(false)
-    }
-  }
-
-  async function toggleEmploye(emp: Employe) {
-    const res = await fetch("/api/pro/employes", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: emp.id, actif: !emp.actif }),
-    })
-    const json = await res.json()
-    if (json.ok) setEmployes(json.data.employes)
-  }
-
-  async function supprimerEmploye(id: string) {
-    const res = await fetch(`/api/pro/employes?id=${id}`, { method: "DELETE" })
-    const json = await res.json()
-    if (json.ok) {
-      setEmployes(json.data.employes)
-      toast({ title: "Employé supprimé", description: "Son historique de retours est conservé." })
-    }
-  }
-
-  const planActuel = (session?.pro?.plan || "STARTER") as PlanId
-
   return (
     <div className="space-y-6 max-w-3xl">
-      {/* ---------- Infos boutique ---------- */}
+      {/* ================= (a) Informations de l'établissement ================= */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base sm:text-lg">Informations de la boutique</CardTitle>
+          <CardTitle className="text-base sm:text-lg">Informations de l&apos;établissement</CardTitle>
           <CardDescription>Ces informations apparaissent sur la page de scan de vos clients</CardDescription>
         </CardHeader>
         <CardContent>
           <form onSubmit={saveSettings} className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-1.5">
-                <Label htmlFor="st-nom">Nom du commerce</Label>
-                <Input id="st-nom" value={nomCommerce} onChange={(e) => setNomCommerce(e.target.value)} className="h-10" required />
+                <Label htmlFor="st-nom">Nom de l&apos;établissement</Label>
+                <Input id="st-nom" value={nomEtablissement} onChange={(e) => setNomEtablissement(e.target.value)} className="h-10" required />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="st-cat">Catégorie</Label>
+                <Label htmlFor="st-type">Type d&apos;établissement</Label>
                 {/* Guard : ignore la valeur "" émise par le select natif caché de Radix
                     (Select dans <form> → BubbleSelect → onChange parasite) */}
-                <Select value={categorie} onValueChange={(v) => { if (v) setCategorie(v) }}>
-                  <SelectTrigger id="st-cat" className="h-10">
+                <Select value={typeEtablissement} onValueChange={(v) => { if (v) setTypeEtablissement(v) }}>
+                  <SelectTrigger id="st-type" className="h-10">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {CATEGORIES_COMMERCE.map((c) => (
-                      <SelectItem key={c} value={c}>
-                        {c}
+                    {TYPES_ETABLISSEMENT.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {t}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -240,6 +247,10 @@ export function SettingsTab() {
                 <Label htmlFor="st-ville">Ville</Label>
                 <Input id="st-ville" value={ville} onChange={(e) => setVille(e.target.value)} className="h-10" />
               </div>
+            </div>
+
+            {/* ================= (b) Contact & alertes ================= */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
               <div className="space-y-1.5">
                 <Label htmlFor="st-wa">WhatsApp (alertes + retours)</Label>
                 <Input
@@ -251,20 +262,17 @@ export function SettingsTab() {
                   onChange={(e) => setWhatsapp(e.target.value)}
                   className="h-10"
                 />
+                <p className="text-xs text-muted-foreground">Format international, sans « + » ni espaces (ex : 33612345678).</p>
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="st-gg">Lien Google (avis)</Label>
-                <Input id="st-gg" type="url" placeholder="https://g.page/r/..." value={googleUrl} onChange={(e) => setGoogleUrl(e.target.value)} className="h-10" />
+                <Label htmlFor="st-email">Email</Label>
+                <Input id="st-email" type="email" placeholder="vous@exemple.fr" value={email} onChange={(e) => setEmail(e.target.value)} className="h-10" />
+                <p className="text-xs text-muted-foreground">Pour recevoir vos rapports IA.</p>
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="st-msg">Message WhatsApp personnalisé (fin de message)</Label>
-              <Textarea id="st-msg" value={messageWhatsapp} onChange={(e) => setMessageWhatsapp(e.target.value)} rows={2} />
-            </div>
-            {/* Session 6 : alertes SMS pour les réclamations (note ≤ 2★) */}
             <div className="flex items-center justify-between gap-4 rounded-xl border p-3.5">
               <div className="min-w-0">
-                <Label htmlFor="st-sms" className="cursor-pointer">Alertes SMS pour les réclamations</Label>
+                <Label htmlFor="st-sms" className="cursor-pointer">Alertes SMS pour les réclamations (≤ 2★)</Label>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   Envoie un SMS urgent pour chaque retour ≤ 2★. Si désactivé, une alerte email est envoyée à la place.
                 </p>
@@ -276,20 +284,62 @@ export function SettingsTab() {
                 aria-label="Activer ou désactiver les alertes SMS"
               />
             </div>
+
+            {/* ================= (c) Coach IA ================= */}
+            <div className="space-y-1.5 pt-2">
+              <Label htmlFor="st-freq" className="flex items-center gap-1.5">
+                <Sparkles className="h-4 w-4 text-primary" aria-hidden />
+                Fréquence des rapports IA (Coach)
+              </Label>
+              <Select value={frequenceRapport} onValueChange={(v) => { if (v) setFrequenceRapport(v) }}>
+                <SelectTrigger id="st-freq" className="h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="quotidien">Quotidien — vos 3 priorités du jour chaque matin</SelectItem>
+                  <SelectItem value="hebdomadaire">Hebdomadaire — synthèse complète chaque lundi</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Le Coach IA analyse vos retours et vous envoie un audit qualité par email, avec les actions recommandées.
+              </p>
+            </div>
+
+            {/* ================= (d) Expérience client ================= */}
+            <div className="grid grid-cols-1 gap-4 pt-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="st-recompense">Micro-récompense client</Label>
+                <Input
+                  id="st-recompense"
+                  value={recompense}
+                  onChange={(e) => setRecompense(e.target.value)}
+                  placeholder="☕ Café offert sur votre prochaine visite"
+                  className="h-10"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Affichée au client après son retour. Laisser vide pour désactiver.
+                </p>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="st-msg">Message WhatsApp personnalisé (fin de message)</Label>
+                <Textarea id="st-msg" value={messageWhatsapp} onChange={(e) => setMessageWhatsapp(e.target.value)} rows={2} />
+              </div>
+            </div>
+
             <Button type="submit" disabled={saving} className="h-10">
               {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : <Save className="mr-2 h-4 w-4" aria-hidden />}
-              Enregistrer
+              Enregistrer les modifications
             </Button>
           </form>
         </CardContent>
       </Card>
 
-      {/* ---------- Logo de la boutique ---------- */}
+      {/* ================= (e) Logo de l'établissement ================= */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
             <ImageIcon className="h-5 w-5 text-primary" aria-hidden />
-            Logo de la boutique
+            Logo de l&apos;établissement
           </CardTitle>
           <CardDescription>Affiché sur la page de scan et vos supports imprimés.</CardDescription>
         </CardHeader>
@@ -307,7 +357,7 @@ export function SettingsTab() {
                 role="img"
                 aria-label="Aucun logo"
               >
-                <UserRound className="h-7 w-7 text-muted-foreground" aria-hidden />
+                <ImageIcon className="h-7 w-7 text-muted-foreground" aria-hidden />
               </span>
             )}
             <div className="min-w-0 space-y-2">
@@ -350,96 +400,10 @@ export function SettingsTab() {
         </CardContent>
       </Card>
 
-      {/* ---------- Employés ---------- */}
+      {/* ================= (f) Changement de plan ================= */}
       <Card>
         <CardHeader>
-          <CardTitle className="text-base sm:text-lg">Employés</CardTitle>
-          <CardDescription>
-            {employes.filter((e) => e.actif).length} actif(s) — limite du plan {PLANS[planActuel].name} :{" "}
-            {PLAN_LIMITS[planActuel].employes === 999 ? "illimité" : PLAN_LIMITS[planActuel].employes}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Ajout */}
-          <form onSubmit={ajouterEmploye} className="flex flex-col sm:flex-row gap-2">
-            <Input
-              placeholder="Nom de l'employé"
-              value={nouveauNom}
-              onChange={(e) => setNouveauNom(e.target.value)}
-              className="h-10 flex-1"
-              aria-label="Nom du nouvel employé"
-            />
-            <Input
-              placeholder="Poste (optionnel)"
-              value={nouveauPoste}
-              onChange={(e) => setNouveauPoste(e.target.value)}
-              className="h-10 flex-1"
-              aria-label="Poste du nouvel employé"
-            />
-            <Button type="submit" className="h-10" disabled={addingEmploye || nouveauNom.trim().length < 2}>
-              {addingEmploye ? <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden /> : <Plus className="mr-1.5 h-4 w-4" aria-hidden />}
-              Ajouter
-            </Button>
-          </form>
-
-          {/* Liste */}
-          <div className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar">
-            {employes.length === 0 && (
-              <p className="py-4 text-center text-sm text-muted-foreground">
-                Aucun employé — ajoutez votre équipe pour activer le leaderboard (les clients pourront mentionner qui les a servi).
-              </p>
-            )}
-            {employes.map((e) => (
-              <div key={e.id} className="flex items-center justify-between gap-3 rounded-xl border p-3">
-                <div className="flex items-center gap-3 min-w-0">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10" aria-hidden>
-                    <UserRound className="h-4.5 w-4.5 text-primary" />
-                  </span>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium truncate">
-                      {e.nom} {e.nbRetours > 0 && <span className="ml-1 text-xs font-normal text-muted-foreground">({e.nbRetours} retours)</span>}
-                    </p>
-                    {e.poste && <p className="text-xs text-muted-foreground truncate">{e.poste}</p>}
-                  </div>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <Badge variant="outline" className={e.actif ? "text-green-700 border-green-300" : "text-stone-500"}>
-                    {e.actif ? "Actif" : "Inactif"}
-                  </Badge>
-                  <Switch checked={e.actif} onCheckedChange={() => toggleEmploye(e)} aria-label={`Activer/désactiver ${e.nom}`} />
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-9 w-9 text-rose-600 hover:text-rose-700 hover:bg-rose-50" aria-label={`Supprimer ${e.nom}`}>
-                        <Trash2 className="h-4 w-4" aria-hidden />
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Supprimer {e.nom} ?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          L&apos;employé sera retiré de votre équipe. Les retours le concernant seront conservés mais
-                          désassociés de son profil.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Annuler</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => supprimerEmploye(e.id)} className="bg-rose-600 hover:bg-rose-700">
-                          Supprimer
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* ---------- Plan d'abonnement ---------- */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base sm:text-lg">Abonnement</CardTitle>
+          <CardTitle className="text-base sm:text-lg">Changement de plan</CardTitle>
           <CardDescription>Changement immédiat — paiement sécurisé (démo)</CardDescription>
         </CardHeader>
         <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -472,21 +436,10 @@ export function SettingsTab() {
                     variant="outline"
                     size="sm"
                     className="mt-3"
-                    onClick={async () => {
-                      const res = await fetch("/api/pro/plan", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ plan: id }),
-                      })
-                      const json = await res.json()
-                      if (json.ok) {
-                        updatePro(json.data.pro)
-                        toast({ title: `Plan ${p.name} activé 🎉` })
-                      } else {
-                        toast({ title: "Erreur", description: json.error, variant: "destructive" })
-                      }
-                    }}
+                    disabled={planEnCours !== null}
+                    onClick={() => changerPlan(id)}
                   >
+                    {planEnCours === id && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
                     Choisir {p.name}
                   </Button>
                 )}
@@ -496,12 +449,12 @@ export function SettingsTab() {
         </CardContent>
       </Card>
 
-      {/* ---------- Zone dangereuse ---------- */}
+      {/* ================= (g) Zone de danger ================= */}
       <Card className="border-rose-200">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base sm:text-lg text-rose-600">
             <TriangleAlert className="h-5 w-5" aria-hidden />
-            Zone dangereuse
+            Zone de danger
           </CardTitle>
           <CardDescription>Actions irréversibles — procédez avec précaution.</CardDescription>
         </CardHeader>
@@ -510,8 +463,8 @@ export function SettingsTab() {
             <div className="min-w-0">
               <p className="font-medium text-sm">Supprimer définitivement le compte</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Cette action supprime irrémédiablement votre boutique, tous vos retours clients, votre équipe et vos QR
-                codes. Aucune récupération n&apos;est possible.
+                Cette action supprime irrémédiablement votre établissement, toutes vos zones, vos retours clients, votre
+                équipe et vos QR codes. Aucune récupération n&apos;est possible.
               </p>
             </div>
             <AlertDialog>
@@ -524,22 +477,21 @@ export function SettingsTab() {
                 <AlertDialogHeader>
                   <AlertDialogTitle>Supprimer définitivement votre compte ?</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Votre boutique, tous vos retours clients, votre équipe et vos QR codes seront supprimés
-                    irrémédiablement. Aucune récupération n&apos;est possible. Pour confirmer, saisissez le nom de votre
-                    commerce :
+                    Votre établissement, toutes vos zones, vos retours clients, votre équipe et vos QR codes seront
+                    supprimés irrémédiablement. Pour confirmer, saisissez le nom de votre établissement :
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <Input
                   value={confirmationSuppression}
                   onChange={(e) => setConfirmationSuppression(e.target.value)}
-                  placeholder={session?.pro?.nomCommerce || "Nom du commerce"}
-                  aria-label="Confirmation : nom du commerce"
+                  placeholder={pro?.nomEtablissement || "Nom de l'établissement"}
+                  aria-label="Confirmation : nom de l'établissement"
                   autoComplete="off"
                 />
                 <AlertDialogFooter>
                   <AlertDialogCancel onClick={() => setConfirmationSuppression("")}>Annuler</AlertDialogCancel>
                   <AlertDialogAction
-                    disabled={confirmationSuppression !== (session?.pro?.nomCommerce || "")}
+                    disabled={!pro || confirmationSuppression !== pro.nomEtablissement}
                     className="bg-rose-600 hover:bg-rose-700"
                     onClick={supprimerCompte}
                   >

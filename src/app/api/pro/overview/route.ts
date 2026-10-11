@@ -1,47 +1,69 @@
 // ============================================================
 // API Pro - Vue d'ensemble (KPIs du dashboard)
 // GET /api/pro/overview
+// → score global 30j, évolution, retours du mois, taux d'interception,
+//   alertes non lues, courbe 30 jours et derniers retours détaillés
 // ============================================================
 
 import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
 import { ok, fail } from "@/lib/session"
 import { requirePro, unauthorized } from "@/lib/guards"
+import { serialiserRetour } from "@/lib/serialise"
 
 export async function GET(req: NextRequest) {
   try {
     const ctx = await requirePro(req)
     if (!ctx) return unauthorized()
-    const { pro, boutique } = ctx
-
-    // Récupération des retours (volume raisonnable : calcul en mémoire)
-    const retours = await db.retour.findMany({
-      where: { boutiqueId: boutique.id },
-      orderBy: { createdAt: "desc" },
-    })
+    const { pro } = ctx
 
     const now = new Date()
+    const ilYA30j = new Date(now.getTime() - 30 * 24 * 3600 * 1000)
+    const ilYA60j = new Date(now.getTime() - 60 * 24 * 3600 * 1000)
     const debutMois = new Date(now.getFullYear(), now.getMonth(), 1)
-    const debutMoisPrecedent = new Date(now.getFullYear(), now.getMonth() - 1, 1)
 
-    const total = retours.length
-    const scoreGlobal = total ? retours.reduce((s, r) => s + r.note, 0) / total : 0
+    // Fenêtre 60 jours : couvre la courbe 30j + la comparaison d'évolution
+    const retours = await db.retour.findMany({
+      where: { proId: pro.id, createdAt: { gte: ilYA60j } },
+      orderBy: { createdAt: "desc" },
+      include: {
+        zone: { select: { nom: true } },
+        employe: { select: { nom: true } },
+      },
+    })
 
-    const ceMois = retours.filter((r) => r.createdAt >= debutMois)
-    const moisPrecedent = retours.filter((r) => r.createdAt >= debutMoisPrecedent && r.createdAt < debutMois)
-    const scoreMois = ceMois.length ? ceMois.reduce((s, r) => s + r.note, 0) / ceMois.length : 0
-    const scoreMoisPrecedent = moisPrecedent.length ? moisPrecedent.reduce((s, r) => s + r.note, 0) / moisPrecedent.length : 0
+    // ---------- Scores (note moyenne /5 → score /100) ----------
+    const moyenne = (liste: typeof retours) =>
+      liste.length ? liste.reduce((s, r) => s + r.note, 0) / liste.length : 0
 
-    // Taux d'interception : % des mécontents (≤3) traités en interne (statut != NEW)
-    const negatifs = retours.filter((r) => r.note <= 3)
-    const negatifsTraites = negatifs.filter((r) => r.statut !== "NEW")
-    const tauxInterception = negatifs.length ? Math.round((negatifsTraites.length / negatifs.length) * 100) : 0
+    const fenetre30j = retours.filter((r) => r.createdAt >= ilYA30j)
+    const fenetrePrecedente = retours.filter(
+      (r) => r.createdAt >= ilYA60j && r.createdAt < ilYA30j
+    )
+    const note30j = moyenne(fenetre30j)
+    const notePrecedente = moyenne(fenetrePrecedente)
+
+    const scoreGlobal30j = note30j > 0 ? Math.round(note30j * 20) : 0
+    const evolutionPct =
+      notePrecedente > 0 && note30j > 0
+        ? Math.round(((note30j - notePrecedente) / notePrecedente) * 100)
+        : 0
+
+    // ---------- Retours du mois ----------
+    const retoursMois = fenetre30j.filter((r) => r.createdAt >= debutMois).length
+
+    // ---------- Taux d'interception (30j) ----------
+    // % des réclamations (1-3★) prises en charge (statut != NEW)
+    const reclamations = fenetre30j.filter((r) => r.note <= 3)
+    const interceptees = reclamations.filter((r) => r.statut !== "NEW")
+    const tauxInterception = reclamations.length
+      ? Math.round((interceptees.length / reclamations.length) * 100)
+      : 0
 
     const alertesNonLues = await db.alerte.count({ where: { proId: pro.id, lu: false } })
-    const retoursNonLus = retours.filter((r) => !r.lu).length
 
-    // Évolution jour par jour sur 30 jours
-    const evolution: { date: string; note: number; count: number }[] = []
+    // ---------- Courbe 30 jours : { date, score, retours } ----------
+    const courbe30j: { date: string; score: number; retours: number }[] = []
     for (let d = 29; d >= 0; d--) {
       const jour = new Date(now)
       jour.setHours(0, 0, 0, 0)
@@ -49,55 +71,25 @@ export async function GET(req: NextRequest) {
       const lendemain = new Date(jour)
       lendemain.setDate(lendemain.getDate() + 1)
       const duJour = retours.filter((r) => r.createdAt >= jour && r.createdAt < lendemain)
-      evolution.push({
+      const noteJour = moyenne(duJour)
+      courbe30j.push({
         date: jour.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" }),
-        note: duJour.length ? Number((duJour.reduce((s, r) => s + r.note, 0) / duJour.length).toFixed(2)) : 0,
-        count: duJour.length,
+        score: duJour.length ? Math.round(noteJour * 20) : 0,
+        retours: duJour.length,
       })
     }
 
-    // Répartition des notes
-    const repartitionNotes = [1, 2, 3, 4, 5].map((n) => ({
-      note: n,
-      count: retours.filter((r) => r.note === n).length,
-    }))
-
-    // 5 derniers retours (spec Session 4)
-    const recent = retours.slice(0, 5).map((r) => ({
-      id: r.id,
-      note: r.note,
-      tags: JSON.parse(r.tags) as string[],
-      commentaire: r.commentaire,
-      statut: r.statut,
-      lu: r.lu,
-      createdAt: r.createdAt,
-    }))
-
-    // Alertes récentes (non lues d'abord)
-    const alertes = await db.alerte.findMany({
-      where: { proId: pro.id },
-      orderBy: { createdAt: "desc" },
-      take: 10,
-    })
+    // ---------- Derniers retours détaillés ----------
+    const derniersRetours = retours.slice(0, 8).map(serialiserRetour)
 
     return ok({
-      nomCommerce: pro.nomCommerce,
-      plan: pro.plan,
-      kpis: {
-        scoreGlobal: Number(scoreGlobal.toFixed(2)),
-        totalRetours: total,
-        retoursCeMois: ceMois.length,
-        retoursMoisPrecedent: moisPrecedent.length,
-        scoreMois: Number(scoreMois.toFixed(2)),
-        scoreMoisPrecedent: Number(scoreMoisPrecedent.toFixed(2)),
-        tauxInterception,
-        retoursNonLus,
-        alertesNonLues,
-      },
-      evolution,
-      repartitionNotes,
-      recentRetours: recent,
-      alertes,
+      scoreGlobal30j,
+      evolutionPct,
+      retoursMois,
+      tauxInterception,
+      alertesNonLues,
+      courbe30j,
+      derniersRetours,
     })
   } catch (e) {
     console.error("overview error", e)

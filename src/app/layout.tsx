@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 
-const geistSans = Geist({
+// Typographie : Inter (conforme Session 1)
+const interSans = Inter({
   variable: "--font-geist-sans",
   subsets: ["latin"],
 });
@@ -14,14 +15,24 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FeedbackPro — Transformez chaque visite client en croissance",
+  title: "FeedbackPro — Le Coach IA d'Audit Qualité Continu",
   description:
-    "Plateforme SaaS de feedback client par QR code : interceptez les réclamations en interne, motivez vos équipes grâce à la gamification et suivez votre réputation en temps réel.",
-  keywords: ["feedback client", "QR code", "satisfaction client", "SaaS", "avis clients", "restaurant", "commerce"],
+    "Transformez vos clients en auditeurs qualité. Notre IA analyse chaque retour client et vous livre chaque matin un rapport d'audit avec des recommandations précises pour améliorer votre service.",
+  keywords: [
+    "audit qualité",
+    "client mystère",
+    "Coach IA",
+    "retours clients",
+    "QR code",
+    "SaaS",
+    "restaurant",
+    "commerce",
+  ],
   authors: [{ name: "FeedbackPro" }],
   openGraph: {
-    title: "FeedbackPro",
-    description: "Collectez les avis clients par QR code, interceptez les réclamations, gamifiez vos équipes.",
+    title: "FeedbackPro — Le Coach IA d'Audit Qualité Continu",
+    description:
+      "Chaque client réel devient un Client Mystère : scan QR, note, tags, et un rapport IA quotidien avec vos 3 priorités du jour.",
     siteName: "FeedbackPro",
     type: "website",
   },
@@ -33,9 +44,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html lang="fr" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
+        className={`${interSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
         {children}
         <Toaster />

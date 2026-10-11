@@ -36,9 +36,9 @@ const nextConfig: NextConfig = {
         destination: "/?admin=1&tabAdmin=:tab",
       },
       {
-        // Dashboard Pro : /dashboard → vue d'ensemble
+        // Dashboard Pro : /dashboard → Coach IA (accueil, Session 1)
         source: "/dashboard",
-        destination: "/?tab=overview",
+        destination: "/?tab=coach",
       },
       {
         // Sections du dashboard : /dashboard/retours, /dashboard/qr-code,

@@ -1,7 +1,10 @@
 // ============================================================
 // FeedbackPro - Schéma de base de données
-// SQLite : les enums Prisma ne sont pas supportés → String + validation applicative
-// Les tableaux (tags) sont stockés en JSON sérialisé
+// Conforme au prompt Session 1 (Coach IA d'Audit Qualité Continu)
+//
+// Adaptations SQLite (sandbox) :
+// - Les enums Prisma ne sont pas supportés → String + validation applicative (zod)
+// - Les tableaux (String[]) ne sont pas supportés → colonnes String contenant du JSON
 // ============================================================
 
 generator client {
@@ -38,88 +41,130 @@ model Session {
 // ---------- Commerçant (Pro) ----------
 
 model Pro {
-  id             String    @id @default(cuid())
-  userId         String    @unique
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  nomCommerce    String
-  categorie      String    @default("Restaurant")
-  adresse        String    @default("")
-  ville          String    @default("")
-  whatsapp       String? // Numéro international sans + ni espaces, ex: 33612345678
-  logoUrl        String?
-  googleUrl      String? // Lien Google Maps / review (redirection légale avis positifs)
-  messageWhatsapp String?  // Personnalisation du pied du message WhatsApp
-  qrToken        String    @unique @default(cuid())
-  plan           String    @default("STARTER") // STARTER | PRO | ENTERPRISE
-  onboardingDone Boolean   @default(false)
-  suspendu       Boolean   @default(false) // Commerçant suspendu par le superadmin (S5)
-  smsAlertes     Boolean   @default(true) // Alertes SMS activées pour les retours ≤ 2★ (S6, optionnel)
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  id                String    @id @default(cuid())
+  userId            String    @unique
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  nomEtablissement  String
+  typeEtablissement String    @default("restaurant") // hotel | restaurant | boutique | salon | hopital | ...
+  adresse           String    @default("")
+  ville             String    @default("")
+  whatsapp          String? // Numéro international sans + ni espaces, ex: 33612345678 (pour les alertes)
+  email             String    @default("") // Email de réception des rapports IA
+  logoUrl           String?
+  plan              String    @default("STARTER") // STARTER (29€) | PRO (99€) | ENTERPRISE (249€)
+  frequenceRapport  String    @default("quotidien") // quotidien | hebdomadaire (rapports IA)
+  recompense        String? // Micro-récompense affichée au client après son retour, ex: "☕ Café offert"
+  messageWhatsapp   String? // Personnalisation du pied du message WhatsApp
+  onboardingDone    Boolean   @default(false)
+  suspendu          Boolean   @default(false) // Commerçant suspendu par le superadmin
+  smsAlertes        Boolean   @default(true) // Alertes SMS activées pour les retours ≤ 2★
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
-  boutiques Boutique[]
-  commandes Commande[]
-  alertes   Alerte[]
+  zones      Zone[]
+  employes   Employe[]
+  retours    Retour[]
+  commandes  Commande[]
+  rapportsIA RapportIA[]
+  alertes    Alerte[]
 }
 
-// ---------- Boutique (une par Pro en MVP, multi-boutiques Enterprise) ----------
+// ---------- Zones / Points de contact (QR code par zone) ----------
 
-model Boutique {
-  id        String    @id @default(cuid())
-  proId     String
-  pro       Pro       @relation(fields: [proId], references: [id], onDelete: Cascade)
-  nom       String
-  adresse   String    @default("")
-  qrToken   String    @unique @default(cuid())
-  createdAt DateTime  @default(now())
+model Zone {
+  id           String   @id @default(cuid())
+  proId        String
+  pro          Pro      @relation(fields: [proId], references: [id], onDelete: Cascade)
+  nom          String // "Accueil", "Restaurant", "Toilettes RDC", "Piscine"...
+  description  String?
+  qrToken      String   @unique @default(cuid())
+  tagsNegatifs String   @default("[]") // JSON : tags spécifiques à cette zone
+  tagsPositifs String   @default("[]") // JSON : tags spécifiques à cette zone
+  createdAt    DateTime @default(now())
 
-  retours  Retour[]
-  employes Employe[]
+  retours Retour[]
+
+  @@index([proId])
 }
 
-// ---------- Employés (gamification / leaderboard) ----------
+// ---------- Employés (gamification / leaderboard / besoins de formation) ----------
 
 model Employe {
-  id         String   @id @default(cuid())
-  boutiqueId String
-  boutique   Boutique @relation(fields: [boutiqueId], references: [id], onDelete: Cascade)
-  nom        String
-  poste      String?
-  actif      Boolean  @default(true)
-  createdAt  DateTime @default(now())
+  id        String   @id @default(cuid())
+  proId     String
+  pro       Pro      @relation(fields: [proId], references: [id], onDelete: Cascade)
+  nom       String
+  poste     String?
+  zoneIds   String   @default("[]") // JSON : ids des zones où il travaille
+  actif     Boolean  @default(true)
+  createdAt DateTime @default(now())
 
   retours Retour[]
 }
 
-// ---------- Retour client (cœur du produit) ----------
+// ---------- Retour client (cœur du produit — le client réel devient Client Mystère) ----------
 
 model Retour {
-  id                 String    @id @default(cuid())
-  boutiqueId         String
-  boutique           Boutique  @relation(fields: [boutiqueId], references: [id], onDelete: Cascade)
-  employeId          String?
-  employe            Employe?  @relation(fields: [employeId], references: [id])
+  id      String @id @default(cuid())
+  proId   String
+  pro     Pro    @relation(fields: [proId], references: [id], onDelete: Cascade)
+  zoneId  String
+  zone    Zone   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  employeId String?
+  employe   Employe? @relation(fields: [employeId], references: [id])
 
   note               Int // 1 à 5
-  tags               String    @default("[]") // JSON : ["impoli","attente"]
+  tags               String  @default("[]") // JSON : ex ["impoli","attente"]
   commentaire        String?
   personnelMentionne String? // Nom ou description libre du personnel concerné
 
-  canalChoisi        String? // "whatsapp" | "google" | "aucun"
+  // Métadonnées
+  canalChoisi        String? // "whatsapp" | "aucun"
   ipCity             String? // Ville approximative du client (détection IP optionnelle, RGPD-friendly)
-  statut             String    @default("NEW") // NEW | IN_PROGRESS | RESOLVED
-  historique         String    @default("[]") // JSON : [{ statut: "NEW", at: ISO }] — historique des changements de statut
-  lu                 Boolean   @default(false)
-  reponsePro         String?
+  recompenseUtilisee Boolean @default(false) // Le client a récupéré sa micro-récompense
 
-  createdAt          DateTime  @default(now())
+  // Suivi managérial
+  statut      String  @default("NEW") // NEW | IN_PROGRESS | RESOLVED
+  historique  String  @default("[]") // JSON : [{ statut, at }] — historique des changements de statut
+  lu          Boolean @default(false)
+  reponsePro  String?
+  actionPrise String? // Action managériale décidée (onglet Actions)
 
-  @@index([boutiqueId, createdAt])
+  createdAt DateTime @default(now())
+
+  @@index([proId, createdAt])
+  @@index([zoneId])
+}
+
+// ---------- Rapports IA (Coach IA d'Audit Qualité Continu) ----------
+
+model RapportIA {
+  id          String   @id @default(cuid())
+  proId       String
+  pro         Pro      @relation(fields: [proId], references: [id], onDelete: Cascade)
+
+  type        String   @default("quotidien") // "quotidien" | "hebdomadaire"
+  periodeDebut DateTime
+  periodeFin   DateTime
+
+  // Contenu du rapport (généré par l'IA)
+  scoreGlobal      Int    @default(0) // Score de qualité global sur 100
+  contenuMarkdown  String @default("") // Le rapport complet en markdown
+  priorites        String @default("[]") // JSON : Top 3 priorités
+  recommandations  String @default("[]") // JSON : Actions suggérées
+  predictions      String @default("[]") // JSON : Prédictions
+
+  envoyeParEmail Boolean @default(false)
+  envoyeParSMS   Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@index([proId, createdAt])
 }
 
 // ---------- Commandes de supports physiques ----------
 
-// Réglages plateforme (S5) : clés/valeurs simples éditables par le superadmin
+// Réglages plateforme : clés/valeurs simples éditables par le superadmin
 model Setting {
   key       String   @id
   value     String
@@ -130,12 +175,14 @@ model Commande {
   id               String   @id @default(cuid())
   proId            String
   pro              Pro      @relation(fields: [proId], references: [id], onDelete: Cascade)
+  zoneId           String?  // QR code spécifique à une zone (optionnel)
   typeSupport      String // STICKERS_50 | CHEVALET_ACRYLIQUE | AFFICHE_A4
   quantite         Int
   prixEuros        Int
   adresseLivraison String
   statut           String   @default("A_IMPRIMER") // A_IMPRIMER | IMPRIME | EXPEDIE | LIVRE
-  numeroSuivi      String?  // Numéro de suivi d'expédition (S5, ajouté par le superadmin)
+  pdfUrl           String?
+  numeroSuivi      String?  // Numéro de suivi d'expédition (ajouté par le superadmin)
   createdAt        DateTime @default(now())
 
   @@index([proId])

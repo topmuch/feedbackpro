@@ -3,27 +3,34 @@
 // ============================================================
 // FeedbackPro - Store global (Zustand)
 // Gère : la vue courante (SPA), la session, le mode auth, le token de scan
+// Pivot Session 1 : chaque client réel devient un Client Mystère,
+// le Pro gère des ZONES et reçoit des rapports du Coach IA.
 // ============================================================
 
 import { create } from "zustand"
 
-export type View = "loading" | "landing" | "auth" | "onboarding" | "dashboard" | "admin" | "scan"
+export type View = "loading" | "landing" | "auth" | "dashboard" | "admin" | "scan"
 
+/** Établissement (Pro) tel que renvoyé par /api/auth/me et les routes de session */
 export type ProData = {
   id: string
-  nomCommerce: string
-  categorie: string
+  nomEtablissement: string
+  typeEtablissement: string
   adresse: string
   ville: string
   whatsapp: string | null
-  googleUrl: string | null
-  messageWhatsapp: string | null
+  email: string
   logoUrl: string | null
-  qrToken: string
   plan: string
+  /** Fréquence des rapports du Coach IA : "quotidien" | "hebdomadaire" */
+  frequenceRapport: string
+  /** Micro-récompense affichée au client après son retour */
+  recompense: string | null
+  messageWhatsapp: string | null
   onboardingDone: boolean
-  /** Alertes SMS activées pour les réclamations (note ≤ 2★) — Session 6 */
-  smsAlertes?: boolean
+  suspendu: boolean
+  /** Alertes SMS activées pour les réclamations (note ≤ 2★) */
+  smsAlertes: boolean
   createdAt: string
 }
 
@@ -58,7 +65,8 @@ function deriveView(scanToken: string | null, session: SessionData | null): View
   if (scanToken) return "scan"
   if (!session) return "landing"
   if (session.user.role === "SUPERADMIN") return "admin"
-  if (session.pro && !session.pro.onboardingDone) return "onboarding"
+  // Inscription et connexion aboutissent directement au dashboard
+  // (la zone « Accueil » est créée automatiquement à l'inscription).
   return "dashboard"
 }
 

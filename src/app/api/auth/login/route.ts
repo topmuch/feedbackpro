@@ -1,12 +1,12 @@
 // ============================================================
 // API - Connexion
-// POST /api/auth/login
+// POST /api/auth/login  { email, password } → { user, pro }
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { db } from "@/lib/db"
-import { createSession, attachSessionCookie } from "@/lib/session"
+import { createSession, attachSessionCookie, serializePro } from "@/lib/session"
 import { loginSchema, firstError } from "@/lib/validation"
 
 export async function POST(req: NextRequest) {
@@ -37,7 +37,7 @@ export async function POST(req: NextRequest) {
       ok: true,
       data: {
         user: { id: user.id, email: user.email, role: user.role },
-        needsOnboarding: user.role === "PRO" ? !user.pro?.onboardingDone : false,
+        pro: user.pro ? serializePro(user.pro) : null,
       },
     })
     return attachSessionCookie(res, sessionId)

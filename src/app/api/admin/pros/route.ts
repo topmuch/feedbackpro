@@ -1,28 +1,16 @@
 // ============================================================
-// API Superadmin - Gestion des commerçants
-// GET   /api/admin/pros?plan=&ville=&q=
-// PATCH /api/admin/pros
-//   { proId, plan? }                        → changement de plan (compat historique)
-//   { proId, action: "changerPlan", plan }  → changement de plan
-//   { proId, action: "suspendre" }          → suspendu: true
-//   { proId, action: "reactiver" }          → suspendu: false
-//   { proId, action: "supprimer" }          → suppression définitive (cascade)
+// API Superadmin - Gestion des établissements (Pros)
+// GET  /api/admin/pros?plan=&q=&statut=
+//      → liste avec counts (zones / retours / employés) + filtres
+// POST /api/admin/pros { action: "changerPlan"|"suspendre"|"reactiver"|"supprimer", id, plan? }
 // ============================================================
 
 import { NextRequest } from "next/server"
-import { z } from "zod"
 import { db } from "@/lib/db"
 import { ok, fail } from "@/lib/session"
 import { requireAdmin, unauthorized } from "@/lib/guards"
 import { PLANS } from "@/lib/constants"
-import { firstError } from "@/lib/validation"
-
-const patchSchema = z.object({
-  proId: z.string().trim().min(1, "proId manquant"),
-  action: z.enum(["changerPlan", "suspendre", "reactiver", "supprimer"]).optional(),
-  plan: z.string().optional(),
-  onboardingDone: z.boolean().optional(),
-})
+import { adminProActionSchema, firstError } from "@/lib/validation"
 
 export async function GET(req: NextRequest) {
   try {
@@ -31,70 +19,75 @@ export async function GET(req: NextRequest) {
 
     const sp = req.nextUrl.searchParams
     const plan = sp.get("plan") || ""
-    const ville = sp.get("ville")?.trim().toLowerCase() || ""
     const q = sp.get("q")?.trim().toLowerCase() || ""
+    const statut = sp.get("statut") || "" // "suspendu" | "actif" | ""
 
     const pros = await db.pro.findMany({
       include: {
         user: { select: { email: true } },
-        boutiques: { select: { _count: { select: { retours: true } } } },
-        commandes: { select: { id: true } },
+        _count: { select: { zones: true, retours: true, employes: true, commandes: true } },
       },
       orderBy: { createdAt: "desc" },
     })
 
     let liste = pros
     if (plan) liste = liste.filter((p) => p.plan === plan)
-    if (ville) liste = liste.filter((p) => p.ville.toLowerCase().includes(ville))
+    if (statut === "suspendu") liste = liste.filter((p) => p.suspendu)
+    if (statut === "actif") liste = liste.filter((p) => !p.suspendu)
     if (q) {
       liste = liste.filter(
-        (p) => p.nomCommerce.toLowerCase().includes(q) || p.user.email.toLowerCase().includes(q)
+        (p) =>
+          p.nomEtablissement.toLowerCase().includes(q) ||
+          p.ville.toLowerCase().includes(q) ||
+          p.user.email.toLowerCase().includes(q)
       )
     }
 
     return ok({
       pros: liste.map((p) => ({
         id: p.id,
-        nomCommerce: p.nomCommerce,
-        categorie: p.categorie,
+        nomEtablissement: p.nomEtablissement,
+        typeEtablissement: p.typeEtablissement,
         ville: p.ville,
         email: p.user.email,
         plan: p.plan,
         suspendu: p.suspendu,
         onboardingDone: p.onboardingDone,
+        frequenceRapport: p.frequenceRapport,
         createdAt: p.createdAt,
-        qrToken: p.qrToken,
-        nbRetours: p.boutiques.reduce((s, b) => s + b._count.retours, 0),
-        nbCommandes: p.commandes.length,
+        // Compteurs (nbZones/nbRetours/nbEmployés) + alias courts
+        // zones/retours/employés consommés par admin-dashboard.tsx
+        nbZones: p._count.zones,
+        nbRetours: p._count.retours,
+        nbEmployes: p._count.employes,
+        nbCommandes: p._count.commandes,
+        zones: p._count.zones,
+        retours: p._count.retours,
+        employes: p._count.employes,
         mrr: PLANS[p.plan as keyof typeof PLANS]?.price ?? 0,
       })),
-      villes: [...new Set(pros.map((p) => p.ville).filter(Boolean))].sort(),
+      total: pros.length,
     })
   } catch (e) {
-    console.error("admin pros error", e)
+    console.error("admin pros GET error", e)
     return fail("Erreur serveur", 500)
   }
 }
 
-export async function PATCH(req: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
     const admin = await requireAdmin(req)
     if (!admin) return unauthorized()
 
-    const parse = patchSchema.safeParse(await req.json().catch(() => null))
+    const parse = adminProActionSchema.safeParse(await req.json().catch(() => null))
     if (!parse.success) return fail(firstError(parse.error), 400)
-    const body = parse.data
+    const { action, id, plan } = parse.data
 
     const pro = await db.pro.findUnique({
-      where: { id: body.proId },
-      include: { user: { select: { id: true, role: true, email: true } } },
+      where: { id },
+      include: { user: { select: { id: true, role: true } } },
     })
-    if (!pro) return fail("Commerçant introuvable", 404)
-
-    // Détermine l'action : explicite, ou changement de plan si un plan est fourni
-    // sans action (compatibilité avec l'ancien contrat { proId, plan })
-    const action = body.action ?? (body.plan ? "changerPlan" : null)
-    if (!action) return fail("Action manquante", 400)
+    if (!pro) return fail("Établissement introuvable", 404)
 
     // Le superadmin ne peut jamais être suspendu ni supprimé
     if ((action === "supprimer" || action === "suspendre") && pro.user.role === "SUPERADMIN") {
@@ -103,8 +96,8 @@ export async function PATCH(req: NextRequest) {
 
     switch (action) {
       case "changerPlan": {
-        if (!body.plan || !PLANS[body.plan as keyof typeof PLANS]) return fail("Plan invalide", 400)
-        const updated = await db.pro.update({ where: { id: pro.id }, data: { plan: body.plan } })
+        if (!plan || !PLANS[plan as keyof typeof PLANS]) return fail("Plan invalide", 400)
+        const updated = await db.pro.update({ where: { id: pro.id }, data: { plan } })
         return ok({ id: updated.id, plan: updated.plan, suspendu: updated.suspendu })
       }
 
@@ -119,20 +112,16 @@ export async function PATCH(req: NextRequest) {
       }
 
       case "supprimer": {
-        // Suppression du User : cascade Prisma → Pro → Boutiques → Retours /
-        // Employés → Alertes → Commandes + Sessions (onDelete: Cascade partout)
-        await db.$transaction([
-          db.alerte.deleteMany({ where: { proId: pro.id } }),
-          db.boutique.deleteMany({ where: { proId: pro.id } }),
-          db.commande.deleteMany({ where: { proId: pro.id } }),
-          db.pro.delete({ where: { id: pro.id } }),
-          db.user.delete({ where: { id: pro.userId } }),
-        ])
+        // Détache d'abord les retours de leurs employés (cohérence SQLite),
+        // puis suppression du User : cascade Prisma → Pro → Zones →
+        // Retours / Employés / RapportsIA / Alertes / Commandes + Sessions.
+        await db.retour.updateMany({ where: { proId: pro.id }, data: { employeId: null } })
+        await db.user.delete({ where: { id: pro.userId } })
         return ok({ id: pro.id, supprime: true })
       }
     }
   } catch (e) {
-    console.error("admin pros PATCH error", e)
+    console.error("admin pros POST error", e)
     return fail("Erreur serveur", 500)
   }
 }

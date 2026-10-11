@@ -1,8 +1,8 @@
 // ============================================================
 // API Pro - Zone dangereuse : suppression définitive du compte
 // DELETE /api/pro/account
-// Supprime le User (cascade : Pro, Boutiques, Retours, Employés,
-// Alertes, Commandes, Sessions) puis efface le cookie de session.
+// Supprime le User (cascade : Pro, Zones, Retours, Employés,
+// RapportsIA, Alertes, Commandes, Sessions) puis efface le cookie.
 // ============================================================
 
 import { NextRequest } from "next/server"
@@ -18,7 +18,7 @@ export async function DELETE(req: NextRequest) {
     // Détache les retours de leurs employés avant la cascade
     // (évite tout conflit de clé étrangère côté SQLite)
     await db.retour.updateMany({
-      where: { boutique: { proId: ctx.pro.id } },
+      where: { proId: ctx.pro.id },
       data: { employeId: null },
     })
 

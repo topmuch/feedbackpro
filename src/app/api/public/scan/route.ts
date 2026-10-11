@@ -1,38 +1,43 @@
 // ============================================================
-// API publique - Infos du commerce pour la page de scan
-// GET /api/public/scan?token=xxxx
+// API publique - Infos de la ZONE pour la page de scan
+// POST /api/public/scan  { qrToken }
+// → { zone: { nom, description }, pro: { nomEtablissement, logoUrl, recompense, whatsapp },
+//     tagsPositifs: string[], tagsNegatifs: string[] }
+// 404 si le token est inconnu.
 // ============================================================
 
 import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
 import { ok, fail } from "@/lib/session"
+import { scanSchema, firstError } from "@/lib/validation"
+import { parseJsonArray } from "@/lib/ia"
 
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
   try {
-    const token = req.nextUrl.searchParams.get("token")
-    if (!token) return fail("Token manquant", 400)
+    const parsed = scanSchema.safeParse(await req.json().catch(() => null))
+    if (!parsed.success) return fail(firstError(parsed.error), 400)
+    const { qrToken } = parsed.data
 
-    const pro = await db.pro.findUnique({
-      where: { qrToken: token },
-      include: {
-        boutiques: {
-          orderBy: { createdAt: "asc" },
-          include: { employes: { where: { actif: true }, select: { id: true, nom: true, poste: true } } },
-        },
-      },
+    // Résolution de la zone scannée + établissement propriétaire
+    const zone = await db.zone.findUnique({
+      where: { qrToken },
+      include: { pro: true },
     })
 
-    if (!pro) return fail("QR code invalide ou expiré", 404)
+    if (!zone) return fail("QR code invalide ou expiré", 404)
 
     return ok({
-      nomCommerce: pro.nomCommerce,
-      categorie: pro.categorie,
-      ville: pro.ville,
-      logoUrl: pro.logoUrl,
-      googleUrl: pro.googleUrl,
-      whatsapp: pro.whatsapp,
-      messageWhatsapp: pro.messageWhatsapp,
-      employes: pro.boutiques[0]?.employes ?? [],
+      zone: { nom: zone.nom, description: zone.description },
+      pro: {
+        nomEtablissement: zone.pro.nomEtablissement,
+        logoUrl: zone.pro.logoUrl,
+        recompense: zone.pro.recompense,
+        // Numéro utilisé par la page de scan pour construire le lien
+        // « Envoyer via WhatsApp » (canalChoisi = "whatsapp")
+        whatsapp: zone.pro.whatsapp,
+      },
+      tagsPositifs: parseJsonArray(zone.tagsPositifs),
+      tagsNegatifs: parseJsonArray(zone.tagsNegatifs),
     })
   } catch (e) {
     console.error("scan error", e)

@@ -1,8 +1,9 @@
 // ============================================================
 // FeedbackPro - Génération de PDF côté client (jsPDF)
-// - Affiche A4 "Votre avis compte" avec QR
-// - Planche d'étiquettes 5x5 cm
-// - Bon d'impression d'une commande (Superadmin)
+// - Affiche A4 "VOTRE AVIS COMPTE" avec QR (par ZONE)
+// - Planche d'étiquettes 5x5 cm (20 étiquettes)
+// - Bon d'impression d'une commande (Superadmin, avec n° de suivi)
+// - Rapport de satisfaction (onglet Statistiques)
 // ============================================================
 
 import { jsPDF } from "jspdf"
@@ -21,17 +22,19 @@ export function downloadPng(dataUrl: string, filename: string) {
 }
 
 /**
- * Affiche A4 prêt à imprimer (spec Session 3) :
+ * Affiche A4 prêt à imprimer (spec pivot Session 1, par ZONE) :
  * - Titre "VOTRE AVIS COMPTE"
+ * - Nom de la ZONE (Accueil, Salle, Toilettes…)
  * - Sous-titre "Scannez pour évaluer votre expérience en 15 secondes"
  * - QR code centré (8 x 8 cm)
- * - Logo du commerce en bas (si disponible)
+ * - Logo de l'établissement en bas (si disponible)
  * - Mention "Propulsé par FeedbackPro" discrète
  */
 export function generatePosterPdf(
   qrDataUrl: string,
-  nomCommerce: string,
-  logoDataUrl?: string | null
+  nomEtablissement: string,
+  logoDataUrl?: string | null,
+  zoneNom?: string | null
 ) {
   const doc = new jsPDF({ unit: MM, format: "a4" }) // 210 x 297 mm
   const W = 210
@@ -44,43 +47,42 @@ export function generatePosterPdf(
   doc.setLineWidth(0.5)
   doc.rect(14, 14, W - 28, H - 28)
 
-  // Titre
+  // Titre (spec : VOTRE AVIS COMPTE)
   doc.setFont("helvetica", "bold")
   doc.setFontSize(40)
   doc.setTextColor(37, 99, 235)
-  doc.text("VOTRE AVIS COMPTE", W / 2, 52, { align: "center" })
+  doc.text("VOTRE AVIS COMPTE", W / 2, 48, { align: "center" })
+
+  // Nom de la ZONE scannée — c'est le QR de cette zone précise
+  doc.setFontSize(24)
+  doc.setTextColor(30, 30, 30)
+  doc.text((zoneNom || nomEtablissement).toUpperCase(), W / 2, 64, { align: "center" })
 
   // Sous-titre (spec : 15 secondes)
   doc.setFontSize(14)
   doc.setTextColor(80, 80, 80)
   doc.setFont("helvetica", "normal")
-  doc.text("Scannez pour évaluer votre expérience en 15 secondes", W / 2, 66, { align: "center" })
-
-  // Nom du commerce
-  doc.setFont("helvetica", "bold")
-  doc.setFontSize(22)
-  doc.setTextColor(30, 30, 30)
-  doc.text(nomCommerce, W / 2, 88, { align: "center" })
+  doc.text("Scannez pour évaluer votre expérience en 15 secondes", W / 2, 76, { align: "center" })
 
   // QR code encadré — 8 x 8 cm comme demandé
   const qrSize = 80
   doc.setFillColor(255, 255, 255)
   doc.setDrawColor(37, 99, 235)
   doc.setLineWidth(1)
-  doc.rect((W - qrSize) / 2 - 6, 100, qrSize + 12, qrSize + 12)
-  doc.addImage(qrDataUrl, "PNG", (W - qrSize) / 2, 106, qrSize, qrSize)
+  doc.rect((W - qrSize) / 2 - 6, 92, qrSize + 12, qrSize + 12)
+  doc.addImage(qrDataUrl, "PNG", (W - qrSize) / 2, 98, qrSize, qrSize)
 
   // Pied : incitation + remerciement
   doc.setFont("helvetica", "normal")
   doc.setFontSize(13)
   doc.setTextColor(80, 80, 80)
-  doc.text("Votre expérience nous aide à nous améliorer", W / 2, 210, { align: "center" })
+  doc.text("Votre expérience nous aide à nous améliorer", W / 2, 208, { align: "center" })
   doc.setFont("helvetica", "bold")
   doc.setFontSize(12)
   doc.setTextColor(37, 99, 235)
-  doc.text("Merci pour votre confiance !", W / 2, 222, { align: "center" })
+  doc.text("Merci pour votre confiance !", W / 2, 220, { align: "center" })
 
-  // Logo du commerce en bas (si disponible, proportion conservée)
+  // Logo de l'établissement en bas (si disponible, proportion conservée)
   if (logoDataUrl) {
     try {
       const props = doc.getImageProperties(logoDataUrl)
@@ -101,14 +103,18 @@ export function generatePosterPdf(
   doc.setTextColor(150, 150, 150)
   doc.text("Propulsé par FeedbackPro", W / 2, 280, { align: "center" })
 
-  doc.save(`affiche-a4-${slug(nomCommerce)}.pdf`)
+  doc.save(`affiche-a4-${slug(zoneNom || nomEtablissement)}.pdf`)
 }
 
 /**
  * Planche d'étiquettes 5x5 cm sur A4 :
  * grille 4 x 5 = 20 étiquettes (avec bordure pointillée de découpe)
  */
-export function generateLabelsPdf(qrDataUrl: string, nomCommerce: string) {
+export function generateLabelsPdf(
+  qrDataUrl: string,
+  nomEtablissement: string,
+  zoneNom?: string | null
+) {
   const doc = new jsPDF({ unit: MM, format: "a4" })
   const W = 210
   const H = 297
@@ -122,7 +128,8 @@ export function generateLabelsPdf(qrDataUrl: string, nomCommerce: string) {
   doc.setFont("helvetica", "bold")
   doc.setFontSize(14)
   doc.setTextColor(60, 60, 60)
-  doc.text(`Planche d'étiquettes 5x5 cm - ${nomCommerce}`, W / 2, 12, { align: "center" })
+  const contexte = zoneNom ? `${nomEtablissement} — ${zoneNom}` : nomEtablissement
+  doc.text(`Planche d'étiquettes 5x5 cm - ${contexte}`, W / 2, 12, { align: "center" })
 
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
@@ -159,12 +166,12 @@ export function generateLabelsPdf(qrDataUrl: string, nomCommerce: string) {
     align: "center",
   })
 
-  doc.save(`planche-etiquettes-${slug(nomCommerce)}.pdf`)
+  doc.save(`planche-etiquettes-${slug(zoneNom || nomEtablissement)}.pdf`)
 }
 
 /**
  * Bon d'impression d'une commande de supports (utilisé par le Superadmin).
- * qrDataUrl (optionnel) : QR de scan du commerce imprimé en bas du bon —
+ * qrDataUrl (optionnel) : QR de scan de la zone imprimé en bas du bon —
  * permet à l'atelier de vérifier le support avant expédition.
  */
 export function generateCommandePdf(
@@ -175,9 +182,10 @@ export function generateCommandePdf(
     prixEuros: number
     adresseLivraison: string
     statut: string
+    numeroSuivi?: string | null
     createdAt: string
   },
-  pro: { nomCommerce: string; ville: string; email: string },
+  pro: { nomEtablissement: string; ville: string; email: string },
   qrDataUrl?: string
 ) {
   const doc = new jsPDF({ unit: MM, format: "a4" })
@@ -213,7 +221,7 @@ export function generateCommandePdf(
   doc.setTextColor(30, 30, 30)
   doc.text("Client", 22, 88)
   doc.setFont("helvetica", "normal")
-  doc.text(`${pro.nomCommerce} (${pro.ville})`, 22, 96)
+  doc.text(`${pro.nomEtablissement} (${pro.ville})`, 22, 96)
   doc.text(`Email : ${pro.email}`, 22, 103)
   doc.text(`Livraison : ${commande.adresseLivraison}`, 22, 110)
 
@@ -225,11 +233,17 @@ export function generateCommandePdf(
   doc.text(`${support?.label ?? commande.typeSupport} - Quantité : ${commande.quantite}`, 22, 142)
   doc.text(`Prix : ${commande.prixEuros} EUR`, 22, 149)
 
-  // Statut
+  // Statut + numéro de suivi (affiché dès qu'il existe)
   doc.setFont("helvetica", "bold")
   doc.setFontSize(13)
   doc.setTextColor(37, 99, 235)
   doc.text(`Statut actuel : ${STATUT_COMMANDE_LABEL[commande.statut] ?? commande.statut}`, 15, 170)
+  if (commande.numeroSuivi) {
+    doc.setFont("helvetica", "normal")
+    doc.setFontSize(11)
+    doc.setTextColor(60, 60, 60)
+    doc.text(`N° de suivi : ${commande.numeroSuivi}`, 15, 178)
+  }
 
   // Zone de validation
   doc.setDrawColor(200, 200, 200)
@@ -239,7 +253,7 @@ export function generateCommandePdf(
   doc.setTextColor(120, 120, 120)
   doc.text("Visa atelier / date d'impression :", 18, 208)
 
-  // QR de scan du commerce (optionnel) : vérification du support avant expédition
+  // QR de scan de la zone (optionnel) : vérification du support avant expédition
   if (qrDataUrl) {
     try {
       const qr = 40 // 4 x 4 cm
@@ -264,7 +278,7 @@ export function generateCommandePdf(
 }
 
 /**
- * Rapport de satisfaction (export PDF de l'onglet Statistiques, Session 4) :
+ * Rapport de satisfaction (export PDF de l'onglet Statistiques) :
  * KPIs, répartition des notes, tags récurrents et heatmap jour/créneau.
  * Généré côté client à partir des données déjà chargées par le dashboard.
  */
@@ -277,7 +291,7 @@ export function generateStatsReportPdf(
     total: number
     noteMoyenne: number
   },
-  nomCommerce: string
+  nomEtablissement: string
 ) {
   const doc = new jsPDF({ unit: MM, format: "a4" })
   const W = 210
@@ -294,7 +308,7 @@ export function generateStatsReportPdf(
   doc.text("Rapport de satisfaction", M, 16)
   doc.setFontSize(11)
   doc.setFont("helvetica", "normal")
-  doc.text(`${nomCommerce} - ${stats.jours} derniers jours`, M, 26)
+  doc.text(`${nomEtablissement} - ${stats.jours} derniers jours`, M, 26)
   doc.text(`Généré le ${new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`, W - M, 26, {
     align: "right",
   })
@@ -434,7 +448,7 @@ export function generateStatsReportPdf(
   doc.setTextColor(150, 150, 150)
   doc.text("Propulsé par FeedbackPro - Rapport généré automatiquement", W / 2, H - 12, { align: "center" })
 
-  doc.save(`rapport-${slug(nomCommerce)}-${new Date().toISOString().slice(0, 10)}.pdf`)
+  doc.save(`rapport-${slug(nomEtablissement)}-${new Date().toISOString().slice(0, 10)}.pdf`)
 }
 
 function slug(s: string): string {

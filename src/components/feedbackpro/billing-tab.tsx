@@ -1,10 +1,10 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Onglet "Facturation" du dashboard Pro (S6 §1)
+// FeedbackPro - Onglet "Facturation" du dashboard Pro (Coach IA)
 // ------------------------------------------------------------
 // - Plan actuel (badge) + grille comparative des 3 plans
-//   (PLANS + PLAN_LIMITS de src/lib/constants.ts)
+//   (PLANS 29€ / 99€ / 249€ de src/lib/constants.ts)
 // - Changement de plan via POST /api/pro/billing/checkout :
 //   · Stripe configuré → redirection vers la Checkout Session
 //   · Sans clés (mode démo) → paiement simulé via POST /api/pro/plan
@@ -21,7 +21,7 @@ import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/app-store"
-import { PLANS, PLAN_LIMITS, planPriceLabel, STATUT_COMMANDE_LABEL, SUPPORTS, type PlanId } from "@/lib/constants"
+import { PLANS, planPriceLabel, STATUT_COMMANDE_LABEL, SUPPORTS, type PlanId } from "@/lib/constants"
 
 // ---------- Types locaux ----------
 
@@ -173,7 +173,7 @@ export function BillingTab() {
         <div>
           <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Facturation</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Gérez votre abonnement et consultez vos factures.
+            Gérez votre abonnement au Coach IA et consultez vos factures.
           </p>
         </div>
         <Badge variant="secondary" className="gap-1.5 px-3 py-1.5 text-sm">
@@ -182,13 +182,12 @@ export function BillingTab() {
         </Badge>
       </div>
 
-      {/* ---------- Grille comparative des plans ---------- */}
+      {/* ---------- Grille comparative des plans (29 / 99 / 249 €) ---------- */}
       <div className="grid gap-4 md:grid-cols-3">
         {(Object.keys(PLANS) as PlanId[]).map((id) => {
           const p = PLANS[id]
           const estActuel = id === planActuel
           const estSuperieur = p.price > planActuelDef.price
-          const limites = PLAN_LIMITS[id]
           return (
             <Card
               key={id}
@@ -218,9 +217,9 @@ export function BillingTab() {
                     </li>
                   ))}
                 </ul>
+                {/* Limites du plan : zones de contact, employés et volume de retours */}
                 <p className="text-xs text-muted-foreground">
-                  {limites.employes === 999 ? "Employés illimités" : `${limites.employes} employés`} ·{" "}
-                  {limites.boutiques === 999 ? "boutiques illimitées" : `${limites.boutiques} boutique${limites.boutiques > 1 ? "s" : ""}`}
+                  Zones : {p.limites.zones} · Employés : {p.limites.employes} · Retours : {p.limites.retours}
                 </p>
                 <Button
                   className="w-full"

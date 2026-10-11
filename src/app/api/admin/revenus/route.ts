@@ -21,15 +21,14 @@ export async function GET(req: NextRequest) {
     const [totalSupports, parType, pros, commandesEvol] = await Promise.all([
       db.commande.aggregate({ _sum: { prixEuros: true } }),
       db.commande.groupBy({ by: ["typeSupport"], _sum: { prixEuros: true }, _count: { _all: true } }),
-      db.pro.findMany({ select: { plan: true, createdAt: true } }),
+      db.pro.findMany({ select: { plan: true, createdAt: true, suspendu: true } }),
       db.commande.findMany({ select: { prixEuros: true, createdAt: true } }),
     ])
 
-    // MRR abonnements : recalculé côté serveur à partir des plans des Pro actifs
-    const caAbonnementsMensuel = pros.reduce(
-      (s, p) => s + (PLANS[p.plan as keyof typeof PLANS]?.price ?? 0),
-      0
-    )
+    // MRR abonnements : recalculé côté serveur à partir des plans des Pro actifs non suspendus (29 € / 99 € / 249 €)
+    const caAbonnementsMensuel = pros
+      .filter((p) => !p.suspendu)
+      .reduce((s, p) => s + (PLANS[p.plan as keyof typeof PLANS]?.price ?? 0), 0)
 
     // Répartition par type (les 3 types du catalogue, 0 si aucune commande)
     const caSupportsParType: Record<TypeSupportId, number> = {
@@ -54,7 +53,9 @@ export async function GET(req: NextRequest) {
 
     // MRR estimé du mois m = somme des plans des commerçants inscrits avant la fin de m
     // (proxy : pas d'historique de facturation, cf. worklog)
-    const prosTries = [...pros].sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+    const prosTries = [...pros]
+      .filter((p) => !p.suspendu)
+      .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
     const evolution: { mois: string; abonnements: number; supports: number }[] = []
     for (let i = 11; i >= 0; i--) {
       const finMois = new Date(debut)

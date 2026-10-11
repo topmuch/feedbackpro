@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
 
     // ---------- Mode démo : pas de clés Stripe ----------
     if (!process.env.STRIPE_SECRET_KEY) {
-      console.log(`[STRIPE SIMULÉ] ${ctx.pro.nomCommerce} → checkout démo plan ${plan}`)
+      console.log(`[STRIPE SIMULÉ] ${ctx.pro.nomEtablissement} → checkout démo plan ${plan}`)
       return ok({ mode: "DEMO" })
     }
 

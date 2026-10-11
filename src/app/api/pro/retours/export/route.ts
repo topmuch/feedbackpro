@@ -1,12 +1,14 @@
 // ============================================================
 // API Pro - Export CSV des retours (avec BOM Excel)
 // GET /api/pro/retours/export
+// Colonnes adaptées au pivot : Date · Zone · Note · Tags · Employé…
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
 import { requirePro, unauthorized } from "@/lib/guards"
 import { tagLabel } from "@/lib/constants"
+import { parseJsonArray } from "@/lib/ia"
 
 function esc(v: string | number | null | undefined): string {
   const s = String(v ?? "")
@@ -18,20 +20,24 @@ export async function GET(req: NextRequest) {
   if (!ctx) return unauthorized()
 
   const retours = await db.retour.findMany({
-    where: { boutiqueId: ctx.boutique.id },
+    where: { proId: ctx.pro.id },
     orderBy: { createdAt: "desc" },
-    include: { employe: { select: { nom: true } } },
+    include: {
+      zone: { select: { nom: true } },
+      employe: { select: { nom: true } },
+    },
   })
 
   const lignes = [
-    "Date;Note;Tags;Employé;Personnel mentionné;Commentaire;Canal;Statut;Lu",
+    "Date;Zone;Note;Tags;Employé;Personnel mentionné;Commentaire;Canal;Statut;Lu",
   ]
   for (const r of retours) {
     lignes.push(
       [
         esc(r.createdAt.toLocaleString("fr-FR")),
+        esc(r.zone?.nom ?? ""),
         esc(r.note),
-        esc(JSON.parse(r.tags).map(tagLabel).join(", ")),
+        esc(parseJsonArray(r.tags).map(tagLabel).join(", ")),
         esc(r.employe?.nom ?? ""),
         esc(r.personnelMentionne ?? ""),
         esc(r.commentaire ?? ""),

@@ -5,19 +5,65 @@
 
 import { NextRequest, NextResponse } from "next/server"
 import { db } from "@/lib/db"
+import type { Pro } from "@prisma/client"
 
 export const SESSION_COOKIE = "fp_session"
 const SESSION_DAYS = 30
 
+/** Utilisateur résolu depuis le cookie de session (champs pivot Session 1) */
 export type SessionUser = {
   id: string
   email: string
   role: string
   proId: string | null
-  nomCommerce: string | null
+  nomEtablissement: string | null
   plan: string
   onboardingDone: boolean
-  qrToken: string | null
+}
+
+/** Données Pro sérialisées renvoyées au frontend (même forme que ProData du store) */
+export type ProData = {
+  id: string
+  nomEtablissement: string
+  typeEtablissement: string
+  adresse: string
+  ville: string
+  whatsapp: string | null
+  email: string
+  logoUrl: string | null
+  plan: string
+  frequenceRapport: string
+  recompense: string | null
+  messageWhatsapp: string | null
+  onboardingDone: boolean
+  suspendu: boolean
+  smsAlertes: boolean
+  createdAt: string
+}
+
+/**
+ * Sérialise un Pro pour les réponses API (forme stable, champs pivot uniquement).
+ * Centralisé ici pour garantir l'identité du contrat entre /auth/*, /pro/settings, /pro/plan…
+ */
+export function serializePro(pro: Pro): ProData {
+  return {
+    id: pro.id,
+    nomEtablissement: pro.nomEtablissement,
+    typeEtablissement: pro.typeEtablissement,
+    adresse: pro.adresse,
+    ville: pro.ville,
+    whatsapp: pro.whatsapp,
+    email: pro.email,
+    logoUrl: pro.logoUrl,
+    plan: pro.plan,
+    frequenceRapport: pro.frequenceRapport,
+    recompense: pro.recompense,
+    messageWhatsapp: pro.messageWhatsapp,
+    onboardingDone: pro.onboardingDone,
+    suspendu: pro.suspendu,
+    smsAlertes: pro.smsAlertes,
+    createdAt: pro.createdAt.toISOString(),
+  }
 }
 
 /** Crée une session en base et pose le cookie httpOnly sur la réponse */
@@ -63,14 +109,13 @@ export async function getSessionUser(req: NextRequest): Promise<SessionUser | nu
     email: u.email,
     role: u.role,
     proId: u.pro?.id ?? null,
-    nomCommerce: u.pro?.nomCommerce ?? null,
+    nomEtablissement: u.pro?.nomEtablissement ?? null,
     plan: u.pro?.plan ?? "STARTER",
     onboardingDone: u.pro?.onboardingDone ?? false,
-    qrToken: u.pro?.qrToken ?? null,
   }
 }
 
-/** Réponses JSON standardisées */
+/** Réponses JSON standardisées : { ok: true, data } | { ok: false, error } */
 export function ok(data: unknown = null, status = 200) {
   return NextResponse.json({ ok: true, data }, { status })
 }

@@ -10,10 +10,12 @@ export type RetourPayload = {
   tags: string[]
   commentaire?: string | null
   personnelMentionne?: string | null
+  /** Nom de la zone scannée (Accueil, Salle, Toilettes…) — affiché après 📍 */
+  zoneNom?: string | null
 }
 
 export type ProInfo = {
-  nomCommerce: string
+  nomEtablissement: string
   whatsapp: string | null
   messageWhatsapp?: string | null
 }
@@ -27,9 +29,10 @@ export function formatDateFr(d: Date): string {
 /**
  * Construit le message WhatsApp structuré :
  * 🎉 RETOUR POSITIF / ⚠️ RÉCLAMATION
- * 📍 [Nom du commerce]
+ * 📍 Zone (nom)
  * ⭐ Note : X/5
- * ...
+ * 🏷️ Tags · 👤 Personnel · 💬 Détails
+ * Pied : messageWhatsapp personnalisé ou mention FeedbackPro ✨
  */
 export function buildWhatsAppMessage(
   pro: ProInfo,
@@ -40,7 +43,7 @@ export function buildWhatsAppMessage(
   const lignes: string[] = []
 
   lignes.push(estPositif ? "🎉 RETOUR POSITIF" : "⚠️ RÉCLAMATION")
-  lignes.push(`📍 ${pro.nomCommerce}`)
+  lignes.push(`📍 Zone : ${retour.zoneNom || "Général"} — ${pro.nomEtablissement}`)
   lignes.push(`⭐ Note : ${retour.note}/5`)
   lignes.push(`📅 ${formatDateFr(new Date())}`)
 
@@ -58,8 +61,8 @@ export function buildWhatsAppMessage(
   }
 
   lignes.push("")
-  // Signature personnalisée du commerce si configurée, sinon mention FeedbackPro
-  lignes.push(pro.messageWhatsapp || "Envoyé via FeedbackPro")
+  // Signature personnalisée de l'établissement si configurée, sinon mention FeedbackPro
+  lignes.push(pro.messageWhatsapp || "Envoyé via FeedbackPro ✨")
 
   return lignes.join("\n")
 }

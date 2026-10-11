@@ -1,18 +1,20 @@
 // ============================================================
-// API publique - Enregistrement d'un retour client
+// API publique (canonique) - Enregistrement d'un retour Client Mystère
 // POST /api/retour
-// Body : { token, note, tags[], commentaire?, personnelMentionne?, employeId?, canalChoisi? }
-// - Validation Zod (schéma partagé client/serveur src/lib/validation.ts)
-// - Note <= 2 → création d'une Alerte + notification commerçant
-//   (SMS Twilio si activé, sinon email de secours — S6)
-// - Ville approximative du client via IP (ipapi.co, optionnelle et silencieuse)
+// Body : { qrToken, note, tags[], commentaire?, personnelMentionne?, canalChoisi? }
+// → { retour, recompense: string | null }
+// - Résout la ZONE par son qrToken (chaque zone a son QR)
+// - Crée le Retour avec proId + zoneId (+ rattachement employé par nom)
+// - Note ≤ 2 → Alerte + SMS (si activé) ou email de secours
+// - Récompense (micro-avantage) renvoyée pour l'écran de remerciement
 // ============================================================
 
 import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
 import { ok, fail } from "@/lib/session"
-import { POSITIVE_TAGS, NEGATIVE_TAGS, tagLabel } from "@/lib/constants"
 import { retourSchema, firstError } from "@/lib/validation"
+import { tagLabel } from "@/lib/constants"
+import { parseJsonArray } from "@/lib/ia"
 import { sendSMS } from "@/lib/twilio"
 import { sendEmail, emailAlerteRetour } from "@/lib/email"
 
@@ -61,53 +63,49 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return fail(firstError(parsed.error), 400)
     }
-    const { token, note, tags, commentaire, personnelMentionne, employeId, canalChoisi } = parsed.data
+    const { qrToken, note, tags, commentaire, personnelMentionne, canalChoisi } = parsed.data
 
-    // ---------- Validation métier des tags ----------
-    const idsConnus = POSITIVE_TAGS.map((t) => t.id).concat(NEGATIVE_TAGS.map((t) => t.id))
-    const validTags = tags.filter((t) => idsConnus.includes(t))
-    if (validTags.length !== tags.length) return fail("Tags invalides", 400)
-    // Tags cohérents avec la note (positifs = 4-5, négatifs = 1-3)
-    if (note >= 4 && validTags.some((t) => NEGATIVE_TAGS.some((nt) => nt.id === t)))
-      return fail("Tags incohérents avec la note", 400)
-    if (note <= 3 && validTags.some((t) => POSITIVE_TAGS.some((pt) => pt.id === t)))
-      return fail("Tags incohérents avec la note", 400)
-
-    // ---------- Résolution du commerce via le token du QR ----------
-    // `user` est inclus pour récupérer l'email du commerçant (alerte email de secours, S6)
-    const pro = await db.pro.findUnique({
-      where: { qrToken: token },
-      include: {
-        boutiques: { orderBy: { createdAt: "asc" } },
-        user: { select: { email: true } },
-      },
+    // ---------- Résolution de la zone via le QR token ----------
+    const zone = await db.zone.findUnique({
+      where: { qrToken },
+      include: { pro: { include: { user: { select: { email: true } } } } },
     })
-    if (!pro) return fail("QR code invalide", 404)
-    const boutique = pro.boutiques[0]
-    if (!boutique) return fail("Boutique introuvable", 404)
+    if (!zone) return fail("QR code invalide", 404)
+    const pro = zone.pro
 
-    // Rapprochement employé : soit via l'ID transmis, soit par similarité du nom
-    let finalEmployeId: string | null = null
-    if (employeId) {
-      const e = await db.employe.findFirst({ where: { id: employeId, boutiqueId: boutique.id, actif: true } })
-      if (e) finalEmployeId = e.id
-    } else if (personnelMentionne) {
+    // ---------- Cohérence des tags avec la zone et la note ----------
+    // Le scan n'affiche que les tags configurés sur la zone ; on filtre
+    // silencieusement (aucune erreur 400 côté client mystère) pour garantir
+    // la qualité des données sans casser le parcours public.
+    const positifsZone = parseJsonArray(zone.tagsPositifs)
+    const negatifsZone = parseJsonArray(zone.tagsNegatifs)
+    const autorises = note >= 4 ? positifsZone : negatifsZone
+    const validTags = autorises.length > 0 ? tags.filter((t) => autorises.includes(t)) : []
+
+    // ---------- Rattachement employé (affecté à cette zone) ----------
+    let employeId: string | null = null
+    if (personnelMentionne) {
       const needle = personnelMentionne.trim().toLowerCase()
       if (needle.length >= 3) {
-        const employes = await db.employe.findMany({ where: { boutiqueId: boutique.id, actif: true } })
-        const match = employes.find((e) => e.nom.toLowerCase().includes(needle) || needle.includes(e.nom.toLowerCase().split(" ")[0]))
-        if (match) finalEmployeId = match.id
+        const employesZone = await db.employe.findMany({ where: { proId: pro.id, actif: true } })
+        const match = employesZone.find((e) => {
+          const affecte = parseJsonArray(e.zoneIds).includes(zone.id)
+          const nom = e.nom.toLowerCase()
+          return affecte && (nom.includes(needle) || needle.includes(nom.split(" ")[0]))
+        })
+        if (match) employeId = match.id
       }
     }
 
     // Ville par IP : best effort, ne doit jamais ralentir l'envoi de plus d'1,5 s
     const ipCity = await villeDepuisIp(req)
 
-    // ---------- Enregistrement ----------
+    // ---------- Enregistrement (proId + zoneId) ----------
     const retour = await db.retour.create({
       data: {
-        boutiqueId: boutique.id,
-        employeId: finalEmployeId,
+        proId: pro.id,
+        zoneId: zone.id,
+        employeId,
         note,
         tags: JSON.stringify(validTags),
         commentaire,
@@ -119,25 +117,28 @@ export async function POST(req: NextRequest) {
         historique: JSON.stringify([{ statut: "NEW", at: new Date().toISOString() }]),
         lu: false,
       },
+      include: {
+        zone: { select: { nom: true } },
+        employe: { select: { nom: true } },
+      },
     })
 
     // ---------- Alerte temps réel pour les réclamations (note <= 2) ----------
-    let alerteEnvoyee = false
     if (note <= 2) {
-      const tagsTxt = validTags.length ? ` Tags : ${validTags.join(", ")}.` : ""
+      const tagsTxt = validTags.length ? ` Tags : ${validTags.map(tagLabel).join(", ")}.` : ""
       const persTxt = personnelMentionne ? ` Personnel : ${personnelMentionne}.` : ""
       await db.alerte.create({
         data: {
           proId: pro.id,
           retourId: retour.id,
-          titre: `🚨 Réclamation ${note}/5 - ${pro.nomCommerce}`,
-          message: `Un client vient de laisser un retour ${note}/5.${tagsTxt}${persTxt} ${commentaire ? `"${commentaire.slice(0, 140)}"` : ""} Intervenez vite pour protéger votre réputation !`,
+          titre: `🚨 Réclamation ${note}/5 - ${zone.nom}`,
+          message: `Un Client Mystère vient de laisser un retour ${note}/5 sur la zone « ${zone.nom} ».${tagsTxt}${persTxt} ${commentaire ? `"${commentaire.slice(0, 140)}"` : ""} Intervenez vite !`,
           canal: "SMS",
           lu: false,
         },
       })
 
-      // ---------- Notification commerçant (S6) : SMS Twilio ou email de secours ----------
+      // ---------- Notification (S6) : SMS Twilio ou email de secours ----------
       // Strictement non bloquant : un échec d'envoi ne doit jamais faire
       // échouer l'enregistrement du retour (le client attend sa réponse).
       const motifs = validTags.length ? validTags.map(tagLabel).join(", ") : "non précisé"
@@ -146,23 +147,35 @@ export async function POST(req: NextRequest) {
         if (pro.smsAlertes && pro.whatsapp) {
           void sendSMS(
             pro.whatsapp,
-            `🚨 FeedbackPro : Alerte réclamation - Note ${note}/5 - Motif : ${motifs}. Connectez-vous : ${dashboardUrl}`
+            `🚨 FeedbackPro : Alerte réclamation - Zone ${zone.nom} - Note ${note}/5 - Motif : ${motifs}. Connectez-vous : ${dashboardUrl}`
           ).catch((e) => console.warn("SMS d'alerte non envoyé (non bloquant)", e))
         } else if (pro.user?.email) {
           // Fallback email : SMS désactivé (pro.smsAlertes = false) ou numéro manquant
           void sendEmail(
             pro.user.email,
-            `🚨 Alerte réclamation ${note}/5 — ${pro.nomCommerce}`,
-            emailAlerteRetour(pro.nomCommerce, note, motifs, dashboardUrl)
+            `🚨 Alerte réclamation ${note}/5 — ${pro.nomEtablissement}`,
+            emailAlerteRetour(pro.nomEtablissement, note, motifs, dashboardUrl)
           ).catch((e) => console.warn("Email d'alerte non envoyé (non bloquant)", e))
         }
       } catch (e) {
         console.warn("Notification d'alerte non envoyée (non bloquant)", e)
       }
-      alerteEnvoyee = true
     }
 
-    return ok({ id: retour.id, alerteEnvoyee, ipCity })
+    return ok({
+      retour: {
+        id: retour.id,
+        note: retour.note,
+        tags: validTags,
+        commentaire: retour.commentaire,
+        statut: retour.statut,
+        createdAt: retour.createdAt.toISOString(),
+        zone: { nom: zone.nom },
+        employe: retour.employe?.nom ? { nom: retour.employe.nom } : null,
+      },
+      // Micro-récompense affichée à l'écran de remerciement
+      recompense: pro.recompense ?? null,
+    })
   } catch (e) {
     console.error("retour error", e)
     return fail("Erreur serveur lors de l'enregistrement", 500)

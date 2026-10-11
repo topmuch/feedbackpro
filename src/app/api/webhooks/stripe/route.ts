@@ -13,8 +13,8 @@
 //
 // ─── Comment créer les Price IDs Stripe ──────────────────────
 // 1. Dashboard Stripe → Produits → "Ajouter un produit"
-//    - "FeedbackPro Pro"        : prix récurrent 19 € / mois  → price_xxx → STRIPE_PRICE_PRO
-//    - "FeedbackPro Enterprise" : prix récurrent 79 € / mois  → price_xxx → STRIPE_PRICE_ENTERPRISE
+//    - "FeedbackPro Pro"        : prix récurrent 99 € / mois  → price_xxx → STRIPE_PRICE_PRO
+//    - "FeedbackPro Enterprise" : prix récurrent 249 € / mois → price_xxx → STRIPE_PRICE_ENTERPRISE
 // 2. Copier les deux `price_...` dans les variables d'env (.env / Vercel)
 // 3. Créer un endpoint webhook (https://feedbackpro.fr/api/webhooks/stripe)
 //    avec les événements ci-dessous → copier le secret (whsec_...)

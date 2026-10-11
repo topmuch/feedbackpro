@@ -1,9 +1,11 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Dashboard Superadmin (Session 5)
+// FeedbackPro - Dashboard Superadmin (pivot Zones, Coach IA)
 // Onglets : Vue d'ensemble · Commerçants · Commandes · Revenus · Paramètres
 // URLs synchronisées : /superadmin/<slug> (rewritées vers /?admin=1&tabAdmin=…)
+// Contrats : GET /api/admin/overview, /api/admin/pros (POST actions),
+// /api/admin/commandes (PATCH), /api/admin/revenus, /api/admin/settings
 // ============================================================
 
 import { useCallback, useEffect, useState } from "react"
@@ -15,7 +17,6 @@ import {
   Wallet,
   Settings,
   Euro,
-  MessageSquare,
   Search,
   RefreshCw,
   Loader2,
@@ -27,6 +28,8 @@ import {
   Truck,
   Printer,
   TrendingUp,
+  CheckCircle2,
+  MapPin,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -53,6 +56,14 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog"
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table"
 import { StatCard, formatDate } from "@/components/feedbackpro/shared"
 import { AppHeader } from "@/components/feedbackpro/shared"
 import { useToast } from "@/hooks/use-toast"
@@ -64,7 +75,7 @@ import {
   PlanId,
   TypeSupportId,
 } from "@/lib/constants"
-import { generateCommandePdf } from "@/lib/pdf"
+import { generateCommandePdf, generateLabelsPdf } from "@/lib/pdf"
 import {
   ResponsiveContainer,
   PieChart,
@@ -83,15 +94,18 @@ import {
 
 // ---------- Onglets & synchronisation d'URL ----------
 
-type OngletAdmin = "globale" | "pros" | "commandes" | "revenus" | "parametres"
+type OngletAdmin = "globale" | "commercants" | "commandes" | "revenus" | "parametres"
 
 const ONGLETS: { id: OngletAdmin; label: string; icone: React.ComponentType<{ className?: string }> }[] = [
   { id: "globale", label: "Vue d'ensemble", icone: LayoutDashboard },
-  { id: "pros", label: "Commerçants", icone: Store },
+  { id: "commercants", label: "Commerçants", icone: Store },
   { id: "commandes", label: "Commandes", icone: Package },
   { id: "revenus", label: "Revenus", icone: Wallet },
   { id: "parametres", label: "Paramètres", icone: Settings },
 ]
+
+// Alias de slugs historiques (rétrocompatibilité des anciennes URLs)
+const ALIAS_SLUGS: Record<string, OngletAdmin> = { pros: "commercants" }
 
 const EST_ONGLET = (v: string): v is OngletAdmin => ONGLETS.some((o) => o.id === v)
 
@@ -105,33 +119,51 @@ function ongletDepuisUrl(): OngletAdmin {
   try {
     const params = new URLSearchParams(window.location.search)
     const t = params.get("tabAdmin")
-    if (t && EST_ONGLET(t)) return t
+    if (t) {
+      if (EST_ONGLET(t)) return t
+      if (ALIAS_SLUGS[t]) return ALIAS_SLUGS[t]
+    }
     const m = window.location.pathname.match(/^\/superadmin\/([a-z-]+)\/?$/)
-    if (m && EST_ONGLET(m[1])) return m[1]
+    if (m) {
+      if (EST_ONGLET(m[1])) return m[1]
+      if (ALIAS_SLUGS[m[1]]) return ALIAS_SLUGS[m[1]]
+    }
   } catch {
     /* ignore */
   }
   return "globale"
 }
 
-// ---------- Types ----------
+// ---------- Types (contrats API pivot Zones) ----------
 
+/** GET /api/admin/overview → { totalPros, prosActifs, mrr, commandesEnCours, croissance30j, repartitionPlans, top10Pros } */
+type OverviewApi = {
+  totalPros?: number
+  prosActifs?: number
+  mrr?: number
+  commandesEnCours?: number
+  croissance30j?: { jour?: string; date?: string; nouveaux?: number; total?: number; count?: number }[]
+  repartitionPlans?: Record<string, number> | { plan?: string; count?: number }[]
+  top10Pros?: { nomEtablissement?: string; nomCommerce?: string; retours?: number }[]
+}
+
+/** GET /api/admin/pros → { pros: [{ ...pro, zones, retours, employes (counts) }] } */
 type ProLigne = {
   id: string
-  nomCommerce: string
-  categorie: string
+  nomEtablissement: string
+  typeEtablissement: string
   ville: string
   email: string
   plan: string
   suspendu: boolean
   onboardingDone: boolean
   createdAt: string
-  qrToken: string
-  nbRetours: number
-  nbCommandes: number
-  mrr: number
+  zones: number
+  retours: number
+  employes: number
 }
 
+/** GET /api/admin/commandes → { commandes: [...] } */
 type CommandeLigne = {
   id: string
   typeSupport: string
@@ -140,34 +172,24 @@ type CommandeLigne = {
   adresseLivraison: string
   statut: string
   numeroSuivi: string | null
+  zoneId?: string | null
   createdAt: string
-  pro: { id: string; nomCommerce: string; ville: string; email: string; qrToken: string }
-}
-
-type AdminOverview = {
-  kpis: {
-    nbPros: number
-    prosParPlan: { STARTER: number; PRO: number; ENTERPRISE: number }
-    mrr: number
-    revenusSupports: number
-    totalRetours: number
-    retours30j: number
-    noteMoyennePlateforme: number
-    commandesCount: number
-    commandesATraiter: number
-    alertes30j: number
+  // Champs tolérants aux deux nomenclatures (pivot en cours côté API)
+  pro?: {
+    nomEtablissement?: string
+    nomCommerce?: string
+    ville?: string
+    email?: string
+    qrToken?: string
   }
-  derniersPros: { id: string; nomCommerce: string; ville: string; plan: string; email: string; createdAt: string }[]
-  /** Session 5 : croissance du nombre de Pros (nouveaux/jour, 30 derniers jours) */
-  croissancePros: { jour: string; nouveaux: number }[]
-  /** Session 5 : Top 10 des Pros par nombre de retours */
-  topPros: { nomCommerce: string; boutique: string; retours: number }[]
+  zone?: { nom?: string; qrToken?: string }
 }
 
+/** GET /api/admin/revenus */
 type RevenusData = {
   caAbonnementsMensuel: number
   caSupportsTotal: number
-  caSupportsParType: Record<TypeSupportId, number>
+  caSupportsParType: Partial<Record<TypeSupportId, number>>
   evolutionMensuelle: { mois: string; abonnements: number; supports: number }[]
 }
 
@@ -178,8 +200,23 @@ type SettingsForm = {
   seuilAlerte: string
 }
 
-// Couleurs des graphiques (palette émeraude / ambre / rose — pas de bleu ajouté)
-const COULEURS_SUPPORTS = ["#10b981", "#f59e0b", "#f43f5e"]
+// Couleurs des graphiques (palette bleu FeedbackPro)
+const COULEURS_PLANS: Record<string, string> = {
+  STARTER: "#64748b",
+  PRO: "#2563eb",
+  ENTERPRISE: "#1e3a8a",
+}
+const COULEURS_SUPPORTS = ["#2563eb", "#f59e0b", "#0891b2"]
+
+/** Libellé d'un plan depuis son id (STARTER → Starter) */
+function nomPlan(plan: string | undefined): string {
+  return PLANS[(plan ?? "") as PlanId]?.name ?? plan ?? "—"
+}
+
+/** Garde-fou : renvoie toujours un tableau (l'API peut être en cours de migration) */
+function enArray<T>(v: T[] | null | undefined): T[] {
+  return Array.isArray(v) ? v : []
+}
 
 // ============================================================
 // Composant racine
@@ -187,7 +224,7 @@ const COULEURS_SUPPORTS = ["#10b981", "#f59e0b", "#f43f5e"]
 
 export function AdminDashboard() {
   const [onglet, setOnglet] = useState<OngletAdmin>(() => ongletDepuisUrl())
-  const [overview, setOverview] = useState<AdminOverview | null>(null)
+  const [overview, setOverview] = useState<OverviewApi | null>(null)
   const { toast } = useToast()
 
   async function loadOverview() {
@@ -225,8 +262,6 @@ export function AdminDashboard() {
     }
   }
 
-  const k = overview?.kpis
-
   return (
     <div className="min-h-screen flex flex-col">
       <AppHeader subtitle="Administration FeedbackPro" />
@@ -237,8 +272,9 @@ export function AdminDashboard() {
           <div className="flex gap-1 overflow-x-auto no-scrollbar py-2" role="tablist">
             {ONGLETS.map((o) => {
               const Icone = o.icone
-              const badge =
-                o.id === "commandes" && k?.commandesATraiter ? ` (${k.commandesATraiter})` : ""
+              const badge = o.id === "commandes" && (overview?.commandesEnCours ?? 0) > 0
+                ? ` (${overview?.commandesEnCours})`
+                : ""
               return (
                 <button
                   key={o.id}
@@ -265,7 +301,7 @@ export function AdminDashboard() {
       {/* ---------- Contenu ---------- */}
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 py-5 sm:py-7 space-y-6">
         {onglet === "globale" && <GlobaleTab overview={overview} />}
-        {onglet === "pros" && <ProsTab onModifie={loadOverview} />}
+        {onglet === "commercants" && <ProsTab onModifie={loadOverview} />}
         {onglet === "commandes" && <CommandesTab onModifie={loadOverview} />}
         {onglet === "revenus" && <RevenusTab />}
         {onglet === "parametres" && <ParametresTab />}
@@ -275,10 +311,10 @@ export function AdminDashboard() {
 }
 
 // ============================================================
-// Sous-onglet Vue d'ensemble (KPIs + santé plateforme)
+// Sous-onglet Vue d'ensemble (4 KPI + croissance + top 10 + plans)
 // ============================================================
 
-function GlobaleTab({ overview }: { overview: AdminOverview | null }) {
+function GlobaleTab({ overview }: { overview: OverviewApi | null }) {
   if (!overview) {
     return (
       <div className="space-y-4">
@@ -288,63 +324,79 @@ function GlobaleTab({ overview }: { overview: AdminOverview | null }) {
           ))}
         </div>
         <Skeleton className="h-72 rounded-xl" />
+        <Skeleton className="h-72 rounded-xl" />
       </div>
     )
   }
 
-  const k = overview.kpis
+  const totalPros = overview.totalPros ?? 0
+  const prosActifs = overview.prosActifs ?? 0
+  const mrr = overview.mrr ?? 0
+  const commandesEnCours = overview.commandesEnCours ?? 0
+
+  // Croissance des inscriptions (30 derniers jours) — champs tolérants
+  const croissance = enArray(overview.croissance30j).map((p) => ({
+    jour: p.jour ?? p.date ?? "",
+    nouveaux: p.nouveaux ?? p.total ?? p.count ?? 0,
+  }))
+
+  // Top 10 des Pros par nombre de retours : [{ nomEtablissement, retours }]
+  const top10 = enArray(overview.top10Pros).map((p) => ({
+    nom: p.nomEtablissement ?? p.nomCommerce ?? "—",
+    retours: p.retours ?? 0,
+  }))
+
+  // Répartition par plan : objet { STARTER: n, ... } ou tableau [{ plan, count }]
+  const repartition: { plan: string; count: number; fill: string }[] = Array.isArray(overview.repartitionPlans)
+    ? overview.repartitionPlans.map((r) => ({
+        plan: nomPlan(r.plan),
+        count: r.count ?? 0,
+        fill: COULEURS_PLANS[r.plan ?? ""] ?? "#94a3b8",
+      }))
+    : Object.entries(overview.repartitionPlans ?? {}).map(([plan, count]) => ({
+        plan: nomPlan(plan),
+        count: Number(count) || 0,
+        fill: COULEURS_PLANS[plan] ?? "#94a3b8",
+      }))
+
   return (
     <div className="space-y-6">
-      {/* KPIs plateforme */}
+      {/* ---------- 4 KPI ---------- */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard icon={Euro} label="MRR abonnements" value={`${k.mrr} €`} hint={`${k.revenusSupports} € de supports vendus`} hintTone="up" />
-        <StatCard icon={Store} label="Commerçants actifs" value={k.nbPros} hint={`${k.prosParPlan.PRO + k.prosParPlan.ENTERPRISE} payants`} />
-        <StatCard icon={MessageSquare} label="Retours (30 jours)" value={k.retours30j} hint={`${k.totalRetours} au total`} />
+        <StatCard icon={Store} label="Pros total" value={totalPros} hint={`${prosActifs} actifs`} />
+        <StatCard icon={CheckCircle2} label="Pros actifs" value={prosActifs} hint="Comptes non suspendus" hintTone="up" />
+        <StatCard icon={Euro} label="MRR abonnements" value={`${mrr} €`} hint="Calculé sur les plans actifs (29/99/249 €)" hintTone="up" />
         <StatCard
           icon={Package}
-          label="Commandes à traiter"
-          value={k.commandesATraiter}
-          hint={`${k.commandesCount} commandes au total`}
-          hintTone={k.commandesATraiter > 0 ? "down" : "up"}
+          label="Commandes en cours"
+          value={commandesEnCours}
+          hint={commandesEnCours > 0 ? "À imprimer ou expédier" : "Tout est traité"}
+          hintTone={commandesEnCours > 0 ? "down" : "up"}
         />
       </div>
-      <VueGlobaleContenu overview={overview} />
-    </div>
-  )
-}
 
-function VueGlobaleContenu({ overview }: { overview: AdminOverview }) {
-  const k = overview.kpis
-  const planData = [
-    { plan: "Starter", count: k.prosParPlan.STARTER, fill: "#64748b" },
-    { plan: "Pro", count: k.prosParPlan.PRO, fill: "#10b981" },
-    { plan: "Enterprise", count: k.prosParPlan.ENTERPRISE, fill: "#065f46" },
-  ]
-
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      {/* ---------- Session 5 : croissance du nombre de Pros (30 derniers jours) ---------- */}
-      <Card className="lg:col-span-2">
+      {/* ---------- Croissance des inscriptions (30 derniers jours) ---------- */}
+      <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base sm:text-lg">Croissance du nombre de Pros (30 derniers jours)</CardTitle>
+          <CardTitle className="text-base sm:text-lg">Croissance des inscriptions (30 derniers jours)</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-56 w-full">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={overview.croissancePros} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
+              <AreaChart data={croissance} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
                 <defs>
                   <linearGradient id="gradPros" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#2563EB" stopOpacity={0.35} />
                     <stop offset="100%" stopColor="#2563EB" stopOpacity={0.02} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e7e5e4" />
-                <XAxis dataKey="jour" tick={{ fontSize: 10 }} interval={4} stroke="#78716c" />
-                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="#78716c" />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="jour" tick={{ fontSize: 10 }} interval={4} stroke="#64748b" />
+                <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="#64748b" />
                 <Tooltip
                   formatter={(v) => [`${v} nouveau(x)`, "Pros inscrits"]}
                   labelStyle={{ color: "#1c1917", fontWeight: 600 }}
-                  contentStyle={{ borderRadius: 12, border: "1px solid #e7e5e4", fontSize: 13 }}
+                  contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 13 }}
                 />
                 <Area type="monotone" dataKey="nouveaux" stroke="#2563EB" strokeWidth={2.5} fill="url(#gradPros)" />
               </AreaChart>
@@ -353,101 +405,58 @@ function VueGlobaleContenu({ overview }: { overview: AdminOverview }) {
         </CardContent>
       </Card>
 
-      {/* ---------- Session 5 : Top 10 des Pros par nombre de retours ---------- */}
-      <Card className="lg:col-span-2">
+      {/* ---------- Top 10 des Pros par nombre de retours ---------- */}
+      <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base sm:text-lg">Top 10 des Pros par nombre de retours</CardTitle>
+          <CardTitle className="text-base sm:text-lg">Top 10 des établissements par nombre de retours</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={overview.topPros} layout="vertical" margin={{ top: 4, right: 24, bottom: 0, left: 8 }}>
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e7e5e4" />
-                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} stroke="#78716c" />
-                <YAxis type="category" dataKey="nomCommerce" width={150} tick={{ fontSize: 11 }} stroke="#78716c" />
-                <Tooltip
-                  formatter={(v) => [`${v} retours`, "Total"]}
-                  labelStyle={{ color: "#1c1917", fontWeight: 600 }}
-                  contentStyle={{ borderRadius: 12, border: "1px solid #e7e5e4", fontSize: 13 }}
-                />
-                <Bar dataKey="retours" fill="#2563EB" radius={[0, 6, 6, 0]} barSize={18} />
-              </BarChart>
-            </ResponsiveContainer>
+            {top10.length === 0 ? (
+              <p className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                Aucun retour collecté pour le moment
+              </p>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={top10} layout="vertical" margin={{ top: 4, right: 24, bottom: 0, left: 8 }}>
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} stroke="#64748b" />
+                  <YAxis type="category" dataKey="nom" width={150} tick={{ fontSize: 11 }} stroke="#64748b" />
+                  <Tooltip
+                    formatter={(v) => [`${v} retours`, "Total"]}
+                    labelStyle={{ color: "#1c1917", fontWeight: 600 }}
+                    contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 13 }}
+                  />
+                  <Bar dataKey="retours" fill="#2563EB" radius={[0, 6, 6, 0]} barSize={18} />
+                </BarChart>
+              </ResponsiveContainer>
+            )}
           </div>
         </CardContent>
       </Card>
 
+      {/* ---------- Répartition par plan (camembert) ---------- */}
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base sm:text-lg">Répartition par plan</CardTitle>
+          <p className="text-sm text-muted-foreground">Starter 29 € · Pro 99 € · Enterprise 249 €</p>
         </CardHeader>
-        <CardContent>
-          <div className="space-y-3.5 pt-2">
-            {planData.map((p) => {
-              const pct = k.nbPros ? Math.round((p.count / k.nbPros) * 100) : 0
-              return (
-                <div key={p.plan}>
-                  <div className="mb-1 flex items-center justify-between text-sm">
-                    <span className="font-medium">{p.plan}</span>
-                    <span className="text-muted-foreground">
-                      {p.count} ({pct}%)
-                    </span>
-                  </div>
-                  <div className="h-2.5 rounded-full bg-muted overflow-hidden" role="presentation">
-                    <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, backgroundColor: p.fill }} />
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-          <div className="mt-6 grid grid-cols-2 gap-3 text-center">
-            <div className="rounded-xl bg-muted p-3">
-              <p className="text-2xl font-bold">{k.mrr} €</p>
-              <p className="text-xs text-muted-foreground">MRR abonnements</p>
-            </div>
-            <div className="rounded-xl bg-muted p-3">
-              <p className="text-2xl font-bold">{k.revenusSupports} €</p>
-              <p className="text-xs text-muted-foreground">CA supports physiques</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base sm:text-lg">Santé de la plateforme</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center justify-between rounded-xl border p-3.5">
-            <span className="text-sm">Note moyenne plateforme</span>
-            <span className="font-semibold">{k.noteMoyennePlateforme} ★</span>
-          </div>
-          <div className="flex items-center justify-between rounded-xl border p-3.5">
-            <span className="text-sm">Retours collectés (total)</span>
-            <span className="font-semibold">{k.totalRetours}</span>
-          </div>
-          <div className="flex items-center justify-between rounded-xl border p-3.5">
-            <span className="text-sm">Alertes générées (30j)</span>
-            <span className="font-semibold">{k.alertes30j}</span>
-          </div>
-          <div>
-            <p className="mb-2 mt-4 text-sm font-medium">Derniers commerçants inscrits</p>
-            <div className="space-y-2 max-h-56 overflow-y-auto custom-scrollbar">
-              {overview.derniersPros.map((p) => (
-                <div key={p.id} className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2.5">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{p.nomCommerce}</p>
-                    <p className="text-xs text-muted-foreground truncate">
-                      {p.ville || "—"} · {p.email}
-                    </p>
-                  </div>
-                  <Badge variant="secondary" className="shrink-0">
-                    {PLANS[p.plan as PlanId]?.name ?? p.plan}
-                  </Badge>
-                </div>
-              ))}
-            </div>
-          </div>
+        <CardContent className="h-72">
+          {repartition.every((r) => r.count === 0) ? (
+            <p className="flex h-full items-center justify-center text-sm text-muted-foreground">Aucun commerçant inscrit</p>
+          ) : (
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={repartition.filter((r) => r.count > 0)} dataKey="count" nameKey="plan" innerRadius={55} outerRadius={90} paddingAngle={3}>
+                  {repartition.filter((r) => r.count > 0).map((r, i) => (
+                    <Cell key={i} fill={r.fill} />
+                  ))}
+                </Pie>
+                <Tooltip formatter={(v) => [`${v} commerçant(s)`, ""]} labelStyle={{ color: "#1c1917" }} />
+                <Legend iconType="circle" wrapperStyle={{ fontSize: 13 }} />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
         </CardContent>
       </Card>
     </div>
@@ -455,7 +464,7 @@ function VueGlobaleContenu({ overview }: { overview: AdminOverview }) {
 }
 
 // ============================================================
-// Sous-onglet Commerçants
+// Sous-onglet Commerçants (tableau + recherche/filtres + actions)
 // ============================================================
 
 type ActionPros = "suspendre" | "reactiver" | "supprimer"
@@ -467,20 +476,20 @@ const CONFIRM_META: Record<
   suspendre: {
     titre: "Suspendre ce commerçant ?",
     description: (p) =>
-      `« ${p.nomCommerce} » perdra immédiatement l'accès à son dashboard et à ses API jusqu'à réactivation. Ses données sont conservées.`,
+      `« ${p.nomEtablissement} » perdra immédiatement l'accès à son dashboard et à ses API jusqu'à réactivation. Ses données sont conservées.`,
     bouton: "Suspendre le compte",
     classe: "bg-amber-600 hover:bg-amber-700 text-white",
   },
   reactiver: {
     titre: "Réactiver ce commerçant ?",
-    description: (p) => `« ${p.nomCommerce} » retrouvera immédiatement l'accès à son dashboard et à ses données.`,
+    description: (p) => `« ${p.nomEtablissement} » retrouvera immédiatement l'accès à son dashboard et à ses données.`,
     bouton: "Réactiver le compte",
     classe: "",
   },
   supprimer: {
     titre: "Supprimer définitivement ce commerçant ?",
     description: (p) =>
-      `Cette action est irréversible : le compte, la boutique, les ${p.nbRetours} retour(s), les commandes et les QR codes de « ${p.nomCommerce} » seront supprimés définitivement.`,
+      `Cette action est irréversible : le compte, les ${p.zones} zone(s), les ${p.retours} retour(s), les commandes et les QR codes de « ${p.nomEtablissement} » seront supprimés définitivement.`,
     bouton: "Supprimer définitivement",
     classe: "bg-rose-600 hover:bg-rose-700 text-white",
   },
@@ -488,10 +497,8 @@ const CONFIRM_META: Record<
 
 function ProsTab({ onModifie }: { onModifie: () => void }) {
   const [pros, setPros] = useState<ProLigne[]>([])
-  const [villes, setVilles] = useState<string[]>([])
   const [q, setQ] = useState("")
   const [fPlan, setFPlan] = useState("all")
-  const [fVille, setFVille] = useState("all")
   const [fStatut, setFStatut] = useState<"all" | "actifs" | "suspendus">("all")
   const [loading, setLoading] = useState(true)
   const [detail, setDetail] = useState<ProLigne | null>(null)
@@ -504,64 +511,61 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
     try {
       const params = new URLSearchParams()
       if (fPlan !== "all") params.set("plan", fPlan)
-      if (fVille !== "all") params.set("ville", fVille)
       if (q.trim()) params.set("q", q.trim())
       const res = await fetch(`/api/admin/pros?${params}`, { cache: "no-store" })
       const json = await res.json()
       if (json.ok) {
-        setPros(json.data.pros)
-        setVilles(json.data.villes)
+        // Normalisation défensive : zones / retours / employes sont des compteurs
+        setPros(
+          enArray<Record<string, unknown>>(json.data.pros).map((p) => ({
+            ...(p as unknown as ProLigne),
+            nomEtablissement: (p.nomEtablissement as string) ?? (p.nomCommerce as string) ?? "",
+            zones: Number(p.zones ?? 0),
+            retours: Number(p.retours ?? 0),
+            employes: Number(p.employes ?? 0),
+          }))
+        )
       }
     } catch {
       toast({ title: "Erreur", description: "Impossible de charger les commerçants", variant: "destructive" })
     } finally {
       setLoading(false)
     }
-  }, [fPlan, fVille, q, toast])
+  }, [fPlan, q, toast])
 
   useEffect(() => {
     const t = setTimeout(load, 300)
     return () => clearTimeout(t)
   }, [load])
 
-  async function changerPlan(proId: string, plan: string) {
-    const res = await fetch("/api/admin/pros", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ proId, action: "changerPlan", plan }),
-    })
-    const json = await res.json()
-    if (json.ok) {
-      setPros((prev) => prev.map((p) => (p.id === proId ? { ...p, plan, mrr: PLANS[plan as PlanId]?.price ?? 0 } : p)))
-      toast({ title: "Plan mis à jour" })
-      onModifie()
-    } else {
-      toast({ title: "Erreur", description: json.error, variant: "destructive" })
-    }
-  }
-
-  async function executerAction(action: ActionPros, pro: ProLigne) {
+  // POST /api/admin/pros { action, id, plan? } — actions superadmin
+  async function executerAction(action: ActionPros | "changerPlan", pro: ProLigne, plan?: string) {
     setActionEnCours(pro.id)
     try {
       const res = await fetch("/api/admin/pros", {
-        method: "PATCH",
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ proId: pro.id, action }),
+        body: JSON.stringify({ action, id: pro.id, ...(plan ? { plan } : {}) }),
       })
       const json = await res.json()
       if (json.ok) {
         if (action === "supprimer") {
           setPros((prev) => prev.filter((p) => p.id !== pro.id))
-          toast({ title: "Commerçant supprimé", description: `${pro.nomCommerce} a été supprimé définitivement.` })
+          toast({ title: "Commerçant supprimé", description: `${pro.nomEtablissement} a été supprimé définitivement.` })
+        } else if (action === "changerPlan") {
+          setPros((prev) => prev.map((p) => (p.id === pro.id ? { ...p, plan: plan ?? p.plan } : p)))
+          toast({ title: `Plan mis à jour : ${nomPlan(plan)}` })
         } else {
           setPros((prev) => prev.map((p) => (p.id === pro.id ? { ...p, suspendu: action === "suspendre" } : p)))
           toast({
             title: action === "suspendre" ? "Commerçant suspendu" : "Commerçant réactivé",
-            description: action === "suspendre" ? `${pro.nomCommerce} n'a plus accès à son dashboard.` : `${pro.nomCommerce} a de nouveau accès à son dashboard.`,
+            description:
+              action === "suspendre"
+                ? `${pro.nomEtablissement} n'a plus accès à son dashboard.`
+                : `${pro.nomEtablissement} a de nouveau accès à son dashboard.`,
           })
         }
         setConfirmation(null)
-        setDetail(null)
         onModifie()
       } else {
         toast({ title: "Erreur", description: json.error, variant: "destructive" })
@@ -573,31 +577,27 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
     }
   }
 
-  // Filtre par statut appliqué côté client (la liste serveur est déjà filtrée plan/ville/recherche)
+  // Filtre par statut appliqué côté client (q et plan sont filtrés côté serveur)
   const visibles = pros.filter((p) =>
     fStatut === "all" ? true : fStatut === "suspendus" ? p.suspendu : !p.suspendu
   )
 
   return (
     <div className="space-y-4">
-      {/* Filtres */}
+      {/* ---------- Recherche + filtres ---------- */}
       <Card>
         <CardContent className="p-4 flex flex-col lg:flex-row gap-2.5">
           <div className="relative flex-1">
             <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-            <Input placeholder="Rechercher (commerce, email)…" value={q} onChange={(e) => setQ(e.target.value)} className="pl-8 h-10" aria-label="Rechercher un commerçant" />
+            <Input
+              placeholder="Rechercher (établissement, email)…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              className="pl-8 h-10"
+              aria-label="Rechercher un commerçant"
+            />
           </div>
           <div className="flex flex-col sm:flex-row gap-2.5">
-            <Select value={fStatut} onValueChange={(v) => setFStatut(v as typeof fStatut)}>
-              <SelectTrigger className="h-10 sm:w-36" aria-label="Filtrer par statut">
-                <SelectValue placeholder="Statut" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Tous les statuts</SelectItem>
-                <SelectItem value="actifs">Actifs</SelectItem>
-                <SelectItem value="suspendus">Suspendus</SelectItem>
-              </SelectContent>
-            </Select>
             <Select value={fPlan} onValueChange={setFPlan}>
               <SelectTrigger className="h-10 sm:w-44" aria-label="Filtrer par plan">
                 <SelectValue placeholder="Plan" />
@@ -609,17 +609,14 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
                 <SelectItem value="ENTERPRISE">Enterprise</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={fVille} onValueChange={setFVille}>
-              <SelectTrigger className="h-10 sm:w-44" aria-label="Filtrer par ville">
-                <SelectValue placeholder="Ville" />
+            <Select value={fStatut} onValueChange={(v) => setFStatut(v as typeof fStatut)}>
+              <SelectTrigger className="h-10 sm:w-36" aria-label="Filtrer par statut">
+                <SelectValue placeholder="Statut" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">Toutes les villes</SelectItem>
-                {villes.map((v) => (
-                  <SelectItem key={v} value={v}>
-                    {v}
-                  </SelectItem>
-                ))}
+                <SelectItem value="all">Tous les statuts</SelectItem>
+                <SelectItem value="actifs">Actifs</SelectItem>
+                <SelectItem value="suspendus">Suspendus</SelectItem>
               </SelectContent>
             </Select>
             <Button variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={load} aria-label="Rafraîchir">
@@ -629,7 +626,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
         </CardContent>
       </Card>
 
-      {/* Table (desktop) / cartes (mobile) */}
+      {/* ---------- Tableau des commerçants ---------- */}
       {loading ? (
         <div className="space-y-3">
           {[...Array(4)].map((_, i) => (
@@ -641,76 +638,128 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
           <CardContent className="py-12 text-center text-sm text-muted-foreground">Aucun commerçant trouvé.</CardContent>
         </Card>
       ) : (
-        <div className="space-y-2.5 max-h-[60vh] overflow-y-auto custom-scrollbar pr-0.5">
-          {visibles.map((p) => (
-            <Card key={p.id}>
-              <CardContent className="p-4 flex flex-col xl:flex-row xl:items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-medium truncate">{p.nomCommerce}</p>
-                    <Badge variant="outline" className="text-stone-600">
-                      {p.categorie}
-                    </Badge>
-                    {p.suspendu && (
-                      <Badge variant="outline" className="text-rose-700 border-rose-300">
-                        Suspendu
-                      </Badge>
-                    )}
-                    {!p.onboardingDone && (
-                      <Badge variant="destructive" className="text-[10px]">
-                        Onboarding incomplet
-                      </Badge>
-                    )}
-                  </div>
-                  <p className="mt-0.5 text-xs text-muted-foreground truncate">
-                    {p.email} · {p.ville || "—"} · inscrit le {formatDate(p.createdAt)}
-                  </p>
-                </div>
-                <div className="flex items-center gap-3 lg:gap-5 flex-wrap">
-                  <div className="text-center">
-                    <p className="text-sm font-semibold">{p.nbRetours}</p>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">retours</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-sm font-semibold">{p.mrr} €</p>
-                    <p className="text-[10px] text-muted-foreground uppercase tracking-wide">MRR</p>
-                  </div>
-                  <Select value={p.plan} onValueChange={(v) => changerPlan(p.id, v)}>
-                    <SelectTrigger className="h-9 w-36" aria-label={`Changer le plan de ${p.nomCommerce}`}>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="STARTER">Starter</SelectItem>
-                      <SelectItem value="PRO">Pro</SelectItem>
-                      <SelectItem value="ENTERPRISE">Enterprise</SelectItem>
-                    </SelectContent>
-                  </Select>
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <Button variant="ghost" size="sm" className="h-9" onClick={() => setDetail(p)}>
-                      <Eye className="mr-1.5 h-4 w-4" aria-hidden />
-                      Détails
-                    </Button>
-                    {p.suspendu ? (
-                      <Button variant="outline" size="sm" className="h-9" onClick={() => setConfirmation({ action: "reactiver", pro: p })}>
-                        <RotateCcw className="mr-1.5 h-4 w-4" aria-hidden />
-                        Réactiver
-                      </Button>
-                    ) : (
-                      <Button variant="outline" size="sm" className="h-9 text-amber-700 border-amber-300 hover:bg-amber-50" onClick={() => setConfirmation({ action: "suspendre", pro: p })}>
-                        <Ban className="mr-1.5 h-4 w-4" aria-hidden />
-                        Suspendre
-                      </Button>
-                    )}
-                    <Button variant="ghost" size="sm" className="h-9 text-rose-600 hover:text-rose-700 hover:bg-rose-50" onClick={() => setConfirmation({ action: "supprimer", pro: p })}>
-                      <Trash2 className="mr-1.5 h-4 w-4" aria-hidden />
-                      Supprimer
-                    </Button>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <Card className="overflow-hidden py-0">
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table className="min-w-[980px]">
+                <TableHeader>
+                  <TableRow className="bg-muted/50 hover:bg-muted/50">
+                    <TableHead className="pl-4">Établissement</TableHead>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Ville</TableHead>
+                    <TableHead>Plan</TableHead>
+                    <TableHead className="text-center">Zones</TableHead>
+                    <TableHead className="text-center">Retours</TableHead>
+                    <TableHead>Statut</TableHead>
+                    <TableHead className="pr-4 text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {visibles.map((p) => (
+                    <TableRow key={p.id}>
+                      {/* Établissement (nom + email) */}
+                      <TableCell className="pl-4 max-w-56">
+                        <p className="flex items-center gap-1.5 font-medium truncate">
+                          {p.nomEtablissement}
+                          {!p.onboardingDone && (
+                            <Badge variant="destructive" className="h-4 px-1 text-[9px] shrink-0">
+                              Onboarding incomplet
+                            </Badge>
+                          )}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">{p.email}</p>
+                      </TableCell>
+
+                      {/* Type */}
+                      <TableCell>
+                        <Badge variant="outline" className="max-w-32 truncate text-stone-600">
+                          <span className="truncate">{p.typeEtablissement || "—"}</span>
+                        </Badge>
+                      </TableCell>
+
+                      {/* Ville */}
+                      <TableCell className="text-sm text-muted-foreground">{p.ville || "—"}</TableCell>
+
+                      {/* Plan (badge) */}
+                      <TableCell>
+                        <Badge variant="secondary">{nomPlan(p.plan)}</Badge>
+                      </TableCell>
+
+                      {/* Compteurs */}
+                      <TableCell className="text-center text-sm font-medium">{p.zones}</TableCell>
+                      <TableCell className="text-center text-sm font-medium">{p.retours}</TableCell>
+
+                      {/* Statut actif / suspendu */}
+                      <TableCell>
+                        {p.suspendu ? (
+                          <Badge variant="outline" className="text-rose-700 border-rose-300">
+                            Suspendu
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-green-700 border-green-300">
+                            Actif
+                          </Badge>
+                        )}
+                      </TableCell>
+
+                      {/* Actions : plan (Select → changerPlan), détails, suspendre/réactiver, supprimer */}
+                      <TableCell className="pr-4" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-1.5">
+                          <Select value={p.plan} onValueChange={(v) => executerAction("changerPlan", p, v)}>
+                            <SelectTrigger
+                              className="h-8 w-[104px] text-xs"
+                              aria-label={`Changer le plan de ${p.nomEtablissement}`}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="STARTER">Starter</SelectItem>
+                              <SelectItem value="PRO">Pro</SelectItem>
+                              <SelectItem value="ENTERPRISE">Enterprise</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Voir les détails" onClick={() => setDetail(p)}>
+                            <Eye className="h-4 w-4" aria-hidden />
+                          </Button>
+                          {p.suspendu ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-green-700 hover:bg-green-50"
+                              aria-label={`Réactiver ${p.nomEtablissement}`}
+                              onClick={() => setConfirmation({ action: "reactiver", pro: p })}
+                            >
+                              <RotateCcw className="h-4 w-4" aria-hidden />
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-amber-700 hover:bg-amber-50"
+                              aria-label={`Suspendre ${p.nomEtablissement}`}
+                              onClick={() => setConfirmation({ action: "suspendre", pro: p })}
+                            >
+                              <Ban className="h-4 w-4" aria-hidden />
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                            aria-label={`Supprimer ${p.nomEtablissement}`}
+                            onClick={() => setConfirmation({ action: "supprimer", pro: p })}
+                          >
+                            <Trash2 className="h-4 w-4" aria-hidden />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* ---------- Dialog : fiche détaillée du commerçant ---------- */}
@@ -720,7 +769,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2 pr-6">
-                  <span className="truncate">{detail.nomCommerce}</span>
+                  <span className="truncate">{detail.nomEtablissement}</span>
                   {detail.suspendu && (
                     <Badge variant="outline" className="shrink-0 text-rose-700 border-rose-300">
                       Suspendu
@@ -732,11 +781,12 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
               <div className="space-y-2.5 text-sm">
                 {[
                   ["Email", detail.email],
+                  ["Type d'établissement", detail.typeEtablissement || "—"],
                   ["Ville", detail.ville || "—"],
-                  ["Catégorie", detail.categorie],
-                  ["Plan", PLANS[detail.plan as PlanId]?.name ?? detail.plan],
-                  ["Retours reçus", String(detail.nbRetours)],
-                  ["Commandes", String(detail.nbCommandes)],
+                  ["Plan", nomPlan(detail.plan)],
+                  ["Zones de contact", String(detail.zones)],
+                  ["Retours reçus", String(detail.retours)],
+                  ["Employés", String(detail.employes)],
                   ["Inscrit le", formatDate(detail.createdAt)],
                 ].map(([label, valeur]) => (
                   <div key={label} className="flex items-start justify-between gap-4 rounded-lg border px-3 py-2">
@@ -744,17 +794,6 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
                     <span className="font-medium text-right break-all">{valeur}</span>
                   </div>
                 ))}
-                <div className="flex items-start justify-between gap-4 rounded-lg border px-3 py-2">
-                  <span className="text-muted-foreground shrink-0">QR code</span>
-                  <a
-                    href={`/r/${detail.qrToken}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="font-mono text-xs text-primary hover:underline break-all"
-                  >
-                    {detail.qrToken} — page de scan ↗
-                  </a>
-                </div>
               </div>
               <DialogFooter className="gap-2 sm:gap-0">
                 <Button asChild>
@@ -779,7 +818,9 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
             <>
               <AlertDialogHeader>
                 <AlertDialogTitle>{CONFIRM_META[confirmation.action].titre}</AlertDialogTitle>
-                <AlertDialogDescription>{CONFIRM_META[confirmation.action].description(confirmation.pro)}</AlertDialogDescription>
+                <AlertDialogDescription>
+                  {CONFIRM_META[confirmation.action].description(confirmation.pro)}
+                </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
                 <AlertDialogCancel disabled={actionEnCours === confirmation.pro.id}>Annuler</AlertDialogCancel>
@@ -805,17 +846,22 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
 
 // ============================================================
 // Sous-onglet Commandes (workflow d'impression + PDF + expédition)
+// PDF : STICKERS_50 → planche d'étiquettes · chevalet/affiche → bon d'impression
 // ============================================================
 
 function CommandesTab({ onModifie }: { onModifie: () => void }) {
   const [commandes, setCommandes] = useState<CommandeLigne[]>([])
-  const [stats, setStats] = useState<{ total: number; aImprimer: number; chiffreAffaires: number } | null>(null)
   const [fStatut, setFStatut] = useState("all")
   const [loading, setLoading] = useState(true)
   const [majEnCours, setMajEnCours] = useState<string | null>(null)
   const [expedition, setExpedition] = useState<CommandeLigne | null>(null)
   const [numeroSuivi, setNumeroSuivi] = useState("")
   const { toast } = useToast()
+
+  /** Nom du commerçant (tolérant aux deux nomenclatures pendant le pivot) */
+  function nomPro(c: CommandeLigne): string {
+    return c.pro?.nomEtablissement ?? c.pro?.nomCommerce ?? "—"
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -824,8 +870,7 @@ function CommandesTab({ onModifie }: { onModifie: () => void }) {
       const res = await fetch(`/api/admin/commandes${params}`, { cache: "no-store" })
       const json = await res.json()
       if (json.ok) {
-        setCommandes(json.data.commandes)
-        setStats(json.data.stats)
+        setCommandes(enArray(json.data.commandes))
       }
     } catch {
       toast({ title: "Erreur", description: "Impossible de charger les commandes", variant: "destructive" })
@@ -838,6 +883,7 @@ function CommandesTab({ onModifie }: { onModifie: () => void }) {
     load()
   }, [load])
 
+  // PATCH /api/admin/commandes { id, statut, numeroSuivi? }
   async function changerStatut(id: string, statut: string, suivi?: string) {
     setMajEnCours(id)
     try {
@@ -863,7 +909,7 @@ function CommandesTab({ onModifie }: { onModifie: () => void }) {
     }
   }
 
-  /** Passage au statut EXPEDIE : ouvre le dialog du numéro de suivi (optionnel) */
+  /** Passage au statut EXPEDIE : ouvre le dialog du numéro de suivi (obligatoire) */
   function surChangementStatut(c: CommandeLigne, statut: string) {
     if (statut === "EXPEDIE" && c.statut !== "EXPEDIE") {
       setNumeroSuivi(c.numeroSuivi ?? "")
@@ -873,20 +919,39 @@ function CommandesTab({ onModifie }: { onModifie: () => void }) {
     }
   }
 
-  /** Génère le bon d'impression PDF avec le QR de scan du commerce (généré côté client) */
+  /**
+   * Génère le PDF de la commande :
+   *  - STICKERS_50 → planche d'étiquettes 5x5 cm (generateLabelsPdf)
+   *  - CHEVALET_ACRYLIQUE / AFFICHE_A4 → bon d'impression (generateCommandePdf)
+   * Le QR de scan est imprimé quand un token est disponible (pro ou zone).
+   */
   async function telechargerPdf(c: CommandeLigne) {
+    const nomPro = c.pro?.nomEtablissement ?? c.pro?.nomCommerce ?? ""
+    const token = c.pro?.qrToken || c.zone?.qrToken || ""
     try {
-      const url = `${window.location.origin}/r/${c.pro.qrToken}`
+      const url = `${window.location.origin}${token ? `/r/${token}` : "/"}`
       const qrDataUrl = await QRCode.toDataURL(url, {
         width: 600,
         margin: 1,
         errorCorrectionLevel: "H",
         color: { dark: "#0f172a", light: "#ffffff" },
       })
-      generateCommandePdf(c, c.pro, qrDataUrl)
+      if (c.typeSupport === "STICKERS_50") {
+        // Planche d'étiquettes 5x5 cm (20 autocollants)
+        generateLabelsPdf(qrDataUrl, nomPro)
+      } else {
+        // Bon d'impression — objet `pro` compatible avec les deux signatures de src/lib/pdf.ts
+        const proPdf = {
+          nomEtablissement: nomPro,
+          nomCommerce: nomPro,
+          ville: c.pro?.ville ?? "",
+          email: c.pro?.email ?? "",
+        } as unknown as Parameters<typeof generateCommandePdf>[1]
+        generateCommandePdf(c, proPdf, qrDataUrl)
+      }
+      toast({ title: "PDF généré ✓" })
     } catch {
-      // QR indisponible : le bon est généré sans
-      generateCommandePdf(c, c.pro)
+      toast({ title: "Erreur", description: "Génération du PDF impossible", variant: "destructive" })
     }
   }
 
@@ -913,11 +978,9 @@ function CommandesTab({ onModifie }: { onModifie: () => void }) {
             ))}
           </SelectContent>
         </Select>
-        {stats && (
-          <p className="text-sm text-muted-foreground">
-            {stats.total} commandes · {stats.chiffreAffaires} € de CA supports
-          </p>
-        )}
+        <p className="text-sm text-muted-foreground">
+          {commandes.length} commande{commandes.length > 1 ? "s" : ""}
+        </p>
       </div>
 
       {loading ? (
@@ -953,11 +1016,13 @@ function CommandesTab({ onModifie }: { onModifie: () => void }) {
                         )}
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        {c.pro.nomCommerce} ({c.pro.ville}) · {c.pro.email}
+                        {nomPro(c)} · {c.pro?.email}
                       </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">📍 {c.adresseLivraison}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground flex items-center gap-1">
+                        <MapPin className="h-3 w-3 shrink-0" aria-hidden /> {c.adresseLivraison}
+                      </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
-                        Commandé le {formatDate(c.createdAt)} · {c.prixEuros} €
+                        Commandé le {formatDate(c.createdAt)} · {c.prixEuros} €{c.quantite > 1 ? ` · ${c.quantite} unités` : ""}
                       </p>
                     </div>
                     <Badge
@@ -1013,7 +1078,7 @@ function CommandesTab({ onModifie }: { onModifie: () => void }) {
         </div>
       )}
 
-      {/* ---------- Dialog : expédition + numéro de suivi (optionnel) ---------- */}
+      {/* ---------- Dialog : expédition + numéro de suivi (obligatoire) ---------- */}
       <Dialog open={!!expedition} onOpenChange={(o) => !o && setExpedition(null)}>
         <DialogContent className="sm:max-w-md">
           {expedition && (
@@ -1021,25 +1086,26 @@ function CommandesTab({ onModifie }: { onModifie: () => void }) {
               <DialogHeader>
                 <DialogTitle>Marquer la commande comme expédiée</DialogTitle>
                 <DialogDescription>
-                  {SUPPORTS[expedition.typeSupport as TypeSupportId]?.label} pour {expedition.pro.nomCommerce}. Vous
-                  pouvez renseigner le numéro de suivi du transporteur (optionnel) — il sera visible par le commerçant.
+                  {SUPPORTS[expedition.typeSupport as TypeSupportId]?.label} pour {nomPro(expedition)}. Renseignez le
+                  numéro de suivi du transporteur — il sera visible par le commerçant.
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-2">
-                <Label htmlFor="numero-suivi">Numéro de suivi</Label>
+                <Label htmlFor="numero-suivi">Numéro de suivi *</Label>
                 <Input
                   id="numero-suivi"
                   placeholder="Ex. 6A12345678901"
                   value={numeroSuivi}
                   onChange={(e) => setNumeroSuivi(e.target.value)}
                   maxLength={100}
+                  required
                 />
               </div>
               <DialogFooter>
                 <Button variant="outline" onClick={() => setExpedition(null)}>
                   Annuler
                 </Button>
-                <Button onClick={confirmerExpedition} disabled={majEnCours === expedition.id}>
+                <Button onClick={confirmerExpedition} disabled={majEnCours === expedition.id || !numeroSuivi.trim()}>
                   {majEnCours === expedition.id && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
                   Confirmer l&apos;expédition
                 </Button>
@@ -1067,8 +1133,17 @@ function RevenusTab() {
       .then((r) => r.json())
       .then((j) => {
         if (annule) return
-        if (j.ok) setData(j.data)
-        else toast({ title: "Erreur", description: "Impossible de charger les revenus", variant: "destructive" })
+        if (j.ok) {
+          // Normalisation défensive des champs du contrat
+          setData({
+            caAbonnementsMensuel: j.data.caAbonnementsMensuel ?? j.data.caAbonnements ?? 0,
+            caSupportsTotal: j.data.caSupportsTotal ?? 0,
+            caSupportsParType: j.data.caSupportsParType ?? {},
+            evolutionMensuelle: j.data.evolutionMensuelle ?? [],
+          })
+        } else {
+          toast({ title: "Erreur", description: "Impossible de charger les revenus", variant: "destructive" })
+        }
       })
       .catch(() => {
         if (!annule) toast({ title: "Erreur", description: "Impossible de charger les revenus", variant: "destructive" })
@@ -1107,7 +1182,7 @@ function RevenusTab() {
           icon={Euro}
           label="CA abonnements (mensuel)"
           value={`${data.caAbonnementsMensuel} €`}
-          hint="MRR des plans actifs"
+          hint="MRR des plans actifs (29/99/249 €)"
           hintTone="up"
         />
         <StatCard
@@ -1116,7 +1191,7 @@ function RevenusTab() {
           value={`${data.caSupportsTotal} €`}
           hint="Total des commandes"
         />
-        {(Object.keys(SUPPORTS) as TypeSupportId[]).map((t, i) => (
+        {(Object.keys(SUPPORTS) as TypeSupportId[]).map((t) => (
           <StatCard
             key={t}
             icon={Wallet}
@@ -1168,7 +1243,7 @@ function RevenusTab() {
                 <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
                 <Tooltip formatter={(v, nom) => [`${v} €`, String(nom)]} labelStyle={{ color: "#1c1917" }} />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: 13 }} />
-                <Bar dataKey="abonnements" name="Abonnements (MRR)" fill="#10b981" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="abonnements" name="Abonnements (MRR)" fill="#2563eb" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="supports" name="Supports" fill="#f59e0b" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>

@@ -2,7 +2,7 @@
 
 // ============================================================
 // FeedbackPro - Application monopage (SPA)
-// Routage par état : Landing · Auth · Onboarding · Scan · Dashboards
+// Routage par état : Landing · Auth · Scan · Dashboards
 // Le paramètre d'URL ?scan=<token> correspond au QR code scanné
 // ============================================================
 
@@ -11,7 +11,6 @@ import { Loader2 } from "lucide-react"
 import { useAppStore, tokenDepuisUrl } from "@/store/app-store"
 import { LandingView } from "@/components/feedbackpro/landing-view"
 import { AuthView } from "@/components/feedbackpro/auth-view"
-import { OnboardingView } from "@/components/feedbackpro/onboarding-view"
 import { ScanView } from "@/components/feedbackpro/scan-view"
 import { ProDashboard } from "@/components/feedbackpro/pro-dashboard"
 import { AdminDashboard } from "@/components/feedbackpro/admin-dashboard"
@@ -28,15 +27,17 @@ export default function Home() {
   const setView = useAppStore((s) => s.setView)
 
   // Démarrage : détecte le QR scanné (/r/<token> via rewrite, ou ?scan=<token>)
-  // puis charge la session. Session 2 : gère aussi /login et /register
-  // (rewrités vers /?auth=…) pour afficher la vue auth si pas de session.
+  // puis charge la session. Gère aussi /login et /register (rewrités vers /) :
+  // avec les rewrites, l'URL navigateur conserve le PATHNAME → on le lit
+  // en priorité, les query params ?auth= restent en secours.
   useEffect(() => {
     const token = tokenDepuisUrl()
     if (token) openScan(token)
     refreshSession().then(() => {
       try {
+        const chemin = window.location.pathname
         const params = new URLSearchParams(window.location.search)
-        const auth = params.get("auth")
+        const auth = chemin === "/login" ? "login" : chemin === "/register" ? "register" : params.get("auth")
         if ((auth === "login" || auth === "register") && !useAppStore.getState().session) {
           setAuthMode(auth === "login" ? "login" : "signup")
         }
@@ -89,7 +90,6 @@ export default function Home() {
       <main className="flex-1 flex flex-col">
         {view === "landing" && <LandingView onLogin={nav.login} onSignup={nav.signup} />}
         {view === "auth" && <AuthView />}
-        {view === "onboarding" && <OnboardingView />}
         {view === "dashboard" &&
           (session?.user.role === "PRO" ? (
             <ProDashboard />
@@ -100,8 +100,8 @@ export default function Home() {
           ))}
         {view === "admin" && (session?.user.role === "SUPERADMIN" ? <AdminDashboard /> : <LandingView onLogin={nav.login} onSignup={nav.signup} />)}
       </main>
-      {/* Le pied de page global reste collé en bas (mt-auto) sur auth/onboarding/dashboard.
-          La landing possède son propre footer complet (liens légaux Session 2). */}
+      {/* Le pied de page global reste collé en bas (mt-auto) sur auth/dashboard.
+          La landing possède son propre footer complet (liens légaux). */}
       {view !== "scan" && view !== "landing" && <AppFooter />}
     </div>
   )
