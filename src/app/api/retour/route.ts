@@ -98,8 +98,10 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Ville par IP : best effort, ne doit jamais ralentir l'envoi de plus d'1,5 s
-    const ipCity = await villeDepuisIp(req)
+    // Ville par IP : best effort et UNIQUEMENT avec le consentement explicite
+    // du client (opt-in à l'étape 3 du scan — RGPD). Ne doit jamais ralentir
+    // l'envoi de plus d'1,5 s. Sans consentement : aucune donnée géo enregistrée.
+    const ipCity = parsed.data.geoConsent ? await villeDepuisIp(req) : null
 
     // ---------- Enregistrement (proId + zoneId) ----------
     const retour = await db.retour.create({

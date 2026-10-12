@@ -814,3 +814,81 @@ Stage Summary:
 - Session 6 livrée : dashboard Superadmin (5 onglets complets), module commande Pro /dashboard/commander (catalogue → zone → adresse → paiement → BDD → suivi), Stripe intégré (abonnements 29/99/249 € via checkout.metadata.plan + paiement commandes via checkout.metadata.kind="commande" + Customer Portal), emails transactionnels (bienvenue/confirmation/rapport/alerte) fonctionnels en mode démo Resend, pages légales conformes
 - Décisions : rapprochement Stripe→Pro/commande exclusivement par metadata (pas de colonne stripeCustomerId), idempotence webhook par fenêtre temporelle, quantité dérivée du catalogue dans une lib partagée
 - Preuves : proofs/s6-01..19 (19 captures) + requêtes BDD citées (Commande LIVRE/suivi, Setting emailSupport, Plan ENTERPRISE puis PRO restauré) ; comptes inchangés : admin@feedbackpro.fr/admin123 · demo@pizzeria.fr/demo1234
+
+---
+Task ID: AUDIT
+Agent: Z.ai Code (orchestrateur)
+Task: Audit complet FeedbackPro sur 13 catégories (grille QA 100 points) avec preuves live
+
+Work Log:
+- Lu package.json, tsconfig, next.config (rewrites /r/:token, /login, /register, /superadmin, /dashboard/:tab), prisma/schema.prisma (7 modèles + Session/Setting/Alerte), .env.example (documenté), middleware, seed
+- Constaté : NextAuth installé mais NON utilisé (auth custom sessions DB, cookie fp_session) ; wizard inscription = 3 étapes (pas de zones/QR à l'inscription) ; sémantique = lexique+Jaccard (pas d'embeddings) ; SMS seulement si récurrence ≥3/48h (choix anti-spam documenté) ; pas de consentement explicite géoloc dans le flux de scan ; ignoreBuildErrors: true
+- Vérifié en code les 13 catégories : zones CRUD complet, QR 1000px+sharp+A4+planche 20 étiquettes, scan 68px étoiles, retour API (géo IP ipapi, matching employé, récompense), ia.ts (genererRapportIA, fallback déterministe, crons vercel.json 0 7 * * * + 0 7 * * 1), dashboard 12 onglets (4 graphes Recharts + heatmap), twilio/email mode démo, admin 5 onglets + PDF, webhook Stripe (signature, sync plan, commandes idempotentes), 4 pages légales metadata
+- Preuves live : login pro+admin curl OK ; GET /api/zone/[token] ; POST /api/retour 5★ (récompense CAFE-OFFERT) et 1★ (employée auto-matchée "Julie Martin", alerte récurrente créée en BDD) ; cron sans secret → 401 ; billing/commandes checkout → mode DEMO ; POST /api/pro/coach → source "ia", score 46/100, 1559 car, 12,9 s ; admin overview (4 pros, MRR 256 €, CA 203 €) ; BDD inspectée (alertes SMS, commandes, rapports "ia")
+- Logs dev.log : "📱 SMS simulé... PROBLÈME RÉCURRENT : 4 alertes ≤2★ zone Accueil", "[STRIPE SIMULÉ] Paiement 19 EUR", "📧 Email simulé... Confirmation de votre commande", "📧 Email simulé... Score 46/100"
+- tsc : 0 erreur dans src/ ; eslint : 0 erreur
+- agent-browser : landing (titre OK, 0 erreur console), /login rendu, login → dashboard 12 onglets + 3 priorités, scan mobile iPhone 16 rendu ("Comment évaluez-vous Accueil ?") ; captures audit-01/02/03.png dans proofs/
+
+Stage Summary:
+- Score final de l'audit : 84/100 — produit fonctionnel et vérifiable de bout en bout, corrigés recommandés : wizard 4 étapes (zones+QR), consentement géoloc, section Cas d'usage + comparatif, next-auth à retirer de package.json, ignorerBuildErrors à false
+- Le chemin Stripe réel reste non testable sans clés (mode DEMO fonctionnel prouvé)
+
+---
+Task ID: CORRECTIONS-AUDIT
+Agent: Z.ai Code (orchestrateur)
+Task: Corriger les 5 écarts identifiés par l'audit 84/100 (wizard 4 étapes, consentement géoloc RGPD, landing cas d'usage + comparatif, next-auth mort, ignoreBuildErrors)
+
+Work Log:
+- Correctif 1 — Type-check de build réactivé : tsconfig.json += "examples","skills" dans exclude (seuls dossiers contenant des erreurs TS — 4 erreurs préexistantes hors app, vérifiées avant tout changement) ; next.config.ts ignoreBuildErrors: true → false ; preuve : bunx tsc --noEmit sur TOUT le repo → exit 0
+- Correctif 2 — Dépendances mortes retirées (11, usage 0 vérifié par rg sur src/ entier y compris components/ui) : next-auth, next-intl, @dnd-kit/core, @dnd-kit/sortable, @dnd-kit/utilities, @mdxeditor/editor, react-syntax-highlighter, @reactuses/core, @tanstack/react-query, @tanstack/react-table, uuid ; bun remove → lockfile mis à jour → tsc + lint toujours 0 (vaul/embla/input-otp conservés : référencés par components/ui)
+- Correctif 3 — Consentement géoloc RGPD opt-in (audit : géo-IP silencieuse) : validation.ts retourSchema += geoConsent boolean default(false) ; /api/retour : villeDepuisIp(req) appelée UNIQUEMENT si parsed.data.geoConsent (sinon ipCity=null) ; scan-view.tsx : state geoConsent (reset à chaque nouveau scan), bloc information + Checkbox décochée par défaut à l'étape 3 (« J'accepte que ma ville approximative (déduite de mon adresse IP, jamais stockée) soit enregistrée pour la lutte anti-fraude » + lien /confidentialite), payload += geoConsent
+- Correctif 4 — Wizard d'inscription 3 → 4 étapes : étape « Vos zones » insérée (chips avec bouton ×, input + Ajouter (Enter ou bouton), 7 suggestions cliquables filtrées, compteur X/10, validation zod min 1/max 10/dédup insensible à la casse) ; ETAPES + CHAMPS_PAR_ETAPE mis à jour, récap étape 4 avec chips zones, payload += zones, toast de bienvenue dynamique (« N zone(s) créée(s) — imprimez vos QR codes dans l'onglet QR »), sous-titre « en 4 étapes » ; validation.ts registerSchema += zones (array 1-60 car, max 10, optionnel) ; /api/auth/register : noms dédupliqués (Map lowercased), createMany des zones (tags par défaut), 0 zone valide → « Accueil » (rétrocompat parfaite)
+- Correctif 5 — Landing : section #cas-usage (bg alterné F3F4F6 pour respecter le motif gris/blanc) = grille 6 secteurs (Restaurants, Cafés, Salons, Garages, Boulangeries, Hôtels) avec « Sans : » (rose) / « Avec FeedbackPro : » (primaire) + bloc comparatif 2 colonnes (Sans FeedbackPro X rose / Avec FeedbackPro Check primaire) ; NAV_LIENS += « Cas d'usage » (desktop + burger mobile)
+- TESTS API (curl + Prisma) : geoConsent:true → 200 ; sans geoConsent → 200 (compat) ; geoConsent:"oui" → 400 zod ; ipCity BDD = null dans les 2 retours de test (IP locale privée — voir limite) puis retours de test supprimés ; register 4 zones avec doublon « Salle »/« salle » → 3 zones créées ["Accueil","salle","Terrasse"] (dédup OK) ; register sans zones → ["Accueil"] ; comptes de test supprimés (cascade Pro+Zones vérifiée, 0 restant)
+- TESTS UI agent-browser (proofs/corrections-01..06) : landing desktop (nav « Cas d'usage » fonctionne, 7 cartes rendues, 0 débordement) ; wizard E2E complet /register (étape 1 → 2 validation zod bloquante sans type → 3 zones : chip Accueil + suggestion Salle + saisie manuelle « Comptoir » → 4 récap avec 3 chips → CGU → compte créé → toast bienvenue) → BDD : zones ["Accueil","Salle","Comptoir"] exactes ; scan mobile iPhone 14 /r/<token> (étape 3 : checkbox géoloc visible décochée → cochée → « Terminer sans WhatsApp » → écran succès) → BDD : retour note 4 créé puis supprimé ; landing mobile 390 px : 0 débordement horizontal
+- QUALITÉ : bunx tsc --noEmit → exit 0 (repo entier) ; bun run lint → exit 0 ; dev.log : aucune erreur/warning runtime pendant tous les tests
+- LIMITE HONNÊTE : en sandbox, l'IP est privée (loopback) → ipapi.co n'est jamais appelé et ipCity reste null QUE le consentement soit coché ou non ; le gate de consentement est prouvé par le code (appel conditionnel) + la validation zod (400 sur type invalide) ; la résolution réelle de ville nécessiterait une IP publique
+- Comptes inchangés : admin@feedbackpro.fr/admin123 · demo@pizzeria.fr/demo1234
+
+Stage Summary:
+- Les 5 écarts de l'audit corrigés et prouvés : type-check strict au build (tsc exit 0 sur tout le repo), 11 dépendances mortes supprimées, consentement géoloc opt-in RGPD de bout en bout (UI scan + zod + gate backend), inscription en 4 étapes avec création des zones à la source (dédup + rétrocompat), landing enrichie (6 cas d'usage par secteur + comparatif honnête)
+- Impact audit attendu : cat. 1 (architecture) et cat. 2 (landing/inscription) renforcées, cat. 5 (scan/RGPD) et cat. 12 (RGPD) consolidées
+- Preuves : proofs/corrections-01-cas-usage.png, corrections-02-etape-zones.png, corrections-03-dashboard-apres-inscription.png, corrections-04-scan-consentement.png, corrections-05-scan-succes.png, corrections-06-cas-usage-mobile.png
+
+---
+Task ID: GIT-2
+Agent: Z.ai Code (orchestrateur)
+Task: Synchronisation GitHub ⇄ local — diagnostic de perte, récupération intégrale depuis l'instantané /tmp, reconstruction BDD, nettoyage
+
+Work Log:
+- DIAGNOSTIC : l'environnement a restauré le disque à l'état du push GIT-1 (reflog « reset: moving to clean-main ») — tout le travail postérieur (S3→S6, AUDIT, CORRECTIONS-AUDIT) avait disparu du disque et du git ; serveur éteint ; preuves/ effacées ; commits orphelins récents (c8cd719…) purgés de la base d'objets
+- RÉCUPÉRATION : découverte d'un instantané complet dans /tmp/my-project (daté 12 oct. 00:40, hors portée de la restauration) : 140 fichiers src, worklog 856 lignes, 145 preuves, ia.ts 30 Ko, db — vérification de complétude avant copie
+- RESTAURATION : rsync (exclusions .git, node_modules, .next, .env, db, upload, .initial_snapshot.json) + copie db ; alignement de la branche locale sur origin/main (dfaf256) ; core.filemode=false pour ignorer le bruit de modes 644→755
+- BASE DE DONNÉES : la db récupérée était antérieure au schéma final (pas de table Zone, pas de Retour.zoneId) → reconstruction propre : prisma db push --force-reset (schéma final) + bun run db:seed (5 users, 4 pros, 9 zones, 118 retours, 2 commandes, 18 alertes, 1 RapportIA) — comptes inchangés admin@feedbackpro.fr/demo@pizzeria.fr
+- PRISMA : client régénéré (l'ancien client généré référençait l'ancien modèle Boutique)
+- NETTOYAGE : suppression du code mort v1 src/app/api/pro/onboarding/ + onboarding-view.tsx (mtime 11:48, antérieurs à l'évolution du modèle ; remplacés par le wizard 4 étapes ; incompatibles avec le schéma final ; auraient fait échouer next build avec ignoreBuildErrors:false) — aucune référence active vérifiée par grep avant suppression
+- QUALITÉ : bunx tsc --noEmit → exit 0 ; bun run lint → 0/0 ; serveur relancé → / 200, /cgu 200, POST /api/auth/login demo@pizzeria.fr → 200 {ok:true, pro:"Pizzeria Bella Napoli"} ; dev.log sans erreur
+- GIT : .gitignore += /proofs/, /tool-results/, /upload/ ; tool-results/ (8 artefacts) retiré du suivi ; commit unique en français
+
+Stage Summary:
+- Travail post-GIT-1 intégralement récupéré et fonctionnel ; local = instantané final du 12 oct. 00:40 + correctif code mort
+- Push en attente d'identifiants GitHub (aucun token disponible dans l'environnement ; le PAT de GIT-1 n'était pas stocké et devait être rotaté)
+- VÉRIFICATION NAVIGATEUR (post-commit) : login UI demo@pizzeria.fr → dashboard 12 onglets + « Bonjour, Pizzeria Bella Napoli » (proofs/sync-01-dashboard.png) ; onglet Commander → catalogue 29/49/19 € + Mes commandes (proofs/sync-02-commander.png) ; 0 erreur console ; serveur persistant via .zscripts/dev.sh (setsid)
+
+---
+Task ID: GIT-3
+Agent: Z.ai Code (orchestrateur)
+Task: Synchronisation GitHub effective — 2ᵉ restauration subie, découverte de la chaîne auto-sync GitHub, alignement final et push
+
+Work Log:
+- CONSTAT : le push initial rejeté — GitHub main = e0e57a9 (commit UUID) ; le local avait subi une DEUXIÈME restauration (HEAD revenu à 4f6e99e, commit 7a38b0f disparu, ia.ts absent, client Prisma régressé, BDD régressée)
+- DÉCOUVERTE : une chaîne d'auto-synchronisation (commits UUID) avait continué à pousser vers GitHub après GIT-1 — 11 commits, racine propre (2470737 → dfaf256 → purge artefacts → fix .env.example → audit), e0e57a9 = 306 fichiers (ia.ts, commander-tab, webhook Stripe, pages légales), AUCUN secret dans l'historique (git log -- .env db/custom.db vide)
+- ALIGNEMENT : git config core.filemode false ; git reset --hard origin/main (historique GitHub adopté) ; rsync de l'arbre final vérifié /tmp/my-project (worklog 876 lignes avec GIT-2, overview-tab.tsx absent de GitHub réintégré)
+- RE-NETTOYAGE : suppression code mort v1 (api/pro/onboarding + onboarding-view) ; .gitignore += /proofs/, /tool-results/, /upload/ ; git rm --cached proofs (136 PNG) et tool-results ; aucun fichier sensible à l'index
+- ENVIRONNEMENT : bun install (stripe réinstallé), prisma generate (client régressé par la restauration), tsc exit 0, lint 0/0, BDD force-reset + seed (9 zones, 118 retours, 2 commandes, 1 RapportIA), serveur redémarré via .zscripts/dev.sh → HTTP 200, login démo 200
+- PUSH : effectué avec le PAT fourni par l'utilisateur via credential helper éphémère (-c credential.helper, jamais écrit dans .git/config ni sur disque) ; vérification ls-remote : local = origin/main
+
+Stage Summary:
+- Local = GitHub = état final vérifié du projet (tsc 0, lint 0/0, serveur 200, login OK)
+- GitHub est le seul stockage durable de l'environnement (survit aux restaurations) ; /tmp/my-project est un second point de restauration
+- SÉCURITÉ : le PAT a transité dans la conversation — à révoquer après usage

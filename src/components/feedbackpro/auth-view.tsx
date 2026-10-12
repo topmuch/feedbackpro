@@ -3,8 +3,9 @@
 // ============================================================
 // FeedbackPro — Vue Authentification
 // Mode Connexion : carte centrée (email + mot de passe)
-// Mode Inscription : wizard 3 étapes (Compte · Établissement ·
-// Finalisation) avec validation zod PAR ÉTAPE via react-hook-form.
+// Mode Inscription : wizard 4 étapes (Compte · Établissement ·
+// Vos zones · Finalisation) avec validation zod PAR ÉTAPE via
+// react-hook-form.
 // Le store est la source de vérité : authMode / setView /
 // refreshSession. Après un succès : refreshSession() puis
 // setView(role === "SUPERADMIN" ? "admin" : "dashboard").
@@ -26,9 +27,11 @@ import {
   Mail,
   MapPin,
   MessageCircleMore,
+  Plus,
   ScanLine,
   Smartphone,
   Store,
+  X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -89,7 +92,19 @@ const inscriptionSchema = z
       .transform((v) => v.replace(/[^0-9]/g, ""))
       .refine((v) => /^\d{8,15}$/.test(v), "Numéro invalide : 8 à 15 chiffres, au format international sans « + »"),
 
-    // Étape 3 — Finalisation
+    // Étape 3 — Vos zones (chaque zone reçoit son QR code)
+    zones: z
+      .array(
+        z
+          .string()
+          .trim()
+          .min(1, "Le nom d'une zone ne peut pas être vide")
+          .max(60, "Nom de zone trop long (60 caractères maximum)")
+      )
+      .min(1, "Créez au moins une zone pour recevoir vos QR codes")
+      .max(10, "10 zones maximum à l'inscription"),
+
+    // Étape 4 — Finalisation
     logoUrl: z.string(),
     accepteCgu: z.boolean().refine((v) => v === true, {
       message: "Vous devez accepter les CGU pour créer votre compte",
@@ -107,14 +122,19 @@ type ValeursInscription = z.infer<typeof inscriptionSchema>
 const ETAPES = [
   { numero: 1, titre: "Compte" },
   { numero: 2, titre: "Établissement" },
-  { numero: 3, titre: "Finalisation" },
+  { numero: 3, titre: "Vos zones" },
+  { numero: 4, titre: "Finalisation" },
 ] as const
 
 const CHAMPS_PAR_ETAPE: (keyof ValeursInscription)[][] = [
   ["email", "password", "confirmation"],
   ["nomEtablissement", "typeEtablissement", "adresse", "ville", "whatsapp"],
+  ["zones"],
   ["logoUrl", "accepteCgu"],
 ]
+
+/** Suggestions de zones proposées à l'étape 3 (filtrées selon ce qui est déjà saisi) */
+const SUGGESTIONS_ZONES = ["Salle", "Terrasse", "Bar", "Cuisine", "Toilettes", "Salon", "Boutique"]
 
 // ============================================================
 // Vue racine : bascule Connexion / Inscription via le store
@@ -145,7 +165,7 @@ export function AuthView() {
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {modeInscription
-              ? "Votre Coach IA d'audit qualité en 3 étapes"
+              ? "Votre Coach IA d'audit qualité en 4 étapes"
               : "Heureux de vous revoir. Votre rapport du jour vous attend."}
           </p>
         </div>
@@ -335,6 +355,9 @@ function InscriptionWizard() {
   const [erreurApi, setErreurApi] = useState<string | null>(null)
   const [erreurLogo, setErreurLogo] = useState<string | null>(null)
   const [logoEnCours, setLogoEnCours] = useState(false)
+  // Champ de saisie d'une nouvelle zone (étape 3) — le tableau validé
+  // lui-même vit dans react-hook-form (champ "zones")
+  const [nouvelleZone, setNouvelleZone] = useState("")
 
   const refreshSession = useAppStore((s) => s.refreshSession)
   const setView = useAppStore((s) => s.setView)
@@ -360,17 +383,33 @@ function InscriptionWizard() {
       adresse: "",
       ville: "",
       whatsapp: "",
+      zones: ["Accueil"],
       logoUrl: "",
       accepteCgu: false,
     },
   })
 
   const logoActuel = watch("logoUrl")
+  const zonesActuelles = watch("zones") ?? []
+
+  /** Ajoute une zone (déduplication insensible à la casse, 10 maximum) */
+  function ajouterZone() {
+    const nom = nouvelleZone.trim()
+    if (!nom || nom.length > 60 || zonesActuelles.length >= 10) return
+    if (zonesActuelles.some((z) => z.toLowerCase() === nom.toLowerCase())) return
+    setValue("zones", [...zonesActuelles, nom], { shouldValidate: true })
+    setNouvelleZone("")
+  }
+
+  /** Retire une zone par son nom (affiché exact) */
+  function retirerZone(nom: string) {
+    setValue("zones", zonesActuelles.filter((z) => z !== nom), { shouldValidate: true })
+  }
 
   /** Valide les champs de l'étape courante avant de passer à la suivante */
   async function continuer() {
     const valide = await trigger(CHAMPS_PAR_ETAPE[etape - 1], { shouldFocus: true })
-    if (valide) setEtape((e) => Math.min(3, e + 1))
+    if (valide) setEtape((e) => Math.min(4, e + 1))
   }
 
   function revenir() {
@@ -415,6 +454,7 @@ function InscriptionWizard() {
           ville: valeurs.ville,
           whatsapp: valeurs.whatsapp,
           logoUrl: valeurs.logoUrl,
+          zones: valeurs.zones,
         }),
       })
       const json = await res.json().catch(() => null)
@@ -426,7 +466,7 @@ function InscriptionWizard() {
       await refreshSession()
       toast({
         title: "Bienvenue sur FeedbackPro 🎉",
-        description: "Votre première zone « Accueil » a été créée",
+        description: `${valeurs.zones.length} zone${valeurs.zones.length > 1 ? "s" : ""} créée${valeurs.zones.length > 1 ? "s" : ""} — imprimez vos QR codes dans l'onglet QR`,
       })
       setView("dashboard")
     } catch {
@@ -608,8 +648,105 @@ function InscriptionWizard() {
             </>
           )}
 
-          {/* ============ ÉTAPE 3 — FINALISATION ============ */}
+          {/* ============ ÉTAPE 3 — VOS ZONES ============ */}
           {etape === 3 && (
+            <>
+              <div className="space-y-1.5">
+                <Label htmlFor="zone-input">Vos zones de contact</Label>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  Chaque zone (accueil, salle, terrasse…) reçoit son propre QR code à poser sur le terrain. Votre
+                  premier rapport comparera les zones entre elles.
+                </p>
+
+                {/* Chips des zones déjà créées */}
+                <div className="flex flex-wrap gap-2" aria-live="polite">
+                  {zonesActuelles.map((nom) => (
+                    <span
+                      key={nom}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 py-1.5 pl-3.5 pr-1.5 text-sm font-medium text-primary"
+                    >
+                      {nom}
+                      <button
+                        type="button"
+                        onClick={() => retirerZone(nom)}
+                        aria-label={`Retirer la zone ${nom}`}
+                        className="flex h-6 w-6 items-center justify-center rounded-full text-primary/70 transition-colors hover:bg-primary/10 hover:text-primary"
+                      >
+                        <X className="h-3.5 w-3.5" aria-hidden />
+                      </button>
+                    </span>
+                  ))}
+                  {zonesActuelles.length === 0 && (
+                    <span className="text-sm text-muted-foreground">Aucune zone — créez-en au moins une.</span>
+                  )}
+                </div>
+
+                {/* Saisie + bouton Ajouter */}
+                <div className="flex gap-2 pt-1">
+                  <Input
+                    id="zone-input"
+                    value={nouvelleZone}
+                    onChange={(e) => setNouvelleZone(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault()
+                        ajouterZone()
+                      }
+                    }}
+                    placeholder="Ex : Salle"
+                    maxLength={60}
+                    autoComplete="off"
+                    aria-label="Nom de la nouvelle zone"
+                    className="h-11"
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={ajouterZone}
+                    disabled={!nouvelleZone.trim() || zonesActuelles.length >= 10}
+                    className="h-11 shrink-0 px-4"
+                    aria-label="Ajouter la zone"
+                  >
+                    <Plus className="h-4 w-4" aria-hidden />
+                    Ajouter
+                  </Button>
+                </div>
+
+                {/* Suggestions cliquables (masquées quand tout est ajouté ou limite atteinte) */}
+                {zonesActuelles.length < 10 &&
+                  SUGGESTIONS_ZONES.filter(
+                    (s) => !zonesActuelles.some((z) => z.toLowerCase() === s.toLowerCase())
+                  ).length > 0 && (
+                    <div className="flex flex-wrap items-center gap-2 pt-1">
+                      <span className="text-xs text-muted-foreground">Suggestions :</span>
+                      {SUGGESTIONS_ZONES.filter(
+                        (s) => !zonesActuelles.some((z) => z.toLowerCase() === s.toLowerCase())
+                      ).map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => {
+                            setNouvelleZone("")
+                            setValue("zones", [...zonesActuelles, s], { shouldValidate: true })
+                          }}
+                          className="inline-flex min-h-9 items-center gap-1 rounded-full border border-dashed border-border px-3 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:bg-primary/5 hover:text-primary"
+                          aria-label={`Ajouter la zone ${s}`}
+                        >
+                          <Plus className="h-3 w-3" aria-hidden />
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                <p className="text-xs text-muted-foreground">{zonesActuelles.length}/10 zones</p>
+                <ErreurChamp message={errors.zones?.message as string | undefined} />
+              </div>
+            </>
+          )}
+
+          {/* ============ ÉTAPE 4 — FINALISATION ============ */}
+          {etape === 4 && (
             <>
               {/* Logo (optionnel) */}
               <div className="space-y-1.5">
@@ -697,6 +834,25 @@ function InscriptionWizard() {
                       {valeurs.whatsapp.replace(/[^0-9]/g, "") || "—"}
                     </dd>
                   </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <dt className="shrink-0 text-muted-foreground">Zones</dt>
+                    <dd className="min-w-0 text-right">
+                      {(valeurs.zones ?? []).length > 0 ? (
+                        <span className="flex flex-wrap justify-end gap-1">
+                          {(valeurs.zones ?? []).map((nom) => (
+                            <span
+                              key={nom}
+                              className="inline-flex items-center rounded-full border border-primary/30 bg-primary/5 px-2.5 py-0.5 text-xs font-medium text-primary"
+                            >
+                              {nom}
+                            </span>
+                          ))}
+                        </span>
+                      ) : (
+                        <span className="font-medium">—</span>
+                      )}
+                    </dd>
+                  </div>
                 </dl>
                 <div className="mt-3 flex gap-3 border-t border-border/60 pt-2.5">
                   <button
@@ -759,8 +915,8 @@ function InscriptionWizard() {
         </motion.div>
       </AnimatePresence>
 
-      {/* Navigation du wizard (étapes 1 et 2) + erreur API */}
-      {etape < 3 && (
+      {/* Navigation du wizard (étapes 1 à 3) + erreur API */}
+      {etape < 4 && (
         <>
           {erreurApi && <ErreurApi message={erreurApi} />}
           <div className="flex gap-3">

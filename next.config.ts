@@ -3,8 +3,10 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
   /* config options here */
+  // Audit : la vérification TypeScript n'est plus ignorée au build
+  // (tsc strict passe sur tout src/ — examples/skills exclus du tsconfig).
   typescript: {
-    ignoreBuildErrors: true,
+    ignoreBuildErrors: false,
   },
   reactStrictMode: false,
   async rewrites() {

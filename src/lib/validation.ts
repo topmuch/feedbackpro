@@ -74,8 +74,21 @@ export const registerSchema = z.object({
   adresse: z.string().trim().min(5, "L'adresse est requise").max(200, "Adresse trop longue"),
   ville: z.string().trim().min(2, "La ville est requise").max(80, "Ville trop longue"),
   whatsapp: whatsappField.optional().default(""),
-  // Logo optionnel choisi à l'inscription (wizard étape 3, data URL compressée côté client)
+  // Logo optionnel choisi à l'inscription (wizard, data URL compressée côté client)
   logoUrl: logoField.nullable().optional(),
+  // Audit : noms des zones créées à l'inscription (wizard 4 étapes).
+  // Optionnel pour compat : absent ou vide → zone « Accueil » par défaut.
+  zones: z
+    .array(
+      z
+        .string()
+        .trim()
+        .min(1, "Le nom d'une zone ne peut pas être vide")
+        .max(60, "Nom de zone trop long (60 caractères maximum)")
+    )
+    .max(10, "10 zones maximum à l'inscription (vous pourrez en ajouter d'autres dans le dashboard)")
+    .optional()
+    .default([]),
 })
 
 export const loginSchema = z.object({
@@ -124,6 +137,9 @@ export const retourSchema = z.object({
     .nullable()
     .optional(),
   canalChoisi: z.enum(["whatsapp", "aucun"]).nullable().optional(),
+  // Audit RGPD : consentement explicite (opt-in) pour enregistrer la ville
+  // approximative déduite de l'IP. Absent → false (aucune donnée géo).
+  geoConsent: z.boolean().optional().default(false),
 })
 
 /** Résolution d'une zone par son QR token (POST /api/public/scan) */

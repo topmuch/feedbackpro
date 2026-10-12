@@ -63,3 +63,10 @@ tool-results/
 
 # allow example env file
 !.env.example
+
+# Preuves locales (captures QA) — hors dépôt
+/proofs/
+# Artefacts d'outillage de session
+/tool-results/
+# Répertoire monté de l'environnement
+/upload/

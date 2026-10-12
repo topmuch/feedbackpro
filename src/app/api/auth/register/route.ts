@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ ok: false, error: firstError(parsed.error) }, { status: 400 })
     }
-    const { email, password, nomEtablissement, typeEtablissement, adresse, ville, whatsapp, logoUrl } =
+    const { email, password, nomEtablissement, typeEtablissement, adresse, ville, whatsapp, logoUrl, zones } =
       parsed.data
 
     const existing = await db.user.findUnique({ where: { email } })
@@ -63,15 +63,30 @@ export async function POST(req: NextRequest) {
       },
     })
 
-    // Zone « Accueil » par défaut, avec tous les tags positifs/négatifs du catalogue
-    await db.zone.create({
-      data: {
+    // Zones créées à l'inscription (wizard 4 étapes — audit) : noms fournis
+    // par le commerçant, dédupliqués (casse insensible). Aucune zone valide
+    // → « Accueil » par défaut (le Pro est toujours prêt à l'emploi).
+    const nomsZones = Array.from(
+      new Map(
+        (zones || [])
+          .map((nom) => nom.trim())
+          .filter((nom) => nom.length > 0 && nom.length <= 60)
+          .map((nom) => [nom.toLowerCase(), nom])
+      ).values()
+    )
+    if (nomsZones.length === 0) nomsZones.push("Accueil")
+
+    await db.zone.createMany({
+      data: nomsZones.map((nom) => ({
         proId: pro.id,
-        nom: "Accueil",
-        description: "Réception et prise de contact en début de visite",
+        nom,
+        description:
+          nom === "Accueil"
+            ? "Réception et prise de contact en début de visite"
+            : null,
         tagsPositifs: JSON.stringify(POSITIVE_TAGS.map((t) => t.id)),
         tagsNegatifs: JSON.stringify(NEGATIVE_TAGS.map((t) => t.id)),
-      },
+      })),
     })
 
     // Email de bienvenue : strictement non bloquant — un échec

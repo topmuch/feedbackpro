@@ -37,6 +37,7 @@ import {
 import { buildWhatsAppMessage } from "@/lib/whatsapp"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Textarea } from "@/components/ui/textarea"
@@ -258,6 +259,9 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
   const [recompenseGagnee, setRecompenseGagnee] = useState<string | null>(null)
   // Code promo dévoilé sur l'écran de remerciement (Session 3)
   const [codeRecompense, setCodeRecompense] = useState<string | null>(null)
+  // Audit RGPD : consentement opt-in pour enregistrer la ville approximative
+  // (déduite de l'IP) — décoché par défaut, jamais requis pour envoyer un retour
+  const [geoConsent, setGeoConsent] = useState(false)
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
@@ -298,6 +302,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
       setCommentaire("")
       setRecompenseGagnee(null)
       setCodeRecompense(null)
+      setGeoConsent(false)
       setSens(1)
       setPhase("step1")
     } catch (e) {
@@ -387,6 +392,9 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
           commentaire: commentaire.trim() || undefined,
           personnelMentionne: personnel.trim() || undefined,
           canalChoisi: canal,
+          // RGPD : la ville approximative n'est enregistrée que si le client
+          // a explicitement coché la case de consentement à l'étape 3
+          geoConsent,
         }),
       })
       const json = await res.json().catch(() => null)
@@ -766,6 +774,35 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                         </div>
                       </div>
                     )}
+
+                    {/* Consentement géolocalisation approximative (RGPD — opt-in,
+                        jamais requis pour envoyer le retour) */}
+                    <div className="mt-4 rounded-xl border border-stone-200 bg-stone-50 p-3">
+                      <div className="flex items-start gap-2.5">
+                        <Checkbox
+                          id="geo-consent"
+                          checked={geoConsent}
+                          onCheckedChange={(v) => setGeoConsent(v === true)}
+                          className="mt-0.5"
+                        />
+                        <label
+                          htmlFor="geo-consent"
+                          className="cursor-pointer text-xs leading-relaxed text-stone-600"
+                        >
+                          J&apos;accepte que ma{" "}
+                          <span className="font-semibold">ville approximative</span> (déduite de mon adresse IP,
+                          jamais stockée) soit enregistrée pour la lutte anti-fraude.{" "}
+                          <a
+                            href="/confidentialite"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-medium text-primary underline underline-offset-2"
+                          >
+                            Politique de confidentialité
+                          </a>
+                        </label>
+                      </div>
+                    </div>
 
                     {/* Teaser micro-récompense (Session 3) : montrée AVANT l'envoi
                         SANS le code promo, qui n'est dévoilé qu'à l'écran suivant */}

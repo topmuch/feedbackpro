@@ -47,6 +47,7 @@ const NAV_LIENS = [
   { id: "probleme", label: "Le problème" },
   { id: "solution", label: "La solution" },
   { id: "fonctionnalites", label: "Fonctionnalités" },
+  { id: "cas-usage", label: "Cas d'usage" },
   { id: "tarifs", label: "Tarifs" },
   { id: "faq", label: "FAQ" },
 ] as const
@@ -92,6 +93,62 @@ const FONCTIONNALITES: { icone: LucideIcon; titre: string; texte: string }[] = [
     texte: "Autocollants, chevalets et affiches de qualité, commandés en un clic et livrés prêts à poser sur le terrain.",
   },
 ]
+
+// Audit : cas d'usage par secteur (6 métiers cibles)
+const CAS_USAGE = [
+  {
+    emoji: "🍕",
+    secteur: "Restaurants & pizzerias",
+    avant: "« La pizza était froide » — appris 2 semaines plus tard sur un avis public.",
+    avec: "Alerte immédiate sur la zone Salle, four relancé avant le service suivant.",
+  },
+  {
+    emoji: "☕",
+    secteur: "Cafés & bars",
+    avant: "Attente au bar aux heures de pointe, clients qui ne reviennent plus sans le dire.",
+    avec: "Créneaux d'alerte identifiés (ex. entre 18 h et 19 h) et staff réorganisé.",
+  },
+  {
+    emoji: "💇",
+    secteur: "Salons de coiffure & instituts",
+    avant: "Impossible de savoir quel coiffeur fidélise et lequel fait fuir.",
+    avec: "Leaderboard objectif par employé et formation ciblée chaque semaine.",
+  },
+  {
+    emoji: "🔧",
+    secteur: "Garages & auto-écoles",
+    avant: "Devis contestés, délais non tenus, réclamations sur des avis Google.",
+    avec: "Le Coach IA repère les retours « temps d'attente » et arbitre les priorités.",
+  },
+  {
+    emoji: "🥐",
+    secteur: "Boulangeries & snack",
+    avant: "File du midi qui décourage, pain en rupture sans que personne ne le signale.",
+    avec: "Tags « temps d'attente » par zone, production ajustée dès le premier rapport.",
+  },
+  {
+    emoji: "🏨",
+    secteur: "Hôtels & locations",
+    avant: "Petit-déjeuner et propreté critiqués en ligne après le départ du client.",
+    avec: "QR en chambre et à l'accueil : chaque zone a son score, la ménage est priorisée.",
+  },
+]
+
+// Audit : comparatif honnête avant / avec FeedbackPro
+const COMPARATIF = {
+  sans: [
+    "Vous découvrez les problèmes des semaines plus tard, sur les avis publics",
+    "Aucune idée de la zone exacte (accueil, salle, propreté ?) du problème",
+    "Décisions prises « au ressenti », sans données",
+    "Vos meilleurs employés passent inaperçus",
+  ],
+  avec: [
+    "Alerte en temps réel dès la première note ≤ 2★, zone par zone",
+    "Rapport quotidien du Coach IA : score, évolution et 3 actions précises",
+    "Statistiques par zone, par jour et par heure pour décider avec des chiffres",
+    "Leaderboard pour valoriser publiquement votre équipe",
+  ],
+}
 
 // Témoignages d'exemple (honnêteté : mention explicite sous chaque carte)
 const TEMOIGNAGES = [
@@ -549,6 +606,89 @@ export function LandingView({ onLogin, onSignup }: { onLogin: () => void; onSign
                 </Fondu>
               )
             })}
+          </div>
+        </div>
+      </section>
+
+      {/* ======================================================== */}
+      {/* CAS D'USAGE — 6 secteurs + comparatif avant / avec        */}
+      {/* ======================================================== */}
+      <section id="cas-usage" aria-labelledby="titre-cas-usage" className="scroll-mt-20 bg-[#F3F4F6] py-16 sm:py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <Fondu className="mx-auto max-w-3xl text-center">
+            <h2 id="titre-cas-usage" className="text-2xl font-bold tracking-tight sm:text-3xl">
+              Un Coach IA qui parle votre métier
+            </h2>
+            <p className="mt-4 text-base leading-relaxed text-muted-foreground">
+              Restaurant, café, salon, garage… Chaque secteur vit des problèmes différents. FeedbackPro les détecte
+              zone par zone et vous dit quoi corriger en premier.
+            </p>
+          </Fondu>
+
+          {/* Grille des 6 secteurs */}
+          <div className="mt-10 grid gap-5 sm:grid-cols-2 lg:grid-cols-3 lg:gap-6">
+            {CAS_USAGE.map((cas, i) => (
+              <Fondu key={cas.secteur} delai={Math.min(i * 0.06, 0.3)} className="h-full">
+                <div className="flex h-full flex-col rounded-2xl border border-border/70 bg-white p-6 shadow-sm transition-shadow hover:shadow-md">
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-xl"
+                      aria-hidden="true"
+                    >
+                      {cas.emoji}
+                    </span>
+                    <h3 className="text-base font-semibold leading-snug">{cas.secteur}</h3>
+                  </div>
+                  <p className="mt-4 flex-1 text-sm leading-relaxed text-muted-foreground">
+                    <span className="font-semibold text-rose-600">Sans :</span> {cas.avant}
+                  </p>
+                  <p className="mt-3 text-sm leading-relaxed text-foreground">
+                    <span className="font-semibold text-primary">Avec FeedbackPro :</span> {cas.avec}
+                  </p>
+                </div>
+              </Fondu>
+            ))}
+          </div>
+
+          {/* Comparatif honnête : sans / avec */}
+          <div className="mt-14">
+            <Fondu className="mx-auto max-w-2xl text-center">
+              <h3 className="text-xl font-bold tracking-tight sm:text-2xl">Ce qui change concrètement</h3>
+            </Fondu>
+            <div className="mx-auto mt-8 grid max-w-4xl gap-5 md:grid-cols-2">
+              <Fondu className="h-full">
+                <div className="h-full rounded-2xl border border-border/70 bg-white p-6">
+                  <p className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-muted-foreground">
+                    <X className="h-4 w-4 text-rose-500" aria-hidden="true" />
+                    Sans FeedbackPro
+                  </p>
+                  <ul className="mt-4 space-y-3">
+                    {COMPARATIF.sans.map((item) => (
+                      <li key={item} className="flex items-start gap-2.5 text-sm leading-relaxed text-muted-foreground">
+                        <X className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" aria-hidden="true" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </Fondu>
+              <Fondu delai={0.1} className="h-full">
+                <div className="h-full rounded-2xl border-2 border-primary/60 bg-primary/5 p-6 shadow-sm">
+                  <p className="flex items-center gap-2 text-sm font-bold uppercase tracking-wide text-primary">
+                    <Check className="h-4 w-4" aria-hidden="true" />
+                    Avec FeedbackPro
+                  </p>
+                  <ul className="mt-4 space-y-3">
+                    {COMPARATIF.avec.map((item) => (
+                      <li key={item} className="flex items-start gap-2.5 text-sm leading-relaxed text-foreground">
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden="true" />
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </Fondu>
+            </div>
           </div>
         </div>
       </section>
