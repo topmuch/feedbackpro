@@ -167,7 +167,7 @@ function SelecteurLangue({ langue, onChange }: { langue: LangueScan; onChange: (
 
 function EcranChargement({ t }: { t: TraductionsScan }) {
   return (
-    <div className="flex min-h-dvh flex-col items-center justify-center gap-5 bg-stone-100 p-4" aria-busy="true">
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-5 bg-background p-4" aria-busy="true">
       <Loader2 className="size-8 animate-spin text-primary" aria-hidden />
       <div
         aria-hidden
@@ -593,7 +593,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
   const etapeIdx = phase === "step1" || phase === "step1b" ? 0 : phase === "step2" ? 1 : 2
 
   return (
-    <div className="flex min-h-dvh items-center justify-center overflow-x-hidden bg-stone-100 p-3 sm:p-6" dir={t.dir}>
+    <div className="flex min-h-dvh items-center justify-center overflow-x-hidden bg-background p-3 sm:p-6" dir={t.dir}>
       <div className="w-full max-w-md">
         <div
           className={cn(

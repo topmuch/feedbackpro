@@ -77,7 +77,7 @@ export function LegalLayout({
       </main>
 
       {/* Pied : liens vers les autres pages légales */}
-      <footer className="mt-auto border-t bg-stone-50">
+      <footer className="mt-auto border-t bg-muted/30">
         <div className="mx-auto flex max-w-3xl flex-col items-center gap-3 px-4 py-6 text-xs text-muted-foreground sm:flex-row sm:justify-between sm:px-6">
           <p>© {new Date().getFullYear()} FeedbackPro — Tous droits réservés.</p>
           <nav aria-label="Pages légales" className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">

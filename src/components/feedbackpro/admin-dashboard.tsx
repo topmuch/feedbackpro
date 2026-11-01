@@ -297,7 +297,7 @@ export function AdminDashboard() {
   const emailAdmin = session?.user?.email ?? ""
 
   return (
-    <div className="min-h-screen bg-stone-100">
+    <div className="min-h-screen bg-background">
       {/* ---------- Sidebar fixe desktop (lg+) ---------- */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col bg-blue-600 text-white lg:flex">
         <ContenuSidebarAdmin ongletActif={onglet} onNaviguer={naviguer} emailAdmin={emailAdmin} onLogout={logout} />

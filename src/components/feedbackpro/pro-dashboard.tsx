@@ -228,7 +228,7 @@ export function ProDashboard() {
   // ---------- Coquille squelette pendant le chargement de la session ----------
   if (!session) {
     return (
-      <div className="flex min-h-screen flex-col bg-stone-100 lg:pl-64">
+      <div className="flex min-h-screen flex-col bg-background lg:pl-64">
         <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col bg-blue-600 text-white lg:flex">
           <div className="flex items-center gap-2.5 px-4 py-5">
             <Skeleton className="h-10 w-10 rounded-xl bg-white/20" />
@@ -266,7 +266,7 @@ export function ProDashboard() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-stone-100 lg:pl-64">
+    <div className="flex min-h-screen flex-col bg-background lg:pl-64">
       {/* ---------- Sidebar fixe desktop (lg+) ---------- */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col bg-blue-600 text-white lg:flex">
         <ContenuSidebar ongletActif={onglet} onNaviguer={naviguer} />

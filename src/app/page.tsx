@@ -88,7 +88,7 @@ export default function Home() {
   // ---------- Flux de scan client final (mobile, sans footer) ----------
   if (view === "scan" && scanToken) {
     return (
-      <main className="min-h-screen bg-stone-100">
+      <main className="min-h-screen bg-background">
         <ScanView token={scanToken} onExit={() => useAppStore.getState().closeScan()} />
       </main>
     )
