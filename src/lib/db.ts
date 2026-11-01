@@ -16,7 +16,6 @@
 function getRequire(): NodeRequire | undefined {
   // Plusieurs stratégies pour récupérer require() en contexte ESM/Turbopack
   try {
-    // @ts-expect-error require peut exister en CJS
     if (typeof require === 'function') return require as NodeRequire
   } catch {
     /* ignore */

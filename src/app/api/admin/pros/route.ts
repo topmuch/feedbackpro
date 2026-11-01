@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
 
     const pro = await db.pro.findUnique({
       where: { id },
-      include: { user: { select: { id: true, role: true } } },
+      include: { user: { select: { id: true, role: true, email: true } } },
     })
     if (!pro) return fail("Établissement introuvable", 404)
 
