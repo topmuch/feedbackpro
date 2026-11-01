@@ -48,6 +48,7 @@ export function serialiserRetour(
     tags: parseJsonArray(r.tags),
     commentaire: r.commentaire,
     personnelMentionne: r.personnelMentionne,
+    emailClient: r.emailClient,
     canalChoisi: r.canalChoisi,
     ipCity: r.ipCity,
     recompenseUtilisee: r.recompenseUtilisee,

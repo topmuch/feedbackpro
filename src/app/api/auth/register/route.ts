@@ -18,6 +18,7 @@ import { createSession, attachSessionCookie, serializePro, getSessionUser } from
 import { registerSchema, firstError } from "@/lib/validation"
 import { POSITIVE_TAGS, NEGATIVE_TAGS } from "@/lib/constants"
 import { sendEmail, emailBienvenue } from "@/lib/email"
+import { notifierSuperadmins } from "@/lib/notifications"
 
 export async function POST(req: NextRequest) {
   try {
@@ -45,6 +46,8 @@ export async function POST(req: NextRequest) {
     })
 
     // Création du Pro, prêt à l'emploi (zone « Accueil » incluse)
+    const now = new Date()
+    const finEssai = new Date(now.getTime() + 30 * 24 * 3600 * 1000) // essai 30 jours
     const pro = await db.pro.create({
       data: {
         userId: user.id,
@@ -60,6 +63,9 @@ export async function POST(req: NextRequest) {
         plan: "STARTER",
         frequenceRapport: "quotidien",
         onboardingDone: true,
+        // Période d'essai 30 jours à la création du commerçant
+        abonnementDebut: now,
+        abonnementFin: finEssai,
       },
     })
 
@@ -96,6 +102,13 @@ export async function POST(req: NextRequest) {
     } catch (e) {
       console.warn("Email de bienvenue non envoyé (non bloquant)", e)
     }
+
+    // Notification superadmin : nouveau commerçant inscrit (cloche superadmin)
+    await notifierSuperadmins(
+      "nouveau_commercant",
+      "🏪 Nouveau commerçant inscrit",
+      `« ${nomEtablissement} » (${ville}) vient de créer un compte FeedbackPro.`
+    )
 
     const sessionId = await createSession(user.id)
     const res = NextResponse.json({

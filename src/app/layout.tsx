@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { ThemeProvider } from "@/components/theme-provider";
 
 // Typographie : Inter (conforme Session 1)
 const interSans = Inter({
@@ -14,28 +15,92 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://feedbackpro.qrtags.pro";
+
 export const metadata: Metadata = {
-  title: "FeedbackPro — Le Coach IA d'Audit Qualité Continu",
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: "FeedbackPro — Le Coach IA d'Audit Qualité Continu",
+    template: "%s | FeedbackPro",
+  },
   description:
-    "Transformez vos clients en auditeurs qualité. Notre IA analyse chaque retour client et vous livre chaque matin un rapport d'audit avec des recommandations précises pour améliorer votre service.",
+    "FeedbackPro transforme chaque client en auditeur qualité. Scannez un QR code, laissez une note, et notre IA vous livre chaque matin un rapport d'audit avec 3 priorités concrètes pour améliorer votre service. Pour restaurants, salons, boutiques.",
   keywords: [
     "audit qualité",
     "client mystère",
     "Coach IA",
     "retours clients",
-    "QR code",
-    "SaaS",
+    "avis clients",
+    "QR code feedback",
+    "SaaS commerce",
     "restaurant",
-    "commerce",
+    "salon",
+    "boulangerie",
+    "satisfaction client",
+    "NPS",
+    "amélioration service",
+    "gestion réclamations",
+    "alerte WhatsApp",
+    "avis Google",
+    "fidélisation client",
   ],
   authors: [{ name: "FeedbackPro" }],
+  creator: "FeedbackPro",
+  publisher: "FeedbackPro",
+  applicationName: "FeedbackPro",
+  category: "Business",
+  formatDetection: { email: false, address: false, telephone: false },
+  alternates: {
+    canonical: siteUrl,
+  },
   openGraph: {
     title: "FeedbackPro — Le Coach IA d'Audit Qualité Continu",
     description:
-      "Chaque client réel devient un Client Mystère : scan QR, note, tags, et un rapport IA quotidien avec vos 3 priorités du jour.",
+      "Chaque client réel devient un Client Mystère : scan QR, note, tags, et un rapport IA quotidien avec vos 3 priorités du jour. Pour restaurants, salons, boutiques.",
     siteName: "FeedbackPro",
     type: "website",
+    locale: "fr_FR",
+    url: siteUrl,
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1344,
+        height: 768,
+        alt: "FeedbackPro — Le Coach IA d'Audit Qualité Continu",
+        type: "image/png",
+      },
+    ],
   },
+  twitter: {
+    card: "summary_large_image",
+    title: "FeedbackPro — Le Coach IA d'Audit Qualité Continu",
+    description:
+      "Transformez vos clients en auditeurs qualité. Rapport IA quotidien avec 3 priorités pour améliorer votre service.",
+    images: ["/og-image.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
+    },
+  },
+  icons: {
+    icon: "/logo.svg",
+    shortcut: "/logo.svg",
+    apple: "/logo.svg",
+  },
+  manifest: "/manifest.webmanifest",
+};
+
+export const viewport = {
+  themeColor: "#2563EB",
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -48,8 +113,10 @@ export default function RootLayout({
       <body
         className={`${interSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
-        {children}
-        <Toaster />
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange>
+          {children}
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

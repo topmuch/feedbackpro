@@ -19,14 +19,19 @@ datasource db {
 // ---------- Utilisateurs & Sessions ----------
 
 model User {
-  id           String    @id @default(cuid())
-  email        String    @unique
-  passwordHash String
-  role         String    @default("PRO") // SUPERADMIN | PRO
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  pro          Pro?
-  sessions     Session[]
+  id              String    @id @default(cuid())
+  email           String    @unique
+  passwordHash    String
+  role            String    @default("PRO") // SUPERADMIN | PRO
+  // Compte suspendu par le superadmin ( bloque la connexion et les API)
+  suspendu        Boolean   @default(false)
+  // Dernière connexion (null si jamais connecté)
+  derniereConnexion DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  pro             Pro?
+  sessions        Session[]
+  notifications   Notification[]
 }
 
 // Sessions en base : le cookie ne contient que l'ID de session (httpOnly)
@@ -61,6 +66,9 @@ model Pro {
   onboardingDone    Boolean   @default(false)
   suspendu          Boolean   @default(false) // Commerçant suspendu par le superadmin
   smsAlertes        Boolean   @default(true) // Alertes SMS activées pour les retours ≤ 2★
+  // Période d'abonnement (essai 30 jours à la création)
+  abonnementDebut   DateTime?
+  abonnementFin     DateTime?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -120,6 +128,8 @@ model Retour {
   tags               String  @default("[]") // JSON : ex ["impoli","attente"]
   commentaire        String?
   personnelMentionne String? // Nom ou description libre du personnel concerné
+  // Email du client (optionnel, pour permettre au commerçant de répondre par email)
+  emailClient        String?
 
   // Métadonnées
   canalChoisi        String? // "whatsapp" | "aucun"
@@ -207,4 +217,23 @@ model Alerte {
   createdAt DateTime @default(now())
 
   @@index([proId, lu])
+}
+
+// ---------- Notifications in-app (cloche) ----------
+// Notifications ciblant un utilisateur (PRO ou SUPERADMIN), affichées dans
+// la cloche du header. Différentes des Alertes (qui sont des signaux temps
+// réel liés à un retour et persistées sur le Pro).
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // nouveau_retour | retour_negatif | rapport_ia | alerte_coach | nouveau_commercant | nouvelle_commande | commercant_suspendu
+  titre     String
+  message   String
+  lu        Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, lu])
+  @@index([userId, createdAt])
 }

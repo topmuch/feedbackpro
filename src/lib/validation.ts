@@ -136,6 +136,13 @@ export const retourSchema = z.object({
     .max(120, "Nom du personnel trop long")
     .nullable()
     .optional(),
+  // Email du client (optionnel) — permet au commerçant de répondre par email
+  emailClient: z
+    .string()
+    .trim()
+    .max(120, "Email trop long")
+    .nullable()
+    .optional(),
   canalChoisi: z.enum(["whatsapp", "aucun"]).nullable().optional(),
   // Audit RGPD : consentement explicite (opt-in) pour enregistrer la ville
   // approximative déduite de l'IP. Absent → false (aucune donnée géo).
@@ -229,7 +236,9 @@ export const alertePatchSchema = z
 // ---------- Superadmin ----------
 
 export const adminProActionSchema = z.object({
-  action: z.enum(["changerPlan", "suspendre", "reactiver", "supprimer"], { message: "Action invalide" }),
+  action: z.enum(["changerPlan", "suspendre", "reactiver", "supprimer", "resetPassword"], {
+    message: "Action invalide",
+  }),
   id: z.string().trim().min(1, "ID manquant"),
   plan: z.string().optional(),
 })

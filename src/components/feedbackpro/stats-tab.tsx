@@ -21,6 +21,7 @@ import { StatCard } from "@/components/feedbackpro/shared"
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/app-store"
 import { JOURS, tagLabel } from "@/lib/constants"
+import { exportToCsv } from "@/lib/export-csv"
 import {
   ResponsiveContainer,
   LineChart,
@@ -362,10 +363,50 @@ export function StatsTab() {
             <FileText className="mr-1.5 h-4 w-4" aria-hidden />
             Exporter PDF
           </Button>
-          <a href="/api/pro/retours/export" download>
-            <Button variant="outline" size="sm" className="h-9">
-              <Download className="mr-1.5 h-4 w-4" aria-hidden />
-              Exporter CSV
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9"
+            onClick={() => {
+              const lignes: Record<string, unknown>[] = []
+              lignes.push({ Indicateur: "Période", Valeur: periodeLabel })
+              lignes.push({ Indicateur: "Note moyenne (/5)", Valeur: noteMoyenne ? noteMoyenne.toFixed(2) : "" })
+              lignes.push({ Indicateur: `Retours (${periodeCourt})`, Valeur: totalRetours })
+              lignes.push({ Indicateur: "Alertes (≤ 2★)", Valeur: alertes })
+              lignes.push({ Indicateur: "Zones suivies", Valeur: parZone.length })
+              lignes.push({ Indicateur: "", Valeur: "" })
+              lignes.push({ Indicateur: "— Performance par zone —", Valeur: "" })
+              for (const z of parZone) {
+                lignes.push({
+                  Indicateur: `Zone : ${z.zoneNom}`,
+                  Valeur: `Note ${z.noteMoy ? z.noteMoy.toFixed(2) : "—"} / 5 — ${z.total} retour(s)`,
+                })
+              }
+              lignes.push({ Indicateur: "", Valeur: "" })
+              lignes.push({ Indicateur: "— Top tags —", Valeur: "" })
+              for (const t of parTag) {
+                lignes.push({ Indicateur: `Tag : ${t.label}`, Valeur: t.count })
+              }
+              lignes.push({ Indicateur: "", Valeur: "" })
+              lignes.push({ Indicateur: "— Heures critiques (top 5) —", Valeur: "" })
+              const critiques = matrice
+                .flatMap((ligne, j) => ligne.map((total, h) => ({ jour: JOURS[j], heure: h, total })))
+                .sort((a, b) => b.total - a.total)
+                .slice(0, 5)
+                .filter((c) => c.total > 0)
+              for (const c of critiques) {
+                lignes.push({ Indicateur: `${c.jour} à ${c.heure}h`, Valeur: c.total })
+              }
+              exportToCsv(`statistiques-${periode}-${new Date().toISOString().slice(0, 10)}`, lignes)
+            }}
+            aria-label="Exporter les statistiques en CSV"
+          >
+            <Download className="mr-1.5 h-4 w-4" aria-hidden />
+            Exporter CSV
+          </Button>
+          <a href="/api/pro/retours/export" download className="hidden sm:block">
+            <Button variant="ghost" size="sm" className="h-9 text-xs">
+              Exporter retours (serveur)
             </Button>
           </a>
         </div>

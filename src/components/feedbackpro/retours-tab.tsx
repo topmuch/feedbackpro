@@ -23,6 +23,7 @@ import {
   X,
   Inbox,
   ArrowLeft,
+  Send,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -45,8 +46,10 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Stars, formatDate } from "@/components/feedbackpro/shared"
 import { useToast } from "@/hooks/use-toast"
+import { exportToCsv } from "@/lib/export-csv"
 import { ALL_TAGS, STATUT_RETOUR_LABEL, tagLabel } from "@/lib/constants"
 
 type StatutRetour = "NEW" | "IN_PROGRESS" | "RESOLVED"
@@ -58,6 +61,7 @@ type Retour = {
   tags: string[]
   commentaire: string | null
   personnelMentionne: string | null
+  emailClient: string | null
   canalChoisi: string | null
   statut: StatutRetour
   historique: { statut: string; at: string }[]
@@ -253,22 +257,64 @@ export function RetoursTab() {
     setEditionAction(false)
   }
 
-  // Enregistrement de la réponse du commerçant (passe NEW → IN_PROGRESS)
+  // Enregistrement de la réponse du commerçant.
+  // Si le retour possède un email client → POST /api/pro/retours action=repondre
+  // (enregistre reponsePro + envoie l'email au client via Resend si configuré).
+  // Sinon → fallback PATCH (enregistre reponsePro sans envoi d'email).
   async function enregistrerReponse() {
     if (!detail || !texteReponse.trim()) return
     setEnvoiReponse(true)
+    const message = texteReponse.trim()
     const statutPasse = detail.statut === "NEW"
-    await majRetour(detail.id, {
-      reponsePro: texteReponse.trim(),
-      lu: true,
-      ...(statutPasse ? { statut: "IN_PROGRESS" as StatutRetour } : {}),
-    })
+
+    if (detail.emailClient) {
+      // Envoi par email au client (et enregistrement de la réponse)
+      try {
+        const res = await fetch("/api/pro/retours", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "repondre", id: detail.id, message }),
+        })
+        const json = await res.json()
+        if (json.ok) {
+          const maj = json.data.retour ?? json.data
+          setItems((prev) => prev.map((r) => (r.id === detail.id ? { ...r, ...maj } : r)))
+          setDetail((prev) => (prev && prev.id === detail.id ? { ...prev, ...maj } : prev))
+          toast({
+            title: "Réponse envoyée par email ✓",
+            description: `Le client recevra votre réponse à l'adresse ${detail.emailClient}.`,
+          })
+        } else {
+          toast({
+            title: "Erreur",
+            description: json.error || "Envoi impossible",
+            variant: "destructive",
+          })
+          setEnvoiReponse(false)
+          return
+        }
+      } catch {
+        toast({ title: "Erreur", description: "Envoi impossible pour le moment", variant: "destructive" })
+        setEnvoiReponse(false)
+        return
+      }
+    } else {
+      // Pas d'email client : on enregistre juste la réponse interne (PATCH)
+      await majRetour(detail.id, {
+        reponsePro: message,
+        lu: true,
+        ...(statutPasse ? { statut: "IN_PROGRESS" as StatutRetour } : {}),
+      })
+      toast({
+        title: "Réponse enregistrée",
+        description: statutPasse
+          ? "Le statut du retour est passé à « En cours » (le client n'a pas laissé d'email, réponse conservée en interne)."
+          : "Le client n'a pas laissé d'email — réponse conservée en interne.",
+      })
+    }
+
     setEnvoiReponse(false)
     setEditionReponse(false)
-    toast({
-      title: "Réponse enregistrée",
-      ...(statutPasse ? { description: "Le statut du retour est passé à « En cours »" } : {}),
-    })
   }
 
   // Enregistrement de l'action managériale (passe NEW → IN_PROGRESS)
@@ -398,9 +444,28 @@ export function RetoursTab() {
               )}
             </div>
 
-            {/* Réponse du commerçant (éditable → PATCH reponsePro) */}
+            {/* Réponse du commerçant (éditable → POST repondre ou PATCH reponsePro) */}
             <div>
-              <p className="mb-1.5 text-xs font-medium text-muted-foreground">Réponse du commerçant</p>
+              <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+                Réponse du commerçant
+                {detail.emailClient ? (
+                  <Badge variant="outline" className="ml-2 h-5 gap-1 px-1.5 text-[10px] font-normal text-blue-700">
+                    <Send className="h-3 w-3" aria-hidden />
+                    Email client : {detail.emailClient}
+                  </Badge>
+                ) : (
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="ml-2 inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-normal text-amber-700">
+                          Pas d&apos;email client
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>Le client n&apos;a pas laissé d&apos;email — la réponse sera conservée en interne.</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </p>
               {editionReponse ? (
                 <div className="space-y-2">
                   <Textarea
@@ -409,7 +474,11 @@ export function RetoursTab() {
                     rows={4}
                     value={texteReponse}
                     onChange={(e) => setTexteReponse(e.target.value)}
-                    placeholder="Ex : Client rappelé, geste commercial offert, employé sensibilisé."
+                    placeholder={
+                      detail.emailClient
+                        ? "Votre réponse sera envoyée par email au client."
+                        : "Réponse conservée en interne (le client n'a pas laissé d'email)."
+                    }
                     aria-label="Votre réponse"
                   />
                   <div className="flex justify-end gap-2">
@@ -428,7 +497,7 @@ export function RetoursTab() {
                       disabled={envoiReponse || !texteReponse.trim()}
                     >
                       {envoiReponse && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
-                      Enregistrer
+                      {detail.emailClient ? "Envoyer la réponse" : "Enregistrer"}
                     </Button>
                   </div>
                 </div>
@@ -446,14 +515,27 @@ export function RetoursTab() {
                   </Button>
                 </div>
               ) : (
-                <Button
-                  variant="outline"
-                  className="h-10"
-                  onClick={() => { setTexteReponse(""); setEditionReponse(true) }}
-                >
-                  <MessageSquareReply className="mr-1.5 h-4 w-4" aria-hidden />
-                  Rédiger une réponse
-                </Button>
+                <TooltipProvider delayDuration={200}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      {/* span pour porter le tooltip quand le bouton est désactivé */}
+                      <span tabIndex={0} className="inline-block">
+                        <Button
+                          variant="outline"
+                          className="h-10 pointer-events-auto"
+                          onClick={() => { setTexteReponse(""); setEditionReponse(true) }}
+                          // Désactivé seulement si pas d'email ET déjà une réponse enregistrée → non, on autorise la réponse interne
+                        >
+                          <MessageSquareReply className="mr-1.5 h-4 w-4" aria-hidden />
+                          {detail.emailClient ? "Rédiger une réponse" : "Consigner une réponse interne"}
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    {!detail.emailClient && (
+                      <TooltipContent>Le client n&apos;a pas laissé d&apos;email — la réponse sera conservée en interne.</TooltipContent>
+                    )}
+                  </Tooltip>
+                </TooltipProvider>
               )}
             </div>
 
@@ -694,12 +776,41 @@ export function RetoursTab() {
               {total} retour{total > 1 ? "s" : ""}
               {total > PAGE_SIZE ? ` — page ${page}/${nbPages}` : ""}
             </p>
-            <a href="/api/pro/retours/export" download>
-              <Button variant="outline" size="sm" className="h-10 px-3">
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="h-10 px-3"
+                onClick={() =>
+                  exportToCsv(
+                    `retours-${new Date().toISOString().slice(0, 10)}`,
+                    items.map((r) => ({
+                      Date: formatDate(r.createdAt),
+                      Note: r.note,
+                      Zone: r.zone?.nom ?? "",
+                      Tags: r.tags.map(tagLabel).join(", "),
+                      Employe: r.employe?.nom ?? r.personnelMentionne ?? "",
+                      Commentaire: r.commentaire ?? "",
+                      EmailClient: r.emailClient ?? "",
+                      Canal: r.canalChoisi ?? "",
+                      Statut: STATUT_RETOUR_LABEL[r.statut] ?? r.statut,
+                      Lu: r.lu ? "Oui" : "Non",
+                      ReponsePro: r.reponsePro ?? "",
+                    }))
+                  )
+                }
+                disabled={items.length === 0}
+                aria-label="Exporter en CSV (page courante)"
+              >
                 <Download className="mr-1.5 h-4 w-4" aria-hidden />
-                Exporter en CSV
+                Exporter CSV
               </Button>
-            </a>
+              <a href="/api/pro/retours/export" download className="hidden sm:block">
+                <Button variant="ghost" size="sm" className="h-10 px-3 text-xs">
+                  Exporter tout (serveur)
+                </Button>
+              </a>
+            </div>
           </div>
         </CardContent>
       </Card>

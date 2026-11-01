@@ -247,6 +247,8 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
   const [tags, setTags] = useState<string[]>([])
   const [personnel, setPersonnel] = useState("")
   const [commentaire, setCommentaire] = useState("")
+  // Email (optionnel) : permet au commerçant de répondre au client par email
+  const [emailClient, setEmailClient] = useState("")
 
   // Animation d'étoile + prévisualisation au survol/focus (desktop)
   const [pulse, setPulse] = useState<number | null>(null)
@@ -300,6 +302,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
       setTags([])
       setPersonnel("")
       setCommentaire("")
+      setEmailClient("")
       setRecompenseGagnee(null)
       setCodeRecompense(null)
       setGeoConsent(false)
@@ -391,6 +394,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
           tags,
           commentaire: commentaire.trim() || undefined,
           personnelMentionne: personnel.trim() || undefined,
+          emailClient: emailClient.trim() || undefined,
           canalChoisi: canal,
           // RGPD : la ville approximative n'est enregistrée que si le client
           // a explicitement coché la case de consentement à l'étape 3
@@ -753,6 +757,25 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                       }
                       className="mt-4 min-h-28 text-base"
                     />
+
+                    {/* Email optionnel : permet au commerçant de répondre au client */}
+                    <div className="mt-3">
+                      <Input
+                        type="email"
+                        inputMode="email"
+                        value={emailClient}
+                        onChange={(e) => setEmailClient(e.target.value)}
+                        maxLength={120}
+                        autoComplete="off"
+                        aria-label="Votre email (optionnel, pour permettre au gérant de vous répondre)"
+                        placeholder="Votre email (optionnel, pour une réponse du gérant)"
+                        className="text-base"
+                      />
+                      <p className="mt-1.5 text-xs leading-relaxed text-stone-500">
+                        Laissez votre email si vous souhaitez que le gérant vous réponde. Sinon, votre retour restera
+                        anonyme.
+                      </p>
+                    </div>
 
                     {/* Erreur d'envoi : message inline + réessayer (les données sont conservées) */}
                     {erreurEnvoi && (

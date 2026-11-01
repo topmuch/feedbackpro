@@ -11,7 +11,7 @@
 // ============================================================
 
 import { useCallback, useEffect, useState } from "react"
-import { AlertTriangle, Loader2, Lock, MapPin, Pencil, Plus, Sparkles, ThumbsUp, Trash2, Trophy, Users } from "lucide-react"
+import { AlertTriangle, Download, Loader2, Lock, MapPin, Pencil, Plus, Sparkles, ThumbsUp, Trash2, Trophy, Users } from "lucide-react"
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from "recharts"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -36,6 +36,7 @@ import { Stars } from "@/components/feedbackpro/shared"
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/app-store"
 import { PLANS, PLAN_LIMITS, PlanId } from "@/lib/constants"
+import { exportToCsv } from "@/lib/export-csv"
 
 // ---------- Contrats API (pivot Zones) ----------
 
@@ -484,6 +485,31 @@ export function TeamTab() {
             >
               <Plus className="mr-1.5 h-4 w-4" aria-hidden />
               Ajouter un employé
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-9 gap-1.5"
+              onClick={() =>
+                exportToCsv(
+                  `equipe-${new Date().toISOString().slice(0, 10)}`,
+                  employes.map((e) => ({
+                    Nom: e.nom,
+                    Poste: e.poste ?? "",
+                    Actif: e.actif ? "Oui" : "Non",
+                    Zones: e.zones.map((z) => z.nom).join(", "),
+                    Positifs: e.stats.positifs,
+                    Negatifs: e.stats.negatifs,
+                    NoteMoyenne: e.stats.noteMoy ?? "",
+                  }))
+                )
+              }
+              disabled={employes.length === 0}
+              aria-label="Exporter l'équipe en CSV"
+            >
+              <Download className="h-4 w-4" aria-hidden />
+              <span className="hidden sm:inline">Exporter CSV</span>
+              <span className="sm:hidden">CSV</span>
             </Button>
           </div>
         </CardHeader>

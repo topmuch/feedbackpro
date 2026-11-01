@@ -32,6 +32,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "Email ou mot de passe incorrect" }, { status: 401 })
     }
 
+    // Compte suspendu par le superadmin : on refuse la connexion
+    // (le miroir Pro.suspendu couvre les comptes Pro existants avant l'ajout
+    // de User.suspendu — conservé pour rétro-compatibilité).
+    if (user.suspendu || user.pro?.suspendu) {
+      return NextResponse.json(
+        { ok: false, error: "Votre compte a été suspendu. Contactez le support." },
+        { status: 403 }
+      )
+    }
+
+    // Trace la dernière connexion (colonne derniereConnexion, null si jamais connecté).
+    // En dev, le PrismaClient peut être en cache (schéma ancien) — on utilise
+    // du SQL brut pour être robuste même avant un redémarrage du serveur.
+    try {
+      await db.$executeRaw`UPDATE User SET derniereConnexion = ${new Date().toISOString()} WHERE id = ${user.id}`
+    } catch (e) {
+      console.warn("Mise à jour derniereConnexion impossible (non bloquant)", e)
+    }
+
     const sessionId = await createSession(user.id)
     const res = NextResponse.json({
       ok: true,

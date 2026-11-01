@@ -4,14 +4,19 @@
 //       → { retours: RetourDetail[], total } (RetourDetail = Retour + zone + employe)
 // PATCH /api/pro/retours { id, statut?, reponsePro?, actionPrise?, lu? }
 //       → { retour } — le changement de statut est journalisé dans l'historique
+// POST  /api/pro/retours { action: "repondre", id, message }
+//       → enregistre reponsePro + envoie l'email au client (via Resend si
+//       configuré, sinon log serveur en mode démo) ; 400 si pas d'email client.
 // ============================================================
 
 import { NextRequest } from "next/server"
+import { z } from "zod"
 import { db } from "@/lib/db"
 import { ok, fail } from "@/lib/session"
 import { requirePro, unauthorized } from "@/lib/guards"
 import { serialiserRetour } from "@/lib/serialise"
 import { retourPatchSchema, firstError } from "@/lib/validation"
+import { sendEmail } from "@/lib/email"
 
 const PAGE_SIZE = 50
 
@@ -138,6 +143,82 @@ export async function PATCH(req: NextRequest) {
     return ok({ retour: retour ? serialiserRetour(retour) : null })
   } catch (e) {
     console.error("retours PATCH error", e)
+    return fail("Erreur serveur", 500)
+  }
+}
+
+const postSchema = z.object({
+  action: z.literal("repondre"),
+  id: z.string().trim().min(1, "ID manquant"),
+  message: z.string().trim().min(5, "Message trop court (5 caractères minimum)").max(2000, "Message trop long"),
+})
+
+export async function POST(req: NextRequest) {
+  try {
+    const ctx = await requirePro(req)
+    if (!ctx) return unauthorized()
+
+    const parsed = postSchema.safeParse(await req.json().catch(() => null))
+    if (!parsed.success) return fail(firstError(parsed.error), 400)
+    const { id, message } = parsed.data
+
+    // Vérifie que le retour appartient bien à l'établissement
+    const existing = await db.retour.findFirst({
+      where: { id, proId: ctx.pro.id },
+      include: { zone: { select: { nom: true } } },
+    })
+    if (!existing) return fail("Retour introuvable", 404)
+
+    // Garde-fou : si le client n'a pas laissé d'email, on refuse l'envoi
+    if (!existing.emailClient) {
+      return fail("Le client n'a pas laissé d'email, impossible de lui répondre", 400)
+    }
+
+    // Enregistre la réponse du commerçant sur le retour + passage NEW → IN_PROGRESS
+    const statutPasse = existing.statut === "NEW"
+    const data: { reponsePro: string; statut?: string; lu: boolean; historique?: string } = {
+      reponsePro: message,
+      lu: true,
+      ...(statutPasse ? { statut: "IN_PROGRESS" } : {}),
+    }
+    if (statutPasse) {
+      let hist: { statut: string; at: string }[] = []
+      try {
+        const parse = JSON.parse(existing.historique || "[]") as unknown
+        if (Array.isArray(parse)) hist = parse as { statut: string; at: string }[]
+      } catch {
+        hist = []
+      }
+      hist.push({ statut: "IN_PROGRESS", at: new Date().toISOString() })
+      data.historique = JSON.stringify(hist)
+    }
+    await db.retour.update({ where: { id }, data })
+
+    // Envoi de l'email au client (mode démo = log serveur, jamais bloquant)
+    const sujet = `Réponse de ${ctx.pro.nomEtablissement} — FeedbackPro`
+    const html = `<!DOCTYPE html><html lang="fr"><body style="font-family:Arial,Helvetica,sans-serif;color:#1c1917;background:#f5f5f4;padding:24px;">
+<div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)">
+<div style="background:#2563EB;padding:24px 32px;color:#fff"><p style="margin:0;font-size:20px;font-weight:700">FeedbackPro</p></div>
+<div style="padding:32px">
+<h1 style="margin:0 0 12px;font-size:18px">Réponse de ${ctx.pro.nomEtablissement}</h1>
+<p style="margin:0 0 16px;line-height:1.6;color:#44403c">Suite à votre retour du ${new Date(existing.createdAt).toLocaleDateString("fr-FR")} sur la zone « ${existing.zone?.nom ?? "—"} », le commerçant vous a adressé la réponse suivante :</p>
+<blockquote style="margin:0 0 16px;padding:16px;background:#f5f5f4;border-left:4px solid #2563EB;border-radius:8px;font-style:italic;line-height:1.7;color:#1c1917">${message.replace(/</g, "&lt;").replace(/\n/g, "<br />")}</blockquote>
+<p style="margin:16px 0 0;line-height:1.6;color:#78716c;font-size:12px">Merci d'avoir partagé votre retour. À bientôt chez ${ctx.pro.nomEtablissement}.</p>
+</div></div></body></html>`
+
+    const envoye = await sendEmail(existing.emailClient, sujet, html)
+
+    const retour = await db.retour.findUnique({
+      where: { id },
+      include: { zone: { select: { nom: true } }, employe: { select: { nom: true } } },
+    })
+
+    return ok({
+      retour: retour ? serialiserRetour(retour) : null,
+      emailEnvoye: envoye,
+    })
+  } catch (e) {
+    console.error("retours POST error", e)
     return fail("Erreur serveur", 500)
   }
 }

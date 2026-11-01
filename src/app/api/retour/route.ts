@@ -18,6 +18,7 @@ import { retourSchema, firstError } from "@/lib/validation"
 import { tagLabel } from "@/lib/constants"
 import { parseJsonArray } from "@/lib/ia"
 import { analyserEtAlerterRetour } from "@/lib/alertes"
+import { creerNotification } from "@/lib/notifications"
 
 /** Adresses locales/privées : aucune recherche géo (inutile et hors RGPD utile) */
 function estIpPrivee(ip: string): boolean {
@@ -64,7 +65,7 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return fail(firstError(parsed.error), 400)
     }
-    const { qrToken, note, tags, commentaire, personnelMentionne, canalChoisi } = parsed.data
+    const { qrToken, note, tags, commentaire, personnelMentionne, canalChoisi, emailClient } = parsed.data
 
     // ---------- Résolution de la zone via le QR token ----------
     const zone = await db.zone.findUnique({
@@ -113,6 +114,7 @@ export async function POST(req: NextRequest) {
         tags: JSON.stringify(validTags),
         commentaire,
         personnelMentionne,
+        emailClient: emailClient || null,
         canalChoisi,
         ipCity,
         statut: "NEW",
@@ -139,6 +141,15 @@ export async function POST(req: NextRequest) {
         validTags.map(tagLabel)
       )
     }
+
+    // ---------- Notification in-app (cloche) ----------
+    // Nouveau retour négatif (≤ 2) → titre distinct ; sinon « nouveau retour ».
+    await creerNotification(
+      pro.userId,
+      note <= 2 ? "retour_negatif" : "nouveau_retour",
+      note <= 2 ? "🚨 Nouveau retour négatif" : "💬 Nouveau retour client",
+      `Note ${note}/5 sur la zone « ${zone.nom} »${retour.commentaire ? ` — ${retour.commentaire.slice(0, 80)}` : ""}`
+    )
 
     return ok({
       retour: {

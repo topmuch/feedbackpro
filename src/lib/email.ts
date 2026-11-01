@@ -7,18 +7,28 @@
 //   RESEND_API_KEY - Clé API Resend (re_...)
 //   EMAIL_FROM     - Expéditeur (ex: "FeedbackPro <bonjour@feedbackpro.fr>")
 //
-// MODE DÉMO : sans RESEND_API_KEY, l'email est simulé (log serveur)
+// Surcharge dynamique : si les réglages sont édités par le superadmin
+// dans l'onglet Paramètres → Email, ils priment sur process.env (table
+// Setting en base). Permet de configurer Resend sans redémarrage.
+//
+// MODE DÉMO : sans clé API, l'email est simulé (log serveur)
 // et la fonction renvoie true — jamais d'exception qui casse le flux.
 //
 // Les templates sont en HTML inline-CSS (compatibilité maximale avec
 // les clients de messagerie), responsive et aux couleurs FeedbackPro.
 // ============================================================
 
+import { getSetting } from "@/lib/settings"
+
 // ---------- Envoi brut ----------
 
 export async function sendEmail(to: string, sujet: string, html: string): Promise<boolean> {
   try {
-    const apiKey = process.env.RESEND_API_KEY
+    // Réglages DB (surcharge dynamique) → fallback process.env
+    const [apiKey, emailFrom] = await Promise.all([
+      getSetting("RESEND_API_KEY", process.env.RESEND_API_KEY || ""),
+      getSetting("EMAIL_FROM", process.env.EMAIL_FROM || ""),
+    ])
 
     // ---------- Mode démo : clé absente ----------
     if (!apiKey || !to) {
@@ -33,7 +43,7 @@ export async function sendEmail(to: string, sujet: string, html: string): Promis
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: process.env.EMAIL_FROM || "FeedbackPro <onboarding@resend.dev>",
+        from: emailFrom || "FeedbackPro <onboarding@resend.dev>",
         to: [to],
         subject: sujet,
         html,

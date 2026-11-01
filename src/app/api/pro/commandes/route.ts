@@ -13,6 +13,7 @@ import { requirePro, unauthorized } from "@/lib/guards"
 import { SUPPORTS, TypeSupportId } from "@/lib/constants"
 import { commandeSchema, firstError } from "@/lib/validation"
 import { creerCommandeAvecConfirmation } from "@/lib/commandes"
+import { notifierSuperadmins } from "@/lib/notifications"
 
 export async function GET(req: NextRequest) {
   try {
@@ -58,6 +59,13 @@ export async function POST(req: NextRequest) {
       ctx.pro,
       { proId: ctx.pro.id, typeSupport: typeSupport as TypeSupportId, adresseLivraison, zoneId },
       ctx.pro.email || ctx.user.email
+    )
+
+    // Notification superadmin : nouvelle commande de supports (cloche)
+    await notifierSuperadmins(
+      "nouvelle_commande",
+      "📦 Nouvelle commande de supports",
+      `« ${ctx.pro.nomEtablissement} » a commandé ${support.label} (${support.price} €).`
     )
 
     return ok({ commande }, 201)

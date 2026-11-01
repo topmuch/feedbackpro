@@ -1,14 +1,28 @@
 User-agent: Googlebot
 Allow: /
+Allow: /og-image.png
 
 User-agent: Bingbot
 Allow: /
 
 User-agent: Twitterbot
 Allow: /
+Crawl-delay: 0
 
 User-agent: facebookexternalhit
 Allow: /
 
+User-agent: LinkedInBot
+Allow: /
+
 User-agent: *
 Allow: /
+Disallow: /api/
+Disallow: /dashboard
+Disallow: /superadmin
+Disallow: /login
+Disallow: /register
+Disallow: /r/
+
+# Sitemap
+Sitemap: https://feedbackpro.qrtags.pro/sitemap.xml

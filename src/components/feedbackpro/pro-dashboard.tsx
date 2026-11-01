@@ -37,6 +37,8 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { cn } from "@/lib/utils"
 import { useAppStore } from "@/store/app-store"
 import { PLANS, type PlanId } from "@/lib/constants"
+import { NotificationsBell } from "@/components/feedbackpro/notifications-bell"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { CoachIaTab } from "@/components/feedbackpro/coach-ia-tab"
 import { RapportsTab } from "@/components/feedbackpro/rapports-tab"
 import { RetoursTab } from "@/components/feedbackpro/retours-tab"
@@ -278,9 +280,11 @@ export function ProDashboard() {
             <p className="truncate font-semibold text-white">{nomEtablissement}</p>
           </div>
 
-          {/* Droite : badge plan + déconnexion (icône + tooltip) */}
+          {/* Droite : badge plan + notifications + déconnexion (icône + tooltip) */}
           <div className="flex shrink-0 items-center gap-2">
             <Badge variant="secondary" className="border-0 bg-white/15 text-white">{planName}</Badge>
+            <NotificationsBell tone="dark" />
+            <ThemeToggle />
             <TooltipProvider delayDuration={200}>
               <Tooltip>
                 <TooltipTrigger asChild>

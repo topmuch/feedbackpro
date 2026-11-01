@@ -35,6 +35,11 @@ import {
   LogOut,
   QrCode,
   Building2,
+  Users,
+  KeyRound,
+  Download,
+  Send,
+  Shield,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -73,6 +78,9 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { StatCard, formatDate } from "@/components/feedbackpro/shared"
 import { useAppStore } from "@/store/app-store"
 import { useToast } from "@/hooks/use-toast"
+import { NotificationsBell } from "@/components/feedbackpro/notifications-bell"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { exportToCsv } from "@/lib/export-csv"
 import {
   PLANS,
   SUPPORTS,
@@ -101,13 +109,22 @@ import {
 
 // ---------- Onglets & synchronisation d'URL ----------
 
-type OngletAdmin = "globale" | "commercants" | "commandes" | "revenus" | "parametres"
+type OngletAdmin =
+  | "globale"
+  | "commercants"
+  | "utilisateurs"
+  | "commandes"
+  | "revenus"
+  | "parametres"
+  | "email"
 
 const ONGLETS: { id: OngletAdmin; label: string; icone: React.ComponentType<{ className?: string }> }[] = [
   { id: "globale", label: "Vue d'ensemble", icone: LayoutDashboard },
   { id: "commercants", label: "Commerçants", icone: Store },
+  { id: "utilisateurs", label: "Utilisateurs", icone: Users },
   { id: "commandes", label: "Commandes", icone: Package },
   { id: "revenus", label: "Revenus", icone: Wallet },
+  { id: "email", label: "Email & API", icone: Mail },
   { id: "parametres", label: "Paramètres", icone: Settings },
 ]
 
@@ -165,6 +182,8 @@ type ProLigne = {
   suspendu: boolean
   onboardingDone: boolean
   createdAt: string
+  abonnementDebut: string | null
+  abonnementFin: string | null
   zones: number
   retours: number
   employes: number
@@ -313,6 +332,8 @@ export function AdminDashboard() {
               <p className="truncate font-semibold">{titreOnglet}</p>
             </div>
             <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+              <NotificationsBell tone="dark" />
+              <ThemeToggle />
               <Badge variant="secondary" className="border-0 bg-white/15 text-white">Superadmin</Badge>
               <span className="hidden text-sm text-white/90 md:block max-w-48 truncate">{emailAdmin}</span>
               <Button
@@ -332,8 +353,10 @@ export function AdminDashboard() {
         <main className="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 py-5 sm:py-7 space-y-6">
           {onglet === "globale" && <GlobaleTab overview={overview} />}
           {onglet === "commercants" && <ProsTab onModifie={loadOverview} />}
+          {onglet === "utilisateurs" && <UtilisateursTab />}
           {onglet === "commandes" && <CommandesTab onModifie={loadOverview} />}
           {onglet === "revenus" && <RevenusTab />}
+          {onglet === "email" && <EmailTab />}
           {onglet === "parametres" && <ParametresTab />}
         </main>
       </div>
@@ -427,6 +450,44 @@ function ContenuSidebarAdmin({
 // Sous-onglet Vue d'ensemble (4 KPI + croissance + top 10 + plans)
 // ============================================================
 
+// ---------- KPI multicolore (carte avec gradient de fond) ----------
+
+function ColoredKpi({
+  icon: Icon,
+  label,
+  value,
+  hint,
+  gradient,
+}: {
+  icon: React.ComponentType<{ className?: string }>
+  label: string
+  value: string | number
+  hint?: string
+  gradient: string
+}) {
+  return (
+    <div
+      className={`relative overflow-hidden rounded-xl bg-gradient-to-br ${gradient} p-5 text-white shadow-md`}
+    >
+      {/* Décoration : cercle translucide en arrière-plan */}
+      <div
+        className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/10"
+        aria-hidden
+      />
+      <div className="relative flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-white/85 truncate">{label}</p>
+          <p className="text-2xl sm:text-3xl font-bold tracking-tight mt-1.5">{value}</p>
+          {hint && <p className="text-xs text-white/80 mt-1.5">{hint}</p>}
+        </div>
+        <div className="shrink-0 rounded-xl bg-white/20 p-2.5" aria-hidden>
+          <Icon className="h-5 w-5 text-white" />
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function GlobaleTab({ overview }: { overview: OverviewApi | null }) {
   if (!overview) {
     return (
@@ -474,17 +535,35 @@ function GlobaleTab({ overview }: { overview: OverviewApi | null }) {
 
   return (
     <div className="space-y-6">
-      {/* ---------- 4 KPI ---------- */}
+      {/* ---------- 4 KPI multicolores ---------- */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard icon={Store} label="Pros total" value={totalPros} hint={`${prosActifs} actifs`} />
-        <StatCard icon={CheckCircle2} label="Pros actifs" value={prosActifs} hint="Comptes non suspendus" hintTone="up" />
-        <StatCard icon={Euro} label="MRR abonnements" value={`${mrr} €`} hint="Calculé sur les plans actifs (29/99/249 €)" hintTone="up" />
-        <StatCard
+        <ColoredKpi
+          icon={Store}
+          label="Pros total"
+          value={totalPros}
+          hint={`${prosActifs} actifs`}
+          gradient="from-blue-500 to-blue-700"
+        />
+        <ColoredKpi
+          icon={CheckCircle2}
+          label="Pros actifs"
+          value={prosActifs}
+          hint="Comptes non suspendus"
+          gradient="from-emerald-500 to-emerald-700"
+        />
+        <ColoredKpi
+          icon={Euro}
+          label="MRR abonnements"
+          value={`${mrr} €`}
+          hint="29/99/249 € par plan"
+          gradient="from-amber-500 to-orange-600"
+        />
+        <ColoredKpi
           icon={Package}
           label="Commandes en cours"
           value={commandesEnCours}
           hint={commandesEnCours > 0 ? "À imprimer ou expédier" : "Tout est traité"}
-          hintTone={commandesEnCours > 0 ? "down" : "up"}
+          gradient="from-violet-500 to-purple-700"
         />
       </div>
 
@@ -807,6 +886,35 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
     }
   }
 
+  // Réinitialisation du mot de passe d'un commerçant (POST /api/admin/pros
+  // action=resetPassword) → renvoie un mdp temporaire qui est :
+  //   - envoyé par email au commerçant (mode démo = log serveur),
+  //   - affiché dans un toast au superadmin pour qu'il puisse le communiquer.
+  async function executerResetMdp(pro: ProLigne) {
+    if (actionEnCours === pro.id) return
+    setActionEnCours(pro.id)
+    try {
+      const res = await fetch("/api/admin/pros", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "resetPassword", id: pro.id }),
+      })
+      const json = await res.json()
+      if (json.ok && json.data?.passwordTemporaire) {
+        toast({
+          title: "Mot de passe réinitialisé ✓",
+          description: `Mdp temporaire de « ${pro.nomEtablissement} » : ${json.data.passwordTemporaire}`,
+        })
+      } else {
+        toast({ title: "Erreur", description: json.error || "Réinitialisation impossible", variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Réinitialisation impossible pour le moment", variant: "destructive" })
+    } finally {
+      setActionEnCours(null)
+    }
+  }
+
   // Filtre par statut appliqué côté client (q et plan sont filtrés côté serveur)
   const visibles = pros.filter((p) =>
     fStatut === "all" ? true : fStatut === "suspendus" ? p.suspendu : !p.suspendu
@@ -853,6 +961,36 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
               <RefreshCw className="h-4 w-4" aria-hidden />
             </Button>
             <Button
+              variant="outline"
+              size="sm"
+              className="h-10 shrink-0 gap-1.5"
+              onClick={() =>
+                exportToCsv(
+                  `commercants-${new Date().toISOString().slice(0, 10)}`,
+                  visibles.map((p) => ({
+                    Etablissement: p.nomEtablissement,
+                    Email: p.email,
+                    Type: p.typeEtablissement,
+                    Ville: p.ville,
+                    Plan: nomPlan(p.plan),
+                    Statut: p.suspendu ? "Suspendu" : "Actif",
+                    Zones: p.zones,
+                    Retours: p.retours,
+                    Employes: p.employes,
+                    AbonnementDebut: p.abonnementDebut ? formatDate(p.abonnementDebut) : "",
+                    AbonnementFin: p.abonnementFin ? formatDate(p.abonnementFin) : "",
+                    InscritLe: formatDate(p.createdAt),
+                  }))
+                )
+              }
+              disabled={visibles.length === 0}
+              aria-label="Exporter en CSV"
+            >
+              <Download className="h-4 w-4" aria-hidden />
+              <span className="hidden sm:inline">Exporter CSV</span>
+              <span className="sm:hidden">CSV</span>
+            </Button>
+            <Button
               className="h-10 shrink-0 gap-1.5 bg-blue-600 hover:bg-blue-700"
               onClick={() => setDialogAjout(true)}
             >
@@ -879,7 +1017,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
         <Card className="overflow-hidden py-0">
           <CardContent className="p-0">
             <div className="overflow-x-auto">
-              <Table className="min-w-[980px]">
+              <Table className="min-w-[1240px]">
                 <TableHeader>
                   <TableRow className="bg-muted/50 hover:bg-muted/50">
                     <TableHead className="pl-4">Établissement</TableHead>
@@ -888,6 +1026,8 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
                     <TableHead>Plan</TableHead>
                     <TableHead className="text-center">Zones</TableHead>
                     <TableHead className="text-center">Retours</TableHead>
+                    <TableHead>Début abo.</TableHead>
+                    <TableHead>Fin abo.</TableHead>
                     <TableHead>Statut</TableHead>
                     <TableHead className="pr-4 text-right">Actions</TableHead>
                   </TableRow>
@@ -927,6 +1067,26 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
                       <TableCell className="text-center text-sm font-medium">{p.zones}</TableCell>
                       <TableCell className="text-center text-sm font-medium">{p.retours}</TableCell>
 
+                      {/* Date début abonnement */}
+                      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                        {p.abonnementDebut ? formatDate(p.abonnementDebut) : "—"}
+                      </TableCell>
+
+                      {/* Date fin abonnement (+ alerte si dépassé) */}
+                      <TableCell className="whitespace-nowrap text-xs">
+                        {p.abonnementFin ? (
+                          new Date(p.abonnementFin) < new Date() ? (
+                            <Badge variant="outline" className="text-rose-700 border-rose-300">
+                              Expiré
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground">{formatDate(p.abonnementFin)}</span>
+                          )
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </TableCell>
+
                       {/* Statut actif / suspendu */}
                       <TableCell>
                         {p.suspendu ? (
@@ -940,7 +1100,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
                         )}
                       </TableCell>
 
-                      {/* Actions : plan (Select → changerPlan), détails, suspendre/réactiver, supprimer */}
+                      {/* Actions : plan (Select → changerPlan), détails, reset mdp, suspendre/réactiver, supprimer */}
                       <TableCell className="pr-4" onClick={(e) => e.stopPropagation()}>
                         <div className="flex items-center justify-end gap-1.5">
                           <Select value={p.plan} onValueChange={(v) => executerAction("changerPlan", p, v)}>
@@ -958,6 +1118,20 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
                           </Select>
                           <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Voir les détails" onClick={() => setDetail(p)}>
                             <Eye className="h-4 w-4" aria-hidden />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-blue-700 hover:bg-blue-50"
+                            aria-label={`Réinitialiser le mot de passe de ${p.nomEtablissement}`}
+                            disabled={actionEnCours === p.id}
+                            onClick={() => executerResetMdp(p)}
+                          >
+                            {actionEnCours === p.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                            ) : (
+                              <KeyRound className="h-4 w-4" aria-hidden />
+                            )}
                           </Button>
                           {p.suspendu ? (
                             <Button
@@ -1212,6 +1386,652 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
 }
 
 // ============================================================
+// Sous-onglet Utilisateurs (tous les comptes User)
+// Lister · suspendre/réactiver · changer rôle · supprimer · reset mdp
+// ============================================================
+
+type UserLigne = {
+  id: string
+  email: string
+  role: string // SUPERADMIN | PRO
+  suspendu: boolean
+  createdAt: string
+  derniereConnexion: string | null
+  pro: { id: string; nomEtablissement: string } | null
+}
+
+function UtilisateursTab() {
+  const [users, setUsers] = useState<UserLigne[]>([])
+  const [q, setQ] = useState("")
+  const [fRole, setFRole] = useState<"all" | "PRO" | "SUPERADMIN">("all")
+  const [fStatut, setFStatut] = useState<"all" | "actifs" | "suspendus">("all")
+  const [loading, setLoading] = useState(true)
+  const [actionEnCours, setActionEnCours] = useState<string | null>(null)
+  const [confirmSuppression, setConfirmSuppression] = useState<UserLigne | null>(null)
+  const { toast } = useToast()
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const params = new URLSearchParams()
+      if (fRole !== "all") params.set("role", fRole)
+      if (fStatut !== "all") params.set("statut", fStatut)
+      if (q.trim()) params.set("q", q.trim())
+      const res = await fetch(`/api/admin/users?${params}`, { cache: "no-store" })
+      const json = await res.json()
+      if (json.ok) {
+        setUsers(json.data.users)
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Impossible de charger les utilisateurs", variant: "destructive" })
+    } finally {
+      setLoading(false)
+    }
+  }, [fRole, fStatut, q, toast])
+
+  useEffect(() => {
+    const t = setTimeout(load, 300)
+    return () => clearTimeout(t)
+  }, [load])
+
+  async function executerAction(action: "suspendre" | "reactiver" | "changerRole" | "supprimer" | "resetPassword", user: UserLigne, role?: string) {
+    setActionEnCours(user.id)
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action, id: user.id, ...(role ? { role } : {}) }),
+      })
+      const json = await res.json()
+      if (json.ok) {
+        if (action === "supprimer") {
+          setUsers((prev) => prev.filter((u) => u.id !== user.id))
+          toast({ title: "Utilisateur supprimé", description: user.email })
+        } else if (action === "changerRole") {
+          setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, role: role ?? u.role } : u)))
+          toast({ title: `Rôle mis à jour : ${role}` })
+        } else if (action === "suspendre" || action === "reactiver") {
+          setUsers((prev) => prev.map((u) => (u.id === user.id ? { ...u, suspendu: action === "suspendre" } : u)))
+          toast({
+            title: action === "suspendre" ? "Utilisateur suspendu" : "Utilisateur réactivé",
+            description: user.email,
+          })
+        } else if (action === "resetPassword") {
+          toast({
+            title: "Mot de passe réinitialisé ✓",
+            description: `Mdp temporaire de ${user.email} : ${json.data?.passwordTemporaire ?? "—"}`,
+          })
+        }
+        setConfirmSuppression(null)
+      } else {
+        toast({ title: "Erreur", description: json.error || "Action impossible", variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Action impossible pour le moment", variant: "destructive" })
+    } finally {
+      setActionEnCours(null)
+    }
+  }
+
+  const visibles = users
+
+  return (
+    <div className="space-y-4">
+      {/* ---------- Recherche + filtres + export ---------- */}
+      <Card>
+        <CardContent className="p-4 flex flex-col lg:flex-row gap-2.5">
+          <div className="relative flex-1">
+            <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            <Input
+              placeholder="Rechercher (email, établissement)…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              className="pl-8 h-10"
+              aria-label="Rechercher un utilisateur"
+            />
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2.5">
+            <Select value={fRole} onValueChange={(v) => setFRole(v as typeof fRole)}>
+              <SelectTrigger className="h-10 sm:w-44" aria-label="Filtrer par rôle">
+                <SelectValue placeholder="Rôle" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les rôles</SelectItem>
+                <SelectItem value="PRO">PRO</SelectItem>
+                <SelectItem value="SUPERADMIN">Superadmin</SelectItem>
+              </SelectContent>
+            </Select>
+            <Select value={fStatut} onValueChange={(v) => setFStatut(v as typeof fStatut)}>
+              <SelectTrigger className="h-10 sm:w-36" aria-label="Filtrer par statut">
+                <SelectValue placeholder="Statut" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les statuts</SelectItem>
+                <SelectItem value="actifs">Actifs</SelectItem>
+                <SelectItem value="suspendus">Suspendus</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={load} aria-label="Rafraîchir">
+              <RefreshCw className="h-4 w-4" aria-hidden />
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-10 shrink-0 gap-1.5"
+              onClick={() =>
+                exportToCsv(
+                  `utilisateurs-${new Date().toISOString().slice(0, 10)}`,
+                  visibles.map((u) => ({
+                    Email: u.email,
+                    Role: u.role,
+                    Etablissement: u.pro?.nomEtablissement ?? "",
+                    Statut: u.suspendu ? "Suspendu" : "Actif",
+                    InscritLe: formatDate(u.createdAt),
+                    DerniereConnexion: u.derniereConnexion ? formatDate(u.derniereConnexion) : "Jamais",
+                  }))
+                )
+              }
+              disabled={visibles.length === 0}
+              aria-label="Exporter en CSV"
+            >
+              <Download className="h-4 w-4" aria-hidden />
+              <span className="hidden sm:inline">Exporter CSV</span>
+              <span className="sm:hidden">CSV</span>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* ---------- Tableau des utilisateurs ---------- */}
+      {loading ? (
+        <div className="space-y-3">
+          {[...Array(4)].map((_, i) => (
+            <Skeleton key={i} className="h-16 rounded-xl" />
+          ))}
+        </div>
+      ) : visibles.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center text-sm text-muted-foreground">Aucun utilisateur trouvé.</CardContent>
+        </Card>
+      ) : (
+        <Card className="overflow-hidden py-0">
+          <CardContent className="p-0">
+            <div className="overflow-x-auto">
+              <Table className="min-w-[920px]">
+                <TableHeader>
+                  <TableRow className="bg-muted/50 hover:bg-muted/50">
+                    <TableHead className="pl-4">Email</TableHead>
+                    <TableHead>Rôle</TableHead>
+                    <TableHead>Établissement</TableHead>
+                    <TableHead>Inscrit le</TableHead>
+                    <TableHead>Dernière connexion</TableHead>
+                    <TableHead>Statut</TableHead>
+                    <TableHead className="pr-4 text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {visibles.map((u) => (
+                    <TableRow key={u.id}>
+                      <TableCell className="pl-4 max-w-56 truncate font-medium">{u.email}</TableCell>
+                      <TableCell>
+                        {u.role === "SUPERADMIN" ? (
+                          <Badge variant="outline" className="text-blue-700 border-blue-300">
+                            <Shield className="mr-1 h-3 w-3" aria-hidden />
+                            Superadmin
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary">PRO</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-sm text-muted-foreground">
+                        {u.pro?.nomEtablissement ?? "—"}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                        {formatDate(u.createdAt)}
+                      </TableCell>
+                      <TableCell className="whitespace-nowrap text-xs text-muted-foreground">
+                        {u.derniereConnexion ? formatDate(u.derniereConnexion) : "Jamais"}
+                      </TableCell>
+                      <TableCell>
+                        {u.suspendu ? (
+                          <Badge variant="outline" className="text-rose-700 border-rose-300">
+                            Suspendu
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-green-700 border-green-300">
+                            Actif
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="pr-4" onClick={(e) => e.stopPropagation()}>
+                        <div className="flex items-center justify-end gap-1.5">
+                          {/* Changer le rôle (PRO ↔ SUPERADMIN) */}
+                          <Select
+                            value={u.role}
+                            onValueChange={(v) => executerAction("changerRole", u, v)}
+                          >
+                            <SelectTrigger
+                              className="h-8 w-[120px] text-xs"
+                              aria-label={`Changer le rôle de ${u.email}`}
+                            >
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="PRO">PRO</SelectItem>
+                              <SelectItem value="SUPERADMIN">Superadmin</SelectItem>
+                            </SelectContent>
+                          </Select>
+                          {/* Reset mot de passe */}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-blue-700 hover:bg-blue-50"
+                            aria-label={`Réinitialiser le mot de passe de ${u.email}`}
+                            disabled={actionEnCours === u.id}
+                            onClick={() => executerAction("resetPassword", u)}
+                          >
+                            {actionEnCours === u.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                            ) : (
+                              <KeyRound className="h-4 w-4" aria-hidden />
+                            )}
+                          </Button>
+                          {/* Suspendre / Réactiver */}
+                          {u.suspendu ? (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-green-700 hover:bg-green-50"
+                              aria-label={`Réactiver ${u.email}`}
+                              disabled={actionEnCours === u.id}
+                              onClick={() => executerAction("reactiver", u)}
+                            >
+                              <RotateCcw className="h-4 w-4" aria-hidden />
+                            </Button>
+                          ) : (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-8 w-8 text-amber-700 hover:bg-amber-50"
+                              aria-label={`Suspendre ${u.email}`}
+                              disabled={actionEnCours === u.id}
+                              onClick={() => executerAction("suspendre", u)}
+                            >
+                              <Ban className="h-4 w-4" aria-hidden />
+                            </Button>
+                          )}
+                          {/* Supprimer */}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                            aria-label={`Supprimer ${u.email}`}
+                            disabled={actionEnCours === u.id}
+                            onClick={() => setConfirmSuppression(u)}
+                          >
+                            <Trash2 className="h-4 w-4" aria-hidden />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ---------- AlertDialog : confirmation suppression ---------- */}
+      <AlertDialog open={!!confirmSuppression} onOpenChange={(o) => !o && setConfirmSuppression(null)}>
+        <AlertDialogContent>
+          {confirmSuppression && (
+            <>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Supprimer définitivement cet utilisateur ?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Cette action est irréversible : le compte <strong>{confirmSuppression.email}</strong>
+                  {confirmSuppression.pro ? ` et l'établissement « ${confirmSuppression.pro.nomEtablissement} »` : ""}
+                  {" "}seront supprimés définitivement (avec toutes les données associées).
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel disabled={actionEnCours === confirmSuppression.id}>Annuler</AlertDialogCancel>
+                <AlertDialogAction
+                  className="bg-rose-600 hover:bg-rose-700 text-white"
+                  disabled={actionEnCours === confirmSuppression.id}
+                  onClick={(e) => {
+                    e.preventDefault()
+                    executerAction("supprimer", confirmSuppression)
+                  }}
+                >
+                  {actionEnCours === confirmSuppression.id && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
+                  Supprimer définitivement
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </>
+          )}
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
+}
+
+// ============================================================
+// Sous-onglet Email & API (clés Resend / Twilio / Stripe / cron)
+// ============================================================
+
+type SettingsMap = Record<string, string>
+
+function EmailTab() {
+  const [valeurs, setValeurs] = useState<SettingsMap | null>(null)
+  const [masques, setMasques] = useState<Record<string, boolean>>({})
+  const [chargement, setChargement] = useState(true)
+  const [enregistrement, setEnregistrement] = useState(false)
+  const [envoiTest, setEnvoiTest] = useState(false)
+  const { toast } = useToast()
+
+  // Champs gérés par ce formulaire (avancés)
+  const CHAMPS: { key: string; label: string; placeholder: string; type?: "password" | "text" }[] = [
+    { key: "RESEND_API_KEY", label: "Clé API Resend", placeholder: "re_…", type: "password" },
+    { key: "EMAIL_FROM", label: "Expéditeur (EMAIL_FROM)", placeholder: "FeedbackPro <bonjour@feedbackpro.fr>" },
+    { key: "TWILIO_SID", label: "Twilio Account SID", placeholder: "AC…" },
+    { key: "TWILIO_TOKEN", label: "Twilio Auth Token", placeholder: "••••••••", type: "password" },
+    { key: "TWILIO_PHONE", label: "Téléphone Twilio", placeholder: "+33…" },
+    { key: "STRIPE_SECRET_KEY", label: "Stripe Secret Key", placeholder: "sk_live_…", type: "password" },
+    { key: "STRIPE_WEBHOOK_SECRET", label: "Stripe Webhook Secret", placeholder: "whsec_…", type: "password" },
+    { key: "STRIPE_PRICE_STARTER", label: "Stripe Price ID — Starter (29€)", placeholder: "price_…" },
+    { key: "STRIPE_PRICE_PRO", label: "Stripe Price ID — Pro (99€)", placeholder: "price_…" },
+    { key: "STRIPE_PRICE_ENTERPRISE", label: "Stripe Price ID — Enterprise (249€)", placeholder: "price_…" },
+    { key: "CRON_SECRET", label: "Secret cron (Vercel)", placeholder: "••••••••", type: "password" },
+  ]
+
+  useEffect(() => {
+    let annule = false
+    fetch("/api/admin/settings", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (annule) return
+        if (j.ok) {
+          const liste: { key: string; value: string; masque?: boolean }[] = j.data.settings
+          const map: SettingsMap = {}
+          const m: Record<string, boolean> = {}
+          for (const s of liste) {
+            map[s.key] = s.value
+            m[s.key] = !!s.masque
+          }
+          setValeurs(map)
+          setMasques(m)
+        } else {
+          toast({ title: "Erreur", description: "Impossible de charger les réglages", variant: "destructive" })
+        }
+      })
+      .catch(() => {
+        if (!annule) toast({ title: "Erreur", description: "Impossible de charger les réglages", variant: "destructive" })
+      })
+      .finally(() => {
+        if (!annule) setChargement(false)
+      })
+    return () => {
+      annule = true
+    }
+  }, [toast])
+
+  async function enregistrer(e: React.FormEvent) {
+    e.preventDefault()
+    if (!valeurs || enregistrement) return
+    setEnregistrement(true)
+    try {
+      const body: Record<string, string> = {}
+      for (const c of CHAMPS) {
+        const v = (valeurs[c.key] ?? "").trim()
+        // Ne pas envoyer les valeurs masquées non modifiées (contenant ••••)
+        if (v && !v.includes("••••")) {
+          body[c.key] = v
+        } else if (v === "") {
+          body[c.key] = "" // autorise la suppression d'une valeur
+        }
+      }
+      const res = await fetch("/api/admin/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      })
+      const json = await res.json()
+      if (json.ok) {
+        // Met à jour l'état local avec les valeurs masquées renvoyées par l'API
+        const liste: { key: string; value: string; masque?: boolean }[] = json.data.settings
+        const map: SettingsMap = { ...valeurs }
+        const m: Record<string, boolean> = { ...masques }
+        for (const s of liste) {
+          map[s.key] = s.value
+          m[s.key] = !!s.masque
+        }
+        setValeurs(map)
+        setMasques(m)
+        toast({ title: "Réglages enregistrés ✓" })
+      } else {
+        toast({ title: "Erreur", description: json.error, variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Enregistrement impossible", variant: "destructive" })
+    } finally {
+      setEnregistrement(false)
+    }
+  }
+
+  async function testerEmail() {
+    if (envoiTest) return
+    setEnvoiTest(true)
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "testEmail" }),
+      })
+      const json = await res.json()
+      if (json.ok) {
+        toast({
+          title: "Email test envoyé ✓",
+          description: `Vers ${json.data.destinataire} (vérifiez aussi les logs serveur en mode démo).`,
+        })
+      } else {
+        toast({ title: "Échec de l'envoi", description: json.error, variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Test impossible pour le moment", variant: "destructive" })
+    } finally {
+      setEnvoiTest(false)
+    }
+  }
+
+  if (chargement || !valeurs) {
+    return (
+      <div className="space-y-4 max-w-3xl">
+        <Skeleton className="h-44 rounded-xl" />
+        <Skeleton className="h-64 rounded-xl" />
+      </div>
+    )
+  }
+
+  return (
+    <form onSubmit={enregistrer} className="space-y-4 max-w-3xl">
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+            <Mail className="h-4 w-4 text-blue-600" aria-hidden />
+            Email transactionnel (Resend)
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Sans clé API Resend, l&apos;app fonctionne en mode démo (emails simulés = logs serveur).
+            Renseignez votre clé pour envoyer de vrais emails.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4 pt-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="set-resend-key">Clé API Resend</Label>
+            <Input
+              id="set-resend-key"
+              type="password"
+              placeholder="re_…"
+              value={valeurs.RESEND_API_KEY ?? ""}
+              onChange={(e) => setValeurs({ ...valeurs, RESEND_API_KEY: e.target.value })}
+            />
+            <p className="text-xs text-muted-foreground">
+              {masques.RESEND_API_KEY && valeurs.RESEND_API_KEY
+                ? "Clé déjà enregistrée (saisissez une nouvelle valeur pour la remplacer)."
+                : "Disponible sur votre compte Resend → API Keys."}
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="set-email-from">Expéditeur (EMAIL_FROM)</Label>
+            <Input
+              id="set-email-from"
+              placeholder="FeedbackPro <bonjour@feedbackpro.fr>"
+              value={valeurs.EMAIL_FROM ?? ""}
+              onChange={(e) => setValeurs({ ...valeurs, EMAIL_FROM: e.target.value })}
+            />
+            <p className="text-xs text-muted-foreground">Doit être un domaine vérifié dans Resend.</p>
+          </div>
+          <Button type="button" variant="outline" onClick={testerEmail} disabled={envoiTest} className="gap-1.5">
+            {envoiTest ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Send className="h-4 w-4" aria-hidden />}
+            Tester l&apos;envoi email
+          </Button>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base sm:text-lg">SMS WhatsApp (Twilio)</CardTitle>
+          <p className="text-sm text-muted-foreground">Pour les alertes temps réel (notes ≤ 2)</p>
+        </CardHeader>
+        <CardContent className="space-y-4 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="set-twilio-sid">Twilio Account SID</Label>
+              <Input
+                id="set-twilio-sid"
+                placeholder="AC…"
+                value={valeurs.TWILIO_SID ?? ""}
+                onChange={(e) => setValeurs({ ...valeurs, TWILIO_SID: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="set-twilio-token">Twilio Auth Token</Label>
+              <Input
+                id="set-twilio-token"
+                type="password"
+                placeholder="••••••••"
+                value={valeurs.TWILIO_TOKEN ?? ""}
+                onChange={(e) => setValeurs({ ...valeurs, TWILIO_TOKEN: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="set-twilio-phone">Téléphone Twilio</Label>
+            <Input
+              id="set-twilio-phone"
+              placeholder="+33…"
+              value={valeurs.TWILIO_PHONE ?? ""}
+              onChange={(e) => setValeurs({ ...valeurs, TWILIO_PHONE: e.target.value })}
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base sm:text-lg">Paiement (Stripe)</CardTitle>
+          <p className="text-sm text-muted-foreground">Clés API + price IDs par plan</p>
+        </CardHeader>
+        <CardContent className="space-y-4 pt-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="set-stripe-secret">Stripe Secret Key</Label>
+              <Input
+                id="set-stripe-secret"
+                type="password"
+                placeholder="sk_live_…"
+                value={valeurs.STRIPE_SECRET_KEY ?? ""}
+                onChange={(e) => setValeurs({ ...valeurs, STRIPE_SECRET_KEY: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="set-stripe-webhook">Stripe Webhook Secret</Label>
+              <Input
+                id="set-stripe-webhook"
+                type="password"
+                placeholder="whsec_…"
+                value={valeurs.STRIPE_WEBHOOK_SECRET ?? ""}
+                onChange={(e) => setValeurs({ ...valeurs, STRIPE_WEBHOOK_SECRET: e.target.value })}
+              />
+            </div>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="set-stripe-starter">Price ID — Starter</Label>
+              <Input
+                id="set-stripe-starter"
+                placeholder="price_…"
+                value={valeurs.STRIPE_PRICE_STARTER ?? ""}
+                onChange={(e) => setValeurs({ ...valeurs, STRIPE_PRICE_STARTER: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="set-stripe-pro">Price ID — Pro</Label>
+              <Input
+                id="set-stripe-pro"
+                placeholder="price_…"
+                value={valeurs.STRIPE_PRICE_PRO ?? ""}
+                onChange={(e) => setValeurs({ ...valeurs, STRIPE_PRICE_PRO: e.target.value })}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="set-stripe-ent">Price ID — Enterprise</Label>
+              <Input
+                id="set-stripe-ent"
+                placeholder="price_…"
+                value={valeurs.STRIPE_PRICE_ENTERPRISE ?? ""}
+                onChange={(e) => setValeurs({ ...valeurs, STRIPE_PRICE_ENTERPRISE: e.target.value })}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base sm:text-lg">Sécurité cron</CardTitle>
+          <p className="text-sm text-muted-foreground">Secret partagé pour appeler les endpoints /api/cron/*</p>
+        </CardHeader>
+        <CardContent className="space-y-2 pt-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="set-cron-secret">CRON_SECRET</Label>
+            <Input
+              id="set-cron-secret"
+              type="password"
+              placeholder="••••••••"
+              value={valeurs.CRON_SECRET ?? ""}
+              onChange={(e) => setValeurs({ ...valeurs, CRON_SECRET: e.target.value })}
+            />
+            <p className="text-xs text-muted-foreground">
+              Les routes cron vérifient l&apos;en-tête <code>authorization: Bearer &lt;CRON_SECRET&gt;</code>.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="flex justify-end">
+        <Button type="submit" disabled={enregistrement}>
+          {enregistrement && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
+          Enregistrer les réglages
+        </Button>
+      </div>
+    </form>
+  )
+}
+
+// ============================================================
 // Sous-onglet Commandes (workflow d'impression + PDF + expédition)
 // PDF : STICKERS_50 → planche d'étiquettes · chevalet/affiche → bon d'impression
 // ============================================================
@@ -1332,19 +2152,48 @@ function CommandesTab({ onModifie }: { onModifie: () => void }) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <Select value={fStatut} onValueChange={setFStatut}>
-          <SelectTrigger className="h-10 w-44" aria-label="Filtrer par statut">
-            <SelectValue placeholder="Statut" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Tous les statuts</SelectItem>
-            {STATUT_COMMANDE_ORDRE.map((s) => (
-              <SelectItem key={s} value={s}>
-                {STATUT_COMMANDE_LABEL[s]}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex flex-wrap items-center gap-2">
+          <Select value={fStatut} onValueChange={setFStatut}>
+            <SelectTrigger className="h-10 w-44" aria-label="Filtrer par statut">
+              <SelectValue placeholder="Statut" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les statuts</SelectItem>
+              {STATUT_COMMANDE_ORDRE.map((s) => (
+                <SelectItem key={s} value={s}>
+                  {STATUT_COMMANDE_LABEL[s]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-10 gap-1.5"
+            onClick={() =>
+              exportToCsv(
+                `commandes-${new Date().toISOString().slice(0, 10)}`,
+                commandes.map((c) => ({
+                  Reference: c.id.slice(-8).toUpperCase(),
+                  Commerce: c.pro?.nomEtablissement ?? c.pro?.nomCommerce ?? "",
+                  Email: c.pro?.email ?? "",
+                  Support: SUPPORTS[c.typeSupport as TypeSupportId]?.label ?? c.typeSupport,
+                  Quantite: c.quantite,
+                  PrixEuros: c.prixEuros,
+                  AdresseLivraison: c.adresseLivraison,
+                  Statut: STATUT_COMMANDE_LABEL[c.statut] ?? c.statut,
+                  NumeroSuivi: c.numeroSuivi ?? "",
+                  CommandeLe: formatDate(c.createdAt),
+                }))
+              )
+            }
+            disabled={commandes.length === 0}
+            aria-label="Exporter en CSV"
+          >
+            <Download className="h-4 w-4" aria-hidden />
+            Exporter CSV
+          </Button>
+        </div>
         <p className="text-sm text-muted-foreground">
           {commandes.length} commande{commandes.length > 1 ? "s" : ""}
         </p>
@@ -1543,6 +2392,49 @@ function RevenusTab() {
 
   return (
     <div className="space-y-6">
+      {/* ---------- Bandeau : titre + export CSV ---------- */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Revenus</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            CA abonnements (MRR) et supports physiques.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          className="h-10 gap-1.5"
+          onClick={() => {
+            const lignes: Record<string, unknown>[] = []
+            // KPIs globaux
+            lignes.push({ Indicateur: "CA abonnements mensuel (€)", Valeur: data.caAbonnementsMensuel })
+            lignes.push({ Indicateur: "CA supports total (€)", Valeur: data.caSupportsTotal })
+            for (const t of Object.keys(SUPPORTS) as TypeSupportId[]) {
+              lignes.push({
+                Indicateur: `CA ${SUPPORTS[t].label} (€)`,
+                Valeur: data.caSupportsParType[t] ?? 0,
+              })
+            }
+            // Évolution mensuelle (une ligne par mois)
+            for (const m of data.evolutionMensuelle ?? []) {
+              lignes.push({
+                Indicateur: `${m.mois} — Abonnements (€)`,
+                Valeur: m.abonnements ?? 0,
+              })
+              lignes.push({
+                Indicateur: `${m.mois} — Supports (€)`,
+                Valeur: m.supports ?? 0,
+              })
+            }
+            exportToCsv(`revenus-${new Date().toISOString().slice(0, 10)}`, lignes)
+          }}
+          aria-label="Exporter en CSV"
+        >
+          <Download className="h-4 w-4" aria-hidden />
+          Exporter CSV
+        </Button>
+      </div>
+
       {/* ---------- KPIs revenus ---------- */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard
