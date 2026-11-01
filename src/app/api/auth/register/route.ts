@@ -14,7 +14,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { db } from "@/lib/db"
-import { createSession, attachSessionCookie, serializePro } from "@/lib/session"
+import { createSession, attachSessionCookie, serializePro, getSessionUser } from "@/lib/session"
 import { registerSchema, firstError } from "@/lib/validation"
 import { POSITIVE_TAGS, NEGATIVE_TAGS } from "@/lib/constants"
 import { sendEmail, emailBienvenue } from "@/lib/email"
@@ -105,6 +105,14 @@ export async function POST(req: NextRequest) {
         pro: serializePro(pro),
       },
     })
+
+    // Garde-fou superadmin : si la requête est faite par un superadmin
+    // déjà authentifié (cas « Ajouter un commerçant » depuis /superadmin),
+    // on ne remplace PAS son cookie de session — il garde sa session admin.
+    const courant = await getSessionUser(req)
+    if (courant && courant.role === "SUPERADMIN") {
+      return res
+    }
     return attachSessionCookie(res, sessionId)
   } catch (e) {
     console.error("register error", e)

@@ -22,6 +22,7 @@ import {
   MapPin,
   X,
   Inbox,
+  ArrowLeft,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -29,7 +30,6 @@ import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Textarea } from "@/components/ui/textarea"
 import {
   Table,
@@ -305,6 +305,268 @@ export function RetoursTab() {
         return hist
       })()
     : []
+
+  // ---------- Vue détaillée pleine page d'un retour (remplace la modale) ----------
+  if (detail) {
+    return (
+      <div className="space-y-5">
+        {/* En-tête : retour + titre */}
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="outline" onClick={fermerDetail} className="gap-1.5">
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            Retour à la liste
+          </Button>
+          <h2 className="text-lg sm:text-xl font-semibold">Détail du retour</h2>
+        </div>
+
+        <Card>
+          <CardContent className="space-y-5 p-4 sm:p-6">
+            {/* En-tête : note, badges, date */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Stars note={detail.note} size={16} />
+              {!detail.lu && <Badge className="h-5 px-1.5 text-[10px]">Nouveau</Badge>}
+              <Badge variant="outline" className={statutBadgeClass(detail.statut)}>
+                {STATUT_RETOUR_LABEL[detail.statut] ?? detail.statut}
+              </Badge>
+              <span className="ml-auto text-xs text-muted-foreground">{formatDate(detail.createdAt)}</span>
+            </div>
+
+            {/* Grille d'infos : zone, employé, canal */}
+            <div className="grid gap-x-4 gap-y-3 text-sm sm:grid-cols-2">
+              <div className="min-w-0">
+                <p className="mb-1 text-xs font-medium text-muted-foreground">Zone concernée</p>
+                {detail.zone?.nom ? (
+                  <Badge variant="outline" className="h-6 gap-1 px-2 text-xs font-normal">
+                    <MapPin className="h-3 w-3 text-muted-foreground" aria-hidden />
+                    {detail.zone.nom}
+                  </Badge>
+                ) : (
+                  <span className="text-muted-foreground">—</span>
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="mb-1 text-xs font-medium text-muted-foreground">Employé concerné</p>
+                {detail.employe?.nom || detail.personnelMentionne ? (
+                  <p className="truncate">
+                    {detail.employe?.nom}
+                    {detail.employe?.nom && detail.personnelMentionne ? ` (${detail.personnelMentionne})` : detail.personnelMentionne || ""}
+                  </p>
+                ) : (
+                  <span className="text-muted-foreground">Non spécifié</span>
+                )}
+              </div>
+              <div className="min-w-0">
+                <p className="mb-1 text-xs font-medium text-muted-foreground">Canal</p>
+                <p>{canalLabel(detail.canalChoisi)}</p>
+              </div>
+              <div className="min-w-0">
+                <p className="mb-1 text-xs font-medium text-muted-foreground">Reçu le</p>
+                <p>{formatDate(detail.createdAt)}</p>
+              </div>
+            </div>
+
+            {/* Tags */}
+            <div>
+              <p className="mb-1.5 text-xs font-medium text-muted-foreground">Tags</p>
+              {detail.tags.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {detail.tags.map((t) => (
+                    <Badge
+                      key={t}
+                      variant="outline"
+                      className="h-6 min-w-0 max-w-full px-2 text-xs font-normal"
+                      title={tagLabel(t)}
+                    >
+                      <span className="truncate">{tagLabel(t)}</span>
+                    </Badge>
+                  ))}
+                </div>
+              ) : (
+                <span className="text-sm text-muted-foreground">Aucun tag</span>
+              )}
+            </div>
+
+            {/* Commentaire client */}
+            <div>
+              <p className="mb-1.5 text-xs font-medium text-muted-foreground">Commentaire client</p>
+              {detail.commentaire ? (
+                <blockquote className="border-l-4 border-primary/30 bg-muted/50 px-4 py-3 text-sm italic leading-relaxed">
+                  &ldquo;{detail.commentaire}&rdquo;
+                </blockquote>
+              ) : (
+                <p className="text-sm italic text-muted-foreground">Aucun commentaire</p>
+              )}
+            </div>
+
+            {/* Réponse du commerçant (éditable → PATCH reponsePro) */}
+            <div>
+              <p className="mb-1.5 text-xs font-medium text-muted-foreground">Réponse du commerçant</p>
+              {editionReponse ? (
+                <div className="space-y-2">
+                  <Textarea
+                    ref={reponseRef}
+                    id="reponse-pro"
+                    rows={4}
+                    value={texteReponse}
+                    onChange={(e) => setTexteReponse(e.target.value)}
+                    placeholder="Ex : Client rappelé, geste commercial offert, employé sensibilisé."
+                    aria-label="Votre réponse"
+                  />
+                  <div className="flex justify-end gap-2">
+                    {detail.reponsePro && (
+                      <Button
+                        variant="ghost"
+                        className="h-10"
+                        onClick={() => { setTexteReponse(detail.reponsePro || ""); setEditionReponse(false) }}
+                      >
+                        Annuler
+                      </Button>
+                    )}
+                    <Button
+                      className="h-10 px-4"
+                      onClick={enregistrerReponse}
+                      disabled={envoiReponse || !texteReponse.trim()}
+                    >
+                      {envoiReponse && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
+                      Enregistrer
+                    </Button>
+                  </div>
+                </div>
+              ) : detail.reponsePro ? (
+                <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{detail.reponsePro}</p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="mt-2 h-9"
+                    onClick={() => { setTexteReponse(detail.reponsePro || ""); setEditionReponse(true) }}
+                  >
+                    <MessageSquareReply className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                    Modifier la réponse
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  className="h-10"
+                  onClick={() => { setTexteReponse(""); setEditionReponse(true) }}
+                >
+                  <MessageSquareReply className="mr-1.5 h-4 w-4" aria-hidden />
+                  Rédiger une réponse
+                </Button>
+              )}
+            </div>
+
+            {/* Action managériale prise (éditable → PATCH actionPrise) */}
+            <div>
+              <p className="mb-1.5 text-xs font-medium text-muted-foreground">Action managériale prise</p>
+              {editionAction ? (
+                <div className="space-y-2">
+                  <Textarea
+                    ref={actionRef}
+                    id="action-prise"
+                    rows={4}
+                    value={texteAction}
+                    onChange={(e) => setTexteAction(e.target.value)}
+                    placeholder="Ex : Recadrage verbal, formation produit programmée, réorganisation du créneau du soir…"
+                    aria-label="Action managériale prise"
+                  />
+                  <div className="flex justify-end gap-2">
+                    {detail.actionPrise && (
+                      <Button
+                        variant="ghost"
+                        className="h-10"
+                        onClick={() => { setTexteAction(detail.actionPrise || ""); setEditionAction(false) }}
+                      >
+                        Annuler
+                      </Button>
+                    )}
+                    <Button
+                      className="h-10 px-4"
+                      onClick={enregistrerAction}
+                      disabled={envoiAction || !texteAction.trim()}
+                    >
+                      {envoiAction && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
+                      Enregistrer
+                    </Button>
+                  </div>
+                </div>
+              ) : detail.actionPrise ? (
+                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{detail.actionPrise}</p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="mt-2 h-9"
+                    onClick={() => { setTexteAction(detail.actionPrise || ""); setEditionAction(true) }}
+                  >
+                    <ClipboardCheck className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                    Modifier l&apos;action
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="outline"
+                  className="h-10"
+                  onClick={() => { setTexteAction(""); setEditionAction(true) }}
+                >
+                  <ClipboardCheck className="mr-1.5 h-4 w-4" aria-hidden />
+                  Consigner une action managériale
+                </Button>
+              )}
+            </div>
+
+            {/* Suivi du retour : timeline de l'historique des statuts */}
+            <div>
+              <p className="mb-2 text-xs font-medium text-muted-foreground">Suivi du retour</p>
+              <ol>
+                {historiqueAffiche.map((h, i) => (
+                  <li key={`${h.statut}-${h.at}-${i}`} className="relative flex items-start gap-2.5 pb-4 last:pb-0">
+                    {i < historiqueAffiche.length - 1 && (
+                      <span className="absolute top-4 bottom-0 left-[6px] w-px bg-border" aria-hidden />
+                    )}
+                    <span className={`mt-1 h-3 w-3 shrink-0 rounded-full ${pastilleClass(h.statut)}`} aria-hidden />
+                    <div className="min-w-0 text-xs">
+                      <Badge variant="outline" className={`h-5 px-1.5 text-[11px] ${statutBadgeClass(h.statut)}`}>
+                        {STATUT_RETOUR_LABEL[h.statut] ?? h.statut}
+                      </Badge>
+                      <p className="mt-1 text-muted-foreground">{formatDate(h.at)}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Actions bas de page */}
+        <div className="flex flex-wrap items-center gap-2">
+          {!detail.lu && (
+            <Button variant="outline" className="h-10" onClick={() => majRetour(detail.id, { lu: true })}>
+              <MailOpen className="mr-1.5 h-4 w-4" aria-hidden />
+              Marquer comme lu
+            </Button>
+          )}
+          <Select
+            value={detail.statut}
+            onValueChange={(v) => majRetour(detail.id, { statut: v as StatutRetour })}
+          >
+            <SelectTrigger className="h-10 w-40" aria-label="Changer le statut">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="NEW">Nouveau</SelectItem>
+              <SelectItem value="IN_PROGRESS">En cours</SelectItem>
+              <SelectItem value="RESOLVED">Résolu</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button variant="outline" className="h-10" onClick={fermerDetail}>
+            Retour à la liste
+          </Button>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="space-y-4">
@@ -628,271 +890,6 @@ export function RetoursTab() {
         </div>
       )}
 
-      {/* ---------- Modale de détail ---------- */}
-      <Dialog open={!!detail} onOpenChange={(o) => { if (!o) fermerDetail() }}>
-        <DialogContent
-          className="max-h-[85vh] overflow-y-auto custom-scrollbar sm:max-w-2xl"
-          onOpenAutoFocus={(e) => {
-            // Focus direct sur la zone de texte quand la modale est ouverte en mode édition
-            if (editionReponse || editionAction) {
-              e.preventDefault()
-              ;(editionReponse ? reponseRef : actionRef).current?.focus()
-            }
-          }}
-        >
-          <DialogHeader>
-            <DialogTitle>Détail du retour</DialogTitle>
-            <DialogDescription>Consultez toutes les informations et suivez son traitement.</DialogDescription>
-          </DialogHeader>
-
-          {detail && (
-            <div className="space-y-5">
-              {/* En-tête : note, badges, date */}
-              <div className="flex flex-wrap items-center gap-2">
-                <Stars note={detail.note} size={16} />
-                {!detail.lu && <Badge className="h-5 px-1.5 text-[10px]">Nouveau</Badge>}
-                <Badge variant="outline" className={statutBadgeClass(detail.statut)}>
-                  {STATUT_RETOUR_LABEL[detail.statut] ?? detail.statut}
-                </Badge>
-                <span className="ml-auto text-xs text-muted-foreground">{formatDate(detail.createdAt)}</span>
-              </div>
-
-              {/* Grille d'infos : zone, employé, canal */}
-              <div className="grid gap-x-4 gap-y-3 text-sm sm:grid-cols-2">
-                <div className="min-w-0">
-                  <p className="mb-1 text-xs font-medium text-muted-foreground">Zone concernée</p>
-                  {detail.zone?.nom ? (
-                    <Badge variant="outline" className="h-6 gap-1 px-2 text-xs font-normal">
-                      <MapPin className="h-3 w-3 text-muted-foreground" aria-hidden />
-                      {detail.zone.nom}
-                    </Badge>
-                  ) : (
-                    <span className="text-muted-foreground">—</span>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className="mb-1 text-xs font-medium text-muted-foreground">Employé concerné</p>
-                  {detail.employe?.nom || detail.personnelMentionne ? (
-                    <p className="truncate">
-                      {detail.employe?.nom}
-                      {detail.employe?.nom && detail.personnelMentionne ? ` (${detail.personnelMentionne})` : detail.personnelMentionne || ""}
-                    </p>
-                  ) : (
-                    <span className="text-muted-foreground">Non spécifié</span>
-                  )}
-                </div>
-                <div className="min-w-0">
-                  <p className="mb-1 text-xs font-medium text-muted-foreground">Canal</p>
-                  <p>{canalLabel(detail.canalChoisi)}</p>
-                </div>
-                <div className="min-w-0">
-                  <p className="mb-1 text-xs font-medium text-muted-foreground">Reçu le</p>
-                  <p>{formatDate(detail.createdAt)}</p>
-                </div>
-              </div>
-
-              {/* Tags */}
-              <div>
-                <p className="mb-1.5 text-xs font-medium text-muted-foreground">Tags</p>
-                {detail.tags.length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    {detail.tags.map((t) => (
-                      <Badge
-                        key={t}
-                        variant="outline"
-                        className="h-6 min-w-0 max-w-full px-2 text-xs font-normal"
-                        title={tagLabel(t)}
-                      >
-                        <span className="truncate">{tagLabel(t)}</span>
-                      </Badge>
-                    ))}
-                  </div>
-                ) : (
-                  <span className="text-sm text-muted-foreground">Aucun tag</span>
-                )}
-              </div>
-
-              {/* Commentaire client */}
-              <div>
-                <p className="mb-1.5 text-xs font-medium text-muted-foreground">Commentaire client</p>
-                {detail.commentaire ? (
-                  <blockquote className="border-l-4 border-primary/30 bg-muted/50 px-4 py-3 text-sm italic leading-relaxed">
-                    &ldquo;{detail.commentaire}&rdquo;
-                  </blockquote>
-                ) : (
-                  <p className="text-sm italic text-muted-foreground">Aucun commentaire</p>
-                )}
-              </div>
-
-              {/* Réponse du commerçant (éditable → PATCH reponsePro) */}
-              <div>
-                <p className="mb-1.5 text-xs font-medium text-muted-foreground">Réponse du commerçant</p>
-                {editionReponse ? (
-                  <div className="space-y-2">
-                    <Textarea
-                      ref={reponseRef}
-                      id="reponse-pro"
-                      rows={4}
-                      value={texteReponse}
-                      onChange={(e) => setTexteReponse(e.target.value)}
-                      placeholder="Ex : Client rappelé, geste commercial offert, employé sensibilisé."
-                      aria-label="Votre réponse"
-                    />
-                    <div className="flex justify-end gap-2">
-                      {detail.reponsePro && (
-                        <Button
-                          variant="ghost"
-                          className="h-10"
-                          onClick={() => { setTexteReponse(detail.reponsePro || ""); setEditionReponse(false) }}
-                        >
-                          Annuler
-                        </Button>
-                      )}
-                      <Button
-                        className="h-10 px-4"
-                        onClick={enregistrerReponse}
-                        disabled={envoiReponse || !texteReponse.trim()}
-                      >
-                        {envoiReponse && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
-                        Enregistrer
-                      </Button>
-                    </div>
-                  </div>
-                ) : detail.reponsePro ? (
-                  <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{detail.reponsePro}</p>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="mt-2 h-9"
-                      onClick={() => { setTexteReponse(detail.reponsePro || ""); setEditionReponse(true) }}
-                    >
-                      <MessageSquareReply className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-                      Modifier la réponse
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    variant="outline"
-                    className="h-10"
-                    onClick={() => { setTexteReponse(""); setEditionReponse(true) }}
-                  >
-                    <MessageSquareReply className="mr-1.5 h-4 w-4" aria-hidden />
-                    Rédiger une réponse
-                  </Button>
-                )}
-              </div>
-
-              {/* Action managériale prise (éditable → PATCH actionPrise) */}
-              <div>
-                <p className="mb-1.5 text-xs font-medium text-muted-foreground">Action managériale prise</p>
-                {editionAction ? (
-                  <div className="space-y-2">
-                    <Textarea
-                      ref={actionRef}
-                      id="action-prise"
-                      rows={4}
-                      value={texteAction}
-                      onChange={(e) => setTexteAction(e.target.value)}
-                      placeholder="Ex : Recadrage verbal, formation produit programmée, réorganisation du créneau du soir…"
-                      aria-label="Action managériale prise"
-                    />
-                    <div className="flex justify-end gap-2">
-                      {detail.actionPrise && (
-                        <Button
-                          variant="ghost"
-                          className="h-10"
-                          onClick={() => { setTexteAction(detail.actionPrise || ""); setEditionAction(false) }}
-                        >
-                          Annuler
-                        </Button>
-                      )}
-                      <Button
-                        className="h-10 px-4"
-                        onClick={enregistrerAction}
-                        disabled={envoiAction || !texteAction.trim()}
-                      >
-                        {envoiAction && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
-                        Enregistrer
-                      </Button>
-                    </div>
-                  </div>
-                ) : detail.actionPrise ? (
-                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3">
-                    <p className="text-sm leading-relaxed whitespace-pre-wrap">{detail.actionPrise}</p>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="mt-2 h-9"
-                      onClick={() => { setTexteAction(detail.actionPrise || ""); setEditionAction(true) }}
-                    >
-                      <ClipboardCheck className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-                      Modifier l&apos;action
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    variant="outline"
-                    className="h-10"
-                    onClick={() => { setTexteAction(""); setEditionAction(true) }}
-                  >
-                    <ClipboardCheck className="mr-1.5 h-4 w-4" aria-hidden />
-                    Consigner une action managériale
-                  </Button>
-                )}
-              </div>
-
-              {/* Suivi du retour : timeline de l'historique des statuts */}
-              <div>
-                <p className="mb-2 text-xs font-medium text-muted-foreground">Suivi du retour</p>
-                <ol>
-                  {historiqueAffiche.map((h, i) => (
-                    <li key={`${h.statut}-${h.at}-${i}`} className="relative flex items-start gap-2.5 pb-4 last:pb-0">
-                      {i < historiqueAffiche.length - 1 && (
-                        <span className="absolute top-4 bottom-0 left-[6px] w-px bg-border" aria-hidden />
-                      )}
-                      <span className={`mt-1 h-3 w-3 shrink-0 rounded-full ${pastilleClass(h.statut)}`} aria-hidden />
-                      <div className="min-w-0 text-xs">
-                        <Badge variant="outline" className={`h-5 px-1.5 text-[11px] ${statutBadgeClass(h.statut)}`}>
-                          {STATUT_RETOUR_LABEL[h.statut] ?? h.statut}
-                        </Badge>
-                        <p className="mt-1 text-muted-foreground">{formatDate(h.at)}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            </div>
-          )}
-
-          <DialogFooter className="gap-2 sm:items-center">
-            {detail && !detail.lu && (
-              <Button variant="outline" className="h-10" onClick={() => majRetour(detail.id, { lu: true })}>
-                <MailOpen className="mr-1.5 h-4 w-4" aria-hidden />
-                Marquer comme lu
-              </Button>
-            )}
-            {detail && (
-              <Select
-                value={detail.statut}
-                onValueChange={(v) => majRetour(detail.id, { statut: v as StatutRetour })}
-              >
-                <SelectTrigger className="h-10 w-36" aria-label="Changer le statut">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="NEW">Nouveau</SelectItem>
-                  <SelectItem value="IN_PROGRESS">En cours</SelectItem>
-                  <SelectItem value="RESOLVED">Résolu</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-            <Button variant="outline" className="h-10" onClick={fermerDetail}>
-              Fermer
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

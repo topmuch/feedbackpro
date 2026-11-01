@@ -30,6 +30,11 @@ import {
   TrendingUp,
   CheckCircle2,
   MapPin,
+  Plus,
+  Menu,
+  LogOut,
+  QrCode,
+  Building2,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -64,14 +69,16 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { StatCard, formatDate } from "@/components/feedbackpro/shared"
-import { AppHeader } from "@/components/feedbackpro/shared"
+import { useAppStore } from "@/store/app-store"
 import { useToast } from "@/hooks/use-toast"
 import {
   PLANS,
   SUPPORTS,
   STATUT_COMMANDE_LABEL,
   STATUT_COMMANDE_ORDRE,
+  TYPES_ETABLISSEMENT,
   PlanId,
   TypeSupportId,
 } from "@/lib/constants"
@@ -225,6 +232,9 @@ function enArray<T>(v: T[] | null | undefined): T[] {
 export function AdminDashboard() {
   const [onglet, setOnglet] = useState<OngletAdmin>(() => ongletDepuisUrl())
   const [overview, setOverview] = useState<OverviewApi | null>(null)
+  const [menuOuvert, setMenuOuvert] = useState(false)
+  const session = useAppStore((s) => s.session)
+  const logout = useAppStore((s) => s.logout)
   const { toast } = useToast()
 
   async function loadOverview() {
@@ -255,6 +265,7 @@ export function AdminDashboard() {
   /** Change d'onglet et pousse l'URL /superadmin/<slug> dans l'historique */
   function naviguer(o: OngletAdmin) {
     setOnglet(o)
+    setMenuOuvert(false)
     try {
       window.history.pushState({}, "", `/superadmin/${o}`)
     } catch {
@@ -262,50 +273,152 @@ export function AdminDashboard() {
     }
   }
 
-  return (
-    <div className="min-h-screen flex flex-col">
-      <AppHeader subtitle="Administration FeedbackPro" />
+  const ongletCourant = ONGLETS.find((o) => o.id === onglet)
+  const titreOnglet = ongletCourant?.label ?? "Administration"
+  const emailAdmin = session?.user?.email ?? ""
 
-      {/* ---------- Onglets ---------- */}
-      <nav className="sticky top-14 sm:top-16 z-30 border-b bg-background/95 backdrop-blur" aria-label="Sections admin">
-        <div className="mx-auto max-w-7xl px-4 sm:px-6">
-          <div className="flex gap-1 overflow-x-auto no-scrollbar py-2" role="tablist">
-            {ONGLETS.map((o) => {
-              const Icone = o.icone
-              const badge = o.id === "commandes" && (overview?.commandesEnCours ?? 0) > 0
-                ? ` (${overview?.commandesEnCours})`
-                : ""
-              return (
-                <button
-                  key={o.id}
-                  type="button"
-                  role="tab"
-                  aria-selected={onglet === o.id}
-                  onClick={() => naviguer(o.id)}
-                  className={`flex shrink-0 items-center gap-1.5 rounded-lg px-3.5 h-9 text-sm font-medium transition-colors ${
-                    onglet === o.id
-                      ? "bg-primary text-primary-foreground"
-                      : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                  }`}
-                >
-                  <Icone className="h-4 w-4" aria-hidden />
-                  {o.label}
-                  {badge}
-                </button>
-              )
-            })}
+  return (
+    <div className="min-h-screen bg-stone-100">
+      {/* ---------- Sidebar fixe desktop (lg+) ---------- */}
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col bg-blue-600 text-white lg:flex">
+        <ContenuSidebarAdmin ongletActif={onglet} onNaviguer={naviguer} emailAdmin={emailAdmin} onLogout={logout} />
+      </aside>
+
+      {/* ---------- Colonne principale (décalée à droite de la sidebar) ---------- */}
+      <div className="flex min-h-screen flex-col lg:pl-72">
+        {/* ---------- Header bleu (continuité visuelle avec la sidebar) ---------- */}
+        <header className="sticky top-0 z-30 h-14 bg-blue-600 text-white sm:h-16">
+          <div className="flex h-full w-full items-center justify-between gap-3 px-4 sm:px-6">
+            <div className="flex min-w-0 items-center gap-2">
+              <Sheet open={menuOuvert} onOpenChange={setMenuOuvert}>
+                <SheetContent side="left" className="w-72 border-0 bg-blue-600 p-0 text-white" aria-describedby={undefined}>
+                  <SheetTitle className="sr-only">Navigation administration</SheetTitle>
+                  <ContenuSidebarAdmin
+                    ongletActif={onglet}
+                    onNaviguer={naviguer}
+                    emailAdmin={emailAdmin}
+                    onLogout={logout}
+                  />
+                </SheetContent>
+              </Sheet>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:bg-white/15 hover:text-white lg:hidden"
+                onClick={() => setMenuOuvert(true)}
+                aria-label="Ouvrir le menu"
+              >
+                <Menu className="h-5 w-5" aria-hidden />
+              </Button>
+              <p className="truncate font-semibold">{titreOnglet}</p>
+            </div>
+            <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+              <Badge variant="secondary" className="border-0 bg-white/15 text-white">Superadmin</Badge>
+              <span className="hidden text-sm text-white/90 md:block max-w-48 truncate">{emailAdmin}</span>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-white hover:bg-white/15 hover:text-white"
+                onClick={() => logout()}
+                aria-label="Se déconnecter"
+              >
+                <LogOut className="h-4.5 w-4.5" aria-hidden />
+              </Button>
+            </div>
           </div>
+        </header>
+
+        {/* ---------- Contenu ---------- */}
+        <main className="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 py-5 sm:py-7 space-y-6">
+          {onglet === "globale" && <GlobaleTab overview={overview} />}
+          {onglet === "commercants" && <ProsTab onModifie={loadOverview} />}
+          {onglet === "commandes" && <CommandesTab onModifie={loadOverview} />}
+          {onglet === "revenus" && <RevenusTab />}
+          {onglet === "parametres" && <ParametresTab />}
+        </main>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// Sidebar admin (desktop fixe + drawer mobile)
+// ============================================================
+
+function ContenuSidebarAdmin({
+  ongletActif,
+  onNaviguer,
+  emailAdmin,
+  onLogout,
+}: {
+  ongletActif: OngletAdmin
+  onNaviguer: (o: OngletAdmin) => void
+  emailAdmin: string
+  onLogout: () => void
+}) {
+  return (
+    <div className="flex h-full flex-col">
+      {/* Logo */}
+      <div className="flex items-center gap-2.5 px-5 py-5">
+        <div
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white"
+          aria-hidden
+        >
+          <QrCode className="h-5 w-5" />
         </div>
+        <div className="min-w-0">
+          <p className="truncate font-bold leading-tight text-white">FeedbackPro</p>
+          <p className="text-xs text-white/80">Administration</p>
+        </div>
+      </div>
+
+      {/* Navigation verticale */}
+      <nav aria-label="Sections administration" className="flex flex-col gap-1 px-3 py-2">
+        {ONGLETS.map((o) => {
+          const Icone = o.icone
+          const actif = ongletActif === o.id
+          const badge = o.id === "commandes" ? "" : ""
+          return (
+            <button
+              key={o.id}
+              type="button"
+              onClick={() => onNaviguer(o.id)}
+              aria-current={actif ? "page" : undefined}
+              className={`relative flex h-11 shrink-0 items-center gap-3 rounded-lg px-3 text-sm transition-colors ${
+                actif
+                  ? "bg-white/15 font-semibold text-white"
+                  : "text-white/85 hover:bg-white/10 hover:text-white"
+              }`}
+            >
+              {actif && (
+                <span
+                  className="absolute left-0 top-1/2 h-6 w-[3px] -translate-y-1/2 rounded-full bg-white"
+                  aria-hidden
+                />
+              )}
+              <Icone className="h-5 w-5 shrink-0" aria-hidden />
+              <span className="truncate">{o.label}</span>
+              {badge}
+            </button>
+          )
+        })}
       </nav>
 
-      {/* ---------- Contenu ---------- */}
-      <main className="mx-auto w-full max-w-7xl flex-1 px-4 sm:px-6 py-5 sm:py-7 space-y-6">
-        {onglet === "globale" && <GlobaleTab overview={overview} />}
-        {onglet === "commercants" && <ProsTab onModifie={loadOverview} />}
-        {onglet === "commandes" && <CommandesTab onModifie={loadOverview} />}
-        {onglet === "revenus" && <RevenusTab />}
-        {onglet === "parametres" && <ParametresTab />}
-      </main>
+      {/* Bas de sidebar : email + déconnexion */}
+      <div className="mt-auto border-t border-white/15 p-3">
+        <div className="rounded-lg px-3 py-2 text-xs text-white/80">
+          <p className="truncate">{emailAdmin || "—"}</p>
+          <p className="mt-0.5 text-white/60">Connecté en superadmin</p>
+        </div>
+        <Button
+          variant="ghost"
+          className="mt-1 w-full justify-start gap-2 text-white/90 hover:bg-white/10 hover:text-white"
+          onClick={onLogout}
+        >
+          <LogOut className="h-4 w-4" aria-hidden />
+          Se déconnecter
+        </Button>
+      </div>
     </div>
   )
 }
@@ -504,6 +617,26 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
   const [detail, setDetail] = useState<ProLigne | null>(null)
   const [confirmation, setConfirmation] = useState<{ action: ActionPros; pro: ProLigne } | null>(null)
   const [actionEnCours, setActionEnCours] = useState<string | null>(null)
+  // État du formulaire d'ajout d'un commerçant
+  const [dialogAjout, setDialogAjout] = useState(false)
+  const [envoiAjout, setEnvoiAjout] = useState(false)
+  const [formAjout, setFormAjout] = useState<{
+    nomEtablissement: string
+    email: string
+    password: string
+    typeEtablissement: string
+    ville: string
+    adresse: string
+    plan: PlanId
+  }>({
+    nomEtablissement: "",
+    email: "",
+    password: "",
+    typeEtablissement: TYPES_ETABLISSEMENT[0],
+    ville: "",
+    adresse: "",
+    plan: "STARTER",
+  })
   const { toast } = useToast()
 
   const load = useCallback(async () => {
@@ -537,6 +670,103 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
     const t = setTimeout(load, 300)
     return () => clearTimeout(t)
   }, [load])
+
+  /** Soumission du formulaire d'ajout : appelle /api/auth/register puis, si le
+   *  plan choisi n'est pas STARTER, change le plan via /api/admin/pros. */
+  async function soumettreAjout(e: React.FormEvent) {
+    e.preventDefault()
+    if (envoiAjout) return
+
+    // Validation côté client (champs requis, email valide, mot de passe ≥ 6)
+    const email = formAjout.email.trim().toLowerCase()
+    const password = formAjout.password
+    const nomEtablissement = formAjout.nomEtablissement.trim()
+    const ville = formAjout.ville.trim()
+    const adresse = formAjout.adresse.trim()
+    if (!nomEtablissement || nomEtablissement.length < 2) {
+      toast({ title: "Nom d'établissement invalide", description: "Au moins 2 caractères", variant: "destructive" })
+      return
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      toast({ title: "Email invalide", description: "Renseignez une adresse email valide", variant: "destructive" })
+      return
+    }
+    if (password.length < 6) {
+      toast({ title: "Mot de passe trop court", description: "6 caractères minimum", variant: "destructive" })
+      return
+    }
+    if (!ville || ville.length < 2) {
+      toast({ title: "Ville requise", variant: "destructive" })
+      return
+    }
+    if (adresse.length < 5) {
+      toast({ title: "Adresse requise", description: "Au moins 5 caractères", variant: "destructive" })
+      return
+    }
+
+    setEnvoiAjout(true)
+    try {
+      // 1) Inscription via l'API existante — crée le compte Pro + la zone « Accueil ».
+      //    Garde-fou serveur : un superadmin déjà authentifié garde sa session
+      //    (le cookie n'est pas écrasé).
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email,
+          password,
+          nomEtablissement,
+          typeEtablissement: formAjout.typeEtablissement,
+          ville,
+          adresse,
+          whatsapp: "",
+        }),
+      })
+      const json = await res.json()
+      if (!json.ok) {
+        toast({ title: "Erreur", description: json.error || "Inscription impossible", variant: "destructive" })
+        return
+      }
+      const nouveauProId: string | undefined = json.data?.pro?.id
+
+      // 2) Si le plan choisi n'est pas STARTER (défault à l'inscription),
+      //    on applique le plan via l'API admin existante.
+      if (formAjout.plan !== "STARTER" && nouveauProId) {
+        try {
+          await fetch("/api/admin/pros", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ action: "changerPlan", id: nouveauProId, plan: formAjout.plan }),
+          })
+        } catch {
+          /* non bloquant : le compte est créé, le plan sera ajustable */
+        }
+      }
+
+      toast({
+        title: "Commerçant ajouté ✓",
+        description: `« ${nomEtablissement} » a été créé (plan ${nomPlan(formAjout.plan)}).`,
+      })
+      // Réinitialise le formulaire et ferme la modale
+      setFormAjout({
+        nomEtablissement: "",
+        email: "",
+        password: "",
+        typeEtablissement: TYPES_ETABLISSEMENT[0],
+        ville: "",
+        adresse: "",
+        plan: "STARTER",
+      })
+      setDialogAjout(false)
+      // Recharge la liste et les stats globales
+      load()
+      onModifie()
+    } catch {
+      toast({ title: "Erreur", description: "Impossible de créer le commerçant pour le moment", variant: "destructive" })
+    } finally {
+      setEnvoiAjout(false)
+    }
+  }
 
   // POST /api/admin/pros { action, id, plan? } — actions superadmin
   async function executerAction(action: ActionPros | "changerPlan", pro: ProLigne, plan?: string) {
@@ -584,7 +814,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
 
   return (
     <div className="space-y-4">
-      {/* ---------- Recherche + filtres ---------- */}
+      {/* ---------- Recherche + filtres + ajout ---------- */}
       <Card>
         <CardContent className="p-4 flex flex-col lg:flex-row gap-2.5">
           <div className="relative flex-1">
@@ -621,6 +851,14 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
             </Select>
             <Button variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={load} aria-label="Rafraîchir">
               <RefreshCw className="h-4 w-4" aria-hidden />
+            </Button>
+            <Button
+              className="h-10 shrink-0 gap-1.5 bg-blue-600 hover:bg-blue-700"
+              onClick={() => setDialogAjout(true)}
+            >
+              <Plus className="h-4 w-4" aria-hidden />
+              <span className="hidden sm:inline">Ajouter un commerçant</span>
+              <span className="sm:hidden">Ajouter</span>
             </Button>
           </div>
         </CardContent>
@@ -840,6 +1078,135 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
           )}
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ---------- Dialog : Ajouter un commerçant ---------- */}
+      <Dialog open={dialogAjout} onOpenChange={(o) => !o && setDialogAjout(false)}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-blue-600" aria-hidden />
+              Ajouter un commerçant
+            </DialogTitle>
+            <DialogDescription>
+              Crée un compte Pro prêt à l&apos;emploi (zone « Accueil » incluse). Le commerçant pourra se connecter
+              immédiatement avec l&apos;email et le mot de passe ci-dessous.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={soumettreAjout} className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="ajout-nom">Nom de l&apos;établissement *</Label>
+              <Input
+                id="ajout-nom"
+                value={formAjout.nomEtablissement}
+                onChange={(e) => setFormAjout({ ...formAjout, nomEtablissement: e.target.value })}
+                maxLength={80}
+                placeholder="Ex : Pizzeria Da Mario"
+                required
+                autoFocus
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="ajout-email">Email *</Label>
+                <Input
+                  id="ajout-email"
+                  type="email"
+                  value={formAjout.email}
+                  onChange={(e) => setFormAjout({ ...formAjout, email: e.target.value })}
+                  maxLength={120}
+                  placeholder="ex@etablissement.fr"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ajout-password">Mot de passe *</Label>
+                <Input
+                  id="ajout-password"
+                  type="text"
+                  value={formAjout.password}
+                  onChange={(e) => setFormAjout({ ...formAjout, password: e.target.value })}
+                  maxLength={72}
+                  placeholder="6 caractères minimum"
+                  required
+                  minLength={6}
+                />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="ajout-type">Type d&apos;établissement *</Label>
+                <Select
+                  value={formAjout.typeEtablissement}
+                  onValueChange={(v) => v && setFormAjout({ ...formAjout, typeEtablissement: v })}
+                >
+                  <SelectTrigger id="ajout-type" className="h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TYPES_ETABLISSEMENT.map((t) => (
+                      <SelectItem key={t} value={t}>
+                        {t}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ajout-ville">Ville *</Label>
+                <Input
+                  id="ajout-ville"
+                  value={formAjout.ville}
+                  onChange={(e) => setFormAjout({ ...formAjout, ville: e.target.value })}
+                  maxLength={80}
+                  placeholder="Ex : Lyon"
+                  required
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ajout-adresse">Adresse *</Label>
+              <Input
+                id="ajout-adresse"
+                value={formAjout.adresse}
+                onChange={(e) => setFormAjout({ ...formAjout, adresse: e.target.value })}
+                maxLength={200}
+                placeholder="Ex : 12 rue de la République"
+                required
+                minLength={5}
+              />
+              <p className="text-xs text-muted-foreground">Adresse physique de l&apos;établissement (visible par le commerçant).</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ajout-plan">Plan d&apos;abonnement *</Label>
+              <Select
+                value={formAjout.plan}
+                onValueChange={(v) => v && setFormAjout({ ...formAjout, plan: v as PlanId })}
+              >
+                <SelectTrigger id="ajout-plan" className="h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="STARTER">Starter — 29 €/mois</SelectItem>
+                  <SelectItem value="PRO">Pro — 99 €/mois</SelectItem>
+                  <SelectItem value="ENTERPRISE">Enterprise — 249 €/mois</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Le compte est créé en STARTER puis basculé immédiatement sur le plan choisi.
+              </p>
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0 pt-2">
+              <Button type="button" variant="outline" onClick={() => setDialogAjout(false)} disabled={envoiAjout}>
+                Annuler
+              </Button>
+              <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={envoiAjout}>
+                {envoiAjout && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
+                Créer le compte
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

@@ -38,18 +38,12 @@ import {
   Eye,
   Clipboard,
   FileText,
+  ArrowLeft,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/app-store"
 import { cn } from "@/lib/utils"
@@ -606,6 +600,84 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <Skeleton className="h-64 rounded-xl" />
           <Skeleton className="h-64 rounded-xl lg:col-span-2" />
+        </div>
+      </div>
+    )
+  }
+
+  // ---------- Vue détaillée pleine page d'une priorité (remplace la modale) ----------
+  if (prioriteDialog) {
+    return (
+      <div className="space-y-5">
+        {/* En-tête : retour + titre */}
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="outline" onClick={fermerDialog} className="gap-1.5">
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            Retour au Coach
+          </Button>
+          <h2 className="text-lg sm:text-xl font-semibold">
+            {STYLES_PRIORITE[prioriteDialog.niveau].emoji} {prioriteDialog.titre}
+          </h2>
+        </div>
+        <p className="text-sm text-muted-foreground">{prioriteDialog.description}</p>
+
+        <Card>
+          <CardContent className="space-y-4 p-4 sm:p-6">
+            {/* Rappel de la recommandation du Coach */}
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
+              <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-primary">
+                <Sparkles className="h-3.5 w-3.5" aria-hidden />
+                Recommandation du Coach
+              </p>
+              <p className="text-sm leading-relaxed">{prioriteDialog.recommandation}</p>
+            </div>
+
+            {/* Réclamations liées (chargées via GET /api/pro/retours?ids=) */}
+            {prioriteDialog.retourIds.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Aucune réclamation liée à cette priorité — il s&apos;agit d&apos;une suggestion d&apos;amélioration.
+              </p>
+            ) : chargementDialog || retoursDialog == null ? (
+              <div
+                className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground"
+                role="status"
+              >
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                Chargement des réclamations…
+              </div>
+            ) : retoursDialog.length === 0 ? (
+              <p className="text-sm text-muted-foreground">
+                Aucun retour retrouvé pour cette priorité (peut-être déjà résolu).
+              </p>
+            ) : (
+              <ul className="space-y-2.5">
+                {retoursDialog.map((r) => (
+                  <li key={r.id} className="rounded-lg border p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <Etoiles note={r.note} />
+                      <p className="text-xs text-muted-foreground">{formatDateHeure(r.createdAt)}</p>
+                    </div>
+                    <p className="mt-1.5 text-sm leading-relaxed">{tronquer(r.commentaire)}</p>
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                      {r.zone?.nom && <Badge variant="secondary">📍 {r.zone.nom}</Badge>}
+                      {r.tags.map((tag) => (
+                        <Badge key={tag} variant="outline" className="text-[11px] text-muted-foreground">
+                          {tagLabel(tag)}
+                        </Badge>
+                      ))}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
+        <div className="flex justify-start">
+          <Button variant="outline" onClick={fermerDialog} className="gap-1.5">
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            Retour au Coach
+          </Button>
         </div>
       </div>
     )
@@ -1208,71 +1280,6 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
         </Card>
       </div>
 
-      {/* ---------- Dialog « Voir détails » d'une priorité (Session 4) ---------- */}
-      <Dialog
-        open={prioriteDialog != null}
-        onOpenChange={(ouvert) => {
-          if (!ouvert) fermerDialog()
-        }}
-      >
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
-          {prioriteDialog && (
-            <>
-              <DialogHeader>
-                <DialogTitle className="text-left">
-                  {STYLES_PRIORITE[prioriteDialog.niveau].emoji} {prioriteDialog.titre}
-                </DialogTitle>
-                <DialogDescription className="text-left">{prioriteDialog.description}</DialogDescription>
-              </DialogHeader>
-
-              {/* Rappel de la recommandation du Coach */}
-              <div className="rounded-lg border border-primary/20 bg-primary/5 p-3">
-                <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-primary">
-                  <Sparkles className="h-3.5 w-3.5" aria-hidden />
-                  Recommandation du Coach
-                </p>
-                <p className="text-sm leading-relaxed">{prioriteDialog.recommandation}</p>
-              </div>
-
-              {/* Réclamations liées (chargées via GET /api/pro/retours?ids=) */}
-              {prioriteDialog.retourIds.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Aucune réclamation liée à cette priorité — il s&apos;agit d&apos;une suggestion d&apos;amélioration.
-                </p>
-              ) : chargementDialog || retoursDialog == null ? (
-                <div className="flex items-center justify-center gap-2 py-6 text-sm text-muted-foreground" role="status">
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                  Chargement des réclamations…
-                </div>
-              ) : retoursDialog.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  Aucun retour retrouvé pour cette priorité (peut-être déjà résolu).
-                </p>
-              ) : (
-                <ul className="space-y-2.5">
-                  {retoursDialog.map((r) => (
-                    <li key={r.id} className="rounded-lg border p-3">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <Etoiles note={r.note} />
-                        <p className="text-xs text-muted-foreground">{formatDateHeure(r.createdAt)}</p>
-                      </div>
-                      <p className="mt-1.5 text-sm leading-relaxed">{tronquer(r.commentaire)}</p>
-                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                        {r.zone?.nom && <Badge variant="secondary">📍 {r.zone.nom}</Badge>}
-                        {r.tags.map((tag) => (
-                          <Badge key={tag} variant="outline" className="text-[11px] text-muted-foreground">
-                            {tagLabel(tag)}
-                          </Badge>
-                        ))}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

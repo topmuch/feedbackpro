@@ -22,6 +22,7 @@ import {
   TrendingDown,
   Minus,
   Lightbulb,
+  ArrowLeft,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -347,6 +348,189 @@ export function ZonesTab({ onOpenQr }: { onOpenQr: (zoneId: string) => void }) {
   }
 
   // ---------- Rendu ----------
+
+  // ---------- Vue détaillée pleine page d'une zone (remplace la modale) ----------
+  if (detailsZone) {
+    return (
+      <div className="space-y-5">
+        {/* En-tête : retour + titre */}
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="outline" onClick={fermerDetails} className="gap-1.5">
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            Retour aux zones
+          </Button>
+          <h2 className="flex items-center gap-2 text-lg sm:text-xl font-semibold">
+            <MapPin className="h-5 w-5 text-primary" aria-hidden />
+            {detailsZone.nom ?? "Détails de la zone"}
+          </h2>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Audit IA de la zone sur les 30 derniers jours — évolution, tags et retours clients.
+        </p>
+
+        {detailsLoading ? (
+          // Squelettes pendant le chargement des détails
+          <div className="space-y-3" aria-busy="true">
+            <Skeleton className="h-12 rounded-xl" />
+            <Skeleton className="h-56 rounded-xl" />
+            <Skeleton className="h-16 rounded-xl" />
+            <Skeleton className="h-28 rounded-xl" />
+            <Skeleton className="h-24 rounded-xl" />
+          </div>
+        ) : detailsErreur || !details ? (
+          <Card>
+            <CardContent className="py-10 text-center text-sm text-muted-foreground">
+              Impossible de charger les détails de cette zone. Réessayez dans un instant.
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-5">
+            {/* a. En-tête : mini-stats de la zone */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border bg-muted/40 px-3.5 py-2.5 text-sm">
+              <span className="flex items-center gap-1.5">
+                <Stars note={details.zone.noteMoy} size={14} />
+                <span className="font-medium">{details.zone.noteMoy.toFixed(2).replace(".", ",")}/5</span>
+              </span>
+              <span className="text-muted-foreground">
+                {details.zone.total} retour{details.zone.total > 1 ? "s" : ""} sur 30 j
+              </span>
+              <BadgeTendance tendance={details.zone.tendance} delta={details.zone.tendanceDelta} />
+            </div>
+
+            {/* b. Graphique d'évolution du score sur 30 jours */}
+            <Card>
+              <CardContent className="p-4 sm:p-5">
+                <h3 className="mb-2 text-sm font-semibold">Évolution du score (30 jours)</h3>
+                <div className="h-56 sm:h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={details.evolution} margin={{ top: 5, right: 5, left: -18, bottom: 0 }}>
+                      <defs>
+                        <linearGradient id="gradZoneScore" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#2563eb" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+                        </linearGradient>
+                      </defs>
+                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e7e5e4" />
+                      <XAxis dataKey="date" scale="point" tick={{ fontSize: 11 }} interval={4} tickLine={false} axisLine={false} />
+                      <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={36} />
+                      <Tooltip labelStyle={{ color: "#1c1917" }} />
+                      <Area
+                        type="monotone"
+                        dataKey="score"
+                        name="Score"
+                        stroke="#2563eb"
+                        strokeWidth={2.5}
+                        fill="url(#gradZoneScore)"
+                        connectNulls
+                        dot={false}
+                        activeDot={{ r: 4 }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* c. Tags les plus fréquents */}
+            <Card>
+              <CardContent className="p-4 sm:p-5">
+                <h3 className="mb-2 text-sm font-semibold">Tags les plus fréquents</h3>
+                {details.tagsFrequents.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Aucun tag sur 30 jours</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {details.tagsFrequents.slice(0, 8).map((t) => (
+                      <Badge
+                        key={t.id}
+                        variant="outline"
+                        className={cn(
+                          t.type === "positif" && "border-green-300 text-green-700",
+                          t.type === "negatif" && "border-rose-300 text-rose-700"
+                        )}
+                      >
+                        {t.label} ×{t.count}
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* d. Derniers retours (6, les plus récents) */}
+            <Card>
+              <CardContent className="p-4 sm:p-5">
+                <h3 className="mb-2 text-sm font-semibold">Derniers retours</h3>
+                {details.derniersRetours.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Aucun retour sur 30 jours</p>
+                ) : (
+                  <div className="max-h-96 space-y-2 overflow-y-auto custom-scrollbar pr-1">
+                    {details.derniersRetours.map((r) => (
+                      <div key={r.id} className="rounded-lg border px-3 py-2.5">
+                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
+                          <span aria-label={`Note ${r.note} sur 5`}>
+                            <span className="text-amber-500">{"★".repeat(r.note)}</span>
+                            <span className="text-stone-300">{"☆".repeat(Math.max(0, 5 - r.note))}</span>
+                          </span>
+                          <span className="text-muted-foreground">{dateRetourCourt(r.createdAt)}</span>
+                          {r.employe?.nom && <span className="text-muted-foreground">👤 {r.employe.nom}</span>}
+                          {r.zone?.nom && <span className="text-muted-foreground">📍 {r.zone.nom}</span>}
+                        </div>
+                        {r.commentaire && <p className="mt-1 text-sm">{tronquer(r.commentaire)}</p>}
+                        {r.tags.length > 0 && (
+                          <div className="mt-1.5 flex flex-wrap gap-1">
+                            {r.tags.map((t) => (
+                              <Badge key={t} variant="secondary" className="text-[11px] font-normal">
+                                {tagLabel(t)}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* e. Recommandations du Coach IA pour cette zone */}
+            <Card>
+              <CardContent className="p-4 sm:p-5">
+                <h3 className="mb-2 text-sm font-semibold">Recommandations du Coach pour cette zone</h3>
+                <ul className="space-y-1.5">
+                  {details.recommandations.map((rec, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm leading-relaxed text-muted-foreground">
+                      <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" aria-hidden />
+                      <span className="min-w-0">{rec}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Action bas de page : Voir le QR code */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => {
+              const id = detailsZone.id
+              fermerDetails()
+              onOpenQr(id)
+            }}
+          >
+            <QrCode className="mr-2 h-4 w-4" aria-hidden />
+            Voir le QR code
+          </Button>
+          <Button variant="outline" onClick={fermerDetails} className="gap-1.5">
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            Retour aux zones
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-5">
       {/* En-tête */}
@@ -560,169 +744,6 @@ export function ZonesTab({ onOpenQr }: { onOpenQr: (zoneId: string) => void }) {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* ---------- Modal de détails d'une zone (Session 4) ---------- */}
-      <Dialog open={!!detailsZone} onOpenChange={(o) => (!o ? fermerDetails() : undefined)}>
-        <DialogContent className="sm:max-w-3xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <MapPin className="h-5 w-5 text-primary" aria-hidden />
-              {detailsZone?.nom ?? "Détails de la zone"}
-            </DialogTitle>
-            <DialogDescription>
-              Audit IA de la zone sur les 30 derniers jours — évolution, tags et retours clients.
-            </DialogDescription>
-          </DialogHeader>
-
-          {detailsLoading ? (
-            // Squelettes pendant le chargement des détails
-            <div className="space-y-3" aria-busy="true">
-              <Skeleton className="h-12 rounded-xl" />
-              <Skeleton className="h-56 rounded-xl" />
-              <Skeleton className="h-16 rounded-xl" />
-              <Skeleton className="h-28 rounded-xl" />
-              <Skeleton className="h-24 rounded-xl" />
-            </div>
-          ) : detailsErreur || !details ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">
-              Impossible de charger les détails de cette zone. Réessayez dans un instant.
-            </p>
-          ) : (
-            <div className="max-h-[65vh] space-y-5 overflow-y-auto custom-scrollbar pr-1 sm:max-h-[80vh]">
-              {/* a. En-tête : mini-stats de la zone */}
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl border bg-muted/40 px-3.5 py-2.5 text-sm">
-                <span className="flex items-center gap-1.5">
-                  <Stars note={details.zone.noteMoy} size={14} />
-                  <span className="font-medium">{details.zone.noteMoy.toFixed(2).replace(".", ",")}/5</span>
-                </span>
-                <span className="text-muted-foreground">
-                  {details.zone.total} retour{details.zone.total > 1 ? "s" : ""} sur 30 j
-                </span>
-                <BadgeTendance tendance={details.zone.tendance} delta={details.zone.tendanceDelta} />
-              </div>
-
-              {/* b. Graphique d'évolution du score sur 30 jours */}
-              <section>
-                <h3 className="mb-2 text-sm font-semibold">Évolution du score (30 jours)</h3>
-                <div className="h-56 sm:h-64">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <AreaChart data={details.evolution} margin={{ top: 5, right: 5, left: -18, bottom: 0 }}>
-                      <defs>
-                        <linearGradient id="gradZoneScore" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#2563eb" stopOpacity={0.25} />
-                          <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
-                        </linearGradient>
-                      </defs>
-                      <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e7e5e4" />
-                      {/* scale="point" : les labels « JJ/MM » restent affichés tels quels (pas de parse US) */}
-                      <XAxis dataKey="date" scale="point" tick={{ fontSize: 11 }} interval={4} tickLine={false} axisLine={false} />
-                      <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={36} />
-                      <Tooltip labelStyle={{ color: "#1c1917" }} />
-                      <Area
-                        type="monotone"
-                        dataKey="score"
-                        name="Score"
-                        stroke="#2563eb"
-                        strokeWidth={2.5}
-                        fill="url(#gradZoneScore)"
-                        connectNulls
-                        dot={false}
-                        activeDot={{ r: 4 }}
-                      />
-                    </AreaChart>
-                  </ResponsiveContainer>
-                </div>
-              </section>
-
-              {/* c. Tags les plus fréquents (déjà triés par count desc côté API) */}
-              <section>
-                <h3 className="mb-2 text-sm font-semibold">Tags les plus fréquents</h3>
-                {details.tagsFrequents.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Aucun tag sur 30 jours</p>
-                ) : (
-                  <div className="flex flex-wrap gap-1.5">
-                    {details.tagsFrequents.slice(0, 8).map((t) => (
-                      <Badge
-                        key={t.id}
-                        variant="outline"
-                        className={cn(
-                          t.type === "positif" && "border-green-300 text-green-700",
-                          t.type === "negatif" && "border-rose-300 text-rose-700"
-                        )}
-                      >
-                        {t.label} ×{t.count}
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </section>
-
-              {/* d. Derniers retours (6, les plus récents) */}
-              <section>
-                <h3 className="mb-2 text-sm font-semibold">Derniers retours</h3>
-                {details.derniersRetours.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Aucun retour sur 30 jours</p>
-                ) : (
-                  <div className="max-h-64 space-y-2 overflow-y-auto custom-scrollbar pr-1">
-                    {details.derniersRetours.map((r) => (
-                      <div key={r.id} className="rounded-lg border px-3 py-2.5">
-                        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
-                          {/* Note en étoiles texte : ★★★★☆ */}
-                          <span aria-label={`Note ${r.note} sur 5`}>
-                            <span className="text-amber-500">{"★".repeat(r.note)}</span>
-                            <span className="text-stone-300">{"☆".repeat(Math.max(0, 5 - r.note))}</span>
-                          </span>
-                          <span className="text-muted-foreground">{dateRetourCourt(r.createdAt)}</span>
-                          {r.employe?.nom && <span className="text-muted-foreground">👤 {r.employe.nom}</span>}
-                          {r.zone?.nom && <span className="text-muted-foreground">📍 {r.zone.nom}</span>}
-                        </div>
-                        {r.commentaire && <p className="mt-1 text-sm">{tronquer(r.commentaire)}</p>}
-                        {r.tags.length > 0 && (
-                          <div className="mt-1.5 flex flex-wrap gap-1">
-                            {r.tags.map((t) => (
-                              <Badge key={t} variant="secondary" className="text-[11px] font-normal">
-                                {tagLabel(t)}
-                              </Badge>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </section>
-
-              {/* e. Recommandations du Coach IA pour cette zone */}
-              <section>
-                <h3 className="mb-2 text-sm font-semibold">Recommandations du Coach pour cette zone</h3>
-                <ul className="space-y-1.5">
-                  {details.recommandations.map((rec, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm leading-relaxed text-muted-foreground">
-                      <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" aria-hidden />
-                      <span className="min-w-0">{rec}</span>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            </div>
-          )}
-
-          <DialogFooter>
-            {detailsZone && (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  const id = detailsZone.id
-                  fermerDetails()
-                  onOpenQr(id)
-                }}
-              >
-                <QrCode className="mr-2 h-4 w-4" aria-hidden />
-                Voir le QR code
-              </Button>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

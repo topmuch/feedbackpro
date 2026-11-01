@@ -22,19 +22,12 @@ import {
   Target,
   Lightbulb,
   TrendingUp,
+  ArrowLeft,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 
@@ -248,6 +241,97 @@ export function RapportsTab() {
 
   // ---------- Rendu ----------
 
+  // ---------- Vue détaillée pleine page d'un rapport (remplace la modale) ----------
+  if (rapportOuvert) {
+    return (
+      <div className="space-y-5">
+        {/* En-tête : retour + titre + badges */}
+        <div className="flex flex-wrap items-center gap-3">
+          <Button variant="outline" onClick={() => setRapportOuvert(null)} className="gap-1.5">
+            <ArrowLeft className="h-4 w-4" aria-hidden />
+            Retour aux rapports
+          </Button>
+          <h2 className="flex items-center gap-2 text-lg sm:text-xl font-semibold">
+            <Bot className="h-5 w-5 text-primary" aria-hidden />
+            {badgeType(rapportOuvert.type).label}
+          </h2>
+          <Badge variant={sourceOuvert.variant}>{sourceOuvert.label}</Badge>
+          <Badge variant="outline" className={scoreTone(rapportOuvert.scoreGlobal)}>
+            Score {Math.round(rapportOuvert.scoreGlobal)}/100
+          </Badge>
+        </div>
+        <p className="text-sm text-muted-foreground">
+          Période auditée : {formatDateSimple(rapportOuvert.periodeDebut)} →{" "}
+          {formatDateSimple(rapportOuvert.periodeFin)} · généré le{" "}
+          {formatDateCreation(rapportOuvert.createdAt)}
+        </p>
+
+        {/* Contenu : markdown + 3 blocs structurés */}
+        <Card>
+          <CardContent className="space-y-5 p-4 sm:p-6">
+            {rapportOuvert.contenuMarkdown ? (
+              <ReactMarkdown components={mdComposants}>{rapportOuvert.contenuMarkdown}</ReactMarkdown>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">
+                Le contenu détaillé de ce rapport n&apos;est pas disponible.
+              </p>
+            )}
+
+            <div className="grid gap-3 sm:grid-cols-3">
+              <ListeRapport
+                icone={Target}
+                titre="Priorités"
+                items={rapportOuvert.priorites ?? []}
+                tone="text-primary"
+              />
+              <ListeRapport
+                icone={Lightbulb}
+                titre="Recommandations"
+                items={rapportOuvert.recommandations ?? []}
+                tone="text-amber-600"
+              />
+              <ListeRapport
+                icone={TrendingUp}
+                titre="Prédictions"
+                items={rapportOuvert.predictions ?? []}
+                tone="text-green-600"
+              />
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Pied : statut envoi email + actions */}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          {rapportOuvert.envoyeParEmail ? (
+            <Badge variant="outline" className="border-green-300 text-green-700">
+              📧 Envoyé par email
+            </Badge>
+          ) : (
+            <span className="text-xs text-muted-foreground">Pas encore envoyé par email</span>
+          )}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => envoyerParEmail(rapportOuvert)}
+              disabled={emailId === rapportOuvert.id || regenId === rapportOuvert.id}
+            >
+              {emailId === rapportOuvert.id ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <Mail className="mr-2 h-4 w-4" aria-hidden />
+              )}
+              Envoyer par email
+            </Button>
+            <Button variant="outline" onClick={() => setRapportOuvert(null)} className="gap-1.5">
+              <ArrowLeft className="h-4 w-4" aria-hidden />
+              Retour aux rapports
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="space-y-5">
       {/* ---------- En-tête : titre + génération ---------- */}
@@ -386,88 +470,6 @@ export function RapportsTab() {
         </div>
       )}
 
-      {/* ---------- Modal « Ouvrir » : lecture complète du rapport ---------- */}
-      <Dialog open={!!rapportOuvert} onOpenChange={(o) => (!o ? setRapportOuvert(null) : undefined)}>
-        <DialogContent className="sm:max-w-3xl">
-          {rapportOuvert && (
-            <>
-              <DialogHeader>
-                <div className="flex flex-wrap items-center gap-2">
-                  <DialogTitle className="flex items-center gap-2">
-                    <Bot className="h-5 w-5 text-primary" aria-hidden />
-                    {badgeType(rapportOuvert.type).label}
-                  </DialogTitle>
-                  <Badge variant={sourceOuvert.variant}>{sourceOuvert.label}</Badge>
-                  <Badge variant="outline" className={scoreTone(rapportOuvert.scoreGlobal)}>
-                    Score {Math.round(rapportOuvert.scoreGlobal)}/100
-                  </Badge>
-                </div>
-                <DialogDescription>
-                  Période auditée : {formatDateSimple(rapportOuvert.periodeDebut)} →{" "}
-                  {formatDateSimple(rapportOuvert.periodeFin)} · généré le{" "}
-                  {formatDateCreation(rapportOuvert.createdAt)}
-                </DialogDescription>
-              </DialogHeader>
-
-              {/* Contenu scrollable : markdown + 3 blocs structurés */}
-              <div className="max-h-[80vh] space-y-5 overflow-y-auto custom-scrollbar pr-1">
-                {rapportOuvert.contenuMarkdown ? (
-                  <ReactMarkdown components={mdComposants}>{rapportOuvert.contenuMarkdown}</ReactMarkdown>
-                ) : (
-                  <p className="text-sm text-muted-foreground italic">
-                    Le contenu détaillé de ce rapport n&apos;est pas disponible.
-                  </p>
-                )}
-
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <ListeRapport
-                    icone={Target}
-                    titre="Priorités"
-                    items={rapportOuvert.priorites ?? []}
-                    tone="text-primary"
-                  />
-                  <ListeRapport
-                    icone={Lightbulb}
-                    titre="Recommandations"
-                    items={rapportOuvert.recommandations ?? []}
-                    tone="text-amber-600"
-                  />
-                  <ListeRapport
-                    icone={TrendingUp}
-                    titre="Prédictions"
-                    items={rapportOuvert.predictions ?? []}
-                    tone="text-green-600"
-                  />
-                </div>
-              </div>
-
-              <DialogFooter className="flex-col items-center gap-2 sm:flex-row sm:justify-between">
-                <div>
-                  {rapportOuvert.envoyeParEmail ? (
-                    <Badge variant="outline" className="border-green-300 text-green-700">
-                      📧 Envoyé par email
-                    </Badge>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">Pas encore envoyé par email</span>
-                  )}
-                </div>
-                <Button
-                  variant="outline"
-                  onClick={() => envoyerParEmail(rapportOuvert)}
-                  disabled={emailId === rapportOuvert.id || regenId === rapportOuvert.id}
-                >
-                  {emailId === rapportOuvert.id ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
-                  ) : (
-                    <Mail className="mr-2 h-4 w-4" aria-hidden />
-                  )}
-                  Envoyer par email
-                </Button>
-              </DialogFooter>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

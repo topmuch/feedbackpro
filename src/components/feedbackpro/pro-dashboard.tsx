@@ -197,28 +197,28 @@ export function ProDashboard() {
   // ---------- Coquille squelette pendant le chargement de la session ----------
   if (!session) {
     return (
-      <div className="flex min-h-screen flex-col lg:pl-64">
-        <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r bg-background lg:flex">
+      <div className="flex min-h-screen flex-col bg-stone-100 lg:pl-64">
+        <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col bg-blue-600 text-white lg:flex">
           <div className="flex items-center gap-2.5 px-4 py-5">
-            <Skeleton className="h-10 w-10 rounded-xl" />
+            <Skeleton className="h-10 w-10 rounded-xl bg-white/20" />
             <div className="flex-1 space-y-2">
-              <Skeleton className="h-3.5 w-24" />
-              <Skeleton className="h-2.5 w-16" />
+              <Skeleton className="h-3.5 w-24 bg-white/20" />
+              <Skeleton className="h-2.5 w-16 bg-white/20" />
             </div>
           </div>
           <div className="space-y-2 px-3 py-2">
             {ONGLETS.map((o) => (
-              <Skeleton key={o.id} className="mx-0 h-10 rounded-lg" />
+              <Skeleton key={o.id} className="mx-0 h-10 rounded-lg bg-white/15" />
             ))}
           </div>
         </aside>
-        <header className="sticky top-0 z-30 h-14 border-b bg-background/95 sm:h-16">
+        <header className="sticky top-0 z-30 h-14 bg-blue-600 text-white sm:h-16">
           <div className="mx-auto flex h-full w-full max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8">
-            <Skeleton className="h-8 w-8 lg:hidden" />
-            <Skeleton className="h-5 w-40" />
+            <Skeleton className="h-8 w-8 bg-white/20 lg:hidden" />
+            <Skeleton className="h-5 w-40 bg-white/20" />
             <div className="flex-1" />
-            <Skeleton className="h-6 w-16 rounded-full" />
-            <Skeleton className="h-9 w-9 rounded-lg" />
+            <Skeleton className="h-6 w-16 rounded-full bg-white/20" />
+            <Skeleton className="h-9 w-9 rounded-lg bg-white/20" />
           </div>
         </header>
         <main className="mx-auto w-full max-w-7xl flex-1 space-y-4 px-4 py-6 sm:px-6 lg:px-8">
@@ -235,14 +235,14 @@ export function ProDashboard() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col lg:pl-64">
+    <div className="flex min-h-screen flex-col bg-stone-100 lg:pl-64">
       {/* ---------- Sidebar fixe desktop (lg+) ---------- */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r bg-background lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col bg-blue-600 text-white lg:flex">
         <ContenuSidebar ongletActif={onglet} onNaviguer={naviguer} />
       </aside>
 
-      {/* ---------- Header sticky ---------- */}
-      <header className="sticky top-0 z-30 h-14 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 sm:h-16">
+      {/* ---------- Header sticky bleu ---------- */}
+      <header className="sticky top-0 z-30 h-14 bg-blue-600 text-white sm:h-16">
         <div className="mx-auto flex h-full w-full max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
           {/* Gauche : burger (mobile) + logo compact + nom de l'établissement */}
           <div className="flex min-w-0 items-center gap-2">
@@ -251,14 +251,14 @@ export function ProDashboard() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="lg:hidden"
+                  className="text-white hover:bg-white/15 hover:text-white lg:hidden"
                   aria-label="Ouvrir le menu"
                   aria-expanded={menuOuvert}
                 >
                   <Menu className="h-5 w-5" aria-hidden />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-72 p-0" aria-describedby={undefined}>
+              <SheetContent side="left" className="w-72 border-0 bg-blue-600 p-0 text-white" aria-describedby={undefined}>
                 <SheetTitle className="sr-only">Navigation du dashboard</SheetTitle>
                 <ContenuSidebar
                   ongletActif={onglet}
@@ -270,17 +270,17 @@ export function ProDashboard() {
               </SheetContent>
             </Sheet>
             <div
-              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground lg:hidden"
+              className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/15 text-white lg:hidden"
               aria-hidden
             >
               <Bot className="h-4 w-4" />
             </div>
-            <p className="truncate font-semibold">{nomEtablissement}</p>
+            <p className="truncate font-semibold text-white">{nomEtablissement}</p>
           </div>
 
           {/* Droite : badge plan + déconnexion (icône + tooltip) */}
           <div className="flex shrink-0 items-center gap-2">
-            <Badge variant="secondary">{planName}</Badge>
+            <Badge variant="secondary" className="border-0 bg-white/15 text-white">{planName}</Badge>
             <TooltipProvider delayDuration={200}>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -288,7 +288,7 @@ export function ProDashboard() {
                     variant="ghost"
                     size="icon"
                     onClick={() => logout()}
-                    className="text-muted-foreground hover:text-destructive"
+                    className="text-white hover:bg-white/15 hover:text-white"
                     aria-label="Se déconnecter"
                   >
                     <LogOut className="h-4.5 w-4.5" aria-hidden />
@@ -353,13 +353,13 @@ function BoutonOnglet({
       className={cn(
         "relative mx-3 flex h-10 shrink-0 items-center gap-3 rounded-lg px-3 text-sm transition-colors",
         actif
-          ? "bg-primary/10 font-medium text-primary"
-          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+          ? "bg-white/15 font-semibold text-white"
+          : "text-white/85 hover:bg-white/10 hover:text-white"
       )}
     >
       {actif && (
         <span
-          className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-primary"
+          className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-full bg-white"
           aria-hidden
         />
       )}
@@ -383,14 +383,14 @@ function ContenuSidebar({
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-4 py-4 sm:py-5">
         <div
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white shadow-sm"
           aria-hidden
         >
           <QrCode className="h-5 w-5" />
         </div>
         <div className="min-w-0">
-          <p className="truncate font-bold leading-tight">FeedbackPro</p>
-          <p className="text-xs text-muted-foreground">Coach qualité continu</p>
+          <p className="truncate font-bold leading-tight text-white">FeedbackPro</p>
+          <p className="text-xs text-white/80">Coach qualité continu</p>
         </div>
       </div>
 
@@ -402,7 +402,7 @@ function ContenuSidebar({
 
         {/* Séparateur visuel : label « Gestion » en majuscules */}
         <p
-          className="px-3 pt-3 pb-1 text-[11px] font-medium uppercase tracking-wider text-muted-foreground"
+          className="px-3 pt-3 pb-1 text-[11px] font-medium uppercase tracking-wider text-white/70"
           role="presentation"
         >
           Gestion
@@ -414,8 +414,8 @@ function ContenuSidebar({
       </nav>
 
       {/* Bas de sidebar : rappel de la promesse produit */}
-      <div className="mt-auto border-t p-4">
-        <p className="text-[11px] leading-relaxed text-muted-foreground">
+      <div className="mt-auto border-t border-white/15 p-4">
+        <p className="text-[11px] leading-relaxed text-white/80">
           Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorités concrètes.
         </p>
       </div>
