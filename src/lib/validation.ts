@@ -147,6 +147,21 @@ export const retourSchema = z.object({
   // Audit RGPD : consentement explicite (opt-in) pour enregistrer la ville
   // approximative déduite de l'IP. Absent → false (aucune donnée géo).
   geoConsent: z.boolean().optional().default(false),
+  // D1 : NPS (0-10), collecté côté client uniquement quand la note est ≥ 4★.
+  nps: z
+    .number()
+    .int("NPS invalide")
+    .min(0, "NPS invalide")
+    .max(10, "NPS invalide")
+    .nullable()
+    .optional(),
+  // D2 : photo jointe par le client (URL relative uploadée via /api/public/upload).
+  photoUrl: z
+    .string()
+    .trim()
+    .max(500, "URL de photo trop longue")
+    .nullable()
+    .optional(),
 })
 
 /** Résolution d'une zone par son QR token (POST /api/public/scan) */
@@ -207,6 +222,23 @@ export const settingsSchema = z.object({
     .transform((v) => v.toUpperCase())
     .optional(),
   smsAlertes: z.boolean().optional(),
+  // D8 : Google Business Profile (saisie manuelle, pas d'API réelle)
+  googleReviewUrl: z
+    .string()
+    .trim()
+    .max(500, "URL trop longue")
+    .refine(
+      (v) => v === "" || /^https?:\/\/\S+$/i.test(v),
+      "URL invalide (doit commencer par http:// ou https://)"
+    )
+    .nullable()
+    .optional(),
+  googlePlaceId: z
+    .string()
+    .trim()
+    .max(300, "Place ID trop long")
+    .nullable()
+    .optional(),
 })
 
 // ---------- Commandes de supports physiques ----------

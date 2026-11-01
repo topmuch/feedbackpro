@@ -4,14 +4,22 @@
 // FeedbackPro - ScanView (flux client final, 100 % mobile)
 // Le client a scanné le QR code d'une ZONE (Accueil, Salle,
 // Toilettes RDC…) imprimée dans le commerce. Sans authentification.
-// Machine à états : loading → error | step1 (note) → step2 (tags) → step3 (commentaire + envoi) → success
+// Machine à états :
+//   loading → error | step1 (note) → [step1b (NPS si note ≥ 4)] →
+//   step2 (tags) → step3 (commentaire + photo + envoi) → success
 //
-// Contrat API (implémenté par l'agent backend) :
+// D1 (NPS) : si la note est ≥ 4★, on demande le NPS (0-10) avant les tags.
+// D2 (Photos) : un bouton « Ajouter une photo » à l'étape 3 (upload
+//   POST /api/public/upload, max 5 Mo, redimensionné côté serveur).
+// D3 (i18n) : FR / EN / AR avec dir="rtl" pour l'arabe.
+// D8 (Google) : si pro.googleReviewUrl est défini et note ≥ 4★, l'écran de
+//   succès propose « Laissez un avis Google ».
+//
+// Contrat API :
 //   POST /api/public/scan   { qrToken }
-//     → { ok, data: { zone: { nom, description }, pro: { nomEtablissement, logoUrl, recompense }, tagsPositifs: string[], tagsNegatifs: string[] } }
-//   POST /api/public/retour { qrToken, note, tags[], commentaire?, personnelMentionne?, canalChoisi? }
-//     → { ok, data: { retour, recompense: string | null } }
-//   Réponses en erreur : { ok: false, error: "message FR" }
+//     → { ok, data: { zone: { nom, description }, pro: { nomEtablissement, logoUrl, recompense, whatsapp, messageWhatsapp, googleReviewUrl }, tagsPositifs: string[], tagsNegatifs: string[] } }
+//   POST /api/public/retour { qrToken, note, tags[], commentaire?, personnelMentionne?, canalChoisi?, nps?, photoUrl? }
+//     → { ok, data: { retour, recompense: string | null, codeRecompense: string | null } }
 // ============================================================
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -21,11 +29,15 @@ import {
   ArrowLeft,
   Check,
   Gift,
+  Globe,
+  ImagePlus,
   Loader2,
   MessageCircle,
   ShieldCheck,
   Star,
   Ticket,
+  Trash2,
+  Upload,
   X,
 } from "lucide-react"
 import {
@@ -40,8 +52,18 @@ import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Slider } from "@/components/ui/slider"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
+import {
+  TRADUCTIONS_SCAN,
+  LANGUES_SCAN,
+  detecterLangueNavigateur,
+  lireLangueMemorisee,
+  memoriserLangue,
+  type LangueScan,
+  type TraductionsScan,
+} from "@/lib/i18n"
 
 // ---------- Types locaux (contrat API) ----------
 
@@ -56,25 +78,20 @@ type ScanData = {
     whatsapp?: string | null
     // Signature personnalisée du pied du message WhatsApp (optionnel)
     messageWhatsapp?: string | null
+    // D8 : URL d'avis Google (saisie manuelle par le commerçant)
+    googleReviewUrl?: string | null
   }
   tagsPositifs: string[]
   tagsNegatifs: string[]
 }
 
-type Phase = "loading" | "error" | "step1" | "step2" | "step3" | "success"
+type Phase = "loading" | "error" | "step1" | "step1b" | "step2" | "step3" | "success"
 type CanalEnvoi = "whatsapp" | "aucun"
 
 // ---------- Constantes d'affichage ----------
 
-// Émoji + libellé affichés sous les étoiles selon la note survolée / choisie
+// Émoji affichés sous les étoiles selon la note survolée / choisie
 const EMOJIS_NOTE: Record<number, string> = { 1: "😞", 2: "🙁", 3: "😐", 4: "🙂", 5: "😍" }
-const LIBELLES_NOTE: Record<number, string> = {
-  1: "Aïe, désolé…",
-  2: "Bof…",
-  3: "Moyen",
-  4: "Très bien !",
-  5: "Génial !",
-}
 
 // Palette du confetti de l'écran de succès (léger, one-shot)
 const COULEURS_CONFETTI = ["#2563EB", "#22C55E", "#F59E0B", "#EC4899", "#8B5CF6"]
@@ -98,12 +115,57 @@ function definitionTag(id: string, positif: boolean): TagDef {
   )
 }
 
-// Message WhatsApp : construit par la lib partagée (format spec Session 3 :
-// 📍 Établissement - Zone · ⭐ Note · 📅 Date+heure · 🏷️ Tags · 👤 · 💬 · pied)
+// ---------- Sélecteur de langue (D3) ----------
+
+function SelecteurLangue({ langue, onChange }: { langue: LangueScan; onChange: (l: LangueScan) => void }) {
+  const [ouvert, setOuvert] = useState(false)
+  const courant = LANGUES_SCAN.find((l) => l.id === langue) ?? LANGUES_SCAN[0]
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOuvert((o) => !o)}
+        className="inline-flex items-center gap-1.5 rounded-full border border-stone-200 bg-white px-3 py-1.5 text-xs font-medium text-stone-600 shadow-sm transition-colors hover:bg-stone-50"
+        aria-label="Change language"
+        aria-expanded={ouvert}
+      >
+        <Globe className="h-3.5 w-3.5" aria-hidden />
+        <span aria-hidden>{courant.flag}</span>
+        <span className="hidden sm:inline">{courant.label}</span>
+      </button>
+      {ouvert && (
+        <>
+          {/* Clique hors du menu pour fermer */}
+          <div className="fixed inset-0 z-0" aria-hidden onClick={() => setOuvert(false)} />
+          <div className="absolute right-0 z-10 mt-1 w-40 overflow-hidden rounded-lg border border-stone-200 bg-white py-1 shadow-lg">
+            {LANGUES_SCAN.map((l) => (
+              <button
+                key={l.id}
+                type="button"
+                onClick={() => {
+                  onChange(l.id)
+                  setOuvert(false)
+                }}
+                className={cn(
+                  "flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors",
+                  l.id === langue ? "bg-primary/5 font-semibold text-primary" : "text-stone-700 hover:bg-stone-50"
+                )}
+              >
+                <span aria-hidden>{l.flag}</span>
+                <span>{l.label}</span>
+                {l.id === langue && <Check className="ms-auto h-3.5 w-3.5" aria-hidden />}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
 
 // ---------- Écran de chargement : skeleton + spinner léger ----------
 
-function EcranChargement() {
+function EcranChargement({ t }: { t: TraductionsScan }) {
   return (
     <div className="flex min-h-dvh flex-col items-center justify-center gap-5 bg-stone-100 p-4" aria-busy="true">
       <Loader2 className="size-8 animate-spin text-primary" aria-hidden />
@@ -128,7 +190,7 @@ function EcranChargement() {
         </div>
         <Skeleton className="mt-8 h-14 w-full rounded-xl" />
       </div>
-      <p className="text-sm text-muted-foreground">Chargement de votre formulaire…</p>
+      <p className="text-sm text-muted-foreground">{t.charger}</p>
     </div>
   )
 }
@@ -140,11 +202,13 @@ function EnTeteEtablissement({
   zone,
   avecSousTitre,
   avecMarge,
+  t,
 }: {
   pro: ScanData["pro"]
   zone: ScanData["zone"]
   avecSousTitre: boolean
   avecMarge: boolean
+  t: TraductionsScan
 }) {
   // Fallback local si le logo distant ne charge pas : on mémorise l'URL en échec
   // (pas d'effet nécessaire : un changement de logoUrl est retenté automatiquement)
@@ -189,7 +253,7 @@ function EnTeteEtablissement({
 
       {avecSousTitre && (
         <p className="mt-3 border-t border-stone-100 pt-3 text-sm font-medium text-stone-500">
-          Votre avis compte — 15 secondes chrono ⏱️
+          {t.sousTitre}
         </p>
       )}
     </header>
@@ -236,6 +300,10 @@ function ConfettiLeger() {
 export function ScanView({ token, onExit }: { token: string; onExit: () => void }) {
   const { toast } = useToast()
 
+  // D3 : langue (détection navigateur au premier scan, puis mémorisée)
+  const [langue, setLangue] = useState<LangueScan>("fr")
+  const t = TRADUCTIONS_SCAN[langue]
+
   // Machine à états + sens de la transition (1 = avancer, -1 = reculer)
   const [phase, setPhase] = useState<Phase>("loading")
   const [sens, setSens] = useState(1)
@@ -249,6 +317,15 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
   const [commentaire, setCommentaire] = useState("")
   // Email (optionnel) : permet au commerçant de répondre au client par email
   const [emailClient, setEmailClient] = useState("")
+
+  // D1 : NPS (0-10) — collecté à l'étape 1b, uniquement si note ≥ 4
+  const [nps, setNps] = useState<number>(8)
+
+  // D2 : photo jointe (URL relative retournée par /api/public/upload)
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null)
+  const [photoEnCours, setPhotoEnCours] = useState(false)
+  const [photoErreur, setPhotoErreur] = useState<string | null>(null)
+  const photoInputRef = useRef<HTMLInputElement>(null)
 
   // Animation d'étoile + prévisualisation au survol/focus (desktop)
   const [pulse, setPulse] = useState<number | null>(null)
@@ -267,11 +344,22 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   useEffect(() => {
-    // Nettoyage du timer de transition étoile → étape 2
+    // Nettoyage du timer de transition étoile → étape suivante
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
     }
   }, [])
+
+  // D3 : détection initiale de la langue (une seule fois au montage)
+  useEffect(() => {
+    const mem = lireLangueMemorisee()
+    setLangue(mem ?? detecterLangueNavigateur())
+  }, [])
+
+  function changerLangue(l: LangueScan) {
+    setLangue(l)
+    memoriserLangue(l)
+  }
 
   const estPositif = note >= 4
   // Note affichée : celle survolée (prévisualisation) sinon celle choisie
@@ -281,6 +369,8 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
   const recompenseFinale = recompenseGagnee ?? scanData?.pro.recompense ?? null
   const numeroWhatsApp = (scanData?.pro.whatsapp ?? "").replace(/[^0-9]/g, "")
   const aWhatsApp = numeroWhatsApp.length > 0
+  // D8 : avis Google proposé si l'URL est configurée ET que la note est positive
+  const lienAvisGoogle = estPositif && scanData?.pro.googleReviewUrl ? scanData.pro.googleReviewUrl : null
 
   // ---------- Chargement des infos de la zone scannée ----------
   const chargerScan = useCallback(async () => {
@@ -295,7 +385,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
         cache: "no-store",
       })
       const json = await res.json().catch(() => null)
-      if (!res.ok || !json?.ok) throw new Error(json?.error || "QR code inconnu ou expiré")
+      if (!res.ok || !json?.ok) throw new Error(json?.error || t.erreurQr)
       setScanData(json.data as ScanData)
       // Nouveau scan = nouvelles réponses
       setNote(0)
@@ -303,6 +393,9 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
       setPersonnel("")
       setCommentaire("")
       setEmailClient("")
+      setNps(8)
+      setPhotoUrl(null)
+      setPhotoErreur(null)
       setRecompenseGagnee(null)
       setCodeRecompense(null)
       setGeoConsent(false)
@@ -339,8 +432,9 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
     setTags([])
     setPulse(n)
     annulerTimer()
-    // Petite pause pour laisser l'animation respirer, puis auto-avance
-    timerRef.current = setTimeout(() => allerEtape("step2", 1), 600)
+    // D1 : si la note est ≥ 4★, on propose le NPS (étape 1b) avant les tags ;
+    // sinon on passe directement aux tags négatifs (étape 2).
+    timerRef.current = setTimeout(() => allerEtape(n >= 4 ? "step1b" : "step2", 1), 600)
   }
 
   function retourVersNote() {
@@ -370,7 +464,40 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
   const idsTags = scanData ? (estPositif ? scanData.tagsPositifs : scanData.tagsNegatifs) : []
 
   function basculerTag(id: string) {
-    setTags((prev) => (prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id]))
+    setTags((prev) => (prev.includes(id) ? prev.filter((tg) => tg !== id) : [...prev, id]))
+  }
+
+  // ---------- D2 : upload de photo ----------
+  async function onPhotoChoisie(e: React.ChangeEvent<HTMLInputElement>) {
+    const fichier = e.target.files?.[0]
+    // Réinitialise l'input pour permettre de re-sélectionner le même fichier
+    e.target.value = ""
+    if (!fichier) return
+    setPhotoErreur(null)
+    // Validation côté client (taille + type) — le serveur re-valide aussi
+    if (fichier.size > 5 * 1024 * 1024) {
+      setPhotoErreur(t.photoTropGrande)
+      return
+    }
+    if (!fichier.type.startsWith("image/")) {
+      setPhotoErreur(t.photoFormat)
+      return
+    }
+    setPhotoEnCours(true)
+    try {
+      const fd = new FormData()
+      fd.append("photo", fichier)
+      const res = await fetch("/api/public/upload", { method: "POST", body: fd })
+      const json = await res.json().catch(() => null)
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || t.photoFormat)
+      }
+      setPhotoUrl(json.data.url as string)
+    } catch (err) {
+      setPhotoErreur(err instanceof Error ? err.message : t.photoFormat)
+    } finally {
+      setPhotoEnCours(false)
+    }
   }
 
   // ---------- Étape 3 : envoi (POST) puis ouverture WhatsApp ----------
@@ -399,6 +526,10 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
           // RGPD : la ville approximative n'est enregistrée que si le client
           // a explicitement coché la case de consentement à l'étape 3
           geoConsent,
+          // D1 : NPS transmis uniquement pour les notes ≥ 4 (sinon undefined)
+          nps: estPositif ? nps : undefined,
+          // D2 : photo jointe (URL relative) si le client en a ajouté une
+          photoUrl: photoUrl || undefined,
         }),
       })
       const json = await res.json().catch(() => null)
@@ -446,7 +577,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
       fenetre?.close()
       const message = e instanceof Error ? e.message : "Impossible d'envoyer le retour pour le moment"
       setErreurEnvoi(message)
-      toast({ title: "Envoi impossible", description: message, variant: "destructive" })
+      toast({ title: t.erreurQr, description: message, variant: "destructive" })
     } finally {
       setSoumission(null)
     }
@@ -454,14 +585,15 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
 
   // ---------- Écran de chargement ----------
   if (phase === "loading") {
-    return <EcranChargement />
+    return <EcranChargement t={t} />
   }
 
-  // Indice d'étape pour la barre de progression (3 segments)
-  const etapeIdx = phase === "step1" ? 0 : phase === "step2" ? 1 : 2
+  // Indice d'étape pour la barre de progression (3 segments ; step1b compté
+  // comme faisant partie du segment 0 — la barre reste visuellement stable).
+  const etapeIdx = phase === "step1" || phase === "step1b" ? 0 : phase === "step2" ? 1 : 2
 
   return (
-    <div className="flex min-h-dvh items-center justify-center overflow-x-hidden bg-stone-100 p-3 sm:p-6">
+    <div className="flex min-h-dvh items-center justify-center overflow-x-hidden bg-stone-100 p-3 sm:p-6" dir={t.dir}>
       <div className="w-full max-w-md">
         <div
           className={cn(
@@ -488,14 +620,21 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
             </div>
           )}
 
+          {/* Sélecteur de langue (D3) — discret, en haut à droite */}
+          {phase !== "error" && (
+            <div className="absolute left-6 top-4 sm:left-8">
+              <SelecteurLangue langue={langue} onChange={changerLangue} />
+            </div>
+          )}
+
           {/* Bouton discret Quitter (étapes 1 à 3) */}
           {onExit &&
-            (phase === "step1" || phase === "step2" || phase === "step3") && (
+            (phase === "step1" || phase === "step1b" || phase === "step2" || phase === "step3") && (
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={onExit}
-                aria-label="Quitter et revenir en arrière"
+                aria-label={t.quitter}
                 className="absolute right-3 top-4 z-10 size-11 rounded-full text-stone-400 hover:text-stone-600"
               >
                 <X className="size-5" aria-hidden />
@@ -510,6 +649,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                 zone={scanData.zone}
                 avecSousTitre={phase !== "success"}
                 avecMarge={phase !== "success"}
+                t={t}
               />
             )}
 
@@ -531,28 +671,26 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                     </div>
                     <div>
                       <h1 className="text-xl font-bold text-stone-900">
-                        QR code inconnu ou expiré
+                        {t.erreurQr}
                       </h1>
                       <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                        {erreurScan
-                          ? `${erreurScan}. `
-                          : ""}
-                        Vérifiez le QR code affiché chez le commerçant, puis réessayez.
+                        {erreurScan ? `${erreurScan}. ` : ""}
+                        {t.erreurQrAide}
                       </p>
                     </div>
                     <Button
                       onClick={chargerScan}
                       className="h-12 min-w-40 text-base font-semibold"
-                      aria-label="Réessayer le chargement du QR code"
+                      aria-label={t.reessayer}
                     >
-                      Réessayer
+                      {t.reessayer}
                     </Button>
                     <Button
                       variant="ghost"
                       onClick={onExit}
                       className="min-h-11 text-sm text-muted-foreground"
                     >
-                      Retour à l&apos;accueil
+                      {t.retourAccueil}
                     </Button>
                   </div>
                 )}
@@ -561,14 +699,16 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                 {phase === "step1" && scanData && (
                   <div className="flex flex-col items-center text-center">
                     <h1 className="text-balance text-xl font-bold leading-snug text-stone-900 sm:text-2xl">
-                      Comment évaluez-vous <span className="text-primary">{scanData.zone.nom}</span>&nbsp;?
+                      {t.questionNotePrefix}
+                      <span className="text-primary">{scanData.zone.nom}</span>
+                      {t.questionNoteSuffix}
                     </h1>
 
                     {/* 5 étoiles très grandes (hauteur 68 px ≥ 60 px de zone tactile).
                         flex-1 + max-w évite tout débordement horizontal, même sur iPhone SE 320 px. */}
                     <div
                       role="radiogroup"
-                      aria-label="Votre note de 1 à 5 étoiles"
+                      aria-label={t.ariaEtoiles}
                       onKeyDown={etoileClavier}
                       className="mt-7 flex w-full justify-center gap-1"
                     >
@@ -580,7 +720,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                             type="button"
                             role="radio"
                             aria-checked={note === i}
-                            aria-label={`Donner ${i} étoile${i > 1 ? "s" : ""}`}
+                            aria-label={t.donnerEtoiles(i)}
                             onClick={() => choisirNote(i)}
                             onMouseEnter={() => setSurvol(i)}
                             onMouseLeave={() => setSurvol(null)}
@@ -623,7 +763,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                               {EMOJIS_NOTE[afficheNote]}
                             </span>
                             <p className="mt-1.5 text-sm font-medium text-stone-500">
-                              {LIBELLES_NOTE[afficheNote]}
+                              {t.libellesNote[afficheNote]}
                             </p>
                           </motion.div>
                         )}
@@ -636,8 +776,71 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                       onClick={onExit}
                       className="mt-2 min-h-11 text-sm text-muted-foreground"
                     >
-                      <ArrowLeft aria-hidden className="size-4" /> Retour
+                      <ArrowLeft aria-hidden className="size-4" /> {t.retour}
                     </Button>
+                  </div>
+                )}
+
+                {/* ---------- ÉTAPE 1b (D1) : NPS — uniquement si note ≥ 4 ---------- */}
+                {phase === "step1b" && scanData && (
+                  <div>
+                    <h1 className="text-balance text-xl font-bold leading-snug text-stone-900 sm:text-2xl">
+                      {t.questionNps}
+                    </h1>
+                    <p className="mt-1 text-center text-sm text-muted-foreground">
+                      {t.npsSousTitre}
+                    </p>
+
+                    {/* Slider 0-10 avec graduated labels */}
+                    <div className="mt-6 px-2">
+                      <div className="flex items-center justify-between text-xs font-semibold text-stone-500">
+                        <span>0</span>
+                        <span>5</span>
+                        <span>10</span>
+                      </div>
+                      <Slider
+                        value={[nps]}
+                        min={0}
+                        max={10}
+                        step={1}
+                        onValueChange={(v) => setNps(v[0] ?? 8)}
+                        aria-label={t.questionNps}
+                        className="mt-3"
+                      />
+                      <div className="mt-4 flex items-center justify-center">
+                        <span className="inline-flex min-w-16 items-center justify-center rounded-full bg-primary px-4 py-1.5 text-2xl font-bold text-primary-foreground">
+                          {nps}
+                        </span>
+                        <span className="ms-2 text-sm text-muted-foreground">/ 10</span>
+                      </div>
+                      {/* Libellé sémantique selon le score */}
+                      <p className="mt-2 text-center text-xs text-muted-foreground">
+                        {nps >= 9 ? "😊" : nps >= 7 ? "🙂" : "😐"}
+                      </p>
+                    </div>
+
+                    <Button
+                      onClick={() => allerEtape("step2", 1)}
+                      className="mt-6 h-14 w-full text-lg font-semibold"
+                    >
+                      {t.continuer}
+                    </Button>
+                    <div className="mt-1 flex gap-2">
+                      <Button
+                        variant="ghost"
+                        onClick={retourVersNote}
+                        className="min-h-11 flex-1 text-sm text-muted-foreground"
+                      >
+                        <ArrowLeft aria-hidden className="size-4" /> {t.retour}
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        onClick={() => allerEtape("step2", 1)}
+                        className="min-h-11 flex-1 text-sm text-muted-foreground"
+                      >
+                        {t.npsIgnorer}
+                      </Button>
+                    </div>
                   </div>
                 )}
 
@@ -645,17 +848,15 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                 {phase === "step2" && scanData && (
                   <div>
                     <h1 className="text-balance text-xl font-bold leading-snug text-stone-900 sm:text-2xl">
-                      {estPositif
-                        ? "🎉 Super ! Qu'avez-vous particulièrement apprécié ?"
-                        : "😔 Nous sommes désolés. Qu'est-ce qui n'a pas été ?"}
+                      {estPositif ? t.titrePositif : t.titreNegatif}
                     </h1>
                     <p className="mt-1 text-sm text-muted-foreground">
-                      Sélectionnez tout ce qui s&apos;applique (optionnel)
+                      {t.sousTitreTags}
                     </p>
 
                     <div
                       role="group"
-                      aria-label={estPositif ? "Points positifs" : "Points à améliorer"}
+                      aria-label={estPositif ? t.ariaTagsPositifs : t.ariaTagsNegatifs}
                       className="mt-5 flex flex-wrap gap-2.5"
                     >
                       {idsTags.map((id) => {
@@ -693,14 +894,14 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                         htmlFor="personnel"
                         className="mb-1.5 block text-sm font-medium text-stone-700"
                       >
-                        Personnel concerné&nbsp;?{" "}
-                        <span className="font-normal text-muted-foreground">(optionnel)</span>
+                        {t.personnelLabel}{" "}
+                        <span className="font-normal text-muted-foreground">{t.optionnel}</span>
                       </label>
                       <Input
                         id="personnel"
                         value={personnel}
                         onChange={(e) => setPersonnel(e.target.value)}
-                        placeholder="Ex : Julie, la serveuse du midi..."
+                        placeholder=""
                         maxLength={120}
                         autoComplete="off"
                         className="h-12 text-base"
@@ -711,30 +912,29 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                       onClick={() => allerEtape("step3", 1)}
                       className="mt-6 h-14 w-full text-lg font-semibold"
                     >
-                      Continuer
+                      {t.continuer}
                     </Button>
                     <Button
                       variant="ghost"
-                      onClick={retourVersNote}
+                      onClick={() => allerEtape(estPositif ? "step1b" : "step1", -1)}
                       className="mt-1 min-h-11 w-full text-sm text-muted-foreground"
                     >
-                      <ArrowLeft aria-hidden className="size-4" /> Retour
+                      <ArrowLeft aria-hidden className="size-4" /> {t.retour}
                     </Button>
                   </div>
                 )}
 
-                {/* ---------- ÉTAPE 3 : commentaire + envoi ---------- */}
+                {/* ---------- ÉTAPE 3 : commentaire + photo + envoi ---------- */}
                 {phase === "step3" && scanData && (
                   <div>
                     <h1 className="text-balance text-xl font-bold leading-snug text-stone-900 sm:text-2xl">
-                      Un commentaire pour le gérant&nbsp;?{" "}
-                      <span className="text-sm font-normal text-muted-foreground">(optionnel)</span>
+                      {t.titreCommentaire}{" "}
+                      <span className="text-sm font-normal text-muted-foreground">{t.optionnel}</span>
                     </h1>
 
                     {/* Rappel discret de la sélection (tags + personnel) */}
                     {(tags.length > 0 || personnel.trim()) && (
                       <p className="mt-2 break-words text-sm leading-relaxed text-muted-foreground">
-                        Votre sélection :{" "}
                         {[
                           ...tags.map((id) => definitionTag(id, estPositif).label),
                           personnel.trim() ? `👤 ${personnel.trim()}` : null,
@@ -749,14 +949,84 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                       onChange={(e) => setCommentaire(e.target.value)}
                       rows={4}
                       maxLength={2000}
-                      aria-label="Votre commentaire pour le gérant (optionnel)"
-                      placeholder={
-                        estPositif
-                          ? "Ce qui vous a marqué, ce qui a été bien…"
-                          : "Décrivez ce qui s'est passé — seul le gérant le lira."
-                      }
+                      aria-label={t.titreCommentaire}
+                      placeholder={estPositif ? t.commentairePositif : t.commentaireNegatif}
                       className="mt-4 min-h-28 text-base"
                     />
+
+                    {/* D2 : ajout de photo (optionnel) */}
+                    <div className="mt-4">
+                      <p className="mb-1.5 text-sm font-medium text-stone-700">{t.photoLabel}</p>
+                      {photoUrl ? (
+                        <div className="flex items-center gap-3 rounded-xl border border-stone-200 p-2.5">
+                          <img
+                            src={photoUrl}
+                            alt="Photo jointe"
+                            className="size-16 shrink-0 rounded-lg border border-stone-200 object-cover"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs text-muted-foreground">{t.photoAide}</p>
+                            <div className="mt-1.5 flex gap-2">
+                              <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                className="h-8"
+                                onClick={() => photoInputRef.current?.click()}
+                              >
+                                <Upload className="me-1 h-3.5 w-3.5" aria-hidden />
+                                {t.photoChanger}
+                              </Button>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-8 text-rose-600 hover:bg-rose-50"
+                                onClick={() => {
+                                  setPhotoUrl(null)
+                                  setPhotoErreur(null)
+                                }}
+                              >
+                                <Trash2 className="me-1 h-3.5 w-3.5" aria-hidden />
+                                {t.photoRetirer}
+                              </Button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <label
+                          htmlFor="photo-input"
+                          className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed border-stone-300 bg-stone-50 p-3 transition-colors hover:border-primary/40 hover:bg-primary/5"
+                        >
+                          <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                            {photoEnCours ? (
+                              <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                            ) : (
+                              <ImagePlus className="h-5 w-5" aria-hidden />
+                            )}
+                          </span>
+                          <span className="min-w-0">
+                            <span className="block text-sm font-medium text-stone-700">
+                              {photoEnCours ? t.photoEnCours : t.photoChoisir}
+                            </span>
+                            <span className="block text-xs text-muted-foreground">{t.photoAide}</span>
+                          </span>
+                          <input
+                            ref={photoInputRef}
+                            id="photo-input"
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,image/gif"
+                            className="sr-only"
+                            onChange={onPhotoChoisie}
+                          />
+                        </label>
+                      )}
+                      {photoErreur && (
+                        <p className="mt-1.5 text-xs text-rose-600" role="alert">
+                          {photoErreur}
+                        </p>
+                      )}
+                    </div>
 
                     {/* Email optionnel : permet au commerçant de répondre au client */}
                     <div className="mt-3">
@@ -767,13 +1037,12 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                         onChange={(e) => setEmailClient(e.target.value)}
                         maxLength={120}
                         autoComplete="off"
-                        aria-label="Votre email (optionnel, pour permettre au gérant de vous répondre)"
-                        placeholder="Votre email (optionnel, pour une réponse du gérant)"
+                        aria-label={t.emailLabel}
+                        placeholder={t.emailLabel}
                         className="text-base"
                       />
                       <p className="mt-1.5 text-xs leading-relaxed text-stone-500">
-                        Laissez votre email si vous souhaitez que le gérant vous réponde. Sinon, votre retour restera
-                        anonyme.
+                        {t.emailAide}
                       </p>
                     </div>
 
@@ -792,7 +1061,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                             onClick={() => envoyer(dernierCanal)}
                             className="mt-1 h-9 px-2 text-sm font-semibold text-rose-700 underline underline-offset-2 hover:bg-rose-100 hover:text-rose-800"
                           >
-                            Réessayer
+                            {t.reessayer}
                           </Button>
                         </div>
                       </div>
@@ -812,16 +1081,14 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                           htmlFor="geo-consent"
                           className="cursor-pointer text-xs leading-relaxed text-stone-600"
                         >
-                          J&apos;accepte que ma{" "}
-                          <span className="font-semibold">ville approximative</span> (déduite de mon adresse IP,
-                          jamais stockée) soit enregistrée pour la lutte anti-fraude.{" "}
+                          {t.geoConsent}{" "}
                           <a
                             href="/confidentialite"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="font-medium text-primary underline underline-offset-2"
                           >
-                            Politique de confidentialité
+                            {t.politique}
                           </a>
                         </label>
                       </div>
@@ -833,9 +1100,9 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                       <div className="mt-3 flex items-start gap-2.5 rounded-xl border border-amber-200 bg-amber-50 p-3 text-left">
                         <Gift className="mt-0.5 size-5 shrink-0 text-amber-600" aria-hidden />
                         <div className="min-w-0">
-                          <p className="text-sm font-semibold text-amber-900">Petite attention offerte 🎁</p>
+                          <p className="text-sm font-semibold text-amber-900">🎁 {scanData.pro.recompense}</p>
                           <p className="mt-0.5 text-xs leading-relaxed text-amber-800">
-                            {scanData.pro.recompense} — dévoilée juste après l&apos;envoi&nbsp;!
+                            — dévoilée juste après l&apos;envoi&nbsp;!
                           </p>
                         </div>
                       </div>
@@ -851,12 +1118,11 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                         >
                           {soumission === "whatsapp" ? (
                             <>
-                              <Loader2 className="size-5 animate-spin" aria-hidden /> Envoi en
-                              cours…
+                              <Loader2 className="size-5 animate-spin" aria-hidden /> {t.envoiEnCours}
                             </>
                           ) : (
                             <>
-                              <MessageCircle className="size-5" aria-hidden /> Envoyer via WhatsApp
+                              <MessageCircle className="size-5" aria-hidden /> {t.envoyerWhatsapp}
                             </>
                           )}
                         </Button>
@@ -874,21 +1140,19 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                       >
                         {soumission === "aucun" ? (
                           <>
-                            <Loader2 className="size-5 animate-spin" aria-hidden /> Envoi en cours…
+                            <Loader2 className="size-5 animate-spin" aria-hidden /> {t.envoiEnCours}
                           </>
                         ) : aWhatsApp ? (
-                          "Terminer sans WhatsApp"
+                          t.envoyerSansWhatsapp
                         ) : (
-                          "Terminer"
+                          t.envoyerTerminer
                         )}
                       </Button>
                     </div>
 
                     {/* Rassurance selon la note */}
                     <p className="mt-4 text-center text-xs leading-relaxed text-muted-foreground">
-                      {estPositif
-                        ? "Votre compliment est transmis au gérant avec votre note et vos mots 🎉"
-                        : "🔒 Votre retour reste privé : il est transmis uniquement au gérant."}
+                      {estPositif ? t.rassurancePositif : t.rassuranceNegatif}
                     </p>
 
                     <Button
@@ -896,12 +1160,12 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                       onClick={() => allerEtape("step2", -1)}
                       className="mt-2 min-h-11 w-full text-sm text-muted-foreground"
                     >
-                      <ArrowLeft aria-hidden className="size-4" /> Retour
+                      <ArrowLeft aria-hidden className="size-4" /> {t.retour}
                     </Button>
                   </div>
                 )}
 
-                {/* ---------- SUCCÈS : merci + récompense éventuelle ---------- */}
+                {/* ---------- SUCCÈS : merci + récompense éventuelle + avis Google ---------- */}
                 {phase === "success" && scanData && (
                   <div className="relative flex flex-col items-center gap-4 py-2 text-center">
                     <ConfettiLeger />
@@ -918,7 +1182,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                     </motion.div>
 
                     <h1 className="text-balance text-2xl font-bold text-stone-900">
-                      Merci pour votre retour&nbsp;! 🙏
+                      {t.merci}
                     </h1>
 
                     {recompenseFinale ? (
@@ -931,42 +1195,59 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                         className="w-full rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 shadow-md shadow-amber-500/10"
                       >
                         <p className="text-balance text-lg font-bold leading-snug text-amber-900">
-                          🎁 Votre récompense : {recompenseFinale}
+                          {t.recompenseTitre(recompenseFinale)}
                         </p>
                         {codeRecompense && (
                           <span
                             className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg border-2 border-dashed border-amber-400 bg-white px-3 py-1.5 font-mono text-base font-bold tracking-wide text-amber-900"
-                            aria-label={`Votre code promo : ${codeRecompense}`}
+                            aria-label={`Code promo : ${codeRecompense}`}
                           >
                             <Ticket className="size-4" aria-hidden />
                             {codeRecompense}
                           </span>
                         )}
                         <p className="mt-1.5 text-sm text-amber-800/90">
-                          Montrez cet écran au personnel pour en profiter
+                          {t.recompenseMontrez}
                         </p>
                       </motion.div>
                     ) : estPositif ? (
                       <p className="text-balance text-base text-stone-600">
-                        Votre avis fait toute la différence pour toute l&apos;équipe de{" "}
-                        {scanData.pro.nomEtablissement}. Merci du fond du cœur&nbsp;! 💚
+                        {t.merciPositif(scanData.pro.nomEtablissement)}
                       </p>
                     ) : (
                       /* Carte rassurante pour les retours 1-3★ */
                       <div className="flex items-start gap-3 rounded-2xl border border-stone-200 bg-stone-50 p-4 text-left">
                         <ShieldCheck className="mt-0.5 size-8 shrink-0 text-primary" aria-hidden />
                         <p className="text-sm leading-relaxed text-stone-600">
-                          Votre retour a été transmis en privé au gérant, il a été alerté
-                          directement.
+                          {t.merciNegatif}
                         </p>
                       </div>
+                    )}
+
+                    {/* D8 : avis Google — proposé si note ≥ 4★ + URL configurée */}
+                    {lienAvisGoogle && (
+                      <motion.a
+                        href={lienAvisGoogle}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.4 }}
+                        className="inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-blue-200 bg-blue-50 text-sm font-semibold text-blue-700 transition-colors hover:bg-blue-100"
+                      >
+                        {/* « G » stylisé pour Google */}
+                        <span className="flex size-5 items-center justify-center rounded-full bg-white text-xs font-bold text-blue-700" aria-hidden>
+                          G
+                        </span>
+                        {t.avisGoogle}
+                      </motion.a>
                     )}
 
                     <Button
                       onClick={onExit}
                       className="mt-1 h-14 w-full text-base font-semibold"
                     >
-                      Terminer
+                      {t.envoyerTerminer}
                     </Button>
                   </div>
                 )}
@@ -976,7 +1257,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
         </div>
 
         <p className="mt-4 text-center text-xs text-stone-400">
-          Propulsé par <span className="font-semibold text-stone-500">FeedbackPro</span>
+          {t.propulsePar} <span className="font-semibold text-stone-500">FeedbackPro</span>
         </p>
       </div>
     </div>

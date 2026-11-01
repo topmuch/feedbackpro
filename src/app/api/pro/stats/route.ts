@@ -154,6 +154,58 @@ export async function GET(req: NextRequest) {
     const reclamations = retours.filter((r) => r.note <= 3)
     const interceptees = reclamations.filter((r) => r.statut !== "NEW")
 
+    // ---------- D1 : NPS (Net Promoter Score) ----------
+    // Calculé sur les retours de la période qui ont un NPS renseigné.
+    // Promoteurs = 9-10 · Passifs = 7-8 · Détracteurs = 0-6.
+    // NPS = %Promoteurs − %Détracteurs (échelle −100 à +100).
+    const retoursAvecNps = retours.filter((r) => r.nps !== null && r.nps !== undefined)
+    const promoteurs = retoursAvecNps.filter((r) => (r.nps ?? 0) >= 9).length
+    const passifs = retoursAvecNps.filter((r) => (r.nps ?? 0) >= 7 && (r.nps ?? 0) <= 8).length
+    const detracteurs = retoursAvecNps.filter((r) => (r.nps ?? 0) <= 6).length
+    const totalNps = retoursAvecNps.length
+    const npsScore =
+      totalNps > 0 ? Math.round(((promoteurs - detracteurs) / totalNps) * 100) : null
+
+    // ---------- D5 : Benchmark sectoriel anonymisé ----------
+    // Moyenne des notes de TOUS les Pros du même typeEtablissement (toutes
+    // périodes confondues pour avoir un échantillon significatif), comparée
+    // à la moyenne de l'établissement sur la période sélectionnée.
+    // Anonyme : aucun nom d'établissement n'est divulgué, juste une moyenne.
+    let benchmark: {
+      scoreEtablissement: number
+      scoreSectorielMoyen: number | null
+      ecart: number | null
+      nbEtablissements: number
+    } = {
+      scoreEtablissement: Number(noteMoyenne.toFixed(2)),
+      scoreSectorielMoyen: null,
+      ecart: null,
+      nbEtablissements: 0,
+    }
+    try {
+      const prosMemeSecteur = await db.pro.findMany({
+        where: { typeEtablissement: ctx.pro.typeEtablissement, suspendu: false },
+        select: { id: true },
+      })
+      const idsPros = prosMemeSecteur.map((p) => p.id)
+      if (idsPros.length > 0) {
+        const aggregate = await db.retour.aggregate({
+          _avg: { note: true },
+          _count: { _all: true },
+          where: { proId: { in: idsPros } },
+        })
+        const moySectorielle = aggregate._avg.note ?? null
+        benchmark = {
+          scoreEtablissement: Number(noteMoyenne.toFixed(2)),
+          scoreSectorielMoyen: moySectorielle !== null ? Number(moySectorielle.toFixed(2)) : null,
+          ecart: moySectorielle !== null ? Number((noteMoyenne - moySectorielle).toFixed(2)) : null,
+          nbEtablissements: idsPros.length,
+        }
+      }
+    } catch (e) {
+      console.warn("benchmark sectoriel non calculé (non bloquant)", e)
+    }
+
     return ok({
       periode: periodeBrute,
       nbJours,
@@ -176,6 +228,22 @@ export async function GET(req: NextRequest) {
           ? Math.round((interceptees.length / reclamations.length) * 100)
           : 0,
       },
+      // D1 : NPS (Net Promoter Score) sur la période
+      nps:
+        totalNps > 0
+          ? {
+              score: npsScore,
+              total: totalNps,
+              promoteurs,
+              passifs,
+              detracteurs,
+              pctPromoteurs: Math.round((promoteurs / totalNps) * 100),
+              pctPassifs: Math.round((passifs / totalNps) * 100),
+              pctDetracteurs: Math.round((detracteurs / totalNps) * 100),
+            }
+          : null,
+      // D5 : Benchmark sectoriel anonymisé
+      benchmark,
     })
   } catch (e) {
     console.error("stats error", e)

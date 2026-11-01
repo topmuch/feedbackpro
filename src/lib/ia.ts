@@ -744,3 +744,129 @@ export async function genererRapportIA(
   if (!pro) throw new Error(`Pro introuvable : ${proId}`)
   return genererEtEnregistrerRapport(pro, type, options)
 }
+
+// ============================================================
+// D4 — Alertes intelligentes du Coach IA
+// ------------------------------------------------------------
+// detecterAlertesIntelligentes(proId) :
+//   Compare la note moyenne des dernières 24 h à celle des 7 jours
+//   précédents, ZONE PAR ZONE. Si l'écart est > 1 point sur une zone
+//   (baisse tendancielle), crée :
+//     - une Notification (type "alerte_coach") → cloche du dashboard
+//     - une Alerte (type "INTELLIGENTE") → bannière du Coach IA
+//   Strictement non bloquant : aucune exception propagée.
+//
+// Appelée après chaque nouveau retour (POST /api/retour) pour réagir
+// en temps réel aux baisses de qualité.
+// ============================================================
+
+/** Seuil de déclenchement : écart de note > ce seuil déclenche une alerte */
+const SEUIL_BAISSE_ALERTE = 1 // point sur l'échelle 1-5
+
+/** Fenêtre de comparaison : dernières 24 h vs 7 jours précédents */
+const FENETRE_RECENTE_H = 24
+const FENETRE_REFERENCE_J = 7
+
+/** Nombre minimum de retours sur la période de référence pour qu'une baisse soit significative */
+const MIN_RETOURS_REFERENCE = 2
+
+export async function detecterAlertesIntelligentes(proId: string): Promise<void> {
+  try {
+    const now = new Date()
+    const debutRecent = new Date(now.getTime() - FENETRE_RECENTE_H * 3600 * 1000)
+    const debutReference = new Date(now.getTime() - (FENETRE_REFERENCE_J + 1) * 24 * 3600 * 1000)
+    // La période de référence s'arrête au début de la fenêtre récente (pas de chevauchement)
+    const finReference = debutRecent
+
+    const retours = await db.retour.findMany({
+      where: {
+        proId,
+        createdAt: { gte: debutReference },
+      },
+      select: { note: true, zoneId: true, createdAt: true, zone: { select: { nom: true } } },
+    })
+
+    // Regroupe par zone : notes récentes (24h) vs notes de référence (7j précédents)
+    const parZone = new Map<
+      string,
+      { nom: string; notesRecentes: number[]; notesReference: number[] }
+    >()
+
+    for (const r of retours) {
+      const zoneId = r.zoneId
+      const entree = parZone.get(zoneId) ?? {
+        nom: r.zone?.nom ?? "Zone",
+        notesRecentes: [],
+        notesReference: [],
+      }
+      if (r.createdAt >= debutRecent) {
+        entree.notesRecentes.push(r.note)
+      } else if (r.createdAt < finReference) {
+        entree.notesReference.push(r.note)
+      }
+      parZone.set(zoneId, entree)
+    }
+
+    const pro = await db.pro.findUnique({
+      where: { id: proId },
+      select: { userId: true },
+    })
+    if (!pro) return
+
+    for (const [zoneId, data] of parZone) {
+      // Il faut au moins 1 retour récent ET MIN_RETOURS_REFERENCE retours de référence
+      if (data.notesRecentes.length === 0) continue
+      if (data.notesReference.length < MIN_RETOURS_REFERENCE) continue
+
+      const moyRecente =
+        data.notesRecentes.reduce((s, n) => s + n, 0) / data.notesRecentes.length
+      const moyReference =
+        data.notesReference.reduce((s, n) => s + n, 0) / data.notesReference.length
+      const ecart = moyReference - moyRecente // positif = baisse
+
+      if (ecart > SEUIL_BAISSE_ALERTE) {
+        // Anti-spam : ne crée pas une alerte si une alerte INTELLIGENTE non lue
+        // existe déjà pour cette zone dans les dernières 24h.
+        const existante = await db.alerte.findFirst({
+          where: {
+            proId,
+            type: "INTELLIGENTE",
+            lu: false,
+            createdAt: { gte: debutRecent },
+            message: { contains: data.nom },
+          },
+          select: { id: true },
+        })
+        if (existante) continue
+
+        const titre = `📉 Baisse de qualité détectée — ${data.nom}`
+        const message =
+          `La note moyenne sur la zone « ${data.nom} » a chuté de ${ecart.toFixed(1)} point(s) ` +
+          `ces dernières 24 h (${moyRecente.toFixed(1)}/5) par rapport aux ${FENETRE_REFERENCE_J} jours ` +
+          `précédents (${moyReference.toFixed(1)}/5). Le Coach IA vous recommande d'investiguer rapidement.`
+
+        // 1. Alerte (bannière Coach IA) — type INTELLIGENTE
+        await db.alerte.create({
+          data: {
+            proId,
+            titre,
+            message,
+            canal: "DASHBOARD",
+            type: "INTELLIGENTE",
+          },
+        })
+
+        // 2. Notification (cloche) — type alerte_coach
+        try {
+          await db.notification.create({
+            data: { userId: pro.userId, type: "alerte_coach", titre, message },
+          })
+        } catch (e) {
+          console.warn("Notification alerte_coach non créée (non bloquant)", e)
+        }
+      }
+    }
+  } catch (e) {
+    console.warn("detecterAlertesIntelligentes : échec non bloquant", e)
+  }
+}

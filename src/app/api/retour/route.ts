@@ -16,7 +16,7 @@ import { db } from "@/lib/db"
 import { ok, fail } from "@/lib/session"
 import { retourSchema, firstError } from "@/lib/validation"
 import { tagLabel } from "@/lib/constants"
-import { parseJsonArray } from "@/lib/ia"
+import { parseJsonArray, detecterAlertesIntelligentes } from "@/lib/ia"
 import { analyserEtAlerterRetour } from "@/lib/alertes"
 import { creerNotification } from "@/lib/notifications"
 
@@ -65,7 +65,7 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return fail(firstError(parsed.error), 400)
     }
-    const { qrToken, note, tags, commentaire, personnelMentionne, canalChoisi, emailClient } = parsed.data
+    const { qrToken, note, tags, commentaire, personnelMentionne, canalChoisi, emailClient, nps, photoUrl } = parsed.data
 
     // ---------- Résolution de la zone via le QR token ----------
     const zone = await db.zone.findUnique({
@@ -117,6 +117,10 @@ export async function POST(req: NextRequest) {
         emailClient: emailClient || null,
         canalChoisi,
         ipCity,
+        // D1 : NPS (0-10) — transmis uniquement pour les notes ≥ 4 côté client.
+        nps: typeof nps === "number" ? nps : null,
+        // D2 : photo jointe (URL relative /uploads/…), None si pas de photo.
+        photoUrl: photoUrl || null,
         statut: "NEW",
         // Historique des statuts : entrée initiale à la création
         historique: JSON.stringify([{ statut: "NEW", at: new Date().toISOString() }]),
@@ -150,6 +154,15 @@ export async function POST(req: NextRequest) {
       note <= 2 ? "🚨 Nouveau retour négatif" : "💬 Nouveau retour client",
       `Note ${note}/5 sur la zone « ${zone.nom} »${retour.commentaire ? ` — ${retour.commentaire.slice(0, 80)}` : ""}`
     )
+
+    // ---------- D4 : Alertes intelligentes du Coach IA ----------
+    // Compare les notes des dernières 24 h vs 7 jours précédents, zone par
+    // zone. Si une baisse tendancielle est détectée, crée une Notification
+    // (alerte_coach) + une Alerte (INTELLIGENTE). Strictement non bloquant
+    // et appelé en arrière-plan pour ne pas ralentir la réponse au client.
+    detecterAlertesIntelligentes(pro.id).catch((e) => {
+      console.warn("detecterAlertesIntelligentes (arrière-plan) :", e)
+    })
 
     return ok({
       retour: {

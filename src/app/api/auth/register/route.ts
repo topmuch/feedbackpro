@@ -17,6 +17,7 @@ import { db } from "@/lib/db"
 import { createSession, attachSessionCookie, serializePro, getSessionUser } from "@/lib/session"
 import { registerSchema, firstError } from "@/lib/validation"
 import { POSITIVE_TAGS, NEGATIVE_TAGS } from "@/lib/constants"
+import { configSecteur } from "@/lib/secteurs"
 import { sendEmail, emailBienvenue } from "@/lib/email"
 import { notifierSuperadmins } from "@/lib/notifications"
 
@@ -71,7 +72,8 @@ export async function POST(req: NextRequest) {
 
     // Zones créées à l'inscription (wizard 4 étapes — audit) : noms fournis
     // par le commerçant, dédupliqués (casse insensible). Aucune zone valide
-    // → « Accueil » par défaut (le Pro est toujours prêt à l'emploi).
+    // → fallback sur les zones par défaut du secteur (Task 2), puis « Accueil ».
+    const secteur = configSecteur(typeEtablissement)
     const nomsZones = Array.from(
       new Map(
         (zones || [])
@@ -80,7 +82,19 @@ export async function POST(req: NextRequest) {
           .map((nom) => [nom.toLowerCase(), nom])
       ).values()
     )
+    if (nomsZones.length === 0) nomsZones.push(...secteur.zonesParDefaut)
     if (nomsZones.length === 0) nomsZones.push("Accueil")
+
+    // Tags par défaut adaptés au secteur (Task 2) — fallback sur le catalogue
+    // générique si le secteur n'en fournit pas.
+    const tagsPositifsDefaut =
+      secteur.tagsPositifs.length > 0
+        ? secteur.tagsPositifs
+        : POSITIVE_TAGS.map((t) => t.id)
+    const tagsNegatifsDefaut =
+      secteur.tagsNegatifs.length > 0
+        ? secteur.tagsNegatifs
+        : NEGATIVE_TAGS.map((t) => t.id)
 
     await db.zone.createMany({
       data: nomsZones.map((nom) => ({
@@ -90,8 +104,8 @@ export async function POST(req: NextRequest) {
           nom === "Accueil"
             ? "Réception et prise de contact en début de visite"
             : null,
-        tagsPositifs: JSON.stringify(POSITIVE_TAGS.map((t) => t.id)),
-        tagsNegatifs: JSON.stringify(NEGATIVE_TAGS.map((t) => t.id)),
+        tagsPositifs: JSON.stringify(tagsPositifsDefaut),
+        tagsNegatifs: JSON.stringify(tagsNegatifsDefaut),
       })),
     })
 

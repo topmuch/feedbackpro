@@ -11,7 +11,7 @@
 // ============================================================
 
 import { useEffect, useRef, useState } from "react"
-import { Save, Loader2, Check, Image as ImageIcon, Upload, TriangleAlert, Sparkles, Trash2, Gift } from "lucide-react"
+import { Save, Loader2, Check, Image as ImageIcon, Upload, TriangleAlert, Sparkles, Trash2, Gift, Download, ExternalLink, RefreshCw } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -43,6 +43,9 @@ type ProFinal = {
   onboardingDone: boolean
   suspendu: boolean
   smsAlertes: boolean
+  // D8 : Google Business Profile (saisie manuelle)
+  googleReviewUrl?: string | null
+  googlePlaceId?: string | null
 }
 
 export function SettingsTab() {
@@ -75,6 +78,15 @@ export function SettingsTab() {
   // éditable ici pour éviter deux sources de vérité.
   const [messageWhatsapp, setMessageWhatsapp] = useState("")
 
+  // ---------- D8 : Google Business Profile ----------
+  const [googleReviewUrl, setGoogleReviewUrl] = useState("")
+  const [syncGoogleEnCours, setSyncGoogleEnCours] = useState(false)
+
+  // ---------- D9 : RGPD ----------
+  const [rgpdExportEnCours, setRgpdExportEnCours] = useState(false)
+  const [rgpdSuppressionEnCours, setRgpdSuppressionEnCours] = useState(false)
+  const [confirmationRgpd, setConfirmationRgpd] = useState("")
+
   const [saving, setSaving] = useState(false)
 
   // ---------- (e) Logo ----------
@@ -104,6 +116,8 @@ export function SettingsTab() {
     setFrequenceRapport(pro.frequenceRapport === "hebdomadaire" ? "hebdomadaire" : "quotidien")
     setMessageWhatsapp(pro.messageWhatsapp || "Envoyé via FeedbackPro ✨")
     setLogoActuel(pro.logoUrl || null)
+    // D8 : Google Business Profile
+    setGoogleReviewUrl(pro.googleReviewUrl || "")
   }, [pro])
 
   // ---------- Enregistrement : PUT /api/pro/settings ----------
@@ -122,6 +136,8 @@ export function SettingsTab() {
         messageWhatsapp,
         frequenceRapport,
         smsAlertes,
+        // D8 : Google Business Profile (URL d'avis, saisie manuelle)
+        googleReviewUrl,
       }
       if (logoModifie !== undefined) payload.logoUrl = logoModifie
       const res = await fetch("/api/pro/settings", {
@@ -211,6 +227,66 @@ export function SettingsTab() {
       }
     } catch {
       toast({ title: "Erreur réseau", variant: "destructive" })
+    }
+  }
+
+  // ---------- D8 : Sync Google (placeholder, pas d'API réelle) ----------
+  async function syncGoogle() {
+    setSyncGoogleEnCours(true)
+    // Simulation : en production, on appellerait l'API Google Business Profile
+    // pour récupérer le googlePlaceId et l'URL d'avis à partir du nom + adresse.
+    await new Promise((r) => setTimeout(r, 1200))
+    setSyncGoogleEnCours(false)
+    toast({
+      title: "Sync Google (démo)",
+      description: googleReviewUrl
+        ? "URL d'avis déjà renseignée — saisie manuelle conservée."
+        : "Renseignez manuellement l'URL de votre fiche Google pour activer les avis.",
+    })
+  }
+
+  // ---------- D9 : RGPD - export des données ----------
+  async function exporterRgpd() {
+    setRgpdExportEnCours(true)
+    try {
+      const res = await fetch("/api/pro/rgpd/export", { method: "POST" })
+      if (!res.ok) throw new Error("Export impossible")
+      // Le serveur renvoie un JSON téléchargeable (Content-Disposition attachment)
+      const blob = await res.blob()
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      const nomFichier = `feedbackpro-rgpd-${new Date().toISOString().slice(0, 10)}.json`
+      a.download = nomFichier
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+      toast({ title: "Export RGPD téléchargé ✓", description: nomFichier })
+    } catch {
+      toast({ title: "Erreur", description: "Export impossible pour le moment", variant: "destructive" })
+    } finally {
+      setRgpdExportEnCours(false)
+    }
+  }
+
+  // ---------- D9 : RGPD - suppression définitive du compte ----------
+  async function supprimerCompteRgpd() {
+    setRgpdSuppressionEnCours(true)
+    try {
+      const res = await fetch("/api/pro/rgpd/delete", { method: "POST" })
+      const json = await res.json().catch(() => null)
+      if (res.ok && json?.ok) {
+        toast({ title: "Compte supprimé", description: "Toutes vos données ont été effacées (RGPD)." })
+        await logout()
+        setView("landing")
+      } else {
+        toast({ title: "Erreur", description: json?.error || "Suppression impossible", variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Erreur réseau", variant: "destructive" })
+    } finally {
+      setRgpdSuppressionEnCours(false)
     }
   }
 
@@ -461,6 +537,158 @@ export function SettingsTab() {
               </div>
             )
           })}
+        </CardContent>
+      </Card>
+
+      {/* ================= D8 : Google Business Profile ================= */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <span className="flex size-6 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-xs font-bold text-blue-700" aria-hidden>
+              G
+            </span>
+            Google Business Profile
+          </CardTitle>
+          <CardDescription>
+            Renseignez l&apos;URL de votre fiche d&apos;avis Google. Elle sera proposée aux clients qui laissent une note ≥ 4★.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          <div className="space-y-1.5">
+            <Label htmlFor="st-google-url">URL d&apos;avis Google</Label>
+            <div className="flex flex-col gap-2 sm:flex-row">
+              <Input
+                id="st-google-url"
+                type="url"
+                placeholder="https://www.google.com/maps/place/…"
+                value={googleReviewUrl}
+                onChange={(e) => setGoogleReviewUrl(e.target.value)}
+                className="h-10 sm:flex-1"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-10 shrink-0 gap-1.5"
+                disabled={syncGoogleEnCours}
+                onClick={syncGoogle}
+              >
+                {syncGoogleEnCours ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                ) : (
+                  <RefreshCw className="h-4 w-4" aria-hidden />
+                )}
+                <span className="hidden sm:inline">Sync Google</span>
+                <span className="sm:hidden">Sync</span>
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Pour trouver votre URL : Google Maps → votre établissement → « Partager » → copier le lien.
+            </p>
+          </div>
+          {googleReviewUrl && (
+            <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm">
+              <Check className="h-4 w-4 shrink-0 text-green-600" aria-hidden />
+              <span className="min-w-0 flex-1 truncate text-green-800">
+                Avis Google activé — proposé aux clients satisfaits (≥ 4★)
+              </span>
+              <a
+                href={googleReviewUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-green-700 underline underline-offset-2"
+              >
+                Tester <ExternalLink className="h-3 w-3" aria-hidden />
+              </a>
+            </div>
+          )}
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            ⚠️ Sync Google est un placeholder (démo) : saisissez l&apos;URL manuellement. Aucune API Google n&apos;est appelée.
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* ================= D9 : RGPD - Portabilité & suppression ================= */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base sm:text-lg">RGPD — Vos données</CardTitle>
+          <CardDescription>
+            Conformément au RGPD, vous pouvez exporter ou supprimer définitivement toutes vos données.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Export */}
+          <div className="flex flex-col gap-3 rounded-xl border p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="font-medium text-sm">Exporter mes données</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Télécharge un fichier JSON contenant tous vos retours, zones, employés, alertes, rapports IA, commandes et notifications.
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              className="shrink-0 gap-1.5"
+              disabled={rgpdExportEnCours}
+              onClick={exporterRgpd}
+            >
+              {rgpdExportEnCours ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <Download className="h-4 w-4" aria-hidden />
+              )}
+              Exporter mes données
+            </Button>
+          </div>
+
+          {/* Suppression définitive (RGPD) */}
+          <div className="flex flex-col gap-4 rounded-xl border border-rose-200 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="font-medium text-sm text-rose-700">Supprimer mon compte (RGPD)</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                Supprime définitivement votre compte, votre établissement, toutes vos zones, retours, photos et notifications. Action irréversible.
+              </p>
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" className="shrink-0" disabled={rgpdSuppressionEnCours}>
+                  <Trash2 className="mr-1.5 h-4 w-4" aria-hidden />
+                  Supprimer mon compte
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Supprimer définitivement votre compte ?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Conformément au RGPD (droit à l&apos;oubli), cette action supprimera <strong>toutes</strong> vos données
+                    (établissement, zones, retours, photos, rapports IA, notifications…). Aucune récupération ne sera possible.
+                    Pour confirmer, saisissez <strong>SUPPRIMER</strong> en majuscules :
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <Input
+                  value={confirmationRgpd}
+                  onChange={(e) => setConfirmationRgpd(e.target.value)}
+                  placeholder="SUPPRIMER"
+                  aria-label="Confirmation : saisir SUPPRIMER"
+                  autoComplete="off"
+                />
+                <AlertDialogFooter>
+                  <AlertDialogCancel onClick={() => setConfirmationRgpd("")}>Annuler</AlertDialogCancel>
+                  <AlertDialogAction
+                    disabled={confirmationRgpd !== "SUPPRIMER" || rgpdSuppressionEnCours}
+                    className="bg-rose-600 hover:bg-rose-700"
+                    onClick={(e) => {
+                      e.preventDefault()
+                      supprimerCompteRgpd()
+                    }}
+                  >
+                    {rgpdSuppressionEnCours && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
+                    Supprimer définitivement
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </CardContent>
       </Card>
 

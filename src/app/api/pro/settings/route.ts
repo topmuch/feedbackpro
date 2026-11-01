@@ -50,6 +50,13 @@ export async function PUT(req: NextRequest) {
         ...(champs.recompenseCode !== undefined ? { recompenseCode: champs.recompenseCode } : {}),
         logoUrl,
         ...(champs.smsAlertes !== undefined ? { smsAlertes: champs.smsAlertes } : {}),
+        // D8 : Google Business Profile (saisie manuelle, pas d'API réelle)
+        ...(champs.googleReviewUrl !== undefined
+          ? { googleReviewUrl: champs.googleReviewUrl || null }
+          : {}),
+        ...(champs.googlePlaceId !== undefined
+          ? { googlePlaceId: champs.googlePlaceId || null }
+          : {}),
       },
     })
 

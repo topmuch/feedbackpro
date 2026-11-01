@@ -33,6 +33,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { cn } from "@/lib/utils"
 import { useAppStore } from "@/store/app-store"
@@ -169,6 +170,34 @@ export function ProDashboard() {
   /** Compte suspendu : le guard API renvoie déjà 403, on affiche la bannière */
   const suspendu = (pro as Record<string, unknown> | undefined)?.suspendu === true
 
+  // D7 : multi-établissements — liste des établissements du groupe (parent +
+  // enfants). Le sélecteur ne s'affiche que si des enfants existent.
+  const [etablissements, setEtablissements] = useState<
+    { id: string; nomEtablissement: string; courant: boolean }[]
+  >([])
+  useEffect(() => {
+    if (!session) return
+    let annule = false
+    fetch("/api/pro/etablissements", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (annule || !j?.ok) return
+        const d = j.data
+        const liste: { id: string; nomEtablissement: string; courant: boolean }[] = []
+        if (d.parent) liste.push({ id: d.parent.id, nomEtablissement: d.parent.nomEtablissement, courant: d.parent.id === d.courant?.id })
+        for (const e of d.enfants ?? []) {
+          liste.push({ id: e.id, nomEtablissement: e.nomEtablissement, courant: e.id === d.courant?.id })
+        }
+        setEtablissements(liste)
+      })
+      .catch(() => {
+        /* silencieux : le sélecteur reste masqué */
+      })
+    return () => {
+      annule = true
+    }
+  }, [session])
+
   // Boutons précédent / suivant du navigateur : resynchronise l'onglet
   useEffect(() => {
     function onPopState() {
@@ -277,7 +306,30 @@ export function ProDashboard() {
             >
               <Bot className="h-4 w-4" />
             </div>
-            <p className="truncate font-semibold text-white">{nomEtablissement}</p>
+            {/* D7 : sélecteur d'établissement (multi-sites) — affiché uniquement
+                si le groupe compte plusieurs établissements. Le switch complet
+                nécessite une session dédiée ; le sélecteur liste donc les
+                établissements et indique l'actif ( coche ). */}
+            {etablissements.length > 1 ? (
+              <Select value={etablissements.find((e) => e.courant)?.id ?? etablissements[0]?.id} disabled>
+                <SelectTrigger
+                  className="h-8 w-[180px] border-0 bg-white/15 text-xs font-semibold text-white hover:bg-white/20 focus:ring-0 sm:w-[220px]"
+                  aria-label="Sélectionner un établissement"
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {etablissements.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.courant ? "📍 " : "🏢 "}
+                      {e.nomEtablissement}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            ) : (
+              <p className="truncate font-semibold text-white">{nomEtablissement}</p>
+            )}
           </div>
 
           {/* Droite : badge plan + notifications + déconnexion (icône + tooltip) */}

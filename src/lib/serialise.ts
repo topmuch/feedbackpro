@@ -53,6 +53,10 @@ export function serialiserRetour(
     ipCity: r.ipCity,
     recompenseUtilisee: r.recompenseUtilisee,
     statut: r.statut,
+    // D1 : NPS (0-10) — null si non renseigné (note < 4)
+    nps: r.nps ?? null,
+    // D2 : photo jointe par le client (URL relative /uploads/…)
+    photoUrl: r.photoUrl ?? null,
     // Historique : objets { statut, at } — parse sans conversion en String
     historique: parseJsonTableau<{ statut: string; at: string }>(r.historique),
     lu: r.lu,

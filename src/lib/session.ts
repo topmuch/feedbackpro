@@ -42,6 +42,11 @@ export type ProData = {
   onboardingDone: boolean
   suspendu: boolean
   smsAlertes: boolean
+  /** D7 : ID du Pro parent (multi-établissements), null si établissement principal */
+  proId: string | null
+  /** D8 : Google Business Profile (saisie manuelle, pas d'API réelle) */
+  googlePlaceId: string | null
+  googleReviewUrl: string | null
   createdAt: string
 }
 
@@ -70,6 +75,10 @@ export function serializePro(pro: Pro): ProData {
     onboardingDone: pro.onboardingDone,
     suspendu: pro.suspendu,
     smsAlertes: pro.smsAlertes,
+    // D7 + D8
+    proId: pro.proId,
+    googlePlaceId: pro.googlePlaceId,
+    googleReviewUrl: pro.googleReviewUrl,
     createdAt: pro.createdAt.toISOString(),
   }
 }

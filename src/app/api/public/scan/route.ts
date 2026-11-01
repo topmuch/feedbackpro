@@ -39,6 +39,9 @@ export async function POST(req: NextRequest) {
         whatsapp: zone.pro.whatsapp,
         // Signature personnalisée du pied de message WhatsApp du Pro
         messageWhatsapp: zone.pro.messageWhatsapp,
+        // D8 : URL d'avis Google (saisie manuelle par le commerçant) — proposée
+        // sur l'écran de succès uniquement pour les notes ≥ 4★
+        googleReviewUrl: zone.pro.googleReviewUrl,
       },
       tagsPositifs: parseJsonArray(zone.tagsPositifs),
       tagsNegatifs: parseJsonArray(zone.tagsNegatifs),

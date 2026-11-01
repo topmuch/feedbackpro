@@ -71,6 +71,10 @@ type Retour = {
   createdAt: string
   zone: { nom: string } | null
   employe: { nom: string } | null
+  // D1 : NPS (0-10), null si non renseigné (note < 4)
+  nps?: number | null
+  // D2 : photo jointe (URL relative /uploads/…), null si aucune
+  photoUrl?: string | null
 }
 
 type ZoneFiltre = { id: string; nom: string }
@@ -374,6 +378,17 @@ export function RetoursTab() {
               <Badge variant="outline" className={statutBadgeClass(detail.statut)}>
                 {STATUT_RETOUR_LABEL[detail.statut] ?? detail.statut}
               </Badge>
+              {/* D1 : badge NPS si renseigné (note ≥ 4) */}
+              {typeof detail.nps === "number" && (
+                <Badge
+                  variant="outline"
+                  className="h-5 gap-1 px-1.5 text-[10px] font-normal"
+                  title="Net Promoter Score (0-10)"
+                >
+                  NPS {detail.nps}/10
+                  {(detail.nps ?? 0) >= 9 ? " 🟢" : (detail.nps ?? 0) >= 7 ? " 🟡" : " 🔴"}
+                </Badge>
+              )}
               <span className="ml-auto text-xs text-muted-foreground">{formatDate(detail.createdAt)}</span>
             </div>
 
@@ -443,6 +458,20 @@ export function RetoursTab() {
                 <p className="text-sm italic text-muted-foreground">Aucun commentaire</p>
               )}
             </div>
+
+            {/* D2 : photo jointe par le client (cliquable pour agrandir) */}
+            {detail.photoUrl && (
+              <div>
+                <p className="mb-1.5 text-xs font-medium text-muted-foreground">Photo jointe</p>
+                <a href={detail.photoUrl} target="_blank" rel="noopener noreferrer" className="inline-block">
+                  <img
+                    src={detail.photoUrl}
+                    alt="Photo jointe au retour par le client"
+                    className="max-h-64 rounded-lg border border-border object-cover transition-opacity hover:opacity-90"
+                  />
+                </a>
+              </div>
+            )}
 
             {/* Réponse du commerçant (éditable → POST repondre ou PATCH reponsePro) */}
             <div>

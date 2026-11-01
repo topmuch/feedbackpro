@@ -63,6 +63,24 @@ type StatsApi = {
   parZone?: { zoneNom?: string; nom?: string; noteMoy?: number; total?: number }[]
   /** KPIs libres (noteMoyenne, total, alertes…) */
   kpis?: Record<string, number>
+  /** D1 : NPS (Net Promoter Score) sur la période — null si aucun NPS renseigné */
+  nps?: {
+    score: number | null
+    total: number
+    promoteurs: number
+    passifs: number
+    detracteurs: number
+    pctPromoteurs: number
+    pctPassifs: number
+    pctDetracteurs: number
+  } | null
+  /** D5 : Benchmark sectoriel anonymisé */
+  benchmark?: {
+    scoreEtablissement: number
+    scoreSectorielMoyen: number | null
+    ecart: number | null
+    nbEtablissements: number
+  }
 }
 
 // ---------- Périodes (contrat API : ?periode=7j|30j|90j|1an) ----------
@@ -419,6 +437,110 @@ export function StatsTab() {
         <StatCard icon={() => <span className="text-lg">🚨</span>} label="Alertes (note ≤ 2)" value={alertes} />
         <StatCard icon={() => <span className="text-lg">📍</span>} label="Zones suivies" value={parZone.length} />
       </div>
+
+      {/* ---------- D1 : NPS (Net Promoter Score) + D5 : Benchmark sectoriel ---------- */}
+      {(data?.nps || data?.benchmark) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* NPS */}
+          {data.nps && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base sm:text-lg">Net Promoter Score (NPS)</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Sur {data.nps.total} retour{data.nps.total > 1 ? "s" : ""} avec NPS renseigné ({periodeCourt})
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {/* Score NPS géant */}
+                <div className="flex items-end gap-2">
+                  <span
+                    className={`text-4xl font-bold ${
+                      (data.nps.score ?? 0) >= 50
+                        ? "text-green-600"
+                        : (data.nps.score ?? 0) >= 0
+                          ? "text-amber-600"
+                          : "text-rose-600"
+                    }`}
+                  >
+                    {data.nps.score !== null ? (data.nps.score > 0 ? "+" : "") + data.nps.score : "—"}
+                  </span>
+                  <span className="mb-1 text-xs text-muted-foreground">échelle −100 à +100</span>
+                </div>
+                {/* Segmentation Promoteurs / Passifs / Détracteurs */}
+                <div className="flex h-3 overflow-hidden rounded-full">
+                  <div className="bg-green-500" style={{ width: `${data.nps.pctPromoteurs}%` }} title={`Promoteurs : ${data.nps.pctPromoteurs}%`} />
+                  <div className="bg-amber-400" style={{ width: `${data.nps.pctPassifs}%` }} title={`Passifs : ${data.nps.pctPassifs}%`} />
+                  <div className="bg-rose-500" style={{ width: `${data.nps.pctDetracteurs}%` }} title={`Détracteurs : ${data.nps.pctDetracteurs}%`} />
+                </div>
+                <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                  <div className="rounded-lg bg-green-50 p-2">
+                    <p className="font-bold text-green-700">{data.nps.promoteurs}</p>
+                    <p className="text-muted-foreground">Promoteurs (9-10)</p>
+                    <p className="text-[10px] text-muted-foreground">{data.nps.pctPromoteurs}%</p>
+                  </div>
+                  <div className="rounded-lg bg-amber-50 p-2">
+                    <p className="font-bold text-amber-700">{data.nps.passifs}</p>
+                    <p className="text-muted-foreground">Passifs (7-8)</p>
+                    <p className="text-[10px] text-muted-foreground">{data.nps.pctPassifs}%</p>
+                  </div>
+                  <div className="rounded-lg bg-rose-50 p-2">
+                    <p className="font-bold text-rose-700">{data.nps.detracteurs}</p>
+                    <p className="text-muted-foreground">Détracteurs (0-6)</p>
+                    <p className="text-[10px] text-muted-foreground">{data.nps.pctDetracteurs}%</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Benchmark sectoriel (D5) */}
+          {data.benchmark && data.benchmark.scoreSectorielMoyen !== null && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base sm:text-lg">Benchmark sectoriel</CardTitle>
+                <p className="text-sm text-muted-foreground">
+                  Comparaison anonymisée avec {data.benchmark.nbEtablissements} établissement
+                  {data.benchmark.nbEtablissements > 1 ? "s" : ""} du même secteur
+                </p>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-center">
+                    <p className="text-xs text-muted-foreground">Votre score</p>
+                    <p className="mt-1 text-2xl font-bold text-primary">
+                      {data.benchmark.scoreEtablissement.toFixed(2)}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">/ 5 ({periodeCourt})</p>
+                  </div>
+                  <div className="rounded-lg border border-stone-200 bg-muted/30 p-3 text-center">
+                    <p className="text-xs text-muted-foreground">Moyenne du secteur</p>
+                    <p className="mt-1 text-2xl font-bold text-stone-700">
+                      {data.benchmark.scoreSectorielMoyen.toFixed(2)}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">/ 5 (toutes périodes)</p>
+                  </div>
+                </div>
+                <div
+                  className={`flex items-center justify-center gap-2 rounded-lg p-2.5 text-sm font-semibold ${
+                    (data.benchmark.ecart ?? 0) > 0
+                      ? "bg-green-50 text-green-700"
+                      : (data.benchmark.ecart ?? 0) < 0
+                        ? "bg-rose-50 text-rose-700"
+                        : "bg-muted text-muted-foreground"
+                  }`}
+                >
+                  {(data.benchmark.ecart ?? 0) > 0 ? "▲" : (data.benchmark.ecart ?? 0) < 0 ? "▼" : "="}{" "}
+                  {data.benchmark.ecart !== null && data.benchmark.ecart > 0 ? "+" : ""}
+                  {data.benchmark.ecart?.toFixed(2)} pts vs secteur
+                </div>
+                <p className="text-[11px] leading-relaxed text-muted-foreground">
+                  🔒 Comparaison anonyme : aucun nom d&apos;établissement n&apos;est divulgué, seule la moyenne du secteur est calculée.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* ---------- Évolution des scores sur la période ---------- */}
       <Card>

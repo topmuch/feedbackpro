@@ -292,18 +292,26 @@ export function tagLabel(id: string): string {
   return t ? `${t.emoji} ${t.label}` : id
 }
 
-// ---------- Types d'établissements (Session 1 : hotel, restaurant, boutique, salon, hopital...) ----------
+// ---------- Types d'établissements (multisectoriel — Task 2) ----------
+// Couvre restauration, hébergement, transport, santé, administration, etc.
+// Chaque entrée a une fiche détaillée dans src/lib/secteurs.ts (zones par défaut,
+// tags positifs/négatifs, emoji, description).
 
 export const TYPES_ETABLISSEMENT = [
   "Restaurant",
+  "Fast Food",
   "Hôtel",
-  "Café",
-  "Boulangerie",
-  "Boutique",
+  "Café / Bar",
+  "Boulangerie / Pâtisserie",
+  "Boutique / Commerce",
   "Salon de coiffure",
-  "Institut de beauté",
+  "Institut de beauté / Spa",
   "Garage automobile",
   "Hôpital / Clinique",
+  "Aéroport",
+  "Gare / Station",
+  "Entreprise (accueil public)",
+  "Mairie / Administration",
   "Autre",
 ]
 

@@ -26,6 +26,22 @@ export default function Home() {
   const setAuthMode = useAppStore((s) => s.setAuthMode)
   const setView = useAppStore((s) => s.setView)
 
+  // D6 : enregistrement du Service Worker (PWA installable) — best effort,
+  // silencieux en cas d'échec (navigateurs sans SW / mode privé).
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    if (!("serviceWorker" in navigator)) return
+    // En production seulement : en dev, le SW peut cacher les changements.
+    // On l'active tout de même pour pouvoir tester l'installabilité.
+    const register = () => {
+      navigator.serviceWorker.register("/sw.js").catch(() => {
+        /* silencieux : la PWA reste utilisable sans SW */
+      })
+    }
+    if (document.readyState === "complete") register()
+    else window.addEventListener("load", register, { once: true })
+  }, [])
+
   // Démarrage : détecte le QR scanné (/r/<token> via rewrite, ou ?scan=<token>)
   // puis charge la session. Gère aussi /login et /register (rewrités vers /) :
   // avec les rewrites, l'URL navigateur conserve le PATHNAME → on le lit

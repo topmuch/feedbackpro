@@ -1410,6 +1410,33 @@ function UtilisateursTab() {
   const [confirmSuppression, setConfirmSuppression] = useState<UserLigne | null>(null)
   const { toast } = useToast()
 
+  // ---------- Dialog "Ajouter un utilisateur" ----------
+  const [dialogAjout, setDialogAjout] = useState(false)
+  const [formAjout, setFormAjout] = useState({
+    email: "",
+    password: "",
+    role: "PRO" as "PRO" | "SUPERADMIN",
+    nomEtablissement: "",
+    typeEtablissement: "Restaurant",
+    ville: "",
+    adresse: "",
+  })
+  const [erreurAjout, setErreurAjout] = useState<string | null>(null)
+  const [ajoutEnCours, setAjoutEnCours] = useState(false)
+
+  function reinitialiserFormAjout() {
+    setFormAjout({
+      email: "",
+      password: "",
+      role: "PRO",
+      nomEtablissement: "",
+      typeEtablissement: "Restaurant",
+      ville: "",
+      adresse: "",
+    })
+    setErreurAjout(null)
+  }
+
   const load = useCallback(async () => {
     setLoading(true)
     try {
@@ -1473,6 +1500,36 @@ function UtilisateursTab() {
     }
   }
 
+  // ---------- Création d'un utilisateur (action: "creer") ----------
+  async function creerUtilisateur(e: React.FormEvent) {
+    e.preventDefault()
+    setErreurAjout(null)
+    setAjoutEnCours(true)
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "creer", ...formAjout }),
+      })
+      const json = await res.json()
+      if (json.ok) {
+        toast({
+          title: "Utilisateur créé ✓",
+          description: `${formAjout.email} (${formAjout.role})`,
+        })
+        setDialogAjout(false)
+        reinitialiserFormAjout()
+        await load()
+      } else {
+        setErreurAjout(json.error || "Création impossible")
+      }
+    } catch {
+      setErreurAjout("Impossible de contacter le serveur")
+    } finally {
+      setAjoutEnCours(false)
+    }
+  }
+
   const visibles = users
 
   return (
@@ -1513,6 +1570,19 @@ function UtilisateursTab() {
             </Select>
             <Button variant="outline" size="icon" className="h-10 w-10 shrink-0" onClick={load} aria-label="Rafraîchir">
               <RefreshCw className="h-4 w-4" aria-hidden />
+            </Button>
+            <Button
+              size="sm"
+              className="h-10 shrink-0 gap-1.5"
+              onClick={() => {
+                reinitialiserFormAjout()
+                setDialogAjout(true)
+              }}
+              aria-label="Ajouter un utilisateur"
+            >
+              <Plus className="h-4 w-4" aria-hidden />
+              <span className="hidden sm:inline">Ajouter un utilisateur</span>
+              <span className="sm:hidden">Ajouter</span>
             </Button>
             <Button
               variant="outline"
@@ -1713,6 +1783,151 @@ function UtilisateursTab() {
           )}
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ---------- Dialog : Ajouter un utilisateur ---------- */}
+      <Dialog
+        open={dialogAjout}
+        onOpenChange={(o) => {
+          setDialogAjout(o)
+          if (!o) reinitialiserFormAjout()
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5 text-primary" aria-hidden />
+              Ajouter un utilisateur
+            </DialogTitle>
+            <DialogDescription>
+              Crée un compte manuellement. Aucune session n&apos;est attachée : vous restez connecté·e en tant que superadmin.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={creerUtilisateur} className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5 sm:col-span-2">
+                <Label htmlFor="ajout-email">Email</Label>
+                <Input
+                  id="ajout-email"
+                  type="email"
+                  autoComplete="off"
+                  required
+                  value={formAjout.email}
+                  onChange={(e) => setFormAjout((f) => ({ ...f, email: e.target.value }))}
+                  placeholder="nouveau@etablissement.fr"
+                  className="h-10"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ajout-password">Mot de passe</Label>
+                <Input
+                  id="ajout-password"
+                  type="text"
+                  autoComplete="off"
+                  required
+                  minLength={6}
+                  value={formAjout.password}
+                  onChange={(e) => setFormAjout((f) => ({ ...f, password: e.target.value }))}
+                  placeholder="6 caractères minimum"
+                  className="h-10"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ajout-role">Rôle</Label>
+                <Select
+                  value={formAjout.role}
+                  onValueChange={(v) => setFormAjout((f) => ({ ...f, role: v as "PRO" | "SUPERADMIN" }))}
+                >
+                  <SelectTrigger id="ajout-role" className="h-10">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="PRO">PRO (commerçant)</SelectItem>
+                    <SelectItem value="SUPERADMIN">Superadmin</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            {/* Champs établissement (uniquement si rôle PRO) */}
+            {formAjout.role === "PRO" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-lg border bg-muted/30 p-3">
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label htmlFor="ajout-nom">Nom de l&apos;établissement</Label>
+                  <Input
+                    id="ajout-nom"
+                    required
+                    value={formAjout.nomEtablissement}
+                    onChange={(e) => setFormAjout((f) => ({ ...f, nomEtablissement: e.target.value }))}
+                    placeholder="Ex : Le Petit Bistrot"
+                    className="h-10"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ajout-type">Type d&apos;établissement</Label>
+                  <Select
+                    value={formAjout.typeEtablissement}
+                    onValueChange={(v) => { if (v) setFormAjout((f) => ({ ...f, typeEtablissement: v })) }}
+                  >
+                    <SelectTrigger id="ajout-type" className="h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TYPES_ETABLISSEMENT.map((t) => (
+                        <SelectItem key={t} value={t}>
+                          {t}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ajout-ville">Ville</Label>
+                  <Input
+                    id="ajout-ville"
+                    required
+                    value={formAjout.ville}
+                    onChange={(e) => setFormAjout((f) => ({ ...f, ville: e.target.value }))}
+                    placeholder="Ex : Lyon"
+                    className="h-10"
+                  />
+                </div>
+                <div className="space-y-1.5 sm:col-span-2">
+                  <Label htmlFor="ajout-adresse">Adresse</Label>
+                  <Input
+                    id="ajout-adresse"
+                    required
+                    value={formAjout.adresse}
+                    onChange={(e) => setFormAjout((f) => ({ ...f, adresse: e.target.value }))}
+                    placeholder="Ex : 12 rue de la République"
+                    className="h-10"
+                  />
+                </div>
+              </div>
+            )}
+
+            {erreurAjout && (
+              <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700" role="alert">
+                {erreurAjout}
+              </p>
+            )}
+
+            <DialogFooter>
+              <Button
+                type="button"
+                variant="ghost"
+                disabled={ajoutEnCours}
+                onClick={() => setDialogAjout(false)}
+              >
+                Annuler
+              </Button>
+              <Button type="submit" disabled={ajoutEnCours}>
+                {ajoutEnCours && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
+                Créer le compte
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

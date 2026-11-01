@@ -38,10 +38,10 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/app-store"
-import { TYPES_ETABLISSEMENT } from "@/lib/constants"
+import { TYPES_ETABLISSEMENT, tagLabel } from "@/lib/constants"
+import { SECTEUR_CONFIG, configSecteur } from "@/lib/secteurs"
 import { fileToLogoDataUrl } from "@/lib/image"
 
 // ============================================================
@@ -358,6 +358,10 @@ function InscriptionWizard() {
   // Champ de saisie d'une nouvelle zone (étape 3) — le tableau validé
   // lui-même vit dans react-hook-form (champ "zones")
   const [nouvelleZone, setNouvelleZone] = useState("")
+  // Task 2 : mémorise le dernier secteur dont on a appliqué les zones par
+  // défaut, pour ne PAS écraser les zones personnalisées par l'utilisateur
+  // s'il change de secteur après avoir personnalisé.
+  const [secteurApplique, setSecteurApplique] = useState<string | null>(null)
 
   const refreshSession = useAppStore((s) => s.refreshSession)
   const setView = useAppStore((s) => s.setView)
@@ -391,6 +395,29 @@ function InscriptionWizard() {
 
   const logoActuel = watch("logoUrl")
   const zonesActuelles = watch("zones") ?? []
+  const typeChoisi = watch("typeEtablissement")
+
+  /**
+   * Task 2 — Applique les zones par défaut du secteur choisi.
+   * Stratégie anti-écrasement : on n'écrase les zones courantes QUE si elles
+   * sont encore égales aux défauts du précédent secteur appliqué (ou à la
+   * valeur initiale ["Accueil"]). Si l'utilisateur a personnalisé ses zones,
+   * on conserve son choix. Les tags par défaut sont quant à eux gérés côté
+   * serveur (API /auth/register) — on ne stocke pas les tags dans le wizard.
+   */
+  function appliquerSecteur(nouveauSecteur: string) {
+    const config = configSecteur(nouveauSecteur)
+    const precedent = secteurApplique ? configSecteur(secteurApplique) : null
+    const defautPrecedent = precedent?.zonesParDefaut ?? ["Accueil"]
+    const zonesEncoreDefaut =
+      zonesActuelles.length === 0 ||
+      (zonesActuelles.length === defautPrecedent.length &&
+        zonesActuelles.every((z, i) => z === defautPrecedent[i]))
+    if (zonesEncoreDefaut && config.zonesParDefaut.length > 0) {
+      setValue("zones", [...config.zonesParDefaut], { shouldValidate: true })
+    }
+    setSecteurApplique(nouveauSecteur)
+  }
 
   /** Ajoute une zone (déduplication insensible à la casse, 10 maximum) */
   function ajouterZone() {
@@ -566,29 +593,73 @@ function InscriptionWizard() {
               </div>
 
               <div className="space-y-1.5">
-                <Label htmlFor="typeEtablissement">Type d'établissement</Label>
+                <Label htmlFor="typeEtablissement">Type d&apos;établissement</Label>
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  Sélectionnez votre secteur : nous pré-remplissons vos zones et tags par défaut.
+                </p>
                 <Controller
                   control={control}
                   name="typeEtablissement"
                   render={({ field }) => (
-                    <Select value={field.value} onValueChange={field.onChange}>
-                      <SelectTrigger
-                        id="typeEtablissement"
-                        className="h-11 w-full"
-                        aria-invalid={!!errors.typeEtablissement}
-                      >
-                        <SelectValue placeholder="Sélectionnez le type d'établissement" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {TYPES_ETABLISSEMENT.map((type) => (
-                          <SelectItem key={type} value={type}>
-                            {type}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    <div
+                      role="radiogroup"
+                      aria-label="Type d'établissement"
+                      className="grid max-h-72 grid-cols-2 gap-2 overflow-y-auto rounded-lg border border-border/60 p-2 custom-scrollbar sm:grid-cols-3"
+                    >
+                      {TYPES_ETABLISSEMENT.map((type) => {
+                        const config = SECTEUR_CONFIG[type] ?? SECTEUR_CONFIG.Autre
+                        const selectionne = field.value === type
+                        return (
+                          <button
+                            key={type}
+                            type="button"
+                            role="radio"
+                            aria-checked={selectionne}
+                            onClick={() => {
+                              field.onChange(type)
+                              appliquerSecteur(type)
+                            }}
+                            className={`flex min-h-[88px] flex-col items-start gap-1 rounded-lg border p-2.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                              selectionne
+                                ? "border-primary bg-primary/5 ring-1 ring-primary"
+                                : "border-border bg-background hover:border-primary/40 hover:bg-muted/40"
+                            }`}
+                          >
+                            <span className="text-2xl leading-none" aria-hidden>
+                              {config.emoji}
+                            </span>
+                            <span className="text-xs font-semibold leading-tight">{type}</span>
+                            <span className="line-clamp-2 text-[10px] leading-tight text-muted-foreground">
+                              {config.description}
+                            </span>
+                            {selectionne && (
+                              <span className="mt-0.5 inline-flex items-center gap-1 text-[10px] font-semibold text-primary">
+                                <Check className="h-3 w-3" aria-hidden />
+                                Sélectionné
+                              </span>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
                   )}
                 />
+                {/* Aperçu des zones + tags par défaut du secteur choisi */}
+                {typeChoisi && (
+                  <div className="rounded-lg border border-primary/20 bg-primary/5 p-2.5">
+                    <p className="text-[11px] font-semibold text-primary">
+                      Zones suggérées : {(configSecteur(typeChoisi).zonesParDefaut).join(", ")}
+                    </p>
+                    <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
+                      <span className="font-medium text-green-700">Tags + :</span>{" "}
+                      {configSecteur(typeChoisi).tagsPositifs.map(tagLabel).join(" · ")}
+                    </p>
+                    <p className="text-[11px] leading-snug text-muted-foreground">
+                      <span className="font-medium text-rose-700">Tags − :</span>{" "}
+                      {configSecteur(typeChoisi).tagsNegatifs.map(tagLabel).join(" · ")}
+                    </p>
+                  </div>
+                )}
                 <ErreurChamp message={errors.typeEtablissement?.message} />
               </div>
 

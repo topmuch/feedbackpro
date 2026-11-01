@@ -69,6 +69,14 @@ model Pro {
   // Période d'abonnement (essai 30 jours à la création)
   abonnementDebut   DateTime?
   abonnementFin     DateTime?
+  // D7 (multi-établissements) : Pro parent — si renseigné, ce Pro est un
+  // établissement secondaire rattaché à un compte Pro principal.
+  proId             String?
+  parent            Pro?   @relation("ProChildren", fields: [proId], references: [id], onDelete: SetNull)
+  enfants           Pro[]  @relation("ProChildren")
+  // D8 (Google Business Profile) : lien d'avis Google (saisie manuelle, pas d'API réelle)
+  googlePlaceId     String?
+  googleReviewUrl   String?
   createdAt         DateTime  @default(now())
   updatedAt         DateTime  @updatedAt
 
@@ -130,6 +138,10 @@ model Retour {
   personnelMentionne String? // Nom ou description libre du personnel concerné
   // Email du client (optionnel, pour permettre au commerçant de répondre par email)
   emailClient        String?
+  // D1 : NPS (0-10), collecté uniquement quand la note est ≥ 4★
+  nps                Int?
+  // D2 : photo jointe par le client (URL relative vers /uploads/…)
+  photoUrl           String?
 
   // Métadonnées
   canalChoisi        String? // "whatsapp" | "aucun"
@@ -213,6 +225,8 @@ model Alerte {
   titre     String
   message   String
   canal     String   @default("DASHBOARD") // DASHBOARD | SMS (simulé)
+  // D4 : TEMPS_REEL (note ≤ 2) | INTELLIGENTE (baisse tendancielle détectée par le Coach IA)
+  type      String   @default("TEMPS_REEL")
   lu        Boolean  @default(false)
   createdAt DateTime @default(now())
 

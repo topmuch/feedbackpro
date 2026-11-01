@@ -1,0 +1,312 @@
+// ============================================================
+// FeedbackPro - Traductions de la page de scan client (D3)
+// ------------------------------------------------------------
+// Trois langues : français (fr), anglais (en), arabe (ar).
+// L'arabe impose dir="rtl" au conteneur racine.
+//
+// Détection : navigator.language côté client (première visite), puis
+// mémorisée dans localStorage (clé "fp_scan_lang"). L'utilisateur peut
+// forcer une autre langue via le sélecteur en haut de la page de scan.
+//
+// Scope : chaînes principales affichées au client (titre, note, tags,
+// commentaire, envoi, remerciement, NPS, photo). Les chaînes très
+// secondaires (aria-labels annexes, liens légaux) restent en FR pour
+// ne pas exploser le scope — la page reste parfaitement utilisable.
+// ============================================================
+
+export type LangueScan = "fr" | "en" | "ar"
+
+export const LANGUES_SCAN: { id: LangueScan; label: string; flag: string }[] = [
+  { id: "fr", label: "Français", flag: "🇫🇷" },
+  { id: "en", label: "English", flag: "🇬🇧" },
+  { id: "ar", label: "العربية", flag: "🇸🇦" },
+]
+
+/** Interface explicite des traductions (évite l'inférence de littéraux
+ *  incompatibles entre langues via `as const`). */
+export interface TraductionsScan {
+  dir: "ltr" | "rtl"
+  charger: string
+  quitter: string
+  sousTitre: string
+  // Étape 1 — note. La zone est insérée entre prefix et suffix pour
+  // permettre de la styliser (span coloré) sans fonction JSX.
+  questionNotePrefix: string
+  questionNoteSuffix: string
+  libellesNote: Record<number, string>
+  ariaEtoiles: string
+  donnerEtoiles: (n: number) => string
+  retour: string
+  // NPS (étape 1b)
+  questionNps: string
+  npsSousTitre: string
+  npsIgnorer: string
+  continuer: string
+  // Étape 2 — tags
+  titrePositif: string
+  titreNegatif: string
+  sousTitreTags: string
+  ariaTagsPositifs: string
+  ariaTagsNegatifs: string
+  personnelLabel: string
+  optionnel: string
+  // Étape 3 — commentaire + envoi
+  titreCommentaire: string
+  commentairePositif: string
+  commentaireNegatif: string
+  emailLabel: string
+  emailAide: string
+  geoConsent: string
+  politique: string
+  // Photo (D2)
+  photoLabel: string
+  photoAide: string
+  photoChoisir: string
+  photoChanger: string
+  photoRetirer: string
+  photoEnCours: string
+  photoTropGrande: string
+  photoFormat: string
+  // Boutons d'envoi
+  envoyerWhatsapp: string
+  envoyerTerminer: string
+  envoyerSansWhatsapp: string
+  envoiEnCours: string
+  rassurancePositif: string
+  rassuranceNegatif: string
+  // Succès
+  merci: string
+  merciPositif: (etab: string) => string
+  merciNegatif: string
+  recompenseTitre: (r: string) => string
+  recompenseMontrez: string
+  erreurQr: string
+  erreurQrAide: string
+  reessayer: string
+  retourAccueil: string
+  propulsePar: string
+  // Google review (D8)
+  avisGoogle: string
+  avisGoogleAide: string
+}
+
+export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
+  fr: {
+    dir: "ltr",
+    charger: "Chargement de votre formulaire…",
+    quitter: "Quitter et revenir en arrière",
+    sousTitre: "Votre avis compte — 15 secondes chrono ⏱️",
+    questionNotePrefix: "Comment évaluez-vous ",
+    questionNoteSuffix: " ?",
+    libellesNote: { 1: "Aïe, désolé…", 2: "Bof…", 3: "Moyen", 4: "Très bien !", 5: "Génial !" },
+    ariaEtoiles: "Votre note de 1 à 5 étoiles",
+    donnerEtoiles: (n) => `Donner ${n} étoile${n > 1 ? "s" : ""}`,
+    retour: "Retour",
+    questionNps: "Recommanderiez-vous cet établissement ?",
+    npsSousTitre: "De 0 (pas du tout) à 10 (absolument)",
+    npsIgnorer: "Ignorer",
+    continuer: "Continuer",
+    titrePositif: "🎉 Super ! Qu'avez-vous particulièrement apprécié ?",
+    titreNegatif: "😔 Nous sommes désolés. Qu'est-ce qui n'a pas été ?",
+    sousTitreTags: "Sélectionnez tout ce qui s'applique (optionnel)",
+    ariaTagsPositifs: "Points positifs",
+    ariaTagsNegatifs: "Points à améliorer",
+    personnelLabel: "Personnel concerné ?",
+    optionnel: "(optionnel)",
+    titreCommentaire: "Un commentaire pour le gérant ?",
+    commentairePositif: "Ce qui vous a marqué, ce qui a été bien…",
+    commentaireNegatif: "Décrivez ce qui s'est passé — seul le gérant le lira.",
+    emailLabel: "Votre email (optionnel, pour une réponse du gérant)",
+    emailAide:
+      "Laissez votre email si vous souhaitez que le gérant vous réponde. Sinon, votre retour restera anonyme.",
+    geoConsent:
+      "J'accepte que ma ville approximative (déduite de mon adresse IP, jamais stockée) soit enregistrée pour la lutte anti-fraude.",
+    politique: "Politique de confidentialité",
+    photoLabel: "Ajouter une photo (optionnel)",
+    photoAide: "PNG, JPEG ou WebP — 5 Mo maximum. Redimensionnée automatiquement.",
+    photoChoisir: "Choisir une photo",
+    photoChanger: "Changer la photo",
+    photoRetirer: "Retirer la photo",
+    photoEnCours: "Traitement…",
+    photoTropGrande: "Photo trop volumineuse (5 Mo maximum)",
+    photoFormat: "Format non supporté (PNG, JPEG, WebP ou GIF)",
+    envoyerWhatsapp: "Envoyer via WhatsApp",
+    envoyerTerminer: "Terminer",
+    envoyerSansWhatsapp: "Terminer sans WhatsApp",
+    envoiEnCours: "Envoi en cours…",
+    rassurancePositif:
+      "Votre compliment est transmis au gérant avec votre note et vos mots 🎉",
+    rassuranceNegatif:
+      "🔒 Votre retour reste privé : il est transmis uniquement au gérant.",
+    merci: "Merci pour votre retour ! 🙏",
+    merciPositif: (etab) =>
+      `Votre avis fait toute la différence pour toute l'équipe de ${etab}. Merci du fond du cœur ! 💚`,
+    merciNegatif:
+      "Votre retour a été transmis en privé au gérant, il a été alerté directement.",
+    recompenseTitre: (r) => `🎁 Votre récompense : ${r}`,
+    recompenseMontrez: "Montrez cet écran au personnel pour en profiter",
+    erreurQr: "QR code inconnu ou expiré",
+    erreurQrAide: "Vérifiez le QR code affiché chez le commerçant, puis réessayez.",
+    reessayer: "Réessayer",
+    retourAccueil: "Retour à l'accueil",
+    propulsePar: "Propulsé par",
+    avisGoogle: "Laissez un avis Google",
+    avisGoogleAide: "Ça aide beaucoup l'établissement — merci !",
+  },
+  en: {
+    dir: "ltr",
+    charger: "Loading your form…",
+    quitter: "Quit and go back",
+    sousTitre: "Your feedback matters — 15 seconds ⏱️",
+    questionNotePrefix: "How would you rate ",
+    questionNoteSuffix: "?",
+    libellesNote: { 1: "Ouch, sorry…", 2: "Meh…", 3: "Okay", 4: "Very good!", 5: "Awesome!" },
+    ariaEtoiles: "Your rating from 1 to 5 stars",
+    donnerEtoiles: (n) => `Give ${n} star${n > 1 ? "s" : ""}`,
+    retour: "Back",
+    questionNps: "Would you recommend this place?",
+    npsSousTitre: "From 0 (not at all) to 10 (absolutely)",
+    npsIgnorer: "Skip",
+    continuer: "Continue",
+    titrePositif: "🎉 Great! What did you enjoy most?",
+    titreNegatif: "😔 We're sorry. What went wrong?",
+    sousTitreTags: "Select all that apply (optional)",
+    ariaTagsPositifs: "Positive points",
+    ariaTagsNegatifs: "Points to improve",
+    personnelLabel: "Staff member involved?",
+    optionnel: "(optional)",
+    titreCommentaire: "A comment for the manager?",
+    commentairePositif: "What stood out, what was good…",
+    commentaireNegatif: "Describe what happened — only the manager will read it.",
+    emailLabel: "Your email (optional, for a manager reply)",
+    emailAide:
+      "Leave your email if you'd like the manager to reply. Otherwise your feedback stays anonymous.",
+    geoConsent:
+      "I agree that my approximate city (derived from my IP, never stored) be recorded for fraud prevention.",
+    politique: "Privacy policy",
+    photoLabel: "Add a photo (optional)",
+    photoAide: "PNG, JPEG or WebP — 5 MB max. Auto-resized.",
+    photoChoisir: "Choose a photo",
+    photoChanger: "Change photo",
+    photoRetirer: "Remove photo",
+    photoEnCours: "Processing…",
+    photoTropGrande: "Photo too large (5 MB max)",
+    photoFormat: "Unsupported format (PNG, JPEG, WebP or GIF)",
+    envoyerWhatsapp: "Send via WhatsApp",
+    envoyerTerminer: "Done",
+    envoyerSansWhatsapp: "Done without WhatsApp",
+    envoiEnCours: "Sending…",
+    rassurancePositif: "Your compliment was sent to the manager with your rating and words 🎉",
+    rassuranceNegatif: "🔒 Your feedback stays private: only the manager sees it.",
+    merci: "Thank you for your feedback! 🙏",
+    merciPositif: (etab) =>
+      `Your feedback means a lot to the whole team at ${etab}. Thank you from the bottom of our hearts! 💚`,
+    merciNegatif: "Your feedback was sent privately to the manager — they've been alerted.",
+    recompenseTitre: (r) => `🎁 Your reward: ${r}`,
+    recompenseMontrez: "Show this screen to the staff to claim it",
+    erreurQr: "Unknown or expired QR code",
+    erreurQrAide: "Check the QR code displayed by the merchant, then try again.",
+    reessayer: "Try again",
+    retourAccueil: "Back to home",
+    propulsePar: "Powered by",
+    avisGoogle: "Leave a Google review",
+    avisGoogleAide: "It really helps the business — thank you!",
+  },
+  ar: {
+    dir: "rtl",
+    charger: "جاري تحميل النموذج…",
+    quitter: "الخروج والرجوع",
+    sousTitre: "رأيك يهمنا — 15 ثانية فقط ⏱️",
+    questionNotePrefix: "كيف تقيّم ",
+    questionNoteSuffix: "؟",
+    libellesNote: { 1: "آسف جداً…", 2: "ليس جيداً…", 3: "متوسط", 4: "جيد جداً!", 5: "رائع!" },
+    ariaEtoiles: "تقييمك من 1 إلى 5 نجوم",
+    donnerEtoiles: (n) => `إعطاء ${n} نج${n > 1 ? "وم" : "مة"}`,
+    retour: "رجوع",
+    questionNps: "هل تنصح بهذا المكان؟",
+    npsSousTitre: "من 0 (إطلاقاً) إلى 10 (بالتأكيد)",
+    npsIgnorer: "تخطي",
+    continuer: "متابعة",
+    titrePositif: "🎉 رائع! ما الذي أعجبك أكثر؟",
+    titreNegatif: "😔 نعتذر. ما الذي لم يكن جيداً؟",
+    sousTitreTags: "اختر كل ما ينطبق (اختياري)",
+    ariaTagsPositifs: "النقاط الإيجابية",
+    ariaTagsNegatifs: "نقاط للتحسين",
+    personnelLabel: "الموظف المعني؟",
+    optionnel: "(اختياري)",
+    titreCommentaire: "تعليق للمدير؟",
+    commentairePositif: "ما الذي لفت انتباهك، ما كان جيداً…",
+    commentaireNegatif: "صف ما حدث — سيقرأه المدير فقط.",
+    emailLabel: "بريدك الإلكتروني (اختياري، لرد المدير)",
+    emailAide:
+      "اترك بريدك الإلكتروني إذا كنت تريد أن يرد عليك المدير. وإلا سيبقى رأيك مجهولاً.",
+    geoConsent:
+      "أوافق على تسجيل مدينتي التقريبية (المستنتجة من عنوان IP الخاص بي، غير مخزنة) لمنع الاحتيال.",
+    politique: "سياسة الخصوصية",
+    photoLabel: "إضافة صورة (اختياري)",
+    photoAide: "PNG أو JPEG أو WebP — 5 ميغا كحد أقصى. يتم تغيير الحجم تلقائياً.",
+    photoChoisir: "اختر صورة",
+    photoChanger: "تغيير الصورة",
+    photoRetirer: "إزالة الصورة",
+    photoEnCours: "جاري المعالجة…",
+    photoTropGrande: "الصورة كبيرة جداً (5 ميغا كحد أقصى)",
+    photoFormat: "صيغة غير مدعومة (PNG أو JPEG أو WebP أو GIF)",
+    envoyerWhatsapp: "إرسال عبر واتساب",
+    envoyerTerminer: "إنهاء",
+    envoyerSansWhatsapp: "إنهاء بدون واتساب",
+    envoiEnCours: "جاري الإرسال…",
+    rassurancePositif: "تم إرسال إطرائك إلى المدير مع تقييمك وكلماتك 🎉",
+    rassuranceNegatif: "🔒 رأيك يبقى خاصاً: يراه المدير فقط.",
+    merci: "شكراً على رأيك! 🙏",
+    merciPositif: (etab) =>
+      `رأيك يعني الكثير لفريق ${etab} بأكمله. شكراً من صميم القلب! 💚`,
+    merciNegatif: "تم إرسال رأيك بشكل خاص إلى المدير — تم تنبيهه.",
+    recompenseTitre: (r) => `🎁 مكافأتك: ${r}`,
+    recompenseMontrez: "اعرض هذه الشاشة على الموظف للحصول عليها",
+    erreurQr: "رمز QR غير معروف أو منتهي الصلاحية",
+    erreurQrAide: "تحقق من رمز QR المعروض لدى التاجر، ثم أعد المحاولة.",
+    reessayer: "إعادة المحاولة",
+    retourAccueil: "العودة إلى الرئيسية",
+    propulsePar: "مدعوم من",
+    avisGoogle: "اترك تقييم Google",
+    avisGoogleAide: "هذا يساعد المنشأة كثيراً — شكراً!",
+  },
+}
+
+/**
+ * Détecte la langue préférée du navigateur. Retourne "fr" par défaut si la
+ * détection échoue ou si la langue détectée n'est pas supportée.
+ */
+export function detecterLangueNavigateur(): LangueScan {
+  try {
+    const lang = (navigator.language || "fr").toLowerCase()
+    if (lang.startsWith("ar")) return "ar"
+    if (lang.startsWith("en")) return "en"
+    return "fr"
+  } catch {
+    return "fr"
+  }
+}
+
+/** Clé localStorage de la langue mémorisée pour la page de scan */
+export const CLE_LANGUE_SCAN = "fp_scan_lang"
+
+/** Lit la langue mémorisée (localStorage), sinon null */
+export function lireLangueMemorisee(): LangueScan | null {
+  try {
+    const v = localStorage.getItem(CLE_LANGUE_SCAN)
+    if (v === "fr" || v === "en" || v === "ar") return v
+    return null
+  } catch {
+    return null
+  }
+}
+
+/** Mémorise la langue choisie (localStorage — best effort) */
+export function memoriserLangue(lang: LangueScan): void {
+  try {
+    localStorage.setItem(CLE_LANGUE_SCAN, lang)
+  } catch {
+    /* silencieux : la détection navigateur suffira au prochain scan */
+  }
+}

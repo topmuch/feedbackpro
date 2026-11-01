@@ -318,6 +318,16 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
   const [themesData, setThemesData] = useState<ThemesData | null>(null)
   const [themesLoading, setThemesLoading] = useState(true)
 
+  // D4 : alertes intelligentes du Coach IA (baisses tendancielles détectées)
+  type AlerteIntelligente = {
+    id: string
+    titre: string
+    message: string
+    createdAt: string
+    lu: boolean
+  }
+  const [alertesIA, setAlertesIA] = useState<AlerteIntelligente[]>([])
+
   const nomEtablissement = champPro(session?.pro, ["nomEtablissement", "nomCommerce"], "votre établissement")
   const frequence = champPro(session?.pro, ["frequenceRapport"], "quotidien").toLowerCase()
 
@@ -347,6 +357,50 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
   useEffect(() => {
     charger()
   }, [charger])
+
+  // ---------- D4 : chargement des alertes intelligentes (bannières Coach IA) ----------
+  useEffect(() => {
+    let annule = false
+    fetch("/api/pro/alertes", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (annule) return
+        if (j?.ok && Array.isArray(j.data?.alertes)) {
+          // On ne conserve que les alertes INTELLIGENTES non lues (max 5)
+          const ia = (j.data.alertes as Array<Record<string, unknown>>)
+            .filter((a) => a?.type === "INTELLIGENTE" && a?.lu !== true)
+            .slice(0, 5)
+            .map((a) => ({
+              id: String(a.id ?? ""),
+              titre: String(a.titre ?? ""),
+              message: String(a.message ?? ""),
+              createdAt: String(a.createdAt ?? ""),
+              lu: false,
+            }))
+          setAlertesIA(ia)
+        }
+      })
+      .catch(() => {
+        /* silencieux */
+      })
+    return () => {
+      annule = true
+    }
+  }, [])
+
+  // Marquer une alerte intelligente comme lue (PATCH /api/pro/alertes)
+  async function ignorerAlerteIA(id: string) {
+    setAlertesIA((prev) => prev.filter((a) => a.id !== id))
+    try {
+      await fetch("/api/pro/alertes", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      })
+    } catch {
+      /* silencieux */
+    }
+  }
 
   // ---------- Session 5 : analyse sémantique (thèmes cachés) ----------
   // Fetch indépendant au montage (même pattern que stats-tab : guard de démontage).
@@ -708,6 +762,33 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
           {generation ? "Analyse en cours…" : "Générer le rapport maintenant"}
         </Button>
       </div>
+
+      {/* ---------- D4 : Bannière alertes intelligentes du Coach IA ---------- */}
+      {alertesIA.length > 0 && (
+        <section aria-label="Alertes intelligentes du Coach IA" className="space-y-2.5">
+          {alertesIA.map((a) => (
+            <Card key={a.id} className="border-amber-300 bg-amber-50">
+              <CardContent className="flex items-start gap-3 p-3.5">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-200 text-amber-800">
+                <AlertTriangle className="h-5 w-5" aria-hidden />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-amber-900">{a.titre}</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-amber-800">{a.message}</p>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 shrink-0 text-xs text-amber-700 hover:bg-amber-100"
+                onClick={() => ignorerAlerteIA(a.id)}
+              >
+                Ignorer
+              </Button>
+              </CardContent>
+            </Card>
+          ))}
+        </section>
+      )}
 
       {/* ---------- 📊 Rapport du jour (Session 4) ---------- */}
       {scoreDuJour && (
