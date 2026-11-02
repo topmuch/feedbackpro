@@ -3,13 +3,14 @@
 // ============================================================
 // FeedbackPro — Landing SaaS Premium "Linear / Stripe / Vercel"
 // ------------------------------------------------------------
-// 13 sections. Mode sombre permanent (#0A0A0B), glassmorphism,
-// gradients violet → bleu → rose. Aucun fetch, aucune route :
-// toutes les actions passent par onLogin / onSignup (routage
-// Zustand préservé). Animations CSS pur (keyframes globals.css)
-// + IntersectionObserver via le hook useReveal (pas de framer).
-// Le wrapper force la classe "dark" + bg-[#0A0A0B] : la landing
-// est TOUJOURS sombre, indépendamment du toggle global.
+// 13 sections. Version claire (fond blanc), cartes sur bg-white
+// avec bordures gray-200 + shadows douces. Gradients colorés
+// (violet → bleu → rose) conservés sur titres, boutons et accents.
+// Aucun fetch, aucune route : toutes les actions passent par
+// onLogin / onSignup (routage Zustand préservé). Animations CSS
+// pur (keyframes globals.css) + IntersectionObserver via le hook
+// useReveal (pas de framer). Le wrapper n'impose plus la classe
+// "dark" : la landing est claire par défaut.
 // ============================================================
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
@@ -484,7 +485,7 @@ function Etoiles({ note, className = "" }: { note: number; className?: string })
       {Array.from({ length: 5 }).map((_, i) => (
         <Star
           key={i}
-          className={`h-4 w-4 ${i < note ? "fill-amber-400 text-amber-400" : "fill-white/10 text-white/20"}`}
+          className={`h-4 w-4 ${i < note ? "fill-amber-400 text-amber-400" : "fill-gray-200 text-gray-300"}`}
           aria-hidden
         />
       ))}
@@ -505,12 +506,12 @@ type Particle = {
   color: string
 }
 
+// Particules violet/bleu en opacité réduite (visibles sur fond blanc)
 const PARTICULES_COULEURS = [
-  "rgba(139, 92, 246, 0.7)", // violet
-  "rgba(59, 130, 246, 0.7)", // bleu
-  "rgba(236, 72, 153, 0.6)", // rose
-  "rgba(249, 115, 22, 0.55)", // orange
-  "rgba(255, 255, 255, 0.5)", // blanc
+  "rgba(139, 92, 246, 0.3)", // violet
+  "rgba(59, 130, 246, 0.3)", // bleu
+  "rgba(236, 72, 153, 0.25)", // rose
+  "rgba(249, 115, 22, 0.2)", // orange
 ]
 
 function useParticules(count = 40): Particle[] {
@@ -551,7 +552,7 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
     <header
       className={`fixed top-0 z-50 w-full transition-all duration-300 ${
         scrolled
-          ? "border-b border-white/10 bg-black/80 backdrop-blur-xl"
+          ? "border-b border-gray-200 bg-white/80 backdrop-blur-xl"
           : "border-b border-transparent bg-transparent"
       }`}
     >
@@ -578,7 +579,7 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
             <button
               key={lien.id}
               onClick={() => allerVers(lien.id)}
-              className="rounded-md px-3 py-2 text-sm font-medium text-gray-300 transition-colors hover:bg-white/5 hover:text-white"
+              className="rounded-md px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900"
             >
               {lien.label}
             </button>
@@ -591,7 +592,7 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
             variant="ghost"
             size="sm"
             onClick={onLogin}
-            className="text-gray-300 hover:bg-white/5 hover:text-white"
+            className="text-gray-600 hover:bg-gray-100 hover:text-gray-900"
           >
             Se connecter
           </Button>
@@ -611,7 +612,7 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden text-white hover:bg-white/10"
+              className="md:hidden text-gray-900 hover:bg-gray-100"
               aria-label="Ouvrir le menu"
             >
               <Menu className="h-5 w-5" />
@@ -619,10 +620,10 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
           </SheetTrigger>
           <SheetContent
             side="right"
-            className="dark w-[88%] max-w-sm border-l border-white/10 bg-[#0A0A0B] text-white"
+            className="w-[88%] max-w-sm border-l border-gray-200 bg-white text-gray-900"
           >
             <SheetHeader>
-              <SheetTitle className="flex items-center gap-2 text-white">
+              <SheetTitle className="flex items-center gap-2 text-gray-900">
                 <span className="fp-bg-gradient flex h-8 w-8 items-center justify-center rounded-lg">
                   <QrCode className="h-4 w-4 text-white" />
                 </span>
@@ -637,7 +638,7 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
                     setOpen(false)
                     allerVers(lien.id)
                   }}
-                  className="flex items-center justify-between rounded-lg px-3 py-3 text-left text-base font-medium text-gray-200 transition-colors hover:bg-white/5 hover:text-white"
+                  className="flex items-center justify-between rounded-lg px-3 py-3 text-left text-base font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900"
                 >
                   {lien.label}
                   <ChevronRight className="h-4 w-4 text-gray-400" />
@@ -657,7 +658,7 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
               </Button>
               <Button
                 variant="outline"
-                className="w-full border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white"
+                className="w-full border-gray-300 bg-white text-gray-900 hover:bg-gray-100 hover:text-gray-900"
                 onClick={() => {
                   setOpen(false)
                   onLogin()
@@ -668,7 +669,7 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
               <SheetClose asChild>
                 <Button
                   variant="ghost"
-                  className="w-full text-gray-300 hover:bg-white/5 hover:text-white"
+                  className="w-full text-gray-600 hover:bg-gray-100 hover:text-gray-900"
                   onClick={() => allerVers("solution")}
                 >
                   ▶ Voir la démo
@@ -696,11 +697,6 @@ function Hero({ onSignup }: { onSignup: () => void }) {
     >
       {/* Fond mesh animé */}
       <div className="fp-mesh-bg pointer-events-none absolute inset-0 -z-20" aria-hidden />
-      {/* Voile sombre en bas pour fondu vers le noir */}
-      <div
-        className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-transparent via-[#0A0A0B]/40 to-[#0A0A0B]"
-        aria-hidden
-      />
 
       {/* Particules flottantes */}
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden>
@@ -725,8 +721,8 @@ function Hero({ onSignup }: { onSignup: () => void }) {
         {/* Colonne gauche (60%) */}
         <div className="lg:col-span-3">
           <Reveal>
-            <div className="fp-glass fp-pulse-glow inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium text-white">
-              <Sparkles className="h-3.5 w-3.5 text-violet-300" aria-hidden />
+            <div className="fp-pulse-glow inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-1.5 text-xs font-medium text-gray-900 shadow-sm">
+              <Sparkles className="h-3.5 w-3.5 text-violet-500" aria-hidden />
               Nouveau — Client Mystère 2.0 par IA
             </div>
           </Reveal>
@@ -734,7 +730,7 @@ function Hero({ onSignup }: { onSignup: () => void }) {
           <Reveal delay={80}>
             <h1
               id="hero-title"
-              className="mt-6 text-5xl font-extrabold leading-[1.05] tracking-tight text-white sm:text-6xl lg:text-7xl"
+              className="mt-6 text-5xl font-extrabold leading-[1.05] tracking-tight text-gray-900 sm:text-6xl lg:text-7xl"
               style={{ letterSpacing: "-0.03em" }}
             >
               Transformez vos clients en{" "}
@@ -743,7 +739,7 @@ function Hero({ onSignup }: { onSignup: () => void }) {
           </Reveal>
 
           <Reveal delay={160}>
-            <p className="mt-6 max-w-xl text-lg text-gray-400">
+            <p className="mt-6 max-w-xl text-lg text-gray-600">
               FeedbackPro collecte les retours de vos clients en temps réel via QR code, les
               analyse par IA et vous livre chaque matin un rapport d'audit avec vos 3 priorités
               du jour.
@@ -763,7 +759,7 @@ function Hero({ onSignup }: { onSignup: () => void }) {
               <Button
                 size="lg"
                 onClick={() => allerVers("solution")}
-                className="fp-glass h-12 border-0 px-6 text-base text-white hover:bg-white/15"
+                className="h-12 border border-gray-200 bg-white px-6 text-base text-gray-900 shadow-sm hover:bg-gray-50"
               >
                 <Play className="h-4 w-4" />
                 Voir la démo
@@ -775,13 +771,13 @@ function Hero({ onSignup }: { onSignup: () => void }) {
             <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-6">
               <div className="flex items-center gap-2">
                 <Etoiles note={5} />
-                <span className="text-sm font-semibold text-white">4,9/5</span>
+                <span className="text-sm font-semibold text-gray-900">4,9/5</span>
               </div>
-              <div className="hidden h-5 w-px bg-white/15 sm:block" aria-hidden />
-              <div className="flex items-center gap-2 text-sm text-gray-400">
-                <Users className="h-4 w-4 text-violet-400" aria-hidden />
+              <div className="hidden h-5 w-px bg-gray-200 sm:block" aria-hidden />
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Users className="h-4 w-4 text-violet-500" aria-hidden />
                 <span>
-                  <strong className="text-white">127+</strong> établissements conquis
+                  <strong className="text-gray-900">127+</strong> établissements conquis
                 </span>
               </div>
             </div>
@@ -799,14 +795,14 @@ function Hero({ onSignup }: { onSignup: () => void }) {
               />
 
               {/* Carte rapport 3D */}
-              <div className="fp-glass fp-float-mockup rounded-3xl p-6 shadow-[0_25px_80px_-15px_rgba(139,92,246,0.5)]">
+              <div className="fp-float-mockup rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl shadow-purple-500/20">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-gray-200">
-                    <BarChart3 className="h-4 w-4 text-violet-400" />
+                  <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                    <BarChart3 className="h-4 w-4 text-violet-500" />
                     Rapport du jour
                   </div>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-medium text-emerald-300">
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-600">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
                     Live
                   </span>
                 </div>
@@ -837,29 +833,29 @@ function Hero({ onSignup }: { onSignup: () => void }) {
 
                 {/* Priorités du jour */}
                 <div className="mt-5">
-                  <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">
                     Priorités du jour
                   </p>
                   <ul className="mt-3 space-y-2.5">
-                    <li className="flex items-start gap-3 rounded-xl bg-white/5 p-3">
+                    <li className="flex items-start gap-3 rounded-xl bg-gray-50 p-3">
                       <span className="text-lg leading-none">⏳</span>
                       <div>
-                        <p className="text-sm font-medium text-white">Attente salle &gt; 12 min</p>
-                        <p className="text-xs text-gray-400">Pic 12h-13h — renforcer 1 serveur</p>
+                        <p className="text-sm font-medium text-gray-900">Attente salle &gt; 12 min</p>
+                        <p className="text-xs text-gray-600">Pic 12h-13h — renforcer 1 serveur</p>
                       </div>
                     </li>
-                    <li className="flex items-start gap-3 rounded-xl bg-white/5 p-3">
+                    <li className="flex items-start gap-3 rounded-xl bg-gray-50 p-3">
                       <span className="text-lg leading-none">💬</span>
                       <div>
-                        <p className="text-sm font-medium text-white">Personnel distrait en bar</p>
-                        <p className="text-xs text-gray-400">3 signalements — brief équipe</p>
+                        <p className="text-sm font-medium text-gray-900">Personnel distrait en bar</p>
+                        <p className="text-xs text-gray-600">3 signalements — brief équipe</p>
                       </div>
                     </li>
-                    <li className="flex items-start gap-3 rounded-xl bg-white/5 p-3">
+                    <li className="flex items-start gap-3 rounded-xl bg-gray-50 p-3">
                       <span className="text-lg leading-none">🧹</span>
                       <div>
-                        <p className="text-sm font-medium text-white">Toilettes à surveiller</p>
-                        <p className="text-xs text-gray-400">2 signalements — passage 14h</p>
+                        <p className="text-sm font-medium text-gray-900">Toilettes à surveiller</p>
+                        <p className="text-xs text-gray-600">2 signalements — passage 14h</p>
                       </div>
                     </li>
                   </ul>
@@ -867,20 +863,20 @@ function Hero({ onSignup }: { onSignup: () => void }) {
               </div>
 
               {/* Badges flottants autour du mockup */}
-              <div className="fp-glass absolute -right-3 -top-3 rounded-2xl px-3 py-2 shadow-xl" style={{ animation: "fp-float-slow 7s ease-in-out infinite" }}>
+              <div className="absolute -right-3 -top-3 rounded-2xl border border-gray-200 bg-white px-3 py-2 shadow-lg" style={{ animation: "fp-float-slow 7s ease-in-out infinite" }}>
                 <div className="flex items-center gap-2">
                   <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white">
                     <BellRing className="h-3.5 w-3.5" />
                   </span>
                   <div>
-                    <p className="text-[10px] uppercase tracking-widest text-gray-400">Alerte</p>
-                    <p className="text-xs font-semibold text-white">Nouveau signalement</p>
+                    <p className="text-[10px] uppercase tracking-widest text-gray-500">Alerte</p>
+                    <p className="text-xs font-semibold text-gray-900">Nouveau signalement</p>
                   </div>
                 </div>
               </div>
 
               <div
-                className="fp-glass absolute -bottom-4 -left-3 rounded-2xl px-3 py-2 shadow-xl"
+                className="absolute -bottom-4 -left-3 rounded-2xl border border-gray-200 bg-white px-3 py-2 shadow-lg"
                 style={{ animation: "fp-float-slow 7s ease-in-out infinite", animationDelay: "-3s" }}
               >
                 <div className="flex items-center gap-2">
@@ -888,8 +884,8 @@ function Hero({ onSignup }: { onSignup: () => void }) {
                     <Trophy className="h-3.5 w-3.5" />
                   </span>
                   <div>
-                    <p className="text-[10px] uppercase tracking-widest text-gray-400">Top employé</p>
-                    <p className="text-xs font-semibold text-white">Léa — 4,9 ★</p>
+                    <p className="text-[10px] uppercase tracking-widest text-gray-500">Top employé</p>
+                    <p className="text-xs font-semibold text-gray-900">Léa — 4,9 ★</p>
                   </div>
                 </div>
               </div>
@@ -909,7 +905,7 @@ function TrustBar() {
   const logos = [...TRUST_LOGOS, ...TRUST_LOGOS] // duplique pour scroll seamless
   return (
     <section
-      className="border-y border-white/10 bg-black/40 py-12"
+      className="border-y border-gray-200 bg-gray-50 py-12"
       aria-label="Ils nous font confiance"
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -921,18 +917,18 @@ function TrustBar() {
         <Reveal delay={120}>
           <div className="fp-marquee-pause relative mt-8 overflow-hidden">
             {/* Dégradés masqués en bordures */}
-            <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-20 bg-gradient-to-r from-[#0A0A0B] to-transparent" aria-hidden />
-            <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-20 bg-gradient-to-l from-[#0A0A0B] to-transparent" aria-hidden />
+            <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-20 bg-gradient-to-r from-gray-50 to-transparent" aria-hidden />
+            <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-20 bg-gradient-to-l from-gray-50 to-transparent" aria-hidden />
             <div className="fp-marquee flex w-max items-center gap-12">
               {logos.map((nom, i) => (
                 <div
                   key={`${nom}-${i}`}
-                  className="flex shrink-0 items-center gap-2 opacity-50 transition-opacity hover:opacity-100"
+                  className="flex shrink-0 items-center gap-2 opacity-70 transition-opacity hover:opacity-100"
                 >
                   <span className="fp-bg-gradient flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold text-white">
                     {nom.charAt(0)}
                   </span>
-                  <span className="whitespace-nowrap text-lg font-semibold tracking-tight text-gray-300">
+                  <span className="whitespace-nowrap text-lg font-semibold tracking-tight text-gray-400">
                     {nom}
                   </span>
                 </div>
@@ -954,18 +950,18 @@ function ProblemSection() {
     <section id="probleme" className="scroll-mt-24" aria-labelledby="probleme-title">
       <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="fp-glass inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium text-rose-300">
+          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-rose-600 shadow-sm">
             Vous reconnaissez-vous ?
           </span>
           <h2
             id="probleme-title"
-            className="mt-4 text-4xl font-extrabold tracking-tight text-white sm:text-5xl"
+            className="mt-4 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl"
             style={{ letterSpacing: "-0.03em" }}
           >
             Le client insatisfait ne dit rien.{" "}
             <span className="fp-text-gradient">Il part.</span>
           </h2>
-          <p className="mt-4 text-lg text-gray-400">
+          <p className="mt-4 text-lg text-gray-600">
             Sans retour en temps réel, vous pilotez à l'aveugle. Voici ce que vivent chaque jour
             les commerces sans FeedbackPro.
           </p>
@@ -974,12 +970,12 @@ function ProblemSection() {
         <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-3">
           {PROBLEM_CARDS.map((c, i) => (
             <Reveal key={c.titre} delay={i * 100}>
-              <article className="fp-glass fp-lift group h-full rounded-3xl p-6 hover:border-rose-500/40 hover:shadow-[0_0_40px_rgba(244,63,94,0.2)]">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/5 text-3xl shadow-inner">
+              <article className="fp-lift group h-full rounded-3xl border border-gray-200 bg-white p-6 shadow-sm hover:border-rose-300 hover:shadow-xl">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-50 text-3xl shadow-inner">
                   {c.emoji}
                 </div>
-                <h3 className="mt-5 text-lg font-semibold text-white">{c.titre}</h3>
-                <p className="mt-3 text-sm leading-relaxed text-gray-400">{c.texte}</p>
+                <h3 className="mt-5 text-lg font-semibold text-gray-900">{c.titre}</h3>
+                <p className="mt-3 text-sm leading-relaxed text-gray-600">{c.texte}</p>
               </article>
             </Reveal>
           ))}
@@ -997,23 +993,23 @@ function SolutionSection() {
   return (
     <section
       id="solution"
-      className="scroll-mt-24 border-y border-white/10 bg-white/[0.02]"
+      className="scroll-mt-24 border-y border-gray-200 bg-gray-50"
       aria-labelledby="solution-title"
     >
       <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="fp-glass inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium text-violet-300">
+          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-violet-600 shadow-sm">
             <Sparkles className="h-3.5 w-3.5" />
             La solution
           </span>
           <h2
             id="solution-title"
-            className="mt-4 text-4xl font-extrabold tracking-tight text-white sm:text-5xl"
+            className="mt-4 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl"
             style={{ letterSpacing: "-0.03em" }}
           >
             <span className="fp-text-gradient">Le Client Mystère 2.0</span>
           </h2>
-          <p className="mt-4 text-lg text-gray-400">
+          <p className="mt-4 text-lg text-gray-600">
             4 étapes pour transformer chaque client en auditeur qualité — et chaque matin en plan
             d'action concret.
           </p>
@@ -1022,33 +1018,33 @@ function SolutionSection() {
         <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-4 md:gap-4">
           {STEPS.map((s, i) => (
             <Reveal key={s.titre} delay={i * 120}>
-              <div className="fp-glass fp-lift relative flex h-full flex-col items-start overflow-hidden rounded-3xl p-6 hover:border-violet-500/40 hover:shadow-[0_0_40px_rgba(139,92,246,0.25)]">
+              <div className="fp-lift relative flex h-full flex-col items-start overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm hover:border-violet-300 hover:shadow-xl">
                 {/* Numéro 01-04 en arrière-plan */}
                 <span
-                  className="pointer-events-none absolute -right-2 -top-4 text-[7rem] font-extrabold leading-none text-white/5"
+                  className="pointer-events-none absolute -right-2 -top-4 text-[7rem] font-extrabold leading-none text-gray-100"
                   aria-hidden
                 >
                   {String(i + 1).padStart(2, "0")}
                 </span>
 
                 <div className="relative flex items-center gap-3">
-                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 text-2xl">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-50 text-2xl">
                     {s.emoji}
                   </span>
                   <span className="fp-bg-gradient flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white">
                     {i + 1}
                   </span>
                 </div>
-                <h3 className="relative mt-5 text-base font-semibold text-white">{s.titre}</h3>
-                <p className="relative mt-2 text-sm text-gray-400">{s.texte}</p>
+                <h3 className="relative mt-5 text-base font-semibold text-gray-900">{s.titre}</h3>
+                <p className="relative mt-2 text-sm text-gray-600">{s.texte}</p>
 
                 {/* Flèche entre cartes (desktop) */}
                 {i < STEPS.length - 1 && (
                   <div
-                    className="absolute -right-4 top-1/2 z-20 hidden h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-[#0A0A0B] shadow-lg md:flex"
+                    className="absolute -right-4 top-1/2 z-20 hidden h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white shadow-lg md:flex"
                     aria-hidden
                   >
-                    <ArrowRight className="h-4 w-4 text-violet-400" />
+                    <ArrowRight className="h-4 w-4 text-purple-400" />
                   </div>
                 )}
               </div>
@@ -1058,7 +1054,7 @@ function SolutionSection() {
 
         {/* Flèche explicite entre cartes (mobile) */}
         <div className="mt-6 flex justify-center md:hidden">
-          <ArrowDown className="h-5 w-5 text-gray-500" aria-hidden />
+          <ArrowDown className="h-5 w-5 text-gray-400" aria-hidden />
         </div>
       </div>
     </section>
@@ -1074,37 +1070,37 @@ function ComparisonSection() {
     <section id="comparaison" className="scroll-mt-24" aria-labelledby="comparaison-title">
       <div className="mx-auto max-w-5xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="fp-glass inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium text-blue-300">
+          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-blue-600 shadow-sm">
             Comparatif
           </span>
           <h2
             id="comparaison-title"
-            className="mt-4 text-4xl font-extrabold tracking-tight text-white sm:text-5xl"
+            className="mt-4 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl"
             style={{ letterSpacing: "-0.03em" }}
           >
-            Traditionnel <span className="text-gray-500">vs</span>{" "}
+            Traditionnel <span className="text-gray-400">vs</span>{" "}
             <span className="fp-text-gradient">FeedbackPro</span>
           </h2>
-          <p className="mt-4 text-lg text-gray-400">
+          <p className="mt-4 text-lg text-gray-600">
             Même objectif (mesurer votre qualité), mais 10× moins cher, 30× plus rapide et 100×
             plus actionnable.
           </p>
         </Reveal>
 
         <Reveal delay={120}>
-          <div className="fp-glass mt-12 overflow-hidden rounded-3xl">
+          <div className="mt-12 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
             {/* En-tête tableau */}
-            <div className="grid grid-cols-3 border-b border-white/10">
+            <div className="grid grid-cols-3 border-b border-gray-200">
               <div className="px-4 py-5 text-xs font-semibold uppercase tracking-widest text-gray-500 sm:px-6">
                 Critère
               </div>
-              <div className="px-4 py-5 text-sm font-semibold text-gray-300 sm:px-6">
+              <div className="px-4 py-5 text-sm font-semibold text-gray-700 sm:px-6">
                 Client Mystère <span className="hidden sm:inline">traditionnel</span>
               </div>
-              <div className="relative border-l border-purple-500/40 bg-purple-500/10 px-4 py-5 text-sm font-semibold text-white sm:px-6">
+              <div className="relative border-l border-purple-200 bg-purple-50 px-4 py-5 text-sm font-semibold text-gray-900 sm:px-6">
                 <span className="flex flex-wrap items-center gap-2">
                   <span className="fp-text-gradient">FeedbackPro</span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-medium text-emerald-300">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
                     ✅ 10× moins cher
                   </span>
                 </span>
@@ -1115,18 +1111,18 @@ function ComparisonSection() {
             {COMPARISON_ROWS.map((row, i) => (
               <div
                 key={row.critere}
-                className={`grid grid-cols-3 items-center ${i % 2 === 1 ? "bg-white/[0.02]" : ""}`}
+                className={`grid grid-cols-3 items-center ${i % 2 === 1 ? "bg-gray-50/60" : ""}`}
               >
-                <div className="px-4 py-4 text-sm font-medium text-gray-200 sm:px-6">
+                <div className="px-4 py-4 text-sm font-medium text-gray-900 sm:px-6">
                   {row.critere}
                 </div>
-                <div className="flex items-center gap-2 px-4 py-4 text-sm text-gray-400 sm:px-6">
-                  <X className="h-4 w-4 shrink-0 text-rose-400" aria-hidden />
+                <div className="flex items-center gap-2 px-4 py-4 text-sm text-gray-600 sm:px-6">
+                  <X className="h-4 w-4 shrink-0 text-rose-500" aria-hidden />
                   <span>{row.traditionnel}</span>
                 </div>
-                <div className="flex items-center gap-2 border-l border-purple-500/40 bg-purple-500/[0.07] px-4 py-4 text-sm font-medium sm:px-6">
-                  <Check className="h-4 w-4 shrink-0 text-emerald-400" aria-hidden />
-                  <span className="text-white">{row.feedbackpro}</span>
+                <div className="flex items-center gap-2 border-l border-purple-200 bg-purple-50/50 px-4 py-4 text-sm font-medium sm:px-6">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-500" aria-hidden />
+                  <span className="text-gray-900">{row.feedbackpro}</span>
                 </div>
               </div>
             ))}
@@ -1145,23 +1141,23 @@ function FeaturesSection() {
   return (
     <section
       id="fonctionnalites"
-      className="scroll-mt-24 border-y border-white/10 bg-white/[0.02]"
+      className="scroll-mt-24 border-y border-gray-200 bg-gray-50"
       aria-labelledby="features-title"
     >
       <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="fp-glass inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium text-violet-300">
+          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-violet-600 shadow-sm">
             Fonctionnalités
           </span>
           <h2
             id="features-title"
-            className="mt-4 text-4xl font-extrabold tracking-tight text-white sm:text-5xl"
+            className="mt-4 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl"
             style={{ letterSpacing: "-0.03em" }}
           >
             Tout pour piloter votre qualité,{" "}
             <span className="fp-text-gradient">sans effort</span>
           </h2>
-          <p className="mt-4 text-lg text-gray-400">
+          <p className="mt-4 text-lg text-gray-600">
             6 modules qui couvrent l'ensemble du cycle : collecte, analyse, alerte, pilotage,
             formation, déploiement terrain.
           </p>
@@ -1174,7 +1170,7 @@ function FeaturesSection() {
               delay={(i % 3) * 100}
               className={f.grand ? "lg:col-span-4 lg:row-span-2" : "lg:col-span-2"}
             >
-              <article className="fp-glass fp-lift group flex h-full flex-col rounded-3xl p-6 hover:scale-[1.02] hover:border-violet-500/40 hover:shadow-[0_0_50px_rgba(139,92,246,0.25)] sm:p-7">
+              <article className="fp-lift group flex h-full flex-col rounded-3xl border border-gray-200 bg-white p-6 shadow-sm hover:-translate-y-1 hover:border-purple-300 hover:shadow-xl sm:p-7">
                 <div className="flex items-center justify-between">
                   <span className="fp-bg-gradient flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-[0_0_20px_rgba(139,92,246,0.4)]">
                     <f.icone className="h-6 w-6" />
@@ -1183,16 +1179,16 @@ function FeaturesSection() {
                     {f.emoji}
                   </span>
                 </div>
-                <h3 className="mt-5 text-lg font-semibold text-white">{f.titre}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-gray-400">{f.texte}</p>
+                <h3 className="mt-5 text-lg font-semibold text-gray-900">{f.titre}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-gray-600">{f.texte}</p>
 
                 {/* Mini-illustration dans la grande card */}
                 {f.grand && (
                   <div className="mt-auto pt-6">
-                    <div className="fp-glass rounded-2xl p-4">
-                      <div className="flex items-center justify-between text-xs text-gray-400">
+                    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
+                      <div className="flex items-center justify-between text-xs text-gray-500">
                         <span>Évolution du score — 14 jours</span>
-                        <span className="flex items-center gap-1 font-medium text-emerald-300">
+                        <span className="flex items-center gap-1 font-medium text-emerald-600">
                           <TrendingUp className="h-3.5 w-3.5" /> +18 %
                         </span>
                       </div>
@@ -1229,17 +1225,17 @@ function UseCasesSection() {
     <section id="cas-usage" className="scroll-mt-24" aria-labelledby="cas-usage-title">
       <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="fp-glass inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium text-pink-300">
+          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-pink-600 shadow-sm">
             Cas d'usage
           </span>
           <h2
             id="cas-usage-title"
-            className="mt-4 text-4xl font-extrabold tracking-tight text-white sm:text-5xl"
+            className="mt-4 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl"
             style={{ letterSpacing: "-0.03em" }}
           >
             Pensé pour <span className="fp-text-gradient">votre secteur</span>
           </h2>
-          <p className="mt-4 text-lg text-gray-400">
+          <p className="mt-4 text-lg text-gray-600">
             Tags contextuels et zones pré-configurées pour chaque métier. Déployez en quelques
             minutes.
           </p>
@@ -1248,14 +1244,14 @@ function UseCasesSection() {
         <Reveal delay={120}>
           <Tabs defaultValue="hotellerie" className="mt-10">
             <TabsList
-              className="fp-glass flex h-auto w-full flex-nowrap gap-1 overflow-x-auto rounded-2xl p-1.5 no-scrollbar"
+              className="flex h-auto w-full flex-nowrap gap-1 overflow-x-auto rounded-2xl border border-gray-200 bg-gray-100 p-1.5 no-scrollbar"
               aria-label="Secteurs d'activité"
             >
               {USE_CASES.map((uc) => (
                 <TabsTrigger
                   key={uc.id}
                   value={uc.id}
-                  className="flex-1 shrink-0 rounded-xl border border-transparent px-4 py-2 text-sm font-medium text-gray-300 transition-all data-[state=active]:fp-bg-gradient data-[state=active]:border-transparent data-[state=active]:text-white data-[state=active]:shadow-[0_0_20px_rgba(139,92,246,0.4)]"
+                  className="flex-1 shrink-0 rounded-xl border border-transparent px-4 py-2 text-sm font-medium text-gray-600 transition-all hover:bg-gray-200 data-[state=active]:fp-bg-gradient data-[state=active]:border-transparent data-[state=active]:text-white data-[state=active]:shadow-[0_0_20px_rgba(139,92,246,0.4)]"
                 >
                   <span className="mr-1.5">{uc.emoji}</span>
                   <span className="hidden sm:inline">{uc.label}</span>
@@ -1265,16 +1261,16 @@ function UseCasesSection() {
 
             {USE_CASES.map((uc) => (
               <TabsContent key={uc.id} value={uc.id} className="mt-6">
-                <div className="fp-glass rounded-3xl p-6 sm:p-8">
+                <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
                   <div className="flex items-center gap-3">
                     <span className="fp-bg-gradient flex h-12 w-12 items-center justify-center rounded-2xl text-white">
                       <uc.icone className="h-6 w-6" />
                     </span>
                     <div>
-                      <h3 className="text-xl font-semibold text-white">
+                      <h3 className="text-xl font-semibold text-gray-900">
                         {uc.emoji} {uc.label}
                       </h3>
-                      <p className="text-sm text-gray-400">
+                      <p className="text-sm text-gray-600">
                         4 points clés couverts par FeedbackPro
                       </p>
                     </div>
@@ -1284,12 +1280,12 @@ function UseCasesSection() {
                     {uc.points.map((pt) => (
                       <div
                         key={pt.titre}
-                        className="flex items-start gap-3 rounded-2xl bg-white/[0.04] p-4"
+                        className="flex items-start gap-3 rounded-2xl bg-gray-50 p-4"
                       >
-                        <Check className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" aria-hidden />
+                        <Check className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" aria-hidden />
                         <div>
-                          <p className="text-sm font-semibold text-white">{pt.titre}</p>
-                          <p className="mt-0.5 text-sm text-gray-400">{pt.texte}</p>
+                          <p className="text-sm font-semibold text-gray-900">{pt.titre}</p>
+                          <p className="mt-0.5 text-sm text-gray-600">{pt.texte}</p>
                         </div>
                       </div>
                     ))}
@@ -1312,22 +1308,22 @@ function TestimonialsSection() {
   return (
     <section
       id="temoignages"
-      className="scroll-mt-24 border-y border-white/10 bg-white/[0.02]"
+      className="scroll-mt-24 border-y border-gray-200 bg-gray-50"
       aria-labelledby="temoignages-title"
     >
       <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="fp-glass inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium text-amber-300">
+          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-amber-600 shadow-sm">
             Témoignages
           </span>
           <h2
             id="temoignages-title"
-            className="mt-4 text-4xl font-extrabold tracking-tight text-white sm:text-5xl"
+            className="mt-4 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl"
             style={{ letterSpacing: "-0.03em" }}
           >
             Ils ont <span className="fp-text-gradient">transformé leur qualité</span>
           </h2>
-          <p className="mt-4 text-lg text-gray-400">
+          <p className="mt-4 text-lg text-gray-600">
             127+ établissements utilisent FeedbackPro au quotidien. Voici ce qu'ils en disent.
           </p>
         </Reveal>
@@ -1335,25 +1331,25 @@ function TestimonialsSection() {
         <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-3">
           {TESTIMONIALS.map((t, i) => (
             <Reveal key={t.nom} delay={i * 100}>
-              <article className="fp-glass fp-lift flex h-full flex-col rounded-3xl p-6 hover:border-violet-500/40 hover:shadow-[0_0_40px_rgba(139,92,246,0.2)]">
+              <article className="fp-lift flex h-full flex-col rounded-3xl border border-gray-200 bg-white p-6 shadow-sm hover:border-violet-300 hover:shadow-xl">
                 <div className="flex items-center justify-between">
                   <Etoiles note={t.note} />
-                  <Quote className="h-6 w-6 text-violet-400/40" aria-hidden />
+                  <Quote className="h-6 w-6 text-violet-200" aria-hidden />
                 </div>
                 <blockquote className="mt-4 flex-1">
-                  <p className="text-sm italic leading-relaxed text-gray-200">
+                  <p className="text-sm italic leading-relaxed text-gray-700">
                     « {t.citation} »
                   </p>
                 </blockquote>
-                <div className="mt-5 flex items-center gap-3 border-t border-white/10 pt-4">
+                <div className="mt-5 flex items-center gap-3 border-t border-gray-200 pt-4">
                   <span
                     className={`flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br ${t.couleur} text-sm font-bold text-white`}
                   >
                     {t.initiales}
                   </span>
                   <div>
-                    <p className="text-sm font-semibold text-white">{t.nom}</p>
-                    <p className="text-xs text-gray-400">
+                    <p className="text-sm font-semibold text-gray-900">{t.nom}</p>
+                    <p className="text-xs text-gray-600">
                       {t.poste} — {t.etablissement}
                     </p>
                   </div>
@@ -1379,17 +1375,17 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
     <section id="tarifs" className="scroll-mt-24" aria-labelledby="tarifs-title">
       <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="fp-glass inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium text-violet-300">
+          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-violet-600 shadow-sm">
             Tarifs
           </span>
           <h2
             id="tarifs-title"
-            className="mt-4 text-4xl font-extrabold tracking-tight text-white sm:text-5xl"
+            className="mt-4 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl"
             style={{ letterSpacing: "-0.03em" }}
           >
             Un prix adapté à <span className="fp-text-gradient">chaque établissement</span>
           </h2>
-          <p className="mt-4 text-lg text-gray-400">
+          <p className="mt-4 text-lg text-gray-600">
             Sans engagement. Annulation en 1 clic. 14 jours d'essai gratuit, sans carte bancaire.
           </p>
         </Reveal>
@@ -1399,7 +1395,7 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
           <div className="mt-8 flex items-center justify-center gap-3">
             <span
               className={`text-sm font-medium ${
-                !annuel ? "text-white" : "text-gray-500"
+                !annuel ? "text-gray-900" : "text-gray-500"
               }`}
             >
               Mensuel
@@ -1411,7 +1407,7 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
               aria-label="Basculer en facturation annuelle"
               onClick={() => setAnnuel((v) => !v)}
               className={`relative h-7 w-12 rounded-full transition-colors ${
-                annuel ? "fp-bg-gradient" : "bg-white/15"
+                annuel ? "fp-bg-gradient" : "bg-gray-300"
               }`}
             >
               <span
@@ -1422,12 +1418,12 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
             </button>
             <span
               className={`text-sm font-medium ${
-                annuel ? "text-white" : "text-gray-500"
+                annuel ? "text-gray-900" : "text-gray-500"
               }`}
             >
               Annuel
             </span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-300">
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
               -20 %
             </span>
           </div>
@@ -1444,8 +1440,8 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
                 <article
                   className={`fp-lift relative flex h-full flex-col rounded-3xl p-6 sm:p-8 ${
                     plan.populaire
-                      ? "fp-gradient-border fp-card-glow lg:scale-105"
-                      : "fp-glass"
+                      ? "border-2 border-purple-300 bg-white shadow-lg shadow-purple-500/20 lg:scale-105"
+                      : "border border-gray-200 bg-white shadow-sm"
                   }`}
                 >
                   {plan.populaire && (
@@ -1455,14 +1451,14 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
                     </span>
                   )}
 
-                  <h3 className="text-lg font-bold text-white">{plan.nom}</h3>
-                  <p className="mt-1 text-sm text-gray-400">{plan.tagline}</p>
+                  <h3 className="text-lg font-bold text-gray-900">{plan.nom}</h3>
+                  <p className="mt-1 text-sm text-gray-600">{plan.tagline}</p>
 
                   <div className="mt-5 flex items-end gap-1">
-                    <span className="text-5xl font-extrabold tracking-tight text-white">
+                    <span className="text-5xl font-extrabold tracking-tight text-gray-900">
                       {prix} €
                     </span>
-                    <span className="mb-1.5 text-sm text-gray-400">/ mois HT</span>
+                    <span className="mb-1.5 text-sm text-gray-600">/ mois HT</span>
                   </div>
                   <p className="mt-1 text-xs text-gray-500">
                     {annuel ? `Facturé ${prix * 12} € / an` : "Facturé mensuellement"}
@@ -1472,7 +1468,7 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
                     className={`mt-6 w-full border-0 ${
                       plan.populaire
                         ? "fp-bg-gradient text-white hover:opacity-90"
-                        : "bg-white/10 text-white hover:bg-white/20"
+                        : "bg-gray-100 text-gray-900 hover:bg-gray-200"
                     }`}
                     onClick={onSignup}
                   >
@@ -1480,16 +1476,16 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
                     <ArrowRight className="h-4 w-4" />
                   </Button>
 
-                  <ul className="mt-6 space-y-3 border-t border-white/10 pt-6">
+                  <ul className="mt-6 space-y-3 border-t border-gray-200 pt-6">
                     {plan.features.map((f) => (
                       <li key={f.texte} className="flex items-start gap-2.5 text-sm">
                         {f.inclus ? (
-                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" aria-hidden />
+                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" aria-hidden />
                         ) : (
-                          <X className="mt-0.5 h-4 w-4 shrink-0 text-gray-600" aria-hidden />
+                          <X className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" aria-hidden />
                         )}
                         <span
-                          className={f.inclus ? "text-gray-200" : "text-gray-600 line-through"}
+                          className={f.inclus ? "text-gray-700" : "text-gray-400 line-through"}
                         >
                           {f.texte}
                         </span>
@@ -1503,11 +1499,11 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
         </div>
 
         <Reveal delay={120}>
-          <p className="mt-8 text-center text-sm text-gray-400">
+          <p className="mt-8 text-center text-sm text-gray-600">
             Besoin d'une solution sur-mesure pour un grand groupe ?{" "}
             <button
               onClick={onSignup}
-              className="font-medium text-violet-400 underline-offset-4 hover:underline"
+              className="font-medium text-violet-600 underline-offset-4 hover:underline"
             >
               Parlons-en →
             </button>
@@ -1526,22 +1522,22 @@ function FAQSection() {
   return (
     <section
       id="faq"
-      className="scroll-mt-24 border-y border-white/10 bg-white/[0.02]"
+      className="scroll-mt-24 border-y border-gray-200 bg-gray-50"
       aria-labelledby="faq-title"
     >
       <div className="mx-auto max-w-3xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
         <Reveal className="text-center">
-          <span className="fp-glass inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium text-blue-300">
+          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-blue-600 shadow-sm">
             FAQ
           </span>
           <h2
             id="faq-title"
-            className="mt-4 text-4xl font-extrabold tracking-tight text-white sm:text-5xl"
+            className="mt-4 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl"
             style={{ letterSpacing: "-0.03em" }}
           >
             Questions <span className="fp-text-gradient">fréquentes</span>
           </h2>
-          <p className="mt-4 text-lg text-gray-400">
+          <p className="mt-4 text-lg text-gray-600">
             Tout ce que vous devez savoir avant de vous lancer.
           </p>
         </Reveal>
@@ -1552,12 +1548,12 @@ function FAQSection() {
               <AccordionItem
                 key={i}
                 value={`item-${i}`}
-                className="fp-glass mb-3 rounded-2xl border-0 px-5 [&:not(:last-child)]:mb-3"
+                className="mb-3 rounded-2xl border border-gray-200 bg-white px-5 shadow-sm [&:not(:last-child)]:mb-3"
               >
-                <AccordionTrigger className="text-left text-base font-semibold text-white hover:no-underline">
+                <AccordionTrigger className="text-left text-base font-semibold text-gray-900 hover:no-underline">
                   {item.q}
                 </AccordionTrigger>
-                <AccordionContent className="text-sm leading-relaxed text-gray-400">
+                <AccordionContent className="text-sm leading-relaxed text-gray-600">
                   {item.r}
                 </AccordionContent>
               </AccordionItem>
@@ -1577,24 +1573,19 @@ function FinalCTA({ onSignup }: { onSignup: () => void }) {
   return (
     <section className="px-4 py-24 sm:px-6 lg:px-8 lg:py-32" aria-labelledby="cta-title">
       <Reveal>
-        <div className="fp-mesh-bg relative mx-auto max-w-6xl overflow-hidden rounded-3xl border border-white/10 px-6 py-16 text-center shadow-[0_0_80px_rgba(139,92,246,0.3)] sm:px-12 sm:py-20">
-          {/* Voile sombre pour lisibilité */}
-          <div
-            className="pointer-events-none absolute inset-0 bg-[#0A0A0B]/60"
-            aria-hidden
-          />
+        <div className="relative mx-auto max-w-6xl overflow-hidden rounded-3xl border border-purple-500/20 bg-gradient-to-br from-purple-600 to-blue-600 px-6 py-16 text-center shadow-2xl shadow-purple-500/30 sm:px-12 sm:py-20">
           {/* Particules décoratives */}
           <div className="pointer-events-none absolute inset-0" aria-hidden>
             <div
-              className="absolute left-[15%] top-[20%] h-2 w-2 rounded-full bg-violet-400"
+              className="absolute left-[15%] top-[20%] h-2 w-2 rounded-full bg-violet-300"
               style={{ animation: "fp-float-slow 6s ease-in-out infinite" }}
             />
             <div
-              className="absolute right-[20%] top-[30%] h-2 w-2 rounded-full bg-blue-400"
+              className="absolute right-[20%] top-[30%] h-2 w-2 rounded-full bg-blue-300"
               style={{ animation: "fp-float-slow 7s ease-in-out infinite", animationDelay: "-2s" }}
             />
             <div
-              className="absolute left-[30%] bottom-[15%] h-1.5 w-1.5 rounded-full bg-pink-400"
+              className="absolute left-[30%] bottom-[15%] h-1.5 w-1.5 rounded-full bg-pink-300"
               style={{ animation: "fp-float-slow 5s ease-in-out infinite", animationDelay: "-1s" }}
             />
             <div
@@ -1609,9 +1600,9 @@ function FinalCTA({ onSignup }: { onSignup: () => void }) {
               className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl"
               style={{ letterSpacing: "-0.03em" }}
             >
-              Prêt à transformer <span className="fp-text-gradient">votre qualité</span> ?
+              Prêt à transformer <span className="text-pink-200">votre qualité</span> ?
             </h2>
-            <p className="mx-auto mt-4 max-w-xl text-base text-gray-300 sm:text-lg">
+            <p className="mx-auto mt-4 max-w-xl text-base text-white/90 sm:text-lg">
               Rejoignez les 127+ établissements qui pilotent leur qualité en temps réel. Premier
               rapport dès demain matin.
             </p>
@@ -1620,20 +1611,20 @@ function FinalCTA({ onSignup }: { onSignup: () => void }) {
               <Button
                 size="lg"
                 onClick={onSignup}
-                className="fp-bg-gradient fp-pulse-glow h-12 border-0 px-8 text-base text-white hover:opacity-90"
+                className="h-12 border-0 bg-white px-8 text-base text-purple-600 shadow-lg hover:bg-gray-50"
               >
                 Commencer gratuitement
                 <ArrowRight className="h-4 w-4" />
               </Button>
-              <div className="flex flex-col items-center gap-2 text-sm text-gray-300 sm:flex-row sm:gap-6">
+              <div className="flex flex-col items-center gap-2 text-sm text-white/90 sm:flex-row sm:gap-6">
                 <span className="flex items-center gap-1.5">
-                  <Check className="h-4 w-4 text-emerald-400" /> 14 jours d'essai
+                  <Check className="h-4 w-4 text-emerald-300" /> 14 jours d'essai
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <Check className="h-4 w-4 text-emerald-400" /> Sans CB
+                  <Check className="h-4 w-4 text-emerald-300" /> Sans CB
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <Check className="h-4 w-4 text-emerald-400" /> Annulation en 1 clic
+                  <Check className="h-4 w-4 text-emerald-300" /> Annulation en 1 clic
                 </span>
               </div>
             </div>
@@ -1645,13 +1636,13 @@ function FinalCTA({ onSignup }: { onSignup: () => void }) {
 }
 
 // ============================================================
-// 13. Footer (4 colonnes, fond noir)
+// 13. Footer (4 colonnes, fond sombre pour contraste final)
 // ============================================================
 
 function SiteFooter({ onLogin }: { onLogin: () => void }) {
   const annee = new Date().getFullYear()
   return (
-    <footer className="border-t border-white/10 bg-black">
+    <footer className="border-t border-gray-800 bg-gray-900 text-white">
       <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           {/* Colonne 1 : FeedbackPro */}
@@ -1815,7 +1806,7 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
           </nav>
         </div>
 
-        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 sm:flex-row">
+        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-gray-800 pt-6 sm:flex-row">
           <p className="text-xs text-gray-500">
             © {annee} FeedbackPro. Fait avec ❤️ en France.
           </p>
@@ -1835,7 +1826,7 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
 
 export function LandingView({ onLogin, onSignup }: { onLogin: () => void; onSignup: () => void }) {
   return (
-    <div className="dark relative min-h-screen bg-[#0A0A0B] text-white">
+    <div className="relative min-h-screen bg-white text-gray-900">
       <SiteHeader onLogin={onLogin} onSignup={onSignup} />
       <div className="flex-1">
         <Hero onSignup={onSignup} />
