@@ -494,7 +494,7 @@ function Etoiles({ note, className = "" }: { note: number; className?: string })
 // 1. Header sticky
 // ============================================================
 
-function SiteHeader({ onSignup }: { onLogin: () => void; onSignup: () => void }) {
+function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () => void }) {
   const [scrolled, setScrolled] = useState(false)
   const [open, setOpen] = useState(false)
 
@@ -544,9 +544,12 @@ function SiteHeader({ onSignup }: { onLogin: () => void; onSignup: () => void })
         </nav>
 
         {/* CTA desktop */}
-        <div className="hidden items-center gap-2 md:flex">
+        <div className="hidden items-center gap-1 md:flex">
           <Button variant="ghost" size="sm" onClick={() => allerVers("tarifs")}>
             Voir la démo
+          </Button>
+          <Button variant="ghost" size="sm" onClick={onLogin}>
+            Se connecter
           </Button>
           <Button size="sm" onClick={onSignup} className="shadow-sm">
             Essayer gratuitement
@@ -601,8 +604,18 @@ function SiteHeader({ onSignup }: { onLogin: () => void; onSignup: () => void })
                 Essayer gratuitement
                 <ArrowRight className="h-4 w-4" />
               </Button>
+              <Button
+                variant="outline"
+                className="w-full"
+                onClick={() => {
+                  setOpen(false)
+                  onLogin()
+                }}
+              >
+                Se connecter
+              </Button>
               <SheetClose asChild>
-                <Button variant="outline" className="w-full" onClick={() => allerVers("tarifs")}>
+                <Button variant="ghost" className="w-full" onClick={() => allerVers("tarifs")}>
                   Voir la démo
                 </Button>
               </SheetClose>
