@@ -21,6 +21,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/app-store"
+import { cn } from "@/lib/utils"
 
 type TypeRecompense = "cafe" | "reduction" | "autre"
 
@@ -139,7 +140,7 @@ export function RecompensesTab() {
     <div className="space-y-5 max-w-3xl">
       {/* En-tête */}
       <div>
-        <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Récompenses clients</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Récompenses</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Offrez une micro-récompense aux clients qui laissent un retour : fidélisation garantie et
           taux de réponse en hausse.
@@ -154,7 +155,7 @@ export function RecompensesTab() {
       ) : (
         <>
           {/* ---------- Toggle principal ---------- */}
-          <Card>
+          <Card className="shadow-sm">
             <CardContent className="flex items-center justify-between gap-4 p-4 sm:p-5">
               <div className="flex min-w-0 items-start gap-3">
                 <div className="shrink-0 rounded-xl bg-amber-100 p-2.5" aria-hidden>
@@ -181,7 +182,7 @@ export function RecompensesTab() {
 
           {/* ---------- Configuration (visible si activée) ---------- */}
           {active && (
-            <Card>
+            <Card className="shadow-sm">
               <CardHeader>
                 <CardTitle className="text-base sm:text-lg">Configuration de la récompense</CardTitle>
                 <CardDescription>Le code promo n&apos;est révélé qu&apos;après l&apos;envoi du retour.</CardDescription>
@@ -270,7 +271,7 @@ export function RecompensesTab() {
           )}
 
           {/* ---------- Aperçu : ce que verra le client ---------- */}
-          <Card className={active ? "" : "opacity-60"}>
+          <Card className={cn("shadow-sm", !active && "opacity-60")}>
             <CardHeader>
               <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
                 <Eye className="h-4 w-4 text-primary" aria-hidden />
@@ -284,7 +285,7 @@ export function RecompensesTab() {
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
               {/* Teaser étape 3 (avant envoi, SANS code) */}
-              <div className="rounded-2xl border bg-stone-50 p-4">
+              <div className="rounded-2xl border bg-muted/30 p-4">
                 <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Étape 3 — avant l&apos;envoi
                 </p>
@@ -300,7 +301,7 @@ export function RecompensesTab() {
               </div>
 
               {/* Écran de remerciement (APRÈS envoi, avec code) */}
-              <div className="rounded-2xl border bg-stone-50 p-4">
+              <div className="rounded-2xl border bg-muted/30 p-4">
                 <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Écran de remerciement
                 </p>

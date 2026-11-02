@@ -11,7 +11,7 @@
 // ============================================================
 
 import { useEffect, useState } from "react"
-import { Download, FileText } from "lucide-react"
+import { Download, FileText, Star, MessageSquare, AlertTriangle, MapPin } from "lucide-react"
 import { jsPDF } from "jspdf"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -432,10 +432,10 @@ export function StatsTab() {
 
       {/* ---------- KPIs (période sélectionnée) ---------- */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        <StatCard icon={() => <span className="text-lg">⭐</span>} label={`Note moyenne (${periodeCourt})`} value={noteMoyenne ? noteMoyenne.toFixed(2) : "—"} />
-        <StatCard icon={() => <span className="text-lg">💬</span>} label={`Retours (${periodeCourt})`} value={totalRetours} />
-        <StatCard icon={() => <span className="text-lg">🚨</span>} label="Alertes (note ≤ 2)" value={alertes} />
-        <StatCard icon={() => <span className="text-lg">📍</span>} label="Zones suivies" value={parZone.length} />
+        <StatCard icon={Star} label={`Note moyenne (${periodeCourt})`} value={noteMoyenne ? noteMoyenne.toFixed(2) : "—"} />
+        <StatCard icon={MessageSquare} label={`Retours (${periodeCourt})`} value={totalRetours} />
+        <StatCard icon={AlertTriangle} label="Alertes (note ≤ 2)" value={alertes} />
+        <StatCard icon={MapPin} label="Zones suivies" value={parZone.length} />
       </div>
 
       {/* ---------- D1 : NPS (Net Promoter Score) + D5 : Benchmark sectoriel ---------- */}
@@ -443,7 +443,7 @@ export function StatsTab() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {/* NPS */}
           {data.nps && (
-            <Card>
+            <Card className="shadow-sm">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base sm:text-lg">Net Promoter Score (NPS)</CardTitle>
                 <p className="text-sm text-muted-foreground">
@@ -495,7 +495,7 @@ export function StatsTab() {
 
           {/* Benchmark sectoriel (D5) */}
           {data.benchmark && data.benchmark.scoreSectorielMoyen !== null && (
-            <Card>
+            <Card className="shadow-sm">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base sm:text-lg">Benchmark sectoriel</CardTitle>
                 <p className="text-sm text-muted-foreground">
@@ -512,9 +512,11 @@ export function StatsTab() {
                     </p>
                     <p className="text-[10px] text-muted-foreground">/ 5 ({periodeCourt})</p>
                   </div>
-                  <div className="rounded-lg border border-stone-200 bg-muted/30 p-3 text-center">
+                  <div
+                    className={`rounded-lg border border-stone-200 bg-muted/30 p-3 text-center`}
+                  >
                     <p className="text-xs text-muted-foreground">Moyenne du secteur</p>
-                    <p className="mt-1 text-2xl font-bold text-stone-700">
+                    <p className="mt-1 text-2xl font-bold text-foreground">
                       {data.benchmark.scoreSectorielMoyen.toFixed(2)}
                     </p>
                     <p className="text-[10px] text-muted-foreground">/ 5 (toutes périodes)</p>
@@ -543,7 +545,7 @@ export function StatsTab() {
       )}
 
       {/* ---------- Évolution des scores sur la période ---------- */}
-      <Card>
+      <Card className="shadow-sm">
         <CardHeader className="pb-2">
           <CardTitle className="text-base sm:text-lg">Évolution des scores ({periodeLabel})</CardTitle>
         </CardHeader>
@@ -572,7 +574,7 @@ export function StatsTab() {
 
       {/* ---------- Par zone : note moyenne + répartition ---------- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-base sm:text-lg">Note moyenne par zone</CardTitle>
             <p className="text-sm text-muted-foreground">Repérez les zones à retravailler en priorité</p>
@@ -602,7 +604,7 @@ export function StatsTab() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-base sm:text-lg">Répartition des retours par zone</CardTitle>
             <p className="text-sm text-muted-foreground">Part de chaque point de contact dans le volume total</p>
@@ -630,7 +632,7 @@ export function StatsTab() {
       </div>
 
       {/* ---------- Tags les plus fréquents (barres horizontales) ---------- */}
-      <Card>
+      <Card className="shadow-sm">
         <CardHeader className="pb-2">
           <CardTitle className="text-base sm:text-lg">Tags les plus fréquents</CardTitle>
           <p className="text-sm text-muted-foreground">
@@ -665,7 +667,7 @@ export function StatsTab() {
       </Card>
 
       {/* ---------- Heatmap jour × heure (7j × 24h) ---------- */}
-      <Card>
+      <Card className="shadow-sm">
         <CardHeader className="pb-2">
           <CardTitle className="text-base sm:text-lg">Heatmap jour × heure</CardTitle>
           <p className="text-sm text-muted-foreground">
@@ -697,12 +699,12 @@ export function StatsTab() {
                     const ratio = total / maxCellule
                     const classe =
                       total === 0
-                        ? "bg-stone-100 text-stone-400"
+                        ? "bg-muted text-muted-foreground/50"
                         : ratio > 0.66
                           ? "bg-blue-600 text-white"
                           : ratio > 0.33
-                            ? "bg-blue-300 text-blue-950"
-                            : "bg-blue-100 text-blue-900"
+                            ? "bg-blue-300 text-blue-950 dark:text-blue-50"
+                            : "bg-blue-100 text-blue-900 dark:bg-blue-900/60 dark:text-blue-100"
                     return (
                       <td key={h} className="p-0">
                         <div

@@ -297,44 +297,48 @@ function EnTeteEtablissement({
 }
 
 // ---------- Confetti CSS pur (one-shot, aria-hidden) ----------
-
+// Spec refonte : 60 particules colorées (violet/bleu/rose/jaune/vert)
+// tombent depuis le haut de l'écran avec rotation (720°) — keyframe
+// fp-scan-confetti (translateY 0 → 100vh). Chaque particule a une
+// position horizontale aléatoire, une taille, une durée et un délai
+// aléatoires (générés une seule fois au montage via useMemo).
 function ConfettiLeger() {
-  // Généré une seule fois au montage (memo) — pas de boucle infinie
   const morceaux = useMemo(
     () =>
-      Array.from({ length: 22 }, (_, i) => {
-        // dx : dérive horizontale (-140 à +140 px)
-        const dx = Math.round((Math.random() - 0.5) * 280)
-        // dy : chute verticale (220 à 360 px)
-        const dy = Math.round(220 + Math.random() * 140)
-        // rotation finale aléatoire
-        const dr = Math.round(Math.random() * 720 - 360)
-        // délai d'apparition échelonné
-        const delai = Math.round(Math.random() * 40) / 100
+      Array.from({ length: 60 }, (_, i) => {
+        // Position horizontale aléatoire (0-100 % de la largeur du conteneur)
+        const gauche = Math.round(Math.random() * 100)
+        // Durée aléatoire (1,6 à 2,8 s) — particules plus rapides et plus lentes
+        const duree = Math.round((16 + Math.random() * 12)) / 10 // 1.6 → 2.8
+        // Délai d'apparition échelonné (0 à 0,7 s)
+        const delai = Math.round(Math.random() * 7) / 10
+        // Couleur (palette spec : violet/bleu/rose/jaune/vert)
         const couleur = COULEURS_CONFETTI[i % COULEURS_CONFETTI.length]
-        const largeur = 6 + Math.round(Math.random() * 6)
-        return { id: i, dx, dy, dr, delai, couleur, largeur }
+        // Taille : rectangle allongé (larger → plus visible en tombant)
+        const largeur = 6 + Math.round(Math.random() * 7) // 6 → 12 px
+        const hauteur = Math.max(3, Math.round(largeur * 0.4)) // 3 → 5 px
+        return { id: i, gauche, duree, delai, couleur, largeur, hauteur }
       }),
     []
   )
   return (
     <div
       aria-hidden
-      className="pointer-events-none absolute inset-x-0 top-0 z-10 flex justify-center"
+      className="pointer-events-none absolute inset-x-0 top-0 z-10 h-0 overflow-visible"
     >
       {morceaux.map((m) => (
         <span
           key={m.id}
-          className="fp-scan-confetti absolute top-6 block rounded-[2px]"
+          className="fp-scan-confetti absolute block rounded-[2px]"
           style={{
             backgroundColor: m.couleur,
             width: m.largeur,
-            height: Math.round(m.largeur * 0.5),
+            height: m.hauteur,
+            left: `${m.gauche}%`,
+            top: "-20px",
             // Variables CSS consommées par la keyframe fp-scan-confetti
-            ["--dx" as string]: `${m.dx}px`,
-            ["--dy" as string]: `${m.dy}px`,
-            ["--dr" as string]: `${m.dr}deg`,
-            animationDelay: `${m.delai}s`,
+            ["--fp-confetti-dur" as string]: `${m.duree}s`,
+            ["--fp-confetti-delay" as string]: `${m.delai}s`,
           }}
         />
       ))}
@@ -516,6 +520,15 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
     // Les tags dépendent de la note : on repart d'une sélection vide
     setTags([])
     setPulse(n)
+    // Feedback haptique (spec refonte) : navigator.vibrate si supporté.
+    // Try/catch : certains navigateurs (iOS Safari) rejectent la promesse.
+    try {
+      if (typeof navigator !== "undefined" && typeof navigator.vibrate === "function") {
+        navigator.vibrate(50)
+      }
+    } catch {
+      /* silencieux : le haptique est un bonus, pas une nécessité */
+    }
     annulerTimer()
     // Auto-transition vers step2 après 500 ms (spec refonte)
     timerRef.current = setTimeout(() => {
@@ -665,29 +678,28 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
     return <EcranChargement t={t} />
   }
 
-  // Indice d'étape pour la barre de progression (3 segments : Note | Tags | Envoi)
-  // welcome = 0 actif (tout muted) ; step1 = seg1 ; step2 = seg2 ; step3/success = seg3
-  const etapeIdx =
-    phase === "welcome" ? -1 : phase === "step1" ? 0 : phase === "step2" ? 1 : 2
-
-  // Classe d'animation de transition entre étapes (CSS pur — pas de framer)
+  // Classe d'animation de transition entre étapes (CSS pur — pas de framer).
+  // Pour l'étape "welcome", le conteneur parent n'a PAS d'animation globale :
+  // la cascade (logo / nom / séparateur / phrase) est appliquée individuellement
+  // sur chaque enfant via les classes fp-scan-welcome-* (délais 200 ms).
   const classeTransition =
     phase === "welcome"
-      ? "fp-scan-welcome"
+      ? ""
       : sens === 1
         ? "fp-scan-slide-right"
         : "fp-scan-slide-left"
 
   // Fond contextuel de la carte (spec refonte) :
-  // - step1 : vert très pâle si 4-5★, rouge très pâle si 1-3★ (transition 300 ms)
+  // - step1 : vert très pâle #F0FDF4 (bg-green-50) si 4-5★, rouge très pâle
+  //   #FEF2F2 (bg-red-50) si 1-3★ — transition 500 ms
   // - step2 : bg-emerald-50 si positif, bg-rose-50 si négatif
   // - autres : bg-card
   const fondContextuel = (() => {
     if (phase === "step1") {
       if (note === 0) return "border-border bg-card"
       return estPositif
-        ? "border-emerald-200 bg-emerald-50/70 dark:border-emerald-900/50 dark:bg-emerald-950/20"
-        : "border-rose-200 bg-rose-50/70 dark:border-rose-900/50 dark:bg-rose-950/20"
+        ? "border-green-200 bg-green-50 dark:border-green-900/50 dark:bg-green-950/20"
+        : "border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/20"
     }
     if (phase === "step2") {
       return estPositif
@@ -705,28 +717,15 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
       <div className="w-full max-w-md">
         <div
           className={cn(
-            "relative overflow-hidden rounded-3xl border shadow-xl transition-colors duration-300",
+            // transition-colors duration-500 : spec refonte (fond contextuel
+            // step1 change en 500 ms entre vert très pâle et rouge très pâle)
+            "relative overflow-hidden rounded-3xl border shadow-xl transition-colors duration-500",
             fondContextuel
           )}
         >
-          {/* Barre de progression fine (3 px) — 3 segments Note | Tags | Envoi */}
-          {phase !== "error" && (
-            <div className="flex gap-1.5 px-6 pt-4 sm:px-8" aria-hidden>
-              {[0, 1, 2].map((s) => (
-                <div
-                  key={s}
-                  className={cn(
-                    "h-[3px] flex-1 rounded-full transition-colors duration-300",
-                    phase === "success" || s <= etapeIdx ? "bg-primary" : "bg-muted"
-                  )}
-                />
-              ))}
-            </div>
-          )}
-
           {/* Sélecteur de langue (D3) — discret, en haut à gauche */}
           {phase !== "error" && (
-            <div className="absolute left-4 top-3 sm:left-6 sm:top-4">
+            <div className="absolute left-4 top-3 z-20 sm:left-6 sm:top-4">
               <SelecteurLangue langue={langue} onChange={changerLangue} />
             </div>
           )}
@@ -748,7 +747,9 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
               </Button>
             )}
 
-          <div className="p-5 sm:p-7">
+          {/* Contenu principal — pb-9 sm:pb-11 laisse de la place pour la
+              barre de progression fixed bottom (4 px) en toute circonstance. */}
+          <div className="p-5 pb-9 sm:p-7 sm:pb-11">
             {/* En-tête du pro + zone sur toutes les étapes du formulaire */}
             {scanData && phase !== "error" && phase !== "welcome" && (
               <EnTeteEtablissement
@@ -762,7 +763,8 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
 
             {/* Conteneur animé — key={phase} force le remount → l'animation
                 CSS se rejoue à chaque transition (slide-in depuis la droite
-                ou la gauche selon le sens, ou fade-scale pour la bienvenue). */}
+                ou la gauche selon le sens). Pour l'étape welcome, la cascade
+                est appliquée individuellement sur les enfants. */}
             <div key={phase} className={classeTransition}>
               {/* ---------- ERREUR : QR code inconnu ou expiré ---------- */}
               {phase === "error" && (
@@ -794,7 +796,13 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                 </div>
               )}
 
-              {/* ---------- ÉTAPE 0 — BIENVENUE (auto-transition 2 s) ---------- */}
+              {/* ---------- ÉTAPE 0 — BIENVENUE (auto-transition 2 s) ----------
+                  Cascade d'apparition (spec refonte) :
+                    0   ms — logo (fade-in + scale)
+                    200 ms — nom établissement (slide-up)
+                    400 ms — ligne séparatrice (width 0 → 100 %)
+                    600 ms — phrase d'accroche (fade-in)
+                    800 ms — indicateur « tap to start » (pulse) */}
               {phase === "welcome" && scanData && (
                 <button
                   type="button"
@@ -802,10 +810,16 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                   className="flex w-full flex-col items-center gap-4 py-6 text-center outline-none"
                   aria-label={t.bienvenueTap}
                 >
-                  {/* Logo centré (ou initiale si pas de logo) */}
-                  <LogoEtablissementBig pro={scanData.pro} />
+                  {/* Logo centré (ou initiale si pas de logo) — cascade 0 ms */}
+                  <div className="fp-scan-welcome-logo" style={{ animationDelay: "0ms" }}>
+                    <LogoEtablissementBig pro={scanData.pro} />
+                  </div>
 
-                  <div className="space-y-1.5">
+                  {/* Nom établissement — cascade 200 ms (slide-up) */}
+                  <div
+                    className="fp-scan-welcome-name space-y-1.5"
+                    style={{ animationDelay: "200ms" }}
+                  >
                     <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
                       {t.bienvenueChez}
                     </p>
@@ -818,15 +832,26 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                     </p>
                   </div>
 
-                  {/* Phrase d'accroche adaptée au type de zone */}
-                  <p className="mt-2 max-w-xs text-balance text-base font-medium leading-snug text-foreground/80">
+                  {/* Ligne séparatrice — cascade 400 ms (width 0 → 100 %) */}
+                  <div
+                    aria-hidden
+                    className="fp-scan-welcome-line h-px w-16 bg-gradient-to-r from-transparent via-primary/40 to-transparent"
+                    style={{ animationDelay: "400ms" }}
+                  />
+
+                  {/* Phrase d'accroche adaptée au type de zone — cascade 600 ms */}
+                  <p
+                    className="fp-scan-welcome-phrase mt-1 max-w-xs text-balance text-base font-medium leading-snug text-foreground/80"
+                    style={{ animationDelay: "600ms" }}
+                  >
                     {phraseAccroche(scanData.zone.nom, t)}
                   </p>
 
-                  {/* Indicateur "tap to start" pulsé */}
+                  {/* Indicateur "tap to start" pulsé — cascade 800 ms */}
                   <span
                     aria-hidden
-                    className="fp-scan-tap-pulse mt-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm font-semibold text-primary"
+                    className="fp-scan-tap-pulse mt-3 inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm font-semibold text-primary"
+                    style={{ animationDelay: "800ms" }}
                   >
                     {t.bienvenueTap}
                   </span>
@@ -842,14 +867,17 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                     {t.questionNoteSuffix}
                   </h1>
 
-                  {/* 5 étoiles très grandes (taille 64 px desktop, 56 px mobile).
-                      flex-1 + max-w évite tout débordement horizontal, même sur
-                      iPhone SE. Touch target ≥ 56 px (≥ 48 px spec accessibilité). */}
+                  {/* 5 étoiles très grandes (spec refonte : 64 px mobile,
+                      80 px desktop — size-16 sm:size-20). Touch target
+                      ≥ 64 px (largement au-dessus du minimum 48 px a11y).
+                      Glow jaune au survol (shadow-yellow-400/50) pour effet
+                      « Waouh ». flex-1 + max-w évite tout débordement
+                      horizontal, même sur iPhone SE. */}
                   <div
                     role="radiogroup"
                     aria-label={t.ariaEtoiles}
                     onKeyDown={etoileClavier}
-                    className="mt-7 flex w-full justify-center gap-0.5 sm:gap-1"
+                    className="mt-7 flex w-full justify-center gap-1 sm:gap-1.5"
                   >
                     {[1, 2, 3, 4, 5].map((i) => {
                       const active = i <= afficheNote
@@ -868,7 +896,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                           onFocus={() => setSurvol(i)}
                           onBlur={() => setSurvol(null)}
                           className={cn(
-                            "flex h-16 min-w-0 max-w-[4.5rem] flex-1 items-center justify-center rounded-2xl outline-none transition-transform focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-20",
+                            "flex h-16 min-w-0 max-w-[5rem] flex-1 items-center justify-center rounded-2xl outline-none transition-transform focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-20",
                             isClicked && "fp-scan-star-bounce",
                             isCascading && "fp-scan-star-fill"
                           )}
@@ -878,9 +906,9 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                             aria-hidden
                             strokeWidth={1.5}
                             className={cn(
-                              "size-14 transition-colors duration-150 sm:size-16",
+                              "size-16 transition-all duration-150 sm:size-20",
                               active
-                                ? "fill-amber-400 text-amber-400"
+                                ? "fill-amber-400 text-amber-400 drop-shadow-[0_4px_12px_rgba(251,191,36,0.45)]"
                                 : "fill-stone-200 text-stone-300 dark:fill-stone-700 dark:text-stone-600"
                             )}
                           />
@@ -927,7 +955,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                     aria-label={estPositif ? t.ariaTagsPositifs : t.ariaTagsNegatifs}
                     className="mt-5 flex flex-wrap gap-2.5"
                   >
-                    {idsTags.map((id) => {
+                    {idsTags.map((id, idx) => {
                       const def = definitionTag(id, estPositif)
                       const actif = tags.includes(id)
                       return (
@@ -936,15 +964,18 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                           type="button"
                           aria-pressed={actif}
                           onClick={() => basculerTag(id)}
+                          // fp-scan-tag-enter : apparition stagger (fade-in +
+                          // slide-up, délai 50 ms par tag, spec refonte)
                           className={cn(
-                            "inline-flex min-h-12 min-w-0 max-w-full items-center gap-1.5 rounded-full border-2 px-4 py-2.5 text-sm font-medium outline-none transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:text-base",
+                            "fp-scan-tag-enter inline-flex min-h-12 min-w-0 max-w-full items-center gap-1.5 rounded-full border-2 px-6 py-4 text-sm font-medium outline-none transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:text-base",
                             actif
                               ? estPositif
-                                ? "scale-105 border-emerald-500 bg-emerald-100 text-emerald-900 dark:border-emerald-400 dark:bg-emerald-900/40 dark:text-emerald-100"
-                                : "scale-105 border-rose-500 bg-rose-100 text-rose-900 dark:border-rose-400 dark:bg-rose-900/40 dark:text-rose-100"
+                                ? "border-emerald-500 bg-emerald-100 text-emerald-900 shadow-sm shadow-emerald-500/20 dark:border-emerald-400 dark:bg-emerald-900/40 dark:text-emerald-100"
+                                : "border-rose-500 bg-rose-100 text-rose-900 shadow-sm shadow-rose-500/20 dark:border-rose-400 dark:bg-rose-900/40 dark:text-rose-100"
                               : "border-border bg-background text-foreground/80 hover:border-foreground/30 hover:bg-muted",
                             actif && "fp-scan-tag-pop"
                           )}
+                          style={{ animationDelay: `${idx * 50}ms` }}
                         >
                           <span aria-hidden className="text-base leading-none">
                             {actif ? <Check className="size-4" /> : def.emoji}
@@ -975,14 +1006,23 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                     />
                   </div>
 
-                  {/* Bouton Continuer — bleu plein, gros, en bas de l'étape */}
+                  {/* Bouton Continuer (spec refonte) : gradient violet → bleu,
+                      w-full py-4 text-lg, désactivé si aucun tag sélectionné. */}
                   <div className="mt-auto pt-6">
-                    <Button
+                    <button
+                      type="button"
                       onClick={() => allerEtape("step3", 1)}
-                      className="h-14 w-full rounded-2xl text-base font-semibold"
+                      disabled={tags.length === 0}
+                      className={cn(
+                        "flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-lg font-semibold text-white shadow-lg transition-all",
+                        "bg-gradient-to-r from-violet-500 to-blue-500 shadow-violet-500/25",
+                        tags.length === 0
+                          ? "cursor-not-allowed opacity-50"
+                          : "hover:from-violet-600 hover:to-blue-600 hover:shadow-violet-500/40 active:scale-[0.98]"
+                      )}
                     >
-                      {t.continuer} <ArrowRight aria-hidden className="size-4" />
-                    </Button>
+                      {t.continuer} <ArrowRight aria-hidden className="size-5" />
+                    </button>
                     <Button
                       variant="ghost"
                       onClick={() => allerEtape("step1", -1)}
@@ -1001,8 +1041,9 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                     {t.titreCommentaire}
                   </h1>
 
-                  {/* Récapitulatif visuel (mini-carte) : note + tags + personnel */}
-                  <div className="mt-4 rounded-2xl border border-border bg-background/60 p-4">
+                  {/* Récapitulatif visuel (spec refonte) : card glassmorphism
+                      bg-gray-50 border border-gray-200 rounded-2xl p-4. */}
+                  <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
                     <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
                       {t.recapTitre}
                     </p>
@@ -1052,7 +1093,9 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                     </div>
                   </div>
 
-                  {/* Textarea auto-resize (field-sizing natif), max 500 chars, compteur */}
+                  {/* Textarea auto-resize (spec refonte) : min 120 px, max 300 px,
+                      max 500 chars, compteur. field-sizing natif du composant
+                      Textarea shadcn + max-h-[300px] pour caper la hauteur. */}
                   <div className="mt-4">
                     <Textarea
                       value={commentaire}
@@ -1061,16 +1104,17 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                       maxLength={MAX_COMMENTAIRE}
                       aria-label={t.titreCommentaire}
                       placeholder={estPositif ? t.commentairePositif : t.commentaireNegatif}
-                      className="max-h-48 min-h-24 text-base"
+                      className="min-h-[120px] max-h-[300px] text-base"
                     />
                     <div className="mt-1 text-right text-xs text-muted-foreground">
                       {t.compteurChars(commentaire.length, MAX_COMMENTAIRE)}
                     </div>
                   </div>
 
-                  {/* D1 : slider NPS (uniquement si note ≥ 4) */}
+                  {/* D1 : slider NPS (uniquement si note ≥ 4) — spec refonte :
+                      gradient violet → bleu sur le badge de valeur. */}
                   {estPositif && (
-                    <div className="mt-4 rounded-2xl border border-border bg-background/60 p-4">
+                    <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
                       <p className="text-sm font-semibold text-foreground/80">{t.questionNps}</p>
                       <p className="text-xs text-muted-foreground">{t.npsSousTitre}</p>
                       <div className="mt-3 flex items-center justify-between text-xs font-semibold text-muted-foreground">
@@ -1088,7 +1132,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                         className="mt-2"
                       />
                       <div className="mt-3 flex items-center justify-center gap-2">
-                        <span className="inline-flex min-w-16 items-center justify-center rounded-full bg-primary px-4 py-1.5 text-2xl font-bold text-primary-foreground">
+                        <span className="inline-flex min-w-16 items-center justify-center rounded-full bg-gradient-to-r from-violet-500 to-blue-500 px-4 py-1.5 text-2xl font-bold text-white shadow-md shadow-violet-500/30">
                           {nps}
                         </span>
                         <span className="text-sm text-muted-foreground">/ 10</span>
@@ -1254,11 +1298,20 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                     </div>
                   )}
 
-                  {/* Bouton principal « Envoyer » (bleu plein, gros, h-14 rounded-2xl) */}
-                  <Button
+                  {/* Bouton principal « Envoyer » (spec refonte) :
+                      gradient violet → bleu, w-full py-5 text-xl font-bold,
+                      pulse subtil (fp-scan-pulse-soft). Désactivé pendant l'envoi. */}
+                  <button
+                    type="button"
                     onClick={() => envoyer("aucun")}
                     disabled={soumission !== null}
-                    className="mt-5 h-14 w-full rounded-2xl text-base font-bold"
+                    className={cn(
+                      "fp-scan-pulse-soft mt-5 flex w-full items-center justify-center gap-2 rounded-2xl py-5 text-xl font-bold text-white shadow-lg transition-all",
+                      "bg-gradient-to-r from-violet-500 to-blue-500 shadow-violet-500/30",
+                      soumission !== null
+                        ? "cursor-wait opacity-80"
+                        : "hover:from-violet-600 hover:to-blue-600 hover:shadow-violet-500/40 active:scale-[0.98]"
+                    )}
                   >
                     {soumission === "aucun" ? (
                       <>
@@ -1269,7 +1322,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                         <Check className="size-5" aria-hidden /> {t.envoyer}
                       </>
                     )}
-                  </Button>
+                  </button>
 
                   {/* Canal secondaire WhatsApp (masqué si aucun numéro configuré) */}
                   {aWhatsApp && (
@@ -1351,22 +1404,26 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                     {estPositif ? t.merciPositifCourt : t.merciNegatifCourt}
                   </p>
 
-                  {/* Récompense : carte mise en valeur + code promo en gros */}
+                  {/* Récompense (spec refonte) : carte à bordure dégradée
+                      (violet → bleu → rose) + code promo en GROS
+                      (text-3xl font-bold text-purple-600). */}
                   {recompenseFinale ? (
-                    <div className="fp-scan-reward-in w-full rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 shadow-md shadow-amber-500/10 dark:border-amber-700 dark:bg-amber-950/30">
-                      <p className="text-balance text-lg font-bold leading-snug text-amber-900 dark:text-amber-200">
+                    <div className="fp-scan-reward-in fp-scan-reward-border w-full p-4 shadow-md shadow-purple-500/15">
+                      <p className="text-balance text-lg font-bold leading-snug text-foreground">
                         {t.recompenseTitre(recompenseFinale)}
                       </p>
                       {codeRecompense && (
-                        <span
-                          className="mt-2.5 inline-flex items-center gap-1.5 rounded-lg border-2 border-dashed border-amber-400 bg-white px-3 py-1.5 font-mono text-base font-bold tracking-wide text-amber-900 dark:bg-amber-900/30 dark:text-amber-100"
-                          aria-label={`Code promo : ${codeRecompense}`}
-                        >
-                          <Ticket className="size-4" aria-hidden />
-                          {codeRecompense}
-                        </span>
+                        <div className="mt-3 flex flex-col items-center gap-1">
+                          <span
+                            className="inline-flex items-center gap-2 rounded-xl bg-white/80 px-4 py-2 font-mono text-3xl font-bold tracking-wider text-purple-600 dark:bg-purple-950/40 dark:text-purple-300"
+                            aria-label={`Code promo : ${codeRecompense}`}
+                          >
+                            <Ticket className="size-6 text-purple-500" aria-hidden />
+                            {codeRecompense}
+                          </span>
+                        </div>
                       )}
-                      <p className="mt-1.5 text-sm text-amber-800/90 dark:text-amber-300/80">
+                      <p className="mt-2 text-center text-sm text-muted-foreground">
                         {t.recompenseMontrez}
                       </p>
                     </div>
@@ -1410,6 +1467,48 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
               )}
             </div>
           </div>
+
+          {/* Barre de progression fixed bottom (spec refonte) :
+              - hauteur 4 px (h-1)
+              - fond gris très clair (bg-gray-200)
+              - progress : gradient violet → bleu (from-violet-500 to-blue-500)
+              - étapes : welcome = 0 %, step1 = 33 %, step2 = 66 %,
+                step3/success = 100 %
+              - transition width 300 ms ease-out
+              Cachée en cas d'erreur (pas de concept de progression). */}
+          {phase !== "error" && (
+            <div
+              className="absolute inset-x-0 bottom-0 h-1 bg-gray-200 dark:bg-gray-800"
+              role="progressbar"
+              aria-valuenow={
+                phase === "welcome"
+                  ? 0
+                  : phase === "step1"
+                    ? 33
+                    : phase === "step2"
+                      ? 66
+                      : 100
+              }
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-label={t.ariaProgression}
+            >
+              <div
+                aria-hidden
+                className="h-full rounded-e-full bg-gradient-to-r from-violet-500 to-blue-500 transition-[width] duration-300 ease-out"
+                style={{
+                  width:
+                    phase === "welcome"
+                      ? "0%"
+                      : phase === "step1"
+                        ? "33%"
+                        : phase === "step2"
+                          ? "66%"
+                          : "100%",
+                }}
+              />
+            </div>
+          )}
         </div>
 
         <p className="mt-4 text-center text-xs text-muted-foreground">

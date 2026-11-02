@@ -7,7 +7,7 @@
 // ============================================================
 
 import { useCallback, useEffect, useState } from "react"
-import { Check, ClipboardCheck, Loader2, MessageSquare, User } from "lucide-react"
+import { Check, Loader2, MessageSquare, User } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -97,15 +97,16 @@ export function ActionsTab() {
   return (
     <div className="space-y-5">
       {/* En-tête */}
-      <div>
-        <h1 className="flex items-center gap-2 text-xl font-bold tracking-tight sm:text-2xl">
-          <ClipboardCheck className="h-5 w-5 text-primary sm:h-6 sm:w-6" aria-hidden />
-          Actions &amp; décisions managériales
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Chaque réclamation et chaque retour ≤ 3★ attend une décision : notez l&apos;action prise pour
-          construire l&apos;historique qualité de votre établissement.
-        </p>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
+            Actions
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Chaque réclamation et chaque retour ≤ 3★ attend une décision : notez l&apos;action prise pour
+            construire l&apos;historique qualité de votre établissement.
+          </p>
+        </div>
       </div>
 
       {/* Compteurs */}
@@ -152,7 +153,7 @@ export function ActionsTab() {
         </div>
       ) : listeAffichee.length === 0 ? (
         // Empty states
-        <Card>
+        <Card className="shadow-sm">
           <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
             <div className="rounded-2xl bg-primary/10 p-4" aria-hidden>
               <Check className="h-8 w-8 text-primary" />
@@ -269,7 +270,7 @@ function CarteAction({ retour, maj }: { retour: RetourItem; maj: (r: RetourItem)
   }
 
   return (
-    <Card>
+    <Card className="shadow-sm">
       <CardContent className="space-y-3 p-4">
         {/* Ligne 1 : note, zone, employé, date, statut */}
         <div className="flex flex-wrap items-center justify-between gap-2">

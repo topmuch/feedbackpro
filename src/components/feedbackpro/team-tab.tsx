@@ -320,8 +320,54 @@ export function TeamTab() {
 
   return (
     <div className="space-y-6">
+      {/* ---------- En-tête ---------- */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Équipe</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {employes.length} employé{employes.length > 1 ? "s" : ""} · leaderboard, mentions et zones de travail
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 gap-1.5"
+            onClick={() =>
+              exportToCsv(
+                `equipe-${new Date().toISOString().slice(0, 10)}`,
+                employes.map((e) => ({
+                  Nom: e.nom,
+                  Poste: e.poste ?? "",
+                  Actif: e.actif ? "Oui" : "Non",
+                  Zones: e.zones.map((z) => z.nom).join(", "),
+                  Positifs: e.stats.positifs,
+                  Negatifs: e.stats.negatifs,
+                  NoteMoyenne: e.stats.noteMoy ?? "",
+                }))
+              )
+            }
+            disabled={employes.length === 0}
+            aria-label="Exporter l'équipe en CSV"
+          >
+            <Download className="h-4 w-4" aria-hidden />
+            <span className="hidden sm:inline">Exporter CSV</span>
+            <span className="sm:hidden">CSV</span>
+          </Button>
+          <Button
+            className="h-9"
+            disabled={limiteAtteinte}
+            onClick={() => setCreationOuverte(true)}
+            aria-label="Ajouter un employé"
+          >
+            <Plus className="mr-1.5 h-4 w-4" aria-hidden />
+            Ajouter un employé
+          </Button>
+        </div>
+      </div>
+
       {/* ================= Section 1 : Top 5 du mois ================= */}
-      <Card>
+      <Card className="shadow-sm">
         <CardHeader className="pb-2">
           <CardTitle className="text-base sm:text-lg flex items-center gap-2">
             <Trophy className="h-5 w-5 text-amber-500" aria-hidden />
@@ -432,7 +478,7 @@ export function TeamTab() {
 
       {/* ================= Section 1 bis : Recommandations du Coach IA ================= */}
       {recommandations.length > 0 && (
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-base sm:text-lg flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" aria-hidden />
@@ -464,7 +510,7 @@ export function TeamTab() {
       )}
 
       {/* ================= Section 2 : Liste des employés ================= */}
-      <Card>
+      <Card className="shadow-sm">
         <CardHeader className="pb-2">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -477,40 +523,6 @@ export function TeamTab() {
                 {limiteEmployes === 999 ? "illimitée" : limiteEmployes} · affectez des zones de travail pour cibler les retours
               </CardDescription>
             </div>
-            <Button
-              className="h-9"
-              disabled={limiteAtteinte}
-              onClick={() => setCreationOuverte(true)}
-              aria-label="Ajouter un employé"
-            >
-              <Plus className="mr-1.5 h-4 w-4" aria-hidden />
-              Ajouter un employé
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-9 gap-1.5"
-              onClick={() =>
-                exportToCsv(
-                  `equipe-${new Date().toISOString().slice(0, 10)}`,
-                  employes.map((e) => ({
-                    Nom: e.nom,
-                    Poste: e.poste ?? "",
-                    Actif: e.actif ? "Oui" : "Non",
-                    Zones: e.zones.map((z) => z.nom).join(", "),
-                    Positifs: e.stats.positifs,
-                    Negatifs: e.stats.negatifs,
-                    NoteMoyenne: e.stats.noteMoy ?? "",
-                  }))
-                )
-              }
-              disabled={employes.length === 0}
-              aria-label="Exporter l'équipe en CSV"
-            >
-              <Download className="h-4 w-4" aria-hidden />
-              <span className="hidden sm:inline">Exporter CSV</span>
-              <span className="sm:hidden">CSV</span>
-            </Button>
           </div>
         </CardHeader>
         <CardContent className="space-y-3">

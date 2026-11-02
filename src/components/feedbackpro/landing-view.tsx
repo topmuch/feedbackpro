@@ -1,18 +1,18 @@
 "use client"
 
 // ============================================================
-// FeedbackPro — Landing SaaS B2B (Refonte complète)
+// FeedbackPro — Landing SaaS Premium "Linear / Stripe / Vercel"
 // ------------------------------------------------------------
-// 14 sections orientées conversion. Aucun fetch, aucune route :
-// toutes les actions passent par onLogin / onSignup fournis par
-// page.tsx (routage Zustand préservé).
-// Animations : CSS pur (keyframes globals.css) + IntersectionObserver
-// via le hook useReveal (pas de framer-motion).
-// Rendu à l'intérieur du <main> de page.tsx : on n'imbrique pas de
-// second <main>, on expose <header>/<section>/<footer>.
+// 13 sections. Mode sombre permanent (#0A0A0B), glassmorphism,
+// gradients violet → bleu → rose. Aucun fetch, aucune route :
+// toutes les actions passent par onLogin / onSignup (routage
+// Zustand préservé). Animations CSS pur (keyframes globals.css)
+// + IntersectionObserver via le hook useReveal (pas de framer).
+// Le wrapper force la classe "dark" + bg-[#0A0A0B] : la landing
+// est TOUJOURS sombre, indépendamment du toggle global.
 // ============================================================
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -36,7 +36,6 @@ import {
   BarChart3,
   BellRing,
   Bot,
-  Building2,
   Check,
   ChevronRight,
   HeartPulse,
@@ -45,6 +44,7 @@ import {
   Menu,
   MapPin,
   Package,
+  Play,
   QrCode,
   Quote,
   ScanLine,
@@ -53,7 +53,6 @@ import {
   Sparkles,
   Star,
   Trophy,
-  TrendingDown,
   TrendingUp,
   UtensilsCrossed,
   Users,
@@ -94,8 +93,6 @@ function useRevealCallback() {
       node.classList.add("is-visible")
       return
     }
-    // (ré)observe le noeud : si l'observer n'est pas encore prêt, on
-    // retente à la prochaine frame (cas très rare en SSR).
     if (observerRef.current) {
       observerRef.current.observe(node)
     } else {
@@ -104,7 +101,6 @@ function useRevealCallback() {
   }, [])
 }
 
-// Composant wrapper : applique .fp-reveal + délai optionnel
 function Reveal({
   children,
   className = "",
@@ -137,35 +133,35 @@ const NAV_LINKS = [
   { id: "faq", label: "FAQ" },
 ] as const
 
-const TRUST_LOGOS = ["Bistrot", "HotelRoyal", "MaisonVert", "CaféLyon", "GaragePro", "SpaZen"] as const
+const TRUST_LOGOS = [
+  "Bistrot Marais",
+  "Hôtel Royal",
+  "Maison Verte",
+  "Café Lyon",
+  "Garage Pro",
+  "Spa Zen",
+  "Le Comptoir",
+  "Boulangerie Paul",
+] as const
 
-const PROBLEM_CARDS: {
-  emoji: string
-  titre: string
-  texte: string
-  bg: string
-  ring: string
-}[] = [
+const PROBLEM_CARDS: { emoji: string; titre: string; texte: string }[] = [
   {
     emoji: "🤐",
     titre: "Vos clients mécontents partent sans rien dire",
-    texte: "96 % des clients insatisfaits ne se plaignent jamais. Ils disparaissent et vous ne le savez que sur un avis Google public, des semaines plus tard.",
-    bg: "bg-rose-50 dark:bg-rose-950/30",
-    ring: "ring-rose-200/60 dark:ring-rose-900/40",
+    texte:
+      "96 % des clients insatisfaits ne se plaignent jamais. Ils disparaissent et vous ne le savez que sur un avis Google public, des semaines plus tard.",
   },
   {
     emoji: "💥",
     titre: "Un seul avis négatif détruit votre réputation",
-    texte: "Sur Google, une note de 2 étoiles affichée pendant 3 mois coûte en moyenne 30 % de réservations. Et vous ne pouvez rien corriger a posteriori.",
-    bg: "bg-orange-50 dark:bg-orange-950/30",
-    ring: "ring-orange-200/60 dark:ring-orange-900/40",
+    texte:
+      "Sur Google, une note de 2 étoiles affichée pendant 3 mois coûte en moyenne 30 % de réservations. Et vous ne pouvez rien corriger a posteriori.",
   },
   {
     emoji: "🎲",
     titre: "Vous décidez à l'instinct, pas aux données",
-    texte: "Pas de retour client en temps réel = impossible de savoir quel employé former, quel créneau renforcer, quel plat revoir. Vous pilotez à l'aveugle.",
-    bg: "bg-amber-50 dark:bg-amber-950/30",
-    ring: "ring-amber-200/60 dark:ring-amber-900/40",
+    texte:
+      "Pas de retour client en temps réel = impossible de savoir quel employé former, quel créneau renforcer, quel plat revoir. Vous pilotez à l'aveugle.",
   },
 ]
 
@@ -174,33 +170,33 @@ const STEPS: { emoji: string; icone: LucideIcon; titre: string; texte: string }[
     emoji: "📱",
     icone: QrCode,
     titre: "QR Code par zone",
-    texte: "Un QR code dédié à chaque point de contact (accueil, salle, terrasse, toilettes…). Le client le scanne en 2 secondes.",
+    texte:
+      "Un QR code dédié à chaque point de contact (accueil, salle, terrasse, toilettes…). Le client le scanne en 2 secondes.",
   },
   {
     emoji: "⭐",
     icone: ScanLine,
     titre: "Scan client en 10 s",
-    texte: "Le client note de 1 à 5 étoiles et choisit des tags en un clic. Aucune inscription, aucune app à installer.",
+    texte:
+      "Le client note de 1 à 5 étoiles et choisit des tags en un clic. Aucune inscription, aucune app à installer.",
   },
   {
     emoji: "🧠",
     icone: Bot,
     titre: "L'IA analyse tout",
-    texte: "Notre Coach IA consolide les retours, détecte les patterns et identifie les priorités du jour automatiquement.",
+    texte:
+      "Notre Coach IA consolide les retours, détecte les patterns et identifie les priorités du jour automatiquement.",
   },
   {
     emoji: "📊",
     icone: BarChart3,
     titre: "Rapport quotidien",
-    texte: "Chaque matin, vous recevez un rapport d'audit avec votre score global et vos 3 priorités actionnables.",
+    texte:
+      "Chaque matin, vous recevez un rapport d'audit avec votre score global et vos 3 priorités actionnables.",
   },
 ]
 
-const COMPARISON_ROWS: {
-  critere: string
-  traditionnel: string
-  feedbackpro: string
-}[] = [
+const COMPARISON_ROWS: { critere: string; traditionnel: string; feedbackpro: string }[] = [
   { critere: "Prix", traditionnel: "500 – 1 500 € par visite", feedbackpro: "29 € / mois" },
   { critere: "Fréquence", traditionnel: "1 visite par mois", feedbackpro: "Audit quotidien automatique" },
   { critere: "Couverture", traditionnel: "1 client mystère fictif", feedbackpro: "Tous vos vrais clients" },
@@ -209,52 +205,55 @@ const COMPARISON_ROWS: {
   { critere: "ROI", traditionnel: "6 à 12 mois", feedbackpro: "Moins de 1 mois" },
 ]
 
-const PROBLEMES_RESOLUS: { emoji: string; titre: string; texte: string }[] = [
-  { emoji: "📦", titre: "Manque de formation produit", texte: "Détectez les vendeurs qui ne maîtrisent pas le catalogue et planifiez les formations ciblées." },
-  { emoji: "😠", titre: "Impolitesse du personnel", texte: "Repérez immédiatement les comportements à corriger, sans attendre un avis public négatif." },
-  { emoji: "❓", titre: "Manque d'information sur la société", texte: "Identifiez les zones où l'accueil ne transmet pas les bons messages (horaires, services, promos)." },
-  { emoji: "🎓", titre: "Manque de formation générale", texte: "Le Coach IA pointe les compétences à renforcer par employé, sans jugement, sur données objectives." },
-  { emoji: "💬", titre: "Employés distraits (discussions entre eux)", texte: "Les alertes en temps réel rappellent à l'équipe que le client est prioritaire, dès le 1er signalement." },
-  { emoji: "⏳", titre: "Attente trop longue (plats, service)", texte: "La heatmap révèle les créneaux critiques. Renforcez le staff exactement quand il le faut." },
-  { emoji: "🧹", titre: "Commerce mal rangé / sale", texte: "QR dédié aux toilettes et zones sensibles : un signalement client = une action immédiate." },
-]
-
-const FEATURES: { icone: LucideIcon; titre: string; texte: string; emoji: string }[] = [
+const FEATURES: {
+  icone: LucideIcon
+  emoji: string
+  titre: string
+  texte: string
+  grand?: boolean
+}[] = [
   {
     icone: Bot,
     emoji: "🤖",
     titre: "Coach IA quotidien",
-    texte: "Chaque matin, l'IA analyse les retours de la veille et vous livre un rapport d'audit avec des recommandations concrètes.",
+    texte:
+      "Chaque matin, l'IA analyse les retours de la veille et vous livre un rapport d'audit complet avec des recommandations concrètes et vos 3 priorités actionnables du jour.",
+    grand: true,
   },
   {
     icone: MapPin,
     emoji: "📍",
     titre: "QR Zones intelligentes",
-    texte: "Une zone par point de contact (accueil, salle, terrasse, toilettes…) avec son QR dédié et des tags contextuels.",
+    texte:
+      "Une zone par point de contact (accueil, salle, terrasse, toilettes…) avec son QR dédié et des tags contextuels.",
   },
   {
     icone: Trophy,
     emoji: "🏆",
     titre: "Leaderboard équipe",
-    texte: "Classez vos employés, valorisez les meilleurs et repérez objectivement les besoins de formation.",
+    texte:
+      "Classez vos employés, valorisez les meilleurs et repérez objectivement les besoins de formation.",
   },
   {
     icone: BellRing,
     emoji: "🔔",
     titre: "Alertes temps réel",
-    texte: "Un client signale un problème ? Vous êtes alerté sur WhatsApp en quelques secondes pour corriger avant qu'il parte.",
+    texte:
+      "Un client signale un problème ? Vous êtes alerté sur WhatsApp en quelques secondes pour corriger avant qu'il parte.",
   },
   {
     icone: BarChart3,
     emoji: "📊",
     titre: "Statistiques avancées",
-    texte: "Suivez vos scores par zone, par jour et par heure. Heatmap, tendances, exports CSV / PDF.",
+    texte:
+      "Suivez vos scores par zone, par jour et par heure. Heatmap, tendances, exports CSV / PDF.",
   },
   {
     icone: Package,
     emoji: "📦",
     titre: "Supports physiques livrés",
-    texte: "Autocollants, chevalets et affiches haute qualité commandés en 1 clic, livrés prêts à poser sur le terrain.",
+    texte:
+      "Autocollants, chevalets et affiches haute qualité commandés en 1 clic, livrés prêts à poser sur le terrain.",
   },
 ]
 
@@ -340,28 +339,31 @@ const TESTIMONIALS: {
     nom: "Sophie Marchand",
     poste: "Gérante",
     etablissement: "Bistrot Le Marais, Paris",
-    citation: "En 3 semaines, on a corrigé un problème d'attente au déjeuner qu'on traînait depuis 2 ans. Le rapport du matin m'a permis de cibler exactement qui former.",
+    citation:
+      "En 3 semaines, on a corrigé un problème d'attente au déjeuner qu'on traînait depuis 2 ans. Le rapport du matin m'a permis de cibler exactement qui former.",
     note: 5,
     initiales: "SM",
-    couleur: "bg-blue-600",
+    couleur: "from-violet-500 to-blue-500",
   },
   {
     nom: "Karim Benali",
     poste: "Directeur",
     etablissement: "Hôtel Royal Lyon, 4 ★",
-    citation: "On a divisé par 4 les avis négatifs Google en 2 mois. Les alertes WhatsApp m'ont sauvé 3 clients qui allaient partir. ROI atteint en 3 semaines.",
+    citation:
+      "On a divisé par 4 les avis négatifs Google en 2 mois. Les alertes WhatsApp m'ont sauvé 3 clients qui allaient partir. ROI atteint en 3 semaines.",
     note: 5,
     initiales: "KB",
-    couleur: "bg-emerald-600",
+    couleur: "from-emerald-500 to-teal-500",
   },
   {
     nom: "Émilie Faure",
     poste: "Responsable qualité",
     etablissement: "Maison Vert (8 boutiques)",
-    citation: "On pilotait 8 boutiques à l'instinct. Aujourd'hui chaque manager reçoit son rapport matininal. Le leaderboard a complètement changé la dynamique d'équipe.",
+    citation:
+      "On pilotait 8 boutiques à l'instinct. Aujourd'hui chaque manager reçoit son rapport matinal. Le leaderboard a complètement changé la dynamique d'équipe.",
     note: 5,
     initiales: "EF",
-    couleur: "bg-amber-500",
+    couleur: "from-pink-500 to-orange-500",
   },
 ]
 
@@ -482,7 +484,7 @@ function Etoiles({ note, className = "" }: { note: number; className?: string })
       {Array.from({ length: 5 }).map((_, i) => (
         <Star
           key={i}
-          className={`h-4 w-4 ${i < note ? "fill-amber-400 text-amber-400" : "fill-muted text-muted-foreground"}`}
+          className={`h-4 w-4 ${i < note ? "fill-amber-400 text-amber-400" : "fill-white/10 text-white/20"}`}
           aria-hidden
         />
       ))}
@@ -491,7 +493,47 @@ function Etoiles({ note, className = "" }: { note: number; className?: string })
 }
 
 // ============================================================
-// 1. Header sticky
+// Particules flottantes (hero) — générées 1 seule fois (useMemo)
+// ============================================================
+
+type Particle = {
+  id: number
+  left: number
+  size: number
+  duration: number
+  delay: number
+  color: string
+}
+
+const PARTICULES_COULEURS = [
+  "rgba(139, 92, 246, 0.7)", // violet
+  "rgba(59, 130, 246, 0.7)", // bleu
+  "rgba(236, 72, 153, 0.6)", // rose
+  "rgba(249, 115, 22, 0.55)", // orange
+  "rgba(255, 255, 255, 0.5)", // blanc
+]
+
+function useParticules(count = 40): Particle[] {
+  return useMemo(() => {
+    if (typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      return []
+    }
+    return Array.from({ length: count }, (_, i) => {
+      const duree = 20 + Math.random() * 20 // 20s → 40s
+      return {
+        id: i,
+        left: Math.random() * 100,
+        size: 2 + Math.random() * 4, // 2px → 6px
+        duration: duree,
+        delay: -Math.random() * duree, // démarrage réparti sur toute la durée
+        color: PARTICULES_COULEURS[i % PARTICULES_COULEURS.length],
+      }
+    })
+  }, [count])
+}
+
+// ============================================================
+// 1. Nav glassmorphism (fixed)
 // ============================================================
 
 function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () => void }) {
@@ -507,10 +549,10 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
 
   return (
     <header
-      className={`sticky top-0 z-50 w-full border-b transition-colors duration-300 ${
+      className={`fixed top-0 z-50 w-full transition-all duration-300 ${
         scrolled
-          ? "border-border/60 bg-background/80 backdrop-blur-md supports-[backdrop-filter]:bg-background/70"
-          : "border-transparent bg-transparent"
+          ? "border-b border-white/10 bg-black/80 backdrop-blur-xl"
+          : "border-b border-transparent bg-transparent"
       }`}
     >
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4 sm:px-6 lg:px-8">
@@ -524,10 +566,10 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
           className="flex items-center gap-2 font-bold"
           aria-label="Accueil FeedbackPro"
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-sm">
-            <QrCode className="h-5 w-5" aria-hidden />
+          <span className="fp-bg-gradient flex h-9 w-9 items-center justify-center rounded-xl shadow-[0_0_20px_rgba(139,92,246,0.4)]">
+            <QrCode className="h-5 w-5 text-white" aria-hidden />
           </span>
-          <span className="text-lg tracking-tight">FeedbackPro</span>
+          <span className="fp-text-gradient text-lg tracking-tight">FeedbackPro</span>
         </a>
 
         {/* Liens desktop */}
@@ -536,7 +578,7 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
             <button
               key={lien.id}
               onClick={() => allerVers(lien.id)}
-              className="rounded-md px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+              className="rounded-md px-3 py-2 text-sm font-medium text-gray-300 transition-colors hover:bg-white/5 hover:text-white"
             >
               {lien.label}
             </button>
@@ -544,14 +586,20 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
         </nav>
 
         {/* CTA desktop */}
-        <div className="hidden items-center gap-1 md:flex">
-          <Button variant="ghost" size="sm" onClick={() => allerVers("tarifs")}>
-            Voir la démo
-          </Button>
-          <Button variant="ghost" size="sm" onClick={onLogin}>
+        <div className="hidden items-center gap-2 md:flex">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={onLogin}
+            className="text-gray-300 hover:bg-white/5 hover:text-white"
+          >
             Se connecter
           </Button>
-          <Button size="sm" onClick={onSignup} className="shadow-sm">
+          <Button
+            size="sm"
+            onClick={onSignup}
+            className="fp-bg-gradient fp-pulse-glow border-0 text-white hover:opacity-90"
+          >
             Essayer gratuitement
             <ArrowRight className="h-4 w-4" />
           </Button>
@@ -563,19 +611,22 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden"
+              className="md:hidden text-white hover:bg-white/10"
               aria-label="Ouvrir le menu"
             >
               <Menu className="h-5 w-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="right" className="w-[88%] max-w-sm">
+          <SheetContent
+            side="right"
+            className="dark w-[88%] max-w-sm border-l border-white/10 bg-[#0A0A0B] text-white"
+          >
             <SheetHeader>
-              <SheetTitle className="flex items-center gap-2">
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                  <QrCode className="h-4 w-4" />
+              <SheetTitle className="flex items-center gap-2 text-white">
+                <span className="fp-bg-gradient flex h-8 w-8 items-center justify-center rounded-lg">
+                  <QrCode className="h-4 w-4 text-white" />
                 </span>
-                FeedbackPro
+                <span className="fp-text-gradient">FeedbackPro</span>
               </SheetTitle>
             </SheetHeader>
             <nav className="flex flex-col gap-1 px-4" aria-label="Navigation mobile">
@@ -586,27 +637,27 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
                     setOpen(false)
                     allerVers(lien.id)
                   }}
-                  className="flex items-center justify-between rounded-lg px-3 py-3 text-left text-base font-medium text-foreground transition-colors hover:bg-accent"
+                  className="flex items-center justify-between rounded-lg px-3 py-3 text-left text-base font-medium text-gray-200 transition-colors hover:bg-white/5 hover:text-white"
                 >
                   {lien.label}
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                  <ChevronRight className="h-4 w-4 text-gray-400" />
                 </button>
               ))}
             </nav>
             <div className="mt-auto flex flex-col gap-2 p-4">
               <Button
-                className="w-full"
+                className="fp-bg-gradient w-full border-0 text-white"
                 onClick={() => {
                   setOpen(false)
                   onSignup()
                 }}
               >
-                Essayer gratuitement
+                Commencer gratuitement
                 <ArrowRight className="h-4 w-4" />
               </Button>
               <Button
                 variant="outline"
-                className="w-full"
+                className="w-full border-white/15 bg-white/5 text-white hover:bg-white/10 hover:text-white"
                 onClick={() => {
                   setOpen(false)
                   onLogin()
@@ -615,8 +666,12 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
                 Se connecter
               </Button>
               <SheetClose asChild>
-                <Button variant="ghost" className="w-full" onClick={() => allerVers("tarifs")}>
-                  Voir la démo
+                <Button
+                  variant="ghost"
+                  className="w-full text-gray-300 hover:bg-white/5 hover:text-white"
+                  onClick={() => allerVers("solution")}
+                >
+                  ▶ Voir la démo
                 </Button>
               </SheetClose>
             </div>
@@ -628,29 +683,50 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
 }
 
 // ============================================================
-// 2. Hero
+// 2. Hero (pleine hauteur, mesh animé + particules + mockup 3D)
 // ============================================================
 
 function Hero({ onSignup }: { onSignup: () => void }) {
+  const particules = useParticules(40)
+
   return (
     <section
-      className="relative overflow-hidden"
+      className="relative flex min-h-screen items-center overflow-hidden pt-24 pb-16"
       aria-labelledby="hero-title"
     >
-      {/* Background dégradé subtil + blobs */}
-      <div className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-blue-50/80 via-background to-background dark:from-blue-950/30" />
-      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
-        <div className="fp-blob absolute -left-24 -top-24 h-72 w-72 rounded-full bg-blue-400/25 blur-3xl dark:bg-blue-600/20" />
-        <div className="fp-blob absolute -right-24 top-10 h-80 w-80 rounded-full bg-emerald-400/20 blur-3xl dark:bg-emerald-600/15" style={{ animationDelay: "-6s" }} />
-        <div className="fp-blob absolute bottom-0 left-1/3 h-64 w-64 rounded-full bg-amber-400/15 blur-3xl dark:bg-amber-500/10" style={{ animationDelay: "-12s" }} />
+      {/* Fond mesh animé */}
+      <div className="fp-mesh-bg pointer-events-none absolute inset-0 -z-20" aria-hidden />
+      {/* Voile sombre en bas pour fondu vers le noir */}
+      <div
+        className="pointer-events-none absolute inset-0 -z-10 bg-gradient-to-b from-transparent via-[#0A0A0B]/40 to-[#0A0A0B]"
+        aria-hidden
+      />
+
+      {/* Particules flottantes */}
+      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden>
+        {particules.map((p) => (
+          <span
+            key={p.id}
+            className="fp-particle absolute bottom-0 rounded-full"
+            style={{
+              left: `${p.left}%`,
+              width: `${p.size}px`,
+              height: `${p.size}px`,
+              backgroundColor: p.color,
+              boxShadow: `0 0 ${p.size * 2}px ${p.color}`,
+              ["--fp-particle-duration" as string]: `${p.duration}s`,
+              animationDelay: `${p.delay}s`,
+            }}
+          />
+        ))}
       </div>
 
-      <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 px-4 py-16 sm:px-6 md:py-24 lg:grid-cols-5 lg:gap-8 lg:px-8">
+      <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 px-4 sm:px-6 md:py-24 lg:grid-cols-5 lg:gap-8 lg:px-8">
         {/* Colonne gauche (60%) */}
         <div className="lg:col-span-3">
           <Reveal>
-            <div className="inline-flex items-center gap-2 rounded-full border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-medium text-primary">
-              <Sparkles className="h-3.5 w-3.5" aria-hidden />
+            <div className="fp-glass fp-pulse-glow inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-xs font-medium text-white">
+              <Sparkles className="h-3.5 w-3.5 text-violet-300" aria-hidden />
               Nouveau — Client Mystère 2.0 par IA
             </div>
           </Reveal>
@@ -658,33 +734,38 @@ function Hero({ onSignup }: { onSignup: () => void }) {
           <Reveal delay={80}>
             <h1
               id="hero-title"
-              className="mt-5 text-4xl font-extrabold leading-tight tracking-tight text-foreground sm:text-5xl lg:text-6xl"
+              className="mt-6 text-5xl font-extrabold leading-[1.05] tracking-tight text-white sm:text-6xl lg:text-7xl"
+              style={{ letterSpacing: "-0.03em" }}
             >
               Transformez vos clients en{" "}
-              <span className="bg-gradient-to-r from-primary to-blue-500 bg-clip-text text-transparent">
-                auditeurs qualité
-              </span>
+              <span className="fp-text-gradient">auditeurs qualité</span>
             </h1>
           </Reveal>
 
           <Reveal delay={160}>
-            <p className="mt-5 max-w-xl text-lg text-muted-foreground">
-              FeedbackPro collecte les retours de vos clients en temps réel via QR code, les analyse par IA et vous livre chaque matin un rapport d'audit avec vos 3 priorités du jour.
+            <p className="mt-6 max-w-xl text-lg text-gray-400">
+              FeedbackPro collecte les retours de vos clients en temps réel via QR code, les
+              analyse par IA et vous livre chaque matin un rapport d'audit avec vos 3 priorités
+              du jour.
             </p>
           </Reveal>
 
           <Reveal delay={240}>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Button size="lg" onClick={onSignup} className="h-12 px-6 text-base shadow-md">
+              <Button
+                size="lg"
+                onClick={onSignup}
+                className="fp-bg-gradient fp-pulse-glow h-12 border-0 px-6 text-base text-white hover:opacity-90"
+              >
                 Commencer gratuitement
                 <ArrowRight className="h-4 w-4" />
               </Button>
               <Button
                 size="lg"
-                variant="outline"
                 onClick={() => allerVers("solution")}
-                className="h-12 px-6 text-base"
+                className="fp-glass h-12 border-0 px-6 text-base text-white hover:bg-white/15"
               >
+                <Play className="h-4 w-4" />
                 Voir la démo
               </Button>
             </div>
@@ -694,43 +775,59 @@ function Hero({ onSignup }: { onSignup: () => void }) {
             <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-6">
               <div className="flex items-center gap-2">
                 <Etoiles note={5} />
-                <span className="text-sm font-semibold">4,9/5</span>
+                <span className="text-sm font-semibold text-white">4,9/5</span>
               </div>
-              <div className="hidden h-5 w-px bg-border sm:block" aria-hidden />
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Users className="h-4 w-4 text-primary" aria-hidden />
-                <span><strong className="text-foreground">127+</strong> établissements conquis</span>
+              <div className="hidden h-5 w-px bg-white/15 sm:block" aria-hidden />
+              <div className="flex items-center gap-2 text-sm text-gray-400">
+                <Users className="h-4 w-4 text-violet-400" aria-hidden />
+                <span>
+                  <strong className="text-white">127+</strong> établissements conquis
+                </span>
               </div>
             </div>
           </Reveal>
         </div>
 
-        {/* Colonne droite (40%) — mockup carte flottante */}
+        {/* Colonne droite (40%) — mockup 3D flottant */}
         <div className="lg:col-span-2">
           <Reveal delay={200}>
-            <div className="relative mx-auto max-w-sm">
-              {/* Halo derrière */}
-              <div className="absolute -inset-4 -z-10 rounded-3xl bg-gradient-to-br from-primary/20 to-emerald-400/10 blur-2xl" aria-hidden />
+            <div className="relative mx-auto max-w-md" style={{ perspective: "1200px" }}>
+              {/* Halo violet derrière */}
+              <div
+                className="pointer-events-none absolute -inset-8 -z-10 rounded-[3rem] bg-gradient-to-br from-violet-600/30 via-blue-600/20 to-pink-600/20 blur-3xl"
+                aria-hidden
+              />
 
-              {/* Carte rapport */}
-              <div className="fp-float rounded-3xl border border-border/80 bg-card p-6 shadow-xl">
+              {/* Carte rapport 3D */}
+              <div className="fp-glass fp-float-mockup rounded-3xl p-6 shadow-[0_25px_80px_-15px_rgba(139,92,246,0.5)]">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                    <BarChart3 className="h-4 w-4 text-primary" />
+                  <div className="flex items-center gap-2 text-sm font-semibold text-gray-200">
+                    <BarChart3 className="h-4 w-4 text-violet-400" />
                     Rapport du jour
                   </div>
-                  <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
-                    <span className="mr-1 inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/15 px-2.5 py-1 text-xs font-medium text-emerald-300">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-400" />
                     Live
-                  </Badge>
+                  </span>
                 </div>
 
                 {/* Score global */}
-                <div className="mt-5 rounded-2xl bg-gradient-to-br from-blue-600 to-blue-800 p-5 text-primary-foreground shadow-lg">
-                  <p className="text-xs uppercase tracking-wide opacity-80">Score qualité global</p>
+                <div className="fp-bg-gradient mt-5 rounded-2xl p-5 text-white shadow-lg">
+                  <p className="text-xs uppercase tracking-widest opacity-80">Score qualité global</p>
                   <div className="mt-1 flex items-end gap-2">
                     <span className="text-5xl font-extrabold leading-none">82</span>
                     <span className="mb-1 text-lg opacity-80">/100</span>
+                  </div>
+                  {/* Mini graphique */}
+                  <div className="mt-4 flex h-12 items-end gap-1.5">
+                    {[40, 55, 48, 70, 62, 80, 75, 88, 72, 82].map((h, i) => (
+                      <div
+                        key={i}
+                        className="flex-1 rounded-t bg-white/30"
+                        style={{ height: `${h}%` }}
+                        aria-hidden
+                      />
+                    ))}
                   </div>
                   <div className="mt-3 flex items-center gap-1.5 text-xs">
                     <TrendingUp className="h-3.5 w-3.5" />
@@ -740,56 +837,59 @@ function Hero({ onSignup }: { onSignup: () => void }) {
 
                 {/* Priorités du jour */}
                 <div className="mt-5">
-                  <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-gray-400">
                     Priorités du jour
                   </p>
                   <ul className="mt-3 space-y-2.5">
-                    <li className="flex items-start gap-3 rounded-xl bg-rose-50 p-3 dark:bg-rose-950/30">
+                    <li className="flex items-start gap-3 rounded-xl bg-white/5 p-3">
                       <span className="text-lg leading-none">⏳</span>
                       <div>
-                        <p className="text-sm font-medium">Attente salle &gt; 12 min</p>
-                        <p className="text-xs text-muted-foreground">Pic 12h-13h — renforcer 1 serveur</p>
+                        <p className="text-sm font-medium text-white">Attente salle &gt; 12 min</p>
+                        <p className="text-xs text-gray-400">Pic 12h-13h — renforcer 1 serveur</p>
                       </div>
                     </li>
-                    <li className="flex items-start gap-3 rounded-xl bg-amber-50 p-3 dark:bg-amber-950/30">
+                    <li className="flex items-start gap-3 rounded-xl bg-white/5 p-3">
                       <span className="text-lg leading-none">💬</span>
                       <div>
-                        <p className="text-sm font-medium">Personnel distrait en bar</p>
-                        <p className="text-xs text-muted-foreground">3 signalements — brief équipe</p>
+                        <p className="text-sm font-medium text-white">Personnel distrait en bar</p>
+                        <p className="text-xs text-gray-400">3 signalements — brief équipe</p>
                       </div>
                     </li>
-                    <li className="flex items-start gap-3 rounded-xl bg-emerald-50 p-3 dark:bg-emerald-950/30">
+                    <li className="flex items-start gap-3 rounded-xl bg-white/5 p-3">
                       <span className="text-lg leading-none">🧹</span>
                       <div>
-                        <p className="text-sm font-medium">Toilettes à surveiller</p>
-                        <p className="text-xs text-muted-foreground">2 signalements — passage 14h</p>
+                        <p className="text-sm font-medium text-white">Toilettes à surveiller</p>
+                        <p className="text-xs text-gray-400">2 signalements — passage 14h</p>
                       </div>
                     </li>
                   </ul>
                 </div>
               </div>
 
-              {/* Petite badge flottante */}
-              <div className="fp-float-slow absolute -right-3 -top-3 rounded-2xl border border-border bg-background px-3 py-2 shadow-lg">
+              {/* Badges flottants autour du mockup */}
+              <div className="fp-glass absolute -right-3 -top-3 rounded-2xl px-3 py-2 shadow-xl" style={{ animation: "fp-float-slow 7s ease-in-out infinite" }}>
                 <div className="flex items-center gap-2">
                   <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white">
                     <BellRing className="h-3.5 w-3.5" />
                   </span>
                   <div>
-                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Alerte</p>
-                    <p className="text-xs font-semibold">Nouveau signalement</p>
+                    <p className="text-[10px] uppercase tracking-widest text-gray-400">Alerte</p>
+                    <p className="text-xs font-semibold text-white">Nouveau signalement</p>
                   </div>
                 </div>
               </div>
 
-              <div className="fp-float-slow absolute -bottom-4 -left-3 rounded-2xl border border-border bg-background px-3 py-2 shadow-lg" style={{ animationDelay: "-3s" }}>
+              <div
+                className="fp-glass absolute -bottom-4 -left-3 rounded-2xl px-3 py-2 shadow-xl"
+                style={{ animation: "fp-float-slow 7s ease-in-out infinite", animationDelay: "-3s" }}
+              >
                 <div className="flex items-center gap-2">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-primary-foreground">
+                  <span className="fp-bg-gradient flex h-7 w-7 items-center justify-center rounded-full text-white">
                     <Trophy className="h-3.5 w-3.5" />
                   </span>
                   <div>
-                    <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Top employé</p>
-                    <p className="text-xs font-semibold">Léa — 4,9 ★</p>
+                    <p className="text-[10px] uppercase tracking-widest text-gray-400">Top employé</p>
+                    <p className="text-xs font-semibold text-white">Léa — 4,9 ★</p>
                   </div>
                 </div>
               </div>
@@ -802,33 +902,42 @@ function Hero({ onSignup }: { onSignup: () => void }) {
 }
 
 // ============================================================
-// 3. Bandeau confiance
+// 3. Bandeau logos (marquee scroll infini)
 // ============================================================
 
 function TrustBar() {
+  const logos = [...TRUST_LOGOS, ...TRUST_LOGOS] // duplique pour scroll seamless
   return (
-    <section className="border-y border-border/60 bg-muted/30" aria-label="Ils nous font confiance">
-      <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+    <section
+      className="border-y border-white/10 bg-black/40 py-12"
+      aria-label="Ils nous font confiance"
+    >
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <Reveal>
-          <p className="text-center text-sm font-medium uppercase tracking-widest text-muted-foreground">
+          <p className="text-center text-xs font-medium uppercase tracking-[0.3em] text-gray-500">
             Ils nous font confiance
           </p>
         </Reveal>
         <Reveal delay={120}>
-          <div className="mt-6 grid grid-cols-2 items-center gap-6 sm:grid-cols-3 lg:grid-cols-6">
-            {TRUST_LOGOS.map((nom) => (
-              <div
-                key={nom}
-                className="flex items-center justify-center gap-2 opacity-70 transition-opacity hover:opacity-100"
-              >
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-muted text-xs font-bold text-muted-foreground">
-                  {nom.charAt(0)}
-                </span>
-                <span className="text-sm font-semibold tracking-tight text-muted-foreground">
-                  {nom}
-                </span>
-              </div>
-            ))}
+          <div className="fp-marquee-pause relative mt-8 overflow-hidden">
+            {/* Dégradés masqués en bordures */}
+            <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-20 bg-gradient-to-r from-[#0A0A0B] to-transparent" aria-hidden />
+            <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-20 bg-gradient-to-l from-[#0A0A0B] to-transparent" aria-hidden />
+            <div className="fp-marquee flex w-max items-center gap-12">
+              {logos.map((nom, i) => (
+                <div
+                  key={`${nom}-${i}`}
+                  className="flex shrink-0 items-center gap-2 opacity-50 transition-opacity hover:opacity-100"
+                >
+                  <span className="fp-bg-gradient flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold text-white">
+                    {nom.charAt(0)}
+                  </span>
+                  <span className="whitespace-nowrap text-lg font-semibold tracking-tight text-gray-300">
+                    {nom}
+                  </span>
+                </div>
+              ))}
+            </div>
           </div>
         </Reveal>
       </div>
@@ -837,36 +946,40 @@ function TrustBar() {
 }
 
 // ============================================================
-// 4. Section problème (3 cards)
+// 4. Section problème (3 cards glassmorphism)
 // ============================================================
 
 function ProblemSection() {
   return (
-    <section id="probleme" className="scroll-mt-20" aria-labelledby="probleme-title">
-      <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+    <section id="probleme" className="scroll-mt-24" aria-labelledby="probleme-title">
+      <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <Badge variant="outline" className="mb-4 border-rose-200 text-rose-700 dark:border-rose-900/60 dark:text-rose-400">
+          <span className="fp-glass inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium text-rose-300">
             Vous reconnaissez-vous ?
-          </Badge>
-          <h2 id="probleme-title" className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Le client insatisfait ne dit rien. Il part.
+          </span>
+          <h2
+            id="probleme-title"
+            className="mt-4 text-4xl font-extrabold tracking-tight text-white sm:text-5xl"
+            style={{ letterSpacing: "-0.03em" }}
+          >
+            Le client insatisfait ne dit rien.{" "}
+            <span className="fp-text-gradient">Il part.</span>
           </h2>
-          <p className="mt-4 text-lg text-muted-foreground">
-            Sans retour en temps réel, vous pilotez à l'aveugle. Voici ce que vivent chaque jour les commerces sans FeedbackPro.
+          <p className="mt-4 text-lg text-gray-400">
+            Sans retour en temps réel, vous pilotez à l'aveugle. Voici ce que vivent chaque jour
+            les commerces sans FeedbackPro.
           </p>
         </Reveal>
 
-        <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3">
+        <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-3">
           {PROBLEM_CARDS.map((c, i) => (
             <Reveal key={c.titre} delay={i * 100}>
-              <article
-                className={`group h-full rounded-3xl border p-6 shadow-sm ring-1 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${c.bg} ${c.ring}`}
-              >
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-background text-3xl shadow-sm">
+              <article className="fp-glass fp-lift group h-full rounded-3xl p-6 hover:border-rose-500/40 hover:shadow-[0_0_40px_rgba(244,63,94,0.2)]">
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-white/5 text-3xl shadow-inner">
                   {c.emoji}
                 </div>
-                <h3 className="mt-5 text-lg font-semibold">{c.titre}</h3>
-                <p className="mt-3 text-sm leading-relaxed text-muted-foreground">{c.texte}</p>
+                <h3 className="mt-5 text-lg font-semibold text-white">{c.titre}</h3>
+                <p className="mt-3 text-sm leading-relaxed text-gray-400">{c.texte}</p>
               </article>
             </Reveal>
           ))}
@@ -877,45 +990,65 @@ function ProblemSection() {
 }
 
 // ============================================================
-// 5. Section solution (4 étapes horizontales avec flèches)
+// 5. Section solution (4 étapes avec numéros 01-04 + flèches)
 // ============================================================
 
 function SolutionSection() {
   return (
-    <section id="solution" className="scroll-mt-20 bg-muted/30" aria-labelledby="solution-title">
-      <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+    <section
+      id="solution"
+      className="scroll-mt-24 border-y border-white/10 bg-white/[0.02]"
+      aria-labelledby="solution-title"
+    >
+      <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <Badge className="mb-4 bg-primary/10 text-primary">
+          <span className="fp-glass inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium text-violet-300">
             <Sparkles className="h-3.5 w-3.5" />
             La solution
-          </Badge>
-          <h2 id="solution-title" className="text-3xl font-bold tracking-tight sm:text-4xl">
-            FeedbackPro : Le Client Mystère 2.0
+          </span>
+          <h2
+            id="solution-title"
+            className="mt-4 text-4xl font-extrabold tracking-tight text-white sm:text-5xl"
+            style={{ letterSpacing: "-0.03em" }}
+          >
+            <span className="fp-text-gradient">Le Client Mystère 2.0</span>
           </h2>
-          <p className="mt-4 text-lg text-muted-foreground">
-            4 étapes pour transformer chaque client en auditeur qualité — et chaque matin en plan d'action concret.
+          <p className="mt-4 text-lg text-gray-400">
+            4 étapes pour transformer chaque client en auditeur qualité — et chaque matin en plan
+            d'action concret.
           </p>
         </Reveal>
 
         <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-4 md:gap-4">
           {STEPS.map((s, i) => (
             <Reveal key={s.titre} delay={i * 120}>
-              <div className="relative flex h-full flex-col items-start rounded-3xl border border-border/80 bg-card p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
-                <div className="flex items-center gap-3">
-                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-2xl">
+              <div className="fp-glass fp-lift relative flex h-full flex-col items-start overflow-hidden rounded-3xl p-6 hover:border-violet-500/40 hover:shadow-[0_0_40px_rgba(139,92,246,0.25)]">
+                {/* Numéro 01-04 en arrière-plan */}
+                <span
+                  className="pointer-events-none absolute -right-2 -top-4 text-[7rem] font-extrabold leading-none text-white/5"
+                  aria-hidden
+                >
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+
+                <div className="relative flex items-center gap-3">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/5 text-2xl">
                     {s.emoji}
                   </span>
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-bold text-primary-foreground">
+                  <span className="fp-bg-gradient flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white">
                     {i + 1}
                   </span>
                 </div>
-                <h3 className="mt-5 text-base font-semibold">{s.titre}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{s.texte}</p>
+                <h3 className="relative mt-5 text-base font-semibold text-white">{s.titre}</h3>
+                <p className="relative mt-2 text-sm text-gray-400">{s.texte}</p>
 
                 {/* Flèche entre cartes (desktop) */}
                 {i < STEPS.length - 1 && (
-                  <div className="absolute -right-4 top-1/2 z-10 hidden h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-border bg-background shadow-sm md:flex" aria-hidden>
-                    <ArrowRight className="h-4 w-4 text-primary" />
+                  <div
+                    className="absolute -right-4 top-1/2 z-20 hidden h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-white/15 bg-[#0A0A0B] shadow-lg md:flex"
+                    aria-hidden
+                  >
+                    <ArrowRight className="h-4 w-4 text-violet-400" />
                   </div>
                 )}
               </div>
@@ -925,7 +1058,7 @@ function SolutionSection() {
 
         {/* Flèche explicite entre cartes (mobile) */}
         <div className="mt-6 flex justify-center md:hidden">
-          <ArrowDown className="h-5 w-5 text-muted-foreground" aria-hidden />
+          <ArrowDown className="h-5 w-5 text-gray-500" aria-hidden />
         </div>
       </div>
     </section>
@@ -933,39 +1066,47 @@ function SolutionSection() {
 }
 
 // ============================================================
-// 6. Section comparaison (tableau)
+// 6. Section comparaison (tableau glassmorphism)
 // ============================================================
 
 function ComparisonSection() {
   return (
-    <section id="comparaison" className="scroll-mt-20" aria-labelledby="comparaison-title">
-      <div className="mx-auto max-w-5xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+    <section id="comparaison" className="scroll-mt-24" aria-labelledby="comparaison-title">
+      <div className="mx-auto max-w-5xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <Badge variant="outline" className="mb-4">
+          <span className="fp-glass inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium text-blue-300">
             Comparatif
-          </Badge>
-          <h2 id="comparaison-title" className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Client Mystère traditionnel <span className="text-muted-foreground">vs</span> FeedbackPro
+          </span>
+          <h2
+            id="comparaison-title"
+            className="mt-4 text-4xl font-extrabold tracking-tight text-white sm:text-5xl"
+            style={{ letterSpacing: "-0.03em" }}
+          >
+            Traditionnel <span className="text-gray-500">vs</span>{" "}
+            <span className="fp-text-gradient">FeedbackPro</span>
           </h2>
-          <p className="mt-4 text-lg text-muted-foreground">
-            Même objectif (mesurer votre qualité), mais 10× moins cher, 30× plus rapide et 100× plus actionnable.
+          <p className="mt-4 text-lg text-gray-400">
+            Même objectif (mesurer votre qualité), mais 10× moins cher, 30× plus rapide et 100×
+            plus actionnable.
           </p>
         </Reveal>
 
         <Reveal delay={120}>
-          <div className="mt-12 overflow-hidden rounded-3xl border border-border bg-card shadow-lg">
+          <div className="fp-glass mt-12 overflow-hidden rounded-3xl">
             {/* En-tête tableau */}
-            <div className="grid grid-cols-3 border-b border-border bg-muted/40">
-              <div className="px-4 py-4 text-xs font-semibold uppercase tracking-wide text-muted-foreground sm:px-6">
+            <div className="grid grid-cols-3 border-b border-white/10">
+              <div className="px-4 py-5 text-xs font-semibold uppercase tracking-widest text-gray-500 sm:px-6">
                 Critère
               </div>
-              <div className="px-4 py-4 text-sm font-semibold sm:px-6">
+              <div className="px-4 py-5 text-sm font-semibold text-gray-300 sm:px-6">
                 Client Mystère <span className="hidden sm:inline">traditionnel</span>
               </div>
-              <div className="relative px-4 py-4 text-sm font-semibold text-emerald-700 dark:text-emerald-400 sm:px-6">
-                <span className="flex items-center gap-2">
-                  FeedbackPro
-                  <Badge className="bg-emerald-500 text-white">✅ 10× moins cher</Badge>
+              <div className="relative border-l border-purple-500/40 bg-purple-500/10 px-4 py-5 text-sm font-semibold text-white sm:px-6">
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="fp-text-gradient">FeedbackPro</span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/20 px-2 py-0.5 text-xs font-medium text-emerald-300">
+                    ✅ 10× moins cher
+                  </span>
                 </span>
               </div>
             </div>
@@ -974,16 +1115,18 @@ function ComparisonSection() {
             {COMPARISON_ROWS.map((row, i) => (
               <div
                 key={row.critere}
-                className={`grid grid-cols-3 items-center ${i % 2 === 1 ? "bg-muted/20" : ""}`}
+                className={`grid grid-cols-3 items-center ${i % 2 === 1 ? "bg-white/[0.02]" : ""}`}
               >
-                <div className="px-4 py-4 text-sm font-medium sm:px-6">{row.critere}</div>
-                <div className="flex items-center gap-2 px-4 py-4 text-sm text-muted-foreground sm:px-6">
-                  <X className="h-4 w-4 shrink-0 text-rose-500" aria-hidden />
+                <div className="px-4 py-4 text-sm font-medium text-gray-200 sm:px-6">
+                  {row.critere}
+                </div>
+                <div className="flex items-center gap-2 px-4 py-4 text-sm text-gray-400 sm:px-6">
+                  <X className="h-4 w-4 shrink-0 text-rose-400" aria-hidden />
                   <span>{row.traditionnel}</span>
                 </div>
-                <div className={`flex items-center gap-2 px-4 py-4 text-sm font-medium sm:px-6 ${i % 2 === 1 ? "bg-emerald-50/60 dark:bg-emerald-950/20" : "bg-emerald-50/40 dark:bg-emerald-950/10"}`}>
-                  <Check className="h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
-                  <span className="text-foreground">{row.feedbackpro}</span>
+                <div className="flex items-center gap-2 border-l border-purple-500/40 bg-purple-500/[0.07] px-4 py-4 text-sm font-medium sm:px-6">
+                  <Check className="h-4 w-4 shrink-0 text-emerald-400" aria-hidden />
+                  <span className="text-white">{row.feedbackpro}</span>
                 </div>
               </div>
             ))}
@@ -995,92 +1138,79 @@ function ComparisonSection() {
 }
 
 // ============================================================
-// 7. 7 problèmes résolus (grille 2 col)
-// ============================================================
-
-function ProblemsResolvedSection() {
-  return (
-    <section id="problemes-resolus" className="scroll-mt-20 bg-muted/30" aria-labelledby="problemes-resolus-title">
-      <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
-        <Reveal className="mx-auto max-w-2xl text-center">
-          <Badge className="mb-4 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">
-            Couverture exhaustive
-          </Badge>
-          <h2 id="problemes-resolus-title" className="text-3xl font-bold tracking-tight sm:text-4xl">
-            7 problèmes terrain. 7 solutions FeedbackPro.
-          </h2>
-          <p className="mt-4 text-lg text-muted-foreground">
-            Chaque problème récurrent identifié sur le terrain a sa solution intégrée, sans configuration supplémentaire.
-          </p>
-        </Reveal>
-
-        <div className="mt-12 grid grid-cols-1 gap-5 md:grid-cols-2">
-          {PROBLEMES_RESOLUS.map((p, i) => (
-            <Reveal key={p.titre} delay={(i % 2) * 80}>
-              <article className="group flex h-full items-start gap-4 rounded-2xl border border-border/80 bg-card p-5 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10 text-2xl">
-                  {p.emoji}
-                </span>
-                <div>
-                  <h3 className="text-base font-semibold">{p.titre}</h3>
-                  <p className="mt-1.5 text-sm text-muted-foreground">{p.texte}</p>
-                </div>
-              </article>
-            </Reveal>
-          ))}
-
-          {/* Carte bonus 8e (CTA) pour équilibrer la grille */}
-          <Reveal delay={80}>
-            <article className="flex h-full items-center gap-4 rounded-2xl border border-primary/30 bg-gradient-to-br from-primary/10 to-emerald-500/5 p-5 shadow-sm">
-              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-                <Zap className="h-6 w-6" />
-              </span>
-              <div>
-                <h3 className="text-base font-semibold">Et bien plus encore</h3>
-                <p className="mt-1.5 text-sm text-muted-foreground">
-                  Tags contextuels par zone, exports, API, supports physiques livrés…
-                </p>
-              </div>
-            </article>
-          </Reveal>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// ============================================================
-// 8. Fonctionnalités (grille 3x2)
+// 7. Fonctionnalités (Bento grid asymétrique)
 // ============================================================
 
 function FeaturesSection() {
   return (
-    <section id="fonctionnalites" className="scroll-mt-20" aria-labelledby="features-title">
-      <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+    <section
+      id="fonctionnalites"
+      className="scroll-mt-24 border-y border-white/10 bg-white/[0.02]"
+      aria-labelledby="features-title"
+    >
+      <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <Badge variant="outline" className="mb-4">
+          <span className="fp-glass inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium text-violet-300">
             Fonctionnalités
-          </Badge>
-          <h2 id="features-title" className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Tout pour piloter votre qualité, sans effort
+          </span>
+          <h2
+            id="features-title"
+            className="mt-4 text-4xl font-extrabold tracking-tight text-white sm:text-5xl"
+            style={{ letterSpacing: "-0.03em" }}
+          >
+            Tout pour piloter votre qualité,{" "}
+            <span className="fp-text-gradient">sans effort</span>
           </h2>
-          <p className="mt-4 text-lg text-muted-foreground">
-            6 modules qui couvrent l'ensemble du cycle : collecte, analyse, alerte, pilotage, formation, déploiement terrain.
+          <p className="mt-4 text-lg text-gray-400">
+            6 modules qui couvrent l'ensemble du cycle : collecte, analyse, alerte, pilotage,
+            formation, déploiement terrain.
           </p>
         </Reveal>
 
-        <div className="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-6 lg:auto-rows-[minmax(0,1fr)]">
           {FEATURES.map((f, i) => (
-            <Reveal key={f.titre} delay={(i % 3) * 100}>
-              <article className="group flex h-full flex-col rounded-3xl border border-border/80 bg-card p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+            <Reveal
+              key={f.titre}
+              delay={(i % 3) * 100}
+              className={f.grand ? "lg:col-span-4 lg:row-span-2" : "lg:col-span-2"}
+            >
+              <article className="fp-glass fp-lift group flex h-full flex-col rounded-3xl p-6 hover:scale-[1.02] hover:border-violet-500/40 hover:shadow-[0_0_50px_rgba(139,92,246,0.25)] sm:p-7">
                 <div className="flex items-center justify-between">
-                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                  <span className="fp-bg-gradient flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-[0_0_20px_rgba(139,92,246,0.4)]">
                     <f.icone className="h-6 w-6" />
                   </span>
-                  <span className="text-2xl opacity-70 transition-transform group-hover:scale-110">{f.emoji}</span>
+                  <span className="text-2xl opacity-70 transition-transform duration-300 group-hover:scale-110">
+                    {f.emoji}
+                  </span>
                 </div>
-                <h3 className="mt-5 text-lg font-semibold">{f.titre}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-muted-foreground">{f.texte}</p>
+                <h3 className="mt-5 text-lg font-semibold text-white">{f.titre}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-gray-400">{f.texte}</p>
+
+                {/* Mini-illustration dans la grande card */}
+                {f.grand && (
+                  <div className="mt-auto pt-6">
+                    <div className="fp-glass rounded-2xl p-4">
+                      <div className="flex items-center justify-between text-xs text-gray-400">
+                        <span>Évolution du score — 14 jours</span>
+                        <span className="flex items-center gap-1 font-medium text-emerald-300">
+                          <TrendingUp className="h-3.5 w-3.5" /> +18 %
+                        </span>
+                      </div>
+                      <div className="mt-3 flex h-20 items-end gap-1.5">
+                        {[
+                          45, 52, 48, 60, 58, 68, 72, 65, 78, 82, 79, 85, 88, 91,
+                        ].map((h, idx) => (
+                          <div
+                            key={idx}
+                            className="fp-bg-gradient flex-1 rounded-t"
+                            style={{ height: `${h}%`, opacity: 0.4 + (idx / 14) * 0.6 }}
+                            aria-hidden
+                          />
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
               </article>
             </Reveal>
           ))}
@@ -1091,34 +1221,41 @@ function FeaturesSection() {
 }
 
 // ============================================================
-// 9. Cas d'usage (tabs)
+// 8. Cas d'usage (5 tabs glassmorphism)
 // ============================================================
 
 function UseCasesSection() {
   return (
-    <section id="cas-usage" className="scroll-mt-20 bg-muted/30" aria-labelledby="cas-usage-title">
-      <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+    <section id="cas-usage" className="scroll-mt-24" aria-labelledby="cas-usage-title">
+      <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <Badge className="mb-4 bg-primary/10 text-primary">Cas d'usage</Badge>
-          <h2 id="cas-usage-title" className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Pensé pour votre secteur
+          <span className="fp-glass inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium text-pink-300">
+            Cas d'usage
+          </span>
+          <h2
+            id="cas-usage-title"
+            className="mt-4 text-4xl font-extrabold tracking-tight text-white sm:text-5xl"
+            style={{ letterSpacing: "-0.03em" }}
+          >
+            Pensé pour <span className="fp-text-gradient">votre secteur</span>
           </h2>
-          <p className="mt-4 text-lg text-muted-foreground">
-            Tags contextuels et zones pré-configurées pour chaque métier. Déployez en quelques minutes.
+          <p className="mt-4 text-lg text-gray-400">
+            Tags contextuels et zones pré-configurées pour chaque métier. Déployez en quelques
+            minutes.
           </p>
         </Reveal>
 
         <Reveal delay={120}>
           <Tabs defaultValue="hotellerie" className="mt-10">
             <TabsList
-              className="flex h-auto w-full flex-nowrap gap-1 overflow-x-auto rounded-2xl bg-background p-1.5 no-scrollbar"
+              className="fp-glass flex h-auto w-full flex-nowrap gap-1 overflow-x-auto rounded-2xl p-1.5 no-scrollbar"
               aria-label="Secteurs d'activité"
             >
               {USE_CASES.map((uc) => (
                 <TabsTrigger
                   key={uc.id}
                   value={uc.id}
-                  className="flex-1 shrink-0 rounded-xl px-4 py-2 text-sm"
+                  className="flex-1 shrink-0 rounded-xl border border-transparent px-4 py-2 text-sm font-medium text-gray-300 transition-all data-[state=active]:fp-bg-gradient data-[state=active]:border-transparent data-[state=active]:text-white data-[state=active]:shadow-[0_0_20px_rgba(139,92,246,0.4)]"
                 >
                   <span className="mr-1.5">{uc.emoji}</span>
                   <span className="hidden sm:inline">{uc.label}</span>
@@ -1128,16 +1265,18 @@ function UseCasesSection() {
 
             {USE_CASES.map((uc) => (
               <TabsContent key={uc.id} value={uc.id} className="mt-6">
-                <div className="rounded-3xl border border-border/80 bg-card p-6 shadow-sm sm:p-8">
+                <div className="fp-glass rounded-3xl p-6 sm:p-8">
                   <div className="flex items-center gap-3">
-                    <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                    <span className="fp-bg-gradient flex h-12 w-12 items-center justify-center rounded-2xl text-white">
                       <uc.icone className="h-6 w-6" />
                     </span>
                     <div>
-                      <h3 className="text-xl font-semibold">
+                      <h3 className="text-xl font-semibold text-white">
                         {uc.emoji} {uc.label}
                       </h3>
-                      <p className="text-sm text-muted-foreground">4 points clés couverts par FeedbackPro</p>
+                      <p className="text-sm text-gray-400">
+                        4 points clés couverts par FeedbackPro
+                      </p>
                     </div>
                   </div>
 
@@ -1145,12 +1284,12 @@ function UseCasesSection() {
                     {uc.points.map((pt) => (
                       <div
                         key={pt.titre}
-                        className="flex items-start gap-3 rounded-2xl bg-muted/40 p-4"
+                        className="flex items-start gap-3 rounded-2xl bg-white/[0.04] p-4"
                       >
-                        <Check className="mt-0.5 h-5 w-5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                        <Check className="mt-0.5 h-5 w-5 shrink-0 text-emerald-400" aria-hidden />
                         <div>
-                          <p className="text-sm font-semibold">{pt.titre}</p>
-                          <p className="mt-0.5 text-sm text-muted-foreground">{pt.texte}</p>
+                          <p className="text-sm font-semibold text-white">{pt.titre}</p>
+                          <p className="mt-0.5 text-sm text-gray-400">{pt.texte}</p>
                         </div>
                       </div>
                     ))}
@@ -1166,43 +1305,55 @@ function UseCasesSection() {
 }
 
 // ============================================================
-// 10. Témoignages (3 cards)
+// 9. Témoignages (3 cards glassmorphism)
 // ============================================================
 
 function TestimonialsSection() {
   return (
-    <section id="temoignages" className="scroll-mt-20" aria-labelledby="temoignages-title">
-      <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+    <section
+      id="temoignages"
+      className="scroll-mt-24 border-y border-white/10 bg-white/[0.02]"
+      aria-labelledby="temoignages-title"
+    >
+      <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <Badge variant="outline" className="mb-4">
+          <span className="fp-glass inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium text-amber-300">
             Témoignages
-          </Badge>
-          <h2 id="temoignages-title" className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Ils ont transformé leur qualité
+          </span>
+          <h2
+            id="temoignages-title"
+            className="mt-4 text-4xl font-extrabold tracking-tight text-white sm:text-5xl"
+            style={{ letterSpacing: "-0.03em" }}
+          >
+            Ils ont <span className="fp-text-gradient">transformé leur qualité</span>
           </h2>
-          <p className="mt-4 text-lg text-muted-foreground">
+          <p className="mt-4 text-lg text-gray-400">
             127+ établissements utilisent FeedbackPro au quotidien. Voici ce qu'ils en disent.
           </p>
         </Reveal>
 
-        <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3">
+        <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-3">
           {TESTIMONIALS.map((t, i) => (
             <Reveal key={t.nom} delay={i * 100}>
-              <article className="flex h-full flex-col rounded-3xl border border-border/80 bg-card p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
+              <article className="fp-glass fp-lift flex h-full flex-col rounded-3xl p-6 hover:border-violet-500/40 hover:shadow-[0_0_40px_rgba(139,92,246,0.2)]">
                 <div className="flex items-center justify-between">
                   <Etoiles note={t.note} />
-                  <Quote className="h-6 w-6 text-primary/30" aria-hidden />
+                  <Quote className="h-6 w-6 text-violet-400/40" aria-hidden />
                 </div>
                 <blockquote className="mt-4 flex-1">
-                  <p className="text-sm italic leading-relaxed text-foreground">« {t.citation} »</p>
+                  <p className="text-sm italic leading-relaxed text-gray-200">
+                    « {t.citation} »
+                  </p>
                 </blockquote>
-                <div className="mt-5 flex items-center gap-3 border-t border-border/60 pt-4">
-                  <span className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold text-white ${t.couleur}`}>
+                <div className="mt-5 flex items-center gap-3 border-t border-white/10 pt-4">
+                  <span
+                    className={`flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br ${t.couleur} text-sm font-bold text-white`}
+                  >
                     {t.initiales}
                   </span>
                   <div>
-                    <p className="text-sm font-semibold">{t.nom}</p>
-                    <p className="text-xs text-muted-foreground">
+                    <p className="text-sm font-semibold text-white">{t.nom}</p>
+                    <p className="text-xs text-gray-400">
                       {t.poste} — {t.etablissement}
                     </p>
                   </div>
@@ -1217,7 +1368,7 @@ function TestimonialsSection() {
 }
 
 // ============================================================
-// 11. Tarifs (3 plans + toggle mensuel/annuel)
+// 10. Tarifs (3 plans premium + toggle mensuel/annuel)
 // ============================================================
 
 function PricingSection({ onSignup }: { onSignup: () => void }) {
@@ -1225,14 +1376,20 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
   const rabais = 0.2
 
   return (
-    <section id="tarifs" className="scroll-mt-20 bg-muted/30" aria-labelledby="tarifs-title">
-      <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+    <section id="tarifs" className="scroll-mt-24" aria-labelledby="tarifs-title">
+      <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <Badge className="mb-4 bg-primary/10 text-primary">Tarifs</Badge>
-          <h2 id="tarifs-title" className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Un prix adapté à chaque établissement
+          <span className="fp-glass inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium text-violet-300">
+            Tarifs
+          </span>
+          <h2
+            id="tarifs-title"
+            className="mt-4 text-4xl font-extrabold tracking-tight text-white sm:text-5xl"
+            style={{ letterSpacing: "-0.03em" }}
+          >
+            Un prix adapté à <span className="fp-text-gradient">chaque établissement</span>
           </h2>
-          <p className="mt-4 text-lg text-muted-foreground">
+          <p className="mt-4 text-lg text-gray-400">
             Sans engagement. Annulation en 1 clic. 14 jours d'essai gratuit, sans carte bancaire.
           </p>
         </Reveal>
@@ -1240,7 +1397,11 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
         {/* Toggle mensuel/annuel */}
         <Reveal delay={80}>
           <div className="mt-8 flex items-center justify-center gap-3">
-            <span className={`text-sm font-medium ${!annuel ? "text-foreground" : "text-muted-foreground"}`}>
+            <span
+              className={`text-sm font-medium ${
+                !annuel ? "text-white" : "text-gray-500"
+              }`}
+            >
               Mensuel
             </span>
             <button
@@ -1249,7 +1410,9 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
               aria-checked={annuel}
               aria-label="Basculer en facturation annuelle"
               onClick={() => setAnnuel((v) => !v)}
-              className={`relative h-7 w-12 rounded-full transition-colors ${annuel ? "bg-primary" : "bg-muted-foreground/30"}`}
+              className={`relative h-7 w-12 rounded-full transition-colors ${
+                annuel ? "fp-bg-gradient" : "bg-white/15"
+              }`}
             >
               <span
                 className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${
@@ -1257,10 +1420,16 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
                 }`}
               />
             </button>
-            <span className={`text-sm font-medium ${annuel ? "text-foreground" : "text-muted-foreground"}`}>
+            <span
+              className={`text-sm font-medium ${
+                annuel ? "text-white" : "text-gray-500"
+              }`}
+            >
               Annuel
             </span>
-            <Badge className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400">-20 %</Badge>
+            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-medium text-emerald-300">
+              -20 %
+            </span>
           </div>
         </Reveal>
 
@@ -1273,48 +1442,55 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
             return (
               <Reveal key={plan.id} delay={i * 120}>
                 <article
-                  className={`relative flex h-full flex-col rounded-3xl border bg-card p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl sm:p-8 ${
+                  className={`fp-lift relative flex h-full flex-col rounded-3xl p-6 sm:p-8 ${
                     plan.populaire
-                      ? "border-emerald-500 ring-2 ring-emerald-500/40 lg:scale-105"
-                      : "border-border/80"
+                      ? "fp-gradient-border fp-card-glow lg:scale-105"
+                      : "fp-glass"
                   }`}
                 >
                   {plan.populaire && (
-                    <Badge className="absolute -top-3 left-1/2 -translate-x-1/2 bg-emerald-500 px-3 py-1 text-white shadow-md">
+                    <span className="fp-bg-gradient absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold text-white shadow-lg">
                       <Trophy className="h-3.5 w-3.5" />
-                      Populaire
-                    </Badge>
+                      Recommandé
+                    </span>
                   )}
 
-                  <h3 className="text-lg font-bold">{plan.nom}</h3>
-                  <p className="mt-1 text-sm text-muted-foreground">{plan.tagline}</p>
+                  <h3 className="text-lg font-bold text-white">{plan.nom}</h3>
+                  <p className="mt-1 text-sm text-gray-400">{plan.tagline}</p>
 
                   <div className="mt-5 flex items-end gap-1">
-                    <span className="text-4xl font-extrabold tracking-tight">{prix} €</span>
-                    <span className="mb-1 text-sm text-muted-foreground">/ mois HT</span>
+                    <span className="text-5xl font-extrabold tracking-tight text-white">
+                      {prix} €
+                    </span>
+                    <span className="mb-1.5 text-sm text-gray-400">/ mois HT</span>
                   </div>
-                  <p className="mt-1 text-xs text-muted-foreground">
+                  <p className="mt-1 text-xs text-gray-500">
                     {annuel ? `Facturé ${prix * 12} € / an` : "Facturé mensuellement"}
                   </p>
 
                   <Button
-                    className="mt-6 w-full"
-                    variant={plan.populaire ? "default" : "outline"}
+                    className={`mt-6 w-full border-0 ${
+                      plan.populaire
+                        ? "fp-bg-gradient text-white hover:opacity-90"
+                        : "bg-white/10 text-white hover:bg-white/20"
+                    }`}
                     onClick={onSignup}
                   >
                     {plan.cta}
                     <ArrowRight className="h-4 w-4" />
                   </Button>
 
-                  <ul className="mt-6 space-y-3 border-t border-border/60 pt-6">
+                  <ul className="mt-6 space-y-3 border-t border-white/10 pt-6">
                     {plan.features.map((f) => (
                       <li key={f.texte} className="flex items-start gap-2.5 text-sm">
                         {f.inclus ? (
-                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" aria-hidden />
                         ) : (
-                          <X className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground/50" aria-hidden />
+                          <X className="mt-0.5 h-4 w-4 shrink-0 text-gray-600" aria-hidden />
                         )}
-                        <span className={f.inclus ? "text-foreground" : "text-muted-foreground/70 line-through"}>
+                        <span
+                          className={f.inclus ? "text-gray-200" : "text-gray-600 line-through"}
+                        >
                           {f.texte}
                         </span>
                       </li>
@@ -1327,9 +1503,12 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
         </div>
 
         <Reveal delay={120}>
-          <p className="mt-8 text-center text-sm text-muted-foreground">
+          <p className="mt-8 text-center text-sm text-gray-400">
             Besoin d'une solution sur-mesure pour un grand groupe ?{" "}
-            <button onClick={onSignup} className="font-medium text-primary underline-offset-4 hover:underline">
+            <button
+              onClick={onSignup}
+              className="font-medium text-violet-400 underline-offset-4 hover:underline"
+            >
               Parlons-en →
             </button>
           </p>
@@ -1340,19 +1519,29 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
 }
 
 // ============================================================
-// 12. FAQ (accordion 8 questions)
+// 11. FAQ (accordion glassmorphism)
 // ============================================================
 
 function FAQSection() {
   return (
-    <section id="faq" className="scroll-mt-20" aria-labelledby="faq-title">
-      <div className="mx-auto max-w-3xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
+    <section
+      id="faq"
+      className="scroll-mt-24 border-y border-white/10 bg-white/[0.02]"
+      aria-labelledby="faq-title"
+    >
+      <div className="mx-auto max-w-3xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
         <Reveal className="text-center">
-          <Badge variant="outline" className="mb-4">FAQ</Badge>
-          <h2 id="faq-title" className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Questions fréquentes
+          <span className="fp-glass inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium text-blue-300">
+            FAQ
+          </span>
+          <h2
+            id="faq-title"
+            className="mt-4 text-4xl font-extrabold tracking-tight text-white sm:text-5xl"
+            style={{ letterSpacing: "-0.03em" }}
+          >
+            Questions <span className="fp-text-gradient">fréquentes</span>
           </h2>
-          <p className="mt-4 text-lg text-muted-foreground">
+          <p className="mt-4 text-lg text-gray-400">
             Tout ce que vous devez savoir avant de vous lancer.
           </p>
         </Reveal>
@@ -1360,11 +1549,15 @@ function FAQSection() {
         <Reveal delay={120}>
           <Accordion type="single" collapsible className="mt-10 w-full">
             {FAQ_ITEMS.map((item, i) => (
-              <AccordionItem key={i} value={`item-${i}`} className="rounded-2xl border border-border/80 bg-card px-5 shadow-sm [&:not(:last-child)]:mb-3">
-                <AccordionTrigger className="text-left text-base font-semibold hover:no-underline">
+              <AccordionItem
+                key={i}
+                value={`item-${i}`}
+                className="fp-glass mb-3 rounded-2xl border-0 px-5 [&:not(:last-child)]:mb-3"
+              >
+                <AccordionTrigger className="text-left text-base font-semibold text-white hover:no-underline">
                   {item.q}
                 </AccordionTrigger>
-                <AccordionContent className="text-sm leading-relaxed text-muted-foreground">
+                <AccordionContent className="text-sm leading-relaxed text-gray-400">
                   {item.r}
                 </AccordionContent>
               </AccordionItem>
@@ -1377,46 +1570,70 @@ function FAQSection() {
 }
 
 // ============================================================
-// 13. CTA final (bandeau bleu dégradé)
+// 12. CTA final (fond mesh animé)
 // ============================================================
 
 function FinalCTA({ onSignup }: { onSignup: () => void }) {
   return (
-    <section className="px-4 py-16 sm:px-6 lg:px-8 lg:py-24" aria-labelledby="cta-title">
+    <section className="px-4 py-24 sm:px-6 lg:px-8 lg:py-32" aria-labelledby="cta-title">
       <Reveal>
-        <div className="relative mx-auto max-w-6xl overflow-hidden rounded-3xl bg-gradient-to-br from-blue-600 to-blue-800 px-6 py-14 text-center shadow-xl sm:px-12 sm:py-20">
-          {/* Décor */}
-          <div className="pointer-events-none absolute inset-0">
-            <div className="fp-blob absolute -left-10 -top-10 h-40 w-40 rounded-full bg-white/10 blur-2xl" />
-            <div className="fp-blob absolute -bottom-10 -right-10 h-48 w-48 rounded-full bg-emerald-300/20 blur-2xl" style={{ animationDelay: "-8s" }} />
+        <div className="fp-mesh-bg relative mx-auto max-w-6xl overflow-hidden rounded-3xl border border-white/10 px-6 py-16 text-center shadow-[0_0_80px_rgba(139,92,246,0.3)] sm:px-12 sm:py-20">
+          {/* Voile sombre pour lisibilité */}
+          <div
+            className="pointer-events-none absolute inset-0 bg-[#0A0A0B]/60"
+            aria-hidden
+          />
+          {/* Particules décoratives */}
+          <div className="pointer-events-none absolute inset-0" aria-hidden>
+            <div
+              className="absolute left-[15%] top-[20%] h-2 w-2 rounded-full bg-violet-400"
+              style={{ animation: "fp-float-slow 6s ease-in-out infinite" }}
+            />
+            <div
+              className="absolute right-[20%] top-[30%] h-2 w-2 rounded-full bg-blue-400"
+              style={{ animation: "fp-float-slow 7s ease-in-out infinite", animationDelay: "-2s" }}
+            />
+            <div
+              className="absolute left-[30%] bottom-[15%] h-1.5 w-1.5 rounded-full bg-pink-400"
+              style={{ animation: "fp-float-slow 5s ease-in-out infinite", animationDelay: "-1s" }}
+            />
+            <div
+              className="absolute right-[35%] bottom-[20%] h-1.5 w-1.5 rounded-full bg-white"
+              style={{ animation: "fp-float-slow 8s ease-in-out infinite", animationDelay: "-4s" }}
+            />
           </div>
 
           <div className="relative">
-            <h2 id="cta-title" className="text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl">
-              Prêt à transformer votre qualité ?
+            <h2
+              id="cta-title"
+              className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl"
+              style={{ letterSpacing: "-0.03em" }}
+            >
+              Prêt à transformer <span className="fp-text-gradient">votre qualité</span> ?
             </h2>
-            <p className="mx-auto mt-4 max-w-xl text-base text-blue-100 sm:text-lg">
-              Rejoignez les 127+ établissements qui pilotent leur qualité en temps réel. Premier rapport dès demain matin.
+            <p className="mx-auto mt-4 max-w-xl text-base text-gray-300 sm:text-lg">
+              Rejoignez les 127+ établissements qui pilotent leur qualité en temps réel. Premier
+              rapport dès demain matin.
             </p>
 
             <div className="mt-8 flex flex-col items-center gap-4">
               <Button
                 size="lg"
                 onClick={onSignup}
-                className="h-12 bg-white px-8 text-base text-blue-700 shadow-lg hover:bg-blue-50"
+                className="fp-bg-gradient fp-pulse-glow h-12 border-0 px-8 text-base text-white hover:opacity-90"
               >
                 Commencer gratuitement
                 <ArrowRight className="h-4 w-4" />
               </Button>
-              <div className="flex flex-col items-center gap-2 text-sm text-blue-100 sm:flex-row sm:gap-6">
+              <div className="flex flex-col items-center gap-2 text-sm text-gray-300 sm:flex-row sm:gap-6">
                 <span className="flex items-center gap-1.5">
-                  <Check className="h-4 w-4" /> 14 jours d'essai
+                  <Check className="h-4 w-4 text-emerald-400" /> 14 jours d'essai
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <Check className="h-4 w-4" /> Sans CB
+                  <Check className="h-4 w-4 text-emerald-400" /> Sans CB
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <Check className="h-4 w-4" /> Annulation en 1 clic
+                  <Check className="h-4 w-4 text-emerald-400" /> Annulation en 1 clic
                 </span>
               </div>
             </div>
@@ -1428,13 +1645,13 @@ function FinalCTA({ onSignup }: { onSignup: () => void }) {
 }
 
 // ============================================================
-// 14. Footer (4 colonnes)
+// 13. Footer (4 colonnes, fond noir)
 // ============================================================
 
 function SiteFooter({ onLogin }: { onLogin: () => void }) {
   const annee = new Date().getFullYear()
   return (
-    <footer className="border-t border-border/60 bg-muted/20">
+    <footer className="border-t border-white/10 bg-black">
       <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           {/* Colonne 1 : FeedbackPro */}
@@ -1448,17 +1665,18 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
               className="flex items-center gap-2 font-bold"
               aria-label="Accueil FeedbackPro"
             >
-              <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-                <QrCode className="h-4 w-4" />
+              <span className="fp-bg-gradient flex h-8 w-8 items-center justify-center rounded-lg">
+                <QrCode className="h-4 w-4 text-white" />
               </span>
-              <span>FeedbackPro</span>
+              <span className="fp-text-gradient">FeedbackPro</span>
             </a>
-            <p className="mt-3 max-w-xs text-sm text-muted-foreground">
-              Le Client Mystère 2.0 : chaque client devient auditeur qualité, chaque matin devient plan d'action.
+            <p className="mt-3 max-w-xs text-sm text-gray-400">
+              Le Client Mystère 2.0 : chaque client devient auditeur qualité, chaque matin devient
+              plan d'action.
             </p>
             <button
               onClick={onLogin}
-              className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-primary hover:underline"
+              className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-violet-400 hover:underline"
             >
               Se connecter
               <ArrowRight className="h-3.5 w-3.5" />
@@ -1467,45 +1685,142 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
 
           {/* Colonne 2 : Produit */}
           <nav aria-label="Produit">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Produit</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-gray-500">
+              Produit
+            </h3>
             <ul className="mt-4 space-y-2.5">
-              <li><button onClick={() => allerVers("fonctionnalites")} className="text-sm text-muted-foreground transition-colors hover:text-foreground">Fonctionnalités</button></li>
-              <li><button onClick={() => allerVers("solution")} className="text-sm text-muted-foreground transition-colors hover:text-foreground">Comment ça marche</button></li>
-              <li><button onClick={() => allerVers("cas-usage")} className="text-sm text-muted-foreground transition-colors hover:text-foreground">Cas d'usage</button></li>
-              <li><button onClick={() => allerVers("tarifs")} className="text-sm text-muted-foreground transition-colors hover:text-foreground">Tarifs</button></li>
-              <li><button onClick={() => allerVers("comparaison")} className="text-sm text-muted-foreground transition-colors hover:text-foreground">Comparatif</button></li>
+              <li>
+                <button
+                  onClick={() => allerVers("fonctionnalites")}
+                  className="text-sm text-gray-400 transition-colors hover:text-white"
+                >
+                  Fonctionnalités
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => allerVers("solution")}
+                  className="text-sm text-gray-400 transition-colors hover:text-white"
+                >
+                  Comment ça marche
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => allerVers("cas-usage")}
+                  className="text-sm text-gray-400 transition-colors hover:text-white"
+                >
+                  Cas d'usage
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => allerVers("tarifs")}
+                  className="text-sm text-gray-400 transition-colors hover:text-white"
+                >
+                  Tarifs
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => allerVers("comparaison")}
+                  className="text-sm text-gray-400 transition-colors hover:text-white"
+                >
+                  Comparatif
+                </button>
+              </li>
             </ul>
           </nav>
 
           {/* Colonne 3 : Ressources */}
           <nav aria-label="Ressources">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Ressources</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-gray-500">
+              Ressources
+            </h3>
             <ul className="mt-4 space-y-2.5">
-              <li><button onClick={() => allerVers("faq")} className="text-sm text-muted-foreground transition-colors hover:text-foreground">FAQ</button></li>
-              <li><button onClick={() => allerVers("temoignages")} className="text-sm text-muted-foreground transition-colors hover:text-foreground">Témoignages</button></li>
-              <li><a href="mailto:support@feedbackpro.fr" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Support</a></li>
-              <li><a href="mailto:contact@feedbackpro.fr" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Contact</a></li>
+              <li>
+                <button
+                  onClick={() => allerVers("faq")}
+                  className="text-sm text-gray-400 transition-colors hover:text-white"
+                >
+                  FAQ
+                </button>
+              </li>
+              <li>
+                <button
+                  onClick={() => allerVers("temoignages")}
+                  className="text-sm text-gray-400 transition-colors hover:text-white"
+                >
+                  Témoignages
+                </button>
+              </li>
+              <li>
+                <a
+                  href="mailto:support@feedbackpro.fr"
+                  className="text-sm text-gray-400 transition-colors hover:text-white"
+                >
+                  Support
+                </a>
+              </li>
+              <li>
+                <a
+                  href="mailto:contact@feedbackpro.fr"
+                  className="text-sm text-gray-400 transition-colors hover:text-white"
+                >
+                  Contact
+                </a>
+              </li>
             </ul>
           </nav>
 
           {/* Colonne 4 : Légal */}
           <nav aria-label="Légal">
-            <h3 className="text-sm font-semibold uppercase tracking-wide text-muted-foreground">Légal</h3>
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-gray-500">
+              Légal
+            </h3>
             <ul className="mt-4 space-y-2.5">
-              <li><a href="/mentions-legales" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Mentions légales</a></li>
-              <li><a href="/cgu" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Conditions générales</a></li>
-              <li><a href="/confidentialite" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Confidentialité</a></li>
-              <li><a href="/cookies" className="text-sm text-muted-foreground transition-colors hover:text-foreground">Cookies</a></li>
+              <li>
+                <a
+                  href="/mentions-legales"
+                  className="text-sm text-gray-400 transition-colors hover:text-white"
+                >
+                  Mentions légales
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/cgu"
+                  className="text-sm text-gray-400 transition-colors hover:text-white"
+                >
+                  Conditions générales
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/confidentialite"
+                  className="text-sm text-gray-400 transition-colors hover:text-white"
+                >
+                  Confidentialité
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/cookies"
+                  className="text-sm text-gray-400 transition-colors hover:text-white"
+                >
+                  Cookies
+                </a>
+              </li>
             </ul>
           </nav>
         </div>
 
-        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-border/60 pt-6 sm:flex-row">
-          <p className="text-xs text-muted-foreground">
-            © FeedbackPro {annee} — Tous droits réservés.
+        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 sm:flex-row">
+          <p className="text-xs text-gray-500">
+            © {annee} FeedbackPro. Fait avec ❤️ en France.
           </p>
-          <div className="flex items-center gap-2 text-xs text-muted-foreground">
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+          <div className="flex items-center gap-2 text-xs text-gray-500">
+            <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
             Hébergement européen · Conforme RGPD
           </div>
         </div>
@@ -1520,7 +1835,7 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
 
 export function LandingView({ onLogin, onSignup }: { onLogin: () => void; onSignup: () => void }) {
   return (
-    <div className="flex min-h-screen flex-col bg-background">
+    <div className="dark relative min-h-screen bg-[#0A0A0B] text-white">
       <SiteHeader onLogin={onLogin} onSignup={onSignup} />
       <div className="flex-1">
         <Hero onSignup={onSignup} />
@@ -1528,7 +1843,6 @@ export function LandingView({ onLogin, onSignup }: { onLogin: () => void; onSign
         <ProblemSection />
         <SolutionSection />
         <ComparisonSection />
-        <ProblemsResolvedSection />
         <FeaturesSection />
         <UseCasesSection />
         <TestimonialsSection />

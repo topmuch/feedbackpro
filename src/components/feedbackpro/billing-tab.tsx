@@ -38,13 +38,13 @@ type Commande = {
 function classeStatut(statut: string): string {
   switch (statut) {
     case "A_IMPRIMER":
-      return "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-50"
+      return "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300"
     case "IMPRIME":
       return "border-primary/30 bg-primary/5 text-primary hover:bg-primary/5"
     case "EXPEDIE":
-      return "border-stone-300 bg-stone-100 text-stone-700 hover:bg-stone-100"
+      return "border-border bg-muted text-muted-foreground hover:bg-muted"
     case "LIVRE":
-      return "border-green-300 bg-green-50 text-green-800 hover:bg-green-50"
+      return "border-green-300 bg-green-50 text-green-800 hover:bg-green-50 dark:bg-green-950/40 dark:text-green-300"
     default:
       return ""
   }
@@ -202,9 +202,9 @@ export function BillingTab() {
   return (
     <div className="space-y-6">
       {/* ---------- En-tête ---------- */}
-      <div className="flex flex-wrap items-center justify-between gap-3">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Facturation</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Facturation</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Gérez votre abonnement au Coach IA et consultez vos factures.
           </p>
@@ -243,7 +243,7 @@ export function BillingTab() {
               className={
                 estActuel
                   ? "border-primary shadow-sm ring-1 ring-primary"
-                  : "transition-shadow hover:shadow-sm"
+                  : "shadow-sm transition-shadow hover:shadow-md"
               }
             >
               <CardHeader className="pb-3">
@@ -296,7 +296,7 @@ export function BillingTab() {
       </div>
 
       {/* ---------- Historique des factures ---------- */}
-      <Card>
+      <Card className="shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Receipt className="h-4 w-4 text-primary" aria-hidden />

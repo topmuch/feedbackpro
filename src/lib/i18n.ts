@@ -29,6 +29,7 @@ export interface TraductionsScan {
   charger: string
   quitter: string
   sousTitre: string
+  ariaProgression: string
   // Étape 0 — Bienvenue (auto-transition 2 s)
   bienvenueChez: string
   bienvenueTap: string
@@ -115,6 +116,7 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     charger: "Chargement de votre formulaire…",
     quitter: "Quitter et revenir en arrière",
     sousTitre: "Votre avis compte — 15 secondes chrono ⚡",
+    ariaProgression: "Progression du questionnaire",
     // Étape 0 — Bienvenue
     bienvenueChez: "Bienvenue chez",
     bienvenueTap: "Touchez pour commencer 👆",
@@ -135,7 +137,7 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     continuer: "Continuer",
     titrePositif: "🎉 Super ! Qu'avez-vous particulièrement apprécié ?",
     titreNegatif: "😔 Nous sommes désolés. Qu'est-ce qui n'a pas été ?",
-    sousTitreTags: "Sélectionnez tout ce qui s'applique (optionnel)",
+    sousTitreTags: "Sélectionnez au moins un élément",
     ariaTagsPositifs: "Points positifs",
     ariaTagsNegatifs: "Points à améliorer",
     personnelLabel: "Personnel concerné ?",
@@ -196,6 +198,7 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     charger: "Loading your form…",
     quitter: "Quit and go back",
     sousTitre: "Your feedback matters — 15 seconds ⚡",
+    ariaProgression: "Questionnaire progress",
     // Step 0 — Welcome
     bienvenueChez: "Welcome to",
     bienvenueTap: "Tap to start 👆",
@@ -216,7 +219,7 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     continuer: "Continue",
     titrePositif: "🎉 Great! What did you enjoy most?",
     titreNegatif: "😔 We're sorry. What went wrong?",
-    sousTitreTags: "Select all that apply (optional)",
+    sousTitreTags: "Select at least one",
     ariaTagsPositifs: "Positive points",
     ariaTagsNegatifs: "Points to improve",
     personnelLabel: "Staff member involved?",
@@ -274,6 +277,7 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     charger: "جاري تحميل النموذج…",
     quitter: "الخروج والرجوع",
     sousTitre: "رأيك يهمنا — 15 ثانية فقط ⚡",
+    ariaProgression: "تقدم الاستبيان",
     // المرحلة 0 — الترحيب
     bienvenueChez: "مرحباً بك في",
     bienvenueTap: "المس للبدء 👆",
@@ -294,7 +298,7 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     continuer: "متابعة",
     titrePositif: "🎉 رائع! ما الذي أعجبك أكثر؟",
     titreNegatif: "😔 نعتذر. ما الذي لم يكن جيداً؟",
-    sousTitreTags: "اختر كل ما ينطبق (اختياري)",
+    sousTitreTags: "اختر عنصراً واحداً على الأقل",
     ariaTagsPositifs: "النقاط الإيجابية",
     ariaTagsNegatifs: "نقاط للتحسين",
     personnelLabel: "الموظف المعني؟",

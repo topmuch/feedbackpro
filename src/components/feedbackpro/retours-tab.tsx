@@ -48,6 +48,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Stars, formatDate } from "@/components/feedbackpro/shared"
+import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { exportToCsv } from "@/lib/export-csv"
 import { ALL_TAGS, STATUT_RETOUR_LABEL, tagLabel } from "@/lib/constants"
@@ -680,9 +681,32 @@ export function RetoursTab() {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
+      {/* ---------- En-tête ---------- */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Retours clients</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {total} retour{total > 1 ? "s" : ""} collecté{total > 1 ? "s" : ""} via vos QR codes — filtrez, répondez et suivez chaque réclamation.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9"
+            onClick={() => load()}
+            disabled={loading}
+            aria-label="Rafraîchir"
+          >
+            <RefreshCw className={cn("mr-1.5 h-4 w-4", loading && "animate-spin")} aria-hidden />
+            Rafraîchir
+          </Button>
+        </div>
+      </div>
+
       {/* ---------- Barre de filtres ---------- */}
-      <Card>
+      <Card className="shadow-sm">
         <CardContent className="p-4">
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
             {/* Zone (pivot : chaque retour est rattaché à une zone de contact) */}
@@ -846,7 +870,7 @@ export function RetoursTab() {
 
       {/* ---------- Tableau des retours ---------- */}
       {loading ? (
-        <Card className="py-0">
+        <Card className="py-0 shadow-sm">
           <CardContent className="space-y-3 p-4">
             {[0, 1, 2, 3, 4].map((i) => (
               <Skeleton key={i} className="h-16 rounded-lg" />
@@ -855,7 +879,7 @@ export function RetoursTab() {
         </Card>
       ) : items.length === 0 ? (
         // Empty state soigné
-        <Card>
+        <Card className="shadow-sm">
           <CardContent className="flex flex-col items-center gap-3 py-14 text-center">
             <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted" aria-hidden>
               <Inbox className="h-7 w-7 text-muted-foreground" />
@@ -869,13 +893,13 @@ export function RetoursTab() {
           </CardContent>
         </Card>
       ) : (
-        <Card className="overflow-hidden py-0">
+        <Card className="overflow-hidden py-0 shadow-sm">
           <CardContent className="p-0">
             {/* Tableau scrollable horizontalement sur mobile */}
             <div className="overflow-x-auto">
               <Table className="min-w-[640px]">
                 <TableHeader>
-                  <TableRow className="bg-muted/50 hover:bg-muted/50">
+                  <TableRow className="bg-muted/50 hover:bg-muted/50 border-b">
                     <TableHead className="pl-4">Date</TableHead>
                     <TableHead>Note</TableHead>
                     <TableHead>Zone</TableHead>

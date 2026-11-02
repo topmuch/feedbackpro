@@ -285,7 +285,7 @@ export function QrcodeTab({ zoneInitiale }: { zoneInitiale?: string }) {
     <div className="space-y-5">
       {/* En-tête */}
       <div>
-        <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Mes QR Codes</h1>
+        <h1 className="text-2xl font-bold tracking-tight">QR Codes</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Un QR code par zone de contact — téléchargez, imprimez, collectez. Chaque QR ouvre un
           formulaire adapté à <span className="font-medium text-foreground">cette</span> zone.
@@ -300,7 +300,7 @@ export function QrcodeTab({ zoneInitiale }: { zoneInitiale?: string }) {
         </div>
       ) : zones.length === 0 ? (
         // Empty state : aucune zone
-        <Card>
+        <Card className="shadow-sm">
           <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
             <div className="rounded-2xl bg-primary/10 p-4" aria-hidden>
               <QrCode className="h-8 w-8 text-primary" />
@@ -443,7 +443,7 @@ function CarteZone({
     <Card
       ref={refCarte}
       className={cn(
-        "flex scroll-mt-24 flex-col",
+        "flex scroll-mt-24 flex-col shadow-sm",
         enEvidence && "border-primary ring-2 ring-primary/40"
       )}
     >

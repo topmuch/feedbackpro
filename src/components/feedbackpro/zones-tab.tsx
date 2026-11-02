@@ -378,7 +378,7 @@ export function ZonesTab({ onOpenQr }: { onOpenQr: (zoneId: string) => void }) {
             <Skeleton className="h-24 rounded-xl" />
           </div>
         ) : detailsErreur || !details ? (
-          <Card>
+          <Card className="shadow-sm">
             <CardContent className="py-10 text-center text-sm text-muted-foreground">
               Impossible de charger les détails de cette zone. Réessayez dans un instant.
             </CardContent>
@@ -398,7 +398,7 @@ export function ZonesTab({ onOpenQr }: { onOpenQr: (zoneId: string) => void }) {
             </div>
 
             {/* b. Graphique d'évolution du score sur 30 jours */}
-            <Card>
+            <Card className="shadow-sm">
               <CardContent className="p-4 sm:p-5">
                 <h3 className="mb-2 text-sm font-semibold">Évolution du score (30 jours)</h3>
                 <div className="h-56 sm:h-64">
@@ -432,7 +432,7 @@ export function ZonesTab({ onOpenQr }: { onOpenQr: (zoneId: string) => void }) {
             </Card>
 
             {/* c. Tags les plus fréquents */}
-            <Card>
+            <Card className="shadow-sm">
               <CardContent className="p-4 sm:p-5">
                 <h3 className="mb-2 text-sm font-semibold">Tags les plus fréquents</h3>
                 {details.tagsFrequents.length === 0 ? (
@@ -457,7 +457,7 @@ export function ZonesTab({ onOpenQr }: { onOpenQr: (zoneId: string) => void }) {
             </Card>
 
             {/* d. Derniers retours (6, les plus récents) */}
-            <Card>
+            <Card className="shadow-sm">
               <CardContent className="p-4 sm:p-5">
                 <h3 className="mb-2 text-sm font-semibold">Derniers retours</h3>
                 {details.derniersRetours.length === 0 ? (
@@ -493,7 +493,7 @@ export function ZonesTab({ onOpenQr }: { onOpenQr: (zoneId: string) => void }) {
             </Card>
 
             {/* e. Recommandations du Coach IA pour cette zone */}
-            <Card>
+            <Card className="shadow-sm">
               <CardContent className="p-4 sm:p-5">
                 <h3 className="mb-2 text-sm font-semibold">Recommandations du Coach pour cette zone</h3>
                 <ul className="space-y-1.5">
@@ -536,7 +536,7 @@ export function ZonesTab({ onOpenQr }: { onOpenQr: (zoneId: string) => void }) {
       {/* En-tête */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Vos zones de contact</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Zones de contact</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {zones.length}/{limite === 999 ? "∞" : limite} zones · un QR code dédié par zone
           </p>
@@ -564,7 +564,7 @@ export function ZonesTab({ onOpenQr }: { onOpenQr: (zoneId: string) => void }) {
         </div>
       ) : zones.length === 0 ? (
         // Empty state
-        <Card>
+        <Card className="shadow-sm">
           <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
             <div className="rounded-2xl bg-primary/10 p-4" aria-hidden>
               <MapPin className="h-8 w-8 text-primary" />
@@ -584,7 +584,7 @@ export function ZonesTab({ onOpenQr }: { onOpenQr: (zoneId: string) => void }) {
         // Grille de zones
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {zones.map((zone) => (
-            <Card key={zone.id} className="flex flex-col">
+            <Card key={zone.id} className="flex flex-col shadow-sm">
               <CardContent className="flex flex-1 flex-col gap-3 p-4">
                 <div className="flex items-start gap-3">
                   <div className="shrink-0 rounded-xl bg-primary/10 p-2.5" aria-hidden>

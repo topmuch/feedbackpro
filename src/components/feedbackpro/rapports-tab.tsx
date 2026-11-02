@@ -267,7 +267,7 @@ export function RapportsTab() {
         </p>
 
         {/* Contenu : markdown + 3 blocs structurés */}
-        <Card>
+        <Card className="shadow-sm">
           <CardContent className="space-y-5 p-4 sm:p-6">
             {rapportOuvert.contenuMarkdown ? (
               <ReactMarkdown components={mdComposants}>{rapportOuvert.contenuMarkdown}</ReactMarkdown>
@@ -337,9 +337,9 @@ export function RapportsTab() {
       {/* ---------- En-tête : titre + génération ---------- */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="min-w-0">
-          <h1 className="text-xl font-bold tracking-tight sm:text-2xl">🤖 Rapports de votre Coach IA</h1>
+          <h1 className="text-2xl font-bold tracking-tight">Rapports IA</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Analyses générées automatiquement à partir de vos retours
+            Historique de vos audits — analyses générées à partir de vos retours
           </p>
         </div>
         <Button onClick={generer} disabled={generation} className="shrink-0">
@@ -361,7 +361,7 @@ export function RapportsTab() {
         </div>
       ) : rapports.length === 0 ? (
         // Empty state élégant
-        <Card>
+        <Card className="shadow-sm">
           <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
             <div className="rounded-2xl bg-primary/10 p-4" aria-hidden>
               <Bot className="h-8 w-8 text-primary" />
@@ -390,7 +390,7 @@ export function RapportsTab() {
             const emailEnCours = emailId === rapport.id
             const occupe = regenEnCours || emailEnCours || generation
             return (
-              <Card key={rapport.id} className="flex flex-col">
+              <Card key={rapport.id} className="flex flex-col shadow-sm">
                 <CardContent className="flex flex-1 flex-col gap-3 p-4">
                   {/* Badges type + source + score */}
                   <div className="flex flex-wrap items-center justify-between gap-2">

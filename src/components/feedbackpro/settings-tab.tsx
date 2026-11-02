@@ -292,8 +292,16 @@ export function SettingsTab() {
 
   return (
     <div className="space-y-6 max-w-3xl">
+      {/* ---------- En-tête ---------- */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Paramètres</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Configurez votre établissement, vos alertes, votre Coach IA et vos intégrations.
+        </p>
+      </div>
+
       {/* ================= (a) Informations de l'établissement ================= */}
-      <Card>
+      <Card className="shadow-sm">
         <CardHeader>
           <CardTitle className="text-base sm:text-lg">Informations de l&apos;établissement</CardTitle>
           <CardDescription>Ces informations apparaissent sur la page de scan de vos clients</CardDescription>
@@ -426,7 +434,7 @@ export function SettingsTab() {
       </Card>
 
       {/* ================= (e) Logo de l'établissement ================= */}
-      <Card>
+      <Card className="shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
             <ImageIcon className="h-5 w-5 text-primary" aria-hidden />
@@ -492,7 +500,7 @@ export function SettingsTab() {
       </Card>
 
       {/* ================= (f) Changement de plan ================= */}
-      <Card>
+      <Card className="shadow-sm">
         <CardHeader>
           <CardTitle className="text-base sm:text-lg">Changement de plan</CardTitle>
           <CardDescription>Changement immédiat — paiement sécurisé (démo)</CardDescription>
@@ -541,7 +549,7 @@ export function SettingsTab() {
       </Card>
 
       {/* ================= D8 : Google Business Profile ================= */}
-      <Card>
+      <Card className="shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
             <span className="flex size-6 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-xs font-bold text-blue-700" aria-hidden>
@@ -609,7 +617,7 @@ export function SettingsTab() {
       </Card>
 
       {/* ================= D9 : RGPD - Portabilité & suppression ================= */}
-      <Card>
+      <Card className="shadow-sm">
         <CardHeader>
           <CardTitle className="text-base sm:text-lg">RGPD — Vos données</CardTitle>
           <CardDescription>
@@ -693,7 +701,7 @@ export function SettingsTab() {
       </Card>
 
       {/* ================= (g) Zone de danger ================= */}
-      <Card className="border-rose-200">
+      <Card className="border-rose-200 shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base sm:text-lg text-rose-600">
             <TriangleAlert className="h-5 w-5" aria-hidden />

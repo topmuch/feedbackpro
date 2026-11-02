@@ -53,13 +53,13 @@ type ZoneLegere = { id: string; nom: string }
 function classeStatut(statut: string): string {
   switch (statut) {
     case "A_IMPRIMER":
-      return "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-50"
+      return "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300"
     case "IMPRIME":
       return "border-primary/30 bg-primary/5 text-primary hover:bg-primary/5"
     case "EXPEDIE":
-      return "border-stone-300 bg-stone-100 text-stone-700 hover:bg-stone-100"
+      return "border-border bg-muted text-muted-foreground hover:bg-muted"
     case "LIVRE":
-      return "border-green-300 bg-green-50 text-green-800 hover:bg-green-50"
+      return "border-green-300 bg-green-50 text-green-800 hover:bg-green-50 dark:bg-green-950/40 dark:text-green-300"
     default:
       return ""
   }
@@ -213,7 +213,7 @@ export function CommanderTab() {
     <div className="space-y-6">
       {/* ---------- En-tête ---------- */}
       <div>
-        <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Commander des supports</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Commander des supports</h1>
         <p className="mt-1 text-sm text-muted-foreground">
           Autocollants, chevalets et affiches avec votre QR code imprimé — livrés chez vous, prêts à poser.
         </p>
@@ -240,8 +240,8 @@ export function CommanderTab() {
               }}
               className={
                 actif
-                  ? "cursor-pointer border-primary ring-1 ring-primary transition-shadow hover:shadow-sm"
-                  : "cursor-pointer transition-shadow hover:shadow-sm"
+                  ? "cursor-pointer border-primary shadow-sm ring-1 ring-primary transition-shadow hover:shadow-md"
+                  : "cursor-pointer shadow-sm transition-shadow hover:shadow-md"
               }
             >
               <CardHeader className="pb-2">
@@ -270,7 +270,7 @@ export function CommanderTab() {
 
       {/* ---------- Formulaire : zone + adresse + paiement ---------- */}
       {supportActif && (
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Package className="h-4 w-4 text-primary" aria-hidden />
@@ -351,7 +351,7 @@ export function CommanderTab() {
       )}
 
       {/* ---------- Mes commandes ---------- */}
-      <Card>
+      <Card className="shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
             <Truck className="h-4 w-4 text-primary" aria-hidden />

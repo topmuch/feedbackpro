@@ -90,6 +90,7 @@ export function OverviewTab() {
   if (loading) {
     return (
       <div className="space-y-4">
+        <Skeleton className="h-10 w-64" />
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
             <Skeleton key={i} className="h-28 rounded-xl" />
@@ -110,6 +111,14 @@ export function OverviewTab() {
 
   return (
     <div className="space-y-6">
+      {/* ---------- En-tête ---------- */}
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Vue d&apos;ensemble</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {data.nomCommerce} — tableau de bord qualité en temps réel.
+        </p>
+      </div>
+
       {/* ---------- KPIs ---------- */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
         <StatCard
@@ -144,7 +153,7 @@ export function OverviewTab() {
 
       {/* ---------- Évolution + répartition ---------- */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="lg:col-span-2">
+        <Card className="shadow-sm lg:col-span-2">
           <CardHeader className="pb-2">
             <CardTitle className="text-base sm:text-lg">Note moyenne — 30 derniers jours</CardTitle>
           </CardHeader>
@@ -163,7 +172,7 @@ export function OverviewTab() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-base sm:text-lg">Répartition des notes</CardTitle>
           </CardHeader>
@@ -186,7 +195,7 @@ export function OverviewTab() {
 
       {/* ---------- Derniers retours + alertes ---------- */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader className="pb-2 flex-row items-center justify-between">
             <CardTitle className="text-base sm:text-lg">Derniers retours</CardTitle>
             <Button variant="ghost" size="sm" onClick={load} aria-label="Rafraîchir">
@@ -223,7 +232,7 @@ export function OverviewTab() {
                         ? "text-green-600"
                         : r.statut === "IN_PROGRESS"
                           ? "text-amber-600"
-                          : "text-stone-500"
+                          : "text-muted-foreground"
                     }
                   >
                     {STATUT_RETOUR_LABEL[r.statut]}
@@ -234,7 +243,7 @@ export function OverviewTab() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="shadow-sm">
           <CardHeader className="pb-2 flex-row items-center justify-between">
             <CardTitle className="text-base sm:text-lg flex items-center gap-2">
               <BellRing className="h-4.5 w-4.5 text-rose-500" aria-hidden />

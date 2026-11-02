@@ -205,41 +205,208 @@ html { scroll-behavior: smooth; }
 }
 
 /* ============================================================
+   Refonte Landing "Linear/Stripe/Vercel" Premium — CSS pur
+   ============================================================ */
+
+/* Gradient mesh animé (arrière-plan hero / CTA final) */
+.fp-mesh-bg {
+  background:
+    radial-gradient(at 20% 30%, rgba(139, 92, 246, 0.3) 0px, transparent 50%),
+    radial-gradient(at 80% 20%, rgba(59, 130, 246, 0.3) 0px, transparent 50%),
+    radial-gradient(at 40% 80%, rgba(236, 72, 153, 0.2) 0px, transparent 50%);
+  animation: fp-gradient-shift 15s ease infinite;
+  background-size: 200% 200%;
+}
+@keyframes fp-gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+
+/* Gradient texte signature (violet → bleu → rose) */
+.fp-text-gradient {
+  background: linear-gradient(135deg, #8B5CF6, #3B82F6, #EC4899);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Gradient violet → bleu pour boutons / surfaces */
+.fp-bg-gradient {
+  background: linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%);
+}
+.fp-bg-gradient-warm {
+  background: linear-gradient(135deg, #EC4899 0%, #F97316 100%);
+}
+
+/* Float animation pour mockup 3D */
+@keyframes fp-float-mockup {
+  0%, 100% { transform: translateY(0) rotateY(-15deg) rotateX(2deg); }
+  50%      { transform: translateY(-20px) rotateY(-13deg) rotateX(3deg); }
+}
+.fp-float-mockup {
+  animation: fp-float-mockup 7s ease-in-out infinite;
+  transform-style: preserve-3d;
+}
+
+/* Pulse glow (CTA principaux) */
+@keyframes fp-pulse-glow {
+  0%, 100% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.3), 0 0 0 0 rgba(139, 92, 246, 0.4); }
+  50%      { box-shadow: 0 0 40px rgba(139, 92, 246, 0.6), 0 0 0 8px rgba(139, 92, 246, 0); }
+}
+.fp-pulse-glow { animation: fp-pulse-glow 2.6s ease-in-out infinite; }
+
+/* Particules flottantes (hero) */
+@keyframes fp-particle {
+  0%   { transform: translateY(0) translateX(0); opacity: 0; }
+  10%  { opacity: 0.6; }
+  90%  { opacity: 0.6; }
+  100% { transform: translateY(-100vh) translateX(20px); opacity: 0; }
+}
+.fp-particle { animation: fp-particle var(--fp-particle-duration, 30s) linear infinite; }
+
+/* Marquee scroll infini (bandeau logos) */
+@keyframes fp-marquee {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+.fp-marquee {
+  animation: fp-marquee 32s linear infinite;
+}
+.fp-marquee-pause:hover .fp-marquee {
+  animation-play-state: paused;
+}
+
+/* Glow doux pulsé derrière cards premium */
+@keyframes fp-card-glow {
+  0%, 100% { box-shadow: 0 0 30px rgba(139, 92, 246, 0.15); }
+  50%      { box-shadow: 0 0 50px rgba(139, 92, 246, 0.35); }
+}
+.fp-card-glow { animation: fp-card-glow 3s ease-in-out infinite; }
+
+/* Bordure dégradée (pricing card populaire) */
+.fp-gradient-border {
+  position: relative;
+  background: linear-gradient(180deg, rgba(20, 20, 23, 0.9), rgba(10, 10, 11, 0.95));
+  border-radius: 1.5rem;
+}
+.fp-gradient-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 2px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, #8B5CF6, #3B82F6, #EC4899);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Effet glassmorphism standard */
+.fp-glass {
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+/* Hover lift générique (cards) */
+.fp-lift {
+  transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1),
+              box-shadow 0.35s ease,
+              border-color 0.35s ease;
+}
+.fp-lift:hover {
+  transform: translateY(-8px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fp-mesh-bg,
+  .fp-float-mockup,
+  .fp-pulse-glow,
+  .fp-particle,
+  .fp-marquee,
+  .fp-card-glow { animation: none !important; }
+}
+
+/* ============================================================
    Animations CSS pur — page de scan client (refonte "Wahoo")
    Aucune dépendance à framer-motion : tout passe par des
    keyframes + classes utilitaires appliquées via key={phase}.
+   ------------------------------------------------------------
+   Conformité spec "Uber/Airbnb/Typeform Premium" :
+   - star-bounce : scale 1 → 1.2 → 1
+   - tag-pop     : scale 1 → 0.95 → 1
+   - confetti    : translateY(0) → translateY(100vh) + rotate(720deg)
+   - heart       : scale 1 → 1.2 → 1 (infinite)
+   - slide-in    : translateX(100%) → 0 (opacity 0 → 1)
+   + cascade bienvenue (logo / nom / séparateur / phrase, 200 ms)
+   + apparition stagger des tags (50 ms)
+   + pulse subtil sur le bouton "Envoyer"
    ============================================================ */
 
-/* Slide horizontal entre étapes (300 ms ease-out) */
-@keyframes fp-scan-slide-in-right {
-  from { opacity: 0; transform: translateX(48px); }
-  to   { opacity: 1; transform: translateX(0); }
+/* Slide horizontal entre étapes (300 ms cubic-bezier(0.4, 0, 0.2, 1))
+   - sens = 1 (avancer)  → nouvelle étape arrive de la droite
+   - sens = -1 (reculer) → nouvelle étape arrive de la gauche */
+@keyframes fp-scan-slide-in {
+  from { transform: translateX(100%); opacity: 0; }
+  to   { transform: translateX(0);    opacity: 1; }
 }
-@keyframes fp-scan-slide-in-left {
-  from { opacity: 0; transform: translateX(-48px); }
-  to   { opacity: 1; transform: translateX(0); }
+@keyframes fp-scan-slide-in-reverse {
+  from { transform: translateX(-100%); opacity: 0; }
+  to   { transform: translateX(0);     opacity: 1; }
 }
-.fp-scan-slide-right { animation: fp-scan-slide-in-right 0.3s ease-out both; }
-.fp-scan-slide-left  { animation: fp-scan-slide-in-left  0.3s ease-out both; }
+.fp-scan-slide-right { animation: fp-scan-slide-in 0.3s cubic-bezier(0.4, 0, 0.2, 1) both; }
+.fp-scan-slide-left  { animation: fp-scan-slide-in-reverse 0.3s cubic-bezier(0.4, 0, 0.2, 1) both; }
 
-/* Étape 0 — Bienvenue : fade-in + scale-up doux */
-@keyframes fp-scan-welcome {
-  0%   { opacity: 0; transform: scale(0.92) translateY(8px); }
-  60%  { opacity: 1; transform: scale(1.02) translateY(0); }
-  100% { opacity: 1; transform: scale(1) translateY(0); }
+/* === Étape 0 — Bienvenue : cascade (logo, nom, séparateur, phrase) ===
+   Chaque élément a sa propre keyframe + délai via inline style,
+   échelonnés de 200 ms (spec refonte). */
+@keyframes fp-scan-welcome-logo {
+  0%   { opacity: 0; transform: scale(0.6); }
+  55%  { opacity: 1; transform: scale(1.08); }
+  100% { opacity: 1; transform: scale(1); }
 }
-.fp-scan-welcome { animation: fp-scan-welcome 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.fp-scan-welcome-logo { animation: fp-scan-welcome-logo 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
 
-/* Étape 1 — Étoile : bounce au clic */
+@keyframes fp-scan-welcome-name {
+  0%   { opacity: 0; transform: translateY(16px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.fp-scan-welcome-name { animation: fp-scan-welcome-name 0.55s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Ligne séparatrice : width 0 → 100 % (scaleX pour perf GPU) */
+@keyframes fp-scan-welcome-line {
+  0%   { transform: scaleX(0); }
+  100% { transform: scaleX(1); }
+}
+.fp-scan-welcome-line {
+  animation: fp-scan-welcome-line 0.55s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: center;
+}
+
+@keyframes fp-scan-welcome-phrase {
+  0%   { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.fp-scan-welcome-phrase { animation: fp-scan-welcome-phrase 0.5s ease-out both; }
+
+/* Indicateur "tap to start" pulsé (étape bienvenue) */
+@keyframes fp-scan-tap-pulse {
+  0%, 100% { opacity: 0.55; transform: translateY(0); }
+  50%      { opacity: 1;    transform: translateY(-3px); }
+}
+.fp-scan-tap-pulse { animation: fp-scan-tap-pulse 1.6s ease-in-out infinite; }
+
+/* === Étape 1 — Étoile : bounce au clic (spec exact 1 → 1.2 → 1) === */
 @keyframes fp-scan-star-bounce {
-  0%   { transform: scale(1); }
-  35%  { transform: scale(1.4); }
-  60%  { transform: scale(0.9); }
-  100% { transform: scale(1); }
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.2); }
 }
-.fp-scan-star-bounce { animation: fp-scan-star-bounce 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.fp-scan-star-bounce { animation: fp-scan-star-bounce 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
 
-/* Cascade : les étoiles jusqu'à celle cliquée s'illuminent avec délai 50 ms */
+/* Cascade fill : les étoiles jusqu'à celle cliquée s'illuminent
+   avec délai 50 ms (appliqué via inline style animationDelay) */
 @keyframes fp-scan-star-fill {
   0%   { transform: scale(0.7); opacity: 0.4; }
   50%  { transform: scale(1.18); opacity: 1; }
@@ -247,45 +414,55 @@ html { scroll-behavior: smooth; }
 }
 .fp-scan-star-fill { animation: fp-scan-star-fill 0.45s ease-out both; }
 
-/* Étape 2 — Tag : pulse scale au clic (multi-sélection) */
+/* === Étape 2 — Tag : pop au clic (spec exact 1 → 0.95 → 1) === */
 @keyframes fp-scan-tag-pop {
-  0%   { transform: scale(0.94); }
-  50%  { transform: scale(1.06); }
+  0%   { transform: scale(1); }
+  50%  { transform: scale(0.95); }
   100% { transform: scale(1); }
 }
 .fp-scan-tag-pop { animation: fp-scan-tag-pop 0.32s ease-out both; }
 
-/* Étape 4 — Succès : pop-in de la coche / du cœur */
+/* Apparition stagger des tags (fade-in + slide-up, délai 50 ms via inline) */
+@keyframes fp-scan-tag-enter {
+  0%   { opacity: 0; transform: translateY(12px) scale(0.96); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.fp-scan-tag-enter { animation: fp-scan-tag-enter 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* === Étape 3 — Bouton "Envoyer" : pulse subtil violet (gradient) === */
+@keyframes fp-scan-pulse-soft {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0); }
+  50%      { box-shadow: 0 0 0 6px rgba(139, 92, 246, 0.18); }
+}
+.fp-scan-pulse-soft { animation: fp-scan-pulse-soft 2s ease-in-out infinite; }
+
+/* === Étape 4 — Confettis (spec exact : translateY(100vh) + rotate 720°) ===
+   Chaque particule est positionnée en absolute top:0 + left aléatoire,
+   tombe droit avec rotation. Durée + délai aléatoires via custom props. */
+@keyframes fp-scan-confetti {
+  0%   { transform: translateY(0) rotate(0);     opacity: 1; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+.fp-scan-confetti {
+  animation: fp-scan-confetti var(--fp-confetti-dur, 2s) ease-in var(--fp-confetti-delay, 0s) forwards;
+}
+
+/* === Étape 4 — Cœur qui bat (spec exact : scale 1 → 1.2 → 1, infinite) === */
+@keyframes fp-scan-heart {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.2); }
+}
+.fp-scan-heart { animation: fp-scan-heart 1.2s ease-in-out infinite; }
+
+/* === Étape 4 — Pop-in de la coche (succès positif) === */
 @keyframes fp-scan-pop {
   0%   { transform: scale(0); opacity: 0; }
   60%  { transform: scale(1.18); opacity: 1; }
   100% { transform: scale(1); opacity: 1; }
 }
 .fp-scan-pop { animation: fp-scan-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
-
-/* Étape 4 — Récompense : entrée douce de la carte */
-@keyframes fp-scan-reward-in {
-  0%   { opacity: 0; transform: translateY(12px) scale(0.96); }
-  100% { opacity: 1; transform: translateY(0) scale(1); }
-}
-.fp-scan-reward-in { animation: fp-scan-reward-in 0.5s ease-out 0.25s both; }
-
-/* Confettis (succès positif) : chute en diagonale + rotation */
-@keyframes fp-scan-confetti {
-  0%   { opacity: 0; transform: translate(0, 0) rotate(0deg); }
-  10%  { opacity: 1; }
-  100% { opacity: 0; transform: translate(var(--dx, 0), var(--dy, 220px)) rotate(var(--dr, 360deg)); }
-}
-.fp-scan-confetti { animation: fp-scan-confetti 1.8s ease-out forwards; }
-
-/* Cœur pulsé (succès négatif) */
-@keyframes fp-scan-heart {
-  0%   { transform: scale(0); opacity: 0; }
-  35%  { transform: scale(1.25); opacity: 1; }
-  65%  { transform: scale(0.94); }
-  100% { transform: scale(1); opacity: 1; }
-}
-.fp-scan-heart { animation: fp-scan-heart 0.75s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
 
 /* Halo doux pulsé derrière la coche de succès */
 @keyframes fp-scan-halo {
@@ -295,26 +472,55 @@ html { scroll-behavior: smooth; }
 }
 .fp-scan-halo { animation: fp-scan-halo 2s ease-out 0.4s infinite; }
 
-/* Indicateur "tap to start" (étape bienvenue) */
-@keyframes fp-scan-tap-pulse {
-  0%, 100% { opacity: 0.55; transform: translateY(0); }
-  50%      { opacity: 1;    transform: translateY(-3px); }
+/* === Étape 4 — Récompense : entrée douce + bordure dégradée === */
+@keyframes fp-scan-reward-in {
+  0%   { opacity: 0; transform: translateY(12px) scale(0.96); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
 }
-.fp-scan-tap-pulse { animation: fp-scan-tap-pulse 1.6s ease-in-out infinite; }
+.fp-scan-reward-in { animation: fp-scan-reward-in 0.5s ease-out 0.25s both; }
 
+/* Bordure dégradée (violet → bleu → rose) pour la carte code promo */
+.fp-scan-reward-border {
+  position: relative;
+  background: linear-gradient(180deg, #ffffff 0%, #faf5ff 100%);
+  border-radius: 1rem;
+}
+.dark .fp-scan-reward-border {
+  background: linear-gradient(180deg, rgba(20, 20, 23, 0.92) 0%, rgba(30, 20, 50, 0.92) 100%);
+}
+.fp-scan-reward-border::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  padding: 2px;
+  border-radius: inherit;
+  background: linear-gradient(135deg, #8B5CF6, #3B82F6, #EC4899);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+          mask-composite: exclude;
+  pointer-events: none;
+}
+
+/* Respect de prefers-reduced-motion : on coupe TOUTES les animations
+   de la page de scan (WCAG 2.1 SC 2.3.3). */
 @media (prefers-reduced-motion: reduce) {
   .fp-scan-slide-right,
   .fp-scan-slide-left,
-  .fp-scan-welcome,
+  .fp-scan-welcome-logo,
+  .fp-scan-welcome-name,
+  .fp-scan-welcome-line,
+  .fp-scan-welcome-phrase,
+  .fp-scan-tap-pulse,
   .fp-scan-star-bounce,
   .fp-scan-star-fill,
   .fp-scan-tag-pop,
-  .fp-scan-pop,
-  .fp-scan-reward-in,
+  .fp-scan-tag-enter,
+  .fp-scan-pulse-soft,
   .fp-scan-confetti,
   .fp-scan-heart,
+  .fp-scan-pop,
   .fp-scan-halo,
-  .fp-scan-tap-pulse {
+  .fp-scan-reward-in {
     animation: none !important;
   }
 }
