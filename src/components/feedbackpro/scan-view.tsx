@@ -36,6 +36,7 @@ import {
   AlertCircle,
   ArrowLeft,
   ArrowRight,
+  Camera,
   Check,
   Gift,
   Globe,
@@ -291,15 +292,21 @@ function EnTeteEtablissement({
       <div className="flex items-center gap-3">
         {afficherLogo && pro.logoUrl ? (
           <img
+            key={pro.logoUrl}
             src={pro.logoUrl}
             alt={`Logo ${pro.nomEtablissement}`}
-            className="size-14 shrink-0 rounded-2xl border border-border object-cover"
+            className="size-14 shrink-0 rounded-2xl border border-border bg-background object-cover"
+            loading="eager"
+            decoding="async"
+            // referrerPolicy évite le blocage hotlink sur les logos distants (https);
+            // sans effet sur les data: URLs (logos uploadés côté dashboard).
+            referrerPolicy="no-referrer"
             onError={() => setLogoUrlEnEchec(pro.logoUrl ?? null)}
           />
         ) : (
           <div
             aria-hidden
-            className="flex size-14 shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-primary/10 text-xl font-bold text-primary"
+            className="flex size-14 shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/15 to-primary/5 text-xl font-bold text-primary"
           >
             {initiale}
           </div>
@@ -410,7 +417,12 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
   const [photoEnCours, setPhotoEnCours] = useState(false)
   const [photoErreur, setPhotoErreur] = useState<string | null>(null)
+  // Deux inputs distincts : un avec `capture="environment"` (ouvre l'appareil
+  // photo sur mobile — bouton « Prendre une photo ») et un sans capture
+  // (ouvre la galerie — bouton « Choisir une image »). Sur desktop, les deux
+  // ouvrent le sélecteur de fichier classique.
   const photoInputRef = useRef<HTMLInputElement>(null)
+  const photoCameraRef = useRef<HTMLInputElement>(null)
 
   // Animation d'étoile + prévisualisation au survol/focus (desktop)
   const [pulse, setPulse] = useState<number | null>(null)
@@ -1366,7 +1378,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                         />
                         <div className="min-w-0 flex-1">
                           <p className="text-xs text-muted-foreground">{t.photoAide}</p>
-                          <div className="mt-1.5 flex gap-2">
+                          <div className="mt-1.5 flex flex-wrap gap-2">
                             <Button
                               type="button"
                               variant="outline"
@@ -1394,32 +1406,61 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                         </div>
                       </div>
                     ) : (
-                      <label
-                        htmlFor="photo-input"
-                        className="flex cursor-pointer items-center gap-3 rounded-xl border-2 border-dashed border-border bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-primary/5"
-                      >
-                        <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                          {photoEnCours ? (
-                            <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-                          ) : (
-                            <ImagePlus className="h-5 w-5" aria-hidden />
-                          )}
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block text-sm font-medium text-foreground/80">
-                            {photoEnCours ? t.photoEnCours : `📷 ${t.photoChoisir}`}
-                          </span>
-                          <span className="block text-xs text-muted-foreground">{t.photoAide}</span>
-                        </span>
+                      <div className="rounded-xl border-2 border-dashed border-border bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-primary/5">
+                        <div className="flex flex-col gap-2">
+                          {/* Bouton principal : Prendre une photo (mobile-first).
+                              Sur mobile, `capture="environment"` ouvre directement
+                              l'appareil photo (caméra arrière). Sur desktop, ouvre
+                              le sélecteur de fichier classique. */}
+                          <button
+                            type="button"
+                            onClick={() => photoCameraRef.current?.click()}
+                            disabled={photoEnCours}
+                            className="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {photoEnCours ? (
+                              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                            ) : (
+                              <Camera className="h-4 w-4" aria-hidden />
+                            )}
+                            {photoEnCours ? t.photoEnCours : `📷 ${t.photoPrendre}`}
+                          </button>
+                          {/* Bouton secondaire : Choisir une image depuis la galerie.
+                              Sur mobile, ouvre la galerie (sans forcer l'appareil photo).
+                              Sur desktop, ouvre le sélecteur de fichier classique. */}
+                          <button
+                            type="button"
+                            onClick={() => photoInputRef.current?.click()}
+                            disabled={photoEnCours}
+                            className="flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <ImagePlus className="h-4 w-4" aria-hidden />
+                            {t.photoChoisir}
+                          </button>
+                        </div>
+                        <p className="mt-2 text-center text-xs text-muted-foreground">{t.photoAide}</p>
+                        {/* Input caché appareil photo (capture=environment) */}
+                        <input
+                          ref={photoCameraRef}
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp,image/gif"
+                          capture="environment"
+                          className="sr-only"
+                          onChange={onPhotoChoisie}
+                          aria-label={t.photoPrendre}
+                          tabIndex={-1}
+                        />
+                        {/* Input caché galerie (sans capture) */}
                         <input
                           ref={photoInputRef}
-                          id="photo-input"
                           type="file"
                           accept="image/png,image/jpeg,image/webp,image/gif"
                           className="sr-only"
                           onChange={onPhotoChoisie}
+                          aria-label={t.photoChoisir}
+                          tabIndex={-1}
                         />
-                      </label>
+                      </div>
                     )}
                     {photoErreur && (
                       <p className="mt-1.5 text-xs text-rose-600" role="alert">
@@ -1756,9 +1797,15 @@ function LogoEtablissementBig({ pro }: { pro: ScanData["pro"] }) {
   if (afficherLogo && pro.logoUrl) {
     return (
       <img
+        key={pro.logoUrl}
         src={pro.logoUrl}
         alt={`Logo ${pro.nomEtablissement}`}
         onError={() => setLogoUrlEnEchec(pro.logoUrl ?? null)}
+        loading="eager"
+        decoding="async"
+        // referrerPolicy : évite le blocage hotlink sur les logos distants (https);
+        // sans effet sur les data: URLs (logos uploadés côté dashboard).
+        referrerPolicy="no-referrer"
         className="size-24 rounded-3xl border border-border bg-background object-cover shadow-md sm:size-28"
       />
     )
@@ -1766,7 +1813,7 @@ function LogoEtablissementBig({ pro }: { pro: ScanData["pro"] }) {
   return (
     <div
       aria-hidden
-      className="flex size-24 items-center justify-center rounded-3xl border border-primary/20 bg-primary/10 text-4xl font-bold text-primary shadow-md sm:size-28"
+      className="flex size-24 items-center justify-center rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/15 to-primary/5 text-4xl font-bold text-primary shadow-md sm:size-28"
     >
       {initiale}
     </div>

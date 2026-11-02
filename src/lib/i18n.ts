@@ -83,6 +83,7 @@ export interface TraductionsScan {
   photoLabel: string
   photoAide: string
   photoChoisir: string
+  photoPrendre: string
   photoChanger: string
   photoRetirer: string
   photoEnCours: string
@@ -171,7 +172,8 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     politique: "Politique de confidentialité",
     photoLabel: "Ajouter une photo (optionnel)",
     photoAide: "PNG, JPEG ou WebP — 5 Mo maximum. Redimensionnée automatiquement.",
-    photoChoisir: "Choisir une photo",
+    photoChoisir: "Choisir une image",
+    photoPrendre: "Prendre une photo",
     photoChanger: "Changer la photo",
     photoRetirer: "Retirer la photo",
     photoEnCours: "Traitement…",
@@ -257,7 +259,8 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     politique: "Privacy policy",
     photoLabel: "Add a photo (optional)",
     photoAide: "PNG, JPEG or WebP — 5 MB max. Auto-resized.",
-    photoChoisir: "Choose a photo",
+    photoChoisir: "Choose an image",
+    photoPrendre: "Take a photo",
     photoChanger: "Change photo",
     photoRetirer: "Remove photo",
     photoEnCours: "Processing…",
@@ -341,6 +344,7 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     photoLabel: "إضافة صورة (اختياري)",
     photoAide: "PNG أو JPEG أو WebP — 5 ميغا كحد أقصى. يتم تغيير الحجم تلقائياً.",
     photoChoisir: "اختر صورة",
+    photoPrendre: "التقاط صورة",
     photoChanger: "تغيير الصورة",
     photoRetirer: "إزالة الصورة",
     photoEnCours: "جاري المعالجة…",
