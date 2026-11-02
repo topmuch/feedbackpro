@@ -564,25 +564,25 @@ function CarteAction({ retour, maj }: { retour: RetourItem; maj: (r: RetourItem)
 
   return (
     <Card className="shadow-sm">
-      <CardContent className="space-y-3 p-4">
+      <CardContent className="space-y-2 p-3 sm:p-3.5">
         {/* Ligne 1 : note, zone, employé, date, statut */}
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex flex-wrap items-center gap-1.5">
             <Stars note={retour.note} size={14} />
-            {retour.zone?.nom && <Badge variant="secondary">{retour.zone.nom}</Badge>}
+            {retour.zone?.nom && <Badge variant="secondary" className="text-[11px]">{retour.zone.nom}</Badge>}
             {retour.employe?.nom && (
               <span className="flex items-center gap-1 text-xs text-muted-foreground">
                 <User className="h-3 w-3" aria-hidden /> {retour.employe.nom}
               </span>
             )}
             {!retour.actionPrise && (
-              <Badge className="border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-100">À traiter</Badge>
+              <Badge className="border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-100 text-[11px]">À traiter</Badge>
             )}
           </div>
           <div className="flex items-center gap-2">
             <span className="text-xs text-muted-foreground">{formatDate(retour.createdAt)}</span>
             <Select value={statut} onValueChange={changerStatut} disabled={savingStatut}>
-              <SelectTrigger size="sm" className="w-[120px]" aria-label="Statut du retour">
+              <SelectTrigger size="sm" className="h-8 w-[110px]" aria-label="Statut du retour">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -600,24 +600,24 @@ function CarteAction({ retour, maj }: { retour: RetourItem; maj: (r: RetourItem)
         )}
 
         {/* Commentaire client */}
-        {retour.commentaire && <p className="text-sm italic">&ldquo;{retour.commentaire}&rdquo;</p>}
+        {retour.commentaire && <p className="text-sm italic line-clamp-3">&ldquo;{retour.commentaire}&rdquo;</p>}
         {retour.personnelMentionne && (
           <p className="text-xs text-muted-foreground">Membre du personnel mentionné : {retour.personnelMentionne}</p>
         )}
 
         {/* Réponse déjà envoyée au client */}
         {retour.reponsePro && (
-          <div className="rounded-lg bg-muted/60 p-2.5">
-            <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+          <div className="rounded-lg bg-muted/60 p-2">
+            <p className="mb-0.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
               <MessageSquare className="h-3 w-3" aria-hidden /> Votre réponse au client
             </p>
-            <p className="text-sm text-muted-foreground">{retour.reponsePro}</p>
+            <p className="text-xs text-muted-foreground line-clamp-2">{retour.reponsePro}</p>
           </div>
         )}
 
         {/* Action managériale */}
-        <div className="space-y-1.5 border-t pt-3">
-          <Label htmlFor={`action-${retour.id}`} className="text-xs font-medium">
+        <div className="space-y-1 border-t pt-2">
+          <Label htmlFor={`action-${retour.id}`} className="text-[11px] font-medium">
             Action managériale prise
           </Label>
           <Textarea
@@ -626,17 +626,19 @@ function CarteAction({ retour, maj }: { retour: RetourItem; maj: (r: RetourItem)
             value={action}
             onChange={(e) => setAction(e.target.value)}
             placeholder="ex. Recadrage de l'équipe, remise commerciale, formation produit…"
+            className="min-h-[60px] text-sm"
           />
           <div className="flex justify-end">
             <Button
               size="sm"
+              className="h-8"
               onClick={enregistrerAction}
               disabled={savingAction || !action.trim() || action.trim() === (retour.actionPrise ?? "")}
             >
               {savingAction ? (
-                <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin" aria-hidden />
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden />
               ) : (
-                <Check className="mr-2 h-3.5 w-3.5" aria-hidden />
+                <Check className="mr-1.5 h-3.5 w-3.5" aria-hidden />
               )}
               Enregistrer
             </Button>

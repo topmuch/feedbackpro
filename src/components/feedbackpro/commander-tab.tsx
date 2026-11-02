@@ -230,7 +230,7 @@ export function CommanderTab() {
               role="button"
               tabIndex={0}
               aria-pressed={actif}
-              aria-label={`Choisir ${s.label} — ${s.price} €`}
+              aria-label={`Commander ${s.label} — ${s.price} €`}
               onClick={() => choisirSupport(id)}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
@@ -249,19 +249,53 @@ export function CommanderTab() {
                   <span className="text-3xl" aria-hidden>
                     {s.emoji}
                   </span>
-                  {actif && <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" aria-hidden />}
+                  {actif ? (
+                    <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" aria-hidden />
+                  ) : (
+                    <Badge variant="outline" className="text-[10px] font-medium text-muted-foreground">
+                      Disponible
+                    </Badge>
+                  )}
                 </div>
                 <CardTitle className="pt-1 text-base">{s.label}</CardTitle>
                 <CardDescription>{s.description}</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-2">
-                <p className="text-2xl font-bold tracking-tight">
-                  {s.price} <span className="text-sm font-normal text-muted-foreground">€</span>
-                </p>
-                <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Truck className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                  {s.delai}
-                </p>
+              <CardContent className="space-y-3">
+                <div className="flex items-baseline justify-between gap-2">
+                  <p className="text-2xl font-bold tracking-tight">
+                    {s.price} <span className="text-sm font-normal text-muted-foreground">€</span>
+                  </p>
+                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Truck className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                    {s.delai}
+                  </p>
+                </div>
+                {/* Bouton « Commander » clair sur chaque produit —
+                    audit UX : explicite l'action attendue (sélection du support
+                    puis ouverture du formulaire de finalisation). */}
+                <Button
+                  type="button"
+                  variant={actif ? "default" : "outline"}
+                  size="sm"
+                  className="w-full"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    choisirSupport(id)
+                  }}
+                  aria-pressed={actif}
+                >
+                  {actif ? (
+                    <>
+                      <CheckCircle2 className="mr-1.5 h-4 w-4" aria-hidden />
+                      Sélectionné
+                    </>
+                  ) : (
+                    <>
+                      <Package className="mr-1.5 h-4 w-4" aria-hidden />
+                      Commander
+                    </>
+                  )}
+                </Button>
               </CardContent>
             </Card>
           )

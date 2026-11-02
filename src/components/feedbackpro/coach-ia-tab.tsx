@@ -1261,6 +1261,18 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
               <CardDescription>
                 Anticipations de votre Coach si aucune action n&apos;est menée sur vos priorités.
               </CardDescription>
+              {/* Audit UX : personnalisation — rappel contextuel des vraies données
+                  qui alimentent les prédictions (note moyenne 7 j + zone faible). */}
+              <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+                <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">
+                  Note moyenne 7 j : {(scoreDuJour?.score7j ?? 0).toFixed(2).replace(".", ",")}/5
+                </Badge>
+                {zoneLaPlusFaible && (
+                  <Badge variant="outline" className="border-rose-300 bg-rose-50 text-rose-700">
+                    Zone à surveiller : {zoneLaPlusFaible}
+                  </Badge>
+                )}
+              </div>
             </CardHeader>
             <CardContent>
               <ul className="space-y-2.5">
