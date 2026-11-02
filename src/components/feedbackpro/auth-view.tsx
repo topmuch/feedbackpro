@@ -57,6 +57,7 @@ import { fileToLogoDataUrl } from "@/lib/image"
 // (les champs JSON sont déjà parsés côté serveur).
 // ============================================================
 type ZoneDefautBdd = { nom: string; tagsPos: string[]; tagsNeg: string[] }
+type TagEmployeBdd = { id: string; label: string; contextes?: string[] }
 type SecteurConfigBdd = {
   id: string
   nom: string
@@ -64,6 +65,15 @@ type SecteurConfigBdd = {
   tagsGlobaux: string[]
   emoji: string
   description: string
+  // v2 — Champs ajoutés par la base de vérité sectorielle v2. Le wizard
+  // d'inscription ne les AFFICHE pas (zones + tags par défaut suffisent
+  // pour l'onboarding), mais ils font partie du contrat API et sont
+  // conservés pour permettre une exploitation future côté client.
+  piliers?: string[]
+  tagsEmployes?: {
+    positifs: TagEmployeBdd[]
+    negatifs: TagEmployeBdd[]
+  }
 }
 
 /** Récupère la fiche BDD d'un secteur par son nom (O(1)). */

@@ -235,6 +235,20 @@ model SecteurConfig {
   languesSupportees String   @default("[]")
   // JSON : { photosInterdites: boolean, zonesSensibles: string[] }
   reglesSecurite    String   @default("{}")
+  // JSON : string[] — 4 axes d'audit du macro-secteur (ex : "Accueil &
+  // Service", "Rapidité & Flux"…). Injectés depuis la base de vérité
+  // sectorielle v2 (5 macro-secteurs × 4 piliers). Pour les secteurs non
+  // couverts par la base (Boutique, Salon…), on dépose des piliers
+  // génériques afin que l'UI scan-view puisse toujours regrouper les
+  // tags par pilier.
+  piliers           String   @default("[]")
+  // JSON : { positifs: [{id,label,contextes[]}], negatifs: [{id,label,contextes[]}] }
+  // Tags employés transversaux (communs à tous les macro-secteurs) avec
+  // leurs contextes d'application (TOUS = tous secteurs, sinon liste de
+  // macros : "HOTELLERIE", "SANTE"…). Permet au scan-view d'afficher une
+  // section "Comportement de l'employé" filtrée par secteur du Pro, et au
+  // Coach IA d'interpréter les mentions comportementales dans les retours.
+  tagsEmployes      String   @default("{}")
   emoji             String   @default("")
   description       String   @default("")
   createdAt         DateTime @default(now())

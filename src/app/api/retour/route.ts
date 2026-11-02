@@ -19,6 +19,12 @@ import { tagLabel } from "@/lib/constants"
 import { parseJsonArray, detecterAlertesIntelligentes } from "@/lib/ia"
 import { analyserEtAlerterRetour } from "@/lib/alertes"
 import { creerNotification } from "@/lib/notifications"
+import {
+  macroSecteurPourSecteur,
+  MACRO_SECTEURS,
+  tagsEmployesPourMacro,
+  type MacroSecteurId,
+} from "@/lib/secteurs-v2"
 
 /** Adresses locales/privées : aucune recherche géo (inutile et hors RGPD utile) */
 function estIpPrivee(ip: string): boolean {
@@ -57,6 +63,43 @@ async function villeDepuisIp(req: NextRequest): Promise<string | null> {
   }
 }
 
+/**
+ * v2 — Résout le macro-secteur d'un Pro (depuis son SecteurConfig via
+ * secteurId, ou par typeEtablissement en correspondance insensible à
+ * la casse). Permet d'autoriser les tags sectoriels v2 (acc_chaleureux,
+ * srv_rapide…) et les tags employés transversaux (emp_*) même si la
+ * zone a des tags historiques (accueil_chaleureux, propre…).
+ *
+ * Retourne null si le Pro n'est pas rattaché à un macro-secteur v2
+ * (Boutique, Salon, Institut, Garage, Autre) — auquel cas on retombe
+ * sur le filtrage historique par tags de la zone.
+ */
+async function resoudreMacroSecteurDuPro(pro: {
+  secteurId: string | null
+  typeEtablissement: string
+}): Promise<MacroSecteurId | null> {
+  // 1) Par secteurId
+  if (pro.secteurId) {
+    const s = await db.secteurConfig.findUnique({
+      where: { id: pro.secteurId },
+      select: { nom: true },
+    })
+    if (s && macroSecteurPourSecteur(s.nom)) return macroSecteurPourSecteur(s.nom)!.nom
+  }
+  // 2) Par typeEtablissement (exact)
+  if (macroSecteurPourSecteur(pro.typeEtablissement)) {
+    return macroSecteurPourSecteur(pro.typeEtablissement)!.nom
+  }
+  // 3) Par typeEtablissement (insensible à la casse — ex : "restaurant" → "Restaurant")
+  const tous = await db.secteurConfig.findMany({ select: { nom: true } })
+  const lower = pro.typeEtablissement.toLowerCase()
+  const match = tous.find((s) => s.nom.toLowerCase() === lower)
+  if (match && macroSecteurPourSecteur(match.nom)) {
+    return macroSecteurPourSecteur(match.nom)!.nom
+  }
+  return null
+}
+
 export async function POST(req: NextRequest) {
   try {
     // ---------- Validation Zod du corps de requête ----------
@@ -75,14 +118,44 @@ export async function POST(req: NextRequest) {
     if (!zone) return fail("QR code invalide", 404)
     const pro = zone.pro
 
-    // ---------- Cohérence des tags avec la zone et la note ----------
-    // Le scan n'affiche que les tags configurés sur la zone ; on filtre
-    // silencieusement (aucune erreur 400 côté client mystère) pour garantir
-    // la qualité des données sans casser le parcours public.
+    // ---------- Cohérence des tags avec la zone/secteur et la note ----------
+    // Le scan n'affiche que les tags configurés ; on filtre silencieusement
+    // (aucune erreur 400 côté client mystère) pour garantir la qualité des
+    // données sans casser le parcours public.
+    //
+    // v2 — Si le Pro est rattaché à un macro-secteur (RESTAURATION, HÔTEL,
+    // AÉROPORT/GARE, HÔPITAL, ADMINISTRATION), on autorise en PLUS des tags
+    // de la zone :
+    //   - les 4 tags sectoriels du macro (1 par pilier, polarité = note)
+    //   - les tags employés transversaux (emp_*) filtrés par contexte
+    // Cela permet au scan-view (qui affiche les tags macro-sectoriels) de
+    // soumettre des tags que la zone ne connaissait pas historiquement.
     const positifsZone = parseJsonArray(zone.tagsPositifs)
     const negatifsZone = parseJsonArray(zone.tagsNegatifs)
-    const autorises = note >= 4 ? positifsZone : negatifsZone
-    const validTags = autorises.length > 0 ? tags.filter((t) => autorises.includes(t)) : []
+    const macroId = await resoudreMacroSecteurDuPro(pro)
+    const macro = macroId ? MACRO_SECTEURS.find((m) => m.nom === macroId) : null
+    const tagsEmployesMacro = tagsEmployesPourMacro(macroId)
+    // Tags autorisés pour la polarité de la note :
+    //   - tags de la zone (filtrage historique, pour les secteurs non v2)
+    //   - tags sectoriels du macro v2 (si le Pro est rattaché)
+    const autorisesPolarite = note >= 4
+      ? [...positifsZone, ...(macro ? macro.tagsPositifs.map((t) => t.id) : [])]
+      : [...negatifsZone, ...(macro ? macro.tagsNegatifs.map((t) => t.id) : [])]
+    // Tags employés (toutes polarités, filtrés par contexte du macro).
+    // Autorisés quelles que soient la note — le scan-view les affiche
+    // conditionnellement mais on reste permissif côté serveur pour ne pas
+    // rejeter un retour légitime.
+    const autorisesEmployes = [
+      ...tagsEmployesMacro.positifs.map((t) => t.id),
+      ...tagsEmployesMacro.negatifs.map((t) => t.id),
+    ]
+    const validTags = tags.filter((t) => {
+      // Tag employé : autorisé s'il est dans le contexte du macro
+      if (t.startsWith("emp_")) return autorisesEmployes.includes(t)
+      // Tag sectoriel : autorisé s'il est dans la polarité de la note
+      // (soit dans la zone, soit dans le macro v2)
+      return autorisesPolarite.includes(t)
+    })
 
     // ---------- Rattachement employé (affecté à cette zone) ----------
     let employeId: string | null = null

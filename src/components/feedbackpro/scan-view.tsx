@@ -56,6 +56,7 @@ import {
   presetPourZone,
   type TagDef,
 } from "@/lib/constants"
+import { labelPourTagSectoriel } from "@/lib/secteurs-v2"
 import { buildWhatsAppMessage } from "@/lib/whatsapp"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
@@ -92,6 +93,21 @@ type ScanData = {
   }
   tagsPositifs: string[]
   tagsNegatifs: string[]
+  // ----- v2 : contexte sectoriel (issu de /api/public/scan) -----
+  // macroSecteur : "RESTAURATION" | "HOTELLERIE" | … (null si secteur non couvert)
+  macroSecteur?: string | null
+  // piliers : 4 axes d'audit du macro-secteur (ex : "Accueil & Service")
+  piliers?: string[]
+  // tagsPositifsDetails / tagsNegatifsDetails : tags enrichis avec
+  // leur label COMPLET (incluant l'émoji) et leur pilier. Non vide
+  // uniquement si le Pro est rattaché à un macro-secteur v2.
+  tagsPositifsDetails?: { id: string; label: string; pilier: string }[]
+  tagsNegatifsDetails?: { id: string; label: string; pilier: string }[]
+  // tagsEmployes : tags transversaux filtrés par contexte du macro-secteur
+  tagsEmployes?: {
+    positifs: { id: string; label: string }[]
+    negatifs: { id: string; label: string }[]
+  }
 }
 
 type Phase = "loading" | "error" | "welcome" | "step1" | "step2" | "step3" | "success"
@@ -113,7 +129,25 @@ const MAX_COMMENTAIRE = 500
 // ---------- Petits utilitaires ----------
 
 // Retrouve le libellé + l'émoji d'un id de tag reçu de l'API.
+// v2 : on consulte d'abord le catalogue v2 (secteurs-v2.ts) qui contient
+// les labels complets des tags sectoriels ("😊 Très accueillant") et des
+// tags employés transversaux ("À l'écoute / humain"). Si l'id n'est pas
+// dans le catalogue v2, on retombe sur le catalogue historique ALL_TAGS.
 function definitionTag(id: string, positif: boolean): TagDef {
+  // 1) Catalogue v2 (sectoriel + employés transversaux) — labels avec emoji
+  const labelV2 = labelPourTagSectoriel(id)
+  if (labelV2 !== id) {
+    // Les labels v2 commencent par un emoji (ex : "😊 Très accueillant")
+    // suivi d'un espace puis du texte. On extrait l'emoji et le texte.
+    // Si pas d'emoji détecté (ex : "À l'écoute / humain"), on garde un
+    // emoji générique et le label complet.
+    const match = labelV2.match(/^(\S+)\s+(.*)$/)
+    if (match && /\p{Emoji}/u.test(match[1])) {
+      return { id, emoji: match[1], label: match[2] }
+    }
+    return { id, emoji: "🏷️", label: labelV2 }
+  }
+  // 2) Catalogue historique (ALL_TAGS étendu)
   const liste = positif ? POSITIVE_TAGS_ETENDUS : NEGATIVE_TAGS_ETENDUS
   return (
     liste.find((tg) => tg.id === id) ??
@@ -563,6 +597,57 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
   // ---------- Étape 2 — Tags (adaptés à la note ET à la zone) ----------
   const idsTags = scanData ? (estPositif ? scanData.tagsPositifs : scanData.tagsNegatifs) : []
 
+  // v2 — Tags enrichis (label + pilier) si le Pro est rattaché à un macro-secteur.
+  // Permet de grouper les tags par pilier (ex : "Accueil & Service" → 1 tag,
+  // "Rapidité & Flux" → 1 tag, etc.). Si vide (secteur non couvert par la v2),
+  // on retombe sur l'affichage plat historique (catalogue ALL_TAGS).
+  const tagsDetails = scanData
+    ? estPositif
+      ? (scanData.tagsPositifsDetails ?? [])
+      : (scanData.tagsNegatifsDetails ?? [])
+    : []
+
+  // Groupe les tagsDetails par pilier, en respectant l'ordre des piliers du macro.
+  const groupesParPilier = useMemo(() => {
+    if (tagsDetails.length === 0) return []
+    const ordrePiliers = scanData?.piliers ?? []
+    const parPilier = new Map<string, typeof tagsDetails>()
+    for (const tg of tagsDetails) {
+      const liste = parPilier.get(tg.pilier) ?? []
+      liste.push(tg)
+      parPilier.set(tg.pilier, liste)
+    }
+    return [...parPilier.entries()]
+      .sort((a, b) => {
+        const ia = ordrePiliers.indexOf(a[0])
+        const ib = ordrePiliers.indexOf(b[0])
+        return (ia === -1 ? 999 : ia) - (ib === -1 ? 999 : ib)
+      })
+      .map(([pilier, list]) => ({ pilier, tags: list }))
+  }, [tagsDetails, scanData?.piliers])
+
+  // v2 — Section « Comportement de l'employé » (tags employés transversaux).
+  // Affichée si le client saisit un nom d'employé OU si la note est ≤ 2★.
+  // Polarity : positifs si note ≥ 4, négatifs si note ≤ 3.
+  const tagsEmployesDispos = scanData?.tagsEmployes
+  const personnelMentionne = personnel.trim().length > 0
+  const noteFaible = note > 0 && note <= 2
+  const declencheurTagsEmployes = personnelMentionne || noteFaible
+  const tagsEmployesAAfficher = (() => {
+    if (!tagsEmployesDispos || !declencheurTagsEmployes) return []
+    return note >= 4 ? tagsEmployesDispos.positifs : tagsEmployesDispos.negatifs
+  })()
+
+  // Nettoie les tags employés (préfixe "emp_") de la sélection quand la
+  // section est masquée — évite les « phantom tags » soumis sans être
+  // visibles. La fonction setTags est stable (React useState), on ne
+  // dépend que de declencheurTagsEmployes.
+  useEffect(() => {
+    if (!declencheurTagsEmployes) {
+      setTags((prev) => (prev.some((id) => id.startsWith("emp_")) ? prev.filter((id) => !id.startsWith("emp_")) : prev))
+    }
+  }, [declencheurTagsEmployes])
+
   function basculerTag(id: string) {
     setTags((prev) => (prev.includes(id) ? prev.filter((tg) => tg !== id) : [...prev, id]))
   }
@@ -978,41 +1063,92 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                   </h1>
                   <p className="mt-1 text-sm text-muted-foreground">{t.sousTitreTags}</p>
 
-                  <div
-                    role="group"
-                    aria-label={estPositif ? t.ariaTagsPositifs : t.ariaTagsNegatifs}
-                    className="mt-5 flex flex-wrap gap-2.5"
-                  >
-                    {idsTags.map((id, idx) => {
-                      const def = definitionTag(id, estPositif)
-                      const actif = tags.includes(id)
-                      return (
-                        <button
-                          key={id}
-                          type="button"
-                          aria-pressed={actif}
-                          onClick={() => basculerTag(id)}
-                          // fp-scan-tag-enter : apparition stagger (fade-in +
-                          // slide-up, délai 50 ms par tag, spec refonte)
-                          className={cn(
-                            "fp-scan-tag-enter inline-flex min-h-12 min-w-0 max-w-full items-center gap-1.5 rounded-full border-2 px-6 py-4 text-sm font-medium outline-none transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:text-base",
-                            actif
-                              ? estPositif
-                                ? "border-emerald-500 bg-emerald-100 text-emerald-900 shadow-sm shadow-emerald-500/20 dark:border-emerald-400 dark:bg-emerald-900/40 dark:text-emerald-100"
-                                : "border-rose-500 bg-rose-100 text-rose-900 shadow-sm shadow-rose-500/20 dark:border-rose-400 dark:bg-rose-900/40 dark:text-rose-100"
-                              : "border-border bg-background text-foreground/80 hover:border-foreground/30 hover:bg-muted",
-                            actif && "fp-scan-tag-pop"
-                          )}
-                          style={{ animationDelay: `${idx * 50}ms` }}
-                        >
-                          <span aria-hidden className="text-base leading-none">
-                            {actif ? <Check className="size-4" /> : def.emoji}
-                          </span>
-                          <span className="min-w-0 break-words leading-tight">{def.label}</span>
-                        </button>
-                      )
-                    })}
-                  </div>
+                  {/* v2 — Tags groupés par pilier (si le Pro est rattaché à un
+                      macro-secteur v2). Chaque pilier a son sous-titre et un
+                      conteneur flex-wrap en dessous.
+                      Fallback : si pas de macro-secteur (Boutique, Salon,
+                      Institut, Garage, Autre), on garde l'affichage plat
+                      historique avec résolution via ALL_TAGS. */}
+                  {groupesParPilier.length > 0 ? (
+                    <div className="mt-5 space-y-4" role="group" aria-label={estPositif ? t.ariaTagsPositifs : t.ariaTagsNegatifs}>
+                      {groupesParPilier.map((groupe, gIdx) => (
+                        <div key={groupe.pilier}>
+                          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+                            <span aria-hidden className="me-1">▸</span>
+                            {groupe.pilier}
+                          </p>
+                          <div className="flex flex-wrap gap-2.5">
+                            {groupe.tags.map((tg, idx) => {
+                              const actif = tags.includes(tg.id)
+                              // Utilise definitionTag pour parser proprement
+                              // l'emoji et le label (gère les labels v2 avec
+                              // emoji prefix et les labels historiques).
+                              const def = definitionTag(tg.id, estPositif)
+                              return (
+                                <button
+                                  key={tg.id}
+                                  type="button"
+                                  aria-pressed={actif}
+                                  onClick={() => basculerTag(tg.id)}
+                                  className={cn(
+                                    "fp-scan-tag-enter inline-flex min-h-12 min-w-0 max-w-full items-center gap-1.5 rounded-full border-2 px-5 py-3 text-sm font-medium outline-none transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:text-base",
+                                    actif
+                                      ? estPositif
+                                        ? "border-emerald-500 bg-emerald-100 text-emerald-900 shadow-sm shadow-emerald-500/20 dark:border-emerald-400 dark:bg-emerald-900/40 dark:text-emerald-100"
+                                        : "border-rose-500 bg-rose-100 text-rose-900 shadow-sm shadow-rose-500/20 dark:border-rose-400 dark:bg-rose-900/40 dark:text-rose-100"
+                                      : "border-border bg-background text-foreground/80 hover:border-foreground/30 hover:bg-muted",
+                                    actif && "fp-scan-tag-pop"
+                                  )}
+                                  style={{ animationDelay: `${(gIdx * 4 + idx) * 50}ms` }}
+                                >
+                                  <span aria-hidden className="text-base leading-none">
+                                    {actif ? <Check className="size-4" /> : def.emoji}
+                                  </span>
+                                  <span className="min-w-0 break-words leading-tight">{def.label}</span>
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div
+                      role="group"
+                      aria-label={estPositif ? t.ariaTagsPositifs : t.ariaTagsNegatifs}
+                      className="mt-5 flex flex-wrap gap-2.5"
+                    >
+                      {idsTags.map((id, idx) => {
+                        const def = definitionTag(id, estPositif)
+                        const actif = tags.includes(id)
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            aria-pressed={actif}
+                            onClick={() => basculerTag(id)}
+                            // fp-scan-tag-enter : apparition stagger (fade-in +
+                            // slide-up, délai 50 ms par tag, spec refonte)
+                            className={cn(
+                              "fp-scan-tag-enter inline-flex min-h-12 min-w-0 max-w-full items-center gap-1.5 rounded-full border-2 px-6 py-4 text-sm font-medium outline-none transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:text-base",
+                              actif
+                                ? estPositif
+                                  ? "border-emerald-500 bg-emerald-100 text-emerald-900 shadow-sm shadow-emerald-500/20 dark:border-emerald-400 dark:bg-emerald-900/40 dark:text-emerald-100"
+                                  : "border-rose-500 bg-rose-100 text-rose-900 shadow-sm shadow-rose-500/20 dark:border-rose-400 dark:bg-rose-900/40 dark:text-rose-100"
+                                : "border-border bg-background text-foreground/80 hover:border-foreground/30 hover:bg-muted",
+                              actif && "fp-scan-tag-pop"
+                            )}
+                            style={{ animationDelay: `${idx * 50}ms` }}
+                          >
+                            <span aria-hidden className="text-base leading-none">
+                              {actif ? <Check className="size-4" /> : def.emoji}
+                            </span>
+                            <span className="min-w-0 break-words leading-tight">{def.label}</span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
 
                   {/* Champ optionnel : personnel concerné */}
                   <div className="mt-6">
@@ -1033,6 +1169,53 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                       className="h-12 text-base"
                     />
                   </div>
+
+                  {/* v2 — Section « Comportement de l'employé » (tags employés
+                      transversaux). Affichée si le client saisit un nom
+                      d'employé OU si la note est ≤ 2★. Polarity : positifs si
+                      note ≥ 4, négatifs si note ≤ 3. Les tags employés ont
+                      tous un id préfixé « emp_ » — ils sont stockés dans le
+                      même tableau `tags` que les tags sectoriels et soumis
+                      avec le retour. Le Coach IA les distingue par leur id. */}
+                  {tagsEmployesAAfficher.length > 0 && (
+                    <div
+                      className="mt-5 rounded-2xl border border-violet-200 bg-violet-50/60 p-4 dark:border-violet-900/40 dark:bg-violet-950/20"
+                      role="group"
+                      aria-label={t.ariaTagsEmployes}
+                    >
+                      <p className="text-sm font-bold text-foreground/90">{t.employeTitre}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">{t.employeAide}</p>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        {tagsEmployesAAfficher.map((tg, idx) => {
+                          const actif = tags.includes(tg.id)
+                          const positif = note >= 4
+                          return (
+                            <button
+                              key={tg.id}
+                              type="button"
+                              aria-pressed={actif}
+                              onClick={() => basculerTag(tg.id)}
+                              className={cn(
+                                "fp-scan-tag-enter inline-flex min-h-11 min-w-0 max-w-full items-center gap-1.5 rounded-full border-2 px-4 py-2.5 text-xs font-medium outline-none transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:text-sm",
+                                actif
+                                  ? positif
+                                    ? "border-violet-500 bg-violet-100 text-violet-900 shadow-sm shadow-violet-500/20 dark:border-violet-400 dark:bg-violet-900/40 dark:text-violet-100"
+                                    : "border-fuchsia-500 bg-fuchsia-100 text-fuchsia-900 shadow-sm shadow-fuchsia-500/20 dark:border-fuchsia-400 dark:bg-fuchsia-900/40 dark:text-fuchsia-100"
+                                  : "border-border bg-background text-foreground/80 hover:border-foreground/30 hover:bg-muted",
+                                actif && "fp-scan-tag-pop"
+                              )}
+                              style={{ animationDelay: `${idx * 50}ms` }}
+                            >
+                              <span aria-hidden className="text-sm leading-none">
+                                {actif ? <Check className="size-3.5" /> : positif ? "👍" : "⚠️"}
+                              </span>
+                              <span className="min-w-0 break-words leading-tight">{tg.label}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                   {/* Bouton Continuer (spec refonte) : gradient violet → bleu,
                       w-full py-4 text-lg, désactivé si aucun tag sélectionné. */}

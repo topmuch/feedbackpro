@@ -27,6 +27,11 @@ import { tagLabel } from "@/lib/constants"
 import { sendEmail, emailRapportIA } from "@/lib/email"
 import { analyserSemantique } from "@/lib/semantic"
 import { configSecteur } from "@/lib/secteurs"
+import {
+  macroSecteurPourSecteur,
+  tagsEmployesPourMacro,
+  PILIERS_GENERIQUES,
+} from "@/lib/secteurs-v2"
 import type { Pro, RapportIA } from "@prisma/client"
 
 /**
@@ -48,7 +53,7 @@ export const SYSTEM_PROMPT_FR = `Tu es le Coach IA de FeedbackPro, un expert en 
 Tu analyses les retours clients (Clients Mystères) de l'établissement, transmis au format JSON : score global, nombre de retours, répartition par zone (score, volume, tags fréquents), évolution vs période précédente, employés les plus mentionnés, créneaux problématiques, thèmes cachés détectés dans les commentaires libres.
 
 ADAPTATION AU SECTEUR :
-Le JSON contient un champ "secteur" avec le nom du secteur (Restaurant, Hôtel, Hôpital/Clinique, Aéroport, Salon, Boutique…), son vocabulaire métier et ses KPIs spéciaux. Adapte ton ton et tes recommandations au secteur :
+Le JSON contient un champ "secteur" avec le nom du secteur (Restaurant, Hôtel, Hôpital/Clinique, Aéroport, Salon, Boutique…), son vocabulaire métier, ses KPIs spéciaux, ses PILIERS d'audit et les TAGS EMPLOYÉS transversaux. Adapte ton ton et tes recommandations au secteur :
 - Hôtel → parle de "conciergerie", "accueil réception", "qualité de la chambre", "petit-déjeuner"
 - Hôpital/Clinique → parle d'"accueil patient", "prise en charge", "salle d'attente", "empathie soignante"
 - Aéroport → parle de "fluidité du check-in", "file d'attente sécurité", "embarquement", "info-voyageur"
@@ -56,6 +61,18 @@ Le JSON contient un champ "secteur" avec le nom du secteur (Restaurant, Hôtel, 
 - Boutique/Commerce → parle de "conseil client", "mise en valeur des produits", "caisse"
 - Salon/Spa → parle de "prise en charge", "ambiance", "conseil personnalisé"
 - Mairie/Administration → parle de "guichet", "clarté des démarches", "accueil usager"
+
+STRUCTURATION PAR PILIER (v2) :
+Le JSON contient secteur.piliers (4 axes d'audit du macro-secteur, ex : "Accueil & Service", "Rapidité & Flux", "Compétence & Info", "Produit & Qualité"). Chaque tag sectoriel cité dans les retours est rattaché à un pilier — utilise cette information pour :
+- identifier les PILIERS PROBLÉMATIQUES (ex : si "Buffet froid" + "Ménage insuffisant" sont cités, ne dis pas "2 problèmes isolés" mais "2 piliers fragiles : Petit-Déj & Resto + Chambre & Ménage") ;
+- prioriser les actions par pilier plutôt que par tag individuel ;
+- féliciter par pilier quand un pilier est uniformément positif.
+
+INTERPRÉTATION DES TAGS EMPLOYÉS (v2) :
+Le JSON contient secteur.tagsEmployes (positifs et négatifs). Ces tags sont rattachés à un EMPLOYÉ nommé dans le retour (préfixés « emp_ »). Quand un retour contient un tag employé :
+- emp_ POSITIF (ex : "emp_pro" = Posture professionnelle / souriant) → suggère une FÉLICITATION PUBLIQUE de l'employé cité ;
+- emp_ NÉGATIF (ex : "emp_froid" = Froid / distant / cassant) → suggère un ENTRETIEN INDIVIDUEL (jamais un licenciement), centré sur le comportement observé ;
+- Ne CONFONDS pas un tag employé (comportement) avec un tag sectoriel (service/produit) : "acc_froid" = accueil froid du service (procédure), "emp_froid" = attitude froide d'un employé nommé (humain).
 
 TA MISSION :
 Rédige un rapport d'audit qualité en markdown (champ "contenuMarkdown"), structuré ainsi :
@@ -105,7 +122,19 @@ export type DonneesRapport = {
   parZone: { zone: string; noteMoyenne: number; total: number; tagsFrequents: { tag: string; count: number }[] }[]
   topTagsNegatifs: { tag: string; count: number }[]
   heuresPics: string[]
-  employesCites: { nom: string; positifs: number; negatifs: number; noteMoyenne: number }[]
+  employesCites: {
+    nom: string
+    positifs: number
+    negatifs: number
+    noteMoyenne: number
+    /**
+     * v2 — Tags employés transversaux (préfixe « emp_ ») associés à cet
+     * employé sur la période, avec leur nombre d'occurrences. Permet au
+     * Coach IA d'interpréter le comportement (ex : "emp_froid" 3× →
+     * attitude froide recurrente) et de suggérer félicitations / entretiens.
+     */
+    tagsEmployes: { tag: string; count: number }[]
+  }[]
   /** Session 5 : évolution vs période précédente (équivalente immédiatement antérieure) */
   evolution: {
     direction: "hausse" | "baisse" | "stable"
@@ -124,6 +153,14 @@ export type DonneesRapport = {
    * Task M4 — Contexte secteur du Pro (depuis SecteurConfig en BDD,
    * ou fallback sur le fichier statique SECTEUR_CONFIG). Injecté dans
    * le prompt pour adapter le ton du Coach au secteur de l'établissement.
+   *
+   * v2 — Inclut aussi les `piliers` (4 axes d'audit du macro-secteur) et
+   * les `tagsEmployes` (tags transversaux filtrés par contexte), pour
+   * que le Coach puisse :
+   *   - structurer son analyse par pilier (ex : "Buffet froid" est un
+   *     problème du pilier "Petit-Déj & Resto" en hôtellerie) ;
+   *   - interpréter les mentions comportementales des retours (tags
+   *     employés préfixés « emp_ ») et suggérer félicitations / entretiens.
    */
   secteur: {
     nom: string
@@ -135,6 +172,13 @@ export type DonneesRapport = {
     kpisSpeciaux: { id: string; label: string; target: number; unit: string }[]
     /** Langues supportées par le secteur */
     languesSupportees: string[]
+    /** v2 : 4 axes d'audit du macro-secteur (ex : "Accueil & Service") */
+    piliers: string[]
+    /** v2 : tags employés transversaux filtrés par contexte du macro-secteur */
+    tagsEmployes: {
+      positifs: { id: string; label: string }[]
+      negatifs: { id: string; label: string }[]
+    }
   }
 }
 
@@ -259,6 +303,14 @@ async function chargerContexteSecteur(pro: {
       unit: string
     }[]>(bdd.kpisSpeciaux, [])
     const langues = parseJsonSecteur<string[]>(bdd.languesSupportees, ["fr"])
+    // v2 — Piliers & tags employés (depuis la base de vérité v2 stockée en
+    // BDD par prisma/seed-secteurs-v2.ts). Vides si la fiche n'a pas encore
+    // été resynchronisée — le fallback statique ci-dessous prend le relais.
+    const piliers = parseJsonSecteur<string[]>(bdd.piliers, [])
+    const tagsEmployes = parseJsonSecteur<{
+      positifs: { id: string; label: string; contextes?: string[] }[]
+      negatifs: { id: string; label: string; contextes?: string[] }[]
+    }>(bdd.tagsEmployes, { positifs: [], negatifs: [] })
     return {
       nom: bdd.nom,
       emoji: bdd.emoji,
@@ -266,11 +318,21 @@ async function chargerContexteSecteur(pro: {
       vocabulaire: VOCABULAIRE_PAR_SECTEUR[bdd.nom] ?? VOCABULAIRE_PAR_SECTEUR.Autre,
       kpisSpeciaux: kpis,
       languesSupportees: langues,
+      piliers,
+      tagsEmployes: {
+        positifs: tagsEmployes.positifs.map((t) => ({ id: t.id, label: t.label })),
+        negatifs: tagsEmployes.negatifs.map((t) => ({ id: t.id, label: t.label })),
+      },
     }
   }
 
   // 2) Fallback : fichier statique src/lib/secteurs.ts
+  // v2 — On enrichit le fallback avec les piliers et tags employés du
+  // macro-secteur correspondant (depuis secteurs-v2.ts) si le type
+  // d'établissement est couvert par la base v2.
   const statique = configSecteur(pro.typeEtablissement)
+  const macro = macroSecteurPourSecteur(pro.typeEtablissement)
+  const tagsEmployesMacro = tagsEmployesPourMacro(macro?.nom ?? null)
   return {
     nom: pro.typeEtablissement,
     emoji: statique.emoji,
@@ -278,6 +340,11 @@ async function chargerContexteSecteur(pro: {
     vocabulaire: VOCABULAIRE_PAR_SECTEUR[pro.typeEtablissement] ?? VOCABULAIRE_PAR_SECTEUR.Autre,
     kpisSpeciaux: [],
     languesSupportees: ["fr"],
+    piliers: macro?.piliers ?? PILIERS_GENERIQUES,
+    tagsEmployes: {
+      positifs: tagsEmployesMacro.positifs.map((t) => ({ id: t.id, label: t.label })),
+      negatifs: tagsEmployesMacro.negatifs.map((t) => ({ id: t.id, label: t.label })),
+    },
   }
 }
 
@@ -350,19 +417,34 @@ export async function agregerDonnees(
   const zonesMap = new Map<string, { notes: number[]; tags: Map<string, number> }>()
   const negatifsMap = new Map<string, number>()
   const heuresMap = new Map<number, number>()
-  const employesMap = new Map<string, { positifs: number; negatifs: number; notes: number[] }>()
+  const employesMap = new Map<
+    string,
+    {
+      positifs: number
+      negatifs: number
+      notes: number[]
+      tagsEmployes: Map<string, number>
+    }
+  >()
 
   for (const r of retours) {
     const tags = parseJsonArray(r.tags)
+    // v2 — Sépare les tags employés (préfixe « emp_ ») des tags sectoriels.
+    // Les tags employés ne sont PAS comptabilisés dans les stats par zone /
+    // topTagsNegatifs (qui portent sur le service/produit) — ils sont
+    // interprétés séparément par le LLM via secteur.tagsEmployes.
+    const tagsSectoriels = tags.filter((t) => !t.startsWith("emp_"))
+    const tagsEmployes = tags.filter((t) => t.startsWith("emp_"))
     const nomZone = r.zone?.nom ?? "Non définie"
     const zone = zonesMap.get(nomZone) ?? { notes: [], tags: new Map<string, number>() }
     zone.notes.push(r.note)
-    for (const t of tags) zone.tags.set(t, (zone.tags.get(t) ?? 0) + 1)
+    for (const t of tagsSectoriels) zone.tags.set(t, (zone.tags.get(t) ?? 0) + 1)
     zonesMap.set(nomZone, zone)
 
-    // Tags négatifs (retours ≤ 3★) pour les priorités
+    // Tags négatifs (retours ≤ 3★) pour les priorités — tags sectoriels
+    // uniquement (les tags employés sont gérés à part).
     if (r.note <= 3) {
-      for (const t of tags) negatifsMap.set(t, (negatifsMap.get(t) ?? 0) + 1)
+      for (const t of tagsSectoriels) negatifsMap.set(t, (negatifsMap.get(t) ?? 0) + 1)
     }
 
     // Heures de pointe
@@ -372,10 +454,21 @@ export async function agregerDonnees(
     // Employés cités (rattachés au retour ou mentionnés librement)
     const nomEmploye = r.employe?.nom ?? r.personnelMentionne
     if (nomEmploye) {
-      const e = employesMap.get(nomEmploye) ?? { positifs: 0, negatifs: 0, notes: [] }
+      const e = employesMap.get(nomEmploye) ?? {
+        positifs: 0,
+        negatifs: 0,
+        notes: [],
+        tagsEmployes: new Map<string, number>(),
+      }
       if (r.note >= 4) e.positifs += 1
       else e.negatifs += 1
       e.notes.push(r.note)
+      // v2 — Associe les tags employés du retour à l'employé cité.
+      // Permet au Coach IA d'interpréter le comportement (positif ou
+      // négatif) observé par le client sur cet employé précis.
+      for (const t of tagsEmployes) {
+        e.tagsEmployes.set(t, (e.tagsEmployes.get(t) ?? 0) + 1)
+      }
       employesMap.set(nomEmploye, e)
     }
   }
@@ -464,6 +557,11 @@ export async function agregerDonnees(
       positifs: e.positifs,
       negatifs: e.negatifs,
       noteMoyenne: e.notes.length ? Number((e.notes.reduce((s, n) => s + n, 0) / e.notes.length).toFixed(2)) : 0,
+      // v2 — Tags employés triés par occurrences décroissantes (max 5)
+      tagsEmployes: [...e.tagsEmployes.entries()]
+        .map(([tag, count]) => ({ tag: tagLabel(tag), count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 5),
     }))
     .sort((a, b) => b.negatifs - a.negatifs || a.noteMoyenne - b.noteMoyenne)
     .slice(0, 6)
@@ -644,6 +742,13 @@ export function rapportFallback(donnees: DonneesRapport): ContenuRapport {
     }
     lignes.push("")
   }
+  // v2 — Piliers d'audit du macro-secteur (4 axes)
+  if (d.secteur.piliers.length > 0) {
+    lignes.push(
+      `**Axes d'audit sectoriels (${d.secteur.piliers.length} piliers) :** ${d.secteur.piliers.join(" · ")}`
+    )
+    lignes.push("")
+  }
   lignes.push("### 🔍 ANALYSE PAR ZONE :")
   if (d.parZone.length === 0) {
     lignes.push("- Aucune zone scannée sur la période : rendez vos QR codes plus visibles.")
@@ -700,7 +805,24 @@ export function rapportFallback(donnees: DonneesRapport): ContenuRapport {
   for (const p of pointsForts) lignes.push(`- ${p}`)
   const valoriser = d.employesCites.filter((e) => e.noteMoyenne >= 4 && e.positifs > 0)
   for (const e of valoriser.slice(0, 2)) {
-    lignes.push(`- 👏 Félicitez publiquement **${e.nom}** : ${e.positifs} mention(s) positive(s), note moyenne ${e.noteMoyenne.toFixed(2).replace(".", ",")}/5`)
+    const tagsPos = e.tagsEmployes.length
+      ? ` — comportement : ${e.tagsEmployes.map((t) => `${t.tag} (${t.count}×)`).join(", ")}`
+      : ""
+    lignes.push(
+      `- 👏 Félicitez publiquement **${e.nom}** : ${e.positifs} mention(s) positive(s), note moyenne ${e.noteMoyenne.toFixed(2).replace(".", ",")}/5${tagsPos}`
+    )
+  }
+  // v2 — Signalement des employés avec tags comportementaux négatifs récurrents
+  const aRecadrer = d.employesCites.filter(
+    (e) => e.negatifs > 0 && e.tagsEmployes.some((t) => t.count >= 1)
+  )
+  for (const e of aRecadrer.slice(0, 2)) {
+    const tagsNeg = e.tagsEmployes.length
+      ? ` — comportement signalé : ${e.tagsEmployes.map((t) => `${t.tag} (${t.count}×)`).join(", ")}`
+      : ""
+    lignes.push(
+      `- 🧑‍🏫 Prévoir un entretien individuel avec **${e.nom}** : ${e.negatifs} mention(s) négative(s), note moyenne ${e.noteMoyenne.toFixed(2).replace(".", ",")}/5${tagsNeg}`
+    )
   }
   lignes.push("")
 

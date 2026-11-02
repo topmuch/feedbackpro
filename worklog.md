@@ -892,3 +892,32 @@ Stage Summary:
 - Local = GitHub = état final vérifié du projet (tsc 0, lint 0/0, serveur 200, login OK)
 - GitHub est le seul stockage durable de l'environnement (survit aux restaurations) ; /tmp/my-project est un second point de restauration
 - SÉCURITÉ : le PAT a transité dans la conversation — à révoquer après usage
+
+---
+Task ID: M6 (v2)
+Agent: Z.ai Code (orchestrateur)
+Task: Injection du JSON sectoriel v2 (5 macro-secteurs avec piliers + tags employés transversaux)
+
+Work Log:
+- Ajouté 2 champs JSON au modèle SecteurConfig dans prisma/schema.prisma : piliers (string[]) et tagsEmployes ({positifs, negatifs} avec contextes[])
+- prisma db push --accept-data-loss + prisma generate OK
+- Créé src/lib/secteurs-v2.ts : base de vérité v2 (5 macro-secteurs × 4 piliers × 4 tags pos/neg + 8 tags employés transversaux avec contextes) + helpers (macroSecteurPourSecteur, tagsEmployesPourMacro, enrichirTags, grouperTagsParPilier, labelPourTagSectoriel, pilierPourTag)
+- Créé prisma/seed-secteurs-v2.ts : upsert idempotent des 15 secteurs BDD avec piliers + tagsEmployes filtrés par contexte. 10 secteurs couverts par un macro (RESTAURATION→4, HOTELLERIE→1, TRANSPORT→2, SANTE→1, ADMINISTRATION→2), 5 génériques (Boutique, Salon, Institut, Garage, Autre)
+- Exécuté seed v2 : 15 secteurs synchronisés, tagsEmployes positifs/négatifs correctement filtrés par contexte
+- Étendu GET /api/secteurs : renvoie piliers + tagsEmployes parsés en plus des champs existants
+- Étendu POST /api/public/scan : renvoie macroSecteur, piliers, tagsPositifsDetails, tagsNegatifsDetails (avec label+pilier), tagsEmployes (filtrés par contexte). Override des tags de la zone par les 4 tags sectoriels du macro quand le Pro est rattaché
+- Étendu POST /api/retour : accepte les tags sectoriels v2 + tags employés (emp_*) en plus des tags de la zone. Résolution du macro-secteur via secteurId puis typeEtablissement (exact puis insensible à la casse)
+- Adapté scan-view.tsx étape 2 : tags groupés par pilier (4 sous-titres, 1 pill par pilier) si tagsPositifsDetails présent, fallback sur affichage plat historique sinon. Nouvelle section "👤 Comportement de l'employé" affichée si personnel mentionné OU note ≤ 2★, polarité positifs si note ≥ 4 / négatifs si note ≤ 3. Nettoyage auto des emp_* quand la section est masquée
+- Adapté src/lib/ia.ts : SYSTEM_PROMPT_FR enrichi (paragraphes "STRUCTURATION PAR PILIER" et "INTERPRÉTATION DES TAGS EMPLOYÉS"). chargerContexteSecteur peuple piliers + tagsEmployes depuis la BDD (ou fallback secteurs-v2.ts). DonneesRapport.secteur étendu. agregerDonnees sépare tags sectoriels / tags employés (emp_* exclus des stats par zone et topTagsNegatifs). employesCites étendu avec tagsEmployes (count par employé). rapportFallback affiche les piliers et les tags employés par employé (félicitations + entretiens)
+- Adapté src/lib/constants.ts : tagLabel consulte le catalogue v2 (labelPourTagSectoriel) avant ALL_TAGS — résout correctement "😊 Très accueillant" pour acc_chaleureux et "À l'écoute / humain" pour emp_empathique
+- Adapté src/lib/i18n.ts : ajouté employeTitre, employeAide, ariaTagsEmployes pour fr/en/ar
+- Adapté src/components/feedbackpro/auth-view.tsx : étendu SecteurConfigBdd avec piliers? et tagsEmployes? (pour type completeness — le wizard ne les affiche pas mais ne casse pas)
+- DéfinitionTag dans scan-view.tsx étendu pour parser les labels v2 (emoji prefix) via labelPourTagSectoriel
+
+Stage Summary:
+- 5 macro-secteurs opérationnels : RESTAURATION, HOTELLERIE, TRANSPORT_AEROPORT_GARE, SANTE_HOPITAL_CLINIQUE, ADMINISTRATION_ERP_PUBLIC
+- Démo Pizzeria Bella Napoli (type "restaurant") correctement mappée au macro RESTAURATION via lookup insensible à la casse
+- Scan UI affiche 4 piliers (Accueil & Service, Rapidité & Flux, Compétence & Info, Produit & Qualité) avec 1 tag par pilier
+- Section "Comportement de l'employé" s'affiche quand on saisit un nom d'employé ou note ≤ 2★
+- Coach IA reçoit piliers + tagsEmployes dans le contexte JSON, prompt structuré pour analyser par pilier et interpréter les mentions comportementales
+- Vérifications : tsc --noEmit 0 erreur · curl / → 200 · curl /api/secteurs → 200 · curl login → ok:true · curl scan → macroSecteur+piliers+tagsDetails+tagsEmployes · curl retour → accepte tags v2 + emp_*

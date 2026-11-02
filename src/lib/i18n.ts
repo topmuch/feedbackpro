@@ -59,6 +59,12 @@ export interface TraductionsScan {
   ariaTagsNegatifs: string
   personnelLabel: string
   optionnel: string
+  // v2 — section « Comportement de l'employé » (étape 2)
+  // Affichée si le client saisit un nom d'employé OU si la note est ≤ 2★.
+  // Contient les tags employés transversaux filtrés par secteur du Pro.
+  employeTitre: string
+  employeAide: string
+  ariaTagsEmployes: string
   // Étape 3 — commentaire + envoi
   titreCommentaire: string
   commentairePositif: string
@@ -145,6 +151,9 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     ariaTagsNegatifs: "Points à améliorer",
     personnelLabel: "Personnel concerné ?",
     optionnel: "(optionnel)",
+    employeTitre: "👤 Comportement de l'employé",
+    employeAide: "Sélectionnez ce qui décrit le mieux son attitude (optionnel)",
+    ariaTagsEmployes: "Comportement de l'employé",
     titreCommentaire: "💬 Un commentaire ? (optionnel)",
     commentairePositif: "Ce qui vous a marqué, ce qui a été bien…",
     commentaireNegatif: "Décrivez ce qui s'est passé — seul le gérant le lira.",
@@ -228,6 +237,9 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     ariaTagsNegatifs: "Points to improve",
     personnelLabel: "Staff member involved?",
     optionnel: "(optional)",
+    employeTitre: "👤 Staff behaviour",
+    employeAide: "Pick what best describes their attitude (optional)",
+    ariaTagsEmployes: "Staff behaviour",
     titreCommentaire: "💬 A comment? (optional)",
     commentairePositif: "What stood out, what was good…",
     commentaireNegatif: "Describe what happened — only the manager will read it.",
@@ -308,6 +320,9 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     ariaTagsNegatifs: "نقاط للتحسين",
     personnelLabel: "الموظف المعني؟",
     optionnel: "(اختياري)",
+    employeTitre: "👤 سلوك الموظف",
+    employeAide: "اختر ما يصف موقفه بشكل أفضل (اختياري)",
+    ariaTagsEmployes: "سلوك الموظف",
     titreCommentaire: "💬 تعليق؟ (اختياري)",
     commentairePositif: "ما الذي لفت انتباهك، ما كان جيداً…",
     commentaireNegatif: "صف ما حدث — سيقرأه المدير فقط.",

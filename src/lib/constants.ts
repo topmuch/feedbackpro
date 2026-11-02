@@ -3,6 +3,8 @@
 // Conforme Session 1 : "Le Coach IA d'Audit Qualité Continu"
 // ============================================================
 
+import { labelPourTagSectoriel } from "@/lib/secteurs-v2"
+
 // ---------- Plans d'abonnement (S1 : Starter 29€ / Pro 99€ / Enterprise 249€) ----------
 
 export type PlanId = "STARTER" | "PRO" | "ENTERPRISE"
@@ -288,6 +290,13 @@ export const TAG_CATEGORIES: Record<
 }
 
 export function tagLabel(id: string): string {
+  // v2 — On consulte d'abord le catalogue sectoriel v2 (5 macro-secteurs +
+  // tags employés transversaux) qui contient les labels complets avec emoji
+  // (ex : "😊 Très accueillant" pour acc_chaleureux, "À l'écoute / humain"
+  // pour emp_empathique). Si l'id n'est pas dans le catalogue v2, on retombe
+  // sur le catalogue historique ALL_TAGS.
+  const labelV2 = labelPourTagSectoriel(id)
+  if (labelV2 !== id) return labelV2
   const t = ALL_TAGS.find((t) => t.id === id)
   return t ? `${t.emoji} ${t.label}` : id
 }
