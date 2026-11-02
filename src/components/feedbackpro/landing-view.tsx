@@ -166,10 +166,11 @@ const PROBLEM_CARDS: { emoji: string; titre: string; texte: string }[] = [
   },
 ]
 
-const STEPS: { emoji: string; icone: LucideIcon; titre: string; texte: string }[] = [
+const STEPS: { emoji: string; icone: LucideIcon; image: string; titre: string; texte: string }[] = [
   {
     emoji: "📱",
     icone: QrCode,
+    image: "/solution/step1-qr.png",
     titre: "QR Code par zone",
     texte:
       "Un QR code dédié à chaque point de contact (accueil, salle, terrasse, toilettes…). Le client le scanne en 2 secondes.",
@@ -177,6 +178,7 @@ const STEPS: { emoji: string; icone: LucideIcon; titre: string; texte: string }[
   {
     emoji: "⭐",
     icone: ScanLine,
+    image: "/solution/step2-scan.png",
     titre: "Scan client en 10 s",
     texte:
       "Le client note de 1 à 5 étoiles et choisit des tags en un clic. Aucune inscription, aucune app à installer.",
@@ -184,6 +186,7 @@ const STEPS: { emoji: string; icone: LucideIcon; titre: string; texte: string }[
   {
     emoji: "🧠",
     icone: Bot,
+    image: "/solution/step3-ia.png",
     titre: "L'IA analyse tout",
     texte:
       "Notre Coach IA consolide les retours, détecte les patterns et identifie les priorités du jour automatiquement.",
@@ -191,6 +194,7 @@ const STEPS: { emoji: string; icone: LucideIcon; titre: string; texte: string }[
   {
     emoji: "📊",
     icone: BarChart3,
+    image: "/solution/step4-rapport.png",
     titre: "Rapport quotidien",
     texte:
       "Chaque matin, vous recevez un rapport d'audit avec votre score global et vos 3 priorités actionnables.",
@@ -1018,7 +1022,7 @@ function SolutionSection() {
         <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-4 md:gap-4">
           {STEPS.map((s, i) => (
             <Reveal key={s.titre} delay={i * 120}>
-              <div className="fp-lift relative flex h-full flex-col items-start overflow-hidden rounded-3xl border border-gray-200 bg-white p-6 shadow-sm hover:border-violet-300 hover:shadow-xl">
+              <div className="fp-lift group relative flex h-full flex-col items-start overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm hover:border-violet-300 hover:shadow-xl">
                 {/* Numéro 01-04 en arrière-plan */}
                 <span
                   className="pointer-events-none absolute -right-2 -top-4 text-[7rem] font-extrabold leading-none text-gray-100"
@@ -1027,16 +1031,26 @@ function SolutionSection() {
                   {String(i + 1).padStart(2, "0")}
                 </span>
 
-                <div className="relative flex items-center gap-3">
-                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-50 text-2xl">
-                    {s.emoji}
-                  </span>
-                  <span className="fp-bg-gradient flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white">
+                {/* Image illustrative (remplace l'emoji/icône) */}
+                <div className="relative w-full overflow-hidden rounded-t-3xl bg-gray-50">
+                  <img
+                    src={s.image}
+                    alt={s.titre}
+                    className="h-40 w-full object-cover transition-transform duration-500 group-hover:scale-105 sm:h-44"
+                    loading="lazy"
+                    width={400}
+                    height={180}
+                  />
+                  {/* Numéro flottant sur l'image */}
+                  <span className="fp-bg-gradient absolute left-3 top-3 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white shadow-md">
                     {i + 1}
                   </span>
                 </div>
-                <h3 className="relative mt-5 text-base font-semibold text-gray-900">{s.titre}</h3>
-                <p className="relative mt-2 text-sm text-gray-600">{s.texte}</p>
+
+                <div className="relative w-full p-6">
+                  <h3 className="text-base font-semibold text-gray-900">{s.titre}</h3>
+                  <p className="mt-2 text-sm text-gray-600">{s.texte}</p>
+                </div>
 
                 {/* Flèche entre cartes (desktop) */}
                 {i < STEPS.length - 1 && (
