@@ -30,6 +30,8 @@ export type ProData = {
   recompenseActive?: boolean
   recompenseType?: string
   recompenseCode?: string
+  /** Limite d'utilisation affichée au client (ex: "1 par client / jour") — audit UX */
+  recompenseLimite?: string | null
   messageWhatsapp: string | null
   onboardingDone: boolean
   suspendu: boolean

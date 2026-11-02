@@ -44,6 +44,7 @@ type PointCourbeApi = {
   date?: string
   score?: number | null
   note?: number | null
+  noteMoy?: number | null
   retours?: number
   count?: number
 }
@@ -98,11 +99,11 @@ function libellePeriode(p: Periode): string {
   return PERIODES.find((x) => x.value === p)?.label ?? "30 derniers jours"
 }
 
-const BLEU = "#2563eb"
-const VERT = "#16a34a"
-const ROUGE = "#e11d48"
+const BLEU = "#3B82F6"
+const VERT = "#10B981"
+const ROUGE = "#EF4444"
 /** Palette du thème (6 teintes distinctes) pour le camembert des zones */
-const ZONE_COLORS = ["#2563eb", "#0891b2", "#7c3aed", "#f59e0b", "#16a34a", "#e11d48"]
+const ZONE_COLORS = ["#3B82F6", "#0891b2", "#7c3aed", "#f59e0b", "#10B981", "#EF4444"]
 
 /** Garde-fou : renvoie toujours un tableau (l'API peut être en cours de migration) */
 function enArray<T>(v: T[] | null | undefined): T[] {
@@ -117,11 +118,15 @@ export function StatsTab() {
   const [data, setData] = useState<StatsApi | null>(null)
   const [loading, setLoading] = useState(true)
   const [periode, setPeriode] = useState<Periode>("30j")
+  // Filtre par zone ("" = toutes les zones ; sinon le nom de la zone filtrée)
+  const [zoneFiltre, setZoneFiltre] = useState<string>("")
   const { toast } = useToast()
 
   useEffect(() => {
     let annule = false
-    fetch(`/api/pro/stats?periode=${periode}`, { cache: "no-store" })
+    const qs = new URLSearchParams({ periode })
+    if (zoneFiltre) qs.set("zone", zoneFiltre)
+    fetch(`/api/pro/stats?${qs.toString()}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((j) => {
         if (annule) return
@@ -137,7 +142,7 @@ export function StatsTab() {
     return () => {
       annule = true
     }
-  }, [periode, toast])
+  }, [periode, zoneFiltre, toast])
 
   // ---------- Normalisation des données ----------
   const k = data?.kpis ?? {}
@@ -148,14 +153,18 @@ export function StatsTab() {
   // Courbe de la période (alias courbe30j rétro-compatible).
   // Un jour/sans semaine sans retour → note nulle pour ne pas tirer la ligne
   // vers 0 (connectNulls assure la continuité visuelle).
+  // `noteMoy` est la note moyenne réelle sur /5 (prioritaire sur l'ancien
+  // `note` qui était alias du score /100). L'axe Y est désormais sur /5.
   const courbe = enArray(data?.courbe30j ?? data?.courbe).map((p) => {
     const count = p.count ?? p.retours ?? 0
-    const note = p.note ?? p.score ?? null
-    return { jour: p.jour ?? p.date ?? "", note: count > 0 ? note : null, count }
+    const noteMoy = p.noteMoy ?? null
+    const noteLegacy = p.note ?? p.score ?? null
+    return {
+      jour: p.jour ?? p.date ?? "",
+      note: noteMoy != null ? noteMoy : noteLegacy != null ? Number(noteLegacy) / 4 : null,
+      count,
+    }
   })
-  // Échelle de l'axe Y : depuis la Session 4 l'API renvoie un score sur 20
-  // (note moyenne × 20) ; on reste compatible avec un éventuel retour sur 5.
-  const echelle20 = courbe.some((p) => (p.note ?? 0) > 5)
   // Intervalle des labels X calculé pour rester lisible même sur ~53 points
   // (agrégation hebdomadaire de la période 1 an).
   const intervalleX = Math.max(0, Math.floor(courbe.length / 8) - 1)
@@ -348,7 +357,7 @@ export function StatsTab() {
 
   return (
     <div className="space-y-6">
-      {/* ---------- En-tête : sélecteur de période + exports ---------- */}
+      {/* ---------- En-tête : sélecteur de période + filtre zone + exports ---------- */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-bold tracking-tight sm:text-2xl">Statistiques</h1>
@@ -373,6 +382,26 @@ export function StatsTab() {
               {PERIODES.map((p) => (
                 <SelectItem key={p.value} value={p.value}>
                   {p.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {/* Filtre par zone : affiné les graphiques à une zone précise */}
+          <Select
+            value={zoneFiltre || "__all__"}
+            onValueChange={(v) => {
+              setLoading(true)
+              setZoneFiltre(v === "__all__" ? "" : v)
+            }}
+          >
+            <SelectTrigger className="h-9 w-[180px]" aria-label="Filtrer par zone">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="__all__">Toutes les zones</SelectItem>
+              {parZone.map((z) => (
+                <SelectItem key={z.zoneNom} value={z.zoneNom}>
+                  {z.zoneNom} ({z.total})
                 </SelectItem>
               ))}
             </SelectContent>
@@ -535,6 +564,16 @@ export function StatsTab() {
                   {data.benchmark.ecart !== null && data.benchmark.ecart > 0 ? "+" : ""}
                   {data.benchmark.ecart?.toFixed(2)} pts vs secteur
                 </div>
+                {/* Conseil contextuel : si écart négatif, orienter le pro vers ses zones faibles */}
+                {(data.benchmark.ecart ?? 0) < 0 && (
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
+                    <p className="font-semibold">💡 Conseil du Coach IA</p>
+                    <p className="mt-0.5">
+                      Concentrez-vous sur vos zones les plus faibles pour dépasser la moyenne du secteur.
+                      Identifiez la zone la moins bien notée ci-dessous et engagez une action prioritaire.
+                    </p>
+                  </div>
+                )}
                 <p className="text-[11px] leading-relaxed text-muted-foreground">
                   🔒 Comparaison anonyme : aucun nom d&apos;établissement n&apos;est divulgué, seule la moyenne du secteur est calculée.
                 </p>
@@ -556,14 +595,14 @@ export function StatsTab() {
                   intervalle dynamique pour rester lisible même sur ~53 points (1 an hebdo) */}
               <XAxis dataKey="jour" scale="point" tick={{ fontSize: 10 }} interval={intervalleX} tickLine={false} axisLine={false} />
               <YAxis
-                domain={echelle20 ? [0, 20] : [1, 5]}
-                ticks={echelle20 ? [0, 5, 10, 15, 20] : [1, 2, 3, 4, 5]}
+                domain={[0, 5]}
+                ticks={[0, 1, 2, 3, 4, 5]}
                 tick={{ fontSize: 11 }}
                 tickLine={false}
                 axisLine={false}
               />
               <Tooltip
-                formatter={(v) => [v ? (echelle20 ? `${v}/20` : `${v} ★`) : "—", echelle20 ? "Score moyen" : "Note moyenne"]}
+                formatter={(v) => [v != null ? `${v} ★` : "—", "Note moyenne (/5)"]}
                 labelStyle={{ color: "#1c1917" }}
               />
               <Line type="monotone" dataKey="note" stroke={BLEU} strokeWidth={2.5} dot={false} connectNulls activeDot={{ r: 4 }} />
@@ -708,8 +747,8 @@ export function StatsTab() {
                     return (
                       <td key={h} className="p-0">
                         <div
-                          className={`flex h-8 items-center justify-center rounded-md text-[10px] font-semibold transition-transform hover:scale-110 ${classe}`}
-                          title={`${jour} ${h}h : ${total} retour(s)`}
+                          className={`flex h-9 items-center justify-center rounded-md text-sm font-semibold transition-transform hover:scale-110 hover:shadow-md ${classe}`}
+                          title={`${jour} à ${h}h : ${total} retour(s)`}
                         >
                           {total || ""}
                         </div>

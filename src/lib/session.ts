@@ -38,6 +38,8 @@ export type ProData = {
   recompenseActive: boolean
   recompenseType: string
   recompenseCode: string
+  /** Limite d'utilisation affichée au client (ex: "1 par client / jour") — audit UX */
+  recompenseLimite: string | null
   messageWhatsapp: string | null
   onboardingDone: boolean
   suspendu: boolean
@@ -71,6 +73,11 @@ export function serializePro(pro: Pro): ProData {
     recompenseActive: pro.recompenseActive,
     recompenseType: pro.recompenseType,
     recompenseCode: pro.recompenseCode,
+    // recompenseLimite : colonne ajoutée en audit UX. En dev, le Prisma Client
+    // peut ne pas connaître ce champ tant que le serveur n'est pas redémarré :
+    // on lit la valeur de façon défensive (fallback null).
+    recompenseLimite:
+      (pro as unknown as { recompenseLimite?: string | null }).recompenseLimite ?? null,
     messageWhatsapp: pro.messageWhatsapp,
     onboardingDone: pro.onboardingDone,
     suspendu: pro.suspendu,

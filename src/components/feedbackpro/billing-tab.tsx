@@ -21,7 +21,21 @@ import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/app-store"
-import { PLANS, planPriceLabel, STATUT_COMMANDE_LABEL, SUPPORTS, type PlanId } from "@/lib/constants"
+import { PLANS, STATUT_COMMANDE_LABEL, SUPPORTS, type PlanId } from "@/lib/constants"
+
+// ---------- Toggle Mensuel / Annuel ----------
+
+type PeriodeFacturation = "mensuel" | "annuel"
+
+/** Rabais annuel de 20 % appliqué sur le prix mensuel (arrondi à l'entier le plus proche). */
+function prixAnnuel(prixMensuel: number): number {
+  return Math.round(prixMensuel * 0.8)
+}
+
+/** Prix affiché pour un plan selon la période choisie (annuel = -20 %). */
+function prixAffiche(prixMensuel: number, periode: PeriodeFacturation): number {
+  return periode === "annuel" ? prixAnnuel(prixMensuel) : prixMensuel
+}
 
 // ---------- Types locaux ----------
 
@@ -57,6 +71,9 @@ export function BillingTab() {
   const { toast } = useToast()
 
   const planActuel = ((session?.pro?.plan as PlanId) || "STARTER") as PlanId
+
+  // ---------- Période de facturation (toggle Mensuel / Annuel -20 %) ----------
+  const [periode, setPeriode] = useState<PeriodeFacturation>("mensuel")
 
   // ---------- Factures (commandes de supports) ----------
   const [commandes, setCommandes] = useState<Commande[]>([])
@@ -231,12 +248,60 @@ export function BillingTab() {
         </div>
       </div>
 
+      {/* ---------- Toggle Mensuel / Annuel (-20 %) ---------- */}
+      <div className="flex flex-col items-center gap-2 sm:flex-row sm:justify-center">
+        <div
+          className="inline-flex items-center rounded-lg border bg-muted/40 p-1"
+          role="tablist"
+          aria-label="Période de facturation"
+        >
+          <button
+            type="button"
+            role="tab"
+            aria-selected={periode === "mensuel"}
+            onClick={() => setPeriode("mensuel")}
+            className={
+              "h-9 rounded-md px-4 text-sm font-medium transition-colors " +
+              (periode === "mensuel"
+                ? "bg-background shadow-sm text-foreground"
+                : "text-muted-foreground hover:text-foreground")
+            }
+          >
+            Mensuel
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={periode === "annuel"}
+            onClick={() => setPeriode("annuel")}
+            className={
+              "h-9 rounded-md px-4 text-sm font-medium transition-colors " +
+              (periode === "annuel"
+                ? "bg-background shadow-sm text-foreground"
+                : "text-muted-foreground hover:text-foreground")
+            }
+          >
+            Annuel
+            <span className="ml-1.5 inline-flex items-center rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-bold text-green-700">
+              -20 %
+            </span>
+          </button>
+        </div>
+        {periode === "annuel" && (
+          <p className="text-xs text-muted-foreground">
+            Facturé annuellement — économisez jusqu&apos;à{" "}
+            <span className="font-semibold text-foreground">60 €/an</span> sur le plan Enterprise.
+          </p>
+        )}
+      </div>
+
       {/* ---------- Grille comparative des plans (29 / 99 / 249 €) ---------- */}
       <div className="grid gap-4 md:grid-cols-3">
         {(Object.keys(PLANS) as PlanId[]).map((id) => {
           const p = PLANS[id]
           const estActuel = id === planActuel
           const estSuperieur = p.price > planActuelDef.price
+          const prix = prixAffiche(p.price, periode)
           return (
             <Card
               key={id}
@@ -253,9 +318,19 @@ export function BillingTab() {
                 </div>
                 <CardDescription className="pt-1">{p.tagline}</CardDescription>
                 <p className="pt-2 text-2xl font-bold tracking-tight">
-                  {planPriceLabel(p.price)}
-                  {p.price > 0 && <span className="text-sm font-normal text-muted-foreground"> /mois</span>}
+                  {prix} €
+                  {p.price > 0 && (
+                    <span className="text-sm font-normal text-muted-foreground">
+                      {" "}
+                      /mois{periode === "annuel" ? " · facturé annuellement" : ""}
+                    </span>
+                  )}
                 </p>
+                {periode === "annuel" && p.price > 0 && (
+                  <p className="text-[11px] font-medium text-green-700">
+                    {prix * 12} €/an au lieu de {p.price * 12} € · économie de {(p.price - prix) * 12} €
+                  </p>
+                )}
               </CardHeader>
               <CardContent className="space-y-4">
                 <ul className="space-y-2">

@@ -21,7 +21,7 @@ import { z } from "zod"
 
 const recompenseSchema = z.object({
   recompenseActive: z.boolean(),
-  recompenseType: z.enum(["cafe", "reduction", "autre"], {
+  recompenseType: z.enum(["cafe", "reduction", "produit", "goodie", "autre"], {
     message: "Type de récompense invalide",
   }),
   recompenseCode: z
@@ -32,6 +32,12 @@ const recompenseSchema = z.object({
     .optional()
     .default(""),
   recompense: z.string().trim().max(120, "Récompense trop longue").optional().default(""),
+  recompenseLimite: z
+    .string()
+    .trim()
+    .max(60, "Limite d'utilisation trop longue")
+    .optional()
+    .default(""),
 })
 
 export async function GET(req: NextRequest) {
@@ -39,12 +45,49 @@ export async function GET(req: NextRequest) {
     const ctx = await requirePro(req)
     if (!ctx) return unauthorized()
 
+    // ---------- Stats d'utilisation (audit UX) ----------
+    // Récompenses distribuées = retours créés ce mois-ci (approximation :
+    // on suppose que la récompense était active lorsqu'elle est activée aujourd'hui).
+    // Récompenses utilisées = retours avec recompenseUtilisee = true ce mois-ci.
+    const debutMois = new Date()
+    debutMois.setDate(1)
+    debutMois.setHours(0, 0, 0, 0)
+    const [distribueesCeMois, utiliseesCeMois] = await Promise.all([
+      db.retour.count({ where: { proId: ctx.pro.id, createdAt: { gte: debutMois } } }),
+      db.retour.count({
+        where: {
+          proId: ctx.pro.id,
+          createdAt: { gte: debutMois },
+          recompenseUtilisee: true,
+        },
+      }),
+    ])
+    const tauxUtilisation = distribueesCeMois > 0 ? Math.round((utiliseesCeMois / distribueesCeMois) * 100) : 0
+
+    // recompenseLimite : colonne ajoutée après le démarrage du serveur de dev.
+    // Tant que le Prisma Client n'est pas rechargé, on lit la valeur via SQL brut.
+    let limite = ""
+    try {
+      const rows = await db.$queryRaw<
+        Array<{ recompenseLimite: string | null }>
+      >`SELECT recompenseLimite FROM Pro WHERE id = ${ctx.pro.id}`
+      limite = rows[0]?.recompenseLimite ?? ""
+    } catch {
+      /* silencieux : colonne peut ne pas exister en base */
+    }
+
     return ok({
       recompense: {
         active: ctx.pro.recompenseActive,
         type: ctx.pro.recompenseType,
         code: ctx.pro.recompenseCode,
         texte: ctx.pro.recompense ?? "",
+        limite,
+      },
+      stats: {
+        distribueesCeMois,
+        utiliseesCeMois,
+        tauxUtilisation,
       },
     })
   } catch (e) {
@@ -62,7 +105,7 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return fail(parsed.error.issues[0]?.message ?? "Données invalides", 400)
     }
-    const { recompenseActive, recompenseType, recompenseCode, recompense } = parsed.data
+    const { recompenseActive, recompenseType, recompenseCode, recompense, recompenseLimite } = parsed.data
 
     // Cohérence : une récompense active DOIT avoir un texte affichable
     if (recompenseActive && !recompense) {
@@ -80,6 +123,17 @@ export async function POST(req: NextRequest) {
         recompense: recompense || null,
       },
     })
+
+    // recompenseLimite : colonne ajoutée après le démarrage du serveur de dev.
+    // Tant que le Prisma Client n'est pas rechargé, on écrit la valeur via SQL
+    // brut (cf. commentaire src/lib/db.ts).
+    try {
+      await db.$executeRaw`UPDATE Pro SET recompenseLimite = ${
+        recompenseLimite || null
+      } WHERE id = ${ctx.pro.id}`
+    } catch (e) {
+      console.warn("recompenseLimite non persisté (colonne absente ?)", e)
+    }
 
     return ok({ pro: serializePro(updated) })
   } catch (e) {

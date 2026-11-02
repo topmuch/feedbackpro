@@ -27,13 +27,21 @@ export async function GET(req: NextRequest) {
     const periodeBrute = req.nextUrl.searchParams.get("periode") || "30j"
     const nbJours = PERIODES[periodeBrute] ?? 30
 
+    // ---------- Filtre par zone (optionnel : ?zone=<zoneNom>) ----------
+    // Limite les retours à une zone précise pour affiner les graphiques.
+    const zoneFiltre = req.nextUrl.searchParams.get("zone")?.trim() || null
+
     const now = new Date()
     const debut = new Date(now)
     debut.setHours(0, 0, 0, 0)
     debut.setDate(debut.getDate() - (nbJours - 1)) // période glissante, jour courant inclus
 
     const retours = await db.retour.findMany({
-      where: { proId: ctx.pro.id, createdAt: { gte: debut } },
+      where: {
+        proId: ctx.pro.id,
+        createdAt: { gte: debut },
+        ...(zoneFiltre ? { zone: { nom: zoneFiltre } } : {}),
+      },
       include: { zone: { select: { nom: true } } },
       orderBy: { createdAt: "asc" },
     })
@@ -41,11 +49,13 @@ export async function GET(req: NextRequest) {
     // ---------- Courbe (N jours selon la période) ----------
     // Alias `jour`/`note`/`count` : consommés par stats-tab.tsx en plus de
     // `date`/`score`/`retours` (le composant lit p.jour ?? p.date, etc.).
+    // `noteMoy` : note moyenne réelle sur /5 (pour l'axe Y 0-5).
     type PointCourbe = {
       date: string
       jour: string
       score: number
       note: number
+      noteMoy: number
       retours: number
       count: number
     }
@@ -61,15 +71,17 @@ export async function GET(req: NextRequest) {
         debutSem.setHours(0, 0, 0, 0)
         debutSem.setDate(debutSem.getDate() - 6)
         const deLaSemaine = retours.filter((r) => r.createdAt >= debutSem && r.createdAt <= fin)
-        const score = deLaSemaine.length
-          ? Math.round((deLaSemaine.reduce((s, r) => s + r.note, 0) / deLaSemaine.length) * 20)
+        const moyenne = deLaSemaine.length
+          ? deLaSemaine.reduce((s, r) => s + r.note, 0) / deLaSemaine.length
           : 0
+        const score = deLaSemaine.length ? Math.round(moyenne * 20) : 0
         const date = fin.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })
         courbe.push({
           date,
           jour: date,
           score,
           note: score,
+          noteMoy: Number(moyenne.toFixed(2)),
           retours: deLaSemaine.length,
           count: deLaSemaine.length,
         })
@@ -81,15 +93,17 @@ export async function GET(req: NextRequest) {
         const lendemain = new Date(jour)
         lendemain.setDate(lendemain.getDate() + 1)
         const duJour = retours.filter((r) => r.createdAt >= jour && r.createdAt < lendemain)
-        const score = duJour.length
-          ? Math.round((duJour.reduce((s, r) => s + r.note, 0) / duJour.length) * 20)
+        const moyenne = duJour.length
+          ? duJour.reduce((s, r) => s + r.note, 0) / duJour.length
           : 0
+        const score = duJour.length ? Math.round(moyenne * 20) : 0
         const date = jour.toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit" })
         courbe.push({
           date,
           jour: date,
           score,
           note: score,
+          noteMoy: Number(moyenne.toFixed(2)),
           retours: duJour.length,
           count: duJour.length,
         })

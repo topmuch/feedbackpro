@@ -7,20 +7,36 @@
 // ============================================================
 
 import { useCallback, useEffect, useState } from "react"
-import { Check, Loader2, MessageSquare, User } from "lucide-react"
-import { Card, CardContent } from "@/components/ui/card"
+import {
+  Check,
+  Loader2,
+  MessageSquare,
+  User,
+  Sparkles,
+  Lightbulb,
+  Plus,
+} from "lucide-react"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { Stars, formatDate } from "@/components/feedbackpro/shared"
 import { cn } from "@/lib/utils"
 import { STATUT_RETOUR_LABEL, tagLabel } from "@/lib/constants"
 
-// ---------- Types (contrat GET/PATCH /api/pro/retours) ----------
+// ---------- Types (contrat GET/PATCH /api/pro/retours + GET /api/pro/coach) ----------
 
 type RetourItem = {
   id: string
@@ -38,6 +54,15 @@ type RetourItem = {
 
 type VueLocale = "atraiter" | "toutes"
 
+/** Réponse partielle de GET /api/pro/coach (on ne garde que dernierRapport.recommandations). */
+type CoachDataPartiel = {
+  dernierRapport?: {
+    recommandations?: string[]
+    priorites?: string[]
+  } | null
+  prioritesDuJour?: string[]
+}
+
 /** Retours pertinents pour le suivi managérial : déjà pris en charge OU note ≤ 3 */
 function estPertinent(r: RetourItem): boolean {
   return r.statut === "IN_PROGRESS" || r.statut === "RESOLVED" || r.note <= 3
@@ -49,6 +74,15 @@ export function ActionsTab() {
   const [retours, setRetours] = useState<RetourItem[]>([])
   const [loading, setLoading] = useState(true)
   const [vue, setVue] = useState<VueLocale>("atraiter")
+
+  // ---------- Recommandations du Coach IA (audit UX) ----------
+  const [recommandations, setRecommandations] = useState<string[]>([])
+  const [recoLoading, setRecoLoading] = useState(true)
+  // Dialogue « Créer une action » pré-rempli avec une recommandation IA
+  const [recoActive, setRecoActive] = useState<string | null>(null)
+  const [recoTexte, setRecoTexte] = useState("")
+  const [recoRetourId, setRecoRetourId] = useState("")
+  const [recoEnvoi, setRecoEnvoi] = useState(false)
 
   // ---------- Chargement (pages successives jusqu'au total) ----------
   const charger = useCallback(async () => {
@@ -78,6 +112,31 @@ export function ActionsTab() {
     }
   }, [toast])
 
+  // ---------- Recommandations IA (GET /api/pro/coach) ----------
+  useEffect(() => {
+    let annule = false
+    fetch("/api/pro/coach", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (annule) return
+        if (j?.ok) {
+          const data = j.data as CoachDataPartiel
+          // Recommandations : priorité au rapport IA, sinon aux priorités du jour
+          const recos = data.dernierRapport?.recommandations ?? data.prioritesDuJour ?? []
+          setRecommandations(Array.isArray(recos) ? recos.filter((r) => typeof r === "string" && r.trim()) : [])
+        }
+      })
+      .catch(() => {
+        /* silencieux : la section reste masquée si l'API échoue */
+      })
+      .finally(() => {
+        if (!annule) setRecoLoading(false)
+      })
+    return () => {
+      annule = true
+    }
+  }, [])
+
   useEffect(() => {
     charger()
   }, [charger])
@@ -94,6 +153,50 @@ export function ActionsTab() {
   const resolus = pertinents.filter((r) => r.statut === "RESOLVED")
   const listeAffichee = vue === "atraiter" ? aTraiter : pertinents
 
+  // ---------- Dialogue « Créer une action » (pré-rempli depuis une reco IA) ----------
+  function ouvrirReco(reco: string) {
+    setRecoActive(reco)
+    setRecoTexte(reco)
+    setRecoRetourId(aTraiter[0]?.id ?? "")
+  }
+
+  function fermerReco() {
+    setRecoActive(null)
+    setRecoTexte("")
+    setRecoRetourId("")
+  }
+
+  async function appliquerReco() {
+    if (!recoRetourId || !recoTexte.trim() || recoEnvoi) return
+    setRecoEnvoi(true)
+    try {
+      const res = await fetch("/api/pro/retours", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: recoRetourId, actionPrise: recoTexte.trim() }),
+      })
+      const json = await res.json()
+      if (res.ok && json?.ok) {
+        maj(json.data?.retour ?? { id: recoRetourId, actionPrise: recoTexte.trim() })
+        toast({
+          title: "Action créée ✅",
+          description: "La recommandation a été appliquée à un retour et archivée dans l'historique.",
+        })
+        fermerReco()
+      } else {
+        toast({ title: "Erreur", description: json?.error || "Enregistrement impossible", variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Erreur réseau", variant: "destructive" })
+    } finally {
+      setRecoEnvoi(false)
+    }
+  }
+
+  function maj(r: RetourItem) {
+    setRetours((prev) => prev.map((x) => (x.id === r.id ? { ...x, ...r } : x)))
+  }
+
   return (
     <div className="space-y-5">
       {/* En-tête */}
@@ -108,6 +211,65 @@ export function ActionsTab() {
           </p>
         </div>
       </div>
+
+      {/* ---------- 💡 Recommandations du Coach IA (audit UX) ---------- */}
+      <section aria-labelledby="titre-recommandations-ia">
+        <div className="mb-3 flex items-center gap-2">
+          <Sparkles className="h-5 w-5 text-primary" aria-hidden />
+          <h2 id="titre-recommandations-ia" className="text-base font-semibold sm:text-lg">
+            💡 Recommandations du Coach IA
+          </h2>
+        </div>
+        {recoLoading ? (
+          <div className="grid gap-3 md:grid-cols-2">
+            <Skeleton className="h-32 rounded-xl" />
+            <Skeleton className="h-32 rounded-xl" />
+          </div>
+        ) : recommandations.length === 0 ? (
+          <Card className="border-primary/20 bg-primary/[0.03] shadow-sm">
+            <CardContent className="flex items-center gap-3 p-4">
+              <div className="shrink-0 rounded-xl bg-primary/10 p-2.5" aria-hidden>
+                <Lightbulb className="h-5 w-5 text-primary" />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Le Coach IA analysera vos données dès que vous aurez assez de retours. Continuez à
+                collecter les avis de vos clients — vos premières recommandations actionnables
+                apparaîtront ici.
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="grid gap-3 md:grid-cols-2">
+            {recommandations.slice(0, 4).map((reco, i) => (
+              <Card key={i} className="flex flex-col shadow-sm">
+                <CardContent className="flex flex-1 flex-col gap-3 p-4">
+                  <div className="flex items-start gap-2">
+                    <span
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary"
+                      aria-hidden
+                    >
+                      {i + 1}
+                    </span>
+                    <p className="text-sm leading-relaxed">{reco}</p>
+                  </div>
+                  <div className="mt-auto flex justify-end">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => ouvrirReco(reco)}
+                      disabled={aTraiter.length === 0}
+                      title={aTraiter.length === 0 ? "Aucun retour à traiter pour le moment" : "Pré-remplir le formulaire d'action"}
+                    >
+                      <Plus className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                      Créer une action
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* Compteurs */}
       <div className="grid grid-cols-3 gap-3">
@@ -185,6 +347,67 @@ export function ActionsTab() {
           ))}
         </div>
       )}
+
+      {/* ---------- Dialogue : Créer une action (pré-rempli depuis une reco IA) ---------- */}
+      <Dialog open={recoActive !== null} onOpenChange={(o) => (!o ? fermerReco() : undefined)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" aria-hidden />
+              Créer une action
+            </DialogTitle>
+            <DialogDescription>
+              Pré-remplie depuis une recommandation du Coach IA. Affectez-la à un retour à traiter.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="reco-texte">Action managériale</Label>
+              <Textarea
+                id="reco-texte"
+                rows={3}
+                value={recoTexte}
+                onChange={(e) => setRecoTexte(e.target.value)}
+                placeholder="Décrivez l'action à mener…"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="reco-retour">Affecter à un retour à traiter</Label>
+              {aTraiter.length === 0 ? (
+                <p className="rounded-md border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
+                  Aucun retour à traiter pour le moment — la recommandation sera conservée pour plus tard.
+                </p>
+              ) : (
+                <Select value={recoRetourId} onValueChange={setRecoRetourId}>
+                  <SelectTrigger id="reco-retour" className="h-10" aria-label="Sélectionner un retour">
+                    <SelectValue placeholder="Sélectionner un retour…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {aTraiter.map((r) => (
+                      <SelectItem key={r.id} value={r.id}>
+                        {r.note}★ · {r.zone?.nom ?? "Sans zone"} · {formatDate(r.createdAt)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={fermerReco} disabled={recoEnvoi}>
+              Annuler
+            </Button>
+            <Button onClick={appliquerReco} disabled={recoEnvoi || !recoTexte.trim() || !recoRetourId}>
+              {recoEnvoi ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <Check className="mr-2 h-4 w-4" aria-hidden />
+              )}
+              Appliquer l&apos;action
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

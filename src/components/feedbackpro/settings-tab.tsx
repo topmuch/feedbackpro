@@ -11,7 +11,7 @@
 // ============================================================
 
 import { useEffect, useRef, useState } from "react"
-import { Save, Loader2, Check, Image as ImageIcon, Upload, TriangleAlert, Sparkles, Trash2, Gift, Download, ExternalLink, RefreshCw } from "lucide-react"
+import { Save, Loader2, Check, Image as ImageIcon, Upload, TriangleAlert, Sparkles, Trash2, Gift, Download, ExternalLink } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -24,7 +24,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/app-store"
 import { fileToLogoDataUrl } from "@/lib/image"
-import { PLANS, TYPES_ETABLISSEMENT, planPriceLabel, PlanId } from "@/lib/constants"
+import { PLANS, TYPES_ETABLISSEMENT, PlanId } from "@/lib/constants"
 
 // ProData finale (pivot Zones) — cast local pendant la migration du store
 type ProFinal = {
@@ -80,7 +80,6 @@ export function SettingsTab() {
 
   // ---------- D8 : Google Business Profile ----------
   const [googleReviewUrl, setGoogleReviewUrl] = useState("")
-  const [syncGoogleEnCours, setSyncGoogleEnCours] = useState(false)
 
   // ---------- D9 : RGPD ----------
   const [rgpdExportEnCours, setRgpdExportEnCours] = useState(false)
@@ -181,32 +180,9 @@ export function SettingsTab() {
     toast({ title: "Logo retiré — cliquez sur Enregistrer pour l'appliquer" })
   }
 
-  // ---------- (f) Changement de plan ----------
+  // ---------- (f) Mon abonnement (audit UX : résumé seul, gestion dans Facturation) ----------
   const planActuel = ((pro?.plan as PlanId) || "STARTER") as PlanId
-  const [planEnCours, setPlanEnCours] = useState<PlanId | null>(null)
-
-  async function changerPlan(plan: PlanId) {
-    if (plan === planActuel || planEnCours) return
-    setPlanEnCours(plan)
-    try {
-      const res = await fetch("/api/pro/plan", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ plan }),
-      })
-      const json = await res.json()
-      if (json.ok) {
-        updatePro(json.data.pro)
-        toast({ title: `Plan ${PLANS[plan].name} activé 🎉`, description: "Paiement simulé (démo)." })
-      } else {
-        toast({ title: "Erreur", description: json.error, variant: "destructive" })
-      }
-    } catch {
-      toast({ title: "Erreur réseau", variant: "destructive" })
-    } finally {
-      setPlanEnCours(null)
-    }
-  }
+  const planActuelDef = PLANS[planActuel] ?? PLANS.STARTER
 
   // ---------- (g) Suppression du compte ----------
   async function supprimerCompte() {
@@ -228,21 +204,6 @@ export function SettingsTab() {
     } catch {
       toast({ title: "Erreur réseau", variant: "destructive" })
     }
-  }
-
-  // ---------- D8 : Sync Google (placeholder, pas d'API réelle) ----------
-  async function syncGoogle() {
-    setSyncGoogleEnCours(true)
-    // Simulation : en production, on appellerait l'API Google Business Profile
-    // pour récupérer le googlePlaceId et l'URL d'avis à partir du nom + adresse.
-    await new Promise((r) => setTimeout(r, 1200))
-    setSyncGoogleEnCours(false)
-    toast({
-      title: "Sync Google (démo)",
-      description: googleReviewUrl
-        ? "URL d'avis déjà renseignée — saisie manuelle conservée."
-        : "Renseignez manuellement l'URL de votre fiche Google pour activer les avis.",
-    })
   }
 
   // ---------- D9 : RGPD - export des données ----------
@@ -421,7 +382,16 @@ export function SettingsTab() {
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="st-msg">Message WhatsApp personnalisé (fin de message)</Label>
-                <Textarea id="st-msg" value={messageWhatsapp} onChange={(e) => setMessageWhatsapp(e.target.value)} rows={2} />
+                <Textarea
+                  id="st-msg"
+                  value={messageWhatsapp}
+                  onChange={(e) => setMessageWhatsapp(e.target.value)}
+                  rows={2}
+                  placeholder="Ex: Merci de votre retour ! À très bientôt chez Bella Napoli 🍕"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Affiché en pied du message WhatsApp envoyé au client. Laissez vide pour utiliser le message par défaut.
+                </p>
               </div>
             </div>
 
@@ -433,7 +403,7 @@ export function SettingsTab() {
         </CardContent>
       </Card>
 
-      {/* ================= (e) Logo de l'établissement ================= */}
+      {/* ================= (e) Logo de l'établissement (drag & drop + preview) ================= */}
       <Card className="shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
@@ -448,30 +418,62 @@ export function SettingsTab() {
               <img
                 src={logoAffiche}
                 alt={logoModifie === undefined ? "Logo actuel" : "Nouveau logo (en attente d'enregistrement)"}
-                className="h-16 w-16 shrink-0 rounded-xl border object-cover"
+                className="h-20 w-20 shrink-0 rounded-xl border object-cover"
               />
             ) : (
               <span
-                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-full bg-muted"
+                className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-muted"
                 role="img"
                 aria-label="Aucun logo"
               >
-                <ImageIcon className="h-7 w-7 text-muted-foreground" aria-hidden />
+                <ImageIcon className="h-8 w-8 text-muted-foreground" aria-hidden />
               </span>
             )}
-            <div className="min-w-0 space-y-2">
+            <div className="min-w-0 flex-1 space-y-2">
               {!logoAffiche && <p className="text-sm text-muted-foreground">Aucun logo</p>}
+              {/* Zone drag & drop + preview (audit UX) */}
+              <div
+                onDragOver={(e) => { e.preventDefault(); e.stopPropagation() }}
+                onDrop={(e) => {
+                  e.preventDefault()
+                  const file = e.dataTransfer.files?.[0]
+                  if (!file) return
+                  // Réutilise le pipeline d'upload existant (fileToLogoDataUrl)
+                  fileToLogoDataUrl(file)
+                    .then((dataUrl) => {
+                      setLogoModifie(dataUrl)
+                      toast({ title: "Logo prêt — cliquez sur Enregistrer pour l'appliquer" })
+                    })
+                    .catch((err) => {
+                      toast({
+                        title: "Erreur",
+                        description: err instanceof Error ? err.message : "Impossible de charger le logo",
+                        variant: "destructive",
+                      })
+                    })
+                }}
+                onClick={() => logoInputRef.current?.click()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    logoInputRef.current?.click()
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                aria-label="Glissez-déposez un logo ici ou cliquez pour choisir un fichier"
+                className="flex cursor-pointer flex-col items-center justify-center gap-1 rounded-xl border-2 border-dashed border-border bg-muted/30 px-4 py-6 text-center transition-colors hover:border-primary/40 hover:bg-primary/5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+              >
+                <Upload className="h-6 w-6 text-muted-foreground" aria-hidden />
+                <p className="text-sm font-medium">
+                  Glissez-déposez votre logo ici
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  ou <span className="text-primary underline underline-offset-2">cliquez pour choisir un fichier</span>
+                </p>
+                <p className="text-[11px] text-muted-foreground/80">PNG, JPEG ou WebP — redimensionné en 256px</p>
+              </div>
               <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9"
-                  onClick={() => logoInputRef.current?.click()}
-                >
-                  <Upload className="mr-1.5 h-4 w-4" aria-hidden />
-                  Choisir un logo
-                </Button>
                 {logoAffiche && (
                   <Button
                     type="button"
@@ -485,7 +487,6 @@ export function SettingsTab() {
                   </Button>
                 )}
               </div>
-              <p className="text-xs text-muted-foreground">PNG, JPEG ou WebP — redimensionné automatiquement en 256px.</p>
             </div>
           </div>
           <input
@@ -499,52 +500,42 @@ export function SettingsTab() {
         </CardContent>
       </Card>
 
-      {/* ================= (f) Changement de plan ================= */}
+      {/* ================= (f) Mon abonnement (audit UX) ================= */}
       <Card className="shadow-sm">
         <CardHeader>
-          <CardTitle className="text-base sm:text-lg">Changement de plan</CardTitle>
-          <CardDescription>Changement immédiat — paiement sécurisé (démo)</CardDescription>
+          <CardTitle className="text-base sm:text-lg">Mon abonnement</CardTitle>
+          <CardDescription>
+            Récapitulatif de votre plan — pour changer de plan ou gérer votre facturation, rendez-vous dans l&apos;onglet dédié.
+          </CardDescription>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {(Object.keys(PLANS) as PlanId[]).map((id) => {
-            const p = PLANS[id]
-            const actuel = planActuel === id
-            return (
-              <div key={id} className={`relative flex flex-col rounded-xl border p-4 ${actuel ? "border-primary ring-1 ring-primary" : ""}`}>
-                {actuel && (
-                  <Badge className="absolute -top-2.5 left-3 h-5 px-1.5 text-[10px]">
-                    <Check className="mr-0.5 h-3 w-3" aria-hidden /> Plan actuel
-                  </Badge>
-                )}
-                <p className="font-semibold">{p.name}</p>
-                <p className="mt-0.5 text-2xl font-bold">
-                  {planPriceLabel(p.price)}
-                  {p.price > 0 && <span className="text-sm font-normal text-muted-foreground">/mois</span>}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground flex-1">{p.tagline}</p>
-                <ul className="mt-2.5 space-y-1.5 text-xs">
-                  {p.features.slice(0, 4).map((f) => (
-                    <li key={f} className="flex items-start gap-1.5">
-                      <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" aria-hidden />
-                      {f}
-                    </li>
-                  ))}
-                </ul>
-                {!actuel && (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="mt-3"
-                    disabled={planEnCours !== null}
-                    onClick={() => changerPlan(id)}
-                  >
-                    {planEnCours === id && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
-                    Choisir {p.name}
-                  </Button>
-                )}
-              </div>
-            )
-          })}
+        <CardContent className="space-y-3">
+          <div className="flex flex-col gap-3 rounded-xl border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="min-w-0">
+              <p className="flex items-center gap-2 text-sm font-semibold">
+                <Check className="h-4 w-4 text-primary" aria-hidden />
+                Plan {planActuelDef.name}
+                <Badge variant="secondary" className="text-[11px]">
+                  {planActuelDef.price > 0 ? `${planActuelDef.price} €/mois` : "Gratuit"}
+                </Badge>
+              </p>
+              <p className="mt-1 text-xs text-muted-foreground">{planActuelDef.tagline}</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                Zones : {planActuelDef.limites.zones} · Employés : {planActuelDef.limites.employes} · Retours : {planActuelDef.limites.retours}
+              </p>
+            </div>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="shrink-0"
+              onClick={() => {
+                window.location.href = "/dashboard/billing"
+              }}
+            >
+              <ExternalLink className="mr-1.5 h-4 w-4" aria-hidden />
+              Gérer dans Facturation
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -564,32 +555,14 @@ export function SettingsTab() {
         <CardContent className="space-y-3">
           <div className="space-y-1.5">
             <Label htmlFor="st-google-url">URL d&apos;avis Google</Label>
-            <div className="flex flex-col gap-2 sm:flex-row">
-              <Input
-                id="st-google-url"
-                type="url"
-                placeholder="https://www.google.com/maps/place/…"
-                value={googleReviewUrl}
-                onChange={(e) => setGoogleReviewUrl(e.target.value)}
-                className="h-10 sm:flex-1"
-              />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="h-10 shrink-0 gap-1.5"
-                disabled={syncGoogleEnCours}
-                onClick={syncGoogle}
-              >
-                {syncGoogleEnCours ? (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                ) : (
-                  <RefreshCw className="h-4 w-4" aria-hidden />
-                )}
-                <span className="hidden sm:inline">Sync Google</span>
-                <span className="sm:hidden">Sync</span>
-              </Button>
-            </div>
+            <Input
+              id="st-google-url"
+              type="url"
+              placeholder="https://www.google.com/maps/place/…"
+              value={googleReviewUrl}
+              onChange={(e) => setGoogleReviewUrl(e.target.value)}
+              className="h-10"
+            />
             <p className="text-xs text-muted-foreground">
               Pour trouver votre URL : Google Maps → votre établissement → « Partager » → copier le lien.
             </p>
@@ -611,7 +584,7 @@ export function SettingsTab() {
             </div>
           )}
           <p className="text-[11px] leading-relaxed text-muted-foreground">
-            ⚠️ Sync Google est un placeholder (démo) : saisissez l&apos;URL manuellement. Aucune API Google n&apos;est appelée.
+            💡 Saisie manuelle — aucune API Google n&apos;est appelée. L&apos;URL est enregistrée telle quelle et proposée aux clients satisfaits.
           </p>
         </CardContent>
       </Card>

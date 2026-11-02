@@ -580,7 +580,7 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
   /** Score du jour affiché : repli sur la moyenne 7 j si pas de retour aujourd'hui */
   const scoreDuJour = accueil?.scoreDuJour ?? null
   const repli7j = (scoreDuJour?.retoursAujourdhui ?? 0) === 0 && (scoreDuJour?.score7j ?? 0) > 0
-  const scoreAffiche = scoreDuJour ? (repli7j ? scoreDuJour.score7j : scoreDuJour.score) : null
+  const scoreJourAffiche = scoreDuJour ? (repli7j ? scoreDuJour.score7j : scoreDuJour.score) : null
   const mentionScore = repli7j ? "moyenne 7 jours" : "aujourd'hui"
 
   /** Prédictions : accueil en priorité, sinon celles du dernier rapport */
@@ -605,6 +605,25 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
   const score30 = indic?.scoreGlobal30j ?? overview?.scoreGlobal30j ?? null
   const evolution = indic?.evolutionPct ?? overview?.evolutionPct ?? null
   const alertes = indic?.alertesNonLues ?? overview?.alertesNonLues ?? 0
+
+  /**
+   * Score UNIFIÉ (audit UX) : le score affiché en grand (jauge circulaire)
+   * doit être le MÊME que celui de la KPI card « Score global (30 j) ».
+   * Source unique : scoreGlobal du dernier rapport IA s'il existe, sinon
+   * scoreGlobal30j calculé (note moyenne × 20 sur 30 jours).
+   */
+  const scoreUnifie = dernier?.scoreGlobal ?? score30 ?? null
+  /** Source humaine du score unifié (libellé affiché sous la jauge). */
+  const sourceScoreUnifie = dernier ? "Rapport IA" : "Calcul 30 jours"
+
+  /**
+   * Prédictions (audit UX) : masquer la section si pas assez de données.
+   * On considère qu'il n'y a pas assez de données si le score 7 j est nul
+   * (aucun retour collecté sur la dernière semaine) — les prédictions
+   * deviennent alors trop génériques pour être actionnables.
+   */
+  const dataSuffisantePourPredictions = (scoreDuJour?.score7j ?? 0) > 0
+  const predictionsVisibles = predictions.length > 0 && dataSuffisantePourPredictions
 
   const courbe =
     overview?.courbe30j?.map((e) => ({
@@ -798,8 +817,12 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
           </h2>
           <Card className="overflow-hidden border-primary/20 bg-primary/[0.03] shadow-sm">
             <CardContent className="flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-center">
-              {/* Gros score avec jauge colorée (vert >80 / ambre 60-80 / rouge <60) */}
-              <div className="flex items-center gap-4 lg:w-44 lg:shrink-0 lg:flex-col lg:items-center lg:gap-2">
+              {/* Gros score UNIFIÉ avec jauge colorée (vert >80 / ambre 60-80 / rouge <60)
+                  Audit UX : ce score est le MÊME que celui de la KPI card « Score global (30 j) ». */}
+              <div
+                className="flex items-center gap-4 lg:w-44 lg:shrink-0 lg:flex-col lg:items-center lg:gap-2"
+                title="Score moyen pondéré sur les 30 derniers jours"
+              >
                 <div className="relative flex h-24 w-24 shrink-0 items-center justify-center rounded-full">
                   <svg className="absolute inset-0 -rotate-90" viewBox="0 0 100 100" aria-hidden>
                     <circle cx="50" cy="50" r="44" fill="none" stroke="currentColor" strokeWidth="8" className="text-muted/30" />
@@ -812,31 +835,33 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
                       strokeLinecap="round"
                       stroke="currentColor"
                       className={
-                        scoreAffiche != null && scoreAffiche >= 80
+                        scoreUnifie != null && scoreUnifie >= 80
                           ? "text-green-500"
-                          : scoreAffiche != null && scoreAffiche >= 60
+                          : scoreUnifie != null && scoreUnifie >= 60
                             ? "text-amber-500"
                             : "text-rose-500"
                       }
-                      strokeDasharray={`${(scoreAffiche ?? 0) * 2.76} 999`}
+                      strokeDasharray={`${(scoreUnifie ?? 0) * 2.76} 999`}
                     />
                   </svg>
                   <span
                     className={cn(
                       "text-2xl font-extrabold tracking-tight",
-                      scoreAffiche != null && scoreAffiche >= 80
+                      scoreUnifie != null && scoreUnifie >= 80
                         ? "text-green-600"
-                        : scoreAffiche != null && scoreAffiche >= 60
+                        : scoreUnifie != null && scoreUnifie >= 60
                           ? "text-amber-600"
                           : "text-rose-600"
                     )}
                   >
-                    {scoreAffiche != null ? Math.round(scoreAffiche) : "—"}
+                    {scoreUnifie != null ? Math.round(scoreUnifie) : "—"}
                   </span>
                 </div>
                 <div className="lg:text-center">
-                  <p className="text-xs font-medium text-muted-foreground">Score {mentionScore}</p>
-                  <p className="text-[11px] text-muted-foreground">/ 100</p>
+                  <p className="text-xs font-medium text-muted-foreground">Score global (30 j)</p>
+                  <p className="text-[11px] text-muted-foreground" title={sourceScoreUnifie}>
+                    / 100 · {sourceScoreUnifie}
+                  </p>
                 </div>
               </div>
 
@@ -853,6 +878,15 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
                   retour{scoreDuJour.retoursAujourdhui > 1 ? "s" : ""} collecté
                   {scoreDuJour.retoursAujourdhui > 1 ? "s" : ""} aujourd&apos;hui via vos QR codes
                 </p>
+                <p className="text-[11px] text-muted-foreground" title="Score moyen pondéré sur les 30 derniers jours">
+                  Score du jour : {scoreJourAffiche != null ? Math.round(scoreJourAffiche) : "—"}/100 ({mentionScore})
+                </p>
+                {/* Encouragement quand pas assez de données pour comparer (audit UX) */}
+                {scoreDuJour.vsHierPct == null && scoreDuJour.vsSemainePct == null && (
+                  <p className="text-xs font-medium text-primary">
+                    Continuez à collecter des retours, votre rapport sera plus précis jour après jour ! 🌟
+                  </p>
+                )}
               </div>
 
               {/* CTA vers l'onglet Rapports IA (liste complète) */}
@@ -931,13 +965,14 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
           <KpiCard
             icon={Star}
             label="Score global (30 j)"
-            value={score30 != null ? Math.round(score30) : "—"}
+            value={scoreUnifie != null ? Math.round(scoreUnifie) : "—"}
             hint={
               evolution != null && evolution !== 0
                 ? `${evolution > 0 ? "+" : ""}${evolution} % vs période précédente`
                 : "Stable vs période précédente"
             }
             hintTone={evolution != null && evolution > 0 ? "up" : evolution != null && evolution < 0 ? "down" : "neutral"}
+            title="Score moyen pondéré sur les 30 derniers jours"
           />
           <KpiCard
             icon={MessageSquare}
@@ -1092,7 +1127,7 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
               <CardContent>
                 {accueil.pointsPositifs.employes.length === 0 ? (
                   <p className="py-4 text-center text-sm text-muted-foreground">
-                    Aucune mention positive cette semaine
+                    Vos premiers retours positifs arriveront bientôt ! Chaque retour compte. 🌟
                   </p>
                 ) : (
                   <ul className="space-y-3">
@@ -1120,7 +1155,7 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
               <CardContent>
                 {accueil.pointsPositifs.zones.length === 0 ? (
                   <p className="py-4 text-center text-sm text-muted-foreground">
-                    Aucune zone ne ressort pour l&apos;instant — il faut au moins 2 retours par zone.
+                    Vos premiers retours positifs arriveront bientôt ! Chaque retour compte. 🌟
                   </p>
                 ) : (
                   <ul className="space-y-3">
@@ -1150,7 +1185,7 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
               <CardContent>
                 {accueil.pointsPositifs.messages.length === 0 ? (
                   <p className="py-4 text-center text-sm text-muted-foreground">
-                    Les félicitations arrivent avec vos premiers retours positifs.
+                    Vos premiers retours positifs arriveront bientôt ! Chaque retour compte. 🌟
                   </p>
                 ) : (
                   <ul className="space-y-2.5">
@@ -1177,7 +1212,7 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
       )}
 
       {/* ---------- 🔮 Prédictions de la semaine (Session 4) ---------- */}
-      {predictions.length > 0 && (
+      {predictionsVisibles && (
         <section aria-labelledby="titre-predictions">
           <h2 id="titre-predictions" className="mb-3 text-base font-semibold sm:text-lg">
             🔮 Prédictions
@@ -1567,6 +1602,7 @@ function KpiCard({
   hint,
   hintTone = "neutral",
   alerte = false,
+  title,
 }: {
   icon: React.ComponentType<{ className?: string }>
   label: string
@@ -1574,12 +1610,13 @@ function KpiCard({
   hint?: string
   hintTone?: "up" | "down" | "neutral"
   alerte?: boolean
+  title?: string
 }) {
   const HintIcon = hintTone === "up" ? TrendingUp : hintTone === "down" ? TrendingDown : Minus
   const toneClass =
     hintTone === "up" ? "text-green-600" : hintTone === "down" ? "text-rose-600" : "text-muted-foreground"
   return (
-    <Card className="shadow-sm">
+    <Card className="shadow-sm" title={title}>
       <CardContent className="p-4">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0">

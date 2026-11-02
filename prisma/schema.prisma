@@ -1,12 +1,3 @@
-// ============================================================
-// FeedbackPro - Schéma de base de données
-// Conforme au prompt Session 1 (Coach IA d'Audit Qualité Continu)
-//
-// Adaptations SQLite (sandbox) :
-// - Les enums Prisma ne sont pas supportés → String + validation applicative (zod)
-// - Les tableaux (String[]) ne sont pas supportés → colonnes String contenant du JSON
-// ============================================================
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -16,181 +7,143 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ---------- Utilisateurs & Sessions ----------
-
 model User {
-  id              String    @id @default(cuid())
-  email           String    @unique
-  passwordHash    String
-  role            String    @default("PRO") // SUPERADMIN | PRO
-  // Compte suspendu par le superadmin ( bloque la connexion et les API)
-  suspendu        Boolean   @default(false)
-  // Dernière connexion (null si jamais connecté)
+  id                String         @id @default(cuid())
+  email             String         @unique
+  passwordHash      String
+  role              String         @default("PRO")
+  suspendu          Boolean        @default(false)
   derniereConnexion DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  pro             Pro?
-  sessions        Session[]
-  notifications   Notification[]
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+  notifications     Notification[]
+  pro               Pro?
+  sessions          Session[]
 }
 
-// Sessions en base : le cookie ne contient que l'ID de session (httpOnly)
 model Session {
   id        String   @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   expiresAt DateTime
   createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
-
-// ---------- Commerçant (Pro) ----------
 
 model Pro {
-  id                String    @id @default(cuid())
-  userId            String    @unique
-  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String      @id @default(cuid())
+  userId            String      @unique
   nomEtablissement  String
-  typeEtablissement String    @default("restaurant") // hotel | restaurant | boutique | salon | hopital | ...
-  adresse           String    @default("")
-  ville             String    @default("")
-  whatsapp          String? // Numéro international sans + ni espaces, ex: 33612345678 (pour les alertes)
-  email             String    @default("") // Email de réception des rapports IA
+  typeEtablissement String      @default("restaurant")
+  adresse           String      @default("")
+  ville             String      @default("")
+  whatsapp          String?
+  email             String      @default("")
   logoUrl           String?
-  plan              String    @default("STARTER") // STARTER (29€) | PRO (99€) | ENTERPRISE (249€)
-  frequenceRapport  String    @default("quotidien") // quotidien | hebdomadaire (rapports IA)
-  recompense        String? // Texte de la micro-récompense affiché au client (ex: "☕ Café offert sur votre prochaine visite")
-  recompenseActive  Boolean @default(false) // Toggle : récompense activée ou non (Session 3)
-  recompenseType    String  @default("cafe") // cafe | reduction | autre (Session 3)
-  recompenseCode    String  @default("") // Code promo communiqué au client après son retour (Session 3)
-  messageWhatsapp   String? // Personnalisation du pied du message WhatsApp
-  onboardingDone    Boolean   @default(false)
-  suspendu          Boolean   @default(false) // Commerçant suspendu par le superadmin
-  smsAlertes        Boolean   @default(true) // Alertes SMS activées pour les retours ≤ 2★
-  // Période d'abonnement (essai 30 jours à la création)
+  plan              String      @default("STARTER")
+  frequenceRapport  String      @default("quotidien")
+  recompense        String?
+  recompenseActive  Boolean     @default(false)
+  recompenseType    String      @default("cafe")
+  recompenseCode    String      @default("")
+  recompenseLimite  String?
+  messageWhatsapp   String?
+  onboardingDone    Boolean     @default(false)
+  suspendu          Boolean     @default(false)
+  smsAlertes        Boolean     @default(true)
   abonnementDebut   DateTime?
   abonnementFin     DateTime?
-  // D7 (multi-établissements) : Pro parent — si renseigné, ce Pro est un
-  // établissement secondaire rattaché à un compte Pro principal.
   proId             String?
-  parent            Pro?   @relation("ProChildren", fields: [proId], references: [id], onDelete: SetNull)
-  enfants           Pro[]  @relation("ProChildren")
-  // D8 (Google Business Profile) : lien d'avis Google (saisie manuelle, pas d'API réelle)
   googlePlaceId     String?
   googleReviewUrl   String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-
-  zones      Zone[]
-  employes   Employe[]
-  retours    Retour[]
-  commandes  Commande[]
-  rapportsIA RapportIA[]
-  alertes    Alerte[]
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  alertes           Alerte[]
+  commandes         Commande[]
+  employes          Employe[]
+  parent            Pro?        @relation("ProChildren", fields: [proId], references: [id])
+  enfants           Pro[]       @relation("ProChildren")
+  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rapportsIA        RapportIA[]
+  retours           Retour[]
+  zones             Zone[]
 }
-
-// ---------- Zones / Points de contact (QR code par zone) ----------
 
 model Zone {
   id           String   @id @default(cuid())
   proId        String
-  pro          Pro      @relation(fields: [proId], references: [id], onDelete: Cascade)
-  nom          String // "Accueil", "Restaurant", "Toilettes RDC", "Piscine"...
+  nom          String
   description  String?
   qrToken      String   @unique @default(cuid())
-  tagsNegatifs String   @default("[]") // JSON : tags spécifiques à cette zone
-  tagsPositifs String   @default("[]") // JSON : tags spécifiques à cette zone
+  tagsNegatifs String   @default("[]")
+  tagsPositifs String   @default("[]")
   createdAt    DateTime @default(now())
-
-  retours Retour[]
+  retours      Retour[]
+  pro          Pro      @relation(fields: [proId], references: [id], onDelete: Cascade)
 
   @@index([proId])
 }
 
-// ---------- Employés (gamification / leaderboard / besoins de formation) ----------
-
 model Employe {
   id        String   @id @default(cuid())
   proId     String
-  pro       Pro      @relation(fields: [proId], references: [id], onDelete: Cascade)
   nom       String
   poste     String?
-  zoneIds   String   @default("[]") // JSON : ids des zones où il travaille
+  zoneIds   String   @default("[]")
   actif     Boolean  @default(true)
   createdAt DateTime @default(now())
-
-  retours Retour[]
+  pro       Pro      @relation(fields: [proId], references: [id], onDelete: Cascade)
+  retours   Retour[]
 }
 
-// ---------- Retour client (cœur du produit — le client réel devient Client Mystère) ----------
-
 model Retour {
-  id      String @id @default(cuid())
-  proId   String
-  pro     Pro    @relation(fields: [proId], references: [id], onDelete: Cascade)
-  zoneId  String
-  zone    Zone   @relation(fields: [zoneId], references: [id], onDelete: Cascade)
-  employeId String?
-  employe   Employe? @relation(fields: [employeId], references: [id])
-
-  note               Int // 1 à 5
-  tags               String  @default("[]") // JSON : ex ["impoli","attente"]
+  id                 String   @id @default(cuid())
+  proId              String
+  zoneId             String
+  employeId          String?
+  note               Int
+  tags               String   @default("[]")
   commentaire        String?
-  personnelMentionne String? // Nom ou description libre du personnel concerné
-  // Email du client (optionnel, pour permettre au commerçant de répondre par email)
+  personnelMentionne String?
   emailClient        String?
-  // D1 : NPS (0-10), collecté uniquement quand la note est ≥ 4★
   nps                Int?
-  // D2 : photo jointe par le client (URL relative vers /uploads/…)
   photoUrl           String?
-
-  // Métadonnées
-  canalChoisi        String? // "whatsapp" | "aucun"
-  ipCity             String? // Ville approximative du client (détection IP optionnelle, RGPD-friendly)
-  recompenseUtilisee Boolean @default(false) // Le client a récupéré sa micro-récompense
-
-  // Suivi managérial
-  statut      String  @default("NEW") // NEW | IN_PROGRESS | RESOLVED
-  historique  String  @default("[]") // JSON : [{ statut, at }] — historique des changements de statut
-  lu          Boolean @default(false)
-  reponsePro  String?
-  actionPrise String? // Action managériale décidée (onglet Actions)
-
-  createdAt DateTime @default(now())
+  canalChoisi        String?
+  ipCity             String?
+  recompenseUtilisee Boolean  @default(false)
+  statut             String   @default("NEW")
+  historique         String   @default("[]")
+  lu                 Boolean  @default(false)
+  reponsePro         String?
+  actionPrise        String?
+  createdAt          DateTime @default(now())
+  employe            Employe? @relation(fields: [employeId], references: [id])
+  zone               Zone     @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  pro                Pro      @relation(fields: [proId], references: [id], onDelete: Cascade)
 
   @@index([proId, createdAt])
   @@index([zoneId])
 }
 
-// ---------- Rapports IA (Coach IA d'Audit Qualité Continu) ----------
-
 model RapportIA {
-  id          String   @id @default(cuid())
-  proId       String
-  pro         Pro      @relation(fields: [proId], references: [id], onDelete: Cascade)
-
-  type        String   @default("quotidien") // "quotidien" | "hebdomadaire"
-  periodeDebut DateTime
-  periodeFin   DateTime
-
-  // Contenu du rapport (généré par l'IA)
-  scoreGlobal      Int    @default(0) // Score de qualité global sur 100
-  contenuMarkdown  String @default("") // Le rapport complet en markdown
-  priorites        String @default("[]") // JSON : Top 3 priorités
-  recommandations  String @default("[]") // JSON : Actions suggérées
-  predictions      String @default("[]") // JSON : Prédictions
-  source           String @default("ia") // "ia" = généré par le LLM | "fallback" = analyse locale déterministe (Session 5)
-
-  envoyeParEmail Boolean @default(false)
-  envoyeParSMS   Boolean @default(false)
-
-  createdAt DateTime @default(now())
+  id              String   @id @default(cuid())
+  proId           String
+  type            String   @default("quotidien")
+  periodeDebut    DateTime
+  periodeFin      DateTime
+  scoreGlobal     Int      @default(0)
+  contenuMarkdown String   @default("")
+  priorites       String   @default("[]")
+  recommandations String   @default("[]")
+  predictions     String   @default("[]")
+  source          String   @default("ia")
+  envoyeParEmail  Boolean  @default(false)
+  envoyeParSMS    Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  pro             Pro      @relation(fields: [proId], references: [id], onDelete: Cascade)
 
   @@index([proId, createdAt])
 }
 
-// ---------- Commandes de supports physiques ----------
-
-// Réglages plateforme : clés/valeurs simples éditables par le superadmin
 model Setting {
   key       String   @id
   value     String
@@ -200,53 +153,45 @@ model Setting {
 model Commande {
   id               String   @id @default(cuid())
   proId            String
-  pro              Pro      @relation(fields: [proId], references: [id], onDelete: Cascade)
-  zoneId           String?  // QR code spécifique à une zone (optionnel)
-  typeSupport      String // STICKERS_50 | CHEVALET_ACRYLIQUE | AFFICHE_A4
+  zoneId           String?
+  typeSupport      String
   quantite         Int
   prixEuros        Int
   adresseLivraison String
-  statut           String   @default("A_IMPRIMER") // A_IMPRIMER | IMPRIME | EXPEDIE | LIVRE
+  statut           String   @default("A_IMPRIMER")
   pdfUrl           String?
-  numeroSuivi      String?  // Numéro de suivi d'expédition (ajouté par le superadmin)
+  numeroSuivi      String?
   createdAt        DateTime @default(now())
+  pro              Pro      @relation(fields: [proId], references: [id], onDelete: Cascade)
 
   @@index([proId])
   @@index([statut])
 }
 
-// ---------- Alertes temps réel (notes ≤ 2, SMS simulé) ----------
-
 model Alerte {
   id        String   @id @default(cuid())
   proId     String
-  pro       Pro      @relation(fields: [proId], references: [id], onDelete: Cascade)
   retourId  String?
   titre     String
   message   String
-  canal     String   @default("DASHBOARD") // DASHBOARD | SMS (simulé)
-  // D4 : TEMPS_REEL (note ≤ 2) | INTELLIGENTE (baisse tendancielle détectée par le Coach IA)
+  canal     String   @default("DASHBOARD")
   type      String   @default("TEMPS_REEL")
   lu        Boolean  @default(false)
   createdAt DateTime @default(now())
+  pro       Pro      @relation(fields: [proId], references: [id], onDelete: Cascade)
 
   @@index([proId, lu])
 }
 
-// ---------- Notifications in-app (cloche) ----------
-// Notifications ciblant un utilisateur (PRO ou SUPERADMIN), affichées dans
-// la cloche du header. Différentes des Alertes (qui sont des signaux temps
-// réel liés à un retour et persistées sur le Pro).
-
 model Notification {
   id        String   @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  type      String   // nouveau_retour | retour_negatif | rapport_ia | alerte_coach | nouveau_commercant | nouvelle_commande | commercant_suspendu
+  type      String
   titre     String
   message   String
   lu        Boolean  @default(false)
   createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, lu])
   @@index([userId, createdAt])

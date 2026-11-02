@@ -4,14 +4,17 @@
 // FeedbackPro - Onglet « Récompenses » du dashboard Pro (Session 3)
 // Configuration de la micro-récompense offerte au Client Mystère :
 //   · Toggle activer / désactiver
-//   · Type : ☕ café gratuit · 🎁 réduction -X% · ✨ autre
+//   · Type : ☕ café gratuit · 🎁 réduction -X% · 🍔 produit offert ·
+//            🎉 goodie · ✨ autre
 //   · Code promo (communiqué APRÈS l'envoi du retour)
 //   · Texte à afficher + aperçu en direct de ce que voit le client
+//   · Limite d'utilisation (ex: "1 par client/jour") — audit UX
+//   · Stats d'utilisation mensuelles — audit UX
 // API : GET/POST /api/pro/recompenses
 // ============================================================
 
 import { useEffect, useState } from "react"
-import { Gift, Loader2, Save, Eye, Ticket } from "lucide-react"
+import { Gift, Loader2, Save, Eye, Ticket, TrendingUp } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -23,13 +26,21 @@ import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/app-store"
 import { cn } from "@/lib/utils"
 
-type TypeRecompense = "cafe" | "reduction" | "autre"
+type TypeRecompense = "cafe" | "reduction" | "produit" | "goodie" | "autre"
 
 // Libellés par défaut du texte à afficher, selon le type choisi
 const TEXTE_PAR_DEFAUT: Record<TypeRecompense, string> = {
   cafe: "☕ Café offert sur votre prochaine visite",
   reduction: "🎁 Réduction sur votre prochaine visite",
+  produit: "🍔 Produit offert sur votre prochaine visite",
+  goodie: "🎉 Goodie offert à récupérer en caisse",
   autre: "",
+}
+
+type StatsRecompense = {
+  distribueesCeMois: number
+  utiliseesCeMois: number
+  tauxUtilisation: number
 }
 
 export function RecompensesTab() {
@@ -43,8 +54,11 @@ export function RecompensesTab() {
   const [type, setType] = useState<TypeRecompense>("cafe")
   const [texte, setTexte] = useState("")
   const [code, setCode] = useState("")
+  const [limite, setLimite] = useState("")
   const [pourcentage, setPourcentage] = useState("10")
   const [saving, setSaving] = useState(false)
+  // ---------- Stats d'utilisation ----------
+  const [stats, setStats] = useState<StatsRecompense | null>(null)
 
   const pro = session?.pro ?? null
 
@@ -59,14 +73,18 @@ export function RecompensesTab() {
             type: TypeRecompense
             code: string
             texte: string
+            limite: string
           }
           setActive(cfg.active)
           setType(cfg.type)
           setTexte(cfg.texte ?? "")
           setCode(cfg.code ?? "")
+          setLimite(cfg.limite ?? "")
           // Pourcentage extrait du texte existant (ex. « -15% » → 15)
           const match = cfg.texte?.match(/-(\d{1,2})\s?%/)
           if (match) setPourcentage(match[1])
+          // Stats d'utilisation (audit UX)
+          if (j.data.stats) setStats(j.data.stats as StatsRecompense)
         }
       })
       .catch(() => toast({ title: "Erreur", description: "Configuration inaccessible", variant: "destructive" }))
@@ -111,15 +129,18 @@ export function RecompensesTab() {
           recompenseType: type,
           recompenseCode: code.trim(),
           recompense: texte.trim(),
+          recompenseLimite: limite.trim(),
         }),
       })
       const json = await res.json()
       if (res.ok && json?.ok) {
         updatePro(json.data.pro)
+        // Recharger les stats (la distrib change potentiellement)
+        if (json.data.stats) setStats(json.data.stats as StatsRecompense)
         toast({
           title: active ? "Récompense activée 🎁" : "Récompense désactivée",
           description: active
-            ? "Vos clients la découvriront après avoir envoyé leur retour."
+            ? "Le code est dévoilé après validation du retour."
             : "Vos clients ne verront plus de récompense. La configuration est conservée.",
         })
       } else {
@@ -154,6 +175,27 @@ export function RecompensesTab() {
         </div>
       ) : (
         <>
+          {/* ---------- Stats d'utilisation (audit UX) ---------- */}
+          {stats && (
+            <Card className="border-primary/20 bg-primary/[0.03] shadow-sm">
+              <CardContent className="flex items-center gap-3 p-4 sm:p-5">
+                <div className="shrink-0 rounded-xl bg-primary/10 p-2.5" aria-hidden>
+                  <TrendingUp className="h-5 w-5 text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold">Utilisation ce mois-ci</p>
+                  <p className="mt-0.5 text-sm text-muted-foreground">
+                    <span className="font-semibold text-foreground">{stats.distribueesCeMois}</span> récompense
+                    {stats.distribueesCeMois > 1 ? "s" : ""} distribuée{stats.distribueesCeMois > 1 ? "s" : ""} ·{" "}
+                    <span className="font-semibold text-foreground">{stats.utiliseesCeMois}</span> utilisée
+                    {stats.utiliseesCeMois > 1 ? "s" : ""} (
+                    <span className="font-semibold text-primary">{stats.tauxUtilisation}%</span>)
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* ---------- Toggle principal ---------- */}
           <Card className="shadow-sm">
             <CardContent className="flex items-center justify-between gap-4 p-4 sm:p-5">
@@ -185,7 +227,7 @@ export function RecompensesTab() {
             <Card className="shadow-sm">
               <CardHeader>
                 <CardTitle className="text-base sm:text-lg">Configuration de la récompense</CardTitle>
-                <CardDescription>Le code promo n&apos;est révélé qu&apos;après l&apos;envoi du retour.</CardDescription>
+                <CardDescription>Le code est dévoilé après validation du retour.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Type de récompense */}
@@ -197,7 +239,9 @@ export function RecompensesTab() {
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="cafe">☕ Café gratuit</SelectItem>
-                      <SelectItem value="reduction">🎁 Réduction -X%</SelectItem>
+                      <SelectItem value="reduction">🎁 Réduction %</SelectItem>
+                      <SelectItem value="produit">🍔 Produit offert</SelectItem>
+                      <SelectItem value="goodie">🎉 Goodie</SelectItem>
                       <SelectItem value="autre">✨ Autre (texte libre)</SelectItem>
                     </SelectContent>
                   </Select>
@@ -258,6 +302,23 @@ export function RecompensesTab() {
                   </p>
                 </div>
 
+                {/* Limite d'utilisation (audit UX) */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="rc-limite">Limite d&apos;utilisation (optionnel)</Label>
+                  <Input
+                    id="rc-limite"
+                    value={limite}
+                    onChange={(e) => setLimite(e.target.value)}
+                    placeholder="1 par client / jour"
+                    maxLength={60}
+                    className="h-10"
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Affichée discrètement sous le code promo pour rappeler la condition (ex: « 1 par
+                    client / jour », « Valable 30 jours »).
+                  </p>
+                </div>
+
                 <Button onClick={enregistrer} disabled={saving} className="h-10">
                   {saving ? (
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
@@ -314,6 +375,9 @@ export function RecompensesTab() {
                       <Ticket className="h-3.5 w-3.5" aria-hidden />
                       {codeApercu}
                     </span>
+                  )}
+                  {active && limite.trim() && (
+                    <p className="mt-2 text-xs text-amber-800/80">⚠️ {limite}</p>
                   )}
                   <p className="mt-2 text-xs text-amber-800/90">
                     Montrez cet écran au personnel pour en profiter
