@@ -15,8 +15,10 @@ import {
   Sparkles,
   Lightbulb,
   Plus,
+  Flame,
+  AlertTriangle,
 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -54,13 +56,26 @@ type RetourItem = {
 
 type VueLocale = "atraiter" | "toutes"
 
-/** Réponse partielle de GET /api/pro/coach (on ne garde que dernierRapport.recommandations). */
+/** Réponse partielle de GET /api/pro/coach (on garde priorités structurées + recommandations). */
+type PrioriteStructuree = {
+  niveau: "critique" | "important" | "suggestion"
+  titre: string
+  description: string
+  recommandation: string
+  zoneNom?: string
+  retourIds: string[]
+}
+
 type CoachDataPartiel = {
   dernierRapport?: {
     recommandations?: string[]
     priorites?: string[]
   } | null
   prioritesDuJour?: string[]
+  /** Session 4 : priorités STRUCTURÉES (3 priorités du jour avec titre + reco) */
+  accueil?: {
+    priorites: PrioriteStructuree[]
+  } | null
 }
 
 /** Retours pertinents pour le suivi managérial : déjà pris en charge OU note ≤ 3 */
@@ -77,6 +92,7 @@ export function ActionsTab() {
 
   // ---------- Recommandations du Coach IA (audit UX) ----------
   const [recommandations, setRecommandations] = useState<string[]>([])
+  const [prioritesStructurees, setPrioritesStructurees] = useState<PrioriteStructuree[]>([])
   const [recoLoading, setRecoLoading] = useState(true)
   // Dialogue « Créer une action » pré-rempli avec une recommandation IA
   const [recoActive, setRecoActive] = useState<string | null>(null)
@@ -121,7 +137,10 @@ export function ActionsTab() {
         if (annule) return
         if (j?.ok) {
           const data = j.data as CoachDataPartiel
-          // Recommandations : priorité au rapport IA, sinon aux priorités du jour
+          // Priorités STRUCTURÉES du jour (3 priorités avec titre + reco) — audit UX
+          const priorites = data.accueil?.priorites ?? []
+          setPrioritesStructurees(Array.isArray(priorites) ? priorites.slice(0, 3) : [])
+          // Recommandations (fallback) : priorité au rapport IA, sinon aux priorités du jour
           const recos = data.dernierRapport?.recommandations ?? data.prioritesDuJour ?? []
           setRecommandations(Array.isArray(recos) ? recos.filter((r) => typeof r === "string" && r.trim()) : [])
         }
@@ -221,9 +240,59 @@ export function ActionsTab() {
           </h2>
         </div>
         {recoLoading ? (
-          <div className="grid gap-3 md:grid-cols-2">
-            <Skeleton className="h-32 rounded-xl" />
-            <Skeleton className="h-32 rounded-xl" />
+          <div className="grid gap-3 md:grid-cols-3">
+            <Skeleton className="h-40 rounded-xl" />
+            <Skeleton className="h-40 rounded-xl" />
+            <Skeleton className="h-40 rounded-xl" />
+          </div>
+        ) : prioritesStructurees.length > 0 ? (
+          // 3 priorités du jour STRUCTURÉES (🔥 critique / ⚠️ important / 💡 suggestion)
+          <div className="grid gap-3 md:grid-cols-3">
+            {prioritesStructurees.map((p, i) => {
+              const IconeNiveau =
+                p.niveau === "critique" ? Flame : p.niveau === "important" ? AlertTriangle : Lightbulb
+              const badgeClass =
+                p.niveau === "critique"
+                  ? "border-red-300 bg-red-100 text-red-700"
+                  : p.niveau === "important"
+                    ? "border-amber-300 bg-amber-100 text-amber-700"
+                    : "border-violet-300 bg-violet-100 text-violet-700"
+              const libelle = p.niveau === "critique" ? "Urgent" : p.niveau === "important" ? "Important" : "Suggestion"
+              const emoji = p.niveau === "critique" ? "🔥" : p.niveau === "important" ? "⚠️" : "💡"
+              return (
+                <Card key={i} className="flex flex-col shadow-sm">
+                  <CardContent className="flex flex-1 flex-col gap-3 p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <p className="font-semibold leading-snug">
+                        {emoji} {p.titre}
+                      </p>
+                      <Badge variant="outline" className={cn("shrink-0 gap-1", badgeClass)}>
+                        <IconeNiveau className="h-3 w-3" aria-hidden />
+                        {libelle}
+                      </Badge>
+                    </div>
+                    {p.zoneNom && (
+                      <Badge variant="secondary" className="w-fit text-[11px]">
+                        📍 {p.zoneNom}
+                      </Badge>
+                    )}
+                    <p className="text-sm leading-relaxed text-muted-foreground">{p.recommandation}</p>
+                    <div className="mt-auto flex justify-end pt-1">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => ouvrirReco(p.recommandation)}
+                        disabled={aTraiter.length === 0}
+                        title={aTraiter.length === 0 ? "Aucun retour à traiter pour le moment" : "Pré-remplir le formulaire d'action"}
+                      >
+                        <Plus className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                        Créer une action
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
           </div>
         ) : recommandations.length === 0 ? (
           <Card className="border-primary/20 bg-primary/[0.03] shadow-sm">
@@ -239,8 +308,9 @@ export function ActionsTab() {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid gap-3 md:grid-cols-2">
-            {recommandations.slice(0, 4).map((reco, i) => (
+          // Fallback : recommandations textuelles brutes (max 3)
+          <div className="grid gap-3 md:grid-cols-3">
+            {recommandations.slice(0, 3).map((reco, i) => (
               <Card key={i} className="flex flex-col shadow-sm">
                 <CardContent className="flex flex-1 flex-col gap-3 p-4">
                   <div className="flex items-start gap-2">

@@ -55,6 +55,8 @@ export function RecompensesTab() {
   const [texte, setTexte] = useState("")
   const [code, setCode] = useState("")
   const [limite, setLimite] = useState("")
+  /** Audit UX : toggle « 1 par client / jour » — quand activé, pré-remplit la limite */
+  const [limite1ParClient, setLimite1ParClient] = useState(false)
   const [pourcentage, setPourcentage] = useState("10")
   const [saving, setSaving] = useState(false)
   // ---------- Stats d'utilisation ----------
@@ -80,6 +82,9 @@ export function RecompensesTab() {
           setTexte(cfg.texte ?? "")
           setCode(cfg.code ?? "")
           setLimite(cfg.limite ?? "")
+          // Audit UX : si la limite existante est « 1 par client / jour », on
+          // coche le toggle dédié (et masque le champ texte correspondant).
+          setLimite1ParClient((cfg.limite ?? "").toLowerCase() === "1 par client / jour")
           // Pourcentage extrait du texte existant (ex. « -15% » → 15)
           const match = cfg.texte?.match(/-(\d{1,2})\s?%/)
           if (match) setPourcentage(match[1])
@@ -106,6 +111,17 @@ export function RecompensesTab() {
     const propre = valeur.replace(/[^0-9]/g, "").slice(0, 2)
     setPourcentage(propre)
     setTexte(`🎁 -${propre || 0}% sur votre prochaine visite`)
+  }
+
+  /** Audit UX : toggle « 1 par client / jour » — pré-remplit la limite et
+   *  masque le champ texte de limite personnalisée. */
+  function basculerLimite1ParClient(on: boolean) {
+    setLimite1ParClient(on)
+    if (on) {
+      setLimite("1 par client / jour")
+    } else if (limite.toLowerCase() === "1 par client / jour") {
+      setLimite("")
+    }
   }
 
   // ---------- Enregistrement ----------
@@ -302,21 +318,41 @@ export function RecompensesTab() {
                   </p>
                 </div>
 
-                {/* Limite d'utilisation (audit UX) */}
-                <div className="space-y-1.5">
-                  <Label htmlFor="rc-limite">Limite d&apos;utilisation (optionnel)</Label>
-                  <Input
-                    id="rc-limite"
-                    value={limite}
-                    onChange={(e) => setLimite(e.target.value)}
-                    placeholder="1 par client / jour"
-                    maxLength={60}
-                    className="h-10"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Affichée discrètement sous le code promo pour rappeler la condition (ex: « 1 par
-                    client / jour », « Valable 30 jours »).
-                  </p>
+                {/* Limite d'utilisation (audit UX) : toggle « 1 par client / jour »
+                    + champ texte pour une limite personnalisée. */}
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between gap-3 rounded-xl border p-3.5">
+                    <div className="min-w-0">
+                      <Label htmlFor="rc-limite-toggle" className="cursor-pointer text-sm font-medium">
+                        Limite : 1 par client / jour
+                      </Label>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        Limite l&apos;utilisation de la récompense à une fois par client et par jour.
+                      </p>
+                    </div>
+                    <Switch
+                      id="rc-limite-toggle"
+                      checked={limite1ParClient}
+                      onCheckedChange={basculerLimite1ParClient}
+                      aria-label="Limiter à 1 récompense par client et par jour"
+                    />
+                  </div>
+                  {!limite1ParClient && (
+                    <div className="space-y-1.5">
+                      <Label htmlFor="rc-limite">Limite personnalisée (optionnel)</Label>
+                      <Input
+                        id="rc-limite"
+                        value={limite}
+                        onChange={(e) => setLimite(e.target.value)}
+                        placeholder="Valable 30 jours, 1 par semaine…"
+                        maxLength={60}
+                        className="h-10"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        Affichée discrètement sous le code promo pour rappeler la condition.
+                      </p>
+                    </div>
+                  )}
                 </div>
 
                 <Button onClick={enregistrer} disabled={saving} className="h-10">

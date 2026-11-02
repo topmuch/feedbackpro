@@ -525,15 +525,15 @@ export function SettingsTab() {
             </div>
             <Button
               type="button"
-              variant="outline"
+              variant="link"
               size="sm"
-              className="shrink-0"
+              className="shrink-0 gap-1 px-2 text-primary"
               onClick={() => {
                 window.location.href = "/dashboard/billing"
               }}
             >
-              <ExternalLink className="mr-1.5 h-4 w-4" aria-hidden />
-              Gérer dans Facturation
+              Voir détails
+              <ExternalLink className="h-3.5 w-3.5" aria-hidden />
             </Button>
           </div>
         </CardContent>
@@ -547,6 +547,11 @@ export function SettingsTab() {
               G
             </span>
             Google Business Profile
+            {/* Audit UX : la synchronisation automatique (API Google) est à venir.
+                La saisie manuelle de l'URL d'avis est fonctionnelle dès maintenant. */}
+            <Badge variant="secondary" className="text-[10px] font-medium text-muted-foreground">
+              Synchronisation auto : bientôt disponible
+            </Badge>
           </CardTitle>
           <CardDescription>
             Renseignez l&apos;URL de votre fiche d&apos;avis Google. Elle sera proposée aux clients qui laissent une note ≥ 4★.

@@ -577,14 +577,37 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
   // Sections d'accueil Session 4 (fallback : ancien calcul si accueil absent)
   const accueil = coachData?.accueil ?? null
 
-  /** Score du jour affiché : repli sur la moyenne 7 j si pas de retour aujourd'hui */
+  /** Score du jour affiché : repli sur la moyenne 7 j si pas de retour aujourd'hui.
+   *  Audit UX : si aucune donnée (0 retour aujourd'hui ET score 7 j nul),
+   *  on affiche « — » + un message encourageant au lieu d'un score « 0 » trompeur. */
   const scoreDuJour = accueil?.scoreDuJour ?? null
   const repli7j = (scoreDuJour?.retoursAujourdhui ?? 0) === 0 && (scoreDuJour?.score7j ?? 0) > 0
-  const scoreJourAffiche = scoreDuJour ? (repli7j ? scoreDuJour.score7j : scoreDuJour.score) : null
-  const mentionScore = repli7j ? "moyenne 7 jours" : "aujourd'hui"
+  const pasDeDonneesJour =
+    (scoreDuJour?.retoursAujourdhui ?? 0) === 0 && (scoreDuJour?.score7j ?? 0) === 0
+  const scoreJourAffiche =
+    scoreDuJour && !pasDeDonneesJour ? (repli7j ? scoreDuJour.score7j : scoreDuJour.score) : null
+  const mentionScore = pasDeDonneesJour ? "—" : repli7j ? "moyenne 7 jours" : "aujourd'hui"
 
-  /** Prédictions : accueil en priorité, sinon celles du dernier rapport */
-  const predictions = accueil ? (accueil.predictions ?? []) : (dernier?.predictions ?? [])
+  /**
+   * Audit UX : la zone la plus faible (mentionnée dans les priorités critiques
+   * ou importantes) — utilisée pour personnaliser les prédictions du Coach.
+   */
+  const zoneLaPlusFaible = accueil?.priorites?.find(
+    (p) => (p.niveau === "critique" || p.niveau === "important") && p.zoneNom
+  )?.zoneNom ?? null
+
+  /** Prédictions : accueil en priorité, sinon celles du dernier rapport.
+   *  Audit UX : personnalisation — « Chaque semaine sans action coûte 2 à 3
+   *  points » devient « Sans action sur [zone], vous risquez de perdre 2 à 3
+   *  points la semaine prochaine » dès qu'une zone faible est identifiée. */
+  const predictionsBrutes = accueil ? (accueil.predictions ?? []) : (dernier?.predictions ?? [])
+  const predictions = zoneLaPlusFaible
+    ? predictionsBrutes.map((p) =>
+        /chaque semaine sans action/i.test(p)
+          ? `Sans action sur ${zoneLaPlusFaible}, vous risquez de perdre 2 à 3 points la semaine prochaine.`
+          : p
+      )
+    : predictionsBrutes
 
   /** Session 5 : analyse sémantique — données dérivées (tolérantes aux champs absents) */
   const themes = themesData?.themes ?? []
@@ -817,51 +840,57 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
           </h2>
           <Card className="overflow-hidden border-primary/20 bg-primary/[0.03] shadow-sm">
             <CardContent className="flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-center">
-              {/* Gros score UNIFIÉ avec jauge colorée (vert >80 / ambre 60-80 / rouge <60)
-                  Audit UX : ce score est le MÊME que celui de la KPI card « Score global (30 j) ». */}
+              {/* Gros score DU JOUR avec jauge colorée (vert >80 / ambre 60-80 / rouge <60).
+                  Audit UX : ce score est le score du jour (aujourd'hui ou repli
+                  moyenne 7 j). Le KPI « Score global (30 j) » plus bas affiche
+                  lui le score mensuel — les deux sont désormais différenciés. */}
               <div
                 className="flex items-center gap-4 lg:w-44 lg:shrink-0 lg:flex-col lg:items-center lg:gap-2"
-                title="Score moyen pondéré sur les 30 derniers jours"
+                title={`Score du jour — ${mentionScore}`}
               >
-                <div className="relative flex h-24 w-24 shrink-0 items-center justify-center rounded-full">
-                  <svg className="absolute inset-0 -rotate-90" viewBox="0 0 100 100" aria-hidden>
-                    <circle cx="50" cy="50" r="44" fill="none" stroke="currentColor" strokeWidth="8" className="text-muted/30" />
-                    <circle
-                      cx="50"
-                      cy="50"
-                      r="44"
-                      fill="none"
-                      strokeWidth="8"
-                      strokeLinecap="round"
-                      stroke="currentColor"
-                      className={
-                        scoreUnifie != null && scoreUnifie >= 80
-                          ? "text-green-500"
-                          : scoreUnifie != null && scoreUnifie >= 60
-                            ? "text-amber-500"
-                            : "text-rose-500"
-                      }
-                      strokeDasharray={`${(scoreUnifie ?? 0) * 2.76} 999`}
-                    />
-                  </svg>
-                  <span
-                    className={cn(
-                      "text-2xl font-extrabold tracking-tight",
-                      scoreUnifie != null && scoreUnifie >= 80
-                        ? "text-green-600"
-                        : scoreUnifie != null && scoreUnifie >= 60
-                          ? "text-amber-600"
-                          : "text-rose-600"
-                    )}
-                  >
-                    {scoreUnifie != null ? Math.round(scoreUnifie) : "—"}
-                  </span>
-                </div>
+                {scoreJourAffiche != null ? (
+                  <div className="relative flex h-24 w-24 shrink-0 items-center justify-center rounded-full">
+                    <svg className="absolute inset-0 -rotate-90" viewBox="0 0 100 100" aria-hidden>
+                      <circle cx="50" cy="50" r="44" fill="none" stroke="currentColor" strokeWidth="8" className="text-muted/30" />
+                      <circle
+                        cx="50"
+                        cy="50"
+                        r="44"
+                        fill="none"
+                        strokeWidth="8"
+                        strokeLinecap="round"
+                        stroke="currentColor"
+                        className={
+                          scoreJourAffiche >= 80
+                            ? "text-green-500"
+                            : scoreJourAffiche >= 60
+                              ? "text-amber-500"
+                              : "text-rose-500"
+                        }
+                        strokeDasharray={`${scoreJourAffiche * 2.76} 999`}
+                      />
+                    </svg>
+                    <span
+                      className={cn(
+                        "text-2xl font-extrabold tracking-tight",
+                        scoreJourAffiche >= 80
+                          ? "text-green-600"
+                          : scoreJourAffiche >= 60
+                            ? "text-amber-600"
+                            : "text-rose-600"
+                      )}
+                    >
+                      {Math.round(scoreJourAffiche)}
+                    </span>
+                  </div>
+                ) : (
+                  <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-full bg-muted/40">
+                    <span className="text-3xl font-light text-muted-foreground">—</span>
+                  </div>
+                )}
                 <div className="lg:text-center">
-                  <p className="text-xs font-medium text-muted-foreground">Score global (30 j)</p>
-                  <p className="text-[11px] text-muted-foreground" title={sourceScoreUnifie}>
-                    / 100 · {sourceScoreUnifie}
-                  </p>
+                  <p className="text-xs font-medium text-muted-foreground">Score du jour</p>
+                  <p className="text-[11px] text-muted-foreground">{mentionScore}</p>
                 </div>
               </div>
 
@@ -878,14 +907,19 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
                   retour{scoreDuJour.retoursAujourdhui > 1 ? "s" : ""} collecté
                   {scoreDuJour.retoursAujourdhui > 1 ? "s" : ""} aujourd&apos;hui via vos QR codes
                 </p>
-                <p className="text-[11px] text-muted-foreground" title="Score moyen pondéré sur les 30 derniers jours">
-                  Score du jour : {scoreJourAffiche != null ? Math.round(scoreJourAffiche) : "—"}/100 ({mentionScore})
-                </p>
-                {/* Encouragement quand pas assez de données pour comparer (audit UX) */}
-                {scoreDuJour.vsHierPct == null && scoreDuJour.vsSemainePct == null && (
+                {/* Audit UX : « Pas assez de données » pour le score du jour → message encourageant */}
+                {scoreJourAffiche == null ? (
                   <p className="text-xs font-medium text-primary">
-                    Continuez à collecter des retours, votre rapport sera plus précis jour après jour ! 🌟
+                    Continuez à collecter des retours, votre rapport quotidien sera plus précis ! 🌟
                   </p>
+                ) : (
+                  /* Encouragement quand pas assez de données pour comparer (audit UX) */
+                  scoreDuJour.vsHierPct == null &&
+                  scoreDuJour.vsSemainePct == null && (
+                    <p className="text-xs font-medium text-primary">
+                      Continuez à collecter des retours, votre rapport sera plus précis jour après jour ! 🌟
+                    </p>
+                  )
                 )}
               </div>
 
@@ -964,8 +998,9 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
         <div className="grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
           <KpiCard
             icon={Star}
-            label="Score global (30 j)"
+            label="Score global"
             value={scoreUnifie != null ? Math.round(scoreUnifie) : "—"}
+            subtitle="30 derniers jours"
             hint={
               evolution != null && evolution !== 0
                 ? `${evolution > 0 ? "+" : ""}${evolution} % vs période précédente`
@@ -1127,7 +1162,7 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
               <CardContent>
                 {accueil.pointsPositifs.employes.length === 0 ? (
                   <p className="py-4 text-center text-sm text-muted-foreground">
-                    Vos premiers retours positifs arriveront bientôt ! Chaque retour compte. 🌟
+                    Vos premiers retours positifs arriveront bientôt ! Continuez à collecter des retours. 🌟
                   </p>
                 ) : (
                   <ul className="space-y-3">
@@ -1155,7 +1190,7 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
               <CardContent>
                 {accueil.pointsPositifs.zones.length === 0 ? (
                   <p className="py-4 text-center text-sm text-muted-foreground">
-                    Vos premiers retours positifs arriveront bientôt ! Chaque retour compte. 🌟
+                    Vos premiers retours positifs arriveront bientôt ! Continuez à collecter des retours. 🌟
                   </p>
                 ) : (
                   <ul className="space-y-3">
@@ -1185,7 +1220,7 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
               <CardContent>
                 {accueil.pointsPositifs.messages.length === 0 ? (
                   <p className="py-4 text-center text-sm text-muted-foreground">
-                    Vos premiers retours positifs arriveront bientôt ! Chaque retour compte. 🌟
+                    Vos premiers retours positifs arriveront bientôt ! Continuez à collecter des retours. 🌟
                   </p>
                 ) : (
                   <ul className="space-y-2.5">
@@ -1603,6 +1638,7 @@ function KpiCard({
   hintTone = "neutral",
   alerte = false,
   title,
+  subtitle,
 }: {
   icon: React.ComponentType<{ className?: string }>
   label: string
@@ -1611,6 +1647,7 @@ function KpiCard({
   hintTone?: "up" | "down" | "neutral"
   alerte?: boolean
   title?: string
+  subtitle?: string
 }) {
   const HintIcon = hintTone === "up" ? TrendingUp : hintTone === "down" ? TrendingDown : Minus
   const toneClass =
@@ -1622,6 +1659,7 @@ function KpiCard({
           <div className="min-w-0">
             <p className="truncate text-xs text-muted-foreground sm:text-sm">{label}</p>
             <p className="mt-1 text-2xl font-bold tracking-tight sm:text-3xl">{value}</p>
+            {subtitle && <p className="text-[10px] text-muted-foreground">{subtitle}</p>}
             {hint && (
               <p className={cn("mt-1 flex items-center gap-1 text-[11px] sm:text-xs", toneClass)}>
                 <HintIcon className="h-3 w-3 shrink-0" aria-hidden /> {hint}

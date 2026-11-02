@@ -20,7 +20,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { StatCard } from "@/components/feedbackpro/shared"
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/app-store"
-import { JOURS, tagLabel } from "@/lib/constants"
+import { JOURS, tagLabel, POSITIVE_TAGS_ETENDUS, NEGATIVE_TAGS_ETENDUS } from "@/lib/constants"
 import { exportToCsv } from "@/lib/export-csv"
 import {
   ResponsiveContainer,
@@ -102,8 +102,29 @@ function libellePeriode(p: Periode): string {
 const BLEU = "#3B82F6"
 const VERT = "#10B981"
 const ROUGE = "#EF4444"
+/** Audit UX : rose-500 (#F43F5E) pour les tags négatifs (fill-rose-500) */
+const ROSE = "#F43F5E"
 /** Palette du thème (6 teintes distinctes) pour le camembert des zones */
 const ZONE_COLORS = ["#3B82F6", "#0891b2", "#7c3aed", "#f59e0b", "#10B981", "#EF4444"]
+
+/** Ensembles d'IDs de tags positifs/négatifs pour la coloration par sentiment. */
+const IDS_TAGS_POSITIFS = new Set(POSITIVE_TAGS_ETENDUS.map((t) => t.id))
+const IDS_TAGS_NEGATIFS = new Set(NEGATIVE_TAGS_ETENDUS.map((t) => t.id))
+
+/**
+ * Détermine le sentiment d'un tag à partir de son ID (ou label).
+ * Audit UX : colore les barres — vert pour positif, rouge pour négatif,
+ * bleu pour neutre. On vérifie l'appartenance aux catalogues de constants.ts.
+ */
+function sentimentTag(id: string, label: string): "positif" | "negatif" | "neutre" {
+  if (IDS_TAGS_POSITIFS.has(id)) return "positif"
+  if (IDS_TAGS_NEGATIFS.has(id)) return "negatif"
+  // Repli heuristique sur le label (tags libres hors catalogue)
+  const l = label.toLowerCase()
+  if (/(prop|rapide|accueill|excellent|chaleureux|propre|agreable|bien)/.test(l)) return "positif"
+  if (/(impol|froid|lent|sale|attente|distrait|erreur|tiede|desagreable|manque)/.test(l)) return "negatif"
+  return "neutre"
+}
 
 /** Garde-fou : renvoie toujours un tableau (l'API peut être en cours de migration) */
 function enArray<T>(v: T[] | null | undefined): T[] {
@@ -170,12 +191,18 @@ export function StatsTab() {
   const intervalleX = Math.max(0, Math.floor(courbe.length / 8) - 1)
 
   // Tags les plus fréquents (déjà triés par count desc côté API, top 8)
+  // Audit UX : sentiment déterminé via POSITIVE/NEGATIVE_TAGS (constants.ts)
+  // plutôt que via le champ `type` de l'API qui peut être absent.
   const parTag = enArray(data?.parTag)
-    .map((t) => ({
-      label: t.label ?? tagLabel(t.tag ?? t.id ?? "?"),
-      count: t.count ?? 0,
-      type: t.type ?? "libre",
-    }))
+    .map((t) => {
+      const id = t.tag ?? t.id ?? "?"
+      const label = t.label ?? tagLabel(id)
+      return {
+        label,
+        count: t.count ?? 0,
+        type: sentimentTag(id, label),
+      }
+    })
     .filter((t) => t.count > 0)
     .slice(0, 8)
   // Inversé pour l'affichage : en BarChart vertical, la 1re catégorie se
@@ -188,6 +215,11 @@ export function StatsTab() {
     noteMoy: z.noteMoy ?? 0,
     total: z.total ?? 0,
   }))
+
+  /** Audit UX : la zone la plus faible (note moyenne la plus basse, avec ≥ 1 retour).
+   *  Utilisée pour personnaliser le conseil du benchmark sectoriel. */
+  const zoneLaPlusFaible =
+    parZone.filter((z) => z.total > 0).sort((a, b) => a.noteMoy - b.noteMoy)[0]?.zoneNom ?? null
 
   // Heatmap 7 jours × 24h : matrice [jour][heure] à partir des lignes API
   const indexJour = (jour: number | string | undefined): number => {
@@ -564,13 +596,15 @@ export function StatsTab() {
                   {data.benchmark.ecart !== null && data.benchmark.ecart > 0 ? "+" : ""}
                   {data.benchmark.ecart?.toFixed(2)} pts vs secteur
                 </div>
-                {/* Conseil contextuel : si écart négatif, orienter le pro vers ses zones faibles */}
+                {/* Conseil contextuel : si écart négatif, orienter le pro vers sa zone la plus faible.
+                    Audit UX : personnalisation avec le nom de la zone la moins bien notée. */}
                 {(data.benchmark.ecart ?? 0) < 0 && (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
                     <p className="font-semibold">💡 Conseil du Coach IA</p>
                     <p className="mt-0.5">
-                      Concentrez-vous sur vos zones les plus faibles pour dépasser la moyenne du secteur.
-                      Identifiez la zone la moins bien notée ci-dessous et engagez une action prioritaire.
+                      {zoneLaPlusFaible
+                        ? `Concentrez-vous sur ${zoneLaPlusFaible} pour dépasser la moyenne de votre secteur.`
+                        : "Concentrez-vous sur vos zones les plus faibles pour dépasser la moyenne du secteur."}
                     </p>
                   </div>
                 )}
@@ -696,7 +730,7 @@ export function StatsTab() {
                 <Tooltip formatter={(v) => [`${v} mention(s)`, ""]} labelStyle={{ color: "#1c1917" }} />
                 <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={18}>
                   {parTagGraphique.map((t, i) => (
-                    <Cell key={`${t.label}-${i}`} fill={t.type === "positif" ? VERT : t.type === "negatif" ? ROUGE : BLEU} />
+                    <Cell key={`${t.label}-${i}`} fill={t.type === "positif" ? VERT : t.type === "negatif" ? ROSE : BLEU} />
                   ))}
                 </Bar>
               </BarChart>

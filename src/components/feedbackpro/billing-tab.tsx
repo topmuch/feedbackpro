@@ -318,6 +318,12 @@ export function BillingTab() {
                 </div>
                 <CardDescription className="pt-1">{p.tagline}</CardDescription>
                 <p className="pt-2 text-2xl font-bold tracking-tight">
+                  {/* Audit UX : en annuel, le prix mensuel d'origine est barré */}
+                  {periode === "annuel" && p.price > 0 && (
+                    <span className="mr-1.5 text-base font-normal text-muted-foreground line-through decoration-muted-foreground/60">
+                      {p.price} €
+                    </span>
+                  )}
                   {prix} €
                   {p.price > 0 && (
                     <span className="text-sm font-normal text-muted-foreground">
