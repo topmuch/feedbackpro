@@ -118,6 +118,35 @@ export interface TraductionsScan {
   // Task M3 — Mode offline : message affiché sur l'écran de succès quand
   // le retour a été stocké hors ligne (sans réseau) plutôt qu'envoyé.
   retourEnregistreHorsLigne: string
+  // ---- Refonte QRTags (wizard à étapes plein écran bleu) ----
+  // Indicateur d'étape : "ÉTAPE 1 SUR 4 — VOTRE NOTE"
+  etapeSur: (n: number, total: number, sujet: string) => string
+  sujetNote: string
+  sujetDetails: string
+  sujetCommentaire: string
+  sujetEnvoi: string
+  // Titres H1 (police système, font-weight 900, blanc sur fond bleu)
+  titreNoteH1: string
+  sousTitreNote: string
+  titreTagsPositif: string
+  titreTagsNegatif: string
+  sousTitreTagsH1: string
+  titreCommentaireH1: string
+  sousTitreCommentaire: string
+  titreEnvoiH1: string
+  sousTitreEnvoi: string
+  // Boutons plein largeur en bas
+  suivant: string
+  // Récapitulatif visuel (étape 4)
+  recapVotreNote: string
+  recapVotreCommentaire: string
+  recapAucunCommentaire: string
+  recapPhotoAjoutee: string
+  recapPersonnelAjoute: string
+  recapNps: string
+  recapModifier: string
+  // Étiquettes étoiles courtes (cards emoji étape 1)
+  etoileLabel: (n: number) => string
 }
 
 export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
@@ -207,6 +236,30 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     avisGoogle: "Laissez un avis Google",
     avisGoogleAide: "Ça aide beaucoup l'établissement — merci !",
     retourEnregistreHorsLigne: "✓ Retour enregistré hors ligne — sera envoyé à la reconnexion",
+    // ---- Refonte QRTags (wizard plein écran bleu) ----
+    etapeSur: (n, total, sujet) => `ÉTAPE ${n} SUR ${total} — ${sujet}`,
+    sujetNote: "VOTRE NOTE",
+    sujetDetails: "DÉTAILS",
+    sujetCommentaire: "COMMENTAIRE",
+    sujetEnvoi: "ENVOI",
+    titreNoteH1: "Comment évaluez-vous votre expérience ?",
+    sousTitreNote: "Votre avis compte, en 15 secondes chrono.",
+    titreTagsPositif: "🎉 Qu'avez-vous apprécié ?",
+    titreTagsNegatif: "😔 Qu'est-ce qui n'a pas été ?",
+    sousTitreTagsH1: "Sélectionnez tout ce qui correspond (au moins un).",
+    titreCommentaireH1: "💬 Un commentaire ?",
+    sousTitreCommentaire: "Optionnel — mais précieux pour le gérant.",
+    titreEnvoiH1: "Prêt à envoyer ?",
+    sousTitreEnvoi: "Vérifiez votre retour avant l'envoi.",
+    suivant: "Suivant",
+    recapVotreNote: "Votre note",
+    recapVotreCommentaire: "Votre commentaire",
+    recapAucunCommentaire: "Aucun commentaire",
+    recapPhotoAjoutee: "Photo ajoutée",
+    recapPersonnelAjoute: "Personnel concerné",
+    recapNps: "Recommandation",
+    recapModifier: "Modifier",
+    etoileLabel: (n) => `${n} étoile${n > 1 ? "s" : ""}`,
   },
   en: {
     dir: "ltr",
@@ -291,6 +344,30 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     avisGoogle: "Leave a Google review",
     avisGoogleAide: "It really helps the business — thank you!",
     retourEnregistreHorsLigne: "✓ Feedback saved offline — will be sent when reconnected",
+    // ---- QRTags redesign (full-screen blue wizard) ----
+    etapeSur: (n, total, sujet) => `STEP ${n} OF ${total} — ${sujet}`,
+    sujetNote: "YOUR RATING",
+    sujetDetails: "DETAILS",
+    sujetCommentaire: "COMMENT",
+    sujetEnvoi: "SEND",
+    titreNoteH1: "How would you rate your experience?",
+    sousTitreNote: "Your feedback matters — 15 seconds flat.",
+    titreTagsPositif: "🎉 What did you enjoy?",
+    titreTagsNegatif: "😔 What didn't go well?",
+    sousTitreTagsH1: "Select everything that applies (at least one).",
+    titreCommentaireH1: "💬 A comment?",
+    sousTitreCommentaire: "Optional — but valuable for the manager.",
+    titreEnvoiH1: "Ready to send?",
+    sousTitreEnvoi: "Review your feedback before sending.",
+    suivant: "Next",
+    recapVotreNote: "Your rating",
+    recapVotreCommentaire: "Your comment",
+    recapAucunCommentaire: "No comment",
+    recapPhotoAjoutee: "Photo added",
+    recapPersonnelAjoute: "Staff member",
+    recapNps: "Recommendation",
+    recapModifier: "Edit",
+    etoileLabel: (n) => `${n} star${n > 1 ? "s" : ""}`,
   },
   ar: {
     dir: "rtl",
@@ -375,6 +452,30 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     avisGoogle: "اترك تقييم Google",
     avisGoogleAide: "هذا يساعد المنشأة كثيراً — شكراً!",
     retourEnregistreHorsLigne: "✓ تم حفظ رأيك دون اتصال — سيُرسل عند إعادة الاتصال",
+    // ---- إعادة تصميم QRTags (معالج ملء الشاشة باللون الأزرق) ----
+    etapeSur: (n, total, sujet) => `الخطوة ${n} من ${total} — ${sujet}`,
+    sujetNote: "تقييمك",
+    sujetDetails: "التفاصيل",
+    sujetCommentaire: "تعليق",
+    sujetEnvoi: "إرسال",
+    titreNoteH1: "كيف تقيّم تجربتك؟",
+    sousTitreNote: "رأيك يهمنا — 15 ثانية فقط.",
+    titreTagsPositif: "🎉 ما الذي أعجبك؟",
+    titreTagsNegatif: "😔 ما الذي لم يكن جيداً؟",
+    sousTitreTagsH1: "اختر كل ما ينطبق (واحد على الأقل).",
+    titreCommentaireH1: "💬 تعليق؟",
+    sousTitreCommentaire: "اختياري — لكنه قيّم للمدير.",
+    titreEnvoiH1: "جاهز للإرسال؟",
+    sousTitreEnvoi: "راجع رأيك قبل الإرسال.",
+    suivant: "التالي",
+    recapVotreNote: "تقييمك",
+    recapVotreCommentaire: "تعليقك",
+    recapAucunCommentaire: "لا يوجد تعليق",
+    recapPhotoAjoutee: "تمت إضافة صورة",
+    recapPersonnelAjoute: "الموظف المعني",
+    recapNps: "التوصية",
+    recapModifier: "تعديل",
+    etoileLabel: (n) => `${n} نج${n > 1 ? "وم" : "مة"}`,
   },
 }
 

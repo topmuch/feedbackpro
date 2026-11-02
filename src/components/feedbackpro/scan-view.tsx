@@ -63,7 +63,6 @@ import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
-import { Skeleton } from "@/components/ui/skeleton"
 import { Slider } from "@/components/ui/slider"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
@@ -111,7 +110,7 @@ type ScanData = {
   }
 }
 
-type Phase = "loading" | "error" | "welcome" | "step1" | "step2" | "step3" | "success"
+type Phase = "loading" | "error" | "welcome" | "step1" | "step2" | "step3" | "step4" | "success"
 type CanalEnvoi = "whatsapp" | "aucun"
 
 // ---------- Constantes d'affichage ----------
@@ -177,7 +176,8 @@ function phraseAccroche(nomZone: string, t: TraductionsScan): string {
 }
 
 // ---------- Sélecteur de langue (D3 — Globe) ----------
-
+// Version QRTags : discret sur fond bleu plein (bg-white/10 backdrop-blur,
+// texte blanc), menu déroulant blanc classique pour la lisibilité.
 function SelecteurLangue({
   langue,
   onChange,
@@ -192,7 +192,7 @@ function SelecteurLangue({
       <button
         type="button"
         onClick={() => setOuvert((o) => !o)}
-        className="inline-flex items-center gap-1.5 rounded-full border border-border/80 bg-background/80 px-3 py-1.5 text-xs font-medium text-muted-foreground shadow-sm backdrop-blur transition-colors hover:bg-muted"
+        className="inline-flex items-center gap-1.5 rounded-full border border-white/30 bg-white/15 px-3 py-1.5 text-xs font-medium text-white shadow-sm backdrop-blur transition-colors hover:bg-white/25"
         aria-label="Change language"
         aria-expanded={ouvert}
       >
@@ -204,7 +204,7 @@ function SelecteurLangue({
         <>
           {/* Clique hors du menu pour fermer */}
           <div className="fixed inset-0 z-0" aria-hidden onClick={() => setOuvert(false)} />
-          <div className="absolute right-0 z-20 mt-1 w-40 overflow-hidden rounded-xl border border-border bg-popover py-1 shadow-lg">
+          <div className="absolute right-0 z-20 mt-1 w-40 overflow-hidden rounded-xl border border-gray-900 bg-white py-1 text-gray-900 shadow-lg">
             {LANGUES_SCAN.map((l) => (
               <button
                 key={l.id}
@@ -216,8 +216,8 @@ function SelecteurLangue({
                 className={cn(
                   "flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors",
                   l.id === langue
-                    ? "bg-primary/5 font-semibold text-primary"
-                    : "text-foreground/80 hover:bg-muted"
+                    ? "bg-blue-50 font-semibold text-blue-700"
+                    : "text-gray-800 hover:bg-gray-100"
                 )}
               >
                 <span aria-hidden>{l.flag}</span>
@@ -232,108 +232,17 @@ function SelecteurLangue({
   )
 }
 
-// ---------- Écran de chargement : skeleton + spinner léger ----------
-
+// ---------- Écran de chargement : wizard QRTags plein écran bleu ----------
+// Fond bleu FeedbackPro, spinner blanc, libellé "Chargement…" en blanc.
 function EcranChargement({ t }: { t: TraductionsScan }) {
   return (
     <div
-      className="flex min-h-dvh flex-col items-center justify-center gap-5 bg-background p-4"
+      className="flex min-h-dvh flex-col items-center justify-center gap-5 bg-blue-600 p-4 text-white"
       aria-busy="true"
     >
-      <Loader2 className="size-8 animate-spin text-primary" aria-hidden />
-      <div
-        aria-hidden
-        className="w-full max-w-md rounded-3xl border border-border bg-card p-6 shadow-lg"
-      >
-        {/* Simulation de l'en-tête (logo + nom + badge zone) */}
-        <div className="flex items-center gap-3">
-          <Skeleton className="size-14 shrink-0 rounded-2xl" />
-          <div className="flex-1 space-y-2">
-            <Skeleton className="h-4 w-2/3" />
-            <Skeleton className="h-5 w-24 rounded-full" />
-          </div>
-        </div>
-        {/* Simulation de la question + étoiles + bouton */}
-        <Skeleton className="mt-6 h-5 w-3/4" />
-        <div className="mt-6 flex justify-center gap-2">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <Skeleton key={i} className="size-12 rounded-full" />
-          ))}
-        </div>
-        <Skeleton className="mt-8 h-14 w-full rounded-2xl" />
-      </div>
-      <p className="text-sm text-muted-foreground">{t.charger}</p>
+      <Loader2 className="size-10 animate-spin text-white" aria-hidden />
+      <p className="text-base font-medium text-white/80">{t.charger}</p>
     </div>
-  )
-}
-
-// ---------- En-tête commun : logo + nom + badge zone ----------
-
-function EnTeteEtablissement({
-  pro,
-  zone,
-  avecSousTitre,
-  avecMarge,
-  t,
-}: {
-  pro: ScanData["pro"]
-  zone: ScanData["zone"]
-  avecSousTitre: boolean
-  avecMarge: boolean
-  t: TraductionsScan
-}) {
-  // Fallback local si le logo distant ne charge pas
-  const [logoUrlEnEchec, setLogoUrlEnEchec] = useState<string | null>(null)
-  const afficherLogo = Boolean(pro.logoUrl) && logoUrlEnEchec !== pro.logoUrl
-  const initiale = pro.nomEtablissement.charAt(0).toUpperCase()
-
-  return (
-    <header className={cn("mb-5", avecMarge && "pe-12")}>
-      <div className="flex items-center gap-3">
-        {afficherLogo && pro.logoUrl ? (
-          <img
-            key={pro.logoUrl}
-            src={pro.logoUrl}
-            alt={`Logo ${pro.nomEtablissement}`}
-            className="size-14 shrink-0 rounded-2xl border border-border bg-background object-cover"
-            loading="eager"
-            decoding="async"
-            // referrerPolicy évite le blocage hotlink sur les logos distants (https);
-            // sans effet sur les data: URLs (logos uploadés côté dashboard).
-            referrerPolicy="no-referrer"
-            onError={() => setLogoUrlEnEchec(pro.logoUrl ?? null)}
-          />
-        ) : (
-          <div
-            aria-hidden
-            className="flex size-14 shrink-0 items-center justify-center rounded-2xl border border-primary/20 bg-gradient-to-br from-primary/15 to-primary/5 text-xl font-bold text-primary"
-          >
-            {initiale}
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-lg font-bold leading-tight text-foreground">
-            {pro.nomEtablissement}
-          </p>
-          <p className="mt-1 inline-flex max-w-full items-center gap-1 rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-semibold text-primary">
-            <span aria-hidden>📍</span>
-            <span className="truncate">{zone.nom}</span>
-          </p>
-        </div>
-      </div>
-
-      {zone.description && (
-        <p className="mt-2 line-clamp-2 text-sm leading-snug text-muted-foreground">
-          {zone.description}
-        </p>
-      )}
-
-      {avecSousTitre && (
-        <p className="mt-3 border-t border-border/60 pt-3 text-sm font-medium text-muted-foreground">
-          {t.sousTitre}
-        </p>
-      )}
-    </header>
   )
 }
 
@@ -814,975 +723,1091 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
         ? "fp-scan-slide-right"
         : "fp-scan-slide-left"
 
-  // Fond contextuel de la carte (spec refonte) :
-  // - step1 : vert très pâle #F0FDF4 (bg-green-50) si 4-5★, rouge très pâle
-  //   #FEF2F2 (bg-red-50) si 1-3★ — transition 500 ms
-  // - step2 : bg-emerald-50 si positif, bg-rose-50 si négatif
-  // - autres : bg-card
-  const fondContextuel = (() => {
-    if (phase === "step1") {
-      if (note === 0) return "border-border bg-card"
-      return estPositif
-        ? "border-green-200 bg-green-50 dark:border-green-900/50 dark:bg-green-950/20"
-        : "border-red-200 bg-red-50 dark:border-red-900/50 dark:bg-red-950/20"
+  // Fond global plein écran (refonte QRTags) :
+  // - welcome / step2 / step3 / step4 / error : bg-blue-600
+  // - step1 : bg-blue-600 par défaut, bg-emerald-600 si 4-5★, bg-rose-600 si
+  //   1-3★ — transition douce 500 ms via transition-colors sur le conteneur
+  //   racine (l'utilisateur voit le fond virer au vert ou au rouge quand il
+  //   choisit sa note, ce qui conforte son ressenti).
+  // - success : bg-emerald-600 si positif (confettis), bg-blue-600 sinon.
+  const fondGlobal = (() => {
+    if (phase === "step1" && note > 0) {
+      return estPositif ? "bg-emerald-600" : "bg-rose-600"
     }
-    if (phase === "step2") {
-      return estPositif
-        ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900/50 dark:bg-emerald-950/30"
-        : "border-rose-200 bg-rose-50 dark:border-rose-900/50 dark:bg-rose-950/30"
+    if (phase === "success" && estPositif) {
+      return "bg-emerald-600"
     }
-    return "border-border bg-card"
+    return "bg-blue-600"
   })()
+
+  // Indicateur d'étape (1 à 4) pour les étapes step1 à step4
+  const numEtape =
+    phase === "step1"
+      ? 1
+      : phase === "step2"
+        ? 2
+        : phase === "step3"
+          ? 3
+          : phase === "step4"
+            ? 4
+            : 0
+  const TOTAL_ETAPES = 4
+
+  // Sujet de l'étape affiché dans l'indicateur (VOTRE NOTE / DÉTAILS…)
+  const sujetEtape =
+    phase === "step1"
+      ? t.sujetNote
+      : phase === "step2"
+        ? t.sujetDetails
+        : phase === "step3"
+          ? t.sujetCommentaire
+          : phase === "step4"
+            ? t.sujetEnvoi
+            : ""
+
+  // Bouton « Retour » : recule d'une étape, ou quitte le formulaire à step1.
+  function retourEtape() {
+    if (phase === "step1") onExit()
+    else if (phase === "step2") allerEtape("step1", -1)
+    else if (phase === "step3") allerEtape("step2", -1)
+    else if (phase === "step4") allerEtape("step3", -1)
+  }
+
+  // Affiche le top bar (Retour + langue + exit) sur toutes les étapes sauf
+  // error et success (qui ont leurs propres boutons centrés).
+  const avecTopBar =
+    phase === "welcome" ||
+    phase === "step1" ||
+    phase === "step2" ||
+    phase === "step3" ||
+    phase === "step4"
+
+  // Affiche le footer (Suivant + progress bar) sur les étapes 2 à 4.
+  // (Step1 a une auto-transition après clic — pas de bouton Suivant visible,
+  //  mais on garde quand même la progress bar pour la cohérence visuelle.)
+  const avecFooterProgress =
+    phase === "step1" || phase === "step2" || phase === "step3" || phase === "step4"
 
   return (
     <div
-      className="flex min-h-dvh items-center justify-center overflow-x-hidden bg-background p-3 sm:p-6"
+      className={cn(
+        "flex min-h-dvh flex-col text-white transition-colors duration-500",
+        fondGlobal
+      )}
       dir={t.dir}
     >
-      <div className="w-full max-w-md">
-        <div
-          className={cn(
-            // transition-colors duration-500 : spec refonte (fond contextuel
-            // step1 change en 500 ms entre vert très pâle et rouge très pâle)
-            "relative overflow-hidden rounded-3xl border shadow-xl transition-colors duration-500",
-            fondContextuel
-          )}
-        >
-          {/* Sélecteur de langue (D3) — discret, en haut à gauche */}
-          {phase !== "error" && (
-            <div className="absolute left-4 top-3 z-20 sm:left-6 sm:top-4">
-              <SelecteurLangue langue={langue} onChange={changerLangue} />
-            </div>
-          )}
-
-          {/* Bouton discret Quitter (étapes welcome à 3) */}
-          {onExit &&
-            (phase === "welcome" ||
-              phase === "step1" ||
+      {/* ====== Top bar (welcome + steps 1-4) ====== */}
+      {avecTopBar && (
+        <header className="flex items-center justify-between gap-3 px-4 pt-4 sm:px-6">
+          <div className="flex-1">
+            {(phase === "step1" ||
               phase === "step2" ||
-              phase === "step3") && (
+              phase === "step3" ||
+              phase === "step4") && (
+              <button
+                type="button"
+                onClick={retourEtape}
+                className="inline-flex items-center gap-1.5 rounded-full px-2 py-1.5 text-sm font-medium text-white/70 transition-colors hover:text-white"
+              >
+                <ArrowLeft className="size-4" aria-hidden />
+                {t.retour}
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <SelecteurLangue langue={langue} onChange={changerLangue} />
+            {onExit && (
               <Button
                 variant="ghost"
                 size="icon"
                 onClick={onExit}
                 aria-label={t.quitter}
-                className="absolute right-3 top-3 z-20 size-11 rounded-full text-muted-foreground hover:bg-muted hover:text-foreground sm:top-4"
+                className="size-9 rounded-full text-white/70 hover:bg-white/15 hover:text-white"
               >
                 <X className="size-5" aria-hidden />
               </Button>
             )}
+          </div>
+        </header>
+      )}
 
-          {/* Contenu principal — pb-9 sm:pb-11 laisse de la place pour la
-              barre de progression fixed bottom (4 px) en toute circonstance. */}
-          <div className="p-5 pb-9 sm:p-7 sm:pb-11">
-            {/* En-tête du pro + zone sur toutes les étapes du formulaire */}
-            {scanData && phase !== "error" && phase !== "welcome" && (
-              <EnTeteEtablissement
-                pro={scanData.pro}
-                zone={scanData.zone}
-                avecSousTitre={false}
-                avecMarge={phase !== "success"}
-                t={t}
-              />
-            )}
-
-            {/* Conteneur animé — key={phase} force le remount → l'animation
-                CSS se rejoue à chaque transition (slide-in depuis la droite
-                ou la gauche selon le sens). Pour l'étape welcome, la cascade
-                est appliquée individuellement sur les enfants. */}
-            <div key={phase} className={classeTransition}>
-              {/* ---------- ERREUR : QR code inconnu ou expiré ---------- */}
-              {phase === "error" && (
-                <div className="flex flex-col items-center gap-4 py-8 text-center">
-                  <div className="flex size-16 items-center justify-center rounded-full bg-rose-50 dark:bg-rose-950/40">
-                    <AlertCircle className="size-9 text-rose-500" aria-hidden />
-                  </div>
-                  <div>
-                    <h1 className="text-xl font-bold text-foreground">{t.erreurQr}</h1>
-                    <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-                      {erreurScan ? `${erreurScan}. ` : ""}
-                      {t.erreurQrAide}
-                    </p>
-                  </div>
-                  <Button
-                    onClick={chargerScan}
-                    className="h-12 min-w-40 text-base font-semibold"
-                    aria-label={t.reessayer}
-                  >
-                    {t.reessayer}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    onClick={onExit}
-                    className="min-h-11 text-sm text-muted-foreground"
-                  >
-                    {t.retourAccueil}
-                  </Button>
-                </div>
-              )}
-
-              {/* ---------- ÉTAPE 0 — BIENVENUE (auto-transition 2 s) ----------
-                  Cascade d'apparition (spec refonte) :
-                    0   ms — logo (fade-in + scale)
-                    200 ms — nom établissement (slide-up)
-                    400 ms — ligne séparatrice (width 0 → 100 %)
-                    600 ms — phrase d'accroche (fade-in)
-                    800 ms — indicateur « tap to start » (pulse) */}
-              {phase === "welcome" && scanData && (
+      {/* ====== Contenu principal (centré verticalement) ====== */}
+      <main className="flex flex-1 flex-col px-4 pb-4 sm:px-6">
+        <div key={phase} className={cn("flex flex-1 flex-col", classeTransition)}>
+          {/* ---------- ERREUR : QR code inconnu ou expiré ---------- */}
+          {phase === "error" && (
+            <div className="flex flex-1 flex-col items-center justify-center gap-4 text-center">
+              <div className="flex size-16 items-center justify-center rounded-full bg-white/15">
+                <AlertCircle className="size-9 text-white" aria-hidden />
+              </div>
+              <div>
+                <h1 className="text-balance text-2xl font-black text-white sm:text-3xl">
+                  {t.erreurQr}
+                </h1>
+                <p className="mt-2 text-sm leading-relaxed text-white/80">
+                  {erreurScan ? `${erreurScan}. ` : ""}
+                  {t.erreurQrAide}
+                </p>
+              </div>
+              <div className="flex w-full max-w-xs flex-col gap-2">
                 <button
                   type="button"
-                  onClick={passerAuStep1}
-                  className="flex w-full flex-col items-center gap-4 py-6 text-center outline-none"
-                  aria-label={t.bienvenueTap}
+                  onClick={chargerScan}
+                  className="flex h-14 w-full items-center justify-center rounded-2xl bg-white py-4 text-base font-bold text-blue-600 shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99]"
                 >
-                  {/* Logo centré (ou initiale si pas de logo) — cascade 0 ms */}
-                  <div className="fp-scan-welcome-logo" style={{ animationDelay: "0ms" }}>
-                    <LogoEtablissementBig pro={scanData.pro} />
-                  </div>
-
-                  {/* Nom établissement — cascade 200 ms (slide-up) */}
-                  <div
-                    className="fp-scan-welcome-name space-y-1.5"
-                    style={{ animationDelay: "200ms" }}
-                  >
-                    <p className="text-sm font-medium uppercase tracking-wide text-muted-foreground">
-                      {t.bienvenueChez}
-                    </p>
-                    <h1 className="text-balance text-2xl font-bold leading-tight text-foreground sm:text-3xl">
-                      {scanData.pro.nomEtablissement}
-                    </h1>
-                    <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-semibold text-primary">
-                      <span aria-hidden>📍</span>
-                      <span className="truncate">{scanData.zone.nom}</span>
-                    </p>
-                  </div>
-
-                  {/* Ligne séparatrice — cascade 400 ms (width 0 → 100 %) */}
-                  <div
-                    aria-hidden
-                    className="fp-scan-welcome-line h-px w-16 bg-gradient-to-r from-transparent via-primary/40 to-transparent"
-                    style={{ animationDelay: "400ms" }}
-                  />
-
-                  {/* Phrase d'accroche adaptée au type de zone — cascade 600 ms */}
-                  <p
-                    className="fp-scan-welcome-phrase mt-1 max-w-xs text-balance text-base font-medium leading-snug text-foreground/80"
-                    style={{ animationDelay: "600ms" }}
-                  >
-                    {phraseAccroche(scanData.zone.nom, t)}
-                  </p>
-
-                  {/* Indicateur "tap to start" pulsé — cascade 800 ms */}
-                  <span
-                    aria-hidden
-                    className="fp-scan-tap-pulse mt-3 inline-flex items-center gap-2 rounded-full bg-primary/10 px-4 py-2 text-sm font-semibold text-primary"
-                    style={{ animationDelay: "800ms" }}
-                  >
-                    {t.bienvenueTap}
-                  </span>
+                  {t.reessayer}
                 </button>
-              )}
+                <button
+                  type="button"
+                  onClick={onExit}
+                  className="min-h-11 text-sm font-medium text-white/70 transition-colors hover:text-white"
+                >
+                  {t.retourAccueil}
+                </button>
+              </div>
+            </div>
+          )}
 
-              {/* ---------- ÉTAPE 1 — LA NOTE ---------- */}
-              {phase === "step1" && scanData && (
-                <div className="flex flex-col items-center text-center">
-                  <h1 className="text-balance text-xl font-bold leading-snug text-foreground sm:text-2xl">
-                    {t.questionNotePrefix}
-                    <span className="text-primary">{scanData.zone.nom}</span>
-                    {t.questionNoteSuffix}
-                  </h1>
+          {/* ---------- ÉTAPE 0 — BIENVENUE (auto-transition 2 s) ----------
+              Cascade d'apparition (spec refonte) :
+                0   ms — logo (fade-in + scale)
+                200 ms — nom établissement (slide-up)
+                400 ms — ligne séparatrice (width 0 → 100 %)
+                600 ms — phrase d'accroche (fade-in)
+                800 ms — indicateur « tap to start » (pulse) */}
+          {phase === "welcome" && scanData && (
+            <button
+              type="button"
+              onClick={passerAuStep1}
+              className="flex flex-1 flex-col items-center justify-center gap-4 py-6 text-center outline-none"
+              aria-label={t.bienvenueTap}
+            >
+              {/* Logo centré (ou initiale si pas de logo) — cascade 0 ms */}
+              <div className="fp-scan-welcome-logo" style={{ animationDelay: "0ms" }}>
+                <LogoEtablissementBig pro={scanData.pro} />
+              </div>
 
-                  {/* 5 étoiles très grandes (spec refonte : 64 px mobile,
-                      80 px desktop — size-16 sm:size-20). Touch target
-                      ≥ 64 px (largement au-dessus du minimum 48 px a11y).
-                      Glow jaune au survol (shadow-yellow-400/50) pour effet
-                      « Waouh ». flex-1 + max-w évite tout débordement
-                      horizontal, même sur iPhone SE. */}
+              {/* Nom établissement — cascade 200 ms (slide-up) */}
+              <div
+                className="fp-scan-welcome-name space-y-1.5"
+                style={{ animationDelay: "200ms" }}
+              >
+                <p className="text-sm font-medium uppercase tracking-wide text-white/70">
+                  {t.bienvenueChez}
+                </p>
+                <h1 className="text-balance text-3xl font-black leading-tight text-white sm:text-4xl">
+                  {scanData.pro.nomEtablissement}
+                </h1>
+                <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white">
+                  <span aria-hidden>📍</span>
+                  <span className="truncate">{scanData.zone.nom}</span>
+                </p>
+              </div>
+
+              {/* Ligne séparatrice — cascade 400 ms (width 0 → 100 %) */}
+              <div
+                aria-hidden
+                className="fp-scan-welcome-line h-px w-16 bg-gradient-to-r from-transparent via-white/40 to-transparent"
+                style={{ animationDelay: "400ms" }}
+              />
+
+              {/* Phrase d'accroche adaptée au type de zone — cascade 600 ms */}
+              <p
+                className="fp-scan-welcome-phrase mt-1 max-w-xs text-balance text-base font-medium leading-snug text-white/85"
+                style={{ animationDelay: "600ms" }}
+              >
+                {phraseAccroche(scanData.zone.nom, t)}
+              </p>
+
+              {/* Indicateur "tap to start" pulsé — cascade 800 ms */}
+              <span
+                aria-hidden
+                className="fp-scan-tap-pulse mt-3 inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-sm font-semibold text-white"
+                style={{ animationDelay: "800ms" }}
+              >
+                {t.bienvenueTap}
+              </span>
+            </button>
+          )}
+
+          {/* ---------- ÉTAPE 1 — LA NOTE (5 cards emoji plein largeur) ---------- */}
+          {phase === "step1" && scanData && (
+            <div className="flex flex-1 flex-col">
+              <div className="mb-5 flex justify-center">
+                <LogoPetit pro={scanData.pro} zone={scanData.zone} />
+              </div>
+
+              <div className="flex flex-1 flex-col items-center justify-center text-center">
+                <p className="text-xs font-semibold uppercase tracking-wide text-white/70 sm:text-sm">
+                  {t.etapeSur(numEtape, TOTAL_ETAPES, sujetEtape)}
+                </p>
+
+                <h1 className="mt-3 text-balance text-2xl font-black leading-tight text-white sm:text-3xl">
+                  {t.titreNoteH1}
+                </h1>
+
+                <p className="mt-2 text-sm text-white/70 sm:text-base">
+                  {t.sousTitreNote}
+                </p>
+
+                {/* Grille de 5 cards (emoji + label "N étoile(s)") —
+                    grid-cols-5 desktop, grid-cols-5 mobile aussi (cards
+                    étroites mais lisibles : emoji 3xl + label 11px).
+                    Touch target ≥ 96 px de haut (h-24 sm:h-28). */}
+                <div
+                  role="radiogroup"
+                  aria-label={t.ariaEtoiles}
+                  onKeyDown={etoileClavier}
+                  className="mt-7 grid w-full max-w-md grid-cols-5 gap-2 sm:gap-3"
+                >
+                  {[1, 2, 3, 4, 5].map((i) => {
+                    const active = note === i
+                    const isClicked = pulse === i
+                    return (
+                      <button
+                        key={i}
+                        type="button"
+                        role="radio"
+                        aria-checked={note === i}
+                        aria-label={t.donnerEtoiles(i)}
+                        onClick={() => choisirNote(i)}
+                        className={cn(
+                          "flex h-24 flex-col items-center justify-center gap-1 rounded-2xl border-2 p-1.5 text-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-blue-600 sm:h-28",
+                          active
+                            ? "border-gray-900 bg-gray-900 text-white"
+                            : "border-gray-900 bg-white text-gray-900 hover:scale-105",
+                          isClicked && "fp-scan-card-pop"
+                        )}
+                      >
+                        <span aria-hidden className="text-3xl leading-none sm:text-4xl">
+                          {EMOJIS_NOTE[i]}
+                        </span>
+                        <span className="text-[10px] font-semibold leading-tight sm:text-xs">
+                          {t.etoileLabel(i)}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* Libellé de la note (réagit au clic) */}
+                <div className="mt-6 flex h-16 items-start justify-center" aria-live="polite">
+                  {afficheNote > 0 && (
+                    <div key={afficheNote} className="fp-scan-pop text-center">
+                      <p className="text-sm font-semibold text-white/90">
+                        {t.libellesNote[afficheNote]}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ---------- ÉTAPE 2 — TAGS DYNAMIQUES (grid de cards emoji) ---------- */}
+          {phase === "step2" && scanData && (
+            <div className="flex flex-1 flex-col">
+              <div className="mb-5 flex justify-center">
+                <LogoPetit pro={scanData.pro} zone={scanData.zone} />
+              </div>
+
+              <div className="flex flex-col items-center text-center">
+                <p className="text-xs font-semibold uppercase tracking-wide text-white/70 sm:text-sm">
+                  {t.etapeSur(numEtape, TOTAL_ETAPES, sujetEtape)}
+                </p>
+                <h1 className="mt-3 text-balance text-2xl font-black leading-tight text-white sm:text-3xl">
+                  {estPositif ? t.titreTagsPositif : t.titreTagsNegatif}
+                </h1>
+                <p className="mt-2 text-sm text-white/70 sm:text-base">
+                  {t.sousTitreTagsH1}
+                </p>
+              </div>
+
+              {/* Liste scrollable des tags + personnel + section employé */}
+              <div className="mt-6 max-h-[60vh] flex-1 space-y-5 overflow-y-auto pe-1 fp-scan-scroll">
+                {/* v2 — Tags groupés par pilier (si le Pro est rattaché à un
+                    macro-secteur v2). Chaque pilier a son sous-titre et un
+                    conteneur grid 2x3 en dessous.
+                    Fallback : si pas de macro-secteur (Boutique, Salon,
+                    Institut, Garage, Autre), on garde l'affichage plat
+                    historique avec résolution via ALL_TAGS. */}
+                {groupesParPilier.length > 0 ? (
                   <div
-                    role="radiogroup"
-                    aria-label={t.ariaEtoiles}
-                    onKeyDown={etoileClavier}
-                    className="mt-7 flex w-full justify-center gap-1 sm:gap-1.5"
+                    className="space-y-4"
+                    role="group"
+                    aria-label={estPositif ? t.ariaTagsPositifs : t.ariaTagsNegatifs}
                   >
-                    {[1, 2, 3, 4, 5].map((i) => {
-                      const active = i <= afficheNote
-                      const isClicked = pulse === i
-                      const isCascading = pulse !== null && i < pulse
+                    {groupesParPilier.map((groupe, gIdx) => (
+                      <div key={groupe.pilier}>
+                        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-white/70">
+                          <span aria-hidden className="me-1">▸</span>
+                          {groupe.pilier}
+                        </p>
+                        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
+                          {groupe.tags.map((tg, idx) => {
+                            const actif = tags.includes(tg.id)
+                            const def = definitionTag(tg.id, estPositif)
+                            return (
+                              <button
+                                key={tg.id}
+                                type="button"
+                                aria-pressed={actif}
+                                onClick={() => basculerTag(tg.id)}
+                                className={cn(
+                                  "fp-scan-tag-enter flex min-h-24 flex-col items-center justify-center gap-1 rounded-2xl border-2 p-2.5 text-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-blue-600 sm:min-h-28",
+                                  actif
+                                    ? "border-gray-900 bg-gray-900 text-white"
+                                    : "border-gray-900 bg-white text-gray-900 hover:scale-105",
+                                  actif && "fp-scan-card-pop"
+                                )}
+                                style={{ animationDelay: `${(gIdx * 4 + idx) * 50}ms` }}
+                              >
+                                <span aria-hidden className="text-2xl leading-none sm:text-3xl">
+                                  {def.emoji}
+                                </span>
+                                <span className="text-xs font-semibold leading-tight sm:text-sm">
+                                  {def.label}
+                                </span>
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div
+                    role="group"
+                    aria-label={estPositif ? t.ariaTagsPositifs : t.ariaTagsNegatifs}
+                    className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3"
+                  >
+                    {idsTags.map((id, idx) => {
+                      const def = definitionTag(id, estPositif)
+                      const actif = tags.includes(id)
                       return (
                         <button
-                          key={i}
+                          key={id}
                           type="button"
-                          role="radio"
-                          aria-checked={note === i}
-                          aria-label={t.donnerEtoiles(i)}
-                          onClick={() => choisirNote(i)}
-                          onMouseEnter={() => setSurvol(i)}
-                          onMouseLeave={() => setSurvol(null)}
-                          onFocus={() => setSurvol(i)}
-                          onBlur={() => setSurvol(null)}
+                          aria-pressed={actif}
+                          onClick={() => basculerTag(id)}
                           className={cn(
-                            "flex h-16 min-w-0 max-w-[5rem] flex-1 items-center justify-center rounded-2xl outline-none transition-transform focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:h-20",
-                            isClicked && "fp-scan-star-bounce",
-                            isCascading && "fp-scan-star-fill"
+                            "fp-scan-tag-enter flex min-h-24 flex-col items-center justify-center gap-1 rounded-2xl border-2 p-2.5 text-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-blue-600 sm:min-h-28",
+                            actif
+                              ? "border-gray-900 bg-gray-900 text-white"
+                              : "border-gray-900 bg-white text-gray-900 hover:scale-105",
+                            actif && "fp-scan-card-pop"
                           )}
-                          style={isCascading ? { animationDelay: `${(i - 1) * 50}ms` } : undefined}
+                          style={{ animationDelay: `${idx * 50}ms` }}
                         >
-                          <Star
-                            aria-hidden
-                            strokeWidth={1.5}
-                            className={cn(
-                              "size-16 transition-all duration-150 sm:size-20",
-                              active
-                                ? "fill-amber-400 text-amber-400 drop-shadow-[0_4px_12px_rgba(251,191,36,0.45)]"
-                                : "fill-stone-200 text-stone-300 dark:fill-stone-700 dark:text-stone-600"
-                            )}
-                          />
+                          <span aria-hidden className="text-2xl leading-none sm:text-3xl">
+                            {def.emoji}
+                          </span>
+                          <span className="text-xs font-semibold leading-tight sm:text-sm">
+                            {def.label}
+                          </span>
                         </button>
                       )
                     })}
                   </div>
+                )}
 
-                  {/* Émoji correspondant à la note (réagit aussi au survol) */}
-                  <div className="mt-4 flex h-20 items-start justify-center" aria-live="polite">
-                    {afficheNote > 0 && (
-                      <div key={afficheNote} className="fp-scan-pop text-center">
-                        <span aria-hidden className="text-5xl leading-none">
-                          {EMOJIS_NOTE[afficheNote]}
-                        </span>
-                        <p className="mt-1.5 text-sm font-medium text-muted-foreground">
-                          {t.libellesNote[afficheNote]}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Bouton retour visible (quitte le formulaire) */}
-                  <Button
-                    variant="ghost"
-                    onClick={onExit}
-                    className="mt-2 min-h-11 text-sm text-muted-foreground"
+                {/* Champ optionnel : personnel concerné */}
+                <div>
+                  <label
+                    htmlFor="personnel"
+                    className="mb-1.5 block text-sm font-medium text-white/90"
                   >
-                    <ArrowLeft aria-hidden className="size-4" /> {t.retour}
-                  </Button>
+                    👤 {t.personnelLabel}{" "}
+                    <span className="font-normal text-white/60">{t.optionnel}</span>
+                  </label>
+                  <Input
+                    id="personnel"
+                    value={personnel}
+                    onChange={(e) => setPersonnel(e.target.value)}
+                    placeholder=""
+                    maxLength={120}
+                    autoComplete="off"
+                    className="h-12 border-2 border-gray-900 bg-white text-base text-gray-900 placeholder:text-gray-400"
+                  />
                 </div>
-              )}
 
-              {/* ---------- ÉTAPE 2 — TAGS DYNAMIQUES ---------- */}
-              {phase === "step2" && scanData && (
-                <div className="flex min-h-[28rem] flex-col">
-                  <h1 className="text-balance text-xl font-bold leading-snug text-foreground sm:text-2xl">
-                    {estPositif ? t.titrePositif : t.titreNegatif}
-                  </h1>
-                  <p className="mt-1 text-sm text-muted-foreground">{t.sousTitreTags}</p>
-
-                  {/* v2 — Tags groupés par pilier (si le Pro est rattaché à un
-                      macro-secteur v2). Chaque pilier a son sous-titre et un
-                      conteneur flex-wrap en dessous.
-                      Fallback : si pas de macro-secteur (Boutique, Salon,
-                      Institut, Garage, Autre), on garde l'affichage plat
-                      historique avec résolution via ALL_TAGS. */}
-                  {groupesParPilier.length > 0 ? (
-                    <div className="mt-5 space-y-4" role="group" aria-label={estPositif ? t.ariaTagsPositifs : t.ariaTagsNegatifs}>
-                      {groupesParPilier.map((groupe, gIdx) => (
-                        <div key={groupe.pilier}>
-                          <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">
-                            <span aria-hidden className="me-1">▸</span>
-                            {groupe.pilier}
-                          </p>
-                          <div className="flex flex-wrap gap-2.5">
-                            {groupe.tags.map((tg, idx) => {
-                              const actif = tags.includes(tg.id)
-                              // Utilise definitionTag pour parser proprement
-                              // l'emoji et le label (gère les labels v2 avec
-                              // emoji prefix et les labels historiques).
-                              const def = definitionTag(tg.id, estPositif)
-                              return (
-                                <button
-                                  key={tg.id}
-                                  type="button"
-                                  aria-pressed={actif}
-                                  onClick={() => basculerTag(tg.id)}
-                                  className={cn(
-                                    "fp-scan-tag-enter inline-flex min-h-12 min-w-0 max-w-full items-center gap-1.5 rounded-full border-2 px-5 py-3 text-sm font-medium outline-none transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:text-base",
-                                    actif
-                                      ? estPositif
-                                        ? "border-emerald-500 bg-emerald-100 text-emerald-900 shadow-sm shadow-emerald-500/20 dark:border-emerald-400 dark:bg-emerald-900/40 dark:text-emerald-100"
-                                        : "border-rose-500 bg-rose-100 text-rose-900 shadow-sm shadow-rose-500/20 dark:border-rose-400 dark:bg-rose-900/40 dark:text-rose-100"
-                                      : "border-border bg-background text-foreground/80 hover:border-foreground/30 hover:bg-muted",
-                                    actif && "fp-scan-tag-pop"
-                                  )}
-                                  style={{ animationDelay: `${(gIdx * 4 + idx) * 50}ms` }}
-                                >
-                                  <span aria-hidden className="text-base leading-none">
-                                    {actif ? <Check className="size-4" /> : def.emoji}
-                                  </span>
-                                  <span className="min-w-0 break-words leading-tight">{def.label}</span>
-                                </button>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div
-                      role="group"
-                      aria-label={estPositif ? t.ariaTagsPositifs : t.ariaTagsNegatifs}
-                      className="mt-5 flex flex-wrap gap-2.5"
-                    >
-                      {idsTags.map((id, idx) => {
-                        const def = definitionTag(id, estPositif)
-                        const actif = tags.includes(id)
+                {/* v2 — Section « Comportement de l'employé » (tags employés
+                    transversaux). Affichée si le client saisit un nom
+                    d'employé OU si la note est ≤ 2★. Polarity : positifs si
+                    note ≥ 4, négatifs si note ≤ 3. Les tags employés ont
+                    tous un id préfixé « emp_ » — ils sont stockés dans le
+                    même tableau `tags` que les tags sectoriels et soumis
+                    avec le retour. Le Coach IA les distingue par leur id. */}
+                {tagsEmployesAAfficher.length > 0 && (
+                  <div
+                    className="rounded-2xl border-2 border-white/30 bg-white/10 p-4"
+                    role="group"
+                    aria-label={t.ariaTagsEmployes}
+                  >
+                    <p className="text-sm font-bold text-white">{t.employeTitre}</p>
+                    <p className="mt-0.5 text-xs text-white/70">{t.employeAide}</p>
+                    <div className="mt-3 grid grid-cols-2 gap-2 sm:grid-cols-3">
+                      {tagsEmployesAAfficher.map((tg, idx) => {
+                        const actif = tags.includes(tg.id)
+                        const positif = note >= 4
                         return (
                           <button
-                            key={id}
+                            key={tg.id}
                             type="button"
                             aria-pressed={actif}
-                            onClick={() => basculerTag(id)}
-                            // fp-scan-tag-enter : apparition stagger (fade-in +
-                            // slide-up, délai 50 ms par tag, spec refonte)
+                            onClick={() => basculerTag(tg.id)}
                             className={cn(
-                              "fp-scan-tag-enter inline-flex min-h-12 min-w-0 max-w-full items-center gap-1.5 rounded-full border-2 px-6 py-4 text-sm font-medium outline-none transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:text-base",
+                              "fp-scan-tag-enter flex min-h-16 flex-col items-center justify-center gap-1 rounded-xl border-2 p-2 text-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-blue-600",
                               actif
-                                ? estPositif
-                                  ? "border-emerald-500 bg-emerald-100 text-emerald-900 shadow-sm shadow-emerald-500/20 dark:border-emerald-400 dark:bg-emerald-900/40 dark:text-emerald-100"
-                                  : "border-rose-500 bg-rose-100 text-rose-900 shadow-sm shadow-rose-500/20 dark:border-rose-400 dark:bg-rose-900/40 dark:text-rose-100"
-                                : "border-border bg-background text-foreground/80 hover:border-foreground/30 hover:bg-muted",
-                              actif && "fp-scan-tag-pop"
+                                ? "border-gray-900 bg-gray-900 text-white"
+                                : "border-gray-900 bg-white text-gray-900 hover:scale-105",
+                              actif && "fp-scan-card-pop"
                             )}
                             style={{ animationDelay: `${idx * 50}ms` }}
                           >
                             <span aria-hidden className="text-base leading-none">
-                              {actif ? <Check className="size-4" /> : def.emoji}
+                              {positif ? "👍" : "⚠️"}
                             </span>
-                            <span className="min-w-0 break-words leading-tight">{def.label}</span>
+                            <span className="text-[11px] font-semibold leading-tight">
+                              {tg.label}
+                            </span>
                           </button>
                         )
                       })}
                     </div>
-                  )}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
 
-                  {/* Champ optionnel : personnel concerné */}
-                  <div className="mt-6">
-                    <label
-                      htmlFor="personnel"
-                      className="mb-1.5 block text-sm font-medium text-foreground/80"
-                    >
-                      👤 {t.personnelLabel}{" "}
-                      <span className="font-normal text-muted-foreground">{t.optionnel}</span>
-                    </label>
-                    <Input
-                      id="personnel"
-                      value={personnel}
-                      onChange={(e) => setPersonnel(e.target.value)}
-                      placeholder=""
-                      maxLength={120}
-                      autoComplete="off"
-                      className="h-12 text-base"
+          {/* ---------- ÉTAPE 3 — COMMENTAIRE + NPS + PHOTO ---------- */}
+          {phase === "step3" && scanData && (
+            <div className="flex flex-1 flex-col">
+              <div className="mb-5 flex justify-center">
+                <LogoPetit pro={scanData.pro} zone={scanData.zone} />
+              </div>
+
+              <div className="flex flex-col items-center text-center">
+                <p className="text-xs font-semibold uppercase tracking-wide text-white/70 sm:text-sm">
+                  {t.etapeSur(numEtape, TOTAL_ETAPES, sujetEtape)}
+                </p>
+                <h1 className="mt-3 text-balance text-2xl font-black leading-tight text-white sm:text-3xl">
+                  {t.titreCommentaireH1}
+                </h1>
+                <p className="mt-2 text-sm text-white/70 sm:text-base">
+                  {t.sousTitreCommentaire}
+                </p>
+              </div>
+
+              <div className="mt-6 max-h-[60vh] flex-1 space-y-4 overflow-y-auto pe-1 fp-scan-scroll">
+                {/* Textarea auto-resize : min 120 px, max 300 px, max 500 chars */}
+                <div>
+                  <Textarea
+                    value={commentaire}
+                    onChange={(e) => setCommentaire(e.target.value.slice(0, MAX_COMMENTAIRE))}
+                    rows={3}
+                    maxLength={MAX_COMMENTAIRE}
+                    aria-label={t.titreCommentaireH1}
+                    placeholder={estPositif ? t.commentairePositif : t.commentaireNegatif}
+                    className="min-h-[120px] max-h-[300px] border-2 border-gray-900 bg-white text-base text-gray-900 placeholder:text-gray-400"
+                  />
+                  <div className="mt-1 text-right text-xs text-white/70">
+                    {t.compteurChars(commentaire.length, MAX_COMMENTAIRE)}
+                  </div>
+                </div>
+
+                {/* D1 : slider NPS (uniquement si note ≥ 4) */}
+                {estPositif && (
+                  <div className="rounded-2xl border-2 border-white/30 bg-white/10 p-4">
+                    <p className="text-sm font-semibold text-white">{t.questionNps}</p>
+                    <p className="text-xs text-white/70">{t.npsSousTitre}</p>
+                    <div className="mt-3 flex items-center justify-between text-xs font-semibold text-white/70">
+                      <span>0</span>
+                      <span>5</span>
+                      <span>10</span>
+                    </div>
+                    <Slider
+                      value={[nps]}
+                      min={0}
+                      max={10}
+                      step={1}
+                      onValueChange={(v) => setNps(v[0] ?? 8)}
+                      aria-label={t.questionNps}
+                      className="mt-2"
                     />
+                    <div className="mt-3 flex items-center justify-center gap-2">
+                      <span className="inline-flex min-w-16 items-center justify-center rounded-full bg-white px-4 py-1.5 text-2xl font-bold text-blue-600 shadow">
+                        {nps}
+                      </span>
+                      <span className="text-sm text-white/80">/ 10</span>
+                      <span className="ms-2 text-xl" aria-hidden>
+                        {nps >= 9 ? "😍" : nps >= 7 ? "😊" : "😐"}
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                {/* D2 : ajout de photo (optionnel) — 2 cards côte à côte */}
+                <div>
+                  <p className="mb-1.5 text-sm font-medium text-white/90">{t.photoLabel}</p>
+                  {photoUrl ? (
+                    <div className="flex items-center gap-3 rounded-2xl border-2 border-gray-900 bg-white p-2.5">
+                      <img
+                        src={photoUrl}
+                        alt="Photo jointe"
+                        className="size-16 shrink-0 rounded-lg border border-gray-300 object-cover"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs text-gray-600">{t.photoAide}</p>
+                        <div className="mt-1.5 flex flex-wrap gap-2">
+                          <button
+                            type="button"
+                            onClick={() => photoInputRef.current?.click()}
+                            className="flex h-8 items-center gap-1 rounded-lg border border-gray-300 bg-white px-2 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                          >
+                            <Upload className="h-3.5 w-3.5" aria-hidden />
+                            {t.photoChanger}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPhotoUrl(null)
+                              setPhotoErreur(null)
+                            }}
+                            className="flex h-8 items-center gap-1 rounded-lg bg-rose-50 px-2 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                            {t.photoRetirer}
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-2 gap-2">
+                      {/* Bouton principal : Prendre une photo (mobile-first).
+                          Sur mobile, `capture="environment"` ouvre directement
+                          l'appareil photo (caméra arrière). Sur desktop, ouvre
+                          le sélecteur de fichier classique. */}
+                      <button
+                        type="button"
+                        onClick={() => photoCameraRef.current?.click()}
+                        disabled={photoEnCours}
+                        className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl border-2 border-gray-900 bg-white py-2.5 text-sm font-semibold text-gray-900 transition-all hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        {photoEnCours ? (
+                          <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                        ) : (
+                          <Camera className="h-5 w-5" aria-hidden />
+                        )}
+                        <span className="text-xs">
+                          {photoEnCours ? t.photoEnCours : t.photoPrendre}
+                        </span>
+                      </button>
+                      {/* Bouton secondaire : Choisir une image depuis la galerie. */}
+                      <button
+                        type="button"
+                        onClick={() => photoInputRef.current?.click()}
+                        disabled={photoEnCours}
+                        className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl border-2 border-gray-900 bg-white py-2.5 text-sm font-semibold text-gray-900 transition-all hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-blue-600 disabled:cursor-not-allowed disabled:opacity-60"
+                      >
+                        <ImagePlus className="h-5 w-5" aria-hidden />
+                        <span className="text-xs">{t.photoChoisir}</span>
+                      </button>
+                    </div>
+                  )}
+                  <p className="mt-1.5 text-center text-xs text-white/70">{t.photoAide}</p>
+                  {/* Input caché appareil photo (capture=environment) */}
+                  <input
+                    ref={photoCameraRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    capture="environment"
+                    className="sr-only"
+                    onChange={onPhotoChoisie}
+                    aria-label={t.photoPrendre}
+                    tabIndex={-1}
+                  />
+                  {/* Input caché galerie (sans capture) */}
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    className="sr-only"
+                    onChange={onPhotoChoisie}
+                    aria-label={t.photoChoisir}
+                    tabIndex={-1}
+                  />
+                  {photoErreur && (
+                    <p className="mt-1.5 text-xs text-rose-200" role="alert">
+                      {photoErreur}
+                    </p>
+                  )}
+                </div>
+
+                {/* Email optionnel : permet au commerçant de répondre par email */}
+                <div>
+                  <Input
+                    type="email"
+                    inputMode="email"
+                    value={emailClient}
+                    onChange={(e) => setEmailClient(e.target.value)}
+                    maxLength={120}
+                    autoComplete="off"
+                    aria-label={t.emailLabel}
+                    placeholder={t.emailLabel}
+                    className="h-12 border-2 border-gray-900 bg-white text-base text-gray-900 placeholder:text-gray-400"
+                  />
+                  <p className="mt-1.5 text-xs leading-relaxed text-white/70">{t.emailAide}</p>
+                </div>
+
+                {/* Consentement géolocalisation approximative (RGPD — opt-in) */}
+                <div className="rounded-2xl border-2 border-white/30 bg-white/10 p-3">
+                  <div className="flex items-start gap-2.5">
+                    <Checkbox
+                      id="geo-consent"
+                      checked={geoConsent}
+                      onCheckedChange={(v) => setGeoConsent(v === true)}
+                      className="mt-0.5 border-white"
+                    />
+                    <label
+                      htmlFor="geo-consent"
+                      className="cursor-pointer text-xs leading-relaxed text-white/85"
+                    >
+                      {t.geoConsent}{" "}
+                      <a
+                        href="/confidentialite"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-white underline underline-offset-2"
+                      >
+                        {t.politique}
+                      </a>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Badge récompense (teaser — code promo dévoilé au succès) */}
+                {scanData.pro.recompense && (
+                  <div className="flex items-center gap-3 rounded-2xl border-2 border-amber-300 bg-amber-50 p-3">
+                    <Gift className="size-6 shrink-0 text-amber-700" aria-hidden />
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-amber-900">
+                        {t.recompenseBadgePrefix} {scanData.pro.recompense}
+                      </p>
+                      <p className="mt-0.5 text-xs text-amber-800/90">{t.recompenseMontrez}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* ---------- ÉTAPE 4 — RÉCAPITULATIF + ENVOI (NOUVELLE ÉTAPE) ----------
+              Écran de vérification visuel : card blanche avec note + tags +
+              personnel + commentaire + photo + NPS, boutons « Modifier » pour
+              revenir à chaque étape, puis bouton « Envoyer » plein largeur
+              dans le footer (et WhatsApp + avis Google si configurés). */}
+          {phase === "step4" && scanData && (
+            <div className="flex flex-1 flex-col">
+              <div className="mb-5 flex justify-center">
+                <LogoPetit pro={scanData.pro} zone={scanData.zone} />
+              </div>
+
+              <div className="flex flex-col items-center text-center">
+                <p className="text-xs font-semibold uppercase tracking-wide text-white/70 sm:text-sm">
+                  {t.etapeSur(numEtape, TOTAL_ETAPES, sujetEtape)}
+                </p>
+                <h1 className="mt-3 text-balance text-2xl font-black leading-tight text-white sm:text-3xl">
+                  {t.titreEnvoiH1}
+                </h1>
+                <p className="mt-2 text-sm text-white/70 sm:text-base">{t.sousTitreEnvoi}</p>
+              </div>
+
+              <div className="mt-6 max-h-[60vh] flex-1 overflow-y-auto pe-1 fp-scan-scroll">
+                {/* Récap card (blanche, border-2 noir) */}
+                <div className="rounded-2xl border-2 border-gray-900 bg-white p-4 text-gray-900">
+                  {/* Note */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-gray-600">
+                      {t.recapVotreNote}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => allerEtape("step1", -1)}
+                      className="text-xs font-semibold text-blue-600 underline underline-offset-2 hover:text-blue-700"
+                    >
+                      {t.recapModifier}
+                    </button>
+                  </div>
+                  <div className="mt-1.5 flex items-center gap-0.5">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <Star
+                        key={i}
+                        aria-hidden
+                        className={cn(
+                          "size-5",
+                          i <= note
+                            ? "fill-amber-400 text-amber-400"
+                            : "fill-gray-200 text-gray-200"
+                        )}
+                      />
+                    ))}
+                    <span className="ms-2 text-sm font-bold text-gray-700">{note}/5</span>
                   </div>
 
-                  {/* v2 — Section « Comportement de l'employé » (tags employés
-                      transversaux). Affichée si le client saisit un nom
-                      d'employé OU si la note est ≤ 2★. Polarity : positifs si
-                      note ≥ 4, négatifs si note ≤ 3. Les tags employés ont
-                      tous un id préfixé « emp_ » — ils sont stockés dans le
-                      même tableau `tags` que les tags sectoriels et soumis
-                      avec le retour. Le Coach IA les distingue par leur id. */}
-                  {tagsEmployesAAfficher.length > 0 && (
-                    <div
-                      className="mt-5 rounded-2xl border border-violet-200 bg-violet-50/60 p-4 dark:border-violet-900/40 dark:bg-violet-950/20"
-                      role="group"
-                      aria-label={t.ariaTagsEmployes}
-                    >
-                      <p className="text-sm font-bold text-foreground/90">{t.employeTitre}</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">{t.employeAide}</p>
-                      <div className="mt-3 flex flex-wrap gap-2">
-                        {tagsEmployesAAfficher.map((tg, idx) => {
-                          const actif = tags.includes(tg.id)
-                          const positif = note >= 4
+                  {/* Tags */}
+                  {tags.length > 0 && (
+                    <div className="mt-3 border-t border-gray-200 pt-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-sm font-semibold text-gray-600">
+                          {t.recapTags}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => allerEtape("step2", -1)}
+                          className="text-xs font-semibold text-blue-600 underline underline-offset-2 hover:text-blue-700"
+                        >
+                          {t.recapModifier}
+                        </button>
+                      </div>
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {tags.map((id) => {
+                          const def = definitionTag(id, estPositif)
                           return (
-                            <button
-                              key={tg.id}
-                              type="button"
-                              aria-pressed={actif}
-                              onClick={() => basculerTag(tg.id)}
-                              className={cn(
-                                "fp-scan-tag-enter inline-flex min-h-11 min-w-0 max-w-full items-center gap-1.5 rounded-full border-2 px-4 py-2.5 text-xs font-medium outline-none transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 sm:text-sm",
-                                actif
-                                  ? positif
-                                    ? "border-violet-500 bg-violet-100 text-violet-900 shadow-sm shadow-violet-500/20 dark:border-violet-400 dark:bg-violet-900/40 dark:text-violet-100"
-                                    : "border-fuchsia-500 bg-fuchsia-100 text-fuchsia-900 shadow-sm shadow-fuchsia-500/20 dark:border-fuchsia-400 dark:bg-fuchsia-900/40 dark:text-fuchsia-100"
-                                  : "border-border bg-background text-foreground/80 hover:border-foreground/30 hover:bg-muted",
-                                actif && "fp-scan-tag-pop"
-                              )}
-                              style={{ animationDelay: `${idx * 50}ms` }}
+                            <span
+                              key={id}
+                              className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700"
                             >
-                              <span aria-hidden className="text-sm leading-none">
-                                {actif ? <Check className="size-3.5" /> : positif ? "👍" : "⚠️"}
-                              </span>
-                              <span className="min-w-0 break-words leading-tight">{tg.label}</span>
-                            </button>
+                              <span aria-hidden>{def.emoji}</span>
+                              {def.label}
+                            </span>
                           )
                         })}
                       </div>
                     </div>
                   )}
 
-                  {/* Bouton Continuer (spec refonte) : gradient violet → bleu,
-                      w-full py-4 text-lg, désactivé si aucun tag sélectionné. */}
-                  <div className="mt-auto pt-6">
-                    <button
-                      type="button"
-                      onClick={() => allerEtape("step3", 1)}
-                      disabled={tags.length === 0}
-                      className={cn(
-                        "flex w-full items-center justify-center gap-2 rounded-2xl py-4 text-lg font-semibold text-white shadow-lg transition-all",
-                        "bg-gradient-to-r from-violet-500 to-blue-500 shadow-violet-500/25",
-                        tags.length === 0
-                          ? "cursor-not-allowed opacity-50"
-                          : "hover:from-violet-600 hover:to-blue-600 hover:shadow-violet-500/40 active:scale-[0.98]"
-                      )}
-                    >
-                      {t.continuer} <ArrowRight aria-hidden className="size-5" />
-                    </button>
-                    <Button
-                      variant="ghost"
-                      onClick={() => allerEtape("step1", -1)}
-                      className="mt-1 min-h-11 w-full text-sm text-muted-foreground"
-                    >
-                      <ArrowLeft aria-hidden className="size-4" /> {t.retour}
-                    </Button>
-                  </div>
-                </div>
-              )}
-
-              {/* ---------- ÉTAPE 3 — COMMENTAIRE + NPS + PHOTO + ENVOI ---------- */}
-              {phase === "step3" && scanData && (
-                <div>
-                  <h1 className="text-balance text-xl font-bold leading-snug text-foreground sm:text-2xl">
-                    {t.titreCommentaire}
-                  </h1>
-
-                  {/* Récapitulatif visuel (spec refonte) : card glassmorphism
-                      bg-gray-50 border border-gray-200 rounded-2xl p-4. */}
-                  <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
-                    <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                      {t.recapTitre}
-                    </p>
-                    <div className="mt-2 flex items-center gap-2 text-sm">
-                      <span className="font-medium text-foreground/80">{t.recapNote} :</span>
-                      <div className="flex gap-0.5" aria-label={`${note}/5`}>
-                        {[1, 2, 3, 4, 5].map((i) => (
-                          <Star
-                            key={i}
-                            aria-hidden
-                            className={cn(
-                              "size-4",
-                              i <= note
-                                ? "fill-amber-400 text-amber-400"
-                                : "fill-muted text-muted"
-                            )}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                    {tags.length > 0 && (
-                      <div className="mt-2 flex items-start gap-2 text-sm">
-                        <span className="shrink-0 font-medium text-foreground/80">
-                          {t.recapTags} :
-                        </span>
-                        <div className="flex flex-wrap gap-1.5">
-                          {tags.map((id) => {
-                            const def = definitionTag(id, estPositif)
-                            return (
-                              <span
-                                key={id}
-                                className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-xs font-medium text-primary"
-                              >
-                                <span aria-hidden>{def.emoji}</span>
-                                {def.label}
-                              </span>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )}
-                    <div className="mt-2 text-sm">
-                      <span className="font-medium text-foreground/80">{t.recapPersonnel} : </span>
-                      <span className="text-foreground/70">
-                        {personnel.trim() || t.recapAucun}
+                  {/* Personnel */}
+                  {personnel.trim() && (
+                    <div className="mt-3 border-t border-gray-200 pt-3">
+                      <span className="text-sm font-semibold text-gray-600">
+                        {t.recapPersonnelAjoute}
                       </span>
-                    </div>
-                  </div>
-
-                  {/* Textarea auto-resize (spec refonte) : min 120 px, max 300 px,
-                      max 500 chars, compteur. field-sizing natif du composant
-                      Textarea shadcn + max-h-[300px] pour caper la hauteur. */}
-                  <div className="mt-4">
-                    <Textarea
-                      value={commentaire}
-                      onChange={(e) => setCommentaire(e.target.value.slice(0, MAX_COMMENTAIRE))}
-                      rows={3}
-                      maxLength={MAX_COMMENTAIRE}
-                      aria-label={t.titreCommentaire}
-                      placeholder={estPositif ? t.commentairePositif : t.commentaireNegatif}
-                      className="min-h-[120px] max-h-[300px] text-base"
-                    />
-                    <div className="mt-1 text-right text-xs text-muted-foreground">
-                      {t.compteurChars(commentaire.length, MAX_COMMENTAIRE)}
-                    </div>
-                  </div>
-
-                  {/* D1 : slider NPS (uniquement si note ≥ 4) — spec refonte :
-                      gradient violet → bleu sur le badge de valeur. */}
-                  {estPositif && (
-                    <div className="mt-4 rounded-2xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/40">
-                      <p className="text-sm font-semibold text-foreground/80">{t.questionNps}</p>
-                      <p className="text-xs text-muted-foreground">{t.npsSousTitre}</p>
-                      <div className="mt-3 flex items-center justify-between text-xs font-semibold text-muted-foreground">
-                        <span>0</span>
-                        <span>5</span>
-                        <span>10</span>
-                      </div>
-                      <Slider
-                        value={[nps]}
-                        min={0}
-                        max={10}
-                        step={1}
-                        onValueChange={(v) => setNps(v[0] ?? 8)}
-                        aria-label={t.questionNps}
-                        className="mt-2"
-                      />
-                      <div className="mt-3 flex items-center justify-center gap-2">
-                        <span className="inline-flex min-w-16 items-center justify-center rounded-full bg-gradient-to-r from-violet-500 to-blue-500 px-4 py-1.5 text-2xl font-bold text-white shadow-md shadow-violet-500/30">
-                          {nps}
-                        </span>
-                        <span className="text-sm text-muted-foreground">/ 10</span>
-                        <span className="ms-2 text-xl" aria-hidden>
-                          {nps >= 9 ? "😍" : nps >= 7 ? "😊" : "😐"}
-                        </span>
-                      </div>
+                      <p className="mt-0.5 text-sm text-gray-800">{personnel.trim()}</p>
                     </div>
                   )}
 
-                  {/* D2 : ajout de photo (optionnel) */}
-                  <div className="mt-4">
-                    <p className="mb-1.5 text-sm font-medium text-foreground/80">{t.photoLabel}</p>
-                    {photoUrl ? (
-                      <div className="flex items-center gap-3 rounded-xl border border-border bg-background/60 p-2.5">
-                        <img
-                          src={photoUrl}
-                          alt="Photo jointe"
-                          className="size-16 shrink-0 rounded-lg border border-border object-cover"
-                        />
-                        <div className="min-w-0 flex-1">
-                          <p className="text-xs text-muted-foreground">{t.photoAide}</p>
-                          <div className="mt-1.5 flex flex-wrap gap-2">
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              className="h-8"
-                              onClick={() => photoInputRef.current?.click()}
-                            >
-                              <Upload className="me-1 h-3.5 w-3.5" aria-hidden />
-                              {t.photoChanger}
-                            </Button>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-8 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:hover:bg-rose-950/40"
-                              onClick={() => {
-                                setPhotoUrl(null)
-                                setPhotoErreur(null)
-                              }}
-                            >
-                              <Trash2 className="me-1 h-3.5 w-3.5" aria-hidden />
-                              {t.photoRetirer}
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="rounded-xl border-2 border-dashed border-border bg-background/60 p-3 transition-colors hover:border-primary/40 hover:bg-primary/5">
-                        <div className="flex flex-col gap-2">
-                          {/* Bouton principal : Prendre une photo (mobile-first).
-                              Sur mobile, `capture="environment"` ouvre directement
-                              l'appareil photo (caméra arrière). Sur desktop, ouvre
-                              le sélecteur de fichier classique. */}
-                          <button
-                            type="button"
-                            onClick={() => photoCameraRef.current?.click()}
-                            disabled={photoEnCours}
-                            className="flex min-h-11 items-center justify-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            {photoEnCours ? (
-                              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                            ) : (
-                              <Camera className="h-4 w-4" aria-hidden />
-                            )}
-                            {photoEnCours ? t.photoEnCours : `📷 ${t.photoPrendre}`}
-                          </button>
-                          {/* Bouton secondaire : Choisir une image depuis la galerie.
-                              Sur mobile, ouvre la galerie (sans forcer l'appareil photo).
-                              Sur desktop, ouvre le sélecteur de fichier classique. */}
-                          <button
-                            type="button"
-                            onClick={() => photoInputRef.current?.click()}
-                            disabled={photoEnCours}
-                            className="flex min-h-11 items-center justify-center gap-2 rounded-lg border border-border bg-background px-4 py-2.5 text-sm font-medium text-foreground/80 transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-                          >
-                            <ImagePlus className="h-4 w-4" aria-hidden />
-                            {t.photoChoisir}
-                          </button>
-                        </div>
-                        <p className="mt-2 text-center text-xs text-muted-foreground">{t.photoAide}</p>
-                        {/* Input caché appareil photo (capture=environment) */}
-                        <input
-                          ref={photoCameraRef}
-                          type="file"
-                          accept="image/png,image/jpeg,image/webp,image/gif"
-                          capture="environment"
-                          className="sr-only"
-                          onChange={onPhotoChoisie}
-                          aria-label={t.photoPrendre}
-                          tabIndex={-1}
-                        />
-                        {/* Input caché galerie (sans capture) */}
-                        <input
-                          ref={photoInputRef}
-                          type="file"
-                          accept="image/png,image/jpeg,image/webp,image/gif"
-                          className="sr-only"
-                          onChange={onPhotoChoisie}
-                          aria-label={t.photoChoisir}
-                          tabIndex={-1}
-                        />
-                      </div>
-                    )}
-                    {photoErreur && (
-                      <p className="mt-1.5 text-xs text-rose-600" role="alert">
-                        {photoErreur}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Email optionnel : permet au commerçant de répondre par email */}
-                  <div className="mt-4">
-                    <Input
-                      type="email"
-                      inputMode="email"
-                      value={emailClient}
-                      onChange={(e) => setEmailClient(e.target.value)}
-                      maxLength={120}
-                      autoComplete="off"
-                      aria-label={t.emailLabel}
-                      placeholder={t.emailLabel}
-                      className="h-12 text-base"
-                    />
-                    <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                      {t.emailAide}
-                    </p>
-                  </div>
-
-                  {/* Consentement géolocalisation approximative (RGPD — opt-in,
-                      jamais requis pour envoyer le retour) */}
-                  <div className="mt-4 rounded-xl border border-border bg-muted/40 p-3">
-                    <div className="flex items-start gap-2.5">
-                      <Checkbox
-                        id="geo-consent"
-                        checked={geoConsent}
-                        onCheckedChange={(v) => setGeoConsent(v === true)}
-                        className="mt-0.5"
-                      />
-                      <label
-                        htmlFor="geo-consent"
-                        className="cursor-pointer text-xs leading-relaxed text-muted-foreground"
+                  {/* Commentaire */}
+                  <div className="mt-3 border-t border-gray-200 pt-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-semibold text-gray-600">
+                        {t.recapVotreCommentaire}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => allerEtape("step3", -1)}
+                        className="text-xs font-semibold text-blue-600 underline underline-offset-2 hover:text-blue-700"
                       >
-                        {t.geoConsent}{" "}
-                        <a
-                          href="/confidentialite"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="font-medium text-primary underline underline-offset-2"
-                        >
-                          {t.politique}
-                        </a>
-                      </label>
+                        {t.recapModifier}
+                      </button>
                     </div>
+                    <p className="mt-0.5 text-sm text-gray-800">
+                      {commentaire.trim() || t.recapAucunCommentaire}
+                    </p>
                   </div>
 
-                  {/* Badge récompense (teaser — code promo dévoilé au succès) */}
-                  {scanData.pro.recompense && (
-                    <div className="mt-4 flex items-center gap-3 rounded-2xl border-2 border-amber-300 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-950/30">
-                      <Gift className="size-6 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
-                      <div className="min-w-0">
-                        <p className="text-sm font-bold text-amber-900 dark:text-amber-200">
-                          {t.recompenseBadgePrefix} {scanData.pro.recompense}
-                        </p>
-                        <p className="mt-0.5 text-xs text-amber-800/90 dark:text-amber-300/80">
-                          {t.recompenseMontrez}
-                        </p>
-                      </div>
+                  {/* Photo */}
+                  {photoUrl && (
+                    <div className="mt-3 border-t border-gray-200 pt-3">
+                      <span className="text-sm font-semibold text-gray-600">
+                        {t.recapPhotoAjoutee}
+                      </span>
+                      <img
+                        src={photoUrl}
+                        alt="Photo jointe"
+                        className="mt-1.5 size-20 rounded-lg border border-gray-300 object-cover"
+                      />
                     </div>
                   )}
 
-                  {/* Erreur d'envoi : message inline + réessayer (données conservées) */}
-                  {erreurEnvoi && (
-                    <div
-                      role="alert"
-                      className="mt-4 flex items-start gap-2 rounded-xl border border-rose-200 bg-rose-50 p-3 text-sm text-rose-700 dark:border-rose-900/50 dark:bg-rose-950/30 dark:text-rose-300"
-                    >
-                      <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
-                      <div>
-                        <p>{erreurEnvoi}</p>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => envoyer(dernierCanal)}
-                          className="mt-1 h-9 px-2 text-sm font-semibold text-rose-700 underline underline-offset-2 hover:bg-rose-100 hover:text-rose-800 dark:text-rose-300 dark:hover:bg-rose-900/40"
-                        >
-                          {t.reessayer}
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Bouton principal « Envoyer » (spec refonte) :
-                      gradient violet → bleu, w-full py-5 text-xl font-bold,
-                      pulse subtil (fp-scan-pulse-soft). Désactivé pendant l'envoi. */}
-                  <button
-                    type="button"
-                    onClick={() => envoyer("aucun")}
-                    disabled={soumission !== null}
-                    className={cn(
-                      "fp-scan-pulse-soft mt-5 flex w-full items-center justify-center gap-2 rounded-2xl py-5 text-xl font-bold text-white shadow-lg transition-all",
-                      "bg-gradient-to-r from-violet-500 to-blue-500 shadow-violet-500/30",
-                      soumission !== null
-                        ? "cursor-wait opacity-80"
-                        : "hover:from-violet-600 hover:to-blue-600 hover:shadow-violet-500/40 active:scale-[0.98]"
-                    )}
-                  >
-                    {soumission === "aucun" ? (
-                      <>
-                        <Loader2 className="size-5 animate-spin" aria-hidden /> {t.envoiEnCours}
-                      </>
-                    ) : (
-                      <>
-                        <Check className="size-5" aria-hidden /> {t.envoyer}
-                      </>
-                    )}
-                  </button>
-
-                  {/* Canal secondaire WhatsApp (masqué si aucun numéro configuré) */}
-                  {aWhatsApp && (
-                    <Button
-                      onClick={() => envoyer("whatsapp")}
-                      disabled={soumission !== null}
-                      className="mt-2.5 h-14 w-full rounded-2xl bg-green-500 text-base font-bold text-white hover:bg-green-600"
-                    >
-                      {soumission === "whatsapp" ? (
-                        <>
-                          <Loader2 className="size-5 animate-spin" aria-hidden /> {t.envoiEnCours}
-                        </>
-                      ) : (
-                        <>
-                          <MessageCircle className="size-5" aria-hidden /> {t.envoyerWhatsapp}
-                        </>
-                      )}
-                    </Button>
-                  )}
-
-                  {/* D8 : avis Google — lien discret (si 4-5★ + URL configurée) */}
-                  {lienAvisGoogle && (
-                    <a
-                      href={lienAvisGoogle}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-100 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-300"
-                    >
-                      <span aria-hidden>⭐</span>
-                      {t.avisGoogle}
-                    </a>
-                  )}
-
-                  {/* Rassurance selon la note */}
-                  <p className="mt-4 text-center text-xs leading-relaxed text-muted-foreground">
-                    {estPositif ? t.rassurancePositif : t.rassuranceNegatif}
-                  </p>
-
-                  <Button
-                    variant="ghost"
-                    onClick={() => allerEtape("step2", -1)}
-                    className="mt-2 min-h-11 w-full text-sm text-muted-foreground"
-                  >
-                    <ArrowLeft aria-hidden className="size-4" /> {t.retour}
-                  </Button>
-                </div>
-              )}
-
-              {/* ---------- ÉTAPE 4 — REMERCIEMENT ---------- */}
-              {phase === "success" && scanData && (
-                <div className="relative flex flex-col items-center gap-4 py-4 text-center">
-                  {/* Confettis (4-5★) OU cœur pulsé (1-3★) */}
-                  {estPositif ? (
-                    <ConfettiLeger />
-                  ) : (
-                    <div
-                      aria-hidden
-                      className="fp-scan-heart flex size-20 items-center justify-center text-5xl"
-                    >
-                      💗
-                    </div>
-                  )}
-
-                  {/* Grande coche animée (positif) — remplacée par le cœur au-dessus
-                      pour le cas négatif. On garde la coche visible en positif. */}
+                  {/* NPS */}
                   {estPositif && (
-                    <div
-                      aria-hidden
-                      className="fp-scan-pop fp-scan-halo flex size-20 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/30"
-                    >
-                      <Check className="size-10" strokeWidth={3} />
+                    <div className="mt-3 border-t border-gray-200 pt-3">
+                      <span className="text-sm font-semibold text-gray-600">{t.recapNps}</span>
+                      <p className="mt-0.5 text-sm text-gray-800">{nps}/10</p>
                     </div>
                   )}
 
-                  <h1 className="text-balance text-2xl font-bold text-foreground">{t.merci}</h1>
-
-                  {/* Sous-titre adapté (court) */}
-                  <p className="text-balance text-base font-medium text-muted-foreground">
-                    {estPositif ? t.merciPositifCourt : t.merciNegatifCourt}
-                  </p>
-
-                  {/* Task M3 — Bandeau "hors ligne" si le retour a été stocké
-                      sans réseau plutôt qu'envoyé immédiatement. Discret mais
-                      rassurant : le client sait que son retour n'est pas perdu. */}
-                  {horsLigne && (
-                    <div
-                      role="status"
-                      className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-200"
-                    >
-                      <span aria-hidden>📡</span>
-                      <span>
-                        {t.retourEnregistreHorsLigne ??
-                          "✓ Retour enregistré hors ligne — sera envoyé à la reconnexion"}
-                      </span>
+                  {/* Email */}
+                  {emailClient.trim() && (
+                    <div className="mt-3 border-t border-gray-200 pt-3">
+                      <span className="text-sm font-semibold text-gray-600">{t.emailLabel}</span>
+                      <p className="mt-0.5 text-sm text-gray-800">{emailClient.trim()}</p>
                     </div>
                   )}
+                </div>
 
-                  {/* Récompense (spec refonte) : carte à bordure dégradée
-                      (violet → bleu → rose) + code promo en GROS
-                      (text-3xl font-bold text-purple-600). */}
-                  {recompenseFinale ? (
-                    <div className="fp-scan-reward-in fp-scan-reward-border w-full p-4 shadow-md shadow-purple-500/15">
-                      <p className="text-balance text-lg font-bold leading-snug text-foreground">
-                        {t.recompenseTitre(recompenseFinale)}
-                      </p>
-                      {codeRecompense && (
-                        <div className="mt-3 flex flex-col items-center gap-1">
-                          <span
-                            className="inline-flex items-center gap-2 rounded-xl bg-white/80 px-4 py-2 font-mono text-3xl font-bold tracking-wider text-purple-600 dark:bg-purple-950/40 dark:text-purple-300"
-                            aria-label={`Code promo : ${codeRecompense}`}
-                          >
-                            <Ticket className="size-6 text-purple-500" aria-hidden />
-                            {codeRecompense}
-                          </span>
-                        </div>
-                      )}
-                      <p className="mt-2 text-center text-sm text-muted-foreground">
-                        {t.recompenseMontrez}
-                      </p>
-                    </div>
-                  ) : estPositif ? (
-                    <p className="text-balance text-sm text-muted-foreground">
-                      {t.merciPositif(scanData.pro.nomEtablissement)}
-                    </p>
-                  ) : (
-                    /* Carte rassurante pour les retours 1-3★ */
-                    <div className="flex items-start gap-3 rounded-2xl border border-border bg-muted/40 p-4 text-left">
-                      <ShieldCheck className="mt-0.5 size-8 shrink-0 text-primary" aria-hidden />
-                      <p className="text-sm leading-relaxed text-muted-foreground">
-                        {t.merciNegatif}
-                      </p>
-                    </div>
-                  )}
-
-                  {/* D8 : avis Google — proposé si note ≥ 4★ + URL configurée */}
-                  {lienAvisGoogle && (
-                    <a
-                      href={lienAvisGoogle}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-amber-200 bg-amber-50 text-sm font-semibold text-amber-700 transition-colors hover:bg-amber-100 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-300"
-                    >
-                      <span aria-hidden>⭐</span>
-                      {t.avisGoogle}
-                      <span className="text-xs font-normal text-amber-600/80 dark:text-amber-400/80">
-                        — {t.avisGoogleAide}
-                      </span>
-                    </a>
-                  )}
-
-                  <Button
-                    onClick={onExit}
-                    className="mt-1 h-14 w-full rounded-2xl text-base font-semibold"
+                {/* Erreur d'envoi (inline, données conservées) */}
+                {erreurEnvoi && (
+                  <div
+                    role="alert"
+                    className="mt-4 flex items-start gap-2 rounded-2xl border-2 border-rose-200 bg-rose-50 p-3 text-sm text-rose-700"
                   >
-                    {t.fermer}
-                  </Button>
+                    <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
+                    <div>
+                      <p>{erreurEnvoi}</p>
+                      <button
+                        type="button"
+                        onClick={() => envoyer(dernierCanal)}
+                        className="mt-1 text-sm font-semibold text-rose-700 underline underline-offset-2 hover:text-rose-800"
+                      >
+                        {t.reessayer}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Rassurance selon la note */}
+                <p className="mt-4 text-center text-xs leading-relaxed text-white/80">
+                  {estPositif ? t.rassurancePositif : t.rassuranceNegatif}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* ---------- ÉTAPE 5 — REMERCIEMENT ---------- */}
+          {phase === "success" && scanData && (
+            <div className="relative flex flex-1 flex-col items-center justify-center gap-4 py-4 text-center">
+              {/* Confettis (4-5★) OU cœur pulsé (1-3★) */}
+              {estPositif ? <ConfettiLeger /> : null}
+
+              {estPositif ? (
+                <div
+                  aria-hidden
+                  className="fp-scan-pop fp-scan-halo flex size-20 items-center justify-center rounded-full bg-white text-emerald-600 shadow-lg"
+                >
+                  <Check className="size-10" strokeWidth={3} />
+                </div>
+              ) : (
+                <div
+                  aria-hidden
+                  className="fp-scan-heart flex size-20 items-center justify-center text-5xl"
+                >
+                  💗
                 </div>
               )}
-            </div>
-          </div>
 
-          {/* Barre de progression fixed bottom (spec refonte) :
-              - hauteur 4 px (h-1)
-              - fond gris très clair (bg-gray-200)
-              - progress : gradient violet → bleu (from-violet-500 to-blue-500)
-              - étapes : welcome = 0 %, step1 = 33 %, step2 = 66 %,
-                step3/success = 100 %
-              - transition width 300 ms ease-out
-              Cachée en cas d'erreur (pas de concept de progression). */}
-          {phase !== "error" && (
-            <div
-              className="absolute inset-x-0 bottom-0 h-1 bg-gray-200 dark:bg-gray-800"
-              role="progressbar"
-              aria-valuenow={
-                phase === "welcome"
-                  ? 0
-                  : phase === "step1"
-                    ? 33
-                    : phase === "step2"
-                      ? 66
-                      : 100
-              }
-              aria-valuemin={0}
-              aria-valuemax={100}
-              aria-label={t.ariaProgression}
-            >
-              <div
-                aria-hidden
-                className="h-full rounded-e-full bg-gradient-to-r from-violet-500 to-blue-500 transition-[width] duration-300 ease-out"
-                style={{
-                  width:
-                    phase === "welcome"
-                      ? "0%"
-                      : phase === "step1"
-                        ? "33%"
-                        : phase === "step2"
-                          ? "66%"
-                          : "100%",
-                }}
-              />
+              <h1 className="text-balance text-3xl font-black text-white sm:text-4xl">
+                {t.merci}
+              </h1>
+
+              <p className="text-balance text-base font-medium text-white/80">
+                {estPositif ? t.merciPositifCourt : t.merciNegatifCourt}
+              </p>
+
+              {/* Task M3 — Bandeau "hors ligne" si le retour a été stocké
+                  sans réseau plutôt qu'envoyé immédiatement. */}
+              {horsLigne && (
+                <div
+                  role="status"
+                  className="flex items-center gap-2 rounded-xl border border-white/30 bg-white/10 px-4 py-2.5 text-sm font-medium text-white"
+                >
+                  <span aria-hidden>📡</span>
+                  <span>{t.retourEnregistreHorsLigne}</span>
+                </div>
+              )}
+
+              {/* Récompense (code promo dévoilé APRÈS envoi) */}
+              {recompenseFinale ? (
+                <div className="fp-scan-reward-in w-full max-w-md rounded-2xl border-2 border-amber-300 bg-white p-4 shadow-lg">
+                  <p className="text-balance text-lg font-bold leading-snug text-gray-900">
+                    {t.recompenseTitre(recompenseFinale)}
+                  </p>
+                  {codeRecompense && (
+                    <div className="mt-3 flex flex-col items-center gap-1">
+                      <span
+                        className="inline-flex items-center gap-2 rounded-xl bg-amber-50 px-4 py-2 font-mono text-3xl font-bold tracking-wider text-amber-700"
+                        aria-label={`Code promo : ${codeRecompense}`}
+                      >
+                        <Ticket className="size-6 text-amber-600" aria-hidden />
+                        {codeRecompense}
+                      </span>
+                    </div>
+                  )}
+                  <p className="mt-2 text-center text-sm text-gray-600">
+                    {t.recompenseMontrez}
+                  </p>
+                </div>
+              ) : estPositif ? (
+                <p className="text-balance text-sm text-white/80">
+                  {t.merciPositif(scanData.pro.nomEtablissement)}
+                </p>
+              ) : (
+                /* Carte rassurante pour les retours 1-3★ */
+                <div className="flex items-start gap-3 rounded-2xl border border-white/30 bg-white/10 p-4 text-left">
+                  <ShieldCheck className="mt-0.5 size-8 shrink-0 text-white" aria-hidden />
+                  <p className="text-sm leading-relaxed text-white/85">{t.merciNegatif}</p>
+                </div>
+              )}
             </div>
           )}
         </div>
+      </main>
 
-        <p className="mt-4 text-center text-xs text-muted-foreground">
-          {t.propulsePar} <span className="font-semibold text-foreground/70">FeedbackPro</span>
+      {/* ====== Footer (progress bar + Suivant/Envoyer) ====== */}
+      {avecFooterProgress && (
+        <footer className="space-y-3 px-4 pb-4 sm:px-6">
+          {/* Barre de progression — 4 segments (QRTags style) */}
+          <div
+            className="flex gap-1.5"
+            role="progressbar"
+            aria-valuenow={numEtape}
+            aria-valuemin={0}
+            aria-valuemax={TOTAL_ETAPES}
+            aria-label={t.ariaProgression}
+          >
+            {[1, 2, 3, 4].map((i) => (
+              <div
+                key={i}
+                className="h-1 flex-1 overflow-hidden rounded-full bg-white/25"
+                aria-hidden
+              >
+                <div
+                  className={cn(
+                    "h-full rounded-full transition-colors duration-300",
+                    i <= numEtape ? "bg-white" : "bg-transparent"
+                  )}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Bouton « Suivant » (étape 2) — désactivé si aucun tag */}
+          {phase === "step2" && (
+            <button
+              type="button"
+              onClick={() => allerEtape("step3", 1)}
+              disabled={tags.length === 0}
+              className={cn(
+                "flex w-full items-center justify-center gap-2 rounded-2xl bg-white py-4 text-lg font-bold text-blue-600 shadow-lg transition-all",
+                tags.length === 0
+                  ? "cursor-not-allowed opacity-50"
+                  : "hover:scale-[1.01] active:scale-[0.99]"
+              )}
+            >
+              {t.suivant}
+              <ArrowRight className="size-5" aria-hidden />
+            </button>
+          )}
+
+          {/* Bouton « Suivant » (étape 3) */}
+          {phase === "step3" && (
+            <button
+              type="button"
+              onClick={() => allerEtape("step4", 1)}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-white py-4 text-lg font-bold text-blue-600 shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99]"
+            >
+              {t.suivant}
+              <ArrowRight className="size-5" aria-hidden />
+            </button>
+          )}
+
+          {/* Étape 4 — Bouton principal « Envoyer » + WhatsApp + avis Google */}
+          {phase === "step4" && (
+            <>
+              <button
+                type="button"
+                onClick={() => envoyer("aucun")}
+                disabled={soumission !== null}
+                className={cn(
+                  "fp-scan-pulse-soft flex w-full items-center justify-center gap-2 rounded-2xl bg-white py-5 text-xl font-bold text-blue-600 shadow-lg transition-all",
+                  soumission !== null
+                    ? "cursor-wait opacity-80"
+                    : "hover:scale-[1.01] active:scale-[0.99]"
+                )}
+              >
+                {soumission === "aucun" ? (
+                  <>
+                    <Loader2 className="size-5 animate-spin" aria-hidden /> {t.envoiEnCours}
+                  </>
+                ) : (
+                  <>
+                    <Check className="size-5" aria-hidden /> {t.envoyer}
+                  </>
+                )}
+              </button>
+
+              {/* Canal secondaire WhatsApp (masqué si aucun numéro) */}
+              {aWhatsApp && (
+                <button
+                  type="button"
+                  onClick={() => envoyer("whatsapp")}
+                  disabled={soumission !== null}
+                  className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-green-500 text-base font-bold text-white shadow-lg transition-all hover:bg-green-600 disabled:cursor-wait disabled:opacity-80"
+                >
+                  {soumission === "whatsapp" ? (
+                    <>
+                      <Loader2 className="size-5 animate-spin" aria-hidden /> {t.envoiEnCours}
+                    </>
+                  ) : (
+                    <>
+                      <MessageCircle className="size-5" aria-hidden /> {t.envoyerWhatsapp}
+                    </>
+                  )}
+                </button>
+              )}
+
+              {/* D8 : avis Google — lien discret (si 4-5★ + URL configurée) */}
+              {lienAvisGoogle && (
+                <a
+                  href={lienAvisGoogle}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-amber-300 bg-amber-50 text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-100"
+                >
+                  <span aria-hidden>⭐</span>
+                  {t.avisGoogle}
+                </a>
+              )}
+            </>
+          )}
+        </footer>
+      )}
+
+      {/* ====== Success footer (Fermer + avis Google) ====== */}
+      {phase === "success" && (
+        <footer className="space-y-3 px-4 pb-4 sm:px-6">
+          {lienAvisGoogle && (
+            <a
+              href={lienAvisGoogle}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-amber-300 bg-amber-50 text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-100"
+            >
+              <span aria-hidden>⭐</span>
+              {t.avisGoogle}
+              <span className="text-xs font-normal text-amber-700/80">
+                — {t.avisGoogleAide}
+              </span>
+            </a>
+          )}
+          <button
+            type="button"
+            onClick={onExit}
+            className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-white py-4 text-base font-bold text-blue-600 shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99]"
+          >
+            {t.fermer}
+          </button>
+        </footer>
+      )}
+
+      {/* ====== "Propulsé par FeedbackPro" discret (welcome + error) ====== */}
+      {(phase === "welcome" || phase === "error") && (
+        <p className="pb-4 text-center text-xs text-white/60">
+          {t.propulsePar} <span className="font-semibold text-white/80">FeedbackPro</span>
         </p>
-      </div>
+      )}
     </div>
   )
 }
@@ -1806,16 +1831,58 @@ function LogoEtablissementBig({ pro }: { pro: ScanData["pro"] }) {
         // referrerPolicy : évite le blocage hotlink sur les logos distants (https);
         // sans effet sur les data: URLs (logos uploadés côté dashboard).
         referrerPolicy="no-referrer"
-        className="size-24 rounded-3xl border border-border bg-background object-cover shadow-md sm:size-28"
+        className="size-24 rounded-3xl border-2 border-white bg-white object-cover shadow-md sm:size-28"
       />
     )
   }
   return (
     <div
       aria-hidden
-      className="flex size-24 items-center justify-center rounded-3xl border border-primary/20 bg-gradient-to-br from-primary/15 to-primary/5 text-4xl font-bold text-primary shadow-md sm:size-28"
+      className="flex size-24 items-center justify-center rounded-3xl border-2 border-white bg-white text-4xl font-black text-blue-600 shadow-md sm:size-28"
     >
       {initiale}
+    </div>
+  )
+}
+
+// ---------- Logo petit (en-tête wizard QRTags — étapes 1 à 4) ----------
+// Petit logo (40 px) + nom établissement. Sur fond bleu plein : le logo est
+// cadré sur fond blanc, le nom en blanc bold. Si pas de logo distant, on
+// affiche l'initiale dans un cercle blanc.
+function LogoPetit({ pro, zone }: { pro: ScanData["pro"]; zone: ScanData["zone"] }) {
+  const [logoUrlEnEchec, setLogoUrlEnEchec] = useState<string | null>(null)
+  const afficherLogo = Boolean(pro.logoUrl) && logoUrlEnEchec !== pro.logoUrl
+  const initiale = pro.nomEtablissement.charAt(0).toUpperCase()
+  return (
+    <div className="flex items-center gap-2.5">
+      {afficherLogo && pro.logoUrl ? (
+        <img
+          key={pro.logoUrl}
+          src={pro.logoUrl}
+          alt={`Logo ${pro.nomEtablissement}`}
+          onError={() => setLogoUrlEnEchec(pro.logoUrl ?? null)}
+          loading="eager"
+          decoding="async"
+          referrerPolicy="no-referrer"
+          className="size-10 shrink-0 rounded-xl border-2 border-white bg-white object-cover shadow"
+        />
+      ) : (
+        <div
+          aria-hidden
+          className="flex size-10 shrink-0 items-center justify-center rounded-xl border-2 border-white bg-white text-lg font-black text-blue-600 shadow"
+        >
+          {initiale}
+        </div>
+      )}
+      <div className="min-w-0">
+        <p className="truncate text-sm font-bold leading-tight text-white">
+          {pro.nomEtablissement}
+        </p>
+        <p className="truncate text-xs text-white/70">
+          <span aria-hidden className="me-1">📍</span>
+          {zone.nom}
+        </p>
+      </div>
     </div>
   )
 }
