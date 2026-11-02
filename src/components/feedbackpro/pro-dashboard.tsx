@@ -229,7 +229,7 @@ export function ProDashboard() {
   if (!session) {
     return (
       <div className="flex min-h-screen flex-col bg-background lg:pl-64">
-        <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col bg-blue-600 text-white lg:flex">
+        <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col bg-blue-600 text-white dark:bg-blue-900 lg:flex">
           <div className="flex items-center gap-2.5 px-4 py-5">
             <Skeleton className="h-10 w-10 rounded-xl bg-white/20" />
             <div className="flex-1 space-y-2">
@@ -243,7 +243,7 @@ export function ProDashboard() {
             ))}
           </div>
         </aside>
-        <header className="sticky top-0 z-30 h-14 bg-blue-600 text-white sm:h-16">
+        <header className="sticky top-0 z-30 h-14 bg-blue-600 text-white dark:bg-blue-900 sm:h-16">
           <div className="mx-auto flex h-full w-full max-w-7xl items-center gap-3 px-4 sm:px-6 lg:px-8">
             <Skeleton className="h-8 w-8 bg-white/20 lg:hidden" />
             <Skeleton className="h-5 w-40 bg-white/20" />
@@ -268,12 +268,12 @@ export function ProDashboard() {
   return (
     <div className="flex min-h-screen flex-col bg-background lg:pl-64">
       {/* ---------- Sidebar fixe desktop (lg+) ---------- */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col bg-blue-600 text-white lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col bg-blue-600 text-white dark:bg-blue-900 lg:flex">
         <ContenuSidebar ongletActif={onglet} onNaviguer={naviguer} />
       </aside>
 
       {/* ---------- Header sticky bleu ---------- */}
-      <header className="sticky top-0 z-30 h-14 bg-blue-600 text-white sm:h-16">
+      <header className="sticky top-0 z-30 h-14 bg-blue-600 text-white dark:bg-blue-900 sm:h-16">
         <div className="mx-auto flex h-full w-full max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
           {/* Gauche : burger (mobile) + logo compact + nom de l'établissement */}
           <div className="flex min-w-0 items-center gap-2">
@@ -289,7 +289,7 @@ export function ProDashboard() {
                   <Menu className="h-5 w-5" aria-hidden />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-72 border-0 bg-blue-600 p-0 text-white" aria-describedby={undefined}>
+              <SheetContent side="left" className="w-72 border-0 bg-blue-600 p-0 text-white dark:bg-blue-900" aria-describedby={undefined}>
                 <SheetTitle className="sr-only">Navigation du dashboard</SheetTitle>
                 <ContenuSidebar
                   ongletActif={onglet}

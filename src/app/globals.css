@@ -149,3 +149,172 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* ---------- Animations Landing FeedbackPro (CSS pur, sans framer) ---------- */
+@keyframes fp-float {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-12px) rotate(-0.5deg); }
+}
+@keyframes fp-float-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+@keyframes fp-blob {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33% { transform: translate(20px, -30px) scale(1.05); }
+  66% { transform: translate(-15px, 15px) scale(0.97); }
+}
+@keyframes fp-fade-up {
+  from { opacity: 0; transform: translateY(24px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes fp-pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.45); }
+  70% { box-shadow: 0 0 0 12px rgba(37, 99, 235, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
+}
+
+.fp-float { animation: fp-float 6s ease-in-out infinite; }
+.fp-float-slow { animation: fp-float-slow 7s ease-in-out infinite; }
+.fp-blob { animation: fp-blob 18s ease-in-out infinite; }
+.fp-pulse-ring { animation: fp-pulse-ring 2.4s ease-out infinite; }
+
+/* Reveal au scroll via IntersectionObserver (classe .fp-reveal + .is-visible) */
+.fp-reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+  will-change: opacity, transform;
+}
+.fp-reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+@media (prefers-reduced-motion: reduce) {
+  .fp-float,
+  .fp-float-slow,
+  .fp-blob,
+  .fp-pulse-ring { animation: none; }
+  .fp-reveal { opacity: 1; transform: none; transition: none; }
+}
+
+/* Scroll fluide natif + offset pour nav sticky */
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+
+/* ============================================================
+   Animations CSS pur — page de scan client (refonte "Wahoo")
+   Aucune dépendance à framer-motion : tout passe par des
+   keyframes + classes utilitaires appliquées via key={phase}.
+   ============================================================ */
+
+/* Slide horizontal entre étapes (300 ms ease-out) */
+@keyframes fp-scan-slide-in-right {
+  from { opacity: 0; transform: translateX(48px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes fp-scan-slide-in-left {
+  from { opacity: 0; transform: translateX(-48px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.fp-scan-slide-right { animation: fp-scan-slide-in-right 0.3s ease-out both; }
+.fp-scan-slide-left  { animation: fp-scan-slide-in-left  0.3s ease-out both; }
+
+/* Étape 0 — Bienvenue : fade-in + scale-up doux */
+@keyframes fp-scan-welcome {
+  0%   { opacity: 0; transform: scale(0.92) translateY(8px); }
+  60%  { opacity: 1; transform: scale(1.02) translateY(0); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.fp-scan-welcome { animation: fp-scan-welcome 0.7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Étape 1 — Étoile : bounce au clic */
+@keyframes fp-scan-star-bounce {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.4); }
+  60%  { transform: scale(0.9); }
+  100% { transform: scale(1); }
+}
+.fp-scan-star-bounce { animation: fp-scan-star-bounce 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+/* Cascade : les étoiles jusqu'à celle cliquée s'illuminent avec délai 50 ms */
+@keyframes fp-scan-star-fill {
+  0%   { transform: scale(0.7); opacity: 0.4; }
+  50%  { transform: scale(1.18); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.fp-scan-star-fill { animation: fp-scan-star-fill 0.45s ease-out both; }
+
+/* Étape 2 — Tag : pulse scale au clic (multi-sélection) */
+@keyframes fp-scan-tag-pop {
+  0%   { transform: scale(0.94); }
+  50%  { transform: scale(1.06); }
+  100% { transform: scale(1); }
+}
+.fp-scan-tag-pop { animation: fp-scan-tag-pop 0.32s ease-out both; }
+
+/* Étape 4 — Succès : pop-in de la coche / du cœur */
+@keyframes fp-scan-pop {
+  0%   { transform: scale(0); opacity: 0; }
+  60%  { transform: scale(1.18); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.fp-scan-pop { animation: fp-scan-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+/* Étape 4 — Récompense : entrée douce de la carte */
+@keyframes fp-scan-reward-in {
+  0%   { opacity: 0; transform: translateY(12px) scale(0.96); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+.fp-scan-reward-in { animation: fp-scan-reward-in 0.5s ease-out 0.25s both; }
+
+/* Confettis (succès positif) : chute en diagonale + rotation */
+@keyframes fp-scan-confetti {
+  0%   { opacity: 0; transform: translate(0, 0) rotate(0deg); }
+  10%  { opacity: 1; }
+  100% { opacity: 0; transform: translate(var(--dx, 0), var(--dy, 220px)) rotate(var(--dr, 360deg)); }
+}
+.fp-scan-confetti { animation: fp-scan-confetti 1.8s ease-out forwards; }
+
+/* Cœur pulsé (succès négatif) */
+@keyframes fp-scan-heart {
+  0%   { transform: scale(0); opacity: 0; }
+  35%  { transform: scale(1.25); opacity: 1; }
+  65%  { transform: scale(0.94); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.fp-scan-heart { animation: fp-scan-heart 0.75s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+
+/* Halo doux pulsé derrière la coche de succès */
+@keyframes fp-scan-halo {
+  0%   { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.45); }
+  70%  { box-shadow: 0 0 0 18px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+}
+.fp-scan-halo { animation: fp-scan-halo 2s ease-out 0.4s infinite; }
+
+/* Indicateur "tap to start" (étape bienvenue) */
+@keyframes fp-scan-tap-pulse {
+  0%, 100% { opacity: 0.55; transform: translateY(0); }
+  50%      { opacity: 1;    transform: translateY(-3px); }
+}
+.fp-scan-tap-pulse { animation: fp-scan-tap-pulse 1.6s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .fp-scan-slide-right,
+  .fp-scan-slide-left,
+  .fp-scan-welcome,
+  .fp-scan-star-bounce,
+  .fp-scan-star-fill,
+  .fp-scan-tag-pop,
+  .fp-scan-pop,
+  .fp-scan-reward-in,
+  .fp-scan-confetti,
+  .fp-scan-heart,
+  .fp-scan-halo,
+  .fp-scan-tap-pulse {
+    animation: none !important;
+  }
+}

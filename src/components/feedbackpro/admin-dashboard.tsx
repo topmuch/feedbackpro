@@ -299,18 +299,18 @@ export function AdminDashboard() {
   return (
     <div className="min-h-screen bg-background">
       {/* ---------- Sidebar fixe desktop (lg+) ---------- */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col bg-blue-600 text-white lg:flex">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-72 flex-col bg-blue-600 text-white dark:bg-blue-900 lg:flex">
         <ContenuSidebarAdmin ongletActif={onglet} onNaviguer={naviguer} emailAdmin={emailAdmin} onLogout={logout} />
       </aside>
 
       {/* ---------- Colonne principale (décalée à droite de la sidebar) ---------- */}
       <div className="flex min-h-screen flex-col lg:pl-72">
         {/* ---------- Header bleu (continuité visuelle avec la sidebar) ---------- */}
-        <header className="sticky top-0 z-30 h-14 bg-blue-600 text-white sm:h-16">
+        <header className="sticky top-0 z-30 h-14 bg-blue-600 text-white dark:bg-blue-900 sm:h-16">
           <div className="flex h-full w-full items-center justify-between gap-3 px-4 sm:px-6">
             <div className="flex min-w-0 items-center gap-2">
               <Sheet open={menuOuvert} onOpenChange={setMenuOuvert}>
-                <SheetContent side="left" className="w-72 border-0 bg-blue-600 p-0 text-white" aria-describedby={undefined}>
+                <SheetContent side="left" className="w-72 border-0 bg-blue-600 p-0 text-white dark:bg-blue-900" aria-describedby={undefined}>
                   <SheetTitle className="sr-only">Navigation administration</SheetTitle>
                   <ContenuSidebarAdmin
                     ongletActif={onglet}
@@ -991,7 +991,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
               <span className="sm:hidden">CSV</span>
             </Button>
             <Button
-              className="h-10 shrink-0 gap-1.5 bg-blue-600 hover:bg-blue-700"
+              className="h-10 shrink-0 gap-1.5 bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800"
               onClick={() => setDialogAjout(true)}
             >
               <Plus className="h-4 w-4" aria-hidden />
@@ -1050,7 +1050,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
 
                       {/* Type */}
                       <TableCell>
-                        <Badge variant="outline" className="max-w-32 truncate text-stone-600">
+                        <Badge variant="outline" className="max-w-32 truncate text-stone-600 dark:text-stone-300">
                           <span className="truncate">{p.typeEtablissement || "—"}</span>
                         </Badge>
                       </TableCell>
@@ -1076,7 +1076,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
                       <TableCell className="whitespace-nowrap text-xs">
                         {p.abonnementFin ? (
                           new Date(p.abonnementFin) < new Date() ? (
-                            <Badge variant="outline" className="text-rose-700 border-rose-300">
+                            <Badge variant="outline" className="text-rose-700 border-rose-300 dark:text-rose-300 dark:border-rose-800">
                               Expiré
                             </Badge>
                           ) : (
@@ -1090,11 +1090,11 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
                       {/* Statut actif / suspendu */}
                       <TableCell>
                         {p.suspendu ? (
-                          <Badge variant="outline" className="text-rose-700 border-rose-300">
+                          <Badge variant="outline" className="text-rose-700 border-rose-300 dark:text-rose-300 dark:border-rose-800">
                             Suspendu
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="text-green-700 border-green-300">
+                          <Badge variant="outline" className="text-green-700 border-green-300 dark:text-green-300 dark:border-green-800">
                             Actif
                           </Badge>
                         )}
@@ -1122,7 +1122,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-blue-700 hover:bg-blue-50"
+                            className="h-8 w-8 text-blue-700 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-900/40"
                             aria-label={`Réinitialiser le mot de passe de ${p.nomEtablissement}`}
                             disabled={actionEnCours === p.id}
                             onClick={() => executerResetMdp(p)}
@@ -1137,7 +1137,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 text-green-700 hover:bg-green-50"
+                              className="h-8 w-8 text-green-700 hover:bg-green-50 dark:text-green-300 dark:hover:bg-green-900/40"
                               aria-label={`Réactiver ${p.nomEtablissement}`}
                               onClick={() => setConfirmation({ action: "reactiver", pro: p })}
                             >
@@ -1147,7 +1147,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 text-amber-700 hover:bg-amber-50"
+                              className="h-8 w-8 text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/40"
                               aria-label={`Suspendre ${p.nomEtablissement}`}
                               onClick={() => setConfirmation({ action: "suspendre", pro: p })}
                             >
@@ -1157,7 +1157,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                            className="h-8 w-8 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-900/40 dark:hover:text-rose-300"
                             aria-label={`Supprimer ${p.nomEtablissement}`}
                             onClick={() => setConfirmation({ action: "supprimer", pro: p })}
                           >
@@ -1183,7 +1183,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
                 <DialogTitle className="flex items-center gap-2 pr-6">
                   <span className="truncate">{detail.nomEtablissement}</span>
                   {detail.suspendu && (
-                    <Badge variant="outline" className="shrink-0 text-rose-700 border-rose-300">
+                    <Badge variant="outline" className="shrink-0 text-rose-700 border-rose-300 dark:text-rose-300 dark:border-rose-800">
                       Suspendu
                     </Badge>
                   )}
@@ -1373,7 +1373,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
               <Button type="button" variant="outline" onClick={() => setDialogAjout(false)} disabled={envoiAjout}>
                 Annuler
               </Button>
-              <Button type="submit" className="bg-blue-600 hover:bg-blue-700" disabled={envoiAjout}>
+              <Button type="submit" className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-800" disabled={envoiAjout}>
                 {envoiAjout && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
                 Créer le compte
               </Button>
@@ -1645,7 +1645,7 @@ function UtilisateursTab() {
                       <TableCell className="pl-4 max-w-56 truncate font-medium">{u.email}</TableCell>
                       <TableCell>
                         {u.role === "SUPERADMIN" ? (
-                          <Badge variant="outline" className="text-blue-700 border-blue-300">
+                          <Badge variant="outline" className="text-blue-700 border-blue-300 dark:text-blue-300 dark:border-blue-800">
                             <Shield className="mr-1 h-3 w-3" aria-hidden />
                             Superadmin
                           </Badge>
@@ -1664,11 +1664,11 @@ function UtilisateursTab() {
                       </TableCell>
                       <TableCell>
                         {u.suspendu ? (
-                          <Badge variant="outline" className="text-rose-700 border-rose-300">
+                          <Badge variant="outline" className="text-rose-700 border-rose-300 dark:text-rose-300 dark:border-rose-800">
                             Suspendu
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="text-green-700 border-green-300">
+                          <Badge variant="outline" className="text-green-700 border-green-300 dark:text-green-300 dark:border-green-800">
                             Actif
                           </Badge>
                         )}
@@ -1695,7 +1695,7 @@ function UtilisateursTab() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-blue-700 hover:bg-blue-50"
+                            className="h-8 w-8 text-blue-700 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-900/40"
                             aria-label={`Réinitialiser le mot de passe de ${u.email}`}
                             disabled={actionEnCours === u.id}
                             onClick={() => executerAction("resetPassword", u)}
@@ -1711,7 +1711,7 @@ function UtilisateursTab() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 text-green-700 hover:bg-green-50"
+                              className="h-8 w-8 text-green-700 hover:bg-green-50 dark:text-green-300 dark:hover:bg-green-900/40"
                               aria-label={`Réactiver ${u.email}`}
                               disabled={actionEnCours === u.id}
                               onClick={() => executerAction("reactiver", u)}
@@ -1722,7 +1722,7 @@ function UtilisateursTab() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 text-amber-700 hover:bg-amber-50"
+                              className="h-8 w-8 text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/40"
                               aria-label={`Suspendre ${u.email}`}
                               disabled={actionEnCours === u.id}
                               onClick={() => executerAction("suspendre", u)}
@@ -1734,7 +1734,7 @@ function UtilisateursTab() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+                            className="h-8 w-8 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-900/40 dark:hover:text-rose-300"
                             aria-label={`Supprimer ${u.email}`}
                             disabled={actionEnCours === u.id}
                             onClick={() => setConfirmSuppression(u)}
@@ -1906,7 +1906,7 @@ function UtilisateursTab() {
             )}
 
             {erreurAjout && (
-              <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700" role="alert">
+              <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:bg-rose-950/60 dark:text-rose-300" role="alert">
                 {erreurAjout}
               </p>
             )}
@@ -2440,7 +2440,7 @@ function CommandesTab({ onModifie }: { onModifie: () => void }) {
                         </span>
                         <span className="text-sm font-normal text-muted-foreground">#{c.id.slice(-8).toUpperCase()}</span>
                         {c.numeroSuivi && (
-                          <Badge variant="outline" className="text-emerald-700 border-emerald-300 font-normal gap-1">
+                          <Badge variant="outline" className="text-emerald-700 border-emerald-300 font-normal gap-1 dark:text-emerald-300 dark:border-emerald-800">
                             <Truck className="h-3 w-3" aria-hidden />
                             Suivi : {c.numeroSuivi}
                           </Badge>
@@ -2460,10 +2460,10 @@ function CommandesTab({ onModifie }: { onModifie: () => void }) {
                       variant="outline"
                       className={
                         c.statut === "LIVRE"
-                          ? "text-green-700 border-green-300"
+                          ? "text-green-700 border-green-300 dark:text-green-300 dark:border-green-800"
                           : c.statut === "A_IMPRIMER"
-                            ? "text-rose-700 border-rose-300"
-                            : "text-amber-700 border-amber-300"
+                            ? "text-rose-700 border-rose-300 dark:text-rose-300 dark:border-rose-800"
+                            : "text-amber-700 border-amber-300 dark:text-amber-300 dark:border-amber-800"
                       }
                     >
                       {STATUT_COMMANDE_LABEL[c.statut]}

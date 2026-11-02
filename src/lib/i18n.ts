@@ -29,6 +29,14 @@ export interface TraductionsScan {
   charger: string
   quitter: string
   sousTitre: string
+  // Étape 0 — Bienvenue (auto-transition 2 s)
+  bienvenueChez: string
+  bienvenueTap: string
+  phraseRestauration: string
+  phraseToilettes: string
+  phraseBienEtre: string
+  phraseAccueil: string
+  phraseDefault: string
   // Étape 1 — note. La zone est insérée entre prefix et suffix pour
   // permettre de la styliser (span coloré) sans fonction JSX.
   questionNotePrefix: string
@@ -37,7 +45,7 @@ export interface TraductionsScan {
   ariaEtoiles: string
   donnerEtoiles: (n: number) => string
   retour: string
-  // NPS (étape 1b)
+  // Étape 3 — NPS (affiché si note ≥ 4, dans la même étape que le commentaire)
   questionNps: string
   npsSousTitre: string
   npsIgnorer: string
@@ -54,6 +62,12 @@ export interface TraductionsScan {
   titreCommentaire: string
   commentairePositif: string
   commentaireNegatif: string
+  recapTitre: string
+  recapNote: string
+  recapTags: string
+  recapPersonnel: string
+  recapAucun: string
+  compteurChars: (n: number, max: number) => string
   emailLabel: string
   emailAide: string
   geoConsent: string
@@ -68,6 +82,7 @@ export interface TraductionsScan {
   photoTropGrande: string
   photoFormat: string
   // Boutons d'envoi
+  envoyer: string
   envoyerWhatsapp: string
   envoyerTerminer: string
   envoyerSansWhatsapp: string
@@ -76,9 +91,13 @@ export interface TraductionsScan {
   rassuranceNegatif: string
   // Succès
   merci: string
+  merciPositifCourt: string
+  merciNegatifCourt: string
   merciPositif: (etab: string) => string
   merciNegatif: string
+  fermer: string
   recompenseTitre: (r: string) => string
+  recompenseBadgePrefix: string
   recompenseMontrez: string
   erreurQr: string
   erreurQrAide: string
@@ -95,7 +114,15 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     dir: "ltr",
     charger: "Chargement de votre formulaire…",
     quitter: "Quitter et revenir en arrière",
-    sousTitre: "Votre avis compte — 15 secondes chrono ⏱️",
+    sousTitre: "Votre avis compte — 15 secondes chrono ⚡",
+    // Étape 0 — Bienvenue
+    bienvenueChez: "Bienvenue chez",
+    bienvenueTap: "Touchez pour commencer 👆",
+    phraseRestauration: "Comment s'est passée votre expérience culinaire ?",
+    phraseToilettes: "L'entretien de cet espace est-il à la hauteur ?",
+    phraseBienEtre: "L'entretien de cet espace est-il à la hauteur ?",
+    phraseAccueil: "Comment s'est passé votre accueil ?",
+    phraseDefault: "Comment évaluez-vous votre expérience ?",
     questionNotePrefix: "Comment évaluez-vous ",
     questionNoteSuffix: " ?",
     libellesNote: { 1: "Aïe, désolé…", 2: "Bof…", 3: "Moyen", 4: "Très bien !", 5: "Génial !" },
@@ -113,9 +140,15 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     ariaTagsNegatifs: "Points à améliorer",
     personnelLabel: "Personnel concerné ?",
     optionnel: "(optionnel)",
-    titreCommentaire: "Un commentaire pour le gérant ?",
+    titreCommentaire: "💬 Un commentaire ? (optionnel)",
     commentairePositif: "Ce qui vous a marqué, ce qui a été bien…",
     commentaireNegatif: "Décrivez ce qui s'est passé — seul le gérant le lira.",
+    recapTitre: "Votre retour",
+    recapNote: "Note",
+    recapTags: "Tags",
+    recapPersonnel: "Personnel",
+    recapAucun: "—",
+    compteurChars: (n, max) => `${n} / ${max}`,
     emailLabel: "Votre email (optionnel, pour une réponse du gérant)",
     emailAide:
       "Laissez votre email si vous souhaitez que le gérant vous réponde. Sinon, votre retour restera anonyme.",
@@ -130,6 +163,7 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     photoEnCours: "Traitement…",
     photoTropGrande: "Photo trop volumineuse (5 Mo maximum)",
     photoFormat: "Format non supporté (PNG, JPEG, WebP ou GIF)",
+    envoyer: "Envoyer",
     envoyerWhatsapp: "Envoyer via WhatsApp",
     envoyerTerminer: "Terminer",
     envoyerSansWhatsapp: "Terminer sans WhatsApp",
@@ -138,12 +172,16 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
       "Votre compliment est transmis au gérant avec votre note et vos mots 🎉",
     rassuranceNegatif:
       "🔒 Votre retour reste privé : il est transmis uniquement au gérant.",
-    merci: "Merci pour votre retour ! 🙏",
+    merci: "🙏 Merci pour votre retour !",
+    merciPositifCourt: "Votre soutien nous touche 💚",
+    merciNegatifCourt: "Nous allons étudier votre retour",
     merciPositif: (etab) =>
       `Votre avis fait toute la différence pour toute l'équipe de ${etab}. Merci du fond du cœur ! 💚`,
     merciNegatif:
       "Votre retour a été transmis en privé au gérant, il a été alerté directement.",
+    fermer: "Fermer",
     recompenseTitre: (r) => `🎁 Votre récompense : ${r}`,
+    recompenseBadgePrefix: "🎁 Recevez",
     recompenseMontrez: "Montrez cet écran au personnel pour en profiter",
     erreurQr: "QR code inconnu ou expiré",
     erreurQrAide: "Vérifiez le QR code affiché chez le commerçant, puis réessayez.",
@@ -157,7 +195,15 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     dir: "ltr",
     charger: "Loading your form…",
     quitter: "Quit and go back",
-    sousTitre: "Your feedback matters — 15 seconds ⏱️",
+    sousTitre: "Your feedback matters — 15 seconds ⚡",
+    // Step 0 — Welcome
+    bienvenueChez: "Welcome to",
+    bienvenueTap: "Tap to start 👆",
+    phraseRestauration: "How was your culinary experience?",
+    phraseToilettes: "Was this space properly maintained?",
+    phraseBienEtre: "Was this space properly maintained?",
+    phraseAccueil: "How was your welcome?",
+    phraseDefault: "How would you rate your experience?",
     questionNotePrefix: "How would you rate ",
     questionNoteSuffix: "?",
     libellesNote: { 1: "Ouch, sorry…", 2: "Meh…", 3: "Okay", 4: "Very good!", 5: "Awesome!" },
@@ -175,9 +221,15 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     ariaTagsNegatifs: "Points to improve",
     personnelLabel: "Staff member involved?",
     optionnel: "(optional)",
-    titreCommentaire: "A comment for the manager?",
+    titreCommentaire: "💬 A comment? (optional)",
     commentairePositif: "What stood out, what was good…",
     commentaireNegatif: "Describe what happened — only the manager will read it.",
+    recapTitre: "Your feedback",
+    recapNote: "Rating",
+    recapTags: "Tags",
+    recapPersonnel: "Staff",
+    recapAucun: "—",
+    compteurChars: (n, max) => `${n} / ${max}`,
     emailLabel: "Your email (optional, for a manager reply)",
     emailAide:
       "Leave your email if you'd like the manager to reply. Otherwise your feedback stays anonymous.",
@@ -192,17 +244,22 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     photoEnCours: "Processing…",
     photoTropGrande: "Photo too large (5 MB max)",
     photoFormat: "Unsupported format (PNG, JPEG, WebP or GIF)",
+    envoyer: "Send",
     envoyerWhatsapp: "Send via WhatsApp",
     envoyerTerminer: "Done",
     envoyerSansWhatsapp: "Done without WhatsApp",
     envoiEnCours: "Sending…",
     rassurancePositif: "Your compliment was sent to the manager with your rating and words 🎉",
     rassuranceNegatif: "🔒 Your feedback stays private: only the manager sees it.",
-    merci: "Thank you for your feedback! 🙏",
+    merci: "🙏 Thank you for your feedback!",
+    merciPositifCourt: "Your support means a lot 💚",
+    merciNegatifCourt: "We will review your feedback",
     merciPositif: (etab) =>
       `Your feedback means a lot to the whole team at ${etab}. Thank you from the bottom of our hearts! 💚`,
     merciNegatif: "Your feedback was sent privately to the manager — they've been alerted.",
+    fermer: "Close",
     recompenseTitre: (r) => `🎁 Your reward: ${r}`,
+    recompenseBadgePrefix: "🎁 Get",
     recompenseMontrez: "Show this screen to the staff to claim it",
     erreurQr: "Unknown or expired QR code",
     erreurQrAide: "Check the QR code displayed by the merchant, then try again.",
@@ -216,7 +273,15 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     dir: "rtl",
     charger: "جاري تحميل النموذج…",
     quitter: "الخروج والرجوع",
-    sousTitre: "رأيك يهمنا — 15 ثانية فقط ⏱️",
+    sousTitre: "رأيك يهمنا — 15 ثانية فقط ⚡",
+    // المرحلة 0 — الترحيب
+    bienvenueChez: "مرحباً بك في",
+    bienvenueTap: "المس للبدء 👆",
+    phraseRestauration: "كيف كانت تجربتك الطهي؟",
+    phraseToilettes: "هل كان صيانة هذا المكان بمستوى لائق؟",
+    phraseBienEtre: "هل كان صيانة هذا المكان بمستوى لائق؟",
+    phraseAccueil: "كيف كان استقبالك؟",
+    phraseDefault: "كيف تقيّم تجربتك؟",
     questionNotePrefix: "كيف تقيّم ",
     questionNoteSuffix: "؟",
     libellesNote: { 1: "آسف جداً…", 2: "ليس جيداً…", 3: "متوسط", 4: "جيد جداً!", 5: "رائع!" },
@@ -234,9 +299,15 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     ariaTagsNegatifs: "نقاط للتحسين",
     personnelLabel: "الموظف المعني؟",
     optionnel: "(اختياري)",
-    titreCommentaire: "تعليق للمدير؟",
+    titreCommentaire: "💬 تعليق؟ (اختياري)",
     commentairePositif: "ما الذي لفت انتباهك، ما كان جيداً…",
     commentaireNegatif: "صف ما حدث — سيقرأه المدير فقط.",
+    recapTitre: "رأيك",
+    recapNote: "التقييم",
+    recapTags: "العلامات",
+    recapPersonnel: "الموظف",
+    recapAucun: "—",
+    compteurChars: (n, max) => `${n} / ${max}`,
     emailLabel: "بريدك الإلكتروني (اختياري، لرد المدير)",
     emailAide:
       "اترك بريدك الإلكتروني إذا كنت تريد أن يرد عليك المدير. وإلا سيبقى رأيك مجهولاً.",
@@ -251,17 +322,22 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     photoEnCours: "جاري المعالجة…",
     photoTropGrande: "الصورة كبيرة جداً (5 ميغا كحد أقصى)",
     photoFormat: "صيغة غير مدعومة (PNG أو JPEG أو WebP أو GIF)",
+    envoyer: "إرسال",
     envoyerWhatsapp: "إرسال عبر واتساب",
     envoyerTerminer: "إنهاء",
     envoyerSansWhatsapp: "إنهاء بدون واتساب",
     envoiEnCours: "جاري الإرسال…",
     rassurancePositif: "تم إرسال إطرائك إلى المدير مع تقييمك وكلماتك 🎉",
     rassuranceNegatif: "🔒 رأيك يبقى خاصاً: يراه المدير فقط.",
-    merci: "شكراً على رأيك! 🙏",
+    merci: "🙏 شكراً على رأيك!",
+    merciPositifCourt: "دعمك يعني لنا الكثير 💚",
+    merciNegatifCourt: "سنقوم بدراسة رأيك",
     merciPositif: (etab) =>
       `رأيك يعني الكثير لفريق ${etab} بأكمله. شكراً من صميم القلب! 💚`,
     merciNegatif: "تم إرسال رأيك بشكل خاص إلى المدير — تم تنبيهه.",
+    fermer: "إغلاق",
     recompenseTitre: (r) => `🎁 مكافأتك: ${r}`,
+    recompenseBadgePrefix: "🎁 احصل على",
     recompenseMontrez: "اعرض هذه الشاشة على الموظف للحصول عليها",
     erreurQr: "رمز QR غير معروف أو منتهي الصلاحية",
     erreurQrAide: "تحقق من رمز QR المعروض لدى التاجر، ثم أعد المحاولة.",

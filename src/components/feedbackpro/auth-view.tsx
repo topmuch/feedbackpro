@@ -148,73 +148,198 @@ export function AuthView() {
   const modeInscription = authMode === "signup"
 
   return (
-    <div className="flex min-h-[calc(100vh-3.5rem)] items-center justify-center bg-[#F3F4F6] px-4 py-8 sm:py-12">
-      <div className="w-full max-w-md">
-        {/* Logo + titre */}
-        <div className="mb-6 flex flex-col items-center text-center">
-          <button
-            type="button"
-            onClick={() => setView("landing")}
-            aria-label="FeedbackPro — retour à l'accueil"
-            className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25 outline-none transition-transform hover:scale-105 focus-visible:ring-[3px] focus-visible:ring-ring/50"
-          >
-            <ScanLine className="h-6 w-6" aria-hidden />
-          </button>
-          <h1 className="text-2xl font-bold tracking-tight">
-            {modeInscription ? "Créez votre compte" : "Bon retour !"}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
+    <div className="grid min-h-[calc(100vh-3.5rem)] grid-cols-1 bg-muted/30 lg:grid-cols-2">
+      {/* ---------- Colonne gauche : visuel marketing (desktop uniquement) ---------- */}
+      <PanneauMarketing modeInscription={modeInscription} />
+
+      {/* ---------- Colonne droite : formulaire ---------- */}
+      <div className="flex items-center justify-center px-4 py-8 sm:px-6 sm:py-12">
+        <div className="w-full max-w-md">
+          {/* Logo + titre */}
+          <div className="mb-6 flex flex-col items-center text-center">
+            <button
+              type="button"
+              onClick={() => setView("landing")}
+              aria-label="FeedbackPro — retour à l'accueil"
+              className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/25 outline-none transition-transform hover:scale-105 focus-visible:ring-[3px] focus-visible:ring-ring/50 lg:hidden"
+            >
+              <ScanLine className="h-6 w-6" aria-hidden />
+            </button>
+            <h1 className="text-2xl font-bold tracking-tight">
+              {modeInscription ? "Créez votre compte" : "Bon retour !"}
+            </h1>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {modeInscription
+                ? "Votre Coach IA d'audit qualité en 4 étapes"
+                : "Heureux de vous revoir. Votre rapport du jour vous attend."}
+            </p>
+          </div>
+
+          <Card className="border-border/70 shadow-lg shadow-black/5">
+            <CardContent className="p-5 sm:p-7">
+              {/* key : réinitialise l'état quand on change de mode */}
+              {modeInscription ? <InscriptionWizard key="signup" /> : <ConnexionForm key="login" />}
+            </CardContent>
+          </Card>
+
+          {/* Liens de bascule + retour accueil */}
+          <p className="mt-6 text-center text-sm text-muted-foreground">
+            {modeInscription ? (
+              <>
+                Vous avez déjà un compte ?{" "}
+                <button
+                  type="button"
+                  onClick={() => setAuthMode("login")}
+                  className="font-semibold text-primary hover:underline"
+                >
+                  Se connecter
+                </button>
+              </>
+            ) : (
+              <>
+                Pas encore de compte ?{" "}
+                <button
+                  type="button"
+                  onClick={() => setAuthMode("signup")}
+                  className="font-semibold text-primary hover:underline"
+                >
+                  Créez-le gratuitement
+                </button>
+              </>
+            )}
+          </p>
+          <p className="mt-3 text-center">
+            <button
+              type="button"
+              onClick={() => setView("landing")}
+              className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+              Retour à l'accueil
+            </button>
+          </p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// Panneau marketing (colonne gauche, desktop uniquement)
+// Dégradé bleu + mockup dashboard + témoignage client.
+// Masqué en mobile (lg:flex) pour laisser toute la place au formulaire.
+// ============================================================
+
+function PanneauMarketing({ modeInscription }: { modeInscription: boolean }) {
+  return (
+    <aside
+      aria-hidden="true"
+      className="relative hidden overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-blue-900 lg:flex lg:flex-col lg:justify-between lg:p-10 xl:p-12"
+    >
+      {/* Décoration : cercles translucides en arrière-plan */}
+      <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-white/10" />
+      <div className="pointer-events-none absolute -bottom-32 -left-16 h-80 w-80 rounded-full bg-white/5" />
+      <div className="pointer-events-none absolute right-1/3 top-1/2 h-40 w-40 rounded-full bg-white/5" />
+
+      {/* ---------- En-tête : logo + baseline ---------- */}
+      <div className="relative flex items-center gap-3 text-white">
+        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
+          <ScanLine className="h-6 w-6" aria-hidden />
+        </span>
+        <div>
+          <p className="text-lg font-bold leading-tight">FeedbackPro</p>
+          <p className="text-xs text-white/80">Le Coach IA d'audit qualité continu</p>
+        </div>
+      </div>
+
+      {/* ---------- Bloc central : promesse + mockup dashboard ---------- */}
+      <div className="relative space-y-6 text-white">
+        <div className="space-y-3">
+          <h2 className="text-3xl font-bold leading-tight xl:text-4xl">
             {modeInscription
-              ? "Votre Coach IA d'audit qualité en 4 étapes"
-              : "Heureux de vous revoir. Votre rapport du jour vous attend."}
+              ? "Transformez chaque client en auditeur qualité."
+              : "Votre rapport du jour vous attend."}
+          </h2>
+          <p className="max-w-md text-sm leading-relaxed text-white/85">
+            Scannez un QR code, laissez une note, et notre IA vous livre chaque matin un rapport
+            d'audit avec 3 priorités concrètes pour améliorer votre service.
           </p>
         </div>
 
-        <Card className="border-border/70 shadow-xl shadow-black/5">
-          <CardContent className="p-5 sm:p-7">
-            {/* key : réinitialise l'état quand on change de mode */}
-            {modeInscription ? <InscriptionWizard key="signup" /> : <ConnexionForm key="login" />}
-          </CardContent>
-        </Card>
-
-        {/* Liens de bascule + retour accueil */}
-        <p className="mt-6 text-center text-sm text-muted-foreground">
-          {modeInscription ? (
-            <>
-              Vous avez déjà un compte ?{" "}
-              <button
-                type="button"
-                onClick={() => setAuthMode("login")}
-                className="font-semibold text-primary hover:underline"
-              >
-                Se connecter
-              </button>
-            </>
-          ) : (
-            <>
-              Pas encore de compte ?{" "}
-              <button
-                type="button"
-                onClick={() => setAuthMode("signup")}
-                className="font-semibold text-primary hover:underline"
-              >
-                Créez-le gratuitement
-              </button>
-            </>
-          )}
-        </p>
-        <p className="mt-3 text-center">
-          <button
-            type="button"
-            onClick={() => setView("landing")}
-            className="inline-flex items-center gap-1 text-sm text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-            Retour à l'accueil
-          </button>
-        </p>
+        {/* Mockup dashboard (aperçu visuel simplifié) */}
+        <div className="relative rounded-2xl bg-white/95 p-4 text-stone-900 shadow-2xl shadow-black/20">
+          <div className="flex items-center justify-between border-b border-stone-200 pb-2.5">
+            <div>
+              <p className="text-xs font-medium text-stone-500">Rapport du jour</p>
+              <p className="text-sm font-bold">Le Petit Bistrot</p>
+            </div>
+            <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold text-green-700">
+              +12 % vs hier
+            </span>
+          </div>
+          <div className="mt-3 grid grid-cols-3 gap-2">
+            <div className="rounded-lg bg-blue-50 p-2">
+              <p className="text-[9px] font-medium text-blue-700">Note moyenne</p>
+              <p className="text-lg font-bold text-blue-900">4,6</p>
+            </div>
+            <div className="rounded-lg bg-emerald-50 p-2">
+              <p className="text-[9px] font-medium text-emerald-700">Retours</p>
+              <p className="text-lg font-bold text-emerald-900">38</p>
+            </div>
+            <div className="rounded-lg bg-amber-50 p-2">
+              <p className="text-[9px] font-medium text-amber-700">Alertes</p>
+              <p className="text-lg font-bold text-amber-900">2</p>
+            </div>
+          </div>
+          <div className="mt-3 space-y-1.5">
+            <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">
+              3 priorités du jour
+            </p>
+            <div className="flex items-center gap-2 rounded-md bg-stone-50 p-1.5">
+              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white">
+                1
+              </span>
+              <p className="text-[11px] leading-tight text-stone-700">
+                Réduire le temps d'attente en salle à 12 h
+              </p>
+            </div>
+            <div className="flex items-center gap-2 rounded-md bg-stone-50 p-1.5">
+              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-blue-500 text-[9px] font-bold text-white">
+                2
+              </span>
+              <p className="text-[11px] leading-tight text-stone-700">
+                Reformuler la carte des desserts
+              </p>
+            </div>
+            <div className="flex items-center gap-2 rounded-md bg-stone-50 p-1.5">
+              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-[9px] font-bold text-white">
+                3
+              </span>
+              <p className="text-[11px] leading-tight text-stone-700">
+                Féliciter l'équipe pour l'accueil à l'entrée
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
-    </div>
+
+      {/* ---------- Témoignage client ---------- */}
+      <figure className="relative rounded-2xl bg-white/10 p-5 text-white backdrop-blur">
+        <blockquote className="text-sm leading-relaxed text-white/95">
+          « En 3 semaines, notre note moyenne est passée de 4,1 à 4,7. Le rapport quotidien
+          devient un réflexe pour toute l'équipe. »
+        </blockquote>
+        <figcaption className="mt-3 flex items-center gap-3">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-sm font-bold">
+            M
+          </span>
+          <div>
+            <p className="text-xs font-semibold">Maria L.</p>
+            <p className="text-[11px] text-white/75">Gérante · Pizzeria Da Mario, Lyon</p>
+          </div>
+        </figcaption>
+      </figure>
+    </aside>
   )
 }
 
@@ -225,7 +350,7 @@ export function AuthView() {
 function ErreurApi({ message }: { message: string }) {
   return (
     <p
-      className="flex items-start gap-2 rounded-lg bg-rose-50 px-3 py-2.5 text-sm leading-snug text-rose-700"
+      className="flex items-start gap-2 rounded-lg bg-rose-50 px-3 py-2.5 text-sm leading-snug text-rose-700 dark:bg-rose-950/60 dark:text-rose-300"
       role="alert"
     >
       <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
@@ -238,7 +363,7 @@ function ErreurApi({ message }: { message: string }) {
 function ErreurChamp({ message }: { message?: string }) {
   if (!message) return null
   return (
-    <p className="text-xs text-rose-600" role="alert">
+    <p className="text-xs text-rose-600 dark:text-rose-400" role="alert">
       {message}
     </p>
   )
@@ -342,6 +467,17 @@ function ConnexionForm() {
           "Se connecter"
         )}
       </Button>
+
+      {/* Lien « Mot de passe oublié ? » — redirige vers l'email de support
+          (aucune route dédiée pour le moment, l'app reste déployable telle quelle). */}
+      <p className="text-center">
+        <a
+          href="mailto:support@feedbackpro.fr?subject=Mot%20de%20passe%20oubli%C3%A9"
+          className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary hover:underline"
+        >
+          Mot de passe oublié ?
+        </a>
+      </p>
     </form>
   )
 }
@@ -865,7 +1001,7 @@ function InscriptionWizard() {
                       <button
                         type="button"
                         onClick={retirerLogo}
-                        className="text-xs font-medium text-rose-600 hover:underline"
+                        className="text-xs font-medium text-rose-600 hover:underline dark:text-rose-400"
                       >
                         Retirer le logo
                       </button>
@@ -1031,7 +1167,7 @@ function IndicateurEtapes({ etape }: { etape: number }) {
                   finie
                     ? "flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground"
                     : courante
-                      ? "flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary bg-white text-primary"
+                      ? "flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary bg-card text-primary"
                       : "flex h-8 w-8 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground"
                 }
               >
