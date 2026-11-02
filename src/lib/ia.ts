@@ -26,6 +26,7 @@ import { db } from "@/lib/db"
 import { tagLabel } from "@/lib/constants"
 import { sendEmail, emailRapportIA } from "@/lib/email"
 import { analyserSemantique } from "@/lib/semantic"
+import { configSecteur } from "@/lib/secteurs"
 import type { Pro, RapportIA } from "@prisma/client"
 
 /**
@@ -35,10 +36,26 @@ import type { Pro, RapportIA } from "@prisma/client"
  * employé cité en négatif et une FÉLICITATION PUBLIQUE pour un employé
  * cité en positif. Sortie : JSON strict (contenuMarkdown + tableaux)
  * pour rester compatible avec le parsing et le dashboard.
+ *
+ * Task M4 — Le prompt est désormais SECTEUR-AWARE : le JSON transmis
+ * contient un champ `secteur` avec le nom du secteur, son emoji, sa
+ * description et son vocabulaire métier. Le Coach adapte son ton et
+ * ses recommandations au secteur (conciergerie pour un hôtel, accueil
+ * patient pour un hôpital, fluidité du check-in pour un aéroport…).
  */
 export const SYSTEM_PROMPT_FR = `Tu es le Coach IA de FeedbackPro, un expert en management de la qualité pour les commerces.
 
 Tu analyses les retours clients (Clients Mystères) de l'établissement, transmis au format JSON : score global, nombre de retours, répartition par zone (score, volume, tags fréquents), évolution vs période précédente, employés les plus mentionnés, créneaux problématiques, thèmes cachés détectés dans les commentaires libres.
+
+ADAPTATION AU SECTEUR :
+Le JSON contient un champ "secteur" avec le nom du secteur (Restaurant, Hôtel, Hôpital/Clinique, Aéroport, Salon, Boutique…), son vocabulaire métier et ses KPIs spéciaux. Adapte ton ton et tes recommandations au secteur :
+- Hôtel → parle de "conciergerie", "accueil réception", "qualité de la chambre", "petit-déjeuner"
+- Hôpital/Clinique → parle d'"accueil patient", "prise en charge", "salle d'attente", "empathie soignante"
+- Aéroport → parle de "fluidité du check-in", "file d'attente sécurité", "embarquement", "info-voyageur"
+- Restaurant → parle de "service en salle", "qualité des plats", "accueil", "temps d'attente"
+- Boutique/Commerce → parle de "conseil client", "mise en valeur des produits", "caisse"
+- Salon/Spa → parle de "prise en charge", "ambiance", "conseil personnalisé"
+- Mairie/Administration → parle de "guichet", "clarté des démarches", "accueil usager"
 
 TA MISSION :
 Rédige un rapport d'audit qualité en markdown (champ "contenuMarkdown"), structuré ainsi :
@@ -103,6 +120,22 @@ export type DonneesRapport = {
   themesDetectes: { nom: string; occurrences: number; noteMoyenne: number }[]
   /** Session 5 : mots-clés récurrents des commentaires libres */
   motsClesRecuvents: string[]
+  /**
+   * Task M4 — Contexte secteur du Pro (depuis SecteurConfig en BDD,
+   * ou fallback sur le fichier statique SECTEUR_CONFIG). Injecté dans
+   * le prompt pour adapter le ton du Coach au secteur de l'établissement.
+   */
+  secteur: {
+    nom: string
+    emoji: string
+    description: string
+    /** Vocabulaire métier du secteur (conciergerie, accueil patient…) */
+    vocabulaire: string[]
+    /** KPIs spéciaux du secteur (ex : temps d'attente, délai prise en charge) */
+    kpisSpeciaux: { id: string; label: string; target: number; unit: string }[]
+    /** Langues supportées par le secteur */
+    languesSupportees: string[]
+  }
 }
 
 /** Contenu d'un rapport généré (par le LLM ou par le fallback déterministe) */
@@ -177,6 +210,87 @@ export function periodePourType(type: "quotidien" | "hebdomadaire"): { periodeDe
   return { periodeDebut, periodeFin }
 }
 
+// ============================================================
+// Task M4 — Résolution du contexte secteur (BDD ou fallback statique)
+// ------------------------------------------------------------
+// Le Coach IA adapte son ton au secteur de l'établissement. On charge
+// la fiche SecteurConfig depuis la BDD (via pro.secteurId si présent,
+// sinon par typeEtablissement). En cas d'absence, on retombe sur le
+// fichier statique src/lib/secteurs.ts — l'IA reste fonctionnelle.
+// ============================================================
+
+/** Vocabulaire métier par secteur (utilisé par le LLM et le fallback). */
+const VOCABULAIRE_PAR_SECTEUR: Record<string, string[]> = {
+  Restaurant: ["service en salle", "qualité des plats", "accueil", "temps d'attente"],
+  "Fast Food": ["rapidité", "retrait commande", "salle", "tri"],
+  Hôtel: ["conciergerie", "accueil réception", "qualité de la chambre", "petit-déjeuner"],
+  "Café / Bar": ["accueil au comptoir", "ambiance", "service rapide"],
+  "Boulangerie / Pâtisserie": ["accueil", "file d'attente", "fraîcheur"],
+  "Boutique / Commerce": ["conseil client", "mise en valeur des produits", "caisse"],
+  "Salon de coiffure": ["prise en charge", "écoute du besoin", "station de travail"],
+  "Institut de beauté / Spa": ["prise en charge", "ambiance", "conseil personnalisé", "cabine"],
+  "Garage automobile": ["estimation", "atelier", "transparence"],
+  "Hôpital / Clinique": ["accueil patient", "prise en charge", "salle d'attente", "empathie soignante"],
+  Aéroport: ["fluidité du check-in", "file d'attente sécurité", "embarquement", "info-voyageur"],
+  "Gare / Station": ["info-voyageur", "propreté des quais", "accueil guichet"],
+  "Entreprise (accueil public)": ["accueil visiteur", "badge", "attente"],
+  "Mairie / Administration": ["guichet", "clarté des démarches", "accueil usager"],
+  Autre: ["accueil", "service", "compétence"],
+}
+
+/** Charge le contexte secteur d'un Pro (depuis la BDD, ou fallback statique). */
+async function chargerContexteSecteur(pro: {
+  id: string
+  nomEtablissement: string
+  typeEtablissement: string
+  secteurId?: string | null
+}): Promise<DonneesRapport["secteur"]> {
+  // 1) Cherche d'abord la fiche BDD par secteurId, puis par typeEtablissement
+  const where = pro.secteurId
+    ? { id: pro.secteurId }
+    : { nom: pro.typeEtablissement }
+  const bdd = await db.secteurConfig.findUnique({ where }).catch(() => null)
+
+  if (bdd) {
+    const kpis = parseJsonSecteur<{
+      id: string
+      label: string
+      target: number
+      unit: string
+    }[]>(bdd.kpisSpeciaux, [])
+    const langues = parseJsonSecteur<string[]>(bdd.languesSupportees, ["fr"])
+    return {
+      nom: bdd.nom,
+      emoji: bdd.emoji,
+      description: bdd.description,
+      vocabulaire: VOCABULAIRE_PAR_SECTEUR[bdd.nom] ?? VOCABULAIRE_PAR_SECTEUR.Autre,
+      kpisSpeciaux: kpis,
+      languesSupportees: langues,
+    }
+  }
+
+  // 2) Fallback : fichier statique src/lib/secteurs.ts
+  const statique = configSecteur(pro.typeEtablissement)
+  return {
+    nom: pro.typeEtablissement,
+    emoji: statique.emoji,
+    description: statique.description,
+    vocabulaire: VOCABULAIRE_PAR_SECTEUR[pro.typeEtablissement] ?? VOCABULAIRE_PAR_SECTEUR.Autre,
+    kpisSpeciaux: [],
+    languesSupportees: ["fr"],
+  }
+}
+
+/** Parse un champ JSON de SecteurConfig (helper local, tolérant). */
+function parseJsonSecteur<T>(valeur: string | null | undefined, defaut: T): T {
+  if (!valeur) return defaut
+  try {
+    return JSON.parse(valeur) as T
+  } catch {
+    return defaut
+  }
+}
+
 // ---------- Agrégation des données d'une période ----------
 
 /**
@@ -186,7 +300,7 @@ export function periodePourType(type: "quotidien" | "hebdomadaire"): { periodeDe
  * C'est la matière première du Coach IA (Session 5).
  */
 export async function agregerDonnees(
-  pro: Pick<Pro, "id" | "nomEtablissement" | "typeEtablissement">,
+  pro: Pick<Pro, "id" | "nomEtablissement" | "typeEtablissement" | "secteurId">,
   periodeDebut: Date,
   periodeFin: Date
 ): Promise<DonneesRapport> {
@@ -356,6 +470,9 @@ export async function agregerDonnees(
 
   const periodeTxt = `${periodeDebut.toLocaleDateString("fr-FR", { day: "numeric", month: "long" })} au ${periodeFin.toLocaleDateString("fr-FR", { day: "numeric", month: "long", year: "numeric" })}`
 
+  // Task M4 — Contexte secteur (BDD ou fallback statique)
+  const secteur = await chargerContexteSecteur(pro)
+
   return {
     nomEtablissement: pro.nomEtablissement,
     typeEtablissement: pro.typeEtablissement,
@@ -371,6 +488,7 @@ export async function agregerDonnees(
     creneauxAlertes,
     themesDetectes,
     motsClesRecuvents,
+    secteur,
   }
 }
 
@@ -501,7 +619,11 @@ export function rapportFallback(donnees: DonneesRapport): ContenuRapport {
   const lignes: string[] = []
   lignes.push(`## 📊 RAPPORT D'AUDIT QUALITÉ — ${d.periode}`)
   lignes.push("")
+  // Task M4 — Affichage du secteur avec son emoji pour adapter le ton
   lignes.push(`### 🏢 ${d.nomEtablissement}`)
+  if (d.secteur.nom && d.secteur.nom !== "Autre") {
+    lignes.push(`*Secteur : ${d.secteur.emoji} ${d.secteur.nom}* — ${d.secteur.description}`)
+  }
   lignes.push("")
   lignes.push(`### 🎯 SCORE GLOBAL : ${scoreGlobal}/100 (${evoTxt})`)
   lignes.push("")
@@ -509,6 +631,19 @@ export function rapportFallback(donnees: DonneesRapport): ContenuRapport {
   lignes.push("")
   lignes.push(`Répartition des notes : ${d.totalRetours > 0 ? repartitionTxt : "aucun retour sur la période"}`)
   lignes.push("")
+  // Task M4 — Vocabulaire métier du secteur (orientations thématiques)
+  if (d.secteur.vocabulaire.length > 0) {
+    lignes.push(`*Focus secteur : ${d.secteur.vocabulaire.join(" · ")}*`)
+    lignes.push("")
+  }
+  // Task M4 — KPIs spéciaux du secteur (affichés s'ils existent)
+  if (d.secteur.kpisSpeciaux.length > 0) {
+    lignes.push("**KPIs spécifiques au secteur à surveiller :**")
+    for (const k of d.secteur.kpisSpeciaux) {
+      lignes.push(`- ${k.label} (cible : ${k.target} ${k.unit})`)
+    }
+    lignes.push("")
+  }
   lignes.push("### 🔍 ANALYSE PAR ZONE :")
   if (d.parZone.length === 0) {
     lignes.push("- Aucune zone scannée sur la période : rendez vos QR codes plus visibles.")

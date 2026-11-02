@@ -108,6 +108,9 @@ export interface TraductionsScan {
   // Google review (D8)
   avisGoogle: string
   avisGoogleAide: string
+  // Task M3 — Mode offline : message affiché sur l'écran de succès quand
+  // le retour a été stocké hors ligne (sans réseau) plutôt qu'envoyé.
+  retourEnregistreHorsLigne: string
 }
 
 export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
@@ -192,6 +195,7 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     propulsePar: "Propulsé par",
     avisGoogle: "Laissez un avis Google",
     avisGoogleAide: "Ça aide beaucoup l'établissement — merci !",
+    retourEnregistreHorsLigne: "✓ Retour enregistré hors ligne — sera envoyé à la reconnexion",
   },
   en: {
     dir: "ltr",
@@ -271,6 +275,7 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     propulsePar: "Powered by",
     avisGoogle: "Leave a Google review",
     avisGoogleAide: "It really helps the business — thank you!",
+    retourEnregistreHorsLigne: "✓ Feedback saved offline — will be sent when reconnected",
   },
   ar: {
     dir: "rtl",
@@ -350,6 +355,7 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     propulsePar: "مدعوم من",
     avisGoogle: "اترك تقييم Google",
     avisGoogleAide: "هذا يساعد المنشأة كثيراً — شكراً!",
+    retourEnregistreHorsLigne: "✓ تم حفظ رأيك دون اتصال — سيُرسل عند إعادة الاتصال",
   },
 }
 

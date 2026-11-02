@@ -80,6 +80,7 @@ import { useAppStore } from "@/store/app-store"
 import { useToast } from "@/hooks/use-toast"
 import { NotificationsBell } from "@/components/feedbackpro/notifications-bell"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { LanguageSelector } from "@/components/feedbackpro/language-selector"
 import { exportToCsv } from "@/lib/export-csv"
 import {
   PLANS,
@@ -332,6 +333,7 @@ export function AdminDashboard() {
               <p className="truncate font-semibold">{titreOnglet}</p>
             </div>
             <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+              <LanguageSelector tone="dark" />
               <NotificationsBell tone="dark" />
               <ThemeToggle />
               <Badge variant="secondary" className="border-0 bg-white/15 text-white">Superadmin</Badge>

@@ -30,42 +30,49 @@ model Session {
 }
 
 model Pro {
-  id                String      @id @default(cuid())
-  userId            String      @unique
+  id                String         @id @default(cuid())
+  userId            String         @unique
   nomEtablissement  String
-  typeEtablissement String      @default("restaurant")
-  adresse           String      @default("")
-  ville             String      @default("")
+  typeEtablissement String         @default("restaurant")
+  adresse           String         @default("")
+  ville             String         @default("")
   whatsapp          String?
-  email             String      @default("")
+  email             String         @default("")
   logoUrl           String?
-  plan              String      @default("STARTER")
-  frequenceRapport  String      @default("quotidien")
+  plan              String         @default("STARTER")
+  frequenceRapport  String         @default("quotidien")
   recompense        String?
-  recompenseActive  Boolean     @default(false)
-  recompenseType    String      @default("cafe")
-  recompenseCode    String      @default("")
+  recompenseActive  Boolean        @default(false)
+  recompenseType    String         @default("cafe")
+  recompenseCode    String         @default("")
   recompenseLimite  String?
   messageWhatsapp   String?
-  onboardingDone    Boolean     @default(false)
-  suspendu          Boolean     @default(false)
-  smsAlertes        Boolean     @default(true)
+  onboardingDone    Boolean        @default(false)
+  suspendu          Boolean        @default(false)
+  smsAlertes        Boolean        @default(true)
   abonnementDebut   DateTime?
   abonnementFin     DateTime?
   proId             String?
   googlePlaceId     String?
   googleReviewUrl   String?
-  createdAt         DateTime    @default(now())
-  updatedAt         DateTime    @updatedAt
+  // Task M1 : lien optionnel vers la fiche secteur (SecteurConfig) — permet
+  // à l'onboarding, au Coach IA et aux écrans RGPD de s'adapter dynamiquement
+  // au secteur de l'établissement (restaurant, hôtel, hôpital, aéroport…).
+  secteurId         String?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
   alertes           Alerte[]
   commandes         Commande[]
   employes          Employe[]
-  parent            Pro?        @relation("ProChildren", fields: [proId], references: [id])
-  enfants           Pro[]       @relation("ProChildren")
-  user              User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  parent            Pro?           @relation("ProChildren", fields: [proId], references: [id])
+  enfants           Pro[]          @relation("ProChildren")
+  user              User           @relation(fields: [userId], references: [id], onDelete: Cascade)
   rapportsIA        RapportIA[]
   retours           Retour[]
+  secteur           SecteurConfig? @relation(fields: [secteurId], references: [id])
   zones             Zone[]
+
+  @@index([secteurId])
 }
 
 model Zone {
@@ -195,4 +202,41 @@ model Notification {
 
   @@index([userId, lu])
   @@index([userId, createdAt])
+}
+
+// ============================================================
+// Task M1 — Configuration multisectorielle en base (SecteurConfig)
+// ------------------------------------------------------------
+// Chaque fiche secteur (Restaurant, Hôtel, Aéroport, Hôpital…) est
+// matérialisée en BDD plutôt que dans un fichier statique. Cela
+// permet :
+//   - à l'onboarding de charger dynamiquement zones et tags par défaut
+//     selon le secteur choisi (GET /api/secteurs) ;
+//   - au Coach IA d'adapter son ton au secteur (conciergerie pour un
+//     hôtel, fluidité du check-in pour un aéroport, accueil patient
+//     pour un hôpital…) ;
+//   - à la page RGPD d'afficher des règles spécifiques par secteur
+//     (photos interdites dans les hôpitaux, zones sensibles en
+//     aéroport, etc.).
+//
+// Toutes les structures complexes sont sérialisées en JSON (le
+// schéma SQLite ne gère pas nativement les listes/objets).
+// ============================================================
+model SecteurConfig {
+  id                String   @id @default(cuid())
+  nom               String   @unique
+  // JSON : [{ nom: string, tagsPos: string[], tagsNeg: string[] }]
+  zonesDefaut       String
+  // JSON : string[] — tags globaux (communs à toutes les zones du secteur)
+  tagsGlobaux       String   @default("[]")
+  // JSON : [{ id, label, target, unit }] — KPIs spéciaux (ex : « temps d'attente »)
+  kpisSpeciaux      String   @default("[]")
+  // JSON : string[] — codes langues supportés (["fr","en"] par défaut pour un restaurant FR)
+  languesSupportees String   @default("[]")
+  // JSON : { photosInterdites: boolean, zonesSensibles: string[] }
+  reglesSecurite    String   @default("{}")
+  emoji             String   @default("")
+  description       String   @default("")
+  createdAt         DateTime @default(now())
+  pros              Pro[]
 }

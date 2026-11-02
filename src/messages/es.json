@@ -1,0 +1,90 @@
+{
+  "nav": {
+    "coach": "Coach IA",
+    "zones": "Zonas",
+    "retours": "Opiniones",
+    "team": "Equipo",
+    "stats": "Estadísticas",
+    "qrcode": "Códigos QR",
+    "settings": "Ajustes",
+    "commander": "Pedir",
+    "rapports": "Informes IA",
+    "recompenses": "Recompensas",
+    "actions": "Acciones",
+    "billing": "Facturación",
+    "gestion": "Gestión"
+  },
+  "landing": {
+    "badge": "Coach IA de Auditoría de Calidad Continua",
+    "titre": "Convierte cada cliente en un auditor de calidad",
+    "sousTitre": "Escanea un código QR, deja una valoración, recibe cada mañana un informe de auditoría con 3 prioridades concretas.",
+    "ctaDemo": "Ver demo",
+    "ctaInscription": "Empezar gratis",
+    "ctaLogin": "Iniciar sesión"
+  },
+  "dashboard": {
+    "titreCoach": "Tu Coach IA de Calidad",
+    "scoreJour": "Puntuación de hoy",
+    "retours24h": "Opiniones (24h)",
+    "alertesNonLues": "Alertas no leídas",
+    "note7j": "Valoración media (7d)",
+    "prioritesJour": "Prioridades de hoy",
+    "pointsPositifs": "Puntos positivos a destacar",
+    "predictions": "Predicciones de la semana",
+    "boutonRapport": "Generar informe",
+    "boutonVoirRapports": "Ver todos los informes",
+    "aucunRapport": "Aún no se ha generado ningún informe",
+    "secteurLabel": "Sector",
+    "planLabel": "Plan"
+  },
+  "scan": {
+    "bienvenue": "Bienvenido a",
+    "tapPourCommencer": "Toca para empezar",
+    "questionNote": "Cómo valoras",
+    "envoyer": "Enviar",
+    "merci": "¡Gracias por tu opinión!",
+    "retourEnregistreHorsLigne": "✓ Opinión guardada sin conexión — se enviará al reconectar",
+    "reessayer": "Reintentar"
+  },
+  "auth": {
+    "connexion": "Iniciar sesión",
+    "inscription": "Registro",
+    "email": "Correo electrónico",
+    "motDePasse": "Contraseña",
+    "confirmerMotDePasse": "Confirmar contraseña",
+    "nomEtablissement": "Nombre del establecimiento",
+    "typeEtablissement": "Tipo de establecimiento",
+    "adresse": "Dirección",
+    "ville": "Ciudad",
+    "whatsapp": "WhatsApp",
+    "continuer": "Continuar",
+    "retour": "Volver",
+    "creerCompte": "Crear mi cuenta",
+    "seConnecter": "Iniciar sesión",
+    "motDePasseOublie": "¿Olvidaste tu contraseña?",
+    "etapeCompte": "Cuenta",
+    "etapeEtablissement": "Establecimiento",
+    "etapeFinalisation": "Finalización"
+  },
+  "settings": {
+    "titre": "Ajustes",
+    "etablissement": "Establecimiento",
+    "abonnement": "Suscripción",
+    "notifications": "Notificaciones",
+    "rgpd": "RGPD y datos",
+    "langue": "Idioma de la interfaz",
+    "theme": "Tema",
+    "sauvegarder": "Guardar"
+  },
+  "common": {
+    "charger": "Cargando…",
+    "fermer": "Cerrar",
+    "annuler": "Cancelar",
+    "valider": "Confirmar",
+    "oui": "Sí",
+    "non": "No",
+    "deconnexion": "Cerrar sesión",
+    "darkMode": "Modo oscuro",
+    "lightMode": "Modo claro"
+  }
+}

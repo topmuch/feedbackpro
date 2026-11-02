@@ -392,6 +392,10 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
   // Audit RGPD : consentement opt-in pour enregistrer la ville approximative
   // (déduite de l'IP) — décoché par défaut, jamais requis pour envoyer
   const [geoConsent, setGeoConsent] = useState(false)
+  // Task M3 — Mode offline : true si le retour a été stocké hors ligne
+  // (sans réseau) plutôt qu'envoyé immédiatement. Affiche un message
+  // dédié sur l'écran de succès ("sera envoyé à la reconnexion").
+  const [horsLigne, setHorsLigne] = useState(false)
 
   // Référence du textarea : inutilisée (on s'appuie sur le field-sizing
   // natif du composant Textarea shadcn + max-h-48 pour caper la hauteur).
@@ -463,6 +467,8 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
       setPulse(null)
       setSurvol(null)
       setSens(1)
+      // Task M3 — reset du flag offline (nouveau scan = repart à zéro)
+      setHorsLigne(false)
       // Étape 0 — Bienvenue (auto-transition 2 s vers step1)
       setPhase("welcome")
     } catch (e) {
@@ -604,25 +610,29 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
     // Ouvre l'onglet AVANT l'attente réseau : évite le blocage anti-popup
     const fenetre = canal === "whatsapp" && numero ? window.open("", "_blank") : null
 
+    // Task M3 — Payload construit une fois pour pouvoir le stocker hors ligne
+    // en cas d'échec réseau (Background Sync via IndexedDB).
+    const payload = JSON.stringify({
+      qrToken: token,
+      note,
+      tags,
+      commentaire: commentaire.trim() || undefined,
+      personnelMentionne: personnel.trim() || undefined,
+      emailClient: emailClient.trim() || undefined,
+      canalChoisi: canal,
+      // RGPD : la ville approximative n'est enregistrée que si opt-in
+      geoConsent,
+      // D1 : NPS transmis uniquement pour les notes ≥ 4 (sinon undefined)
+      nps: estPositif ? nps : undefined,
+      // D2 : photo jointe (URL relative) si le client en a ajouté une
+      photoUrl: photoUrl || undefined,
+    })
+
     try {
       const res = await fetch("/api/public/retour", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          qrToken: token,
-          note,
-          tags,
-          commentaire: commentaire.trim() || undefined,
-          personnelMentionne: personnel.trim() || undefined,
-          emailClient: emailClient.trim() || undefined,
-          canalChoisi: canal,
-          // RGPD : la ville approximative n'est enregistrée que si opt-in
-          geoConsent,
-          // D1 : NPS transmis uniquement pour les notes ≥ 4 (sinon undefined)
-          nps: estPositif ? nps : undefined,
-          // D2 : photo jointe (URL relative) si le client en a ajouté une
-          photoUrl: photoUrl || undefined,
-        }),
+        body: payload,
       })
       const json = await res.json().catch(() => null)
       if (!res.ok || !json?.ok) {
@@ -662,8 +672,26 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
 
       allerEtape("success", 1)
     } catch (e) {
-      // Échec : on ferme l'onglet vide et on garde toutes les réponses saisies
+      // Task M3 — Mode offline : si l'envoi échoue (réseau coupé), on stocke
+      // le payload dans IndexedDB (en plus du SW Background Sync qui peut le
+      // faire lui-même) et on affiche un écran de succès spécifique.
       fenetre?.close()
+      const estErreurReseau =
+        e instanceof TypeError ||
+        (e instanceof Error && /network|fetch|Failed to fetch/i.test(e.message))
+      if (estErreurReseau) {
+        try {
+          // Import dynamique pour ne pas alourdir le bundle initial si l'envoi réussit
+          const { stockerRetourOfflineLocal } = await import("@/lib/offline-sync")
+          await stockerRetourOfflineLocal(payload)
+          // On affiche l'écran de succès avec un message "hors ligne"
+          setHorsLigne(true)
+          allerEtape("success", 1)
+          return
+        } catch {
+          /* fallback sur l'erreur normale ci-dessous */
+        }
+      }
       const message =
         e instanceof Error ? e.message : "Impossible d'envoyer le retour pour le moment"
       setErreurEnvoi(message)
@@ -1403,6 +1431,22 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                   <p className="text-balance text-base font-medium text-muted-foreground">
                     {estPositif ? t.merciPositifCourt : t.merciNegatifCourt}
                   </p>
+
+                  {/* Task M3 — Bandeau "hors ligne" si le retour a été stocké
+                      sans réseau plutôt qu'envoyé immédiatement. Discret mais
+                      rassurant : le client sait que son retour n'est pas perdu. */}
+                  {horsLigne && (
+                    <div
+                      role="status"
+                      className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm font-medium text-amber-800 dark:border-amber-800/50 dark:bg-amber-950/30 dark:text-amber-200"
+                    >
+                      <span aria-hidden>📡</span>
+                      <span>
+                        {t.retourEnregistreHorsLigne ??
+                          "✓ Retour enregistré hors ligne — sera envoyé à la reconnexion"}
+                      </span>
+                    </div>
+                  )}
 
                   {/* Récompense (spec refonte) : carte à bordure dégradée
                       (violet → bleu → rose) + code promo en GROS

@@ -28,6 +28,8 @@ export default function Home() {
 
   // D6 : enregistrement du Service Worker (PWA installable) — best effort,
   // silencieux en cas d'échec (navigateurs sans SW / mode privé).
+  // Task M3 : au boot ET sur l'event 'online', on rejoue aussi les retours
+  // offline stockés dans IndexedDB (au cas où Background Sync ne l'ait pas fait).
   useEffect(() => {
     if (typeof window === "undefined") return
     if (!("serviceWorker" in navigator)) return
@@ -40,6 +42,22 @@ export default function Home() {
     }
     if (document.readyState === "complete") register()
     else window.addEventListener("load", register, { once: true })
+
+    // Task M3 — Rejoue les retours offline au boot + sur l'événement 'online'
+    let annule = false
+    import("@/lib/offline-sync")
+      .then(({ rejouerRetoursOfflineLocal }) => {
+        if (annule) return
+        rejouerRetoursOfflineLocal().catch(() => undefined)
+        const onOnline = () => rejouerRetoursOfflineLocal().catch(() => undefined)
+        window.addEventListener("online", onOnline)
+        // Cleanup : pas parfait (l'event listener reste si l'import résout
+        // après le unmount), mais acceptable pour un effet de boot.
+      })
+      .catch(() => undefined)
+    return () => {
+      annule = true
+    }
   }, [])
 
   // Démarrage : détecte le QR scanné (/r/<token> via rewrite, ou ?scan=<token>)

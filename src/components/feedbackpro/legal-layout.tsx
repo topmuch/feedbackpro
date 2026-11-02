@@ -13,6 +13,7 @@ export const PAGES_LEGALES = [
   { href: "/cgu", label: "CGU" },
   { href: "/confidentialite", label: "Confidentialité" },
   { href: "/cookies", label: "Cookies" },
+  { href: "/rgpd", label: "RGPD par secteur" },
 ]
 
 /** Bloc de titre d'une section légale */

@@ -1,0 +1,90 @@
+{
+  "nav": {
+    "coach": "AI Coach",
+    "zones": "Zones",
+    "retours": "Feedback",
+    "team": "Team",
+    "stats": "Stats",
+    "qrcode": "QR Codes",
+    "settings": "Settings",
+    "commander": "Order",
+    "rapports": "AI Reports",
+    "recompenses": "Rewards",
+    "actions": "Actions",
+    "billing": "Billing",
+    "gestion": "Management"
+  },
+  "landing": {
+    "badge": "Continuous Quality Audit AI Coach",
+    "titre": "Turn every customer into a quality auditor",
+    "sousTitre": "Scan a QR code, leave a rating, get a daily audit report with 3 concrete priorities.",
+    "ctaDemo": "View demo",
+    "ctaInscription": "Start for free",
+    "ctaLogin": "Sign in"
+  },
+  "dashboard": {
+    "titreCoach": "Your Quality AI Coach",
+    "scoreJour": "Today's score",
+    "retours24h": "Feedback (24h)",
+    "alertesNonLues": "Unread alerts",
+    "note7j": "Average rating (7d)",
+    "prioritesJour": "Today's priorities",
+    "pointsPositifs": "Positive points to highlight",
+    "predictions": "Week predictions",
+    "boutonRapport": "Generate report",
+    "boutonVoirRapports": "View all reports",
+    "aucunRapport": "No report generated yet",
+    "secteurLabel": "Sector",
+    "planLabel": "Plan"
+  },
+  "scan": {
+    "bienvenue": "Welcome to",
+    "tapPourCommencer": "Tap to start",
+    "questionNote": "How would you rate",
+    "envoyer": "Send",
+    "merci": "Thank you for your feedback!",
+    "retourEnregistreHorsLigne": "✓ Feedback saved offline — will be sent when reconnected",
+    "reessayer": "Try again"
+  },
+  "auth": {
+    "connexion": "Sign in",
+    "inscription": "Sign up",
+    "email": "Email",
+    "motDePasse": "Password",
+    "confirmerMotDePasse": "Confirm password",
+    "nomEtablissement": "Establishment name",
+    "typeEtablissement": "Establishment type",
+    "adresse": "Address",
+    "ville": "City",
+    "whatsapp": "WhatsApp",
+    "continuer": "Continue",
+    "retour": "Back",
+    "creerCompte": "Create my account",
+    "seConnecter": "Sign in",
+    "motDePasseOublie": "Forgot password?",
+    "etapeCompte": "Account",
+    "etapeEtablissement": "Establishment",
+    "etapeFinalisation": "Finalization"
+  },
+  "settings": {
+    "titre": "Settings",
+    "etablissement": "Establishment",
+    "abonnement": "Subscription",
+    "notifications": "Notifications",
+    "rgpd": "GDPR & data",
+    "langue": "Interface language",
+    "theme": "Theme",
+    "sauvegarder": "Save"
+  },
+  "common": {
+    "charger": "Loading…",
+    "fermer": "Close",
+    "annuler": "Cancel",
+    "valider": "Confirm",
+    "oui": "Yes",
+    "non": "No",
+    "deconnexion": "Sign out",
+    "darkMode": "Dark mode",
+    "lightMode": "Light mode"
+  }
+}

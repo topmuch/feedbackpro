@@ -40,6 +40,8 @@ import { useAppStore } from "@/store/app-store"
 import { PLANS, type PlanId } from "@/lib/constants"
 import { NotificationsBell } from "@/components/feedbackpro/notifications-bell"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { LanguageSelector } from "@/components/feedbackpro/language-selector"
+import { configSecteur } from "@/lib/secteurs"
 import { CoachIaTab } from "@/components/feedbackpro/coach-ia-tab"
 import { RapportsTab } from "@/components/feedbackpro/rapports-tab"
 import { RetoursTab } from "@/components/feedbackpro/retours-tab"
@@ -167,6 +169,10 @@ export function ProDashboard() {
   const nomEtablissement = champPro(pro, ["nomEtablissement", "nomCommerce"], "Tableau de bord")
   const planKey = (champPro(pro, ["plan"], "STARTER") || "STARTER") as PlanId
   const planName = PLANS[planKey]?.name ?? "Starter"
+  // Task M4 — secteur du Pro (emoji + nom) pour le badge dans le header.
+  // Le typeEtablissement est lu défensivement (champ pivot stable depuis S1).
+  const typeEtablissement = champPro(pro, ["typeEtablissement"], "")
+  const secteurCfg = typeEtablissement ? configSecteur(typeEtablissement) : null
   /** Compte suspendu : le guard API renvoie déjà 403, on affiche la bannière */
   const suspendu = (pro as Record<string, unknown> | undefined)?.suspendu === true
 
@@ -330,11 +336,24 @@ export function ProDashboard() {
             ) : (
               <p className="truncate font-semibold text-white">{nomEtablissement}</p>
             )}
+            {/* Task M4 — Badge Secteur : emoji + nom du secteur (masqué sur
+                petit mobile pour préserver l'espace du nom d'établissement). */}
+            {secteurCfg && (
+              <Badge
+                variant="outline"
+                className="hidden shrink-0 border-white/30 bg-white/10 text-xs font-medium text-white sm:inline-flex"
+                title={secteurCfg.description}
+              >
+                <span aria-hidden className="mr-1">{secteurCfg.emoji}</span>
+                {typeEtablissement}
+              </Badge>
+            )}
           </div>
 
           {/* Droite : badge plan + notifications + déconnexion (icône + tooltip) */}
           <div className="flex shrink-0 items-center gap-2">
             <Badge variant="secondary" className="border-0 bg-white/15 text-white">{planName}</Badge>
+            <LanguageSelector tone="dark" />
             <NotificationsBell tone="dark" />
             <ThemeToggle />
             <TooltipProvider delayDuration={200}>

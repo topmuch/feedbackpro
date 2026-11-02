@@ -11,7 +11,7 @@
 // setView(role === "SUPERADMIN" ? "admin" : "dashboard").
 // ============================================================
 
-import { useState, type ChangeEvent } from "react"
+import { useEffect, useState, type ChangeEvent } from "react"
 import { Controller, useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -41,8 +41,61 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/app-store"
 import { TYPES_ETABLISSEMENT, tagLabel } from "@/lib/constants"
-import { SECTEUR_CONFIG, configSecteur } from "@/lib/secteurs"
+import { configSecteur, type SecteurConfig } from "@/lib/secteurs"
 import { fileToLogoDataUrl } from "@/lib/image"
+
+// ============================================================
+// Task M4 — Fiche secteur chargée depuis la BDD (SecteurConfig)
+// ------------------------------------------------------------
+// L'onboarding charge les fiches secteur depuis GET /api/secteurs
+// (public) à l'ouverture du wizard d'inscription. On garde la
+// constante statique SECTEUR_CONFIG comme REPLI en cas d'échec
+// réseau (mode offline) ou de BDD non initialisée — l'UI reste
+// fonctionnelle dans tous les cas.
+//
+// type SecteurConfigBdd = forme sérialisée renvoyée par l'API
+// (les champs JSON sont déjà parsés côté serveur).
+// ============================================================
+type ZoneDefautBdd = { nom: string; tagsPos: string[]; tagsNeg: string[] }
+type SecteurConfigBdd = {
+  id: string
+  nom: string
+  zonesDefaut: ZoneDefautBdd[]
+  tagsGlobaux: string[]
+  emoji: string
+  description: string
+}
+
+/** Récupère la fiche BDD d'un secteur par son nom (O(1)). */
+function trouverSecteurBdd(
+  liste: SecteurConfigBdd[],
+  nom: string
+): SecteurConfigBdd | null {
+  return liste.find((s) => s.nom === nom) ?? null
+}
+
+/**
+ * Construit une SecteurConfig « compatible » (forme utilisée par le wizard)
+ * à partir d'une fiche BDD. Si la fiche est absente, on retombe sur la
+ * constante statique SECTEUR_CONFIG (fallback offline).
+ */
+function secteurenFormeWizard(liste: SecteurConfigBdd[], nom: string): SecteurConfig {
+  const bdd = trouverSecteurBdd(liste, nom)
+  if (bdd) {
+    // Premier zoneDefaut = les tags par défaut des zones du secteur (les
+    // fiches seed stockent les mêmes tagsPos/tagsNeg pour toutes les zones,
+    // ce qui correspond à la sémantique du fichier statique SECTEUR_CONFIG).
+    const premiere = bdd.zonesDefaut[0]
+    return {
+      zonesParDefaut: bdd.zonesDefaut.map((z) => z.nom),
+      tagsPositifs: premiere?.tagsPos ?? [],
+      tagsNegatifs: premiere?.tagsNeg ?? [],
+      emoji: bdd.emoji,
+      description: bdd.description,
+    }
+  }
+  return configSecteur(nom)
+}
 
 // ============================================================
 // Schémas de validation locaux (messages 100 % français)
@@ -498,10 +551,33 @@ function InscriptionWizard() {
   // défaut, pour ne PAS écraser les zones personnalisées par l'utilisateur
   // s'il change de secteur après avoir personnalisé.
   const [secteurApplique, setSecteurApplique] = useState<string | null>(null)
+  // Task M4 : fiches secteurs chargées depuis la BDD (GET /api/secteurs).
+  // Vide = chargement en cours ou échec réseau → fallback sur SECTEUR_CONFIG.
+  const [secteursBdd, setSecteursBdd] = useState<SecteurConfigBdd[]>([])
 
   const refreshSession = useAppStore((s) => s.refreshSession)
   const setView = useAppStore((s) => s.setView)
   const { toast } = useToast()
+
+  // Task M4 — Chargement initial des fiches secteur depuis la BDD.
+  // Best-effort : un échec réseau ne bloque jamais l'inscription (le
+  // wizard retombe sur le fichier statique SECTEUR_CONFIG).
+  useEffect(() => {
+    let annule = false
+    fetch("/api/secteurs", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (annule || !j?.ok) return
+        const data = j.data as SecteurConfigBdd[]
+        if (Array.isArray(data) && data.length > 0) setSecteursBdd(data)
+      })
+      .catch(() => {
+        /* silencieux : fallback statique suffira */
+      })
+    return () => {
+      annule = true
+    }
+  }, [])
 
   const {
     register,
@@ -534,16 +610,22 @@ function InscriptionWizard() {
   const typeChoisi = watch("typeEtablissement")
 
   /**
-   * Task 2 — Applique les zones par défaut du secteur choisi.
-   * Stratégie anti-écrasement : on n'écrase les zones courantes QUE si elles
-   * sont encore égales aux défauts du précédent secteur appliqué (ou à la
-   * valeur initiale ["Accueil"]). Si l'utilisateur a personnalisé ses zones,
-   * on conserve son choix. Les tags par défaut sont quant à eux gérés côté
+   * Task M4 — Applique les zones par défaut du secteur choisi.
+   * La fiche secteur provient désormais de la BDD (GET /api/secteurs),
+   * avec repli sur le fichier statique SECTEUR_CONFIG si la BDD n'est
+   * pas encore chargée ou si le secteur est introuvable.
+   *
+   * Stratégie anti-écrasement : on n'écrase les zones courantes QUE si
+   * elles sont encore égales aux défauts du précédent secteur appliqué
+   * (ou à la valeur initiale ["Accueil"]). Si l'utilisateur a personnalisé
+   * ses zones, on conserve son choix. Les tags par défaut sont gérés côté
    * serveur (API /auth/register) — on ne stocke pas les tags dans le wizard.
    */
   function appliquerSecteur(nouveauSecteur: string) {
-    const config = configSecteur(nouveauSecteur)
-    const precedent = secteurApplique ? configSecteur(secteurApplique) : null
+    const config = secteurenFormeWizard(secteursBdd, nouveauSecteur)
+    const precedent = secteurApplique
+      ? secteurenFormeWizard(secteursBdd, secteurApplique)
+      : null
     const defautPrecedent = precedent?.zonesParDefaut ?? ["Accueil"]
     const zonesEncoreDefaut =
       zonesActuelles.length === 0 ||
@@ -743,7 +825,8 @@ function InscriptionWizard() {
                       className="grid max-h-72 grid-cols-2 gap-2 overflow-y-auto rounded-lg border border-border/60 p-2 custom-scrollbar sm:grid-cols-3"
                     >
                       {TYPES_ETABLISSEMENT.map((type) => {
-                        const config = SECTEUR_CONFIG[type] ?? SECTEUR_CONFIG.Autre
+                        // Task M4 : fiche BDD prioritaire, fallback statique
+                        const config = secteurenFormeWizard(secteursBdd, type)
                         const selectionne = field.value === type
                         return (
                           <button
@@ -784,15 +867,15 @@ function InscriptionWizard() {
                 {typeChoisi && (
                   <div className="rounded-lg border border-primary/20 bg-primary/5 p-2.5">
                     <p className="text-[11px] font-semibold text-primary">
-                      Zones suggérées : {(configSecteur(typeChoisi).zonesParDefaut).join(", ")}
+                      Zones suggérées : {(secteurenFormeWizard(secteursBdd, typeChoisi).zonesParDefaut).join(", ")}
                     </p>
                     <p className="mt-1 text-[11px] leading-snug text-muted-foreground">
                       <span className="font-medium text-green-700">Tags + :</span>{" "}
-                      {configSecteur(typeChoisi).tagsPositifs.map(tagLabel).join(" · ")}
+                      {secteurenFormeWizard(secteursBdd, typeChoisi).tagsPositifs.map(tagLabel).join(" · ")}
                     </p>
                     <p className="text-[11px] leading-snug text-muted-foreground">
                       <span className="font-medium text-rose-700">Tags − :</span>{" "}
-                      {configSecteur(typeChoisi).tagsNegatifs.map(tagLabel).join(" · ")}
+                      {secteurenFormeWizard(secteursBdd, typeChoisi).tagsNegatifs.map(tagLabel).join(" · ")}
                     </p>
                   </div>
                 )}

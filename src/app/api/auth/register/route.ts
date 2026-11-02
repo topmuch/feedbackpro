@@ -46,6 +46,16 @@ export async function POST(req: NextRequest) {
       data: { email, passwordHash, role: "PRO" },
     })
 
+    // Task M4 — Rattache le Pro à sa fiche SecteurConfig (si elle existe en
+    // base) pour que le Coach IA, l'onboarding et la page RGPD s'adaptent
+    // dynamiquement au secteur. Best-effort : si la fiche n'existe pas
+    // (BDD non seedée), le Pro reste sans secteur (fallback sur le fichier
+    // statique SECTEUR_CONFIG côté lecture).
+    const secteurBdd = await db.secteurConfig.findUnique({
+      where: { nom: typeEtablissement },
+      select: { id: true },
+    })
+
     // Création du Pro, prêt à l'emploi (zone « Accueil » incluse)
     const now = new Date()
     const finEssai = new Date(now.getTime() + 30 * 24 * 3600 * 1000) // essai 30 jours
@@ -67,6 +77,8 @@ export async function POST(req: NextRequest) {
         // Période d'essai 30 jours à la création du commerçant
         abonnementDebut: now,
         abonnementFin: finEssai,
+        // Task M4 : lien vers la fiche secteur (SecteurConfig) si elle existe
+        ...(secteurBdd ? { secteurId: secteurBdd.id } : {}),
       },
     })
 
