@@ -13,15 +13,17 @@
 // ============================================================
 
 import { useEffect, useState } from "react"
-import { CreditCard, Check, Loader2, Receipt, ShieldCheck, Lock, Settings2 } from "lucide-react"
+import { CreditCard, Check, Loader2, Receipt, ShieldCheck, Lock, Settings2, Activity, Package } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Skeleton } from "@/components/ui/skeleton"
+import { Progress } from "@/components/ui/progress"
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/app-store"
 import { PLANS, STATUT_COMMANDE_LABEL, SUPPORTS, type PlanId } from "@/lib/constants"
+import { cn } from "@/lib/utils"
 
 // ---------- Toggle Mensuel / Annuel ----------
 
@@ -35,6 +37,21 @@ function prixAnnuel(prixMensuel: number): number {
 /** Prix affiché pour un plan selon la période choisie (annuel = -20 %). */
 function prixAffiche(prixMensuel: number, periode: PeriodeFacturation): number {
   return periode === "annuel" ? prixAnnuel(prixMensuel) : prixMensuel
+}
+
+/**
+ * Extrait le quota mensuel de retours d'un plan depuis la chaîne
+ * `limites.retours` (ex. « 50/mois » → 50, « ∞ » → null = illimité).
+ */
+function quotaRetoursMensuel(retoursStr: string): number | null {
+  if (!retoursStr || retoursStr.trim() === "∞" || retoursStr.toLowerCase().includes("illimit")) return null
+  const match = retoursStr.match(/(\d+)/)
+  return match ? Number(match[1]) : null
+}
+
+/** Reformule la limite de retours en bénéfice lisible : « illimités » si ∞. */
+function libelleRetours(retoursStr: string): string {
+  return retoursStr === "∞" ? "illimités" : retoursStr
 }
 
 // ---------- Types locaux ----------
@@ -78,6 +95,10 @@ export function BillingTab() {
   // ---------- Factures (commandes de supports) ----------
   const [commandes, setCommandes] = useState<Commande[]>([])
   const [chargementFactures, setChargementFactures] = useState(true)
+
+  // ---------- Consommation de retours (audit UX : « ce mois ») ----------
+  const [retoursMois, setRetoursMois] = useState<number | null>(null)
+  const [chargementConsommation, setChargementConsommation] = useState(true)
 
   // ---------- Changement de plan ----------
   const [planEnCours, setPlanEnCours] = useState<PlanId | null>(null)
@@ -128,6 +149,26 @@ export function BillingTab() {
       }
     }
     charger()
+  }, [])
+
+  // ---------- Consommation de retours sur 30 jours (audit UX) ----------
+  // Le quota mensuel provient de PLANS (constants.ts) ; le compteur de
+  // retours est récupéré depuis /api/pro/stats?periode=30j (kpis.total).
+  useEffect(() => {
+    async function chargerConsommation() {
+      try {
+        const res = await fetch("/api/pro/stats?periode=30j", { cache: "no-store" })
+        const json = await res.json()
+        if (json?.ok && typeof json.data?.kpis?.total === "number") {
+          setRetoursMois(json.data.kpis.total as number)
+        }
+      } catch {
+        /* silencieux : la carte reste masquée */
+      } finally {
+        setChargementConsommation(false)
+      }
+    }
+    chargerConsommation()
   }, [])
 
   // Retour de la Checkout Stripe : /dashboard/billing?paiement=succes
@@ -214,7 +255,26 @@ export function BillingTab() {
     }
   }
 
+  /**
+   * Audit UX : le plan Enterprise (249 €) ne se « commande » pas en
+   * self-service — on invite le commerçant à nous contacter pour une démo
+   * personnalisée multi-sites. Les autres plans gardent le flux Stripe.
+   */
+  function contacterEnterprise() {
+    toast({
+      title: "Parlons de votre projet multi-sites 🏢",
+      description: "Écrivez-nous à contact@feedbackpro.fr : nous préparerons une démo personnalisée et un devis adapté à votre groupe.",
+    })
+  }
+
   const planActuelDef = PLANS[planActuel] ?? PLANS.STARTER
+
+  // ---------- Quota de consommation (PLANS → limites.retours) ----------
+  const quotaMois = quotaRetoursMensuel(planActuelDef.limites.retours)
+  const pctConsommation =
+    quotaMois && quotaMois > 0 && retoursMois !== null
+      ? Math.min(100, Math.round((retoursMois / quotaMois) * 100))
+      : null
 
   return (
     <div className="space-y-6">
@@ -295,6 +355,76 @@ export function BillingTab() {
         )}
       </div>
 
+      {/* ---------- Consommation de retours ce mois (audit UX) ---------- */}
+      <Card className="shadow-sm">
+        <CardHeader className="pb-3">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Activity className="h-4 w-4 text-primary" aria-hidden />
+            Consommation ce mois
+          </CardTitle>
+          <CardDescription>
+            Suivi de votre quota de retours clients sur les 30 derniers jours.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {chargementConsommation ? (
+            <Skeleton className="h-16 w-full rounded-lg" />
+          ) : retoursMois === null ? (
+            <p className="text-sm text-muted-foreground">
+              Aucune donnée de consommation disponible pour le moment.
+            </p>
+          ) : quotaMois === null ? (
+            // Plan illimité (PRO / Enterprise) : pas de barre de progression
+            <div className="space-y-1">
+              <p className="text-sm">
+                Vous avez utilisé{" "}
+                <span className="font-semibold text-foreground">{retoursMois}</span>{" "}
+                retour{retoursMois > 1 ? "s" : ""} ce mois ·{" "}
+                <span className="font-semibold text-primary">retours illimités</span>
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Votre plan {planActuelDef.name} offre des retours illimités : aucun quota à surveiller.
+              </p>
+            </div>
+          ) : (
+            // Plan limité (Starter) : barre de progression + pourcentage
+            <div className="space-y-2">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-sm">
+                  Vous avez utilisé{" "}
+                  <span className="font-semibold text-foreground">{retoursMois}</span>
+                  <span className="text-muted-foreground">/{quotaMois}</span> retours ce mois
+                </p>
+                <span
+                  className={cn(
+                    "text-sm font-semibold",
+                    (pctConsommation ?? 0) >= 90
+                      ? "text-amber-600 dark:text-amber-400"
+                      : "text-primary"
+                  )}
+                  aria-label={`${pctConsommation}% du quota utilisé`}
+                >
+                  {pctConsommation}%
+                </span>
+              </div>
+              <Progress
+                value={pctConsommation ?? 0}
+                className={cn(
+                  "h-2.5",
+                  (pctConsommation ?? 0) >= 90 && "bg-amber-200 dark:bg-amber-950/40"
+                )}
+                aria-label={`Progression : ${retoursMois} sur ${quotaMois} retours`}
+              />
+              <p className="text-xs text-muted-foreground">
+                {(pctConsommation ?? 0) >= 90
+                  ? "Vous approchez de votre quota mensuel. Passez au plan supérieur pour continuer à collecter des retours sans interruption."
+                  : `Il vous reste ${Math.max(0, quotaMois - retoursMois)} retour${quotaMois - retoursMois > 1 ? "s" : ""} ce mois.`}
+              </p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
       {/* ---------- Grille comparative des plans (29 / 99 / 249 €) ---------- */}
       <div className="grid gap-4 md:grid-cols-3">
         {(Object.keys(PLANS) as PlanId[]).map((id) => {
@@ -347,19 +477,35 @@ export function BillingTab() {
                     </li>
                   ))}
                 </ul>
-                {/* Limites du plan : zones de contact, employés et volume de retours */}
+                {/* Limites du plan reformulées en bénéfices (audit UX) */}
                 <p className="text-xs text-muted-foreground">
-                  Zones : {p.limites.zones} · Employés : {p.limites.employes} · Retours : {p.limites.retours}
+                  Jusqu&apos;à {p.limites.zones} zones et {p.limites.employes} employés, retours {libelleRetours(p.limites.retours)}
                 </p>
-                <Button
-                  className="w-full"
-                  variant={estActuel ? "outline" : "default"}
-                  disabled={estActuel || planEnCours !== null}
-                  onClick={() => changerPlan(id)}
-                >
-                  {planEnCours === id && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
-                  {estActuel ? "Votre plan actuel" : estSuperieur ? `Passer au plan ${p.name}` : `Rétrograder vers ${p.name}`}
-                </Button>
+                {estActuel ? (
+                  // Audit UX : badge vert « ✓ Plan actif » à la place du bouton grisé désactivé.
+                  <div
+                    className="flex w-full items-center justify-center gap-1.5 rounded-md border border-green-300 bg-green-50 px-4 py-2.5 text-sm font-semibold text-green-800 dark:border-green-800/60 dark:bg-green-950/40 dark:text-green-300"
+                    role="status"
+                    aria-label="Plan actuel actif"
+                  >
+                    <Check className="h-4 w-4" aria-hidden />
+                    Plan actif
+                  </div>
+                ) : (
+                  <Button
+                    className="w-full"
+                    variant="default"
+                    disabled={planEnCours !== null}
+                    onClick={() => (id === "ENTERPRISE" ? contacterEnterprise() : changerPlan(id))}
+                  >
+                    {planEnCours === id && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+                    {id === "ENTERPRISE"
+                      ? "Nous contacter"
+                      : estSuperieur
+                        ? `Passer au plan ${p.name}`
+                        : `Rétrograder vers ${p.name}`}
+                  </Button>
+                )}
               </CardContent>
             </Card>
           )
@@ -384,56 +530,82 @@ export function BillingTab() {
             Historique des factures
           </CardTitle>
           <CardDescription>
-            Commandes de supports physiques et paiements d&apos;abonnement.
+            Factures d&apos;abonnement mensuel et commandes de supports physiques.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          {chargementFactures ? (
-            <div className="space-y-2.5">
-              {[0, 1, 2].map((i) => (
-                <Skeleton key={i} className="h-12 w-full" />
-              ))}
-            </div>
-          ) : commandes.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-10 text-center">
-              <Lock className="h-8 w-8 text-muted-foreground/50" aria-hidden />
+        <CardContent className="space-y-5">
+          {/* ---------- 1. Factures d'abonnement mensuel ---------- */}
+          <section aria-labelledby="titre-factures-abonnement">
+            <h3 id="titre-factures-abonnement" className="mb-2 text-sm font-semibold">
+              Abonnement {planActuelDef.name}
+            </h3>
+            {/* En mode démo (sans Stripe configuré), aucune facture d'abonnement
+                n'est encore émise : on affiche le message d'attente. */}
+            <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed bg-muted/20 px-4 py-8 text-center">
+              <Lock className="h-7 w-7 text-muted-foreground/50" aria-hidden />
               <p className="text-sm text-muted-foreground">
-                Factures Stripe : disponibles après connexion de vos clés Stripe.
+                Vos premières factures d&apos;abonnement apparaîtront ici après votre période d&apos;essai.
               </p>
               <p className="text-xs text-muted-foreground/80">
-                En attendant, vos commandes de supports imprimés apparaîtront ici.
+                Une fois vos clés Stripe configurées, chaque prélèvement mensuel du plan {planActuelDef.name} ({planActuelDef.price} €/mois) sera téléchargeable ici en PDF.
               </p>
             </div>
-          ) : (
-            <div className="max-h-96 space-y-1 overflow-y-auto pr-1 custom-scrollbar">
-              {commandes.map((c, idx) => (
-                <div key={c.id}>
-                  <div className="flex items-center justify-between gap-3 py-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">
-                        {SUPPORTS[c.typeSupport as keyof typeof SUPPORTS]?.label ?? c.typeSupport}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(c.createdAt).toLocaleDateString("fr-FR", {
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                        })}
-                        {c.quantite > 1 && ` · ${c.quantite} unités`}
-                      </p>
+          </section>
+
+          <Separator />
+
+          {/* ---------- 2. Commandes de supports physiques ---------- */}
+          <section aria-labelledby="titre-factures-commandes">
+            <h3 id="titre-factures-commandes" className="mb-2 text-sm font-semibold">
+              Commandes de supports physiques
+            </h3>
+            {chargementFactures ? (
+              <div className="space-y-2.5">
+                {[0, 1, 2].map((i) => (
+                  <Skeleton key={i} className="h-12 w-full" />
+                ))}
+              </div>
+            ) : commandes.length === 0 ? (
+              <div className="flex flex-col items-center gap-2 rounded-lg border border-dashed bg-muted/20 px-4 py-8 text-center">
+                <Package className="h-7 w-7 text-muted-foreground/50" aria-hidden />
+                <p className="text-sm text-muted-foreground">
+                  Aucune commande de supports pour le moment.
+                </p>
+                <p className="text-xs text-muted-foreground/80">
+                  Vos autocollants, chevalets et affiches commandés apparaîtront ici avec leur statut d&apos;expédition.
+                </p>
+              </div>
+            ) : (
+              <div className="max-h-96 space-y-1 overflow-y-auto pr-1 custom-scrollbar">
+                {commandes.map((c, idx) => (
+                  <div key={c.id}>
+                    <div className="flex items-center justify-between gap-3 py-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">
+                          {SUPPORTS[c.typeSupport as keyof typeof SUPPORTS]?.label ?? c.typeSupport}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(c.createdAt).toLocaleDateString("fr-FR", {
+                            day: "numeric",
+                            month: "long",
+                            year: "numeric",
+                          })}
+                          {c.quantite > 1 && ` · ${c.quantite} unités`}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-3">
+                        <span className="text-sm font-semibold">{c.prixEuros} €</span>
+                        <Badge variant="outline" className={classeStatut(c.statut)}>
+                          {STATUT_COMMANDE_LABEL[c.statut] ?? c.statut}
+                        </Badge>
+                      </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-3">
-                      <span className="text-sm font-semibold">{c.prixEuros} €</span>
-                      <Badge variant="outline" className={classeStatut(c.statut)}>
-                        {STATUT_COMMANDE_LABEL[c.statut] ?? c.statut}
-                      </Badge>
-                    </div>
+                    {idx < commandes.length - 1 && <Separator />}
                   </div>
-                  {idx < commandes.length - 1 && <Separator />}
-                </div>
-              ))}
-            </div>
-          )}
+                ))}
+              </div>
+            )}
+          </section>
         </CardContent>
       </Card>
     </div>

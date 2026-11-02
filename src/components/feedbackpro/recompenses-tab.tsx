@@ -14,7 +14,7 @@
 // ============================================================
 
 import { useEffect, useState } from "react"
-import { Gift, Loader2, Save, Eye, Ticket, TrendingUp } from "lucide-react"
+import { Gift, Loader2, Save, Eye, Ticket, TrendingUp, Maximize2, Scissors } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -22,6 +22,14 @@ import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/app-store"
 import { cn } from "@/lib/utils"
@@ -61,6 +69,8 @@ export function RecompensesTab() {
   const [saving, setSaving] = useState(false)
   // ---------- Stats d'utilisation ----------
   const [stats, setStats] = useState<StatsRecompense | null>(null)
+  // ---------- Aperçu plein écran (audit UX) ----------
+  const [apercuPleinEcran, setApercuPleinEcran] = useState(false)
 
   const pro = session?.pro ?? null
 
@@ -177,10 +187,10 @@ export function RecompensesTab() {
     <div className="space-y-5 max-w-3xl">
       {/* En-tête */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Récompenses</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Fidélisez vos clients avec une récompense</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Offrez une micro-récompense aux clients qui laissent un retour : fidélisation garantie et
-          taux de réponse en hausse.
+          Boostez vos retours : offrez une micro-récompense aux clients qui partagent leur avis.
+          Taux de réponse en hausse, fidélité renforcée — le tout en deux clics.
         </p>
       </div>
 
@@ -370,15 +380,46 @@ export function RecompensesTab() {
           {/* ---------- Aperçu : ce que verra le client ---------- */}
           <Card className={cn("shadow-sm", !active && "opacity-60")}>
             <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                <Eye className="h-4 w-4 text-primary" aria-hidden />
-                Aperçu — ce que voit votre client
-              </CardTitle>
-              <CardDescription>
-                {active
-                  ? "Rendu réel sur la page de scan mobile."
-                  : "Récompense désactivée : vos clients ne verront aucune offre."}
-              </CardDescription>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+                    <Eye className="h-4 w-4 text-primary" aria-hidden />
+                    Aperçu — ce que voit votre client
+                  </CardTitle>
+                  <CardDescription className="mt-1">
+                    {active
+                      ? "Rendu réel sur la page de scan mobile."
+                      : "Récompense désactivée : vos clients ne verront aucune offre."}
+                  </CardDescription>
+                </div>
+                {/* Audit UX : bouton « Voir en plein écran » pour agrandir l'aperçu */}
+                <Dialog open={apercuPleinEcran} onOpenChange={setApercuPleinEcran}>
+                  <DialogTrigger asChild>
+                    <Button variant="outline" size="sm" className="shrink-0">
+                      <Maximize2 className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                      Plein écran
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="max-w-2xl">
+                    <DialogHeader>
+                      <DialogTitle className="flex items-center gap-2">
+                        <Eye className="h-5 w-5 text-primary" aria-hidden />
+                        Aperçu plein écran — écran de remerciement
+                      </DialogTitle>
+                      <DialogDescription>
+                        Voici exactement ce que verra votre client après avoir envoyé son retour.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <ApercuRemerciement
+                      active={active}
+                      texteApercu={texteApercu}
+                      codeApercu={codeApercu}
+                      code={code}
+                      limite={limite}
+                    />
+                  </DialogContent>
+                </Dialog>
+              </div>
             </CardHeader>
             <CardContent className="grid gap-4 sm:grid-cols-2">
               {/* Teaser étape 3 (avant envoi, SANS code) */}
@@ -386,12 +427,12 @@ export function RecompensesTab() {
                 <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Étape 3 — avant l&apos;envoi
                 </p>
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
-                  <p className="text-sm font-medium text-amber-900">🎁 Petite attention</p>
-                  <p className="mt-1 text-sm text-amber-800">
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/50 dark:bg-amber-950/20">
+                  <p className="text-sm font-medium text-amber-900 dark:text-amber-200">🎁 Petite attention</p>
+                  <p className="mt-1 text-sm text-amber-800 dark:text-amber-300">
                     {active ? texteApercu : "Aucune récompense affichée"}
                   </p>
-                  <p className="mt-1.5 text-xs text-amber-700/80">
+                  <p className="mt-1.5 text-xs text-amber-700/80 dark:text-amber-400/80">
                     Merci pour votre retour — votre cadeau s&apos;affiche juste après l&apos;envoi&nbsp;!
                   </p>
                 </div>
@@ -402,28 +443,61 @@ export function RecompensesTab() {
                 <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Écran de remerciement
                 </p>
-                <div className="rounded-xl border-2 border-amber-300 bg-amber-50 p-3 shadow-sm">
-                  <p className="text-sm font-bold text-amber-900">
-                    🎁 Votre récompense : {active ? texteApercu : "—"}
-                  </p>
-                  {active && code.trim() && (
-                    <span className="mt-2 inline-flex items-center gap-1.5 rounded-lg border-2 border-dashed border-amber-400 bg-white px-2.5 py-1 font-mono text-sm font-bold text-amber-900">
-                      <Ticket className="h-3.5 w-3.5" aria-hidden />
-                      {codeApercu}
-                    </span>
-                  )}
-                  {active && limite.trim() && (
-                    <p className="mt-2 text-xs text-amber-800/80">⚠️ {limite}</p>
-                  )}
-                  <p className="mt-2 text-xs text-amber-800/90">
-                    Montrez cet écran au personnel pour en profiter
-                  </p>
-                </div>
+                <ApercuRemerciement
+                  active={active}
+                  texteApercu={texteApercu}
+                  codeApercu={codeApercu}
+                  code={code}
+                  limite={limite}
+                />
               </div>
             </CardContent>
           </Card>
         </>
       )}
+    </div>
+  )
+}
+
+// ---------- Aperçu de l'écran de remerciement (réutilisé inline + plein écran) ----------
+// Affiche la récompense +, le cas échéant, le code promo dans un coupon
+// stylisé (bordure pointillée, police mono, fond léger) — audit UX.
+
+type ApercuRemerciementProps = {
+  active: boolean
+  texteApercu: string
+  codeApercu: string
+  code: string
+  limite: string
+}
+
+function ApercuRemerciement({ active, texteApercu, codeApercu, code, limite }: ApercuRemerciementProps) {
+  return (
+    <div className="rounded-xl border-2 border-amber-300 bg-amber-50 p-3 shadow-sm dark:border-amber-700/60 dark:bg-amber-950/20">
+      <p className="text-sm font-bold text-amber-900 dark:text-amber-200">
+        🎁 Votre récompense : {active ? texteApercu : "—"}
+      </p>
+
+      {/* Coupon stylisé : bordure pointillée, police mono, fond léger — audit UX */}
+      {active && code.trim() && (
+        <div className="mt-3 inline-flex flex-col overflow-hidden rounded-lg border-2 border-dashed border-amber-500 bg-background">
+          <div className="flex items-center justify-center gap-1.5 bg-amber-100 px-3 py-0.5 text-[10px] font-bold uppercase tracking-widest text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+            <Scissors className="h-3 w-3" aria-hidden />
+            Code promo
+          </div>
+          <div className="flex items-center gap-2 px-5 py-2 font-mono text-base font-bold tracking-[0.2em] text-amber-900 dark:text-amber-100">
+            <Ticket className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+            {codeApercu}
+          </div>
+        </div>
+      )}
+
+      {active && limite.trim() && (
+        <p className="mt-2 text-xs text-amber-800/80 dark:text-amber-300/80">⚠️ {limite}</p>
+      )}
+      <p className="mt-2 text-xs text-amber-800/90 dark:text-amber-300/80">
+        Montrez cet écran au personnel pour en profiter
+      </p>
     </div>
   )
 }

@@ -13,7 +13,7 @@
 // Retour Stripe : /dashboard/commander?succes=1 (ou ?annule=1)
 // ============================================================
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useState, type ComponentType } from "react"
 import {
   Package,
   MapPin,
@@ -22,6 +22,10 @@ import {
   CheckCircle2,
   Truck,
   ShieldCheck,
+  Layers,
+  Monitor,
+  FileText,
+  Check,
 } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -32,7 +36,8 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/app-store"
-import { SUPPORTS, STATUT_COMMANDE_LABEL, type TypeSupportId } from "@/lib/constants"
+import { SUPPORTS, STATUT_COMMANDE_LABEL, STATUT_COMMANDE_ORDRE, type TypeSupportId } from "@/lib/constants"
+import { cn } from "@/lib/utils"
 
 // ---------- Types locaux ----------
 
@@ -63,6 +68,74 @@ function classeStatut(statut: string): string {
     default:
       return ""
   }
+}
+
+/** Icônes Lucide React professionnelles par type de support (audit UX). */
+const ICONES_SUPPORT: Record<TypeSupportId, ComponentType<{ className?: string }>> = {
+  STICKERS_50: Layers,
+  CHEVALET_ACRYLIQUE: Monitor,
+  AFFICHE_A4: FileText,
+}
+
+/**
+ * Contexte de prix affiché sous chaque support (audit UX) :
+ * - Stickers : prix unitaire (« soit 0,58 €/sticker »)
+ * - Chevalet : argument économique vs imprimeur classique
+ * - Affiche : prix unitaire + bénéfice
+ */
+function prixContextuel(id: TypeSupportId): string {
+  switch (id) {
+    case "STICKERS_50":
+      return "soit 0,58 €/sticker · vinyle résistant UV"
+    case "CHEVALET_ACRYLIQUE":
+      return "Économisez 40% vs imprimeur classique"
+    case "AFFICHE_A4":
+      return "soit 19 €/affiche · prête à afficher"
+    default:
+      return ""
+  }
+}
+
+/**
+ * Stepper visuel du statut d'une commande (audit UX) :
+ * « À imprimer → Imprimé → Expédié → Livré » avec l'étape
+ * actuelle surlignée et les étapes passées cochées.
+ */
+function StepperStatut({ statut }: { statut: string }) {
+  const currentIdx = STATUT_COMMANDE_ORDRE.indexOf(statut)
+  return (
+    <div className="flex flex-wrap items-center gap-1" role="list" aria-label={`Statut : ${STATUT_COMMANDE_LABEL[statut] ?? statut}`}>
+      {STATUT_COMMANDE_ORDRE.map((step, i) => {
+        const done = i < currentIdx
+        const current = i === currentIdx
+        const libelle = STATUT_COMMANDE_LABEL[step] ?? step
+        return (
+          <div key={step} className="flex items-center gap-1" role="listitem">
+            <span
+              className={cn(
+                "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium transition-colors",
+                current
+                  ? "bg-primary text-primary-foreground shadow-sm"
+                  : done
+                    ? "bg-primary/15 text-primary"
+                    : "bg-muted text-muted-foreground"
+              )}
+              aria-current={current ? "step" : undefined}
+            >
+              {done && <Check className="h-2.5 w-2.5" aria-hidden />}
+              {libelle}
+            </span>
+            {i < STATUT_COMMANDE_ORDRE.length - 1 && (
+              <span
+                className={cn("h-px w-3 sm:w-4", i < currentIdx ? "bg-primary/40" : "bg-muted-foreground/30")}
+                aria-hidden
+              />
+            )}
+          </div>
+        )
+      })}
+    </div>
+  )
 }
 
 export function CommanderTab() {
@@ -219,6 +292,37 @@ export function CommanderTab() {
         </p>
       </div>
 
+      {/* ---------- Sélection de la zone (audit UX) ---------- */}
+      {/* Choisir la zone avant de commander : le QR imprimé sur le support
+          sera dédié à cette zone. Pré-remplit le formulaire de finalisation. */}
+      {zones.length > 0 && (
+        <Card className="shadow-sm">
+          <CardContent className="space-y-1.5 p-4 sm:p-5">
+            <Label htmlFor="zone-pre-commande" className="flex items-center gap-1.5 text-sm font-medium">
+              <MapPin className="h-3.5 w-3.5 text-primary" aria-hidden />
+              Choisir la zone pour le QR code
+            </Label>
+            <Select value={zoneId || "aucune"} onValueChange={(v) => setZoneId(v === "aucune" ? "" : v)}>
+              <SelectTrigger id="zone-pre-commande" className="h-10 sm:max-w-md" aria-label="Choisir la zone pour le QR code">
+                <SelectValue placeholder="Aucune zone spécifique (QR générique)" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="aucune">Aucune zone spécifique (QR générique)</SelectItem>
+                {zones.map((z) => (
+                  <SelectItem key={z.id} value={z.id}>
+                    {z.nom}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">
+              Le QR code imprimé sur votre support sera dédié à cette zone (ex. « Toilettes RDC »).
+              Vous pourrez le modifier lors de la finalisation.
+            </p>
+          </CardContent>
+        </Card>
+      )}
+
       {/* ---------- Catalogue ---------- */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {(Object.keys(SUPPORTS) as TypeSupportId[]).map((id) => {
@@ -246,9 +350,15 @@ export function CommanderTab() {
             >
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between gap-2">
-                  <span className="text-3xl" aria-hidden>
-                    {s.emoji}
-                  </span>
+                  {/* Icône Lucide React professionnelle (audit UX : remplace les emojis) */}
+                  {(() => {
+                    const Icone = ICONES_SUPPORT[id]
+                    return (
+                      <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10 text-primary" aria-hidden>
+                        <Icone className="h-6 w-6" />
+                      </span>
+                    )
+                  })()}
                   {actif ? (
                     <CheckCircle2 className="h-5 w-5 shrink-0 text-primary" aria-hidden />
                   ) : (
@@ -261,14 +371,18 @@ export function CommanderTab() {
                 <CardDescription>{s.description}</CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
-                <div className="flex items-baseline justify-between gap-2">
-                  <p className="text-2xl font-bold tracking-tight">
-                    {s.price} <span className="text-sm font-normal text-muted-foreground">€</span>
-                  </p>
-                  <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                    <Truck className="h-3.5 w-3.5 shrink-0" aria-hidden />
-                    {s.delai}
-                  </p>
+                <div className="space-y-0.5">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="text-2xl font-bold tracking-tight">
+                      {s.price} <span className="text-sm font-normal text-muted-foreground">€</span>
+                    </p>
+                    <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                      <Truck className="h-3.5 w-3.5 shrink-0" aria-hidden />
+                      {s.delai}
+                    </p>
+                  </div>
+                  {/* Contexte de prix (audit UX) : prix unitaire ou argument économique */}
+                  <p className="text-xs font-medium text-primary/80">{prixContextuel(id)}</p>
                 </div>
                 {/* Bouton « Commander » clair sur chaque produit —
                     audit UX : explicite l'action attendue (sélection du support
@@ -411,26 +525,27 @@ export function CommanderTab() {
             <div className="max-h-96 space-y-1 overflow-y-auto pr-1 custom-scrollbar">
               {commandes.map((c, idx) => (
                 <div key={c.id}>
-                  <div className="flex items-center justify-between gap-3 py-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium">
-                        {SUPPORTS[c.typeSupport as TypeSupportId]?.label ?? c.typeSupport}
-                        {c.quantite > 1 && ` · ${c.quantite} unités`}
-                      </p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {new Date(c.createdAt).toLocaleDateString("fr-FR", {
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                        })}
-                        {nomZone(c.zoneId) && ` · Zone : ${nomZone(c.zoneId)}`} · {c.adresseLivraison}
-                      </p>
+                  <div className="py-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-medium">
+                          {SUPPORTS[c.typeSupport as TypeSupportId]?.label ?? c.typeSupport}
+                          {c.quantite > 1 && ` · ${c.quantite} unités`}
+                        </p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {new Date(c.createdAt).toLocaleDateString("fr-FR", {
+                            day: "numeric",
+                            month: "long",
+                            year: "numeric",
+                          })}
+                          {nomZone(c.zoneId) && ` · Zone : ${nomZone(c.zoneId)}`} · {c.adresseLivraison}
+                        </p>
+                      </div>
+                      <span className="shrink-0 text-sm font-semibold">{c.prixEuros} €</span>
                     </div>
-                    <div className="flex shrink-0 items-center gap-3">
-                      <span className="text-sm font-semibold">{c.prixEuros} €</span>
-                      <Badge variant="outline" className={classeStatut(c.statut)}>
-                        {STATUT_COMMANDE_LABEL[c.statut] ?? c.statut}
-                      </Badge>
+                    {/* Stepper visuel du statut (audit UX : remplace le badge) */}
+                    <div className="mt-2">
+                      <StepperStatut statut={c.statut} />
                     </div>
                   </div>
                   {idx < commandes.length - 1 && <div className="border-t" />}

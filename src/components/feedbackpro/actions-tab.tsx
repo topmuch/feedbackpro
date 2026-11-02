@@ -6,7 +6,7 @@
 // sensible (≤ 3★ ou déjà suivi), l'action prise + le statut
 // ============================================================
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Check,
   Loader2,
@@ -17,6 +17,10 @@ import {
   Plus,
   Flame,
   AlertTriangle,
+  Filter,
+  MapPin,
+  Tag,
+  X,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -50,6 +54,8 @@ type RetourItem = {
   reponsePro?: string | null
   actionPrise?: string | null
   createdAt: string
+  zoneId?: string | null
+  employeId?: string | null
   zone?: { nom?: string } | null
   employe?: { nom?: string } | null
 }
@@ -89,6 +95,11 @@ export function ActionsTab() {
   const [retours, setRetours] = useState<RetourItem[]>([])
   const [loading, setLoading] = useState(true)
   const [vue, setVue] = useState<VueLocale>("atraiter")
+
+  // ---------- Filtres par zone / employé / tag (audit UX) ----------
+  const [filtreZone, setFiltreZone] = useState<string>("")
+  const [filtreEmploye, setFiltreEmploye] = useState<string>("")
+  const [filtreTag, setFiltreTag] = useState<string>("")
 
   // ---------- Recommandations du Coach IA (audit UX) ----------
   const [recommandations, setRecommandations] = useState<string[]>([])
@@ -170,7 +181,50 @@ export function ActionsTab() {
   const aTraiter = pertinents.filter((r) => !r.actionPrise)
   const enCours = pertinents.filter((r) => r.statut === "IN_PROGRESS")
   const resolus = pertinents.filter((r) => r.statut === "RESOLVED")
-  const listeAffichee = vue === "atraiter" ? aTraiter : pertinents
+
+  // ---------- Listes de zones / employés (extraites des retours chargés) ----------
+  // Audit UX : filtres par zone et par employé en plus du filtre « À traiter / Toutes ».
+  const zonesDispo = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const r of pertinents) {
+      if (r.zoneId && r.zone?.nom) map.set(r.zoneId, r.zone.nom)
+    }
+    return [...map.entries()].map(([id, nom]) => ({ id, nom }))
+  }, [pertinents])
+
+  const employesDispo = useMemo(() => {
+    const map = new Map<string, string>()
+    for (const r of pertinents) {
+      if (r.employeId && r.employe?.nom) map.set(r.employeId, r.employe.nom)
+    }
+    return [...map.entries()].map(([id, nom]) => ({ id, nom }))
+  }, [pertinents])
+
+  // Tags distincts extraits des retours pertinents (audit UX : filtre par tag)
+  const tagsDispo = useMemo(() => {
+    const set = new Set<string>()
+    for (const r of pertinents) {
+      for (const t of r.tags ?? []) set.add(t)
+    }
+    return [...set]
+  }, [pertinents])
+
+  const listeBrute = vue === "atraiter" ? aTraiter : pertinents
+  // Applique les filtres zone / employé / tag (audit UX)
+  const listeAffichee = listeBrute.filter(
+    (r) =>
+      (!filtreZone || r.zoneId === filtreZone) &&
+      (!filtreEmploye || r.employeId === filtreEmploye) &&
+      (!filtreTag || (r.tags ?? []).includes(filtreTag))
+  )
+
+  // Indique si au moins un filtre avancé est actif (pour le bouton « Réinitialiser »)
+  const filtresActifs = filtreZone !== "" || filtreEmploye !== "" || filtreTag !== ""
+  function reinitialiserFiltres() {
+    setFiltreZone("")
+    setFiltreEmploye("")
+    setFiltreTag("")
+  }
 
   // ---------- Dialogue « Créer une action » (pré-rempli depuis une reco IA) ----------
   function ouvrirReco(reco: string) {
@@ -222,7 +276,7 @@ export function ActionsTab() {
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="flex items-center gap-2 text-2xl font-bold tracking-tight">
-            Actions
+            Plan d&apos;action
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Chaque réclamation et chaque retour ≤ 3★ attend une décision : notez l&apos;action prise pour
@@ -376,6 +430,95 @@ export function ActionsTab() {
         </button>
       </div>
 
+      {/* ---------- Filtres avancés : zone / employé / tag (audit UX) ---------- */}
+      {(zonesDispo.length > 0 || employesDispo.length > 0 || tagsDispo.length > 0) && (
+        <div className="flex flex-wrap items-end gap-2 rounded-lg border bg-muted/30 p-3">
+          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+            <Filter className="h-3.5 w-3.5" aria-hidden />
+            <span>Filtres</span>
+          </div>
+          {zonesDispo.length > 0 && (
+            <div className="space-y-1">
+              <Label htmlFor="filtre-zone" className="text-[11px] text-muted-foreground">
+                <MapPin className="mr-1 inline h-3 w-3" aria-hidden />
+                Zone
+              </Label>
+              <Select value={filtreZone || "toutes"} onValueChange={(v) => setFiltreZone(v === "toutes" ? "" : v)}>
+                <SelectTrigger id="filtre-zone" className="h-8 w-[180px]" aria-label="Filtrer par zone">
+                  <SelectValue placeholder="Toutes les zones" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="toutes">Toutes les zones</SelectItem>
+                  {zonesDispo.map((z) => (
+                    <SelectItem key={z.id} value={z.id}>
+                      {z.nom}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {employesDispo.length > 0 && (
+            <div className="space-y-1">
+              <Label htmlFor="filtre-employe" className="text-[11px] text-muted-foreground">
+                <User className="mr-1 inline h-3 w-3" aria-hidden />
+                Employé
+              </Label>
+              <Select value={filtreEmploye || "tous"} onValueChange={(v) => setFiltreEmploye(v === "tous" ? "" : v)}>
+                <SelectTrigger id="filtre-employe" className="h-8 w-[180px]" aria-label="Filtrer par employé">
+                  <SelectValue placeholder="Tous les employés" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="tous">Tous les employés</SelectItem>
+                  {employesDispo.map((e) => (
+                    <SelectItem key={e.id} value={e.id}>
+                      {e.nom}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {tagsDispo.length > 0 && (
+            <div className="space-y-1">
+              <Label htmlFor="filtre-tag" className="text-[11px] text-muted-foreground">
+                <Tag className="mr-1 inline h-3 w-3" aria-hidden />
+                Tag
+              </Label>
+              <Select value={filtreTag || "tous"} onValueChange={(v) => setFiltreTag(v === "tous" ? "" : v)}>
+                <SelectTrigger id="filtre-tag" className="h-8 w-[180px]" aria-label="Filtrer par tag">
+                  <SelectValue placeholder="Tous les tags" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="tous">Tous les tags</SelectItem>
+                  {tagsDispo.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {tagLabel(t)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+          {filtresActifs && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8"
+              onClick={reinitialiserFiltres}
+              aria-label="Réinitialiser les filtres"
+            >
+              <X className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+              Réinitialiser
+            </Button>
+          )}
+          <span className="ml-auto text-xs text-muted-foreground" aria-live="polite">
+            {listeAffichee.length} résultat{listeAffichee.length > 1 ? "s" : ""}
+          </span>
+        </div>
+      )}
+
       {/* Squelettes */}
       {loading ? (
         <div className="space-y-3" aria-busy="true">
@@ -506,6 +649,9 @@ function CarteAction({ retour, maj }: { retour: RetourItem; maj: (r: RetourItem)
   const [statut, setStatut] = useState(retour.statut ?? "NEW")
   const [savingAction, setSavingAction] = useState(false)
   const [savingStatut, setSavingStatut] = useState(false)
+  // Audit UX : indicateur « Sauvegardé ✓ » transitoire après enregistrement
+  const [savedFlash, setSavedFlash] = useState(false)
+  const savedTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Resynchronise les champs quand le parent met à jour le retour (après PATCH)
   useEffect(() => {
@@ -514,6 +660,13 @@ function CarteAction({ retour, maj }: { retour: RetourItem; maj: (r: RetourItem)
   useEffect(() => {
     setStatut(retour.statut ?? "NEW")
   }, [retour.statut])
+
+  // Nettoie le minuteur de l'indicateur « Sauvegardé ✓ » au démontage
+  useEffect(() => {
+    return () => {
+      if (savedTimer.current) clearTimeout(savedTimer.current)
+    }
+  }, [])
 
   async function enregistrerAction() {
     const texte = action.trim()
@@ -528,6 +681,10 @@ function CarteAction({ retour, maj }: { retour: RetourItem; maj: (r: RetourItem)
       const json = await res.json()
       if (res.ok && json?.ok) {
         maj(json.data?.retour ?? { ...retour, actionPrise: texte })
+        // Audit UX : indicateur « Sauvegardé ✓ » visible pendant 2,5 s
+        setSavedFlash(true)
+        if (savedTimer.current) clearTimeout(savedTimer.current)
+        savedTimer.current = setTimeout(() => setSavedFlash(false), 2500)
         toast({ title: "Action enregistrée ✅", description: "Votre décision est archivée dans l'historique." })
       } else {
         toast({ title: "Erreur", description: json?.error || "Enregistrement impossible", variant: "destructive" })
@@ -628,10 +785,21 @@ function CarteAction({ retour, maj }: { retour: RetourItem; maj: (r: RetourItem)
             placeholder="ex. Recadrage de l'équipe, remise commerciale, formation produit…"
             className="min-h-[60px] text-sm"
           />
-          <div className="flex justify-end">
+          <div className="flex items-center justify-end gap-2">
+            {/* Audit UX : indicateur « Sauvegardé ✓ » transitoire après enregistrement */}
+            {savedFlash && (
+              <span
+                className="flex items-center gap-1 text-xs font-medium text-green-700 dark:text-green-400"
+                role="status"
+                aria-live="polite"
+              >
+                <Check className="h-3.5 w-3.5" aria-hidden />
+                Sauvegardé
+              </span>
+            )}
             <Button
               size="sm"
-              className="h-8"
+              className="h-9 px-4"
               onClick={enregistrerAction}
               disabled={savingAction || !action.trim() || action.trim() === (retour.actionPrise ?? "")}
             >
