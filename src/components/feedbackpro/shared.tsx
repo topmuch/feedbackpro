@@ -48,19 +48,19 @@ export function StatCard({
   const toneClass =
     hintTone === "up" ? "text-green-600" : hintTone === "down" ? "text-rose-600" : "text-muted-foreground"
   return (
-    <Card>
-      <CardContent className="p-4 sm:p-5">
-        <div className="flex items-start justify-between gap-2">
+    <Card className="rounded-3xl border-none shadow-sm">
+      <CardContent className="p-5 sm:p-6">
+        <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs sm:text-sm text-muted-foreground truncate">{label}</p>
-            <p className="text-2xl sm:text-3xl font-bold tracking-tight mt-1">{value}</p>
+            <p className="text-2xl sm:text-3xl font-bold tracking-tight mt-1.5">{value}</p>
             {hint && (
-              <p className={`flex items-center gap-1 text-xs mt-1.5 ${toneClass}`}>
+              <p className={`flex items-center gap-1 text-xs mt-2 ${toneClass}`}>
                 <HintIcon size={13} aria-hidden /> {hint}
               </p>
             )}
           </div>
-          <div className="shrink-0 rounded-xl bg-primary/10 p-2.5" aria-hidden>
+          <div className="shrink-0 rounded-2xl bg-primary/10 p-2.5" aria-hidden>
             <Icon className="h-5 w-5 text-primary" />
           </div>
         </div>
@@ -118,7 +118,7 @@ export function AppFooter() {
     { label: "Cookies", href: "/cookies" },
   ]
   return (
-    <footer className="mt-auto border-t bg-muted/30">
+    <footer className="mt-auto border-t border-border/60 bg-muted/30">
       <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-5 text-xs text-muted-foreground sm:flex-row sm:px-6">
         <p className="flex items-center gap-1.5">
           <img src="/logo-feedbackpro.png" alt="FeedbackPro" className="h-6 w-auto" />
