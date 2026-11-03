@@ -14,6 +14,7 @@
 import { useEffect, useState } from "react"
 import {
   Bot,
+  LayoutDashboard,
   Inbox,
   Users,
   MapPin,
@@ -42,6 +43,7 @@ import { NotificationsBell } from "@/components/feedbackpro/notifications-bell"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { LanguageSelector } from "@/components/feedbackpro/language-selector"
 import { configSecteur } from "@/lib/secteurs"
+import { OverviewTab } from "@/components/feedbackpro/overview-tab"
 import { CoachIaTab } from "@/components/feedbackpro/coach-ia-tab"
 import { RapportsTab } from "@/components/feedbackpro/rapports-tab"
 import { RetoursTab } from "@/components/feedbackpro/retours-tab"
@@ -56,6 +58,7 @@ import { RecompensesTab } from "@/components/feedbackpro/recompenses-tab"
 import { SettingsTab } from "@/components/feedbackpro/settings-tab"
 
 type Onglet =
+  | "dashboard"
   | "coach"
   | "zones"
   | "retours"
@@ -71,6 +74,8 @@ type Onglet =
 
 /** Slug URL → onglet interne (ex. /dashboard/qr-codes → "qrcode") */
 const SLUG_TO_TAB: Record<string, Onglet> = {
+  dashboard: "dashboard",
+  "tableau-de-bord": "dashboard",
   coach: "coach",
   overview: "coach", // slug legacy (ancienne « Vue d'ensemble ») → Coach IA
   retours: "retours",
@@ -91,6 +96,7 @@ const SLUG_TO_TAB: Record<string, Onglet> = {
 
 /** Onglet interne → slug URL (ex. "qrcode" → /dashboard/qr-codes) */
 const TAB_TO_SLUG: Record<Onglet, string> = {
+  dashboard: "tableau-de-bord",
   coach: "coach",
   retours: "retours",
   team: "equipe",
@@ -111,6 +117,7 @@ type EntreeNav = { id: Onglet; label: string; icon: React.ComponentType<{ classN
 
 /** Onglets principaux — l'ordre ci-dessous est la spec Session 4 */
 const ONGLETS_PRINCIPAUX: EntreeNav[] = [
+  { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard },
   { id: "coach", label: "Coach IA", icon: Bot },
   { id: "zones", label: "Zones", icon: MapPin },
   { id: "retours", label: "Retours", icon: Inbox },
@@ -151,9 +158,9 @@ function ongletDepuisUrl(): Onglet {
     const match = window.location.pathname.match(/^\/dashboard(?:\/([a-z-]+))?\/?$/)
     const slug = match?.[1] ?? new URLSearchParams(window.location.search).get("tab")
     if (slug && slug in SLUG_TO_TAB) return SLUG_TO_TAB[slug]
-    return "coach"
+    return "dashboard"
   } catch {
-    return "coach"
+    return "dashboard"
   }
 }
 
@@ -387,6 +394,7 @@ export function ProDashboard() {
 
       {/* ---------- Contenu ---------- */}
       <main className="mx-auto w-full max-w-7xl flex-1 px-3 py-5 sm:px-5 sm:py-7 lg:px-6">
+        {onglet === "dashboard" && <OverviewTab />}
         {onglet === "coach" && <CoachIaTab onOuvrirRapports={() => naviguer("rapports")} />}
         {onglet === "rapports" && <RapportsTab />}
         {onglet === "retours" && <RetoursTab onOuvrirCoachIA={() => naviguer("coach")} />}
