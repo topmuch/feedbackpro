@@ -457,16 +457,12 @@ function ContenuSidebar({
     <div className="flex h-full flex-col">
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-4 py-4 sm:py-5">
-        <div
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/15 text-white shadow-sm"
-          aria-hidden
-        >
-          <QrCode className="h-5 w-5" />
-        </div>
-        <div className="min-w-0">
-          <p className="truncate font-bold leading-tight text-white">FeedbackPro</p>
-          <p className="text-xs text-white/80">Coach qualité continu</p>
-        </div>
+        <img
+          src="/logo-feedbackpro.png"
+          alt="FeedbackPro"
+          className="h-8 w-auto brightness-0 invert"
+        />
+        <span className="text-xs text-white/80">Coach qualité continu</span>
       </div>
 
       {/* Navigation verticale : principaux, séparateur « Gestion », secondaires */}

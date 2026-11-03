@@ -82,9 +82,7 @@ export function AppHeader({ subtitle }: { subtitle?: string }) {
     <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-primary text-primary-foreground">
-            <QrCode className="h-5 w-5" aria-hidden />
-          </div>
+          <img src="/logo-feedbackpro.png" alt="FeedbackPro" className="h-7 w-auto shrink-0" />
           <div className="min-w-0">
             <p className="font-bold leading-tight truncate">FeedbackPro</p>
             {subtitle && <p className="text-xs text-muted-foreground truncate">{subtitle}</p>}
@@ -123,8 +121,8 @@ export function AppFooter() {
     <footer className="mt-auto border-t bg-muted/30">
       <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-5 text-xs text-muted-foreground sm:flex-row sm:px-6">
         <p className="flex items-center gap-1.5">
-          <QrCode className="h-3.5 w-3.5" aria-hidden />
-          © 2026 FeedbackPro — Tous droits réservés.
+          <img src="/logo-feedbackpro.png" alt="FeedbackPro" className="h-4 w-auto" />
+          © 2026 — Tous droits réservés.
         </p>
         <nav aria-label="Liens légaux" className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
           {liens.map((l) => (

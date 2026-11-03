@@ -92,9 +92,9 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: "/logo.svg",
-    shortcut: "/logo.svg",
-    apple: "/logo.svg",
+    icon: "/logo-feedbackpro.png",
+    shortcut: "/logo-feedbackpro.png",
+    apple: "/logo-feedbackpro.png",
   },
   manifest: "/manifest.webmanifest",
 };

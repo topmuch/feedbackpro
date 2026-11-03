@@ -571,10 +571,7 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
           className="flex items-center gap-2 font-bold"
           aria-label="Accueil FeedbackPro"
         >
-          <span className="fp-bg-gradient flex h-9 w-9 items-center justify-center rounded-xl shadow-[0_0_20px_rgba(0,46,133,0.4)]">
-            <QrCode className="h-5 w-5 text-white" aria-hidden />
-          </span>
-          <span className="fp-text-gradient text-lg tracking-tight">FeedbackPro</span>
+          <img src="/logo-feedbackpro.png" alt="FeedbackPro" className="h-8 w-auto" />
         </a>
 
         {/* Liens desktop */}
@@ -628,10 +625,7 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
           >
             <SheetHeader>
               <SheetTitle className="flex items-center gap-2 text-gray-900">
-                <span className="fp-bg-gradient flex h-8 w-8 items-center justify-center rounded-lg">
-                  <QrCode className="h-4 w-4 text-white" />
-                </span>
-                <span className="fp-text-gradient">FeedbackPro</span>
+                <img src="/logo-feedbackpro.png" alt="FeedbackPro" className="h-7 w-auto" />
               </SheetTitle>
             </SheetHeader>
             <nav className="flex flex-col gap-1 px-4" aria-label="Navigation mobile">
@@ -1670,10 +1664,7 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
               className="flex items-center gap-2 font-bold"
               aria-label="Accueil FeedbackPro"
             >
-              <span className="fp-bg-gradient flex h-8 w-8 items-center justify-center rounded-lg">
-                <QrCode className="h-4 w-4 text-white" />
-              </span>
-              <span className="fp-text-gradient">FeedbackPro</span>
+              <img src="/logo-feedbackpro.png" alt="FeedbackPro" className="h-7 w-auto brightness-0 invert" />
             </a>
             <p className="mt-3 max-w-xs text-sm text-gray-400">
               Le Client Mystère 2.0 : chaque client devient auditeur qualité, chaque matin devient
