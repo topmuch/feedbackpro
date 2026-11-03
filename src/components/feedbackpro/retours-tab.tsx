@@ -508,40 +508,52 @@ function pastilleClass(statut: string): string {
 
 type Urgence = "urgent" | "atraiter" | "mitige" | "positif"
 
+// Code couleur par urgence (spec Refonte Liste) :
+// - 🔴 Urgent   : note ≤ 2 + récidive  → badge "🚨 Urgent"  (bg-red-500    text-white)
+// - 🟠 À traiter: note ≤ 2 isolé       → badge "À traiter" (bg-orange-500 text-white)
+// - 🟡 Mitigé   : note = 3             → badge "Mitigé"    (bg-yellow-500 text-white)
+// - 🟢 Positif  : note ≥ 4             → badge "Positif"   (bg-green-500  text-white)
+// Les badges sont en fond plein (solid) avec texte blanc, bordure transparente
+// pour un rendu lumineux qui se distingue des autres badges « outline ».
 const URGENCE_CONFIG: Record<Urgence, {
   label: string
   emoji: string
   dot: string
   badge: string
   border: string
+  glow: string
 }> = {
   urgent: {
     label: "Urgent",
     emoji: "🚨",
-    dot: "bg-rose-500",
-    badge: "border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/50 dark:text-rose-300",
-    border: "border-l-rose-500",
+    dot: "bg-red-500",
+    badge: "border-transparent bg-red-500 text-white shadow-sm shadow-red-500/30",
+    border: "border-l-red-500",
+    glow: "hover:shadow-red-500/20",
   },
   atraiter: {
     label: "À traiter",
     emoji: "🟠",
     dot: "bg-orange-500",
-    badge: "border-orange-300 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/50 dark:text-orange-300",
+    badge: "border-transparent bg-orange-500 text-white shadow-sm shadow-orange-500/30",
     border: "border-l-orange-500",
+    glow: "hover:shadow-orange-500/20",
   },
   mitige: {
     label: "Mitigé",
     emoji: "🟡",
-    dot: "bg-amber-500",
-    badge: "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-300",
-    border: "border-l-amber-500",
+    dot: "bg-yellow-500",
+    badge: "border-transparent bg-yellow-500 text-white shadow-sm shadow-yellow-500/30",
+    border: "border-l-yellow-500",
+    glow: "hover:shadow-yellow-500/20",
   },
   positif: {
     label: "Positif",
     emoji: "🟢",
-    dot: "bg-emerald-500",
-    badge: "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300",
-    border: "border-l-emerald-500",
+    dot: "bg-green-500",
+    badge: "border-transparent bg-green-500 text-white shadow-sm shadow-green-500/30",
+    border: "border-l-green-500",
+    glow: "hover:shadow-green-500/20",
   },
 }
 
@@ -561,8 +573,41 @@ function urgenceDe(r: Retour, recurrence: { count: number }): Urgence {
 
 // ---------- NOUVEAU : Résumé IA Coach (top of list) ----------
 
+// Évolution d'une priorité entre cette semaine (7j) et la semaine précédente.
+// `pct` est arrondi (peut être négatif si la tendance s'améliore).
+// `nouveau` = true si le tag n'existait pas la semaine précédente.
+type EvolutionSemaine = { pct: number; nouveau: boolean; thisWeek: number; lastWeek: number }
+
+/**
+ * Calcule l'évolution d'un tag entre cette semaine (7 derniers jours) et
+ * la semaine précédente (7 à 14 jours). Renvoie null si aucune occurrence
+ * sur les deux semaines (tag inconnu).
+ */
+function evolutionTag(tag: string, items: Retour[]): EvolutionSemaine | null {
+  const maintenant = Date.now()
+  const JOUR = 24 * 60 * 60 * 1000
+  const seuilCetteSemaine = maintenant - 7 * JOUR
+  const seuilSemainePrecedente = maintenant - 14 * JOUR
+  let thisWeek = 0
+  let lastWeek = 0
+  for (const r of items) {
+    if (!r.tags.includes(tag)) continue
+    const t = new Date(r.createdAt).getTime()
+    if (t >= seuilCetteSemaine) thisWeek++
+    else if (t >= seuilSemainePrecedente) lastWeek++
+  }
+  if (thisWeek === 0 && lastWeek === 0) return null
+  const nouveau = lastWeek === 0 && thisWeek > 0
+  const pct = nouveau
+    ? 100
+    : lastWeek === 0
+      ? 0
+      : Math.round(((thisWeek - lastWeek) / lastWeek) * 100)
+  return { pct, nouveau, thisWeek, lastWeek }
+}
+
 type PrioriteIA =
-  | { type: "tag"; emoji: string; titre: string; detail: string; tagId?: string }
+  | { type: "tag"; emoji: string; titre: string; detail: string; tagId?: string; evolution?: EvolutionSemaine | null }
   | { type: "zone"; emoji: string; titre: string; detail: string; zoneNom?: string }
   | { type: "employe"; emoji: string; titre: string; detail: string; employeNom?: string }
 
@@ -571,7 +616,7 @@ function calculerResumeIA(items: Retour[]): PrioriteIA[] {
   if (items.length === 0) return []
   const priorites: PrioriteIA[] = []
 
-  // 1) Tag négatif le plus fréquent (avec son libellé)
+  // 1) Tag négatif le plus fréquent (avec son libellé) + évolution vs semaine précédente
   const occTag = new Map<string, number>()
   for (const r of items) {
     for (const t of tagsNegatifsDe(r)) occTag.set(t, (occTag.get(t) ?? 0) + 1)
@@ -585,12 +630,27 @@ function calculerResumeIA(items: Retour[]): PrioriteIA[] {
     }
   }
   if (bestTag && bestTagN >= 2) {
+    const evolution = evolutionTag(bestTag, items)
+    // Libellé d'évolution utilisé dans le détail de la priorité
+    let detail = "Thème récurrent à traiter en priorité"
+    if (evolution) {
+      if (evolution.nouveau) {
+        detail = `🆕 ${evolution.thisWeek} cette semaine — nouveau vs semaine précédente`
+      } else if (evolution.pct > 0) {
+        detail = `↗️ +${evolution.pct}% vs semaine précédente (${evolution.lastWeek} → ${evolution.thisWeek})`
+      } else if (evolution.pct < 0) {
+        detail = `↘️ ${evolution.pct}% vs semaine précédente (${evolution.lastWeek} → ${evolution.thisWeek})`
+      } else {
+        detail = `→ Stable vs semaine précédente (${evolution.thisWeek} cette semaine)`
+      }
+    }
     priorites.push({
       type: "tag",
       emoji: "⚠️",
       titre: `${bestTagN} retours « ${tagLabel(bestTag)} »`,
-      detail: "Thème récurrent à traiter en priorité",
+      detail,
       tagId: bestTag,
+      evolution,
     })
   }
 
@@ -685,6 +745,35 @@ function noteMoyenneZone(nom: string, tous: Retour[]): number | null {
   const retours = tous.filter((r) => r.zone?.nom === nom)
   if (retours.length === 0) return null
   return retours.reduce((s, r) => s + r.note, 0) / retours.length
+}
+
+/**
+ * Identifie la zone la plus touchée par un retour (celle qui concentre le
+ * plus de retours partageant au moins un tag avec `retour`, sur 30 jours).
+ * Renvoie { nom, count } ou null si aucune zone n'est ressortie.
+ */
+function zoneLaPlusTouchee(
+  retour: Retour,
+  tous: Retour[]
+): { nom: string; count: number } | null {
+  if (retour.tags.length === 0) return null
+  const memesTags = new Set(retour.tags)
+  const seuil = ilYA30Jours()
+  const occ = new Map<string, number>()
+  for (const r of tous) {
+    if (r.id === retour.id) continue
+    const t = new Date(r.createdAt).getTime()
+    if (t < seuil) continue
+    if (!r.tags.some((tag) => memesTags.has(tag))) continue
+    const nom = r.zone?.nom
+    if (!nom) continue
+    occ.set(nom, (occ.get(nom) ?? 0) + 1)
+  }
+  let best: { nom: string; count: number } | null = null
+  for (const [nom, count] of occ) {
+    if (!best || count > best.count) best = { nom, count }
+  }
+  return best
 }
 
 // ---------- Mini-graphique de récurrence (Improvement 7) ----------
@@ -784,8 +873,10 @@ function CarteRetour({
   return (
     <Card
       className={cn(
-        "rounded-3xl border bg-card shadow-sm hover:shadow-md transition-all duration-200 border-l-4",
-        cfg.border
+        "rounded-3xl border bg-card shadow-sm transition-all duration-200 border-l-4",
+        "hover:shadow-lg hover:-translate-y-0.5",
+        cfg.border,
+        cfg.glow
       )}
     >
       <CardContent className="p-4 sm:p-5 space-y-3">
@@ -807,7 +898,10 @@ function CarteRetour({
             {formatRelative(r.createdAt)}
           </span>
           {!r.lu && (
-            <Badge className="h-5 px-1.5 text-[10px]">Nouveau</Badge>
+            <Badge className="h-5 gap-0.5 border border-blue-300 bg-blue-500 px-1.5 text-[10px] font-semibold text-white shadow-sm shadow-blue-500/30">
+              <span aria-hidden>✨</span>
+              Nouveau
+            </Badge>
           )}
           <Badge variant="outline" className={cn("ml-auto h-6 px-2 text-xs font-medium", cfg.badge)}>
             <span aria-hidden>{cfg.emoji}</span>
@@ -828,12 +922,12 @@ function CarteRetour({
                   onClick={() => onFiltrerTag(t)}
                   title={`Filtrer par « ${tagLabel(t)} »`}
                   className={cn(
-                    "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-normal transition-colors",
-                    "hover:scale-105",
+                    "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium transition-all",
+                    "hover:scale-105 hover:shadow-sm",
                     neg
-                      ? "border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300"
+                      ? "border-rose-200 bg-rose-100 text-rose-800 hover:bg-rose-200 dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-300"
                       : pos
-                        ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                        ? "border-emerald-200 bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
                         : "border-border bg-muted text-muted-foreground hover:bg-muted/80"
                   )}
                 >
@@ -877,7 +971,10 @@ function CarteRetour({
             </span>
           )}
           {recurrence.count >= 2 && recurrence.libelleTag && (
-            <span className="inline-flex items-center gap-1 font-medium text-amber-700 dark:text-amber-400">
+            <span
+              className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:border-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
+              title={`${ordinalFr(recurrence.count)} signalement « ${recurrence.libelleTag} » sur 30 jours`}
+            >
               <RefreshCw className="h-3 w-3" aria-hidden />
               {ordinalFr(recurrence.count)} similaire
             </span>
@@ -961,7 +1058,7 @@ function GroupeCartes({
   )
 
   return (
-    <Card className="rounded-3xl border bg-card shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+    <Card className="rounded-3xl border bg-card shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 overflow-hidden">
       <button
         type="button"
         onClick={onToggle}
@@ -981,8 +1078,8 @@ function GroupeCartes({
             {(groupe.retours.reduce((s, r) => s + r.note, 0) / groupe.count).toFixed(1)}/5
           </p>
         </div>
-        <Badge variant="outline" className={URGENCE_CONFIG.urgent.badge}>
-          {URGENCE_CONFIG.urgent.emoji} Récurrence
+        <Badge variant="outline" className="border-transparent bg-amber-500 text-white shadow-sm shadow-amber-500/30">
+          🔁 Récurrence
         </Badge>
         {deploye ? (
           <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
@@ -1012,6 +1109,36 @@ function GroupeCartes({
 
 // ---------- NOUVEAU : En-tête Résumé IA Coach (top of list) ----------
 
+/** Rendu compact d'une évolution hebdomadaire (badge coloré selon la tendance). */
+function BadgeEvolution({ evolution }: { evolution: EvolutionSemaine }) {
+  if (evolution.nouveau) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-blue-300 bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-800 dark:border-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
+        <span aria-hidden>🆕</span> Nouveau
+      </span>
+    )
+  }
+  if (evolution.pct > 0) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-red-300 bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-800 dark:border-red-700 dark:bg-red-950/50 dark:text-red-300" title={`Cette semaine : ${evolution.thisWeek} · Semaine précédente : ${evolution.lastWeek}`}>
+        <span aria-hidden>↗️</span> +{evolution.pct}%
+      </span>
+    )
+  }
+  if (evolution.pct < 0) {
+    return (
+      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300" title={`Cette semaine : ${evolution.thisWeek} · Semaine précédente : ${evolution.lastWeek}`}>
+        <span aria-hidden>↘️</span> {evolution.pct}%
+      </span>
+    )
+  }
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full border border-muted-foreground/20 bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground" title={`Cette semaine : ${evolution.thisWeek} · Semaine précédente : ${evolution.lastWeek}`}>
+      <span aria-hidden>→</span> Stable
+    </span>
+  )
+}
+
 function ResumeCoachIA({
   items,
   onVoirRapport,
@@ -1035,7 +1162,11 @@ function ResumeCoachIA({
             <Bot className="h-5 w-5" aria-hidden />
           </span>
           <div>
-            <h2 className="text-base font-semibold">Résumé de la semaine</h2>
+            <h2 className="text-base font-semibold flex items-center gap-1.5">
+              <span aria-hidden>📊</span>
+              Résumé de la semaine
+              <span className="text-xs font-normal text-muted-foreground">(Coach IA)</span>
+            </h2>
             <p className="text-xs text-muted-foreground">Coach IA — priorités détectées sur les retours chargés</p>
           </div>
           <Badge variant="outline" className="ml-auto h-6 gap-1 px-2 text-xs font-normal">
@@ -1054,16 +1185,21 @@ function ResumeCoachIA({
                   else if (p.type === "employe" && p.employeNom) onVoirEmploye(p.employeNom)
                   // zone : pas d'action directe (le filtre zone est dans la barre pills)
                 }}
-                className="flex w-full items-start gap-3 rounded-2xl border border-primary/10 bg-card p-3 text-left transition-colors hover:bg-muted/40"
+                className="flex w-full items-start gap-3 rounded-2xl border border-primary/10 bg-card p-3 text-left transition-all hover:bg-muted/40 hover:shadow-sm"
               >
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
                   {i + 1}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-medium">
-                    <span aria-hidden className="mr-1">{p.emoji}</span>
-                    {p.titre}
-                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-medium">
+                      <span aria-hidden className="mr-1">{p.emoji}</span>
+                      {p.titre}
+                    </p>
+                    {p.type === "tag" && p.evolution && (
+                      <BadgeEvolution evolution={p.evolution} />
+                    )}
+                  </div>
                   <p className="text-xs text-muted-foreground">{p.detail}</p>
                 </div>
                 {(p.type === "tag" || p.type === "employe") && (
@@ -1522,6 +1658,10 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
         ? `https://api.whatsapp.com/send?phone=${numeroWhatsapp}&text=${encodeURIComponent(messageWhatsapp)}&type=phone_number&app_absent=0`
         : null
 
+    // Stats rapides (colonne droite) : zone la plus touchée + tendance hebdo
+    const zoneTouchee = zoneLaPlusTouchee(detail, items)
+    const tendance = recurrence.tagFrequent ? evolutionTag(recurrence.tagFrequent, items) : null
+
     // Scroll vers la carte IA
     function scrollToIA() {
       iaRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
@@ -1569,7 +1709,12 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
               <span className="text-xs text-muted-foreground" title={formatDate(detail.createdAt)}>
                 {formatRelative(detail.createdAt)}
               </span>
-              {!detail.lu && <Badge className="h-5 px-1.5 text-[10px]">Nouveau</Badge>}
+              {!detail.lu && (
+                <Badge className="h-5 gap-0.5 border border-blue-300 bg-blue-500 px-1.5 text-[10px] font-semibold text-white shadow-sm shadow-blue-500/30">
+                  <span aria-hidden>✨</span>
+                  Nouveau
+                </Badge>
+              )}
               {typeof detail.nps === "number" && (
                 <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] font-normal" title="Net Promoter Score (0-10)">
                   NPS {detail.nps}/10
@@ -1749,39 +1894,32 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
               </Card>
             )}
 
-            {/* Tags associés */}
+            {/* Timeline : historique des statuts/actions sur ce retour (spec : Card Timeline en colonne gauche) */}
             <Card className="rounded-3xl shadow-sm">
-              <CardContent className="p-4 sm:p-5 space-y-2">
+              <CardContent className="p-4 sm:p-5 space-y-3">
                 <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                  <Target className="h-3.5 w-3.5" aria-hidden />
-                  Tags associés
+                  <Clock className="h-3.5 w-3.5" aria-hidden />
+                  Timeline du retour
                 </p>
-                {detail.tags.length > 0 ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    {detail.tags.map((t) => {
-                      const neg = SET_NEGATIFS.has(t)
-                      const pos = SET_POSITIFS.has(t)
-                      return (
-                        <Badge
-                          key={t}
-                          variant="outline"
-                          className={cn(
-                            "h-6 px-2 text-xs font-normal",
-                            neg
-                              ? "border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300"
-                              : pos
-                                ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
-                                : ""
-                          )}
-                          title={tagLabel(t)}
-                        >
-                          <span className="truncate">{tagLabel(t)}</span>
-                        </Badge>
-                      )
-                    })}
-                  </div>
+                {historiqueAffiche.length > 0 ? (
+                  <ol>
+                    {historiqueAffiche.map((h, i) => (
+                      <li key={`${h.statut}-${h.at}-${i}`} className="relative flex items-start gap-2.5 pb-4 last:pb-0">
+                        {i < historiqueAffiche.length - 1 && (
+                          <span className="absolute top-4 bottom-0 left-[6px] w-px bg-border" aria-hidden />
+                        )}
+                        <span className={`mt-1 h-3 w-3 shrink-0 rounded-full ${pastilleClass(h.statut)}`} aria-hidden />
+                        <div className="min-w-0 text-xs">
+                          <Badge variant="outline" className={`h-5 px-1.5 text-[11px] ${statutBadgeClass(h.statut)}`}>
+                            {STATUT_RETOUR_LABEL[h.statut] ?? h.statut}
+                          </Badge>
+                          <p className="mt-1 text-muted-foreground">{formatDate(h.at)}</p>
+                        </div>
+                      </li>
+                    ))}
+                  </ol>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Aucun tag</p>
+                  <p className="text-sm text-muted-foreground italic">Aucun historique</p>
                 )}
               </CardContent>
             </Card>
@@ -1946,6 +2084,55 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                     <span className="text-muted-foreground">Catégorie IA</span>
                     <span className="font-semibold capitalize">{recoIA.categorie}</span>
                   </div>
+                  {/* Zone la plus touchée (spec : "Zone la plus touchée") */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground">Zone la plus touchée</span>
+                    {zoneTouchee ? (
+                      <span className="font-semibold truncate max-w-[55%]" title={zoneTouchee.nom}>
+                        {zoneTouchee.nom} ({zoneTouchee.count})
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground italic">—</span>
+                    )}
+                  </div>
+                  {/* Tendance hebdo (spec : "tendance (↗️ +40%)") */}
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground">Tendance 7j</span>
+                    {tendance ? (
+                      <span
+                        className={cn(
+                          "inline-flex items-center gap-1 font-semibold",
+                          tendance.nouveau
+                            ? "text-blue-700 dark:text-blue-300"
+                            : tendance.pct > 0
+                              ? "text-red-700 dark:text-red-400"
+                              : tendance.pct < 0
+                                ? "text-emerald-700 dark:text-emerald-400"
+                                : "text-muted-foreground"
+                        )}
+                        title={`Cette semaine : ${tendance.thisWeek} · Semaine précédente : ${tendance.lastWeek}`}
+                      >
+                        {tendance.nouveau ? (
+                          <span aria-hidden>🆕</span>
+                        ) : tendance.pct > 0 ? (
+                          <span aria-hidden>↗️</span>
+                        ) : tendance.pct < 0 ? (
+                          <span aria-hidden>↘️</span>
+                        ) : (
+                          <span aria-hidden>→</span>
+                        )}
+                        {tendance.nouveau
+                          ? "Nouveau"
+                          : tendance.pct > 0
+                            ? `+${tendance.pct}%`
+                            : tendance.pct < 0
+                              ? `${tendance.pct}%`
+                              : "Stable"}
+                      </span>
+                    ) : (
+                      <span className="text-muted-foreground italic">—</span>
+                    )}
+                  </div>
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-muted-foreground">Canal</span>
                     <span className="font-semibold">{canalLabel(detail.canalChoisi)}</span>
@@ -1960,25 +2147,35 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
               </CardContent>
             </Card>
 
-            {/* Tags associés (rappel compact) */}
+            {/* Tags associés (spec : "liste des tags avec icônes + couleurs") */}
             {detail.tags.length > 0 && (
               <Card className="rounded-3xl shadow-sm">
                 <CardContent className="p-4 sm:p-5 space-y-2">
                   <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                     <Target className="h-3.5 w-3.5" aria-hidden />
-                    Tags
+                    Tags associés
                   </p>
-                  <div className="flex flex-wrap gap-1">
-                    {detail.tags.map((t) => (
-                      <Badge
-                        key={t}
-                        variant="outline"
-                        className="h-5 min-w-0 max-w-full px-1.5 text-[10px] font-normal"
-                        title={tagLabel(t)}
-                      >
-                        <span className="truncate">{tagLabel(t)}</span>
-                      </Badge>
-                    ))}
+                  <div className="flex flex-wrap gap-1.5">
+                    {detail.tags.map((t) => {
+                      const neg = SET_NEGATIFS.has(t)
+                      const pos = SET_POSITIFS.has(t)
+                      return (
+                        <span
+                          key={t}
+                          className={cn(
+                            "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium",
+                            neg
+                              ? "border-rose-300 bg-rose-100 text-rose-800 dark:border-rose-700 dark:bg-rose-950/50 dark:text-rose-300"
+                              : pos
+                                ? "border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
+                                : "border-border bg-muted text-muted-foreground"
+                          )}
+                          title={tagLabel(t)}
+                        >
+                          <span className="truncate">{tagLabel(t)}</span>
+                        </span>
+                      )
+                    })}
                   </div>
                 </CardContent>
               </Card>
@@ -2197,27 +2394,6 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                   Consigner une action managériale
                 </Button>
               )}
-
-              {/* Suivi du retour : timeline de l'historique des statuts */}
-              <div className="pt-2">
-                <p className="mb-2 text-xs font-medium text-muted-foreground">Suivi du retour</p>
-                <ol>
-                  {historiqueAffiche.map((h, i) => (
-                    <li key={`${h.statut}-${h.at}-${i}`} className="relative flex items-start gap-2.5 pb-4 last:pb-0">
-                      {i < historiqueAffiche.length - 1 && (
-                        <span className="absolute top-4 bottom-0 left-[6px] w-px bg-border" aria-hidden />
-                      )}
-                      <span className={`mt-1 h-3 w-3 shrink-0 rounded-full ${pastilleClass(h.statut)}`} aria-hidden />
-                      <div className="min-w-0 text-xs">
-                        <Badge variant="outline" className={`h-5 px-1.5 text-[11px] ${statutBadgeClass(h.statut)}`}>
-                          {STATUT_RETOUR_LABEL[h.statut] ?? h.statut}
-                        </Badge>
-                        <p className="mt-1 text-muted-foreground">{formatDate(h.at)}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ol>
-              </div>
             </CardContent>
           </Card>
         </div>
