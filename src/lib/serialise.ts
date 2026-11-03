@@ -55,8 +55,14 @@ export function serialiserRetour(
     statut: r.statut,
     // D1 : NPS (0-10) — null si non renseigné (note < 4)
     nps: r.nps ?? null,
-    // D2 : photo jointe par le client (URL relative /uploads/…)
-    photoUrl: r.photoUrl ?? null,
+    // D2 : photo jointe par le client (URL relative /api/uploads/…)
+    // Migration automatique : les anciens photoUrl en /uploads/ sont convertis
+    // vers /api/uploads/ (route dynamique qui sert depuis le volume persistant)
+    photoUrl: r.photoUrl
+      ? r.photoUrl.startsWith("/uploads/") && !r.photoUrl.startsWith("/api/uploads/")
+        ? r.photoUrl.replace("/uploads/", "/api/uploads/")
+        : r.photoUrl
+      : null,
     // Historique : objets { statut, at } — parse sans conversion en String
     historique: parseJsonTableau<{ statut: string; at: string }>(r.historique),
     lu: r.lu,

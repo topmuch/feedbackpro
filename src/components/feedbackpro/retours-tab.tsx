@@ -522,38 +522,48 @@ const URGENCE_CONFIG: Record<Urgence, {
   badge: string
   border: string
   glow: string
+  cardBg: string
+  cardText: string
 }> = {
   urgent: {
     label: "Urgent",
     emoji: "🚨",
     dot: "bg-red-500",
-    badge: "border-transparent bg-red-500 text-white shadow-sm shadow-red-500/30",
+    badge: "border-transparent bg-white/25 text-white shadow-sm shadow-red-500/30",
     border: "border-l-red-500",
-    glow: "hover:shadow-red-500/20",
+    glow: "hover:shadow-red-500/40",
+    cardBg: "bg-red-500",
+    cardText: "text-white",
   },
   atraiter: {
     label: "À traiter",
     emoji: "🟠",
     dot: "bg-orange-500",
-    badge: "border-transparent bg-orange-500 text-white shadow-sm shadow-orange-500/30",
+    badge: "border-transparent bg-white/25 text-white shadow-sm shadow-orange-500/30",
     border: "border-l-orange-500",
-    glow: "hover:shadow-orange-500/20",
+    glow: "hover:shadow-orange-500/40",
+    cardBg: "bg-orange-500",
+    cardText: "text-white",
   },
   mitige: {
     label: "Mitigé",
     emoji: "🟡",
     dot: "bg-yellow-500",
-    badge: "border-transparent bg-yellow-500 text-white shadow-sm shadow-yellow-500/30",
+    badge: "border-transparent bg-white/25 text-white shadow-sm shadow-yellow-500/30",
     border: "border-l-yellow-500",
-    glow: "hover:shadow-yellow-500/20",
+    glow: "hover:shadow-yellow-500/40",
+    cardBg: "bg-yellow-500",
+    cardText: "text-white",
   },
   positif: {
     label: "Positif",
     emoji: "🟢",
     dot: "bg-green-500",
-    badge: "border-transparent bg-green-500 text-white shadow-sm shadow-green-500/30",
+    badge: "border-transparent bg-white/25 text-white shadow-sm shadow-green-500/30",
     border: "border-l-green-500",
-    glow: "hover:shadow-green-500/20",
+    glow: "hover:shadow-green-500/40",
+    cardBg: "bg-green-500",
+    cardText: "text-white",
   },
 }
 
@@ -873,9 +883,10 @@ function CarteRetour({
   return (
     <Card
       className={cn(
-        "rounded-3xl border bg-card shadow-sm transition-all duration-200 border-l-4",
-        "hover:shadow-lg hover:-translate-y-0.5",
-        cfg.border,
+        "rounded-3xl border-0 shadow-md transition-all duration-200 overflow-hidden",
+        "hover:shadow-xl hover:-translate-y-0.5",
+        cfg.cardBg,
+        cfg.cardText,
         cfg.glow
       )}
     >
@@ -883,27 +894,27 @@ function CarteRetour({
         {/* Ligne 1 : note + zone + date + badge urgence */}
         <div className="flex flex-wrap items-center gap-2">
           <Stars note={r.note} size={16} />
-          <span className="text-sm font-semibold tabular-nums">{r.note}/5</span>
-          <span className="text-muted-foreground">•</span>
+          <span className="text-sm font-bold tabular-nums">{r.note}/5</span>
+          <span className="opacity-60">•</span>
           {r.zone?.nom ? (
-            <Badge variant="outline" className="h-6 gap-1 px-2 text-xs font-normal">
-              <MapPin className="h-3 w-3 text-muted-foreground" aria-hidden />
+            <Badge className="h-6 gap-1 px-2 text-xs font-normal bg-white/20 border-0 text-white hover:bg-white/30">
+              <MapPin className="h-3 w-3 opacity-80" aria-hidden />
               {r.zone.nom}
             </Badge>
           ) : (
-            <span className="text-xs text-muted-foreground">Zone non précisée</span>
+            <span className="text-xs opacity-60">Zone non précisée</span>
           )}
-          <span className="text-muted-foreground">•</span>
-          <span className="text-xs text-muted-foreground" title={formatDate(r.createdAt)}>
+          <span className="opacity-60">•</span>
+          <span className="text-xs opacity-80" title={formatDate(r.createdAt)}>
             {formatRelative(r.createdAt)}
           </span>
           {!r.lu && (
-            <Badge className="h-5 gap-0.5 border border-blue-300 bg-blue-500 px-1.5 text-[10px] font-semibold text-white shadow-sm shadow-blue-500/30">
+            <Badge className="h-5 gap-0.5 border border-white/40 bg-white/30 px-1.5 text-[10px] font-bold text-white shadow-sm">
               <span aria-hidden>✨</span>
               Nouveau
             </Badge>
           )}
-          <Badge variant="outline" className={cn("ml-auto h-6 px-2 text-xs font-medium", cfg.badge)}>
+          <Badge variant="outline" className={cn("ml-auto h-6 px-2 text-xs font-bold", cfg.badge)}>
             <span aria-hidden>{cfg.emoji}</span>
             {cfg.label}
           </Badge>
@@ -922,13 +933,9 @@ function CarteRetour({
                   onClick={() => onFiltrerTag(t)}
                   title={`Filtrer par « ${tagLabel(t)} »`}
                   className={cn(
-                    "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium transition-all",
+                    "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold transition-all",
                     "hover:scale-105 hover:shadow-sm",
-                    neg
-                      ? "border-rose-200 bg-rose-100 text-rose-800 hover:bg-rose-200 dark:border-rose-800 dark:bg-rose-950/60 dark:text-rose-300"
-                      : pos
-                        ? "border-emerald-200 bg-emerald-100 text-emerald-800 hover:bg-emerald-200 dark:border-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300"
-                        : "border-border bg-muted text-muted-foreground hover:bg-muted/80"
+                    "border-white/30 bg-white/15 text-white hover:bg-white/25"
                   )}
                 >
                   {tagLabel(t)}
@@ -936,7 +943,7 @@ function CarteRetour({
               )
             })}
             {nbTags > 5 && (
-              <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal">
+              <Badge className="h-5 px-1.5 text-[10px] font-normal bg-white/20 border-0 text-white">
                 +{nbTags - 5}
               </Badge>
             )}
@@ -945,13 +952,13 @@ function CarteRetour({
 
         {/* Ligne 3 : commentaire client (citation italique) */}
         {r.commentaire && (
-          <blockquote className="border-l-2 border-primary/30 bg-muted/40 px-3 py-2 text-sm italic leading-relaxed text-foreground/90">
+          <blockquote className="border-l-2 border-white/40 bg-white/10 px-3 py-2 text-sm italic leading-relaxed text-white/90">
             &ldquo;{tronquer(r.commentaire, 160)}&rdquo;
           </blockquote>
         )}
 
         {/* Ligne 4 : métadonnées (personnel | photo | récurrence) */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-white/70">
           {personnel && (
             <span className="inline-flex items-center gap-1">
               <User className="h-3 w-3" aria-hidden />
@@ -965,14 +972,14 @@ function CarteRetour({
             </span>
           )}
           {r.photoUrl && (
-            <span className="inline-flex items-center gap-1 text-primary">
+            <span className="inline-flex items-center gap-1 text-white">
               <Camera className="h-3 w-3" aria-hidden />
               Photo jointe
             </span>
           )}
           {recurrence.count >= 2 && recurrence.libelleTag && (
             <span
-              className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-100 px-2 py-0.5 text-[10px] font-semibold text-amber-800 dark:border-amber-700 dark:bg-amber-950/60 dark:text-amber-300"
+              className="inline-flex items-center gap-1 rounded-full border border-white/40 bg-white/20 px-2 py-0.5 text-[10px] font-semibold text-white"
               title={`${ordinalFr(recurrence.count)} signalement « ${recurrence.libelleTag} » sur 30 jours`}
             >
               <RefreshCw className="h-3 w-3" aria-hidden />
@@ -980,13 +987,13 @@ function CarteRetour({
             </span>
           )}
           {r.statut === "RESOLVED" && (
-            <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
+            <span className="inline-flex items-center gap-1 text-white/90">
               <CheckCircle2 className="h-3 w-3" aria-hidden />
               Résolu
             </span>
           )}
           {r.reponsePro && (
-            <span className="inline-flex items-center gap-1 text-primary">
+            <span className="inline-flex items-center gap-1 text-white">
               <MessageSquareReply className="h-3 w-3" aria-hidden />
               Répondu
             </span>
@@ -997,7 +1004,7 @@ function CarteRetour({
         <div className="flex flex-wrap items-center gap-2 pt-1">
           <Button
             size="sm"
-            className="h-9 gap-1.5 transition-transform hover:scale-105"
+            className="h-9 gap-1.5 bg-white/90 text-gray-900 hover:bg-white transition-transform hover:scale-105"
             onClick={onVoir}
           >
             <Eye className="h-4 w-4" aria-hidden />
@@ -1006,7 +1013,7 @@ function CarteRetour({
           <Button
             variant="outline"
             size="sm"
-            className="h-9 gap-1.5 transition-transform hover:scale-105"
+            className="h-9 gap-1.5 border-white/40 bg-white/10 text-white hover:bg-white/20 hover:text-white transition-transform hover:scale-105"
             onClick={onRepondre}
           >
             <MessageSquareReply className="h-4 w-4" aria-hidden />
@@ -1016,7 +1023,7 @@ function CarteRetour({
             <Button
               variant="ghost"
               size="sm"
-              className="h-9 gap-1.5 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
+              className="h-9 gap-1.5 text-white hover:bg-white/20 hover:text-white"
               onClick={onResoudre}
             >
               <CheckCircle2 className="h-4 w-4" aria-hidden />
