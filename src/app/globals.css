@@ -208,12 +208,12 @@ html { scroll-behavior: smooth; }
    Refonte Landing "Linear/Stripe/Vercel" Premium — CSS pur
    ============================================================ */
 
-/* Gradient mesh animé (arrière-plan hero / CTA final) */
+/* Gradient mesh animé (arrière-plan hero / CTA final) — bleu profond FeedbackPro */
 .fp-mesh-bg {
   background:
-    radial-gradient(at 20% 30%, rgba(139, 92, 246, 0.3) 0px, transparent 50%),
-    radial-gradient(at 80% 20%, rgba(59, 130, 246, 0.3) 0px, transparent 50%),
-    radial-gradient(at 40% 80%, rgba(236, 72, 153, 0.2) 0px, transparent 50%);
+    radial-gradient(at 20% 30%, rgba(0, 46, 133, 0.15) 0px, transparent 50%),
+    radial-gradient(at 80% 20%, rgba(0, 71, 199, 0.15) 0px, transparent 50%),
+    radial-gradient(at 40% 80%, rgba(0, 46, 133, 0.1) 0px, transparent 50%);
   animation: fp-gradient-shift 15s ease infinite;
   background-size: 200% 200%;
 }
@@ -222,20 +222,20 @@ html { scroll-behavior: smooth; }
   50%      { background-position: 100% 50%; }
 }
 
-/* Gradient texte signature (violet → bleu → rose) */
+/* Gradient texte signature (bleu profond FeedbackPro) */
 .fp-text-gradient {
-  background: linear-gradient(135deg, #8B5CF6, #3B82F6, #EC4899);
+  background: linear-gradient(135deg, #002e85, #0047c7, #002e85);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
 }
 
-/* Gradient violet → bleu pour boutons / surfaces */
+/* Gradient bleu profond pour boutons / surfaces */
 .fp-bg-gradient {
-  background: linear-gradient(135deg, #8B5CF6 0%, #3B82F6 100%);
+  background: linear-gradient(135deg, #002e85 0%, #0047c7 100%);
 }
 .fp-bg-gradient-warm {
-  background: linear-gradient(135deg, #EC4899 0%, #F97316 100%);
+  background: linear-gradient(135deg, #002e85 0%, #0047c7 100%);
 }
 
 /* Float animation pour mockup 3D */
@@ -248,10 +248,10 @@ html { scroll-behavior: smooth; }
   transform-style: preserve-3d;
 }
 
-/* Pulse glow (CTA principaux) */
+/* Pulse glow (CTA principaux) — bleu profond FeedbackPro */
 @keyframes fp-pulse-glow {
-  0%, 100% { box-shadow: 0 0 20px rgba(139, 92, 246, 0.3), 0 0 0 0 rgba(139, 92, 246, 0.4); }
-  50%      { box-shadow: 0 0 40px rgba(139, 92, 246, 0.6), 0 0 0 8px rgba(139, 92, 246, 0); }
+  0%, 100% { box-shadow: 0 0 20px rgba(0, 46, 133, 0.3), 0 0 0 0 rgba(0, 46, 133, 0.4); }
+  50%      { box-shadow: 0 0 40px rgba(0, 46, 133, 0.6), 0 0 0 8px rgba(0, 46, 133, 0); }
 }
 .fp-pulse-glow { animation: fp-pulse-glow 2.6s ease-in-out infinite; }
 
@@ -276,10 +276,10 @@ html { scroll-behavior: smooth; }
   animation-play-state: paused;
 }
 
-/* Glow doux pulsé derrière cards premium */
+/* Glow doux pulsé derrière cards premium — bleu profond FeedbackPro */
 @keyframes fp-card-glow {
-  0%, 100% { box-shadow: 0 0 30px rgba(139, 92, 246, 0.15); }
-  50%      { box-shadow: 0 0 50px rgba(139, 92, 246, 0.35); }
+  0%, 100% { box-shadow: 0 0 30px rgba(0, 46, 133, 0.15); }
+  50%      { box-shadow: 0 0 50px rgba(0, 46, 133, 0.35); }
 }
 .fp-card-glow { animation: fp-card-glow 3s ease-in-out infinite; }
 
@@ -295,7 +295,7 @@ html { scroll-behavior: smooth; }
   inset: 0;
   padding: 2px;
   border-radius: inherit;
-  background: linear-gradient(135deg, #8B5CF6, #3B82F6, #EC4899);
+  background: linear-gradient(135deg, #002e85, #0047c7, #002e85);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
           mask-composite: exclude;
@@ -429,10 +429,10 @@ html { scroll-behavior: smooth; }
 }
 .fp-scan-tag-enter { animation: fp-scan-tag-enter 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
 
-/* === Étape 3 — Bouton "Envoyer" : pulse subtil violet (gradient) === */
+/* === Étape 3 — Bouton "Envoyer" : pulse subtil bleu profond (gradient) === */
 @keyframes fp-scan-pulse-soft {
-  0%, 100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0); }
-  50%      { box-shadow: 0 0 0 6px rgba(139, 92, 246, 0.18); }
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0, 46, 133, 0); }
+  50%      { box-shadow: 0 0 0 6px rgba(0, 46, 133, 0.18); }
 }
 .fp-scan-pulse-soft { animation: fp-scan-pulse-soft 2s ease-in-out infinite; }
 
@@ -479,14 +479,14 @@ html { scroll-behavior: smooth; }
 }
 .fp-scan-reward-in { animation: fp-scan-reward-in 0.5s ease-out 0.25s both; }
 
-/* Bordure dégradée (violet → bleu → rose) pour la carte code promo */
+/* Bordure dégradée (bleu profond) pour la carte code promo */
 .fp-scan-reward-border {
   position: relative;
-  background: linear-gradient(180deg, #ffffff 0%, #faf5ff 100%);
+  background: linear-gradient(180deg, #ffffff 0%, #f5f8ff 100%);
   border-radius: 1rem;
 }
 .dark .fp-scan-reward-border {
-  background: linear-gradient(180deg, rgba(20, 20, 23, 0.92) 0%, rgba(30, 20, 50, 0.92) 100%);
+  background: linear-gradient(180deg, rgba(20, 20, 23, 0.92) 0%, rgba(20, 30, 60, 0.92) 100%);
 }
 .fp-scan-reward-border::before {
   content: "";
@@ -494,7 +494,7 @@ html { scroll-behavior: smooth; }
   inset: 0;
   padding: 2px;
   border-radius: inherit;
-  background: linear-gradient(135deg, #8B5CF6, #3B82F6, #EC4899);
+  background: linear-gradient(135deg, #002e85, #0047c7, #002e85);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
           mask-composite: exclude;

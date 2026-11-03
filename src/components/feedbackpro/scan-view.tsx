@@ -938,7 +938,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                   role="radiogroup"
                   aria-label={t.ariaEtoiles}
                   onKeyDown={etoileClavier}
-                  className="mt-7 grid w-full max-w-md grid-cols-5 gap-2 sm:gap-3"
+                  className="mt-6 grid w-full max-w-md grid-cols-5 gap-1.5 sm:gap-2"
                 >
                   {[1, 2, 3, 4, 5].map((i) => {
                     const active = note === i
@@ -952,7 +952,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                         aria-label={t.donnerEtoiles(i)}
                         onClick={() => choisirNote(i)}
                         className={cn(
-                          "flex h-24 flex-col items-center justify-center gap-1 rounded-2xl border-2 p-1.5 text-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:h-28",
+                          "flex min-h-20 flex-col items-center justify-center gap-1 rounded-2xl border-2 p-1.5 text-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:min-h-24 sm:p-2",
                           active
                             ? "border-[#002e85] bg-[#002e85] text-white"
                             : "border-[#002e85] bg-white text-gray-900 hover:scale-105",
@@ -1023,7 +1023,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                           <span aria-hidden className="me-1">▸</span>
                           {groupe.pilier}
                         </p>
-                        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
                           {groupe.tags.map((tg, idx) => {
                             const actif = tags.includes(tg.id)
                             const def = definitionTag(tg.id, estPositif)
@@ -1034,7 +1034,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                                 aria-pressed={actif}
                                 onClick={() => basculerTag(tg.id)}
                                 className={cn(
-                                  "fp-scan-tag-enter flex min-h-24 flex-col items-center justify-center gap-1 rounded-2xl border-2 p-2.5 text-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:min-h-28",
+                                  "fp-scan-tag-enter flex min-h-20 flex-col items-center justify-center gap-1 rounded-2xl border-2 p-2 text-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:min-h-24 sm:p-3",
                                   actif
                                     ? "border-[#002e85] bg-[#002e85] text-white"
                                     : "border-[#002e85] bg-white text-gray-900 hover:scale-105",
@@ -1059,7 +1059,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                   <div
                     role="group"
                     aria-label={estPositif ? t.ariaTagsPositifs : t.ariaTagsNegatifs}
-                    className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3"
+                    className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3"
                   >
                     {idsTags.map((id, idx) => {
                       const def = definitionTag(id, estPositif)
@@ -1071,7 +1071,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                           aria-pressed={actif}
                           onClick={() => basculerTag(id)}
                           className={cn(
-                            "fp-scan-tag-enter flex min-h-24 flex-col items-center justify-center gap-1 rounded-2xl border-2 p-2.5 text-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:min-h-28",
+                            "fp-scan-tag-enter flex min-h-20 flex-col items-center justify-center gap-1 rounded-2xl border-2 p-2 text-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:min-h-24 sm:p-3",
                             actif
                               ? "border-[#002e85] bg-[#002e85] text-white"
                               : "border-[#002e85] bg-white text-gray-900 hover:scale-105",
@@ -1811,14 +1811,14 @@ function LogoEtablissementBig({ pro }: { pro: ScanData["pro"] }) {
         // referrerPolicy : évite le blocage hotlink sur les logos distants (https);
         // sans effet sur les data: URLs (logos uploadés côté dashboard).
         referrerPolicy="no-referrer"
-        className="size-32 rounded-3xl border-2 border-[#002e85] bg-white object-cover shadow-md sm:size-40"
+        className="size-24 rounded-3xl border-2 border-[#002e85] bg-white object-cover shadow-md sm:size-32"
       />
     )
   }
   return (
     <div
       aria-hidden
-      className="flex size-32 items-center justify-center rounded-3xl border-2 border-[#002e85] bg-white text-6xl font-black text-[#002e85] shadow-md sm:size-40"
+      className="flex size-24 items-center justify-center rounded-3xl border-2 border-[#002e85] bg-white text-5xl font-black text-[#002e85] shadow-md sm:size-32 sm:text-6xl"
     >
       {initiale}
     </div>

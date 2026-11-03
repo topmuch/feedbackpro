@@ -5,7 +5,7 @@
 // ------------------------------------------------------------
 // 13 sections. Version claire (fond blanc), cartes sur bg-white
 // avec bordures gray-200 + shadows douces. Gradients colorés
-// (violet → bleu → rose) conservés sur titres, boutons et accents.
+// (bleu profond FeedbackPro #002e85) conservés sur titres, boutons et accents.
 // Aucun fetch, aucune route : toutes les actions passent par
 // onLogin / onSignup (routage Zustand préservé). Animations CSS
 // pur (keyframes globals.css) + IntersectionObserver via le hook
@@ -348,7 +348,7 @@ const TESTIMONIALS: {
       "En 3 semaines, on a corrigé un problème d'attente au déjeuner qu'on traînait depuis 2 ans. Le rapport du matin m'a permis de cibler exactement qui former.",
     note: 5,
     initiales: "SM",
-    couleur: "from-violet-500 to-blue-500",
+    couleur: "from-[#002e85] to-[#0047c7]",
   },
   {
     nom: "Karim Benali",
@@ -368,7 +368,7 @@ const TESTIMONIALS: {
       "On pilotait 8 boutiques à l'instinct. Aujourd'hui chaque manager reçoit son rapport matinal. Le leaderboard a complètement changé la dynamique d'équipe.",
     note: 5,
     initiales: "EF",
-    couleur: "from-pink-500 to-orange-500",
+    couleur: "from-[#002e85] to-[#0047c7]",
   },
 ]
 
@@ -510,12 +510,12 @@ type Particle = {
   color: string
 }
 
-// Particules violet/bleu en opacité réduite (visibles sur fond blanc)
+// Particules bleu profond en opacité réduite (visibles sur fond blanc)
 const PARTICULES_COULEURS = [
-  "rgba(139, 92, 246, 0.3)", // violet
-  "rgba(59, 130, 246, 0.3)", // bleu
-  "rgba(236, 72, 153, 0.25)", // rose
-  "rgba(249, 115, 22, 0.2)", // orange
+  "rgba(0, 46, 133, 0.3)", // bleu profond
+  "rgba(0, 71, 199, 0.3)", // bleu clair
+  "rgba(0, 46, 133, 0.25)", // bleu profond
+  "rgba(0, 71, 199, 0.2)", // bleu clair
 ]
 
 function useParticules(count = 40): Particle[] {
@@ -571,7 +571,7 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
           className="flex items-center gap-2 font-bold"
           aria-label="Accueil FeedbackPro"
         >
-          <span className="fp-bg-gradient flex h-9 w-9 items-center justify-center rounded-xl shadow-[0_0_20px_rgba(139,92,246,0.4)]">
+          <span className="fp-bg-gradient flex h-9 w-9 items-center justify-center rounded-xl shadow-[0_0_20px_rgba(0,46,133,0.4)]">
             <QrCode className="h-5 w-5 text-white" aria-hidden />
           </span>
           <span className="fp-text-gradient text-lg tracking-tight">FeedbackPro</span>
@@ -726,7 +726,7 @@ function Hero({ onSignup }: { onSignup: () => void }) {
         <div className="lg:col-span-3">
           <Reveal>
             <div className="fp-pulse-glow inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-1.5 text-xs font-medium text-gray-900 shadow-sm">
-              <Sparkles className="h-3.5 w-3.5 text-violet-500" aria-hidden />
+              <Sparkles className="h-3.5 w-3.5 text-[#002e85]" aria-hidden />
               Nouveau — Client Mystère 2.0 par IA
             </div>
           </Reveal>
@@ -779,7 +779,7 @@ function Hero({ onSignup }: { onSignup: () => void }) {
               </div>
               <div className="hidden h-5 w-px bg-gray-200 sm:block" aria-hidden />
               <div className="flex items-center gap-2 text-sm text-gray-600">
-                <Users className="h-4 w-4 text-violet-500" aria-hidden />
+                <Users className="h-4 w-4 text-[#002e85]" aria-hidden />
                 <span>
                   <strong className="text-gray-900">127+</strong> établissements conquis
                 </span>
@@ -792,17 +792,17 @@ function Hero({ onSignup }: { onSignup: () => void }) {
         <div className="lg:col-span-2">
           <Reveal delay={200}>
             <div className="relative mx-auto max-w-md" style={{ perspective: "1200px" }}>
-              {/* Halo violet derrière */}
+              {/* Halo bleu derrière */}
               <div
-                className="pointer-events-none absolute -inset-8 -z-10 rounded-[3rem] bg-gradient-to-br from-violet-600/30 via-blue-600/20 to-pink-600/20 blur-3xl"
+                className="pointer-events-none absolute -inset-8 -z-10 rounded-[3rem] bg-gradient-to-br from-[#002e85]/30 via-[#0047c7]/20 to-[#002e85]/20 blur-3xl"
                 aria-hidden
               />
 
               {/* Carte rapport 3D */}
-              <div className="fp-float-mockup rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl shadow-purple-500/20">
+              <div className="fp-float-mockup rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl shadow-[#002e85]/20">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
-                    <BarChart3 className="h-4 w-4 text-violet-500" />
+                    <BarChart3 className="h-4 w-4 text-[#002e85]" />
                     Rapport du jour
                   </div>
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-600">
@@ -1002,7 +1002,7 @@ function SolutionSection() {
     >
       <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-violet-600 shadow-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#002e85] shadow-sm">
             <Sparkles className="h-3.5 w-3.5" />
             La solution
           </span>
@@ -1022,7 +1022,7 @@ function SolutionSection() {
         <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-4 md:gap-4">
           {STEPS.map((s, i) => (
             <Reveal key={s.titre} delay={i * 120}>
-              <div className="fp-lift group relative flex h-full flex-col items-start overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm hover:border-violet-300 hover:shadow-xl">
+              <div className="fp-lift group relative flex h-full flex-col items-start overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm hover:border-[#0047c7] hover:shadow-xl">
                 {/* Numéro 01-04 en arrière-plan */}
                 <span
                   className="pointer-events-none absolute -right-2 -top-4 text-[7rem] font-extrabold leading-none text-gray-100"
@@ -1058,7 +1058,7 @@ function SolutionSection() {
                     className="absolute -right-4 top-1/2 z-20 hidden h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white shadow-lg md:flex"
                     aria-hidden
                   >
-                    <ArrowRight className="h-4 w-4 text-purple-400" />
+                    <ArrowRight className="h-4 w-4 text-[#002e85]" />
                   </div>
                 )}
               </div>
@@ -1111,7 +1111,7 @@ function ComparisonSection() {
               <div className="px-4 py-5 text-sm font-semibold text-gray-700 sm:px-6">
                 Client Mystère <span className="hidden sm:inline">traditionnel</span>
               </div>
-              <div className="relative border-l border-purple-200 bg-purple-50 px-4 py-5 text-sm font-semibold text-gray-900 sm:px-6">
+              <div className="relative border-l border-[#002e85]/30 bg-[#002e85]/10 px-4 py-5 text-sm font-semibold text-gray-900 sm:px-6">
                 <span className="flex flex-wrap items-center gap-2">
                   <span className="fp-text-gradient">FeedbackPro</span>
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
@@ -1134,7 +1134,7 @@ function ComparisonSection() {
                   <X className="h-4 w-4 shrink-0 text-rose-500" aria-hidden />
                   <span>{row.traditionnel}</span>
                 </div>
-                <div className="flex items-center gap-2 border-l border-purple-200 bg-purple-50/50 px-4 py-4 text-sm font-medium sm:px-6">
+                <div className="flex items-center gap-2 border-l border-[#002e85]/30 bg-[#002e85]/5 px-4 py-4 text-sm font-medium sm:px-6">
                   <Check className="h-4 w-4 shrink-0 text-emerald-500" aria-hidden />
                   <span className="text-gray-900">{row.feedbackpro}</span>
                 </div>
@@ -1160,7 +1160,7 @@ function FeaturesSection() {
     >
       <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-violet-600 shadow-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#002e85] shadow-sm">
             Fonctionnalités
           </span>
           <h2
@@ -1184,9 +1184,9 @@ function FeaturesSection() {
               delay={(i % 3) * 100}
               className={f.grand ? "lg:col-span-4 lg:row-span-2" : "lg:col-span-2"}
             >
-              <article className="fp-lift group flex h-full flex-col rounded-3xl border border-gray-200 bg-white p-6 shadow-sm hover:-translate-y-1 hover:border-purple-300 hover:shadow-xl sm:p-7">
+              <article className="fp-lift group flex h-full flex-col rounded-3xl border border-gray-200 bg-white p-6 shadow-sm hover:-translate-y-1 hover:border-[#002e85]/30 hover:shadow-xl sm:p-7">
                 <div className="flex items-center justify-between">
-                  <span className="fp-bg-gradient flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-[0_0_20px_rgba(139,92,246,0.4)]">
+                  <span className="fp-bg-gradient flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-[0_0_20px_rgba(0,46,133,0.4)]">
                     <f.icone className="h-6 w-6" />
                   </span>
                   <span className="text-2xl opacity-70 transition-transform duration-300 group-hover:scale-110">
@@ -1239,7 +1239,7 @@ function UseCasesSection() {
     <section id="cas-usage" className="scroll-mt-24" aria-labelledby="cas-usage-title">
       <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-pink-600 shadow-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#002e85] shadow-sm">
             Cas d'usage
           </span>
           <h2
@@ -1265,7 +1265,7 @@ function UseCasesSection() {
                 <TabsTrigger
                   key={uc.id}
                   value={uc.id}
-                  className="flex-1 shrink-0 rounded-xl border border-transparent px-4 py-2 text-sm font-medium text-gray-600 transition-all hover:bg-gray-200 data-[state=active]:fp-bg-gradient data-[state=active]:border-transparent data-[state=active]:text-white data-[state=active]:shadow-[0_0_20px_rgba(139,92,246,0.4)]"
+                  className="flex-1 shrink-0 rounded-xl border border-transparent px-4 py-2 text-sm font-medium text-gray-600 transition-all hover:bg-gray-200 data-[state=active]:fp-bg-gradient data-[state=active]:border-transparent data-[state=active]:text-white data-[state=active]:shadow-[0_0_20px_rgba(0,46,133,0.4)]"
                 >
                   <span className="mr-1.5">{uc.emoji}</span>
                   <span className="hidden sm:inline">{uc.label}</span>
@@ -1345,10 +1345,10 @@ function TestimonialsSection() {
         <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-3">
           {TESTIMONIALS.map((t, i) => (
             <Reveal key={t.nom} delay={i * 100}>
-              <article className="fp-lift flex h-full flex-col rounded-3xl border border-gray-200 bg-white p-6 shadow-sm hover:border-violet-300 hover:shadow-xl">
+              <article className="fp-lift flex h-full flex-col rounded-3xl border border-gray-200 bg-white p-6 shadow-sm hover:border-[#0047c7] hover:shadow-xl">
                 <div className="flex items-center justify-between">
                   <Etoiles note={t.note} />
-                  <Quote className="h-6 w-6 text-violet-200" aria-hidden />
+                  <Quote className="h-6 w-6 text-[#002e85]/30" aria-hidden />
                 </div>
                 <blockquote className="mt-4 flex-1">
                   <p className="text-sm italic leading-relaxed text-gray-700">
@@ -1389,7 +1389,7 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
     <section id="tarifs" className="scroll-mt-24" aria-labelledby="tarifs-title">
       <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-violet-600 shadow-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#002e85] shadow-sm">
             Tarifs
           </span>
           <h2
@@ -1454,7 +1454,7 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
                 <article
                   className={`fp-lift relative flex h-full flex-col rounded-3xl p-6 sm:p-8 ${
                     plan.populaire
-                      ? "border-2 border-purple-300 bg-white shadow-lg shadow-purple-500/20 lg:scale-105"
+                      ? "border-2 border-[#002e85] bg-white shadow-lg shadow-[#002e85]/20 lg:scale-105"
                       : "border border-gray-200 bg-white shadow-sm"
                   }`}
                 >
@@ -1517,7 +1517,7 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
             Besoin d'une solution sur-mesure pour un grand groupe ?{" "}
             <button
               onClick={onSignup}
-              className="font-medium text-violet-600 underline-offset-4 hover:underline"
+              className="font-medium text-[#002e85] underline-offset-4 hover:underline"
             >
               Parlons-en →
             </button>
@@ -1587,19 +1587,19 @@ function FinalCTA({ onSignup }: { onSignup: () => void }) {
   return (
     <section className="px-4 py-24 sm:px-6 lg:px-8 lg:py-32" aria-labelledby="cta-title">
       <Reveal>
-        <div className="relative mx-auto max-w-6xl overflow-hidden rounded-3xl border border-purple-500/20 bg-gradient-to-br from-purple-600 to-blue-600 px-6 py-16 text-center shadow-2xl shadow-purple-500/30 sm:px-12 sm:py-20">
+        <div className="relative mx-auto max-w-6xl overflow-hidden rounded-3xl border border-[#002e85]/30 bg-gradient-to-br from-[#002e85] to-[#0047c7] px-6 py-16 text-center shadow-2xl shadow-[#002e85]/30 sm:px-12 sm:py-20">
           {/* Particules décoratives */}
           <div className="pointer-events-none absolute inset-0" aria-hidden>
             <div
-              className="absolute left-[15%] top-[20%] h-2 w-2 rounded-full bg-violet-300"
+              className="absolute left-[15%] top-[20%] h-2 w-2 rounded-full bg-white/50"
               style={{ animation: "fp-float-slow 6s ease-in-out infinite" }}
             />
             <div
-              className="absolute right-[20%] top-[30%] h-2 w-2 rounded-full bg-blue-300"
+              className="absolute right-[20%] top-[30%] h-2 w-2 rounded-full bg-white/70"
               style={{ animation: "fp-float-slow 7s ease-in-out infinite", animationDelay: "-2s" }}
             />
             <div
-              className="absolute left-[30%] bottom-[15%] h-1.5 w-1.5 rounded-full bg-pink-300"
+              className="absolute left-[30%] bottom-[15%] h-1.5 w-1.5 rounded-full bg-white/40"
               style={{ animation: "fp-float-slow 5s ease-in-out infinite", animationDelay: "-1s" }}
             />
             <div
@@ -1614,7 +1614,7 @@ function FinalCTA({ onSignup }: { onSignup: () => void }) {
               className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl"
               style={{ letterSpacing: "-0.03em" }}
             >
-              Prêt à transformer <span className="text-pink-200">votre qualité</span> ?
+              Prêt à transformer <span className="text-white">votre qualité</span> ?
             </h2>
             <p className="mx-auto mt-4 max-w-xl text-base text-white/90 sm:text-lg">
               Rejoignez les 127+ établissements qui pilotent leur qualité en temps réel. Premier
@@ -1625,7 +1625,7 @@ function FinalCTA({ onSignup }: { onSignup: () => void }) {
               <Button
                 size="lg"
                 onClick={onSignup}
-                className="h-12 border-0 bg-white px-8 text-base text-purple-600 shadow-lg hover:bg-gray-50"
+                className="h-12 border-0 bg-white px-8 text-base text-[#002e85] shadow-lg hover:bg-gray-50"
               >
                 Commencer gratuitement
                 <ArrowRight className="h-4 w-4" />
@@ -1681,7 +1681,7 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
             </p>
             <button
               onClick={onLogin}
-              className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-violet-400 hover:underline"
+              className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-[#5b8def] hover:underline"
             >
               Se connecter
               <ArrowRight className="h-3.5 w-3.5" />
