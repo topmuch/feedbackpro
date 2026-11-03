@@ -1718,25 +1718,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                 )}
               </button>
 
-              {/* Canal secondaire WhatsApp (masqué si aucun numéro) */}
-              {aWhatsApp && (
-                <button
-                  type="button"
-                  onClick={() => envoyer("whatsapp")}
-                  disabled={soumission !== null}
-                  className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-green-500 text-base font-bold text-[#002e85] shadow-lg transition-all hover:bg-green-600 disabled:cursor-wait disabled:opacity-80"
-                >
-                  {soumission === "whatsapp" ? (
-                    <>
-                      <Loader2 className="size-5 animate-spin" aria-hidden /> {t.envoiEnCours}
-                    </>
-                  ) : (
-                    <>
-                      <MessageCircle className="size-5" aria-hidden /> {t.envoyerWhatsapp}
-                    </>
-                  )}
-                </button>
-              )}
+              {/* Canal WhatsApp supprimé — envoi unique via le bouton principal */}
 
               {/* D8 : avis Google — lien discret (si 4-5★ + URL configurée) */}
               {lienAvisGoogle && (
@@ -1844,12 +1826,12 @@ function LogoPetit({ pro, zone }: { pro: ScanData["pro"]; zone: ScanData["zone"]
           loading="eager"
           decoding="async"
           referrerPolicy="no-referrer"
-          className="size-10 shrink-0 rounded-xl border-2 border-[#002e85] bg-white object-cover shadow"
+          className="size-16 shrink-0 rounded-2xl border-2 border-[#002e85] bg-white object-cover shadow sm:size-20"
         />
       ) : (
         <div
           aria-hidden
-          className="flex size-10 shrink-0 items-center justify-center rounded-xl border-2 border-[#002e85] bg-white text-lg font-black text-[#002e85] shadow"
+          className="flex size-16 shrink-0 items-center justify-center rounded-2xl border-2 border-[#002e85] bg-white text-2xl font-black text-[#002e85] shadow sm:size-20"
         >
           {initiale}
         </div>
