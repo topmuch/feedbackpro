@@ -1,18 +1,20 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Onglet "Vue d'ensemble" du dashboard Pro
-// KPIs, mini graphique d'évolution, derniers retours, alertes
+// FeedbackPro - Onglet "Tableau de bord" du dashboard Pro
+// KPIs, graphique d'évolution 30j, derniers retours, alertes
 // ============================================================
 
 import { useEffect, useState } from "react"
 import {
   Star,
   MessageSquare,
-  ShieldCheck,
+  TrendingUp,
+  TrendingDown,
   BellRing,
   RefreshCw,
   Check,
+  AlertTriangle,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -23,40 +25,35 @@ import { useToast } from "@/hooks/use-toast"
 import { STATUT_RETOUR_LABEL, tagLabel } from "@/lib/constants"
 import {
   ResponsiveContainer,
-  LineChart,
-  Line,
+  AreaChart,
+  Area,
   XAxis,
   YAxis,
   Tooltip,
-  BarChart,
-  Bar,
-  Cell,
+  CartesianGrid,
 } from "recharts"
 
-type Overview = {
-  nomCommerce: string
-  plan: string
-  kpis: {
-    scoreGlobal: number
-    totalRetours: number
-    retoursCeMois: number
-    retoursMoisPrecedent: number
-    scoreMois: number
-    scoreMoisPrecedent: number
-    tauxInterception: number
-    retoursNonLus: number
-    alertesNonLues: number
-  }
-  evolution: { date: string; note: number | null; count: number }[]
-  repartitionNotes: { note: number; count: number }[]
-  recentRetours: { id: string; note: number; tags: string[]; commentaire: string | null; statut: string; lu: boolean; createdAt: string }[]
-  alertes: { id: string; titre: string; message: string; canal: string; lu: boolean; createdAt: string }[]
+type OverviewData = {
+  scoreGlobal30j: number
+  evolutionPct: number | null
+  retoursMois: number
+  tauxInterception: number
+  alertesNonLues: number
+  courbe30j: { date: string; score: number; retours: number }[]
+  derniersRetours: {
+    id: string
+    note: number
+    tags: string[]
+    commentaire: string | null
+    statut: string
+    lu: boolean
+    createdAt: string
+    zone?: { nom: string } | null
+  }[]
 }
 
-const NOTE_COLORS = ["#f43f5e", "#fb7185", "#f59e0b", "#22c55e", "#16a34a"]
-
 export function OverviewTab() {
-  const [data, setData] = useState<Overview | null>(null)
+  const [data, setData] = useState<OverviewData | null>(null)
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
 
@@ -74,210 +71,199 @@ export function OverviewTab() {
 
   useEffect(() => {
     load()
-     
   }, [])
-
-  async function marquerAlertesLues() {
-    await fetch("/api/pro/alertes", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ all: true }),
-    })
-    load()
-    toast({ title: "Alertes marquées comme lues" })
-  }
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <Skeleton className="h-10 w-64" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      <div className="space-y-6">
+        <div>
+          <Skeleton className="h-8 w-64" />
+          <Skeleton className="mt-2 h-4 w-96" />
+        </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-xl" />
+            <Skeleton key={i} className="h-28 rounded-3xl" />
           ))}
         </div>
-        <Skeleton className="h-72 rounded-xl" />
-        <Skeleton className="h-64 rounded-xl" />
+        <Skeleton className="h-72 rounded-3xl" />
+        <Skeleton className="h-48 rounded-3xl" />
       </div>
     )
   }
 
-  if (!data) return <p className="text-muted-foreground">Aucune donnée disponible.</p>
+  if (!data) {
+    return (
+      <Card className="rounded-3xl">
+        <CardContent className="py-12 text-center text-sm text-muted-foreground">
+          Aucune donnée disponible pour le moment.
+        </CardContent>
+      </Card>
+    )
+  }
 
-  const k = data.kpis
-  const deltaRetours = k.retoursCeMois - k.retoursMoisPrecedent
-  const deltaScore = Number((k.scoreMois - k.scoreMoisPrecedent).toFixed(2))
-  const evolutionData = data.evolution.map((e) => ({ ...e, note: e.note === 0 ? null : e.note }))
+  const score = data.scoreGlobal30j ?? 0
+  const evolution = data.evolutionPct
+  const scoreColor = score >= 80 ? "text-green-600" : score >= 60 ? "text-amber-600" : "text-red-600"
+
+  // Couleur de l'aire du graphique selon le score
+  const couleurCourbe = score >= 80 ? "#16a34a" : score >= 60 ? "#f59e0b" : "#ef4444"
 
   return (
     <div className="space-y-6">
-      {/* ---------- En-tête ---------- */}
+      {/* En-tête */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Vue d&apos;ensemble</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {data.nomCommerce} — tableau de bord qualité en temps réel.
-        </p>
+        <h1 className="text-2xl font-bold tracking-tight">Tableau de bord</h1>
+        <p className="text-sm text-muted-foreground">Vue d&apos;ensemble de votre qualité de service</p>
       </div>
 
-      {/* ---------- KPIs ---------- */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
+      {/* KPI cards */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           icon={Star}
-          label="Score global"
-          value={k.scoreGlobal > 0 ? `${k.scoreGlobal.toFixed(1)} ★` : "—"}
-          hint={deltaScore !== 0 ? `${deltaScore > 0 ? "+" : ""}${deltaScore} vs mois dernier` : "Stable vs mois dernier"}
-          hintTone={deltaScore > 0 ? "up" : deltaScore < 0 ? "down" : "neutral"}
+          label="Score qualité (30j)"
+          value={`${score}/100`}
+          hint={evolution != null ? `${evolution > 0 ? "+" : ""}${evolution}% vs mois précédent` : "Premier mois"}
+          hintTone={evolution != null ? (evolution >= 0 ? "up" : "down") : "neutral"}
         />
         <StatCard
           icon={MessageSquare}
           label="Retours ce mois"
-          value={k.retoursCeMois}
-          hint={deltaRetours !== 0 ? `${deltaRetours > 0 ? "+" : ""}${deltaRetours} vs mois dernier` : "Stable"}
-          hintTone={deltaRetours > 0 ? "up" : deltaRetours < 0 ? "down" : "neutral"}
+          value={data.retoursMois}
+          hint="Retours collectés"
         />
         <StatCard
-          icon={ShieldCheck}
+          icon={Check}
           label="Taux d'interception"
-          value={`${k.tauxInterception}%`}
-          hint="Réclamations traitées en interne"
-          hintTone="neutral"
+          value={`${data.tauxInterception}%`}
+          hint="Réclamations interceptées"
+          hintTone="up"
         />
         <StatCard
           icon={BellRing}
           label="Alertes non lues"
-          value={k.alertesNonLues}
-          hint={`${k.retoursNonLus} retours à traiter`}
-          hintTone={k.alertesNonLues > 0 ? "down" : "up"}
+          value={data.alertesNonLues}
+          hint={data.alertesNonLues > 0 ? "À traiter" : "Tout est à jour"}
+          hintTone={data.alertesNonLues > 0 ? "down" : "up"}
         />
       </div>
 
-      {/* ---------- Évolution + répartition ---------- */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <Card className="shadow-sm lg:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base sm:text-lg">Note moyenne — 30 derniers jours</CardTitle>
-          </CardHeader>
-          <CardContent className="h-64 sm:h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={evolutionData} margin={{ top: 5, right: 10, left: -20, bottom: 0 }}>
-                <XAxis dataKey="date" tick={{ fontSize: 11 }} interval={4} tickLine={false} axisLine={false} />
-                <YAxis domain={[1, 5]} ticks={[1, 2, 3, 4, 5]} tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                <Tooltip
-                  formatter={(v) => [v ? `${v} ★` : "—", "Note moyenne"]}
-                  labelStyle={{ color: "#1c1917" }}
-                />
-                <Line type="monotone" dataKey="note" stroke="#2563eb" strokeWidth={2.5} dot={false} connectNulls activeDot={{ r: 4 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base sm:text-lg">Répartition des notes</CardTitle>
-          </CardHeader>
-          <CardContent className="h-64 sm:h-72">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={data.repartitionNotes.map((r) => ({ ...r, label: `${r.note}★` }))} margin={{ top: 5, right: 0, left: -25, bottom: 0 }}>
-                <XAxis dataKey="label" tick={{ fontSize: 12 }} tickLine={false} axisLine={false} />
-                <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
-                <Tooltip formatter={(v) => [`${v} retours`, "Nombre"]} labelStyle={{ color: "#1c1917" }} />
-                <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-                  {data.repartitionNotes.map((entry, i) => (
-                    <Cell key={i} fill={NOTE_COLORS[entry.note - 1]} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* ---------- Derniers retours + alertes ---------- */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Card className="shadow-sm">
-          <CardHeader className="pb-2 flex-row items-center justify-between">
-            <CardTitle className="text-base sm:text-lg">Derniers retours</CardTitle>
-            <Button variant="ghost" size="sm" onClick={load} aria-label="Rafraîchir">
-              <RefreshCw className="h-4 w-4" aria-hidden />
-            </Button>
-          </CardHeader>
-          <CardContent className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
-            {data.recentRetours.length === 0 && (
-              <p className="text-sm text-muted-foreground py-6 text-center">
-                Aucun retour pour l&apos;instant — partagez votre QR code pour lancer la collecte !
+      {/* Graphique d'évolution 30 jours */}
+      <Card className="rounded-3xl border-none shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base sm:text-lg">Évolution du score (30 derniers jours)</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="h-64 w-full">
+            {data.courbe30j && data.courbe30j.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={data.courbe30j} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
+                  <defs>
+                    <linearGradient id="gradScore" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={couleurCourbe} stopOpacity={0.35} />
+                      <stop offset="100%" stopColor={couleurCourbe} stopOpacity={0.02} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                  <XAxis dataKey="date" tick={{ fontSize: 10 }} interval={4} stroke="#64748b" />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="#64748b" domain={[0, 100]} />
+                  <Tooltip
+                    formatter={(v) => [`${v}/100`, "Score"]}
+                    labelStyle={{ color: "#1c1917", fontWeight: 600 }}
+                    contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 13 }}
+                  />
+                  <Area type="monotone" dataKey="score" stroke={couleurCourbe} strokeWidth={2.5} fill="url(#gradScore)" connectNulls />
+                </AreaChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                Pas encore assez de données pour afficher l&apos;évolution
               </p>
             )}
-            {data.recentRetours.map((r) => (
-              <div key={r.id} className="rounded-xl border p-3.5">
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <Stars note={r.note} />
-                    {!r.lu && (
-                      <Badge className="h-5 px-1.5 text-[10px]" aria-label="Non lu">
-                        Nouveau
-                      </Badge>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Derniers retours */}
+      <Card className="rounded-3xl border-none shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base sm:text-lg">Derniers retours clients</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {data.derniersRetours && data.derniersRetours.length > 0 ? (
+            <div className="space-y-3 max-h-80 overflow-y-auto custom-scrollbar">
+              {data.derniersRetours.map((r) => (
+                <div
+                  key={r.id}
+                  className="flex items-start gap-3 rounded-2xl border border-border/60 p-3 transition-colors hover:bg-muted/40"
+                >
+                  <div className="shrink-0 pt-0.5">
+                    <Stars note={r.note} size={14} />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold">{r.note}/5</span>
+                      {r.zone?.nom && (
+                        <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal">
+                          {r.zone.nom}
+                        </Badge>
+                      )}
+                      <span className="text-xs text-muted-foreground">{formatRelative(r.createdAt)}</span>
+                      {!r.lu && (
+                        <Badge className="h-4 px-1 text-[9px] bg-blue-500 text-white border-0">Nouveau</Badge>
+                      )}
+                    </div>
+                    {r.tags.length > 0 && (
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {r.tags.slice(0, 4).map((t) => (
+                          <span key={t} className="text-[10px] text-muted-foreground">
+                            {tagLabel(t)}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    {r.commentaire && (
+                      <p className="mt-1 text-xs italic text-muted-foreground line-clamp-2">
+                        &ldquo;{r.commentaire}&rdquo;
+                      </p>
                     )}
                   </div>
-                  <span className="text-xs text-muted-foreground">{formatRelative(r.createdAt)}</span>
-                </div>
-                {r.tags.length > 0 && (
-                  <p className="mt-1.5 text-xs text-muted-foreground">{r.tags.map(tagLabel).join(" · ")}</p>
-                )}
-                {r.commentaire && <p className="mt-1.5 text-sm">&ldquo;{r.commentaire}&rdquo;</p>}
-                <p className="mt-1.5 text-xs">
-                  <span
+                  <Badge
+                    variant="outline"
                     className={
                       r.statut === "RESOLVED"
-                        ? "text-green-600"
+                        ? "h-5 shrink-0 border-green-300 text-green-700"
                         : r.statut === "IN_PROGRESS"
-                          ? "text-amber-600"
-                          : "text-muted-foreground"
+                          ? "h-5 shrink-0 border-amber-300 text-amber-700"
+                          : "h-5 shrink-0 border-blue-300 text-blue-700"
                     }
                   >
-                    {STATUT_RETOUR_LABEL[r.statut]}
-                  </span>
-                </p>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-sm">
-          <CardHeader className="pb-2 flex-row items-center justify-between">
-            <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-              <BellRing className="h-4.5 w-4.5 text-rose-500" aria-hidden />
-              Alertes récentes
-            </CardTitle>
-            {k.alertesNonLues > 0 && (
-              <Button variant="outline" size="sm" onClick={marquerAlertesLues} className="h-8">
-                <Check className="mr-1 h-3.5 w-3.5" aria-hidden />
-                Tout marquer lu
-              </Button>
-            )}
-          </CardHeader>
-          <CardContent className="space-y-3 max-h-96 overflow-y-auto custom-scrollbar">
-            {data.alertes.length === 0 && (
-              <p className="text-sm text-muted-foreground py-6 text-center">Aucune alerte — votre réputation est tranquille 😌</p>
-            )}
-            {data.alertes.map((a) => (
-              <div
-                key={a.id}
-                className={`rounded-xl border p-3.5 ${!a.lu ? "border-rose-200 bg-rose-50/60" : "opacity-75"}`}
-              >
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <p className="text-sm font-medium">{a.titre}</p>
-                  {!a.lu && <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">SMS</Badge>}
+                    {STATUT_RETOUR_LABEL[r.statut as keyof typeof STATUT_RETOUR_LABEL] ?? r.statut}
+                  </Badge>
                 </div>
-                <p className="mt-1 text-xs text-muted-foreground">{a.message}</p>
-                <p className="mt-1.5 text-[11px] text-muted-foreground">
-                  {formatRelative(a.createdAt)} · canal : {a.canal === "SMS" ? "SMS + dashboard" : "dashboard"}
-                </p>
-              </div>
-            ))}
+              ))}
+            </div>
+          ) : (
+            <p className="py-8 text-center text-sm text-muted-foreground">
+              Aucun retour pour le moment. Vos premiers retours apparaîtront ici dès qu&apos;un client scannera un QR code.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Alerte si alertes non lues */}
+      {data.alertesNonLues > 0 && (
+        <Card className="rounded-3xl border-amber-300 bg-amber-50">
+          <CardContent className="flex items-center gap-3 p-4">
+            <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" aria-hidden />
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-amber-900">
+                {data.alertesNonLues} alerte{data.alertesNonLues > 1 ? "s" : ""} non lue{data.alertesNonLues > 1 ? "s" : ""}
+              </p>
+              <p className="text-xs text-amber-700">Consultez l&apos;onglet Coach IA pour les détails</p>
+            </div>
           </CardContent>
         </Card>
-      </div>
+      )}
     </div>
   )
 }
