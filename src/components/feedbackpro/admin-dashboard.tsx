@@ -25,6 +25,7 @@ import {
   RotateCcw,
   Trash2,
   Mail,
+  MailOpen,
   Truck,
   Printer,
   TrendingUp,
@@ -46,6 +47,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
@@ -116,6 +118,7 @@ type OngletAdmin =
   | "utilisateurs"
   | "commandes"
   | "revenus"
+  | "messages"
   | "parametres"
   | "email"
 
@@ -125,7 +128,8 @@ const ONGLETS: { id: OngletAdmin; label: string; icone: React.ComponentType<{ cl
   { id: "utilisateurs", label: "Utilisateurs", icone: Users },
   { id: "commandes", label: "Commandes", icone: Package },
   { id: "revenus", label: "Revenus", icone: Wallet },
-  { id: "email", label: "Email & API", icone: Mail },
+  { id: "messages", label: "Messages", icone: Mail },
+  { id: "email", label: "Email & API", icone: Send },
   { id: "parametres", label: "Paramètres", icone: Settings },
 ]
 
@@ -225,6 +229,12 @@ type SettingsForm = {
   urlPublique: string
   emailSupport: string
   seuilAlerte: string
+  // Task 2 — Référencement SEO (éditable depuis l'onglet Paramètres)
+  metaTitle: string
+  metaDescription: string
+  metaKeywords: string
+  ogTitle: string
+  ogDescription: string
 }
 
 // Couleurs des graphiques (palette bleu FeedbackPro)
@@ -253,6 +263,8 @@ export function AdminDashboard() {
   const [onglet, setOnglet] = useState<OngletAdmin>(() => ongletDepuisUrl())
   const [overview, setOverview] = useState<OverviewApi | null>(null)
   const [menuOuvert, setMenuOuvert] = useState(false)
+  // Task 3c — compteur de messages non lus affiché en badge sur la sidebar
+  const [messagesNonLus, setMessagesNonLus] = useState(0)
   const session = useAppStore((s) => s.session)
   const logout = useAppStore((s) => s.logout)
   const { toast } = useToast()
@@ -267,11 +279,37 @@ export function AdminDashboard() {
     }
   }
 
+  // Task 3c — charge le compteur de messages non lus (rafraîchi quand on
+  // bascule sur l'onglet Messages pour réagir aux "marquer comme lu").
+  async function loadMessagesNonLus() {
+    try {
+      const res = await fetch("/api/admin/messages", { cache: "no-store" })
+      const json = await res.json()
+      if (json.ok) setMessagesNonLus(json.data.nonLus ?? 0)
+    } catch {
+      /* silencieux : le badge reste à 0 */
+    }
+  }
+
   // Chargement différé (hors du corps de l'effet pour éviter les cascades de rendus)
   useEffect(() => {
-    const t = setTimeout(loadOverview, 0)
+    const t = setTimeout(() => {
+      loadOverview()
+      loadMessagesNonLus()
+    }, 0)
     return () => clearTimeout(t)
   }, [])
+
+  // À chaque entrée dans l'onglet Messages : on rafraîchit le compteur
+  // (l'onglet lui-même recharge sa liste, mais le badge doit aussi se mettre à jour).
+  // setTimeout(0) pour éviter un setState synchrone dans l'effet (lint react-hooks).
+  useEffect(() => {
+    if (onglet !== "messages") return
+    const t = setTimeout(() => {
+      loadMessagesNonLus()
+    }, 0)
+    return () => clearTimeout(t)
+  }, [onglet])
 
   // Bouton retour navigateur : resynchronise l'onglet actif
   useEffect(() => {
@@ -301,7 +339,13 @@ export function AdminDashboard() {
     <div className="flex min-h-screen flex-col bg-muted/30 lg:pl-80 lg:pr-3">
       {/* ---------- Sidebar détachée (desktop lg+) ---------- */}
       <aside className="fixed inset-y-3 left-3 z-40 hidden w-72 flex-col rounded-3xl bg-[#002e85] text-white shadow-xl lg:flex">
-        <ContenuSidebarAdmin ongletActif={onglet} onNaviguer={naviguer} emailAdmin={emailAdmin} onLogout={logout} />
+        <ContenuSidebarAdmin
+          ongletActif={onglet}
+          onNaviguer={naviguer}
+          emailAdmin={emailAdmin}
+          onLogout={logout}
+          messagesNonLus={messagesNonLus}
+        />
       </aside>
 
       {/* ---------- Top bar discrète (card blanc arrondie) ---------- */}
@@ -316,6 +360,7 @@ export function AdminDashboard() {
                   onNaviguer={naviguer}
                   emailAdmin={emailAdmin}
                   onLogout={logout}
+                  messagesNonLus={messagesNonLus}
                 />
               </SheetContent>
             </Sheet>
@@ -358,6 +403,7 @@ export function AdminDashboard() {
         {onglet === "utilisateurs" && <UtilisateursTab />}
         {onglet === "commandes" && <CommandesTab onModifie={loadOverview} />}
         {onglet === "revenus" && <RevenusTab />}
+        {onglet === "messages" && <MessagesTab onApresAction={loadMessagesNonLus} />}
         {onglet === "email" && <EmailTab />}
         {onglet === "parametres" && <ParametresTab />}
       </main>
@@ -374,18 +420,20 @@ function ContenuSidebarAdmin({
   onNaviguer,
   emailAdmin,
   onLogout,
+  messagesNonLus = 0,
 }: {
   ongletActif: OngletAdmin
   onNaviguer: (o: OngletAdmin) => void
   emailAdmin: string
   onLogout: () => void
+  messagesNonLus?: number
 }) {
   return (
     <div className="flex h-full flex-col">
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-5 py-5">
         <img
-          src="/logo-feedbackpro.png"
+          src="/logo-feedbackpro-transparent.png"
           alt="FeedbackPro"
           className="h-10 w-auto brightness-0 invert"
         />
@@ -397,7 +445,13 @@ function ContenuSidebarAdmin({
         {ONGLETS.map((o) => {
           const Icone = o.icone
           const actif = ongletActif === o.id
-          const badge = o.id === "commandes" ? "" : ""
+          // Task 3c — badge compteur de messages non lus sur l'onglet Messages
+          const badge =
+            o.id === "messages" && messagesNonLus > 0 ? (
+              <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-bold text-white">
+                {messagesNonLus > 9 ? "9+" : messagesNonLus}
+              </span>
+            ) : null
           return (
             <button
               key={o.id}
@@ -2743,6 +2797,12 @@ function ParametresTab() {
             urlPublique: map.urlPublique ?? "",
             emailSupport: map.emailSupport ?? "",
             seuilAlerte: map.seuilAlerte ?? "2",
+            // Task 2 — champs SEO (vides par défaut = fallback metadata layout)
+            metaTitle: map.metaTitle ?? "",
+            metaDescription: map.metaDescription ?? "",
+            metaKeywords: map.metaKeywords ?? "",
+            ogTitle: map.ogTitle ?? "",
+            ogDescription: map.ogDescription ?? "",
           })
         } else {
           toast({ title: "Erreur", description: "Impossible de charger les réglages", variant: "destructive" })
@@ -2781,6 +2841,12 @@ function ParametresTab() {
           urlPublique: valeurs.urlPublique.trim(),
           emailSupport: valeurs.emailSupport.trim(),
           seuilAlerte: Number(valeurs.seuilAlerte),
+          // Task 2 — champs SEO
+          metaTitle: valeurs.metaTitle.trim(),
+          metaDescription: valeurs.metaDescription.trim(),
+          metaKeywords: valeurs.metaKeywords.trim(),
+          ogTitle: valeurs.ogTitle.trim(),
+          ogDescription: valeurs.ogDescription.trim(),
         }),
       })
       const json = await res.json()
@@ -2880,6 +2946,84 @@ function ParametresTab() {
         </CardContent>
       </Card>
 
+      {/* Task 2 — Référencement SEO (titre, description, mots-clés, Open Graph) */}
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base sm:text-lg">Référencement SEO</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Métadonnées affichées dans les résultats Google et sur les réseaux sociaux (Open Graph).
+            Laissez vide pour conserver les valeurs par défaut.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4 pt-2">
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="set-meta-title">Titre SEO</Label>
+              <span className="text-[11px] text-muted-foreground">{valeurs.metaTitle.length}/60</span>
+            </div>
+            <Input
+              id="set-meta-title"
+              value={valeurs.metaTitle}
+              onChange={(e) => setValeurs({ ...valeurs, metaTitle: e.target.value })}
+              maxLength={60}
+              placeholder="FeedbackPro — Le Coach IA d'Audit Qualité Continu"
+            />
+            <p className="text-xs text-muted-foreground">Recommandé : 50 à 60 caractères.</p>
+          </div>
+
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <Label htmlFor="set-meta-desc">Description SEO</Label>
+              <span className="text-[11px] text-muted-foreground">{valeurs.metaDescription.length}/160</span>
+            </div>
+            <Textarea
+              id="set-meta-desc"
+              rows={3}
+              value={valeurs.metaDescription}
+              onChange={(e) => setValeurs({ ...valeurs, metaDescription: e.target.value })}
+              maxLength={160}
+              placeholder="FeedbackPro transforme chaque client en auditeur qualité…"
+            />
+            <p className="text-xs text-muted-foreground">Recommandé : 150 à 160 caractères.</p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="set-meta-kw">Mots-clés SEO</Label>
+            <Input
+              id="set-meta-kw"
+              value={valeurs.metaKeywords}
+              onChange={(e) => setValeurs({ ...valeurs, metaKeywords: e.target.value })}
+              maxLength={300}
+              placeholder="audit qualité, client mystère, QR code feedback, restaurant"
+            />
+            <p className="text-xs text-muted-foreground">Séparés par des virgules (300 caractères max).</p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="set-og-title">Titre Open Graph (Facebook / LinkedIn)</Label>
+            <Input
+              id="set-og-title"
+              value={valeurs.ogTitle}
+              onChange={(e) => setValeurs({ ...valeurs, ogTitle: e.target.value })}
+              maxLength={80}
+              placeholder="FeedbackPro — Le Coach IA d'Audit Qualité Continu"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="set-og-desc">Description Open Graph</Label>
+            <Textarea
+              id="set-og-desc"
+              rows={2}
+              value={valeurs.ogDescription}
+              onChange={(e) => setValeurs({ ...valeurs, ogDescription: e.target.value })}
+              maxLength={200}
+              placeholder="Chaque client réel devient un Client Mystère : scan QR, note, tags, et un rapport IA quotidien."
+            />
+          </div>
+        </CardContent>
+      </Card>
+
       <div className="flex justify-end">
         <Button type="submit" disabled={enregistrement}>
           {enregistrement && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
@@ -2887,5 +3031,278 @@ function ParametresTab() {
         </Button>
       </div>
     </form>
+  )
+}
+
+// ============================================================
+// Task 3c — Sous-onglet Messages (model Message)
+// ------------------------------------------------------------
+// Liste des messages reçus via POST /api/contact (formulaire
+// public de /contact). Boutons : « Marquer comme lu » et
+// « Supprimer ». Compteur de non-lus remonté à la sidebar.
+// ============================================================
+
+type MessageLigne = {
+  id: string
+  nom: string
+  email: string
+  sujet: string
+  message: string
+  lu: boolean
+  createdAt: string
+}
+
+function MessagesTab({ onApresAction }: { onApresAction: () => void }) {
+  const [messages, setMessages] = useState<MessageLigne[]>([])
+  const [chargement, setChargement] = useState(true)
+  const [selection, setSelection] = useState<string | null>(null)
+  const [actionEnCours, setActionEnCours] = useState<string | null>(null)
+  const { toast } = useToast()
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch("/api/admin/messages", { cache: "no-store" })
+      const json = await res.json()
+      if (json.ok) {
+        setMessages(json.data.messages ?? [])
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Impossible de charger les messages", variant: "destructive" })
+    } finally {
+      setChargement(false)
+    }
+  }, [toast])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  async function marquerLu(id: string) {
+    setActionEnCours(id)
+    try {
+      const res = await fetch("/api/admin/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "marquerLu", id }),
+      })
+      const json = await res.json()
+      if (json.ok) {
+        setMessages((prev) => prev.map((m) => (m.id === id ? { ...m, lu: true } : m)))
+        onApresAction()
+      } else {
+        toast({ title: "Erreur", description: json.error ?? "Action impossible", variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Action impossible", variant: "destructive" })
+    } finally {
+      setActionEnCours(null)
+    }
+  }
+
+  async function supprimer(id: string) {
+    setActionEnCours(id)
+    try {
+      const res = await fetch("/api/admin/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "supprimer", id }),
+      })
+      const json = await res.json()
+      if (json.ok) {
+        setMessages((prev) => prev.filter((m) => m.id !== id))
+        if (selection === id) setSelection(null)
+        onApresAction()
+        toast({ title: "Message supprimé ✓" })
+      } else {
+        toast({ title: "Erreur", description: json.error ?? "Suppression impossible", variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Suppression impossible", variant: "destructive" })
+    } finally {
+      setActionEnCours(null)
+    }
+  }
+
+  const messageSelectionne = messages.find((m) => m.id === selection) ?? null
+  const nonLus = messages.filter((m) => !m.lu).length
+
+  if (chargement) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-20 rounded-3xl" />
+        <Skeleton className="h-96 rounded-3xl" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* ---------- KPI : total / non lus ---------- */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+        <Card className="rounded-3xl border-none shadow-sm">
+          <CardContent className="p-5">
+            <p className="text-xs text-muted-foreground">Total messages</p>
+            <p className="mt-1 text-2xl font-bold">{messages.length}</p>
+          </CardContent>
+        </Card>
+        <Card className="rounded-3xl border-none shadow-sm">
+          <CardContent className="p-5">
+            <p className="text-xs text-muted-foreground">Non lus</p>
+            <p className="mt-1 text-2xl font-bold text-rose-600">{nonLus}</p>
+          </CardContent>
+        </Card>
+        <Card className="col-span-2 rounded-3xl border-none shadow-sm sm:col-span-1">
+          <CardContent className="p-5">
+            <p className="text-xs text-muted-foreground">Lus</p>
+            <p className="mt-1 text-2xl font-bold text-emerald-600">{messages.length - nonLus}</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {messages.length === 0 ? (
+        <Card className="rounded-3xl">
+          <CardContent className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted" aria-hidden>
+              <Mail className="h-6 w-6 text-muted-foreground" />
+            </span>
+            <p className="text-sm font-medium">Aucun message pour le moment</p>
+            <p className="max-w-md text-xs text-muted-foreground">
+              Les messages envoyés depuis le formulaire de contact public
+              (<a href="/contact" className="text-primary underline">/contact</a>) apparaîtront ici.
+            </p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+          {/* ---------- Liste des messages (lg:col-span-2) ---------- */}
+          <Card className="rounded-3xl lg:col-span-2">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base">Boîte de réception</CardTitle>
+            </CardHeader>
+            <CardContent className="p-0">
+              <ul className="max-h-[28rem] divide-y divide-border overflow-y-auto custom-scrollbar">
+                {messages.map((m) => {
+                  const actif = selection === m.id
+                  return (
+                    <li key={m.id}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelection(m.id)
+                          if (!m.lu) marquerLu(m.id)
+                        }}
+                        aria-current={actif ? "true" : undefined}
+                        className={`flex w-full flex-col gap-1 px-4 py-3 text-left transition-colors ${
+                          actif ? "bg-primary/5" : "hover:bg-muted/60"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className={`truncate text-sm ${m.lu ? "font-medium" : "font-bold"}`}>
+                            {m.nom}
+                          </span>
+                          {!m.lu && (
+                            <span className="h-2 w-2 shrink-0 rounded-full bg-rose-500" aria-label="Non lu" />
+                          )}
+                        </div>
+                        <span className="truncate text-xs text-muted-foreground">{m.sujet}</span>
+                        <span className="text-[11px] text-muted-foreground">
+                          {new Date(m.createdAt).toLocaleString("fr-FR", {
+                            day: "2-digit",
+                            month: "2-digit",
+                            year: "2-digit",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </span>
+                      </button>
+                    </li>
+                  )
+                })}
+              </ul>
+            </CardContent>
+          </Card>
+
+          {/* ---------- Détail du message sélectionné (lg:col-span-3) ---------- */}
+          <Card className="rounded-3xl lg:col-span-3">
+            {messageSelectionne ? (
+              <>
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <CardTitle className="text-base break-words">{messageSelectionne.sujet}</CardTitle>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        De <span className="font-medium text-foreground">{messageSelectionne.nom}</span>{" "}
+                        &lt;{messageSelectionne.email}&gt;
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-muted-foreground">
+                        {new Date(messageSelectionne.createdAt).toLocaleString("fr-FR", {
+                          dateStyle: "long",
+                          timeStyle: "short",
+                        })}
+                      </p>
+                    </div>
+                    <Badge variant={messageSelectionne.lu ? "secondary" : "default"}>
+                      {messageSelectionne.lu ? "Lu" : "Non lu"}
+                    </Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="rounded-2xl bg-muted/40 p-4">
+                    <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
+                      {messageSelectionne.message}
+                    </p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {!messageSelectionne.lu && (
+                      <Button
+                        size="sm"
+                        onClick={() => marquerLu(messageSelectionne.id)}
+                        disabled={actionEnCours === messageSelectionne.id}
+                      >
+                        {actionEnCours === messageSelectionne.id ? (
+                          <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />
+                        ) : (
+                          <MailOpen className="mr-1.5 h-4 w-4" aria-hidden />
+                        )}
+                        Marquer comme lu
+                      </Button>
+                    )}
+                    <a
+                      href={`mailto:${messageSelectionne.email}?subject=Re: ${encodeURIComponent(
+                        messageSelectionne.sujet
+                      )}`}
+                      className="inline-flex h-9 items-center gap-1.5 rounded-md border border-input bg-background px-3 text-sm font-medium hover:bg-accent"
+                    >
+                      <Mail className="h-4 w-4" aria-hidden />
+                      Répondre par email
+                    </a>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => supprimer(messageSelectionne.id)}
+                      disabled={actionEnCours === messageSelectionne.id}
+                      className="ml-auto"
+                    >
+                      <Trash2 className="mr-1.5 h-4 w-4" aria-hidden />
+                      Supprimer
+                    </Button>
+                  </div>
+                </CardContent>
+              </>
+            ) : (
+              <CardContent className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted" aria-hidden>
+                  <MailOpen className="h-6 w-6 text-muted-foreground" />
+                </span>
+                <p className="text-sm font-medium">Sélectionnez un message</p>
+                <p className="max-w-md text-xs text-muted-foreground">
+                  Cliquez sur un message dans la liste pour afficher son contenu complet.
+                </p>
+              </CardContent>
+            )}
+          </Card>
+        </div>
+      )}
+    </div>
   )
 }

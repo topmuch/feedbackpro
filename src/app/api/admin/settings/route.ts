@@ -23,11 +23,29 @@ export const CLES_SETTINGS_GENERALES = [
   "seuilAlerte",
 ] as const
 
+/** Clés de réglages SEO (Task 2 — Référencement) */
+export const CLES_SETTINGS_SEO = [
+  "metaTitle",
+  "metaDescription",
+  "metaKeywords",
+  "ogTitle",
+  "ogDescription",
+] as const
+
 const DEFAUTS_GENERALES: Record<(typeof CLES_SETTINGS_GENERALES)[number], string> = {
   nomPlateforme: "FeedbackPro",
   urlPublique: "",
   emailSupport: "support@feedbackpro.fr",
   seuilAlerte: "2",
+}
+
+/** Valeurs par défaut des champs SEO (vides = fallback aux metadata statiques du layout) */
+const DEFAUTS_SEO: Record<(typeof CLES_SETTINGS_SEO)[number], string> = {
+  metaTitle: "",
+  metaDescription: "",
+  metaKeywords: "",
+  ogTitle: "",
+  ogDescription: "",
 }
 
 /** Clés dont la valeur doit être masquée à l'affichage (secrets) */
@@ -52,6 +70,16 @@ const patchSchema = z
       ])
       .transform((v) => String(v))
       .optional(),
+    // SEO (Task 2) — champs optionnels, vidables ("" = fallback défauts layout)
+    metaTitle: z.string().trim().max(60, "Le titre SEO ne doit pas dépasser 60 caractères").optional(),
+    metaDescription: z
+      .string()
+      .trim()
+      .max(160, "La description SEO ne doit pas dépasser 160 caractères")
+      .optional(),
+    metaKeywords: z.string().trim().max(300, "Mots-clés trop longs (300 caractères maximum)").optional(),
+    ogTitle: z.string().trim().max(80, "Le titre OG est trop long").optional(),
+    ogDescription: z.string().trim().max(200, "La description OG est trop longue").optional(),
     // Avancés (email / stripe / twilio / cron) : tous string optionnels
     RESEND_API_KEY: z.string().max(200).optional(),
     EMAIL_FROM: z.string().max(200).optional(),
@@ -74,9 +102,10 @@ const postSchema = z.object({
 /** Crée les valeurs par défaut manquantes puis renvoie la liste complète */
 async function settingsAvecDefauts() {
   const existantes = await db.setting.findMany({ orderBy: { key: "asc" } })
-  const manquantes = Object.entries(DEFAUTS_GENERALES).filter(
-    ([key]) => !existantes.some((s) => s.key === key)
-  )
+  const manquantes = [
+    ...Object.entries(DEFAUTS_GENERALES),
+    ...Object.entries(DEFAUTS_SEO),
+  ].filter(([key]) => !existantes.some((s) => s.key === key))
   if (manquantes.length > 0) {
     await db.setting.createMany({
       data: manquantes.map(([key, value]) => ({ key, value })),

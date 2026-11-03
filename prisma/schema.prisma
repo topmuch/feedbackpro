@@ -254,3 +254,24 @@ model SecteurConfig {
   createdAt         DateTime @default(now())
   pros              Pro[]
 }
+
+// ============================================================
+// Task Contact — Messagerie publique → superadmin
+// ------------------------------------------------------------
+// Messages envoyés depuis la page de contact publique (/contact).
+// Le superadmin les consulte dans l'onglet « Messages » de son
+// dashboard (liste, marquer comme lu, supprimer). Aucune relation
+// avec le modèle User/Pro : c'est un canal de contact ouvert à tous
+// les visiteurs (non connectés).
+// ============================================================
+model Message {
+  id        String   @id @default(cuid())
+  nom       String
+  email     String
+  sujet     String
+  message   String
+  lu        Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([lu, createdAt])
+}

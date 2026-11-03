@@ -128,10 +128,10 @@ function Reveal({
 // ============================================================
 
 const NAV_LINKS = [
-  { id: "fonctionnalites", label: "Fonctionnalités" },
-  { id: "cas-usage", label: "Cas d'usage" },
-  { id: "tarifs", label: "Tarifs" },
-  { id: "faq", label: "FAQ" },
+  { href: "/fonctionnalites", label: "Fonctionnalités" },
+  { href: "/cas-usage", label: "Cas d'usage" },
+  { href: "/tarifs", label: "Tarifs" },
+  { href: "/faq", label: "FAQ" },
 ] as const
 
 const TRUST_LOGOS = [
@@ -577,13 +577,13 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
         {/* Liens desktop */}
         <nav className="hidden items-center gap-1 md:flex" aria-label="Navigation principale">
           {NAV_LINKS.map((lien) => (
-            <button
-              key={lien.id}
-              onClick={() => allerVers(lien.id)}
+            <a
+              key={lien.href}
+              href={lien.href}
               className="rounded-md px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900"
             >
               {lien.label}
-            </button>
+            </a>
           ))}
         </nav>
 
@@ -630,17 +630,14 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
             </SheetHeader>
             <nav className="flex flex-col gap-1 px-4" aria-label="Navigation mobile">
               {NAV_LINKS.map((lien) => (
-                <button
-                  key={lien.id}
-                  onClick={() => {
-                    setOpen(false)
-                    allerVers(lien.id)
-                  }}
+                <a
+                  key={lien.href}
+                  href={lien.href}
                   className="flex items-center justify-between rounded-lg px-3 py-3 text-left text-base font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900"
                 >
                   {lien.label}
                   <ChevronRight className="h-4 w-4 text-gray-400" />
-                </button>
+                </a>
               ))}
             </nav>
             <div className="mt-auto flex flex-col gap-2 p-4">
@@ -1686,44 +1683,44 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
             </h3>
             <ul className="mt-4 space-y-2.5">
               <li>
-                <button
-                  onClick={() => allerVers("fonctionnalites")}
+                <a
+                  href="/fonctionnalites"
                   className="text-sm text-gray-400 transition-colors hover:text-white"
                 >
                   Fonctionnalités
-                </button>
+                </a>
               </li>
               <li>
-                <button
-                  onClick={() => allerVers("solution")}
+                <a
+                  href="/demo"
                   className="text-sm text-gray-400 transition-colors hover:text-white"
                 >
                   Comment ça marche
-                </button>
+                </a>
               </li>
               <li>
-                <button
-                  onClick={() => allerVers("cas-usage")}
+                <a
+                  href="/cas-usage"
                   className="text-sm text-gray-400 transition-colors hover:text-white"
                 >
                   Cas d'usage
-                </button>
+                </a>
               </li>
               <li>
-                <button
-                  onClick={() => allerVers("tarifs")}
+                <a
+                  href="/tarifs"
                   className="text-sm text-gray-400 transition-colors hover:text-white"
                 >
                   Tarifs
-                </button>
+                </a>
               </li>
               <li>
-                <button
-                  onClick={() => allerVers("comparaison")}
+                <a
+                  href="/comparaison"
                   className="text-sm text-gray-400 transition-colors hover:text-white"
                 >
                   Comparatif
-                </button>
+                </a>
               </li>
             </ul>
           </nav>
@@ -1735,32 +1732,32 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
             </h3>
             <ul className="mt-4 space-y-2.5">
               <li>
-                <button
-                  onClick={() => allerVers("faq")}
+                <a
+                  href="/faq"
                   className="text-sm text-gray-400 transition-colors hover:text-white"
                 >
                   FAQ
-                </button>
-              </li>
-              <li>
-                <button
-                  onClick={() => allerVers("temoignages")}
-                  className="text-sm text-gray-400 transition-colors hover:text-white"
-                >
-                  Témoignages
-                </button>
-              </li>
-              <li>
-                <a
-                  href="mailto:support@feedbackpro.fr"
-                  className="text-sm text-gray-400 transition-colors hover:text-white"
-                >
-                  Support
                 </a>
               </li>
               <li>
                 <a
-                  href="mailto:contact@feedbackpro.fr"
+                  href="/temoignages"
+                  className="text-sm text-gray-400 transition-colors hover:text-white"
+                >
+                  Témoignages
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/a-propos"
+                  className="text-sm text-gray-400 transition-colors hover:text-white"
+                >
+                  À propos
+                </a>
+              </li>
+              <li>
+                <a
+                  href="/contact"
                   className="text-sm text-gray-400 transition-colors hover:text-white"
                 >
                   Contact

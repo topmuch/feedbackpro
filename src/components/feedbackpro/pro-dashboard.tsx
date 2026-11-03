@@ -448,7 +448,7 @@ function ContenuSidebar({
       {/* Logo */}
       <div className="flex items-center gap-2.5 px-5 py-5">
         <img
-          src="/logo-feedbackpro.png"
+          src="/logo-feedbackpro-transparent.png"
           alt="FeedbackPro"
           className="h-10 w-auto brightness-0 invert"
         />
