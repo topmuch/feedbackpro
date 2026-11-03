@@ -389,7 +389,7 @@ export function ProDashboard() {
       <main className="mx-auto w-full max-w-7xl flex-1 px-3 py-5 sm:px-5 sm:py-7 lg:px-6">
         {onglet === "coach" && <CoachIaTab onOuvrirRapports={() => naviguer("rapports")} />}
         {onglet === "rapports" && <RapportsTab />}
-        {onglet === "retours" && <RetoursTab />}
+        {onglet === "retours" && <RetoursTab onOuvrirCoachIA={() => naviguer("coach")} />}
         {onglet === "team" && <TeamTab />}
         {onglet === "zones" && <ZonesTab onOpenQr={ouvrirQr} />}
         {onglet === "qrcode" && <QrcodeTab zoneInitiale={zonePourQr ?? undefined} />}

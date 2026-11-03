@@ -2,12 +2,14 @@
 
 // ============================================================
 // FeedbackPro - Onglet "Retours clients" du dashboard Pro (pivot Zones)
-// Tableau filtrable (note, zone, employé, statut, tag, dates) + pagination +
-// modale de détail : réponse Pro éditable, action managériale éditable,
-// timeline de l'historique des statuts
+// Refonte "Inbox Intelligente" (liste) + "Dashboard d'Urgence" (détail)
+// Liste : cards intelligentes, filtres pills, résumé IA Coach, regroupement
+// Détail : en-tête sticky, layout 3 colonnes, recommandation IA dégradée
+// Toute la logique métier (majRetour, envoyerReponse, genererRecommandationIA,
+// statsEmploye, etc.) est conservée à l'identique.
 // ============================================================
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   Download,
   MailOpen,
@@ -32,6 +34,15 @@ import {
   Sparkles,
   User,
   GraduationCap,
+  ChevronDown,
+  ChevronRight,
+  Camera,
+  Flame,
+  Layers,
+  Target,
+  ArrowRight,
+  CheckCheck,
+  ZoomIn,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -49,21 +60,14 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table"
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import { Stars, formatDate } from "@/components/feedbackpro/shared"
+import { Switch } from "@/components/ui/switch"
+import { Stars, formatDate, formatRelative } from "@/components/feedbackpro/shared"
 import { cn } from "@/lib/utils"
 import { useToast } from "@/hooks/use-toast"
 import { exportToCsv } from "@/lib/export-csv"
@@ -488,9 +492,9 @@ function canalLabel(canal: string | null): string {
 
 /** Badge de statut coloré : Nouveau rouge / En cours orange / Résolu vert */
 function statutBadgeClass(statut: string): string {
-  if (statut === "RESOLVED") return "border-green-300 bg-green-50 text-green-800"
-  if (statut === "IN_PROGRESS") return "border-amber-300 bg-amber-50 text-amber-800"
-  return "border-rose-300 bg-rose-50 text-rose-800"
+  if (statut === "RESOLVED") return "border-green-300 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950/40 dark:text-green-300"
+  if (statut === "IN_PROGRESS") return "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+  return "border-rose-300 bg-rose-50 text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300"
 }
 
 /** Couleur de la pastille de la timeline de suivi */
@@ -498,6 +502,189 @@ function pastilleClass(statut: string): string {
   if (statut === "RESOLVED") return "bg-green-500"
   if (statut === "IN_PROGRESS") return "bg-amber-500"
   return "bg-rose-500"
+}
+
+// ---------- NOUVEAU : Code couleur par urgence (Refonte Liste) ----------
+
+type Urgence = "urgent" | "atraiter" | "mitige" | "positif"
+
+const URGENCE_CONFIG: Record<Urgence, {
+  label: string
+  emoji: string
+  dot: string
+  badge: string
+  border: string
+}> = {
+  urgent: {
+    label: "Urgent",
+    emoji: "🚨",
+    dot: "bg-rose-500",
+    badge: "border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/50 dark:text-rose-300",
+    border: "border-l-rose-500",
+  },
+  atraiter: {
+    label: "À traiter",
+    emoji: "🟠",
+    dot: "bg-orange-500",
+    badge: "border-orange-300 bg-orange-50 text-orange-700 dark:border-orange-800 dark:bg-orange-950/50 dark:text-orange-300",
+    border: "border-l-orange-500",
+  },
+  mitige: {
+    label: "Mitigé",
+    emoji: "🟡",
+    dot: "bg-amber-500",
+    badge: "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-300",
+    border: "border-l-amber-500",
+  },
+  positif: {
+    label: "Positif",
+    emoji: "🟢",
+    dot: "bg-emerald-500",
+    badge: "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300",
+    border: "border-l-emerald-500",
+  },
+}
+
+/**
+ * Détermine l'urgence d'un retour :
+ * - 🔴 Urgent : note ≤ 2 ET récidive (count >= 2)
+ * - 🟠 À traiter : note ≤ 2 isolé
+ * - 🟡 Mitigé : note = 3
+ * - 🟢 Positif : note ≥ 4
+ */
+function urgenceDe(r: Retour, recurrence: { count: number }): Urgence {
+  if (r.note >= 4) return "positif"
+  if (r.note === 3) return "mitige"
+  if (r.note <= 2 && recurrence.count >= 2) return "urgent"
+  return "atraiter"
+}
+
+// ---------- NOUVEAU : Résumé IA Coach (top of list) ----------
+
+type PrioriteIA =
+  | { type: "tag"; emoji: string; titre: string; detail: string; tagId?: string }
+  | { type: "zone"; emoji: string; titre: string; detail: string; zoneNom?: string }
+  | { type: "employe"; emoji: string; titre: string; detail: string; employeNom?: string }
+
+/** Calcule 3 priorités IA côté client : tag négatif dominant, zone la plus basse, employé problématique. */
+function calculerResumeIA(items: Retour[]): PrioriteIA[] {
+  if (items.length === 0) return []
+  const priorites: PrioriteIA[] = []
+
+  // 1) Tag négatif le plus fréquent (avec son libellé)
+  const occTag = new Map<string, number>()
+  for (const r of items) {
+    for (const t of tagsNegatifsDe(r)) occTag.set(t, (occTag.get(t) ?? 0) + 1)
+  }
+  let bestTag: string | null = null
+  let bestTagN = 0
+  for (const [t, n] of occTag) {
+    if (n > bestTagN) {
+      bestTagN = n
+      bestTag = t
+    }
+  }
+  if (bestTag && bestTagN >= 2) {
+    priorites.push({
+      type: "tag",
+      emoji: "⚠️",
+      titre: `${bestTagN} retours « ${tagLabel(bestTag)} »`,
+      detail: "Thème récurrent à traiter en priorité",
+      tagId: bestTag,
+    })
+  }
+
+  // 2) Zone avec la note moyenne la plus basse (au moins 2 retours)
+  const zoneNotes = new Map<string, { sum: number; count: number; nom: string }>()
+  for (const r of items) {
+    const nom = r.zone?.nom
+    if (!nom) continue
+    const cur = zoneNotes.get(nom) ?? { sum: 0, count: 0, nom }
+    cur.sum += r.note
+    cur.count += 1
+    zoneNotes.set(nom, cur)
+  }
+  let worstZone: { nom: string; moyenne: number; count: number } | null = null
+  for (const z of zoneNotes.values()) {
+    if (z.count < 2) continue
+    const moyenne = z.sum / z.count
+    if (!worstZone || moyenne < worstZone.moyenne) {
+      worstZone = { nom: z.nom, moyenne, count: z.count }
+    }
+  }
+  if (worstZone && worstZone.moyenne < 3.5) {
+    priorites.push({
+      type: "zone",
+      emoji: "📍",
+      titre: `Zone « ${worstZone.nom} » : ${worstZone.moyenne.toFixed(1)}/5`,
+      detail: `${worstZone.count} retours — à surveiller`,
+      zoneNom: worstZone.nom,
+    })
+  }
+
+  // 3) Employé avec le plus de retours négatifs (note ≤ 2)
+  const occEmp = new Map<string, number>()
+  for (const r of items) {
+    if (r.note > 2) continue
+    const nom = r.employe?.nom ?? r.personnelMentionne
+    if (!nom) continue
+    occEmp.set(nom, (occEmp.get(nom) ?? 0) + 1)
+  }
+  let worstEmp: { nom: string; n: number } | null = null
+  for (const [nom, n] of occEmp) {
+    if (!worstEmp || n > worstEmp.n) worstEmp = { nom, n }
+  }
+  if (worstEmp && worstEmp.n >= 2) {
+    priorites.push({
+      type: "employe",
+      emoji: "👥",
+      titre: `${worstEmp.nom} : ${worstEmp.n} retours négatifs`,
+      detail: "Formation suggérée — voir le profil",
+      employeNom: worstEmp.nom,
+    })
+  }
+
+  // Si moins de 3 priorités, on complète avec un message neutre
+  return priorites.slice(0, 3)
+}
+
+// ---------- NOUVEAU : Regroupement intelligent des retours similaires ----------
+
+type GroupeSimilaires = {
+  cle: string
+  libelle: string
+  zone: string | null
+  count: number
+  retours: Retour[]
+}
+
+/** Regroupe les retours partageant le même tag négatif dominant. */
+function grouperParTagSimilaire(items: Retour[]): GroupeSimilaires[] {
+  const map = new Map<string, GroupeSimilaires>()
+  for (const r of items) {
+    const neg = tagsNegatifsDe(r)
+    if (neg.length === 0) continue
+    // Tag négatif dominant du retour
+    const cle = neg[0]
+    const libelle = tagLabel(cle)
+    const zone = r.zone?.nom ?? null
+    const cleGroupe = `${cle}__${zone ?? "_"}`
+    const g = map.get(cleGroupe) ?? { cle, libelle, zone, count: 0, retours: [] }
+    g.retours.push(r)
+    g.count += 1
+    map.set(cleGroupe, g)
+  }
+  // On ne regroupe que si ≥ 2 retours ; sinon c'est un singleton
+  return [...map.values()]
+    .filter((g) => g.count >= 2)
+    .sort((a, b) => b.count - a.count)
+}
+
+/** Note moyenne d'une zone parmi les items chargés. */
+function noteMoyenneZone(nom: string, tous: Retour[]): number | null {
+  const retours = tous.filter((r) => r.zone?.nom === nom)
+  if (retours.length === 0) return null
+  return retours.reduce((s, r) => s + r.note, 0) / retours.length
 }
 
 // ---------- Mini-graphique de récurrence (Improvement 7) ----------
@@ -546,25 +733,23 @@ function MiniGraphiqueRecurrence({
           const estActuel = i === NB_SEAUX - 1
           return (
             <div key={i} className="flex flex-1 flex-col items-center justify-end gap-0.5">
-              <span className="text-[10px] font-medium text-amber-700 dark:text-amber-300 tabular-nums">
+              <span className="text-[10px] font-medium text-amber-200/90 tabular-nums">
                 {b.count > 0 ? b.count : ""}
               </span>
               <div
                 className={cn(
                   "w-full rounded-t-sm transition-all",
-                  estActuel
-                    ? "bg-amber-500 dark:bg-amber-400"
-                    : "bg-amber-300/70 dark:bg-amber-700/70"
+                  estActuel ? "bg-amber-300" : "bg-amber-300/60"
                 )}
                 style={{ height: `${Math.max(2, hauteurPct)}%` }}
                 title={`${b.count} retour(s) — ${b.label}`}
               />
-              <span className="text-[9px] text-muted-foreground">{b.label}</span>
+              <span className="text-[9px] text-white/70">{b.label}</span>
             </div>
           )
         })}
       </div>
-      <p className="mt-1.5 text-xs text-amber-800 dark:text-amber-200">
+      <p className="mt-1.5 text-xs text-amber-100/90">
         {total} retour{total > 1 ? "s" : ""} similaire{total > 1 ? "s" : ""}
         {tagFrequent ? ` « ${tagLabel(tagFrequent)} »` : ""} sur les 30 derniers jours.
       </p>
@@ -572,7 +757,338 @@ function MiniGraphiqueRecurrence({
   )
 }
 
-export function RetoursTab() {
+// ---------- NOUVEAU : Carte unique d'un retour (Refonte Liste) ----------
+
+function CarteRetour({
+  r,
+  recurrence,
+  onVoir,
+  onRepondre,
+  onResoudre,
+  onFiltrerTag,
+  onVoirEmploye,
+}: {
+  r: Retour
+  recurrence: { count: number; libelleTag: string | null }
+  onVoir: () => void
+  onRepondre: () => void
+  onResoudre: () => void
+  onFiltrerTag: (tag: string) => void
+  onVoirEmploye: (nom: string) => void
+}) {
+  const urgence = urgenceDe(r, recurrence)
+  const cfg = URGENCE_CONFIG[urgence]
+  const personnel = r.employe?.nom ?? r.personnelMentionne
+  const nbTags = r.tags.length
+
+  return (
+    <Card
+      className={cn(
+        "rounded-3xl border bg-card shadow-sm hover:shadow-md transition-all duration-200 border-l-4",
+        cfg.border
+      )}
+    >
+      <CardContent className="p-4 sm:p-5 space-y-3">
+        {/* Ligne 1 : note + zone + date + badge urgence */}
+        <div className="flex flex-wrap items-center gap-2">
+          <Stars note={r.note} size={16} />
+          <span className="text-sm font-semibold tabular-nums">{r.note}/5</span>
+          <span className="text-muted-foreground">•</span>
+          {r.zone?.nom ? (
+            <Badge variant="outline" className="h-6 gap-1 px-2 text-xs font-normal">
+              <MapPin className="h-3 w-3 text-muted-foreground" aria-hidden />
+              {r.zone.nom}
+            </Badge>
+          ) : (
+            <span className="text-xs text-muted-foreground">Zone non précisée</span>
+          )}
+          <span className="text-muted-foreground">•</span>
+          <span className="text-xs text-muted-foreground" title={formatDate(r.createdAt)}>
+            {formatRelative(r.createdAt)}
+          </span>
+          {!r.lu && (
+            <Badge className="h-5 px-1.5 text-[10px]">Nouveau</Badge>
+          )}
+          <Badge variant="outline" className={cn("ml-auto h-6 px-2 text-xs font-medium", cfg.badge)}>
+            <span aria-hidden>{cfg.emoji}</span>
+            {cfg.label}
+          </Badge>
+        </div>
+
+        {/* Ligne 2 : tags (cliquables pour filtrage instantané) */}
+        {nbTags > 0 && (
+          <div className="flex flex-wrap gap-1.5">
+            {r.tags.slice(0, 5).map((t) => {
+              const neg = SET_NEGATIFS.has(t)
+              const pos = SET_POSITIFS.has(t)
+              return (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => onFiltrerTag(t)}
+                  title={`Filtrer par « ${tagLabel(t)} »`}
+                  className={cn(
+                    "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-normal transition-colors",
+                    "hover:scale-105",
+                    neg
+                      ? "border-rose-300 bg-rose-50 text-rose-700 hover:bg-rose-100 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300"
+                      : pos
+                        ? "border-emerald-300 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                        : "border-border bg-muted text-muted-foreground hover:bg-muted/80"
+                  )}
+                >
+                  {tagLabel(t)}
+                </button>
+              )
+            })}
+            {nbTags > 5 && (
+              <Badge variant="outline" className="h-5 px-1.5 text-[10px] font-normal">
+                +{nbTags - 5}
+              </Badge>
+            )}
+          </div>
+        )}
+
+        {/* Ligne 3 : commentaire client (citation italique) */}
+        {r.commentaire && (
+          <blockquote className="border-l-2 border-primary/30 bg-muted/40 px-3 py-2 text-sm italic leading-relaxed text-foreground/90">
+            &ldquo;{tronquer(r.commentaire, 160)}&rdquo;
+          </blockquote>
+        )}
+
+        {/* Ligne 4 : métadonnées (personnel | photo | récurrence) */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
+          {personnel && (
+            <span className="inline-flex items-center gap-1">
+              <User className="h-3 w-3" aria-hidden />
+              <button
+                type="button"
+                onClick={() => onVoirEmploye(personnel)}
+                className="underline-offset-2 hover:underline focus-visible:outline-none focus-visible:underline"
+              >
+                {personnel}
+              </button>
+            </span>
+          )}
+          {r.photoUrl && (
+            <span className="inline-flex items-center gap-1 text-primary">
+              <Camera className="h-3 w-3" aria-hidden />
+              Photo jointe
+            </span>
+          )}
+          {recurrence.count >= 2 && recurrence.libelleTag && (
+            <span className="inline-flex items-center gap-1 font-medium text-amber-700 dark:text-amber-400">
+              <RefreshCw className="h-3 w-3" aria-hidden />
+              {ordinalFr(recurrence.count)} similaire
+            </span>
+          )}
+          {r.statut === "RESOLVED" && (
+            <span className="inline-flex items-center gap-1 text-emerald-700 dark:text-emerald-400">
+              <CheckCircle2 className="h-3 w-3" aria-hidden />
+              Résolu
+            </span>
+          )}
+          {r.reponsePro && (
+            <span className="inline-flex items-center gap-1 text-primary">
+              <MessageSquareReply className="h-3 w-3" aria-hidden />
+              Répondu
+            </span>
+          )}
+        </div>
+
+        {/* Ligne 5 : 3 boutons d'action */}
+        <div className="flex flex-wrap items-center gap-2 pt-1">
+          <Button
+            size="sm"
+            className="h-9 gap-1.5 transition-transform hover:scale-105"
+            onClick={onVoir}
+          >
+            <Eye className="h-4 w-4" aria-hidden />
+            Voir détail
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-9 gap-1.5 transition-transform hover:scale-105"
+            onClick={onRepondre}
+          >
+            <MessageSquareReply className="h-4 w-4" aria-hidden />
+            Répondre
+          </Button>
+          {r.statut !== "RESOLVED" && (
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-9 gap-1.5 text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
+              onClick={onResoudre}
+            >
+              <CheckCircle2 className="h-4 w-4" aria-hidden />
+              Marquer résolu
+            </Button>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ---------- NOUVEAU : Carte groupée de retours similaires ----------
+
+function GroupeCartes({
+  groupe,
+  deploye,
+  onToggle,
+  onVoir,
+  onRepondre,
+  onResoudre,
+  onFiltrerTag,
+  onVoirEmploye,
+}: {
+  groupe: GroupeSimilaires
+  deploye: boolean
+  onToggle: () => void
+  onVoir: (r: Retour) => void
+  onRepondre: (r: Retour) => void
+  onResoudre: (r: Retour) => void
+  onFiltrerTag: (tag: string) => void
+  onVoirEmploye: (nom: string) => void
+}) {
+  const tous = groupe.retours
+  // Récurrence du premier retour du groupe (représentatif)
+  const recurrencePremier = useMemo(
+    () => compterRecurrence(groupe.retours[0], tous),
+    [groupe.retours, tous]
+  )
+
+  return (
+    <Card className="rounded-3xl border bg-card shadow-sm hover:shadow-md transition-shadow overflow-hidden">
+      <button
+        type="button"
+        onClick={onToggle}
+        className="w-full flex items-center gap-3 p-4 sm:p-5 text-left hover:bg-muted/30 transition-colors"
+        aria-expanded={deploye}
+      >
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+          <Layers className="h-5 w-5" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold">
+            📦 {groupe.count} retours similaires « {groupe.libelle} »
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {groupe.zone ? `Zone : ${groupe.zone}` : "Zones multiples"}
+            {" — "}note moyenne{" "}
+            {(groupe.retours.reduce((s, r) => s + r.note, 0) / groupe.count).toFixed(1)}/5
+          </p>
+        </div>
+        <Badge variant="outline" className={URGENCE_CONFIG.urgent.badge}>
+          {URGENCE_CONFIG.urgent.emoji} Récurrence
+        </Badge>
+        {deploye ? (
+          <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+        ) : (
+          <ChevronRight className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
+        )}
+      </button>
+      {deploye && (
+        <div className="space-y-3 border-t bg-muted/20 p-4 sm:p-5">
+          {groupe.retours.map((r) => (
+            <CarteRetour
+              key={r.id}
+              r={r}
+              recurrence={compterRecurrence(r, tous)}
+              onVoir={() => onVoir(r)}
+              onRepondre={() => onRepondre(r)}
+              onResoudre={() => onResoudre(r)}
+              onFiltrerTag={onFiltrerTag}
+              onVoirEmploye={onVoirEmploye}
+            />
+          ))}
+        </div>
+      )}
+    </Card>
+  )
+}
+
+// ---------- NOUVEAU : En-tête Résumé IA Coach (top of list) ----------
+
+function ResumeCoachIA({
+  items,
+  onVoirRapport,
+  onFiltrerTag,
+  onVoirEmploye,
+}: {
+  items: Retour[]
+  onVoirRapport: () => void
+  onFiltrerTag: (tag: string) => void
+  onVoirEmploye: (nom: string) => void
+}) {
+  const priorites = useMemo(() => calculerResumeIA(items), [items])
+
+  if (priorites.length === 0) return null
+
+  return (
+    <Card className="rounded-3xl border-primary/20 bg-primary/[0.04] shadow-sm">
+      <CardContent className="p-4 sm:p-6 space-y-4">
+        <div className="flex items-center gap-2">
+          <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+            <Bot className="h-5 w-5" aria-hidden />
+          </span>
+          <div>
+            <h2 className="text-base font-semibold">Résumé de la semaine</h2>
+            <p className="text-xs text-muted-foreground">Coach IA — priorités détectées sur les retours chargés</p>
+          </div>
+          <Badge variant="outline" className="ml-auto h-6 gap-1 px-2 text-xs font-normal">
+            <Sparkles className="h-3 w-3" aria-hidden />
+            {priorites.length} priorité{priorites.length > 1 ? "s" : ""}
+          </Badge>
+        </div>
+
+        <ol className="space-y-2">
+          {priorites.map((p, i) => (
+            <li key={i}>
+              <button
+                type="button"
+                onClick={() => {
+                  if (p.type === "tag" && p.tagId) onFiltrerTag(p.tagId)
+                  else if (p.type === "employe" && p.employeNom) onVoirEmploye(p.employeNom)
+                  // zone : pas d'action directe (le filtre zone est dans la barre pills)
+                }}
+                className="flex w-full items-start gap-3 rounded-2xl border border-primary/10 bg-card p-3 text-left transition-colors hover:bg-muted/40"
+              >
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                  {i + 1}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-medium">
+                    <span aria-hidden className="mr-1">{p.emoji}</span>
+                    {p.titre}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{p.detail}</p>
+                </div>
+                {(p.type === "tag" || p.type === "employe") && (
+                  <ArrowRight className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground" aria-hidden />
+                )}
+              </button>
+            </li>
+          ))}
+        </ol>
+
+        <Button variant="default" size="sm" className="gap-1.5" onClick={onVoirRapport}>
+          <Sparkles className="h-4 w-4" aria-hidden />
+          Voir le rapport complet
+          <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+        </Button>
+      </CardContent>
+    </Card>
+  )
+}
+
+// ============================================================
+// Composant principal : RetoursTab
+// ============================================================
+
+export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void } = {}) {
   const [items, setItems] = useState<Retour[]>([])
   const [zones, setZones] = useState<ZoneFiltre[]>([])
   const [employes, setEmployes] = useState<EmployeFiltre[]>([])
@@ -589,6 +1105,12 @@ export function RetoursTab() {
   const [fDu, setFDu] = useState("") // dateDebut (AAAA-MM-JJ)
   const [fAu, setFAu] = useState("") // dateFin (AAAA-MM-JJ)
 
+  // NOUVEAU : Filtres rapides (pills) et temporels + toggle regroupement
+  const [fRapide, setFRapide] = useState<"all" | "urgent" | "inprogress" | "resolved">("all")
+  const [fTemporel, setFTemporel] = useState<"all" | "today" | "week" | "month">("all")
+  const [grouperSimilaires, setGrouperSimilaires] = useState(false)
+  const [groupesDeployes, setGroupesDeployes] = useState<Set<string>>(new Set())
+
   // Modale de détail
   const [detail, setDetail] = useState<Retour | null>(null)
   const [editionReponse, setEditionReponse] = useState(false)
@@ -601,10 +1123,13 @@ export function RetoursTab() {
   const [texteActionStatut, setTexteActionStatut] = useState<StatutRetour>("IN_PROGRESS")
   // Dialog d'historique d'un employé (Improvement 6)
   const [dialogEmployeNom, setDialogEmployeNom] = useState<string | null>(null)
+  // NOUVEAU : Dialog plein écran pour la photo
+  const [photoZoom, setPhotoZoom] = useState(false)
   const reponseRef = useRef<HTMLTextAreaElement>(null)
   const actionRef = useRef<HTMLTextAreaElement>(null)
-  // Ref pour le scroll "Voir IA" (Improvement 4)
+  // Refs pour le scroll
   const iaRef = useRef<HTMLDivElement>(null)
+  const actionFormRef = useRef<HTMLDivElement>(null)
 
   // Session globale (Pro : pour récupérer nomEtablissement + whatsapp)
   const session = useAppStore((s) => s.session)
@@ -637,6 +1162,49 @@ export function RetoursTab() {
       annule = true
     }
   }, [])
+
+  // Synchronisation des filtres rapides/temporels avec les filtres API
+  // - fRapide "urgent" : pas d'API filter (note ≤ 2), on filtre côté client
+  //   → on ne touche pas à fStatut/fNote ; on garde fRapide pour le post-traitement
+  // - fRapide "inprogress" → fStatut = "IN_PROGRESS"
+  // - fRapide "resolved" → fStatut = "RESOLVED"
+  // - fTemporel → fDu / fAu
+  useEffect(() => {
+    if (fRapide === "inprogress") setFStatut("IN_PROGRESS")
+    else if (fRapide === "resolved") setFStatut("RESOLVED")
+    else if (fRapide === "all" && (fStatut === "IN_PROGRESS" || fStatut === "RESOLVED")) {
+      // Si on désactive le filtre rapide, on réinitialise le statut
+      // uniquement s'il avait été positionné par le filtre rapide
+      setFStatut("all")
+    }
+  }, [fRapide])
+
+  useEffect(() => {
+    const aujourdhui = new Date()
+    const yyyy = aujourdhui.getFullYear()
+    const mm = String(aujourdhui.getMonth() + 1).padStart(2, "0")
+    const jj = String(aujourdhui.getDate()).padStart(2, "0")
+    const aujourdhuiStr = `${yyyy}-${mm}-${jj}`
+    if (fTemporel === "today") {
+      setFDu(aujourdhuiStr)
+      setFAu(aujourdhuiStr)
+    } else if (fTemporel === "week") {
+      // Lundi de la semaine courante
+      const jour = aujourdhui.getDay() || 7 // 0 = dimanche → 7
+      const lundi = new Date(aujourdhui)
+      lundi.setDate(aujourdhui.getDate() - jour + 1)
+      const lyyyy = lundi.getFullYear()
+      const lmm = String(lundi.getMonth() + 1).padStart(2, "0")
+      const ljj = String(lundi.getDate()).padStart(2, "0")
+      setFDu(`${lyyyy}-${lmm}-${ljj}`)
+      setFAu(aujourdhuiStr)
+    } else if (fTemporel === "month") {
+      setFDu(`${yyyy}-${mm}-01`)
+      setFAu(aujourdhuiStr)
+    } else {
+      // "all" : on ne réinitialise pas (l'utilisateur peut avoir des dates custom)
+    }
+  }, [fTemporel])
 
   const load = useCallback(
     async (p = page) => {
@@ -712,6 +1280,8 @@ export function RetoursTab() {
     setTexteActionStatut(r.statut === "NEW" ? "IN_PROGRESS" : r.statut)
     setEditionReponse(false)
     setEditionAction(false)
+    // Scroll en haut de page pour le détail
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
   function ouvrirReponse(r: Retour) {
@@ -721,6 +1291,7 @@ export function RetoursTab() {
     setTexteActionStatut(r.statut === "NEW" ? "IN_PROGRESS" : r.statut)
     setEditionReponse(true)
     setEditionAction(false)
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" })
   }
 
   function fermerDetail() {
@@ -728,6 +1299,7 @@ export function RetoursTab() {
     setEditionReponse(false)
     setEditionAction(false)
     setDialogEmployeNom(null)
+    setPhotoZoom(false)
   }
 
   // Enregistrement de la réponse du commerçant.
@@ -813,6 +1385,48 @@ export function RetoursTab() {
     })
   }
 
+  // NOUVEAU : Navigation vers Coach IA (prop ou fallback URL)
+  function ouvrirCoachIA() {
+    if (onOuvrirCoachIA) {
+      onOuvrirCoachIA()
+    } else if (typeof window !== "undefined") {
+      try {
+        window.history.pushState({}, "", "/dashboard/coach")
+        window.dispatchEvent(new PopStateEvent("popstate"))
+      } catch {
+        /* ignore */
+      }
+    }
+  }
+
+  // NOUVEAU : Filtrage instantané par tag (depuis une carte)
+  function filtrerParTag(tag: string) {
+    setPage(1)
+    setFTag(tag)
+    if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" })
+  }
+
+  // NOUVEAU : Ouvrir le Dialog employé (depuis une carte ou le résumé IA)
+  function voirEmploye(nom: string) {
+    setDialogEmployeNom(nom)
+  }
+
+  // NOUVEAU : Pré-remplir le formulaire d'action avec les reco IA
+  function appliquerRecommandationsIA(reco: RecommandationIA) {
+    const texte = reco.actions.map((a, i) => `${i + 1}. ${a}`).join("\n")
+    setTexteAction(texte)
+    setTexteActionStatut("IN_PROGRESS")
+    setEditionAction(true)
+    setTimeout(() => {
+      actionFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
+      actionRef.current?.focus()
+    }, 80)
+    toast({
+      title: "Recommandations appliquées",
+      description: "Le formulaire d'action managériale a été pré-rempli.",
+    })
+  }
+
   const nbPages = Math.max(1, Math.ceil(total / PAGE_SIZE))
   const datesActives = fDu !== "" || fAu !== ""
 
@@ -830,13 +1444,65 @@ export function RetoursTab() {
       })()
     : []
 
-  // ---------- Vue détaillée pleine page d'un retour (remplace la modale) ----------
+  // Items filtrés côté client pour "Urgents (note ≤ 2)" et grouping
+  const itemsFiltresClient = useMemo(() => {
+    if (fRapide === "urgent") return items.filter((r) => r.note <= 2)
+    return items
+  }, [items, fRapide])
+
+  // Groupes de retours similaires (si toggle activé)
+  const groupes = useMemo(
+    () => (grouperSimilaires ? grouperParTagSimilaire(itemsFiltresClient) : []),
+    [grouperSimilaires, itemsFiltresClient]
+  )
+  // Retours non groupés (singletons) à afficher tels quels
+  const retoursGroupesIds = useMemo(
+    () => new Set(groupes.flatMap((g) => g.retours.map((r) => r.id))),
+    [groupes]
+  )
+  const retoursSeuls = useMemo(
+    () => itemsFiltresClient.filter((r) => !retoursGroupesIds.has(r.id)),
+    [itemsFiltresClient, retoursGroupesIds]
+  )
+
+  // ---------- Memoïsations pour la Vue Liste (calculées avant le `if (detail)`
+  // pour respecter les règles de hooks — jamais appelées conditionnellement) ----------
+
+  // Calcul du résumé IA (Coach) — top 3 priorités de la semaine
+  const resumeIA = useMemo(() => calculerResumeIA(items), [items])
+
+  // Récurrence par retour (pour badge et urgence dans les cards)
+  const recurrenceParRetour = useMemo(() => {
+    const m = new Map<string, { count: number; libelleTag: string | null }>()
+    for (const r of itemsFiltresClient) {
+      m.set(r.id, compterRecurrence(r, items))
+    }
+    return m
+  }, [itemsFiltresClient, items])
+
+  // Compteurs pour les filtres rapides (urgents / à traiter / résolus)
+  const compteurs = useMemo(() => {
+    let urgents = 0
+    let enCours = 0
+    let resolus = 0
+    for (const r of items) {
+      if (r.note <= 2) urgents++
+      if (r.statut === "IN_PROGRESS") enCours++
+      if (r.statut === "RESOLVED") resolus++
+    }
+    return { urgents, enCours, resolus }
+  }, [items])
+
+  // ---------- Vue détaillée pleine page d'un retour (Dashboard d'Urgence) ----------
   if (detail) {
     // Recommandation IA + récurrence (memoïsées côté client à partir de `items`)
     const recoIA = genererRecommandationIA(detail, items)
     const recurrence = recoIA.recurrence
     const templatesReponse = genererTemplatesReponse(detail)
     const statsEmp = dialogEmployeNom ? statsEmploye(dialogEmployeNom, items) : null
+    const urgence = urgenceDe(detail, recurrence)
+    const cfgUrgence = URGENCE_CONFIG[urgence]
+    const noteZone = detail.zone?.nom ? noteMoyenneZone(detail.zone.nom, items) : null
 
     // Construction du message WhatsApp pré-formaté pour alerter l'équipe
     const numeroWhatsapp = (proWhatsapp || "").replace(/[^0-9]/g, "")
@@ -861,61 +1527,79 @@ export function RetoursTab() {
       iaRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
     }
 
+    // Initiales de l'employé pour l'avatar
+    const initialesEmploye = (() => {
+      const nom = detail.employe?.nom ?? detail.personnelMentionne ?? ""
+      return nom
+        .split(" ")
+        .map((p) => p[0])
+        .filter(Boolean)
+        .slice(0, 2)
+        .join("")
+        .toUpperCase()
+    })()
+
     return (
       <div className="space-y-5">
-        {/* En-tête : retour + titre */}
-        <div className="flex flex-wrap items-center gap-3">
+        {/* Bouton retour (au-dessus du sticky header) */}
+        <div className="flex items-center gap-3">
           <Button variant="outline" onClick={fermerDetail} className="gap-1.5">
             <ArrowLeft className="h-4 w-4" aria-hidden />
             Retour à la liste
           </Button>
-          <h2 className="text-lg sm:text-xl font-semibold">Détail du retour</h2>
         </div>
 
-        {/* ---------- Header note + statut + actions rapides (Improvement 4) ---------- */}
-        <Card>
-          <CardContent className="space-y-4 p-4 sm:p-6">
+        {/* ---------- En-tête sticky : note + zone + priorité + actions rapides ---------- */}
+        <div className="sticky top-0 z-20 rounded-3xl border bg-card/95 backdrop-blur shadow-sm">
+          <div className="p-4 sm:p-5 space-y-3">
+            {/* Ligne 1 : note + zone + date */}
             <div className="flex flex-wrap items-center gap-2">
               <Stars note={detail.note} size={18} />
+              <span className="text-sm font-semibold tabular-nums">{detail.note}/5</span>
+              <span className="text-muted-foreground">•</span>
+              {detail.zone?.nom ? (
+                <Badge variant="outline" className="h-6 gap-1 px-2 text-xs font-normal">
+                  <MapPin className="h-3 w-3 text-muted-foreground" aria-hidden />
+                  {detail.zone.nom}
+                </Badge>
+              ) : (
+                <span className="text-xs text-muted-foreground">Zone non précisée</span>
+              )}
+              <span className="text-muted-foreground">•</span>
+              <span className="text-xs text-muted-foreground" title={formatDate(detail.createdAt)}>
+                {formatRelative(detail.createdAt)}
+              </span>
               {!detail.lu && <Badge className="h-5 px-1.5 text-[10px]">Nouveau</Badge>}
-              <Badge variant="outline" className={statutBadgeClass(detail.statut)}>
-                {STATUT_RETOUR_LABEL[detail.statut] ?? detail.statut}
-              </Badge>
               {typeof detail.nps === "number" && (
-                <Badge
-                  variant="outline"
-                  className="h-5 gap-1 px-1.5 text-[10px] font-normal"
-                  title="Net Promoter Score (0-10)"
-                >
+                <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] font-normal" title="Net Promoter Score (0-10)">
                   NPS {detail.nps}/10
                   {(detail.nps ?? 0) >= 9 ? " 🟢" : (detail.nps ?? 0) >= 7 ? " 🟡" : " 🔴"}
                 </Badge>
               )}
-              <span className="ml-auto text-xs text-muted-foreground">{formatDate(detail.createdAt)}</span>
             </div>
 
-            {/* ---------- Indicateur de récurrence (Improvement 7) ---------- */}
-            {recurrence.count >= 2 && recurrence.libelleTag && (
-              <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-amber-800 dark:border-amber-700 dark:bg-amber-950/40 dark:text-amber-200">
-                <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
-                <span className="text-sm font-medium">
-                  {ordinalFr(recurrence.count)} signalement « {recurrence.libelleTag} » ce mois-ci
+            {/* Ligne 2 : priorité (badge urgence + contexte récurrence) */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Badge variant="outline" className={cn("h-6 px-2 text-xs font-medium", cfgUrgence.badge)}>
+                <span aria-hidden>{cfgUrgence.emoji}</span>
+                Priorité {urgence === "urgent" ? "HAUTE" : urgence === "atraiter" ? "MOYENNE" : urgence === "mitige" ? "BASSE" : "POSITIVE"}
+              </Badge>
+              {recurrence.count >= 2 && recurrence.libelleTag ? (
+                <span className="text-xs text-amber-700 dark:text-amber-400">
+                  {ordinalFr(recurrence.count)} signalement similaire ce mois-ci
                 </span>
-                <button
-                  type="button"
-                  onClick={scrollToIA}
-                  className="ml-auto text-xs underline-offset-2 hover:underline focus-visible:outline-none focus-visible:underline"
-                >
-                  → Voir la tendance complète
-                </button>
-              </div>
-            )}
+              ) : (
+                <span className="text-xs text-muted-foreground">
+                  Statut : {STATUT_RETOUR_LABEL[detail.statut] ?? detail.statut}
+                </span>
+              )}
+            </div>
 
-            {/* ---------- 3 actions rapides (Improvement 4) ---------- */}
+            {/* Ligne 3 : 4 actions rapides */}
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant={editionReponse ? "default" : "outline"}
-                className="h-10 gap-1.5"
+                className="h-10 gap-1.5 transition-transform hover:scale-105"
                 onClick={() => {
                   setTexteReponse(detail.reponsePro || "")
                   setEditionReponse(true)
@@ -926,366 +1610,503 @@ export function RetoursTab() {
                 <span>Répondre</span>
               </Button>
               {lienWhatsapp && (
-                <a
-                  href={lienWhatsapp}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex"
-                >
-                  <Button variant="outline" className="h-10 gap-1.5" type="button">
+                <a href={lienWhatsapp} target="_blank" rel="noopener noreferrer" className="inline-flex">
+                  <Button variant="outline" className="h-10 gap-1.5 transition-transform hover:scale-105" type="button">
                     <Smartphone className="h-4 w-4" aria-hidden />
-                    <span>Alerter l&apos;équipe</span>
+                    <span>WhatsApp équipe</span>
                   </Button>
                 </a>
               )}
               <Button
                 variant="outline"
-                className="h-10 gap-1.5"
+                className="h-10 gap-1.5 transition-transform hover:scale-105"
                 onClick={scrollToIA}
               >
                 <Sparkles className="h-4 w-4" aria-hidden />
-                <span>Voir IA</span>
+                <span>Coach IA</span>
               </Button>
-              {!detail.lu && (
+              {detail.statut !== "RESOLVED" && (
                 <Button
                   variant="ghost"
-                  className="h-10 gap-1.5 ml-auto"
-                  onClick={() => majRetour(detail.id, { lu: true })}
+                  className="h-10 gap-1.5 ml-auto text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
+                  onClick={() => majRetour(detail.id, { statut: "RESOLVED", lu: true })}
                 >
-                  <MailOpen className="h-4 w-4" aria-hidden />
-                  <span className="hidden sm:inline">Marquer comme lu</span>
-                  <span className="sm:hidden">Lu</span>
+                  <CheckCheck className="h-4 w-4" aria-hidden />
+                  <span className="hidden sm:inline">Marquer résolu</span>
+                  <span className="sm:hidden">Résolu</span>
                 </Button>
               )}
             </div>
-          </CardContent>
-        </Card>
-
-        {/* ---------- Carte Recommandation du Coach IA (Improvement 1) ---------- */}
-        <div ref={iaRef} className="scroll-mt-4">
-          <Card className="border-primary/30 bg-primary/[0.02]">
-            <CardContent className="space-y-4 p-4 sm:p-6">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary" aria-hidden>
-                  <Bot className="h-5 w-5" />
-                </span>
-                <h3 className="text-base font-semibold">💡 Recommandation du Coach IA</h3>
-                <Badge variant="outline" className="ml-auto h-6 px-2 text-xs font-normal capitalize">
-                  {recoIA.categorie}
-                </Badge>
-              </div>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-lg border bg-card p-3">
-                  <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                    <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
-                    Problème détecté
-                  </p>
-                  <p className="text-sm font-medium">{recoIA.probleme}</p>
-                </div>
-                <div className="rounded-lg border bg-card p-3">
-                  <p className="mb-1 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                    <Clock className="h-3.5 w-3.5" aria-hidden />
-                    Contexte
-                  </p>
-                  <p className="text-sm">{recoIA.contexte}</p>
-                </div>
-              </div>
-
-              {/* Tendance / mini-graphique de récurrence (Improvement 7) */}
-              {recurrence.count >= 2 && (
-                <div className="rounded-lg border border-amber-300/60 bg-amber-50/50 p-3 dark:border-amber-700/60 dark:bg-amber-950/20">
-                  <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-amber-800 dark:text-amber-200">
-                    <TrendingUp className="h-3.5 w-3.5" aria-hidden />
-                    Tendance sur 30 jours
-                  </p>
-                  <MiniGraphiqueRecurrence
-                    retourCourant={detail}
-                    tous={items}
-                    tagFrequent={recurrence.tagFrequent}
-                  />
-                </div>
-              )}
-
-              <div>
-                <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                  <Lightbulb className="h-3.5 w-3.5" aria-hidden />
-                  Actions suggérées
-                </p>
-                <ol className="space-y-2">
-                  {recoIA.actions.map((a, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm">
-                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">
-                        {i + 1}
-                      </span>
-                      <span className="leading-relaxed">{a}</span>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-
-              <div className="rounded-lg border border-emerald-300/60 bg-emerald-50/60 p-3 dark:border-emerald-700/60 dark:bg-emerald-950/20">
-                <p className="flex items-start gap-1.5 text-sm font-medium text-emerald-800 dark:text-emerald-200">
-                  <TrendingUp className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-                  <span>
-                    <span className="text-xs uppercase tracking-wide text-emerald-600 dark:text-emerald-400">Impact attendu — </span>
-                    {recoIA.impact}
-                  </span>
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          </div>
         </div>
 
-        {/* ---------- Carte infos (employé cliquable) ---------- */}
-        <Card>
-          <CardContent className="space-y-5 p-4 sm:p-6">
-            {/* Grille d'infos : zone, employé, canal */}
-            <div className="grid gap-x-4 gap-y-3 text-sm sm:grid-cols-2">
-              <div className="min-w-0">
-                <p className="mb-1 text-xs font-medium text-muted-foreground">Zone concernée</p>
+        {/* ---------- Layout 3 colonnes (desktop) ---------- */}
+        <div className="grid gap-5 lg:grid-cols-5">
+          {/* ===== Colonne Gauche (40%) — Le Contexte ===== */}
+          <div className="lg:col-span-2 space-y-4">
+            {/* Zone */}
+            <Card className="rounded-3xl shadow-sm">
+              <CardContent className="p-4 sm:p-5 space-y-2">
+                <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <MapPin className="h-3.5 w-3.5" aria-hidden />
+                  Zone concernée
+                </p>
                 {detail.zone?.nom ? (
-                  <Badge variant="outline" className="h-6 gap-1 px-2 text-xs font-normal">
-                    <MapPin className="h-3 w-3 text-muted-foreground" aria-hidden />
-                    {detail.zone.nom}
-                  </Badge>
+                  <>
+                    <p className="text-lg font-semibold">{detail.zone.nom}</p>
+                    {noteZone !== null && (
+                      <div className="flex items-center gap-2">
+                        <Stars note={noteZone} size={14} />
+                        <span className="text-xs text-muted-foreground">
+                          Note moyenne : <span className="font-medium text-foreground">{noteZone.toFixed(2)}/5</span>
+                        </span>
+                      </div>
+                    )}
+                  </>
                 ) : (
-                  <span className="text-muted-foreground">—</span>
+                  <p className="text-sm text-muted-foreground">Zone non précisée</p>
                 )}
-              </div>
-              <div className="min-w-0">
-                <p className="mb-1 text-xs font-medium text-muted-foreground">Employé concerné</p>
-                {/* Improvement 6 : nom de l'employé cliquable → Dialog historique */}
+              </CardContent>
+            </Card>
+
+            {/* Employé */}
+            <Card className="rounded-3xl shadow-sm">
+              <CardContent className="p-4 sm:p-5 space-y-3">
+                <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <User className="h-3.5 w-3.5" aria-hidden />
+                  Employé concerné
+                </p>
                 {(() => {
                   const emp = detail.employe?.nom ?? null
                   const pers = detail.personnelMentionne ?? null
                   const nomCliquable = emp || pers
                   if (!nomCliquable) {
-                    return <span className="text-muted-foreground">Non spécifié</span>
+                    return <p className="text-sm text-muted-foreground">Non spécifié</p>
                   }
                   const statsDispos = statsEmploye(nomCliquable, items) !== null
                   return (
-                    <div className="flex flex-wrap items-center gap-1.5">
-                      {emp && (
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-base font-bold text-primary">
+                        {initialesEmploye || "?"}
+                      </span>
+                      <div className="min-w-0">
+                        {emp && (
+                          <p className="truncate text-sm font-semibold">{emp}</p>
+                        )}
+                        {pers && !emp && (
+                          <p className="truncate text-sm font-semibold">{pers}</p>
+                        )}
+                        {pers && emp && pers !== emp && (
+                          <p className="truncate text-xs text-muted-foreground">Mentionné : {pers}</p>
+                        )}
                         <button
                           type="button"
                           onClick={() => statsDispos && setDialogEmployeNom(nomCliquable)}
                           disabled={!statsDispos}
                           className={cn(
-                            "inline-flex items-center gap-1 truncate rounded-md text-sm",
+                            "mt-0.5 inline-flex items-center gap-1 text-xs",
                             statsDispos
                               ? "text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:underline"
-                              : "text-foreground cursor-default"
+                              : "text-muted-foreground cursor-default"
                           )}
                           title={statsDispos ? "Voir l'historique de l'employé" : undefined}
                         >
-                          <User className="h-3.5 w-3.5" aria-hidden />
-                          {emp}
+                          <GraduationCap className="h-3 w-3" aria-hidden />
+                          Voir le profil
                         </button>
-                      )}
-                      {pers && emp && pers !== emp && (
-                        <span className="text-xs text-muted-foreground">({pers})</span>
-                      )}
-                      {pers && !emp && (
-                        <button
-                          type="button"
-                          onClick={() => statsDispos && setDialogEmployeNom(nomCliquable)}
-                          disabled={!statsDispos}
-                          className={cn(
-                            "inline-flex items-center gap-1 truncate rounded-md text-sm",
-                            statsDispos
-                              ? "text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:underline"
-                              : "text-foreground cursor-default"
-                          )}
-                          title={statsDispos ? "Voir l'historique de l'employé" : undefined}
-                        >
-                          <User className="h-3.5 w-3.5" aria-hidden />
-                          {pers}
-                        </button>
-                      )}
+                      </div>
                     </div>
                   )
                 })()}
-              </div>
-              <div className="min-w-0">
-                <p className="mb-1 text-xs font-medium text-muted-foreground">Canal</p>
-                <p>{canalLabel(detail.canalChoisi)}</p>
-              </div>
-              <div className="min-w-0">
-                <p className="mb-1 text-xs font-medium text-muted-foreground">Reçu le</p>
-                <p>{formatDate(detail.createdAt)}</p>
-              </div>
-            </div>
+              </CardContent>
+            </Card>
 
-            {/* Tags */}
-            <div>
-              <p className="mb-1.5 text-xs font-medium text-muted-foreground">Tags</p>
-              {detail.tags.length > 0 ? (
-                <div className="flex flex-wrap gap-1.5">
-                  {detail.tags.map((t) => (
-                    <Badge
-                      key={t}
-                      variant="outline"
-                      className="h-6 min-w-0 max-w-full px-2 text-xs font-normal"
-                      title={tagLabel(t)}
-                    >
-                      <span className="truncate">{tagLabel(t)}</span>
-                    </Badge>
-                  ))}
-                </div>
-              ) : (
-                <span className="text-sm text-muted-foreground">Aucun tag</span>
-              )}
-            </div>
-
-            {/* Commentaire client */}
-            <div>
-              <p className="mb-1.5 text-xs font-medium text-muted-foreground">Commentaire client</p>
-              {detail.commentaire ? (
-                <blockquote className="border-l-4 border-primary/30 bg-muted/50 px-4 py-3 text-sm italic leading-relaxed">
-                  &ldquo;{detail.commentaire}&rdquo;
-                </blockquote>
-              ) : (
-                <p className="text-sm italic text-muted-foreground">Aucun commentaire</p>
-              )}
-            </div>
-
-            {/* D2 : photo jointe par le client (cliquable pour agrandir) */}
+            {/* Photo jointe (avec zoom au clic → Dialog plein écran) */}
             {detail.photoUrl && (
-              <div>
-                <p className="mb-1.5 text-xs font-medium text-muted-foreground">Photo jointe</p>
-                <a href={detail.photoUrl} target="_blank" rel="noopener noreferrer" className="inline-block">
-                  <img
-                    src={detail.photoUrl}
-                    alt="Photo jointe au retour par le client"
-                    className="max-h-64 rounded-lg border border-border object-cover transition-opacity hover:opacity-90"
-                  />
-                </a>
-              </div>
+              <Card className="rounded-3xl shadow-sm overflow-hidden">
+                <CardContent className="p-4 sm:p-5 space-y-2">
+                  <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <Camera className="h-3.5 w-3.5" aria-hidden />
+                    Photo jointe par le client
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => setPhotoZoom(true)}
+                    className="group relative block w-full overflow-hidden rounded-2xl border"
+                  >
+                    <img
+                      src={detail.photoUrl}
+                      alt="Photo jointe au retour par le client"
+                      className="max-h-72 w-full object-cover transition-transform group-hover:scale-105"
+                    />
+                    <span className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/30">
+                      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-foreground opacity-0 transition-opacity group-hover:opacity-100">
+                        <ZoomIn className="h-5 w-5" aria-hidden />
+                      </span>
+                    </span>
+                  </button>
+                </CardContent>
+              </Card>
             )}
 
-            {/* Réponse du commerçant (éditable → POST repondre ou PATCH reponsePro) */}
-            <div>
-              <p className="mb-1.5 text-xs font-medium text-muted-foreground">
-                Réponse du commerçant
-                {detail.emailClient ? (
-                  <Badge variant="outline" className="ml-2 h-5 gap-1 px-1.5 text-[10px] font-normal text-blue-700">
-                    <Send className="h-3 w-3" aria-hidden />
-                    Email client : {detail.emailClient}
-                  </Badge>
-                ) : (
-                  <TooltipProvider delayDuration={200}>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <span className="ml-2 inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-normal text-amber-700">
-                          Pas d&apos;email client
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent>Le client n&apos;a pas laissé d&apos;email — la réponse sera conservée en interne.</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
-              </p>
-              {editionReponse ? (
-                <div className="space-y-2">
-                  {/* Improvement 5 : 3 templates de réponse IA */}
-                  <div>
-                    <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                      <Sparkles className="h-3.5 w-3.5" aria-hidden />
-                      Suggestions de réponses IA
-                    </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {templatesReponse.map((tpl, i) => (
-                        <Button
-                          key={i}
-                          type="button"
+            {/* Tags associés */}
+            <Card className="rounded-3xl shadow-sm">
+              <CardContent className="p-4 sm:p-5 space-y-2">
+                <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <Target className="h-3.5 w-3.5" aria-hidden />
+                  Tags associés
+                </p>
+                {detail.tags.length > 0 ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    {detail.tags.map((t) => {
+                      const neg = SET_NEGATIFS.has(t)
+                      const pos = SET_POSITIFS.has(t)
+                      return (
+                        <Badge
+                          key={t}
                           variant="outline"
-                          size="sm"
-                          className="h-8 gap-1 px-2 text-xs"
-                          onClick={() => {
-                            setTexteReponse(tpl)
-                            setTimeout(() => reponseRef.current?.focus(), 30)
-                          }}
+                          className={cn(
+                            "h-6 px-2 text-xs font-normal",
+                            neg
+                              ? "border-rose-300 bg-rose-50 text-rose-700 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300"
+                              : pos
+                                ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                                : ""
+                          )}
+                          title={tagLabel(t)}
                         >
-                          <Sparkles className="h-3 w-3" aria-hidden />
-                          Template {i + 1}
-                        </Button>
-                      ))}
+                          <span className="truncate">{tagLabel(t)}</span>
+                        </Badge>
+                      )
+                    })}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Aucun tag</p>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* ===== Colonne Centrale (40%) — L'Analyse IA (mise en avant) ===== */}
+          <div className="lg:col-span-2 space-y-4">
+            <div ref={iaRef} className="scroll-mt-24">
+              {/* Card IA dégradée bleue */}
+              <Card className="rounded-3xl border-none bg-gradient-to-br from-[#002e85] to-[#0047c7] text-white shadow-lg">
+                <CardContent className="p-4 sm:p-6 space-y-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white/15" aria-hidden>
+                      <Bot className="h-5 w-5" />
+                    </span>
+                    <h3 className="text-base font-semibold">🧠 Recommandation du Coach IA</h3>
+                    <Badge variant="outline" className="ml-auto h-6 border-white/30 bg-white/10 px-2 text-xs font-normal text-white capitalize">
+                      {recoIA.categorie}
+                    </Badge>
+                  </div>
+
+                  {/* Diagnostic */}
+                  <div className="space-y-1.5">
+                    <p className="flex items-center gap-1.5 text-xs font-medium text-white/80">
+                      <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
+                      Diagnostic
+                    </p>
+                    <p className="text-sm leading-relaxed">
+                      {recoIA.contexte}
+                    </p>
+                  </div>
+
+                  {/* Tendance / mini-graphique */}
+                  {recurrence.count >= 2 && (
+                    <div className="rounded-2xl border border-white/15 bg-white/10 p-3">
+                      <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-white/90">
+                        <TrendingUp className="h-3.5 w-3.5" aria-hidden />
+                        Tendance sur 30 jours
+                      </p>
+                      <MiniGraphiqueRecurrence
+                        retourCourant={detail}
+                        tous={items}
+                        tagFrequent={recurrence.tagFrequent}
+                      />
                     </div>
+                  )}
+
+                  {/* Actions prioritaires */}
+                  <div className="space-y-2">
+                    <p className="flex items-center gap-1.5 text-xs font-medium text-white/80">
+                      <Lightbulb className="h-3.5 w-3.5" aria-hidden />
+                      Actions prioritaires
+                    </p>
+                    <ol className="space-y-2">
+                      {recoIA.actions.map((a, i) => (
+                        <li key={i} className="flex items-start gap-2 text-sm">
+                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20 text-[11px] font-bold">
+                            {i + 1}
+                          </span>
+                          <span className="leading-relaxed text-white/95">{a}</span>
+                        </li>
+                      ))}
+                    </ol>
                   </div>
-                  <Textarea
-                    ref={reponseRef}
-                    id="reponse-pro"
-                    rows={4}
-                    value={texteReponse}
-                    onChange={(e) => setTexteReponse(e.target.value)}
-                    placeholder={
-                      detail.emailClient
-                        ? "Votre réponse sera envoyée par email au client."
-                        : "Réponse conservée en interne (le client n'a pas laissé d'email)."
-                    }
-                    aria-label="Votre réponse"
-                  />
-                  <div className="flex justify-end gap-2">
-                    {detail.reponsePro && (
-                      <Button
-                        variant="ghost"
-                        className="h-10"
-                        onClick={() => { setTexteReponse(detail.reponsePro || ""); setEditionReponse(false) }}
-                      >
-                        Annuler
-                      </Button>
-                    )}
-                    <Button
-                      className="h-10 px-4"
-                      onClick={enregistrerReponse}
-                      disabled={envoiReponse || !texteReponse.trim()}
-                    >
-                      {envoiReponse && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
-                      {detail.emailClient ? "Envoyer la réponse" : "Enregistrer"}
-                    </Button>
+
+                  {/* Impact attendu */}
+                  <div className="rounded-2xl border border-emerald-300/30 bg-emerald-400/15 p-3">
+                    <p className="flex items-start gap-1.5 text-sm font-medium text-emerald-50">
+                      <TrendingUp className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                      <span>
+                        <span className="text-[10px] uppercase tracking-wide text-emerald-200">Impact prévu — </span>
+                        {recoIA.impact}
+                      </span>
+                    </p>
                   </div>
-                </div>
-              ) : detail.reponsePro ? (
-                <div className="rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{detail.reponsePro}</p>
+
+                  {/* Bouton Appliquer */}
                   <Button
-                    variant="ghost"
-                    size="sm"
-                    className="mt-2 h-9"
-                    onClick={() => { setTexteReponse(detail.reponsePro || ""); setEditionReponse(true) }}
+                    type="button"
+                    className="w-full gap-1.5 bg-white text-[#002e85] hover:bg-white/90"
+                    onClick={() => appliquerRecommandationsIA(recoIA)}
                   >
-                    <MessageSquareReply className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-                    Modifier la réponse
+                    <Sparkles className="h-4 w-4" aria-hidden />
+                    Appliquer ces recommandations
+                    <ArrowRight className="h-3.5 w-3.5" aria-hidden />
                   </Button>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Commentaire client (sous l'IA, dans la colonne centrale) */}
+            <Card className="rounded-3xl shadow-sm">
+              <CardContent className="p-4 sm:p-5 space-y-2">
+                <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <MessageSquareReply className="h-3.5 w-3.5" aria-hidden />
+                  Commentaire client
+                </p>
+                {detail.commentaire ? (
+                  <blockquote className="border-l-4 border-primary/30 bg-muted/40 px-4 py-3 text-sm italic leading-relaxed">
+                    &ldquo;{detail.commentaire}&rdquo;
+                  </blockquote>
+                ) : (
+                  <p className="text-sm italic text-muted-foreground">Aucun commentaire</p>
+                )}
+                <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-muted-foreground">
+                  <span>Reçu {canalLabel(detail.canalChoisi)}</span>
+                  <span>•</span>
+                  <span>{formatDate(detail.createdAt)}</span>
                 </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* ===== Colonne Droite (20%) — Actions Rapides ===== */}
+          <div className="lg:col-span-1 space-y-4">
+            {/* Templates de réponse */}
+            <Card className="rounded-3xl shadow-sm">
+              <CardContent className="p-4 sm:p-5 space-y-3">
+                <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <Sparkles className="h-3.5 w-3.5" aria-hidden />
+                  Templates de réponse
+                </p>
+                <div className="space-y-1.5">
+                  {[
+                    { idx: 0, label: "Empathique", emoji: "💛" },
+                    { idx: 1, label: "Action", emoji: "🎯" },
+                    { idx: 2, label: "Compensation", emoji: "🎁" },
+                  ].map((tpl) => (
+                    <Button
+                      key={tpl.idx}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="h-9 w-full justify-start gap-1.5 text-xs transition-transform hover:scale-105"
+                      onClick={() => {
+                        setTexteReponse(templatesReponse[tpl.idx])
+                        setEditionReponse(true)
+                        setTimeout(() => reponseRef.current?.focus(), 30)
+                      }}
+                    >
+                      <span aria-hidden>{tpl.emoji}</span>
+                      {tpl.label}
+                    </Button>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Stats rapides */}
+            <Card className="rounded-3xl shadow-sm">
+              <CardContent className="p-4 sm:p-5 space-y-2.5">
+                <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <TrendingUp className="h-3.5 w-3.5" aria-hidden />
+                  Stats rapides
+                </p>
+                <div className="space-y-1.5 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground">Signalements ce mois</span>
+                    <span className="font-semibold">{recurrence.count}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground">Catégorie IA</span>
+                    <span className="font-semibold capitalize">{recoIA.categorie}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground">Canal</span>
+                    <span className="font-semibold">{canalLabel(detail.canalChoisi)}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-muted-foreground">Statut</span>
+                    <Badge variant="outline" className={cn("h-5 px-1.5 text-[10px]", statutBadgeClass(detail.statut))}>
+                      {STATUT_RETOUR_LABEL[detail.statut] ?? detail.statut}
+                    </Badge>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Tags associés (rappel compact) */}
+            {detail.tags.length > 0 && (
+              <Card className="rounded-3xl shadow-sm">
+                <CardContent className="p-4 sm:p-5 space-y-2">
+                  <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <Target className="h-3.5 w-3.5" aria-hidden />
+                    Tags
+                  </p>
+                  <div className="flex flex-wrap gap-1">
+                    {detail.tags.map((t) => (
+                      <Badge
+                        key={t}
+                        variant="outline"
+                        className="h-5 min-w-0 max-w-full px-1.5 text-[10px] font-normal"
+                        title={tagLabel(t)}
+                      >
+                        <span className="truncate">{tagLabel(t)}</span>
+                      </Badge>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </div>
+
+        {/* ---------- Formulaire de réponse (pleine largeur) ---------- */}
+        <Card className="rounded-3xl shadow-sm">
+          <CardContent className="p-4 sm:p-6 space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+              <h3 className="flex items-center gap-1.5 text-sm font-semibold">
+                <MessageSquareReply className="h-4 w-4 text-primary" aria-hidden />
+                Réponse au client
+              </h3>
+              {detail.emailClient ? (
+                <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] font-normal text-blue-700 dark:text-blue-300">
+                  <Send className="h-3 w-3" aria-hidden />
+                  {detail.emailClient}
+                </Badge>
               ) : (
                 <TooltipProvider delayDuration={200}>
                   <Tooltip>
                     <TooltipTrigger asChild>
-                      {/* span pour porter le tooltip quand le bouton est désactivé */}
-                      <span tabIndex={0} className="inline-block">
-                        <Button
-                          variant="outline"
-                          className="h-10 pointer-events-auto"
-                          onClick={() => { setTexteReponse(""); setEditionReponse(true) }}
-                        >
-                          <MessageSquareReply className="mr-1.5 h-4 w-4" aria-hidden />
-                          {detail.emailClient ? "Rédiger une réponse" : "Consigner une réponse interne"}
-                        </Button>
+                      <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-normal text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                        Pas d'email client
                       </span>
                     </TooltipTrigger>
-                    {!detail.emailClient && (
-                      <TooltipContent>Le client n&apos;a pas laissé d&apos;email — la réponse sera conservée en interne.</TooltipContent>
-                    )}
+                    <TooltipContent>Le client n'a pas laissé d'email — la réponse sera conservée en interne.</TooltipContent>
                   </Tooltip>
                 </TooltipProvider>
               )}
             </div>
 
-            {/* Action managériale + statut unifié (Improvement 8) */}
-            <div>
-              <p className="mb-1.5 text-xs font-medium text-muted-foreground">Action managériale prise</p>
+            {editionReponse ? (
+              <div className="space-y-2">
+                {/* 3 templates de réponse IA */}
+                <div>
+                  <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <Sparkles className="h-3.5 w-3.5" aria-hidden />
+                    Suggestions de réponses IA
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {templatesReponse.map((tpl, i) => (
+                      <Button
+                        key={i}
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 gap-1 px-2 text-xs"
+                        onClick={() => {
+                          setTexteReponse(tpl)
+                          setTimeout(() => reponseRef.current?.focus(), 30)
+                        }}
+                      >
+                        <Sparkles className="h-3 w-3" aria-hidden />
+                        Template {i + 1}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                <Textarea
+                  ref={reponseRef}
+                  id="reponse-pro"
+                  rows={4}
+                  value={texteReponse}
+                  onChange={(e) => setTexteReponse(e.target.value)}
+                  placeholder={
+                    detail.emailClient
+                      ? "Votre réponse sera envoyée par email au client."
+                      : "Réponse conservée en interne (le client n'a pas laissé d'email)."
+                  }
+                  aria-label="Votre réponse"
+                />
+                <div className="flex justify-end gap-2">
+                  {detail.reponsePro && (
+                    <Button
+                      variant="ghost"
+                      className="h-10"
+                      onClick={() => { setTexteReponse(detail.reponsePro || ""); setEditionReponse(false) }}
+                    >
+                      Annuler
+                    </Button>
+                  )}
+                  <Button
+                    className="h-10 px-4"
+                    onClick={enregistrerReponse}
+                    disabled={envoiReponse || !texteReponse.trim()}
+                  >
+                    {envoiReponse && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
+                    {detail.emailClient ? "Envoyer la réponse" : "Enregistrer"}
+                  </Button>
+                </div>
+              </div>
+            ) : detail.reponsePro ? (
+              <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3">
+                <p className="text-sm leading-relaxed whitespace-pre-wrap">{detail.reponsePro}</p>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-2 h-9"
+                  onClick={() => { setTexteReponse(detail.reponsePro || ""); setEditionReponse(true) }}
+                >
+                  <MessageSquareReply className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                  Modifier la réponse
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="outline"
+                className="h-10"
+                onClick={() => { setTexteReponse(""); setEditionReponse(true) }}
+              >
+                <MessageSquareReply className="mr-1.5 h-4 w-4" aria-hidden />
+                {detail.emailClient ? "Rédiger une réponse" : "Consigner une réponse interne"}
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* ---------- Formulaire d'action managériale (pleine largeur) ---------- */}
+        <div ref={actionFormRef} className="scroll-mt-24">
+          <Card className="rounded-3xl shadow-sm">
+            <CardContent className="p-4 sm:p-6 space-y-3">
+              <h3 className="flex items-center gap-1.5 text-sm font-semibold">
+                <ClipboardCheck className="h-4 w-4 text-primary" aria-hidden />
+                Action managériale prise
+              </h3>
               {editionAction ? (
                 <div className="space-y-3">
                   <Textarea
@@ -1346,7 +2167,7 @@ export function RetoursTab() {
                   </div>
                 </div>
               ) : detail.actionPrise ? (
-                <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-800/60 dark:bg-emerald-950/30">
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-800/60 dark:bg-emerald-950/30">
                   <p className="text-sm leading-relaxed whitespace-pre-wrap">{detail.actionPrise}</p>
                   <Button
                     variant="ghost"
@@ -1376,48 +2197,40 @@ export function RetoursTab() {
                   Consigner une action managériale
                 </Button>
               )}
-            </div>
 
-            {/* Suivi du retour : timeline de l'historique des statuts */}
-            <div>
-              <p className="mb-2 text-xs font-medium text-muted-foreground">Suivi du retour</p>
-              <ol>
-                {historiqueAffiche.map((h, i) => (
-                  <li key={`${h.statut}-${h.at}-${i}`} className="relative flex items-start gap-2.5 pb-4 last:pb-0">
-                    {i < historiqueAffiche.length - 1 && (
-                      <span className="absolute top-4 bottom-0 left-[6px] w-px bg-border" aria-hidden />
-                    )}
-                    <span className={`mt-1 h-3 w-3 shrink-0 rounded-full ${pastilleClass(h.statut)}`} aria-hidden />
-                    <div className="min-w-0 text-xs">
-                      <Badge variant="outline" className={`h-5 px-1.5 text-[11px] ${statutBadgeClass(h.statut)}`}>
-                        {STATUT_RETOUR_LABEL[h.statut] ?? h.statut}
-                      </Badge>
-                      <p className="mt-1 text-muted-foreground">{formatDate(h.at)}</p>
-                    </div>
-                  </li>
-                ))}
-              </ol>
-            </div>
-          </CardContent>
-        </Card>
+              {/* Suivi du retour : timeline de l'historique des statuts */}
+              <div className="pt-2">
+                <p className="mb-2 text-xs font-medium text-muted-foreground">Suivi du retour</p>
+                <ol>
+                  {historiqueAffiche.map((h, i) => (
+                    <li key={`${h.statut}-${h.at}-${i}`} className="relative flex items-start gap-2.5 pb-4 last:pb-0">
+                      {i < historiqueAffiche.length - 1 && (
+                        <span className="absolute top-4 bottom-0 left-[6px] w-px bg-border" aria-hidden />
+                      )}
+                      <span className={`mt-1 h-3 w-3 shrink-0 rounded-full ${pastilleClass(h.statut)}`} aria-hidden />
+                      <div className="min-w-0 text-xs">
+                        <Badge variant="outline" className={`h-5 px-1.5 text-[11px] ${statutBadgeClass(h.statut)}`}>
+                          {STATUT_RETOUR_LABEL[h.statut] ?? h.statut}
+                        </Badge>
+                        <p className="mt-1 text-muted-foreground">{formatDate(h.at)}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
-        {/* ---------- Actions bas de page (Improvement 3 : dropdown de statut supprimé) ---------- */}
-        <div className="flex flex-wrap items-center gap-2">
-          {!detail.lu && (
-            <Button variant="outline" className="h-10" onClick={() => majRetour(detail.id, { lu: true })}>
-              <MailOpen className="mr-1.5 h-4 w-4" aria-hidden />
-              Marquer comme lu
-            </Button>
-          )}
-          <span className="text-xs text-muted-foreground">
-            Le statut se modifie via le workflow « Action managériale » ci-dessus.
-          </span>
-          <Button variant="outline" className="h-10 ml-auto" onClick={fermerDetail}>
+        {/* ---------- Bouton retour bas de page ---------- */}
+        <div className="flex justify-end">
+          <Button variant="outline" className="h-10" onClick={fermerDetail}>
+            <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden />
             Retour à la liste
           </Button>
         </div>
 
-        {/* ---------- Dialog historique de l'employé (Improvement 6) ---------- */}
+        {/* ---------- Dialog historique de l'employé ---------- */}
         <Dialog open={dialogEmployeNom !== null} onOpenChange={(o) => !o && setDialogEmployeNom(null)}>
           <DialogContent className="sm:max-w-2xl">
             <DialogHeader>
@@ -1526,9 +2339,28 @@ export function RetoursTab() {
             )}
           </DialogContent>
         </Dialog>
+
+        {/* ---------- Dialog zoom photo (plein écran) ---------- */}
+        <Dialog open={photoZoom} onOpenChange={setPhotoZoom}>
+          <DialogContent className="sm:max-w-4xl p-0 border-none bg-black/90">
+            <DialogHeader className="sr-only">
+              <DialogTitle>Photo jointe au retour</DialogTitle>
+              <DialogDescription>Photo agrandie</DialogDescription>
+            </DialogHeader>
+            {detail.photoUrl && (
+              <img
+                src={detail.photoUrl}
+                alt="Photo jointe au retour par le client"
+                className="max-h-[85vh] w-full object-contain"
+              />
+            )}
+          </DialogContent>
+        </Dialog>
       </div>
     )
   }
+
+  // ---------- Vue Liste — "L'Inbox Intelligente" ----------
 
   return (
     <div className="space-y-5">
@@ -1537,7 +2369,7 @@ export function RetoursTab() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Retours clients</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            {total} retour{total > 1 ? "s" : ""} collecté{total > 1 ? "s" : ""} via vos QR codes — filtrez, répondez et suivez chaque réclamation.
+            {total} retour{total > 1 ? "s" : ""} collecté{total > 1 ? "s" : ""} via vos QR codes — votre inbox intelligente.
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -1555,13 +2387,26 @@ export function RetoursTab() {
         </div>
       </div>
 
-      {/* ---------- Barre de filtres ---------- */}
-      <Card className="shadow-sm">
-        <CardContent className="p-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-2.5">
-            {/* Zone (pivot : chaque retour est rattaché à une zone de contact) */}
+      {/* ---------- 1. Résumé IA Coach (en haut, avant les filtres) ---------- */}
+      {resumeIA.length > 0 && !loading && (
+        <div className="animate-fadeIn">
+          <ResumeCoachIA
+            items={items}
+            onVoirRapport={ouvrirCoachIA}
+            onFiltrerTag={filtrerParTag}
+            onVoirEmploye={voirEmploye}
+          />
+        </div>
+      )}
+
+      {/* ---------- 2. Filtres intelligents (pills) ---------- */}
+      <Card className="rounded-3xl shadow-sm">
+        <CardContent className="p-4 sm:p-5 space-y-3">
+          {/* Ligne 1 : pills dropdowns (Zone / Employé / Note / Statut / Tag) */}
+          <div className="flex flex-wrap items-center gap-2">
             <Select value={fZone} onValueChange={(v) => { setPage(1); setFZone(v) }}>
-              <SelectTrigger className="h-10 w-full" aria-label="Filtrer par zone">
+              <SelectTrigger className="h-9 w-auto min-w-32 gap-1.5 rounded-full" aria-label="Filtrer par zone">
+                <MapPin className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
                 <SelectValue placeholder="Zone" />
               </SelectTrigger>
               <SelectContent>
@@ -1574,12 +2419,12 @@ export function RetoursTab() {
               </SelectContent>
             </Select>
 
-            {/* Employé (Session 4 : filtre par employé mentionné/affecté) */}
             <Select
               value={fEmploye || "all"}
               onValueChange={(v) => { setPage(1); setFEmploye(v === "all" ? "" : v) }}
             >
-              <SelectTrigger className="h-10 w-full" aria-label="Filtrer par employé">
+              <SelectTrigger className="h-9 w-auto min-w-32 gap-1.5 rounded-full" aria-label="Filtrer par employé">
+                <User className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
                 <SelectValue placeholder="Employé" />
               </SelectTrigger>
               <SelectContent>
@@ -1593,24 +2438,24 @@ export function RetoursTab() {
               </SelectContent>
             </Select>
 
-            {/* Note */}
             <Select value={fNote} onValueChange={(v) => { setPage(1); setFNote(v) }}>
-              <SelectTrigger className="h-10 w-full" aria-label="Filtrer par note">
+              <SelectTrigger className="h-9 w-auto min-w-32 gap-1.5 rounded-full" aria-label="Filtrer par note">
+                <span className="text-sm">★</span>
                 <SelectValue placeholder="Note" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="all">Toutes notes</SelectItem>
                 {[5, 4, 3, 2, 1].map((n) => (
                   <SelectItem key={n} value={String(n)}>
-                    {"★".repeat(n)}
+                    {"★".repeat(n)} ({n}/5)
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
 
-            {/* Statut */}
-            <Select value={fStatut} onValueChange={(v) => { setPage(1); setFStatut(v) }}>
-              <SelectTrigger className="h-10 w-full" aria-label="Filtrer par statut">
+            <Select value={fStatut} onValueChange={(v) => { setPage(1); setFStatut(v); setFRapide("all") }}>
+              <SelectTrigger className="h-9 w-auto min-w-32 gap-1.5 rounded-full" aria-label="Filtrer par statut">
+                <Clock className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
                 <SelectValue placeholder="Statut" />
               </SelectTrigger>
               <SelectContent>
@@ -1621,9 +2466,9 @@ export function RetoursTab() {
               </SelectContent>
             </Select>
 
-            {/* Tag */}
             <Select value={fTag} onValueChange={(v) => { setPage(1); setFTag(v) }}>
-              <SelectTrigger className="h-10 w-full" aria-label="Filtrer par tag">
+              <SelectTrigger className="h-9 w-auto min-w-32 gap-1.5 rounded-full" aria-label="Filtrer par tag">
+                <Target className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
                 <SelectValue placeholder="Tag" />
               </SelectTrigger>
               <SelectContent>
@@ -1636,28 +2481,28 @@ export function RetoursTab() {
               </SelectContent>
             </Select>
 
-            {/* Dates (Du / Au) + réinitialisation */}
-            <div className="flex items-center gap-1.5 sm:col-span-2">
+            {/* Dates (Du / Au) */}
+            <div className="flex items-center gap-1.5">
               <Input
                 type="date"
                 value={fDu}
-                onChange={(e) => { setPage(1); setFDu(e.target.value) }}
-                className="h-10 min-w-0 flex-1 text-muted-foreground"
+                onChange={(e) => { setPage(1); setFDu(e.target.value); setFTemporel("all") }}
+                className="h-9 w-auto min-w-32 text-muted-foreground"
                 aria-label="Date de début"
               />
               <Input
                 type="date"
                 value={fAu}
-                onChange={(e) => { setPage(1); setFAu(e.target.value) }}
-                className="h-10 min-w-0 flex-1 text-muted-foreground"
+                onChange={(e) => { setPage(1); setFAu(e.target.value); setFTemporel("all") }}
+                className="h-9 w-auto min-w-32 text-muted-foreground"
                 aria-label="Date de fin"
               />
-              {datesActives && (
+              {(datesActives || fTemporel !== "all") && (
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="h-10 w-9 shrink-0"
-                  onClick={() => { setPage(1); setFDu(""); setFAu("") }}
+                  className="h-9 w-9 shrink-0"
+                  onClick={() => { setPage(1); setFDu(""); setFAu(""); setFTemporel("all") }}
                   aria-label="Réinitialiser les dates"
                 >
                   <X className="h-4 w-4" aria-hidden />
@@ -1665,25 +2510,139 @@ export function RetoursTab() {
               )}
             </div>
 
-            {/* Rafraîchir */}
-            <div className="flex items-center">
-              <Button variant="outline" size="icon" className="h-10 w-10" onClick={() => load()} aria-label="Rafraîchir">
-                <RefreshCw className="h-4 w-4" aria-hidden />
+            {(fZone !== "all" || fEmploye || fNote !== "all" || fStatut !== "all" || fTag !== "all" || fRapide !== "all" || fTemporel !== "all") && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-9 gap-1 text-xs"
+                onClick={() => {
+                  setPage(1)
+                  setFZone("all")
+                  setFEmploye("")
+                  setFNote("all")
+                  setFStatut("all")
+                  setFTag("all")
+                  setFRapide("all")
+                  setFTemporel("all")
+                  setFDu("")
+                  setFAu("")
+                }}
+              >
+                <X className="h-3.5 w-3.5" aria-hidden />
+                Tout réinitialiser
               </Button>
+            )}
+          </div>
+
+          {/* Ligne 2 : Filtres rapides (urgents / à traiter / résolus) */}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs font-medium text-muted-foreground">Filtres rapides :</span>
+            <button
+              type="button"
+              onClick={() => setFRapide(fRapide === "urgent" ? "all" : "urgent")}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                fRapide === "urgent"
+                  ? "bg-[#002e85] text-white dark:bg-primary"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              )}
+            >
+              🔴 Urgents
+              <span className={cn(
+                "rounded-full px-1.5 text-[10px]",
+                fRapide === "urgent" ? "bg-white/20" : "bg-background"
+              )}>
+                {compteurs.urgents}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setFRapide(fRapide === "inprogress" ? "all" : "inprogress")}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                fRapide === "inprogress"
+                  ? "bg-[#002e85] text-white dark:bg-primary"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              )}
+            >
+              🟡 À traiter
+              <span className={cn(
+                "rounded-full px-1.5 text-[10px]",
+                fRapide === "inprogress" ? "bg-white/20" : "bg-background"
+              )}>
+                {compteurs.enCours}
+              </span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setFRapide(fRapide === "resolved" ? "all" : "resolved")}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                fRapide === "resolved"
+                  ? "bg-[#002e85] text-white dark:bg-primary"
+                  : "bg-muted text-muted-foreground hover:bg-muted/80"
+              )}
+            >
+              🟢 Résolus
+              <span className={cn(
+                "rounded-full px-1.5 text-[10px]",
+                fRapide === "resolved" ? "bg-white/20" : "bg-background"
+              )}>
+                {compteurs.resolus}
+              </span>
+            </button>
+
+            <span className="mx-1 h-4 w-px bg-border" aria-hidden />
+
+            {/* Ligne 3 : Filtres temporels */}
+            <span className="text-xs font-medium text-muted-foreground">Période :</span>
+            {([
+              { id: "today" as const, label: "Aujourd'hui" },
+              { id: "week" as const, label: "Cette semaine" },
+              { id: "month" as const, label: "Ce mois" },
+            ]).map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                onClick={() => setFTemporel(fTemporel === opt.id ? "all" : opt.id)}
+                className={cn(
+                  "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
+                  fTemporel === opt.id
+                    ? "bg-[#002e85] text-white dark:bg-primary"
+                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                )}
+              >
+                {opt.label}
+              </button>
+            ))}
+
+            {/* Toggle regroupement (à droite) */}
+            <div className="ml-auto flex items-center gap-2">
+              <Label htmlFor="grouper-similaires" className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground cursor-pointer">
+                <Layers className="h-3.5 w-3.5" aria-hidden />
+                Regrouper les similaires
+              </Label>
+              <Switch
+                id="grouper-similaires"
+                checked={grouperSimilaires}
+                onCheckedChange={setGrouperSimilaires}
+                aria-label="Activer le regroupement des retours similaires"
+              />
             </div>
           </div>
 
           {/* Ligne info + export */}
-          <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
             <p className="text-sm text-muted-foreground">
-              {total} retour{total > 1 ? "s" : ""}
+              {itemsFiltresClient.length} retour{itemsFiltresClient.length > 1 ? "s" : ""} affiché{itemsFiltresClient.length > 1 ? "s" : ""}
               {total > PAGE_SIZE ? ` — page ${page}/${nbPages}` : ""}
+              {fRapide === "urgent" && " (filtre urgent actif)"}
             </p>
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
                 size="sm"
-                className="h-10 px-3"
+                className="h-9 px-3"
                 onClick={() =>
                   exportToCsv(
                     `retours-${new Date().toISOString().slice(0, 10)}`,
@@ -1709,7 +2668,7 @@ export function RetoursTab() {
                 Exporter CSV
               </Button>
               <a href="/api/pro/retours/export" download className="hidden sm:block">
-                <Button variant="ghost" size="sm" className="h-10 px-3 text-xs">
+                <Button variant="ghost" size="sm" className="h-9 px-3 text-xs">
                   Exporter tout (serveur)
                 </Button>
               </a>
@@ -1718,18 +2677,16 @@ export function RetoursTab() {
         </CardContent>
       </Card>
 
-      {/* ---------- Tableau des retours ---------- */}
+      {/* ---------- 3. Cards de retours ---------- */}
       {loading ? (
-        <Card className="py-0 shadow-sm">
-          <CardContent className="space-y-3 p-4">
-            {[0, 1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="h-16 rounded-lg" />
-            ))}
-          </CardContent>
-        </Card>
-      ) : items.length === 0 ? (
+        <div className="space-y-3">
+          {[0, 1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-32 rounded-3xl" />
+          ))}
+        </div>
+      ) : itemsFiltresClient.length === 0 ? (
         // Empty state soigné
-        <Card className="shadow-sm">
+        <Card className="rounded-3xl shadow-sm">
           <CardContent className="flex flex-col items-center gap-3 py-14 text-center">
             <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted" aria-hidden>
               <Inbox className="h-7 w-7 text-muted-foreground" />
@@ -1743,150 +2700,50 @@ export function RetoursTab() {
           </CardContent>
         </Card>
       ) : (
-        <Card className="overflow-hidden py-0 shadow-sm">
-          <CardContent className="p-0">
-            {/* Tableau scrollable horizontalement sur mobile */}
-            <div className="overflow-x-auto">
-              <Table className="min-w-[640px]">
-                <TableHeader>
-                  <TableRow className="bg-muted/50 hover:bg-muted/50 border-b">
-                    <TableHead className="pl-4">Date</TableHead>
-                    <TableHead>Note</TableHead>
-                    <TableHead>Zone</TableHead>
-                    <TableHead className="hidden md:table-cell">Tags</TableHead>
-                    <TableHead className="hidden lg:table-cell">Commentaire</TableHead>
-                    <TableHead className="hidden md:table-cell">Personnel</TableHead>
-                    <TableHead>Statut</TableHead>
-                    <TableHead className="pr-4 text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {items.map((r) => (
-                    <TableRow key={r.id} className="cursor-pointer" onClick={() => ouvrirDetail(r)}>
-                      {/* Date */}
-                      <TableCell className="pl-4 text-xs whitespace-nowrap text-muted-foreground">
-                        {formatDate(r.createdAt)}
-                      </TableCell>
+        <div className="space-y-3 animate-fadeIn">
+          {/* Mode regroupement : d'abord les groupes, puis les singletons */}
+          {grouperSimilaires && groupes.length > 0 && (
+            <>
+              {groupes.map((g) => {
+                const cleGroupe = `${g.cle}__${g.zone ?? "_"}`
+                return (
+                  <GroupeCartes
+                    key={cleGroupe}
+                    groupe={g}
+                    deploye={groupesDeployes.has(cleGroupe)}
+                    onToggle={() =>
+                      setGroupesDeployes((prev) => {
+                        const next = new Set(prev)
+                        if (next.has(cleGroupe)) next.delete(cleGroupe)
+                        else next.add(cleGroupe)
+                        return next
+                      })
+                    }
+                    onVoir={ouvrirDetail}
+                    onRepondre={ouvrirReponse}
+                    onResoudre={(r) => majRetour(r.id, { statut: "RESOLVED", lu: true })}
+                    onFiltrerTag={filtrerParTag}
+                    onVoirEmploye={voirEmploye}
+                  />
+                )
+              })}
+            </>
+          )}
 
-                      {/* Note */}
-                      <TableCell>
-                        <div className="flex items-center gap-1.5">
-                          <Stars note={r.note} size={14} />
-                          {!r.lu && <Badge className="h-5 px-1.5 text-[10px]">Nouveau</Badge>}
-                        </div>
-                      </TableCell>
-
-                      {/* Zone */}
-                      <TableCell className="max-w-40">
-                        <Badge variant="outline" className="h-6 min-w-0 max-w-full gap-1 px-2 text-xs font-normal">
-                          <MapPin className="h-3 w-3 shrink-0 text-muted-foreground" aria-hidden />
-                          <span className="truncate">{r.zone?.nom ?? "—"}</span>
-                        </Badge>
-                      </TableCell>
-
-                      {/* Tags (masqué < md) */}
-                      <TableCell className="hidden md:table-cell">
-                        {r.tags.length === 0 ? (
-                          <span className="text-muted-foreground">—</span>
-                        ) : (
-                          <div className="flex max-w-56 flex-wrap gap-1">
-                            {r.tags.slice(0, 3).map((t) => (
-                              <Badge
-                                key={t}
-                                variant="outline"
-                                className="h-5 min-w-0 max-w-full px-1.5 text-xs font-normal"
-                                title={tagLabel(t)}
-                              >
-                                <span className="truncate">{tagLabel(t)}</span>
-                              </Badge>
-                            ))}
-                            {r.tags.length > 3 && (
-                              <Badge variant="outline" className="h-5 px-1.5 text-xs font-normal">
-                                +{r.tags.length - 3}
-                              </Badge>
-                            )}
-                          </div>
-                        )}
-                      </TableCell>
-
-                      {/* Commentaire (masqué < lg) */}
-                      <TableCell className="hidden max-w-72 whitespace-normal lg:table-cell">
-                        {r.commentaire ? (
-                          <span className="text-sm italic leading-snug">{tronquer(r.commentaire)}</span>
-                        ) : (
-                          <span className="text-muted-foreground">—</span>
-                        )}
-                      </TableCell>
-
-                      {/* Personnel (masqué < md) */}
-                      <TableCell className="hidden text-xs md:table-cell">
-                        {r.employe?.nom || r.personnelMentionne || <span className="text-muted-foreground">—</span>}
-                      </TableCell>
-
-                      {/* Statut */}
-                      <TableCell>
-                        <Badge variant="outline" className={statutBadgeClass(r.statut)}>
-                          {STATUT_RETOUR_LABEL[r.statut] ?? r.statut}
-                        </Badge>
-                      </TableCell>
-
-                      {/* Actions (clics isolés du clic-ligne) */}
-                      <TableCell className="pr-4 text-right" onClick={(e) => e.stopPropagation()}>
-                        <div className="flex items-center justify-end gap-0.5">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            aria-label="Voir le détail"
-                            onClick={() => ouvrirDetail(r)}
-                          >
-                            <Eye className="h-4 w-4" aria-hidden />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8"
-                            aria-label="Répondre"
-                            onClick={() => ouvrirReponse(r)}
-                          >
-                            <MessageSquareReply className="h-4 w-4" aria-hidden />
-                          </Button>
-                          <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                              <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Plus d'actions">
-                                <MoreHorizontal className="h-4 w-4" aria-hidden />
-                              </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent align="end" className="w-44">
-                              {!r.lu && (
-                                <DropdownMenuItem onClick={() => majRetour(r.id, { lu: true })}>
-                                  <MailOpen aria-hidden />
-                                  Marquer comme lu
-                                </DropdownMenuItem>
-                              )}
-                              {r.statut !== "IN_PROGRESS" && (
-                                <DropdownMenuItem onClick={() => majRetour(r.id, { statut: "IN_PROGRESS" })}>
-                                  <Clock aria-hidden />
-                                  Passer en cours
-                                </DropdownMenuItem>
-                              )}
-                              {r.statut !== "RESOLVED" && (
-                                <DropdownMenuItem onClick={() => majRetour(r.id, { statut: "RESOLVED" })}>
-                                  <CheckCircle2 aria-hidden />
-                                  Marquer résolu
-                                </DropdownMenuItem>
-                              )}
-                            </DropdownMenuContent>
-                          </DropdownMenu>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+          {/* Cards individuelles (ou tous les retours si pas de regroupement) */}
+          {(grouperSimilaires ? retoursSeuls : itemsFiltresClient).map((r) => (
+            <CarteRetour
+              key={r.id}
+              r={r}
+              recurrence={recurrenceParRetour.get(r.id) ?? { count: 0, libelleTag: null }}
+              onVoir={() => ouvrirDetail(r)}
+              onRepondre={() => ouvrirReponse(r)}
+              onResoudre={() => majRetour(r.id, { statut: "RESOLVED", lu: true })}
+              onFiltrerTag={filtrerParTag}
+              onVoirEmploye={voirEmploye}
+            />
+          ))}
+        </div>
       )}
 
       {/* ---------- Pagination ---------- */}
@@ -1903,6 +2760,108 @@ export function RetoursTab() {
           </Button>
         </div>
       )}
+
+      {/* ---------- Dialog historique de l'employé (depuis liste) ---------- */}
+      <Dialog open={dialogEmployeNom !== null} onOpenChange={(o) => !o && setDialogEmployeNom(null)}>
+        <DialogContent className="sm:max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="h-5 w-5 text-primary" aria-hidden />
+              Historique de l&apos;employé
+            </DialogTitle>
+            <DialogDescription>
+              Statistiques calculées sur les retours chargés dans le tableau.
+            </DialogDescription>
+          </DialogHeader>
+          {(() => {
+            const stats = dialogEmployeNom ? statsEmploye(dialogEmployeNom, items) : null
+            if (dialogEmployeNom && stats) {
+              return (
+                <div className="space-y-4 max-h-[70vh] overflow-y-auto pr-1">
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                      <User className="h-5 w-5" aria-hidden />
+                    </span>
+                    <div>
+                      <p className="text-base font-semibold">{stats.nom}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {stats.total} retour{stats.total > 1 ? "s" : ""} · moyenne{" "}
+                        <span className="font-medium text-foreground">{stats.moyenne.toFixed(2)}/5</span>
+                      </p>
+                    </div>
+                  </div>
+                  <div className="rounded-lg border bg-card p-3">
+                    <p className="mb-1 text-xs font-medium text-muted-foreground">Score moyen</p>
+                    <div className="flex items-center gap-2">
+                      <Stars note={stats.moyenne} size={16} />
+                      <span className="text-sm font-medium">{stats.moyenne.toFixed(2)}/5</span>
+                    </div>
+                  </div>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-lg border bg-card p-3">
+                      <p className="mb-2 text-xs font-medium text-emerald-700 dark:text-emerald-400">Points forts</p>
+                      {stats.pointsForts.length > 0 ? (
+                        <ul className="space-y-1.5">
+                          {stats.pointsForts.map((p) => (
+                            <li key={p.tag} className="flex items-center justify-between gap-2 text-sm">
+                              <span className="truncate">{p.label}</span>
+                              <Badge variant="outline" className="h-5 shrink-0 border-emerald-300 bg-emerald-50 px-1.5 text-[10px] text-emerald-700 dark:border-emerald-700/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                                ×{p.count}
+                              </Badge>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-sm italic text-muted-foreground">Aucun tag positif signalé.</p>
+                      )}
+                    </div>
+                    <div className="rounded-lg border bg-card p-3">
+                      <p className="mb-2 text-xs font-medium text-rose-700 dark:text-rose-400">Points faibles</p>
+                      {stats.pointsFaibles.length > 0 ? (
+                        <ul className="space-y-1.5">
+                          {stats.pointsFaibles.map((p) => (
+                            <li key={p.tag} className="flex items-center justify-between gap-2 text-sm">
+                              <span className="truncate">{p.label}</span>
+                              <Badge variant="outline" className="h-5 shrink-0 border-rose-300 bg-rose-50 px-1.5 text-[10px] text-rose-700 dark:border-rose-700/60 dark:bg-rose-950/40 dark:text-rose-300">
+                                ×{p.count}
+                              </Badge>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="text-sm italic text-muted-foreground">Aucun tag négatif signalé.</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="rounded-lg border border-primary/30 bg-primary/[0.03] p-3">
+                    <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-primary">
+                      <GraduationCap className="h-3.5 w-3.5" aria-hidden />
+                      Formations recommandées par l&apos;IA
+                    </p>
+                    {stats.formations.length > 0 ? (
+                      <ul className="space-y-1.5">
+                        {stats.formations.map((f, i) => (
+                          <li key={i} className="flex items-start gap-2 text-sm">
+                            <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-[11px] font-bold text-primary">
+                              {i + 1}
+                            </span>
+                            <span className="leading-relaxed">{f}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : (
+                      <p className="text-sm italic text-muted-foreground">
+                        Aucune formation recommandée — aucun tag négatif détecté sur cet employé.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )
+            }
+            return <p className="text-sm text-muted-foreground">Aucune donnée disponible pour cet employé.</p>
+          })()}
+        </DialogContent>
+      </Dialog>
 
     </div>
   )
