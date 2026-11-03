@@ -388,7 +388,7 @@ function ContenuSidebarAdmin({
         <img
           src="/logo-feedbackpro.png"
           alt="FeedbackPro"
-          className="h-8 w-auto brightness-0 invert"
+          className="h-11 w-auto brightness-0 invert"
         />
         <span className="text-xs text-white/80">Administration</span>
       </div>

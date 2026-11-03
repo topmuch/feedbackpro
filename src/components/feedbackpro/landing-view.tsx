@@ -571,7 +571,7 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
           className="flex items-center gap-2 font-bold"
           aria-label="Accueil FeedbackPro"
         >
-          <img src="/logo-feedbackpro.png" alt="FeedbackPro" className="h-8 w-auto" />
+          <img src="/logo-feedbackpro.png" alt="FeedbackPro" className="h-12 w-auto" />
         </a>
 
         {/* Liens desktop */}
@@ -625,7 +625,7 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
           >
             <SheetHeader>
               <SheetTitle className="flex items-center gap-2 text-gray-900">
-                <img src="/logo-feedbackpro.png" alt="FeedbackPro" className="h-7 w-auto" />
+                <img src="/logo-feedbackpro.png" alt="FeedbackPro" className="h-10 w-auto" />
               </SheetTitle>
             </SheetHeader>
             <nav className="flex flex-col gap-1 px-4" aria-label="Navigation mobile">
@@ -1664,7 +1664,7 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
               className="flex items-center gap-2 font-bold"
               aria-label="Accueil FeedbackPro"
             >
-              <img src="/logo-feedbackpro.png" alt="FeedbackPro" className="h-7 w-auto brightness-0 invert" />
+              <img src="/logo-feedbackpro.png" alt="FeedbackPro" className="h-10 w-auto brightness-0 invert" />
             </a>
             <p className="mt-3 max-w-xs text-sm text-gray-400">
               Le Client Mystère 2.0 : chaque client devient auditeur qualité, chaque matin devient
