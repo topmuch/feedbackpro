@@ -1,17 +1,11 @@
 // ============================================================
 // API publique - Upload d'une photo jointe à un retour client (D2)
 // POST /api/public/upload  (multipart/form-data, champ "photo")
-// → { ok: true, data: { url: "/uploads/<hash>.webp" } }
+// → { ok: true, data: { url: "/api/uploads/<hash>.webp" } }
 //
-// Contraintes :
-//   - Public (pas d'auth) : appelé depuis la page de scan client
-//   - Max 5 Mo
-//   - MIME acceptés : image/png, image/jpeg, image/webp, image/gif
-//   - Redimensionnement côté serveur avec sharp (max 1280×1280, cover)
-//   - Conversion WebP pour limiter le poids et normaliser le format
-//   - Nom de fichier aléatoire (crypto.randomUUID) — jamais le nom original
-//     (anti-énumération / anti-fuite de métadonnées)
-//   - Sauvegarde dans public/uploads/ (servi statiquement par Next.js)
+// Stockage PERSISTANT : /app/data/uploads/ (volume Docker persistant)
+// En dev : <cwd>/data/uploads/
+// Les images sont servies via GET /api/uploads/[file] (route dynamique).
 // ============================================================
 
 import { NextRequest } from "next/server"
@@ -30,7 +24,12 @@ const MIME_AUTORISES = new Set([
   "image/webp",
   "image/gif",
 ])
-const DOSSIER_UPLOADS = path.join(process.cwd(), "public", "uploads")
+
+// Dossier persistant : /app/data/uploads/ en production (volume Docker),
+// <cwd>/data/uploads/ en dev. On ne stocke JAMAIS dans public/uploads/
+// car ce dossier n'est pas persistant en production (perdu à chaque rebuild).
+const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data")
+const DOSSIER_UPLOADS = path.join(DATA_DIR, "uploads")
 const MAX_DIMENSION = 1280
 
 export async function POST(req: NextRequest) {
@@ -47,8 +46,6 @@ export async function POST(req: NextRequest) {
     if (fichier.size > MAX_BYTES) {
       return fail("Photo trop volumineuse (5 Mo maximum)", 413)
     }
-    // fichier.type peut être vide pour certains navigateurs : on se fie aussi
-    // à l'extension du nom original en dernier recours.
     const mime = fichier.type || mimeDepuisNom(fichier.name)
     if (!mime || !MIME_AUTORISES.has(mime.toLowerCase())) {
       return fail("Format de photo non supporté (PNG, JPEG, WebP ou GIF)", 415)
@@ -56,8 +53,6 @@ export async function POST(req: NextRequest) {
 
     // ---------- Lecture + redimensionnement (sharp) ----------
     const buffer = Buffer.from(await fichier.arrayBuffer())
-    // sharp ignore les erreurs d'entête en mode `failOn: "truncated"` ; on
-    // reste strict pour refuser les fichiers corrompus.
     let imageRedimensionnee: Buffer
     try {
       imageRedimensionnee = await sharp(buffer, { failOn: "error" })
@@ -72,7 +67,7 @@ export async function POST(req: NextRequest) {
       return fail("Image illisible ou corrompue", 400)
     }
 
-    // ---------- Sauvegarde sur disque (public/uploads/) ----------
+    // ---------- Sauvegarde sur disque (data/uploads/ — PERSISTANT) ----------
     if (!existsSync(DOSSIER_UPLOADS)) {
       try {
         await mkdir(DOSSIER_UPLOADS, { recursive: true })
@@ -90,8 +85,8 @@ export async function POST(req: NextRequest) {
       return fail("Stockage indisponible", 500)
     }
 
-    // URL relative servie statiquement par Next.js
-    return ok({ url: `/uploads/${nom}` })
+    // URL servie via la route dynamique /api/uploads/[file]
+    return ok({ url: `/api/uploads/${nom}` })
   } catch (e) {
     console.error("upload photo error", e)
     return fail("Erreur serveur lors de l'upload", 500)
