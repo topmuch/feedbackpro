@@ -528,11 +528,11 @@ const URGENCE_CONFIG: Record<Urgence, {
   urgent: {
     label: "Urgent",
     emoji: "🚨",
-    dot: "bg-red-500",
-    badge: "border-transparent bg-white/25 text-white shadow-sm shadow-red-500/30",
-    border: "border-l-red-500",
-    glow: "hover:shadow-red-500/40",
-    cardBg: "bg-red-500",
+    dot: "bg-[#720032]",
+    badge: "border-transparent bg-white/25 text-white shadow-sm shadow-[#720032]/30",
+    border: "border-l-[#720032]",
+    glow: "hover:shadow-[#720032]/40",
+    cardBg: "bg-[#720032]",
     cardText: "text-white",
   },
   atraiter: {
@@ -558,11 +558,11 @@ const URGENCE_CONFIG: Record<Urgence, {
   positif: {
     label: "Positif",
     emoji: "🟢",
-    dot: "bg-green-500",
-    badge: "border-transparent bg-white/25 text-white shadow-sm shadow-green-500/30",
-    border: "border-l-green-500",
-    glow: "hover:shadow-green-500/40",
-    cardBg: "bg-green-500",
+    dot: "bg-[#0da14b]",
+    badge: "border-transparent bg-white/25 text-white shadow-sm shadow-[#0da14b]/30",
+    border: "border-l-[#0da14b]",
+    glow: "hover:shadow-[#0da14b]/40",
+    cardBg: "bg-[#0da14b]",
     cardText: "text-white",
   },
 }
