@@ -812,6 +812,94 @@ export function getQuestionnaireConfig(secteur: Secteur): SecteurConfig {
   return config;
 }
 
+// ============================================================
+// Task 2 — Récupération du questionnaire depuis la BDD
+// ------------------------------------------------------------
+// La config du questionnaire adaptatif (3 scénarios CRISE/MITIGE/SUCCES)
+// est désormais stockée dans SecteurConfig.questionnaireConfig (JSON).
+// Elle reste éditable depuis le superadmin (onglet "Configuration secteurs").
+//
+// getQuestionnaireConfigFromDb(config) :
+//   1. Parse le JSON stocké en BDD (SecteurConfig.questionnaireConfig)
+//   2. Si valide (3 scénarios avec questions) → renvoie la config BDD
+//   3. Sinon (champ vide, JSON invalide, structure incomplète) → fallback
+//      sur le QUESTIONNAIRE_CONFIG hardcoded (fichier statique)
+//
+// Cette fonction est pure (aucun accès DB) : l'appelant charge la
+// SecteurConfig via Prisma, puis passe l'objet { questionnaireConfig } à
+// cette fonction. Permet de l'utiliser côté serveur (API routes) et côté
+// client ( après fetch /api/secteurs/[id]).
+// ============================================================
+
+/** Type local correspondant à un sous-ensemble de SecteurConfig (BDD). */
+type SecteurConfigDb = {
+  questionnaireConfig?: string | null
+}
+
+/**
+ * Récupère la config du questionnaire depuis le JSON stocké en BDD.
+ * Fallback sur le QUESTIONNAIRE_CONFIG hardcoded si le champ est vide,
+ * invalide ou incomplet. Ne lève JAMAIS d'exception.
+ *
+ * @param config Objet partiel de SecteurConfig (BDD) contenant questionnaireConfig
+ * @param macroSecteur Identifiant du macro-secteur (RESTAURATION, HOTELLERIE,
+ *                      TRANSPORT, SANTE, ADMINISTRATION) — utilisé pour le fallback
+ *                      sur le QUESTIONNAIRE_CONFIG hardcoded. Si absent, fallback
+ *                      sur RESTAURATION (config la plus générique).
+ */
+export function getQuestionnaireConfigFromDb(
+  config: SecteurConfigDb | null | undefined,
+  macroSecteur?: Secteur | null
+): SecteurConfig {
+  // 1) Tente de parser le JSON BDD
+  if (config?.questionnaireConfig) {
+    try {
+      const parsed = JSON.parse(config.questionnaireConfig) as unknown
+      // Valide la structure : doit être un objet { secteur, scenarios: ScenarioConfig[] }
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        const obj = parsed as Partial<SecteurConfig>
+        if (Array.isArray(obj.scenarios) && obj.scenarios.length > 0) {
+          // Vérifie que chaque scénario a au moins une question
+          const tousValides = obj.scenarios.every(
+            (s) =>
+              s &&
+              typeof s.scenario === "string" &&
+              Array.isArray(s.questions) &&
+              s.questions.length > 0
+          )
+          if (tousValides) {
+            return obj as SecteurConfig
+          }
+        }
+      }
+    } catch {
+      // JSON invalide → fallback
+    }
+  }
+
+  // 2) Fallback : QUESTIONNAIRE_CONFIG hardcoded
+  const secteurFallback: Secteur = macroSecteur ?? "RESTAURATION"
+  return (
+    QUESTIONNAIRE_CONFIG.find((c) => c.secteur === secteurFallback) ??
+    QUESTIONNAIRE_CONFIG[0]
+  )
+}
+
+/** Map un type d'établissement (Pro.typeEtablissement) vers un macro-secteur. */
+export function macroSecteurPourTypeEtablissement(type: string | null | undefined): Secteur {
+  if (!type) return "RESTAURATION"
+  const t = type.toLowerCase()
+  if (t.includes("hôtel") || t.includes("hotel") || t.includes("hébergement")) return "HOTELLERIE"
+  if (t.includes("hôpital") || t.includes("hopital") || t.includes("clinique") || t.includes("santé") || t.includes("sante"))
+    return "SANTE"
+  if (t.includes("aéroport") || t.includes("aeroport") || t.includes("gare") || t.includes("transport"))
+    return "TRANSPORT"
+  if (t.includes("mairie") || t.includes("administration") || t.includes("entreprise") || t.includes("public"))
+    return "ADMINISTRATION"
+  // Restaurant, Fast Food, Café, Boulangerie, Boutique, Salon, Garage, Autre → RESTAURATION (générique)
+  return "RESTAURATION"
+}
+
 // Fonction utilitaire pour récupérer le scénario selon la note
 export function getScenarioByNote(config: SecteurConfig, note: number): ScenarioConfig {
   const scenario = config.scenarios.find(s => note >= s.noteMin && note <= s.noteMax);

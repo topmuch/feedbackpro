@@ -19,6 +19,7 @@ import { tagLabel } from "@/lib/constants"
 import { parseJsonArray, detecterAlertesIntelligentes } from "@/lib/ia"
 import { analyserEtAlerterRetour } from "@/lib/alertes"
 import { creerNotification } from "@/lib/notifications"
+import { notifierWebhooksPro, donneesNouveauRetour } from "@/lib/webhooks"
 import {
   macroSecteurPourSecteur,
   MACRO_SECTEURS,
@@ -236,6 +237,40 @@ export async function POST(req: NextRequest) {
     detecterAlertesIntelligentes(pro.id).catch((e) => {
       console.warn("detecterAlertesIntelligentes (arrière-plan) :", e)
     })
+
+    // ---------- Task 6 — Webhooks sortants (Slack / Discord) ----------
+    // Envoie un webhook à chaque nouveau retour (ou retour négatif ≤ 2★).
+    // Strictement non bloquant : si le Pro n'a pas configuré d'URL, on passe.
+    // Pour les retours positifs (note >= 4), on n'envoie que si webhookSlackUrl
+    // ou webhookDiscordUrl est configuré (sinon bruit inutile).
+    try {
+      const proAvecWebhooks = {
+        webhookSlackUrl:
+          (pro as unknown as { webhookSlackUrl?: string | null }).webhookSlackUrl ?? null,
+        webhookDiscordUrl:
+          (pro as unknown as { webhookDiscordUrl?: string | null }).webhookDiscordUrl ?? null,
+        nomEtablissement: pro.nomEtablissement,
+      }
+      // Pour les notes 4-5★, on n'envoie le webhook que si une URL est
+      // configurée (sinon, on épargne le bruit). Pour les notes ≤ 2★, on
+      // envoie systématiquement (alerte prioritaire).
+      const aWebhook = !!proAvecWebhooks.webhookSlackUrl || !!proAvecWebhooks.webhookDiscordUrl
+      if (aWebhook) {
+        const donnees = donneesNouveauRetour({
+          negatif: note <= 2,
+          note,
+          zoneNom: zone.nom,
+          tags: validTags.map(tagLabel),
+          commentaire: retour.commentaire,
+          employeNom: retour.employe?.nom ?? null,
+        })
+        notifierWebhooksPro(proAvecWebhooks, donnees).catch((e) => {
+          console.warn("notifierWebhooksPro (arrière-plan) :", e)
+        })
+      }
+    } catch (e) {
+      console.warn("Webhooks (non bloquant)", e)
+    }
 
     return ok({
       retour: {

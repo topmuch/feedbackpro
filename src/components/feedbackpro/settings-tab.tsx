@@ -11,7 +11,7 @@
 // ============================================================
 
 import { useEffect, useRef, useState } from "react"
-import { Save, Loader2, Check, Image as ImageIcon, Upload, TriangleAlert, Sparkles, Trash2, Gift, Download, ExternalLink } from "lucide-react"
+import { Save, Loader2, Check, Image as ImageIcon, Upload, TriangleAlert, Sparkles, Trash2, Gift, Download, ExternalLink, Building2, Plus, MapPin } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -21,6 +21,7 @@ import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/app-store"
 import { fileToLogoDataUrl } from "@/lib/image"
@@ -99,6 +100,26 @@ export function SettingsTab() {
   // ---------- (g) Zone de danger ----------
   const [confirmationSuppression, setConfirmationSuppression] = useState("")
 
+  // ---------- Task 5 — Multi-établissements ----------
+  type EtablissementLeger = { id: string; nomEtablissement: string; ville: string; typeEtablissement: string; courant: boolean }
+  const [etablissements, setEtablissements] = useState<{
+    parent: EtablissementLeger | null
+    enfants: EtablissementLeger[]
+    courant: EtablissementLeger | null
+  }>({ parent: null, enfants: [], courant: null })
+  const [dialogAjoutEtab, setDialogAjoutEtab] = useState(false)
+  const [ajoutEtabForm, setAjoutEtabForm] = useState({
+    nomEtablissement: "",
+    typeEtablissement: TYPES_ETABLISSEMENT[0],
+    ville: "",
+    adresse: "",
+  })
+  const [ajoutEtabEnCours, setAjoutEtabEnCours] = useState(false)
+
+  // Task 6 — Webhooks (Slack / Discord)
+  const [webhookSlackUrl, setWebhookSlackUrl] = useState("")
+  const [webhookDiscordUrl, setWebhookDiscordUrl] = useState("")
+
   // Pré-remplissage depuis la session
   useEffect(() => {
     if (!pro) return
@@ -117,6 +138,55 @@ export function SettingsTab() {
     setLogoActuel(pro.logoUrl || null)
     // D8 : Google Business Profile
     setGoogleReviewUrl(pro.googleReviewUrl || "")
+    // Task 6 — Webhooks (Slack / Discord)
+    const p = pro as unknown as { webhookSlackUrl?: string | null; webhookDiscordUrl?: string | null }
+    setWebhookSlackUrl(p.webhookSlackUrl || "")
+    setWebhookDiscordUrl(p.webhookDiscordUrl || "")
+  }, [pro])
+
+  // Task 5 — Chargement de la liste des établissements (parent + enfants)
+  useEffect(() => {
+    if (!pro) return
+    let annule = false
+    fetch("/api/pro/etablissements", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (annule || !j?.ok) return
+        const d = j.data
+        setEtablissements({
+          parent: d.parent
+            ? {
+                id: d.parent.id,
+                nomEtablissement: d.parent.nomEtablissement,
+                ville: d.parent.ville,
+                typeEtablissement: d.parent.typeEtablissement,
+                courant: d.parent.id === d.courant?.id,
+              }
+            : null,
+          enfants: (d.enfants ?? []).map((e: { id: string; nomEtablissement: string; ville: string; typeEtablissement: string }) => ({
+            id: e.id,
+            nomEtablissement: e.nomEtablissement,
+            ville: e.ville,
+            typeEtablissement: e.typeEtablissement,
+            courant: e.id === d.courant?.id,
+          })),
+          courant: d.courant
+            ? {
+                id: d.courant.id,
+                nomEtablissement: d.courant.nomEtablissement,
+                ville: d.courant.ville,
+                typeEtablissement: d.courant.typeEtablissement,
+                courant: true,
+              }
+            : null,
+        })
+      })
+      .catch(() => {
+        /* silencieux */
+      })
+    return () => {
+      annule = true
+    }
   }, [pro])
 
   // ---------- Enregistrement : PUT /api/pro/settings ----------
@@ -137,6 +207,9 @@ export function SettingsTab() {
         smsAlertes,
         // D8 : Google Business Profile (URL d'avis, saisie manuelle)
         googleReviewUrl,
+        // Task 6 — Webhooks (Slack / Discord)
+        webhookSlackUrl,
+        webhookDiscordUrl,
       }
       if (logoModifie !== undefined) payload.logoUrl = logoModifie
       const res = await fetch("/api/pro/settings", {
@@ -248,6 +321,98 @@ export function SettingsTab() {
       toast({ title: "Erreur réseau", variant: "destructive" })
     } finally {
       setRgpdSuppressionEnCours(false)
+    }
+  }
+
+  // ---------- Task 5 — Switch d'établissement + ajout d'enfant ----------
+  async function switcherEtablissementLocal(cibleId: string) {
+    try {
+      const res = await fetch("/api/pro/switch-etablissement", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cibleId }),
+      })
+      const json = await res.json()
+      if (json.ok) {
+        // La nouvelle session est posée via cookie ; on recharge pour
+        // rafraîchir le store Zustand et les données serveur.
+        window.location.reload()
+      } else {
+        toast({ title: "Erreur", description: json.error || "Switch impossible", variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Erreur réseau", variant: "destructive" })
+    }
+  }
+
+  async function creerEtablissementEnfant(e: React.FormEvent) {
+    e.preventDefault()
+    if (ajoutEtabEnCours) return
+    // Validation simple côté client
+    if (ajoutEtabForm.nomEtablissement.trim().length < 2) {
+      toast({ title: "Nom invalide", description: "Au moins 2 caractères", variant: "destructive" })
+      return
+    }
+    if (ajoutEtabForm.ville.trim().length < 2) {
+      toast({ title: "Ville requise", variant: "destructive" })
+      return
+    }
+    if (ajoutEtabForm.adresse.trim().length < 5) {
+      toast({ title: "Adresse requise", description: "Au moins 5 caractères", variant: "destructive" })
+      return
+    }
+    setAjoutEtabEnCours(true)
+    try {
+      const res = await fetch("/api/pro/etablissements", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(ajoutEtabForm),
+      })
+      const json = await res.json()
+      if (json.ok) {
+        toast({ title: "Établissement créé ✓", description: `« ${json.data.enfant.nomEtablissement} » a été ajouté à votre groupe.` })
+        setDialogAjoutEtab(false)
+        setAjoutEtabForm({ nomEtablissement: "", typeEtablissement: TYPES_ETABLISSEMENT[0], ville: "", adresse: "" })
+        // Recharge la liste des établissements (le nouvel enfant sera visible)
+        const refetch = await fetch("/api/pro/etablissements", { cache: "no-store" })
+        const j2 = await refetch.json()
+        if (j2?.ok) {
+          const d = j2.data
+          setEtablissements({
+            parent: d.parent
+              ? {
+                  id: d.parent.id,
+                  nomEtablissement: d.parent.nomEtablissement,
+                  ville: d.parent.ville,
+                  typeEtablissement: d.parent.typeEtablissement,
+                  courant: d.parent.id === d.courant?.id,
+                }
+              : null,
+            enfants: (d.enfants ?? []).map((e2: { id: string; nomEtablissement: string; ville: string; typeEtablissement: string }) => ({
+              id: e2.id,
+              nomEtablissement: e2.nomEtablissement,
+              ville: e2.ville,
+              typeEtablissement: e2.typeEtablissement,
+              courant: e2.id === d.courant?.id,
+            })),
+            courant: d.courant
+              ? {
+                  id: d.courant.id,
+                  nomEtablissement: d.courant.nomEtablissement,
+                  ville: d.courant.ville,
+                  typeEtablissement: d.courant.typeEtablissement,
+                  courant: true,
+                }
+              : null,
+          })
+        }
+      } else {
+        toast({ title: "Erreur", description: json.error || "Création impossible", variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Erreur réseau", variant: "destructive" })
+    } finally {
+      setAjoutEtabEnCours(false)
     }
   }
 
@@ -539,6 +704,151 @@ export function SettingsTab() {
         </CardContent>
       </Card>
 
+      {/* ================= Task 5 — Mes établissements (multi-sites) ================= */}
+      <Card className="shadow-sm">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+            <Building2 className="h-5 w-5 text-primary" aria-hidden />
+            Mes établissements
+          </CardTitle>
+          <CardDescription>
+            Gérez votre groupe multi-sites : le parent + les établissements enfants.
+            Au clic sur un enfant, vous basculez sur sa session (nouveau chargement).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {/* Liste combinée parent + enfants */}
+          {etablissements.parent && (
+            <div className="rounded-xl border p-3.5">
+              <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+                <div className="min-w-0">
+                  <p className="flex flex-wrap items-center gap-2 font-bold leading-tight">
+                    <Building2 className="size-4 text-primary" aria-hidden />
+                    <span className="truncate">{etablissements.parent.nomEtablissement}</span>
+                    <Badge variant="secondary" className="text-[10px]">Établissement principal</Badge>
+                    {etablissements.parent.courant && (
+                      <Badge variant="outline" className="text-[10px] text-green-700 border-green-300">
+                        <Check className="mr-1 size-3" aria-hidden /> Actuel
+                      </Badge>
+                    )}
+                  </p>
+                  <p className="mt-1 flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
+                    <span className="flex items-center gap-1">
+                      <MapPin className="size-3" aria-hidden /> {etablissements.parent.ville || "—"}
+                    </span>
+                    <span>{etablissements.parent.typeEtablissement}</span>
+                  </p>
+                </div>
+                {!etablissements.parent.courant && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-8 shrink-0"
+                    onClick={() => switcherEtablissementLocal(etablissements.parent!.id)}
+                  >
+                    Basculer
+                  </Button>
+                )}
+              </div>
+            </div>
+          )}
+          {etablissements.enfants.length > 0 ? (
+            <div className="space-y-2">
+              {etablissements.enfants.map((e) => (
+                <div key={e.id} className={`rounded-xl border p-3.5 ${e.courant ? "border-primary/40 bg-primary/5" : ""}`}>
+                  <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2">
+                    <div className="min-w-0">
+                      <p className="flex flex-wrap items-center gap-2 font-medium leading-tight">
+                        <span className="truncate">{e.nomEtablissement}</span>
+                        {e.courant && (
+                          <Badge variant="outline" className="text-[10px] text-green-700 border-green-300">
+                            <Check className="mr-1 size-3" aria-hidden /> Actuel
+                          </Badge>
+                        )}
+                      </p>
+                      <p className="mt-1 flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <MapPin className="size-3" aria-hidden /> {e.ville || "—"}
+                        </span>
+                        <span>{e.typeEtablissement}</span>
+                      </p>
+                    </div>
+                    {!e.courant && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        className="h-8 shrink-0"
+                        onClick={() => switcherEtablissementLocal(e.id)}
+                      >
+                        Basculer
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="rounded-lg border border-dashed bg-muted/30 p-4 text-center text-sm text-muted-foreground">
+              Aucun établissement enfant. Ajoutez votre premier site pour activer le mode multi-établissements.
+            </p>
+          )}
+          {/* Bouton ajouter un établissement enfant (visible uniquement sur le parent) */}
+          {etablissements.parent && (
+            <Button type="button" className="gap-1.5" onClick={() => setDialogAjoutEtab(true)}>
+              <Plus className="h-4 w-4" aria-hidden />
+              Ajouter un établissement
+            </Button>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ================= Task 6 — Intégrations (Slack / Discord) ================= */}
+      <Card className="shadow-sm">
+        <CardHeader>
+          <CardTitle className="text-base sm:text-lg">Intégrations (Slack / Discord)</CardTitle>
+          <CardDescription>
+            Recevez une notification sur chaque nouveau retour (ou retour négatif ≤ 2★) et
+            quand un rapport IA est disponible. Les URLs sont stockées chiffrées côté serveur.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="st-slack">URL webhook Slack</Label>
+            <Input
+              id="st-slack"
+              type="url"
+              placeholder="https://hooks.slack.com/services/T…/B…/…"
+              value={webhookSlackUrl}
+              onChange={(e) => setWebhookSlackUrl(e.target.value)}
+              className="h-10"
+            />
+            <p className="text-xs text-muted-foreground">
+              Créez un webhook entrant dans Slack : Paramètres du workspace → Applications → Webhooks entrants.
+            </p>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="st-discord">URL webhook Discord</Label>
+            <Input
+              id="st-discord"
+              type="url"
+              placeholder="https://discord.com/api/webhooks/…"
+              value={webhookDiscordUrl}
+              onChange={(e) => setWebhookDiscordUrl(e.target.value)}
+              className="h-10"
+            />
+            <p className="text-xs text-muted-foreground">
+              Paramètres du salon → Intégrations → Webhooks → Nouveau webhook.
+            </p>
+          </div>
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            💡 Les webhooks sont appelés de façon non bloquante. Un échec d'envoi n'empêche jamais
+            l'enregistrement d'un retour.
+          </p>
+        </CardContent>
+      </Card>
+
       {/* ================= D8 : Google Business Profile ================= */}
       <Card className="shadow-sm">
         <CardHeader>
@@ -732,6 +1042,88 @@ export function SettingsTab() {
           </div>
         </CardContent>
       </Card>
+
+      {/* ---------- Task 5 — Dialog : Ajouter un établissement enfant ---------- */}
+      <Dialog open={dialogAjoutEtab} onOpenChange={(o) => !o && setDialogAjoutEtab(false)}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5 text-primary" aria-hidden />
+              Ajouter un établissement
+            </DialogTitle>
+            <DialogDescription>
+              Crée un nouvel établissement enfant rattaché à votre groupe. Il disposera de son
+              propre dashboard, de ses propres zones et de sa propre session.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={creerEtablissementEnfant} className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="etab-nom">Nom de l&apos;établissement *</Label>
+              <Input
+                id="etab-nom"
+                value={ajoutEtabForm.nomEtablissement}
+                onChange={(e) => setAjoutEtabForm({ ...ajoutEtabForm, nomEtablissement: e.target.value })}
+                maxLength={80}
+                placeholder="Ex : Pizzeria Da Mario — Annexe Lyon"
+                required
+                autoFocus
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="etab-type">Type d&apos;établissement *</Label>
+              <Select
+                value={ajoutEtabForm.typeEtablissement}
+                onValueChange={(v) => v && setAjoutEtabForm({ ...ajoutEtabForm, typeEtablissement: v })}
+              >
+                <SelectTrigger id="etab-type" className="h-10">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {TYPES_ETABLISSEMENT.map((t) => (
+                    <SelectItem key={t} value={t}>
+                      {t}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="etab-ville">Ville *</Label>
+                <Input
+                  id="etab-ville"
+                  value={ajoutEtabForm.ville}
+                  onChange={(e) => setAjoutEtabForm({ ...ajoutEtabForm, ville: e.target.value })}
+                  maxLength={80}
+                  placeholder="Ex : Lyon"
+                  required
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="etab-adresse">Adresse *</Label>
+                <Input
+                  id="etab-adresse"
+                  value={ajoutEtabForm.adresse}
+                  onChange={(e) => setAjoutEtabForm({ ...ajoutEtabForm, adresse: e.target.value })}
+                  maxLength={200}
+                  placeholder="Ex : 12 rue de la République"
+                  required
+                  minLength={5}
+                />
+              </div>
+            </div>
+            <DialogFooter className="gap-2 sm:gap-0 pt-2">
+              <Button type="button" variant="outline" onClick={() => setDialogAjoutEtab(false)} disabled={ajoutEtabEnCours}>
+                Annuler
+              </Button>
+              <Button type="submit" disabled={ajoutEtabEnCours}>
+                {ajoutEtabEnCours && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
+                Créer l&apos;établissement
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

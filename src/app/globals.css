@@ -600,3 +600,45 @@ html { scroll-behavior: smooth; }
 .animate-fadeIn {
   animation: fp-fade-in 0.35s ease-out both;
 }
+
+/* ============================================================
+   Task 4 — White-label : surcharge de la couleur #002e85 par la
+   couleur de marque du Pro (variable CSS --fp-brand posée sur la
+   racine du scan-view). Les classes Tailwind arbitraires
+   text-[#002e85], bg-[#002e85], border-[#002e85] sont redéfinies
+   pour utiliser var(--fp-brand) lorsque l'attribut data-fp-brand="1"
+   est posé sur la racine du scan-view.
+   ============================================================ */
+[data-fp-brand="1"] {
+  --fp-brand: #002e85;
+  --fp-brand-rgb: 0, 46, 133;
+}
+[data-fp-brand="1"].text-\[\#002e85\],
+[data-fp-brand="1"] .text-\[\#002e85\] {
+  color: var(--fp-brand) !important;
+}
+[data-fp-brand="1"].bg-\[\#002e85\],
+[data-fp-brand="1"] .bg-\[\#002e85\] {
+  background-color: var(--fp-brand) !important;
+}
+[data-fp-brand="1"].border-\[\#002e85\],
+[data-fp-brand="1"] .border-\[\#002e85\] {
+  border-color: var(--fp-brand) !important;
+}
+[data-fp-brand="1"].border-2.border-\[\#002e85\],
+[data-fp-brand="1"] .border-2.border-\[\#002e85\] {
+  border-color: var(--fp-brand) !important;
+}
+[data-fp-brand="1"] .text-\[\#002e85\]\/85 { color: color-mix(in srgb, var(--fp-brand) 85%, transparent) !important; }
+[data-fp-brand="1"] .text-\[\#002e85\]\/80 { color: color-mix(in srgb, var(--fp-brand) 80%, transparent) !important; }
+[data-fp-brand="1"] .text-\[\#002e85\]\/70 { color: color-mix(in srgb, var(--fp-brand) 70%, transparent) !important; }
+[data-fp-brand="1"] .text-\[\#002e85\]\/60 { color: color-mix(in srgb, var(--fp-brand) 60%, transparent) !important; }
+[data-fp-brand="1"] .text-\[\#002e85\]\/90 { color: color-mix(in srgb, var(--fp-brand) 90%, transparent) !important; }
+[data-fp-brand="1"] .bg-\[\#002e85\]\/10 { background-color: color-mix(in srgb, var(--fp-brand) 10%, transparent) !important; }
+[data-fp-brand="1"] .bg-\[\#002e85\]\/5 { background-color: color-mix(in srgb, var(--fp-brand) 5%, transparent) !important; }
+[data-fp-brand="1"] .bg-\[\#002e85\]\/20 { background-color: color-mix(in srgb, var(--fp-brand) 20%, transparent) !important; }
+[data-fp-brand="1"] .border-\[\#002e85\]\/30 { border-color: color-mix(in srgb, var(--fp-brand) 30%, transparent) !important; }
+[data-fp-brand="1"] .border-\[\#002e85\]\/80 { border-color: color-mix(in srgb, var(--fp-brand) 80%, transparent) !important; }
+[data-fp-brand="1"] .via-\[\#002e85\]\/30 { --tw-gradient-via: color-mix(in srgb, var(--fp-brand) 30%, transparent) !important; }
+[data-fp-brand="1"] .ring-\[\#002e85\] { --tw-ring-color: var(--fp-brand) !important; }
+[data-fp-brand="1"] .ring-offset-\[\#002e85\] { --tw-ring-offset-color: var(--fp-brand) !important; }

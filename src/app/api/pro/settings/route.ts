@@ -57,6 +57,13 @@ export async function PUT(req: NextRequest) {
         ...(champs.googlePlaceId !== undefined
           ? { googlePlaceId: champs.googlePlaceId || null }
           : {}),
+        // Task 6 — Webhooks sortants (Slack / Discord)
+        ...(champs.webhookSlackUrl !== undefined
+          ? { webhookSlackUrl: champs.webhookSlackUrl || null }
+          : {}),
+        ...(champs.webhookDiscordUrl !== undefined
+          ? { webhookDiscordUrl: champs.webhookDiscordUrl || null }
+          : {}),
       },
     })
 

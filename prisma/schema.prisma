@@ -48,6 +48,21 @@ model Pro {
   recompenseLimite  String?
   messageWhatsapp   String?
   onboardingDone    Boolean        @default(false)
+  // Task 1 — Programme d'onboarding "First Week" (0 = pas commencé,
+  // 1-4 = étapes en cours, 5 = terminé). Piloté par la bannière du
+  // dashboard Pro qui appelle POST /api/pro/onboarding à chaque étape.
+  onboardingStep    Int            @default(0)
+  // Task 4 — White-label pour agences : si true, l'agence peut personnaliser
+  // le nom, la couleur et le logo affichés sur la page de scan de ses clients.
+  whiteLabel        Boolean        @default(false)
+  brandName         String?
+  brandColor        String?
+  brandLogoUrl      String?
+  // Task 6 — Webhooks sortants (Slack / Discord) : si une URL est renseignée,
+  // un payload est envoyé à chaque nouveau retour (négatif ≤ 2★ ou tous) et
+  // quand un rapport IA est disponible.
+  webhookSlackUrl   String?
+  webhookDiscordUrl String?
   suspendu          Boolean        @default(false)
   smsAlertes        Boolean        @default(true)
   abonnementDebut   DateTime?
@@ -251,6 +266,12 @@ model SecteurConfig {
   tagsEmployes      String   @default("{}")
   emoji             String   @default("")
   description       String   @default("")
+  // Task 2 — Configuration du questionnaire adaptatif (3 scénarios
+  // CRISE/MITIGE/SUCCES) stockée en JSON. Éditable depuis le superadmin
+  // (onglet "Configuration secteurs"). Voir src/lib/questionnaire-config.ts
+  // pour le type ScenarioConfig[]. Fallback sur le hardcoded QUESTIONNAIRE_CONFIG
+  // si vide ou invalide (getQuestionnaireConfigFromDb).
+  questionnaireConfig String @default("{}")
   createdAt         DateTime @default(now())
   pros              Pro[]
 }

@@ -48,8 +48,14 @@ type TopLigne = {
   positifs: number
   negatifs: number
   noteMoy: number
+  nbRetours?: number
+  tendance?: number
   badge: "Employé du mois" | "Entretien recommandé" | null
+  // Task 3 — nouveaux badges : topPerformer, etoileMontante, regulier, enProgres, aSurveiller
+  badges?: string[]
 }
+
+type PeriodeLeaderboard = "mois" | "trimestre" | "tout"
 
 // Recommandation du Coach IA (Session 4, §6) : max 5, phrases motivées
 type Recommandation = {
@@ -75,6 +81,38 @@ type ZoneRef = { id: string; nom: string }
 
 const MEDAILLES = ["🥇", "🥈", "🥉"]
 
+/** Task 3 — Configuration des badges de gamification */
+const BADGES_CONFIG: Record<
+  string,
+  { emoji: string; label: string; classe: string }
+> = {
+  topPerformer: {
+    emoji: "🏆",
+    label: "Top Performer",
+    classe: "bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800",
+  },
+  etoileMontante: {
+    emoji: "⭐",
+    label: "Étoile montante",
+    classe: "bg-violet-100 text-violet-800 border-violet-300 hover:bg-violet-100 dark:bg-violet-950/40 dark:text-violet-300 dark:border-violet-800",
+  },
+  regulier: {
+    emoji: "🎯",
+    label: "Régulier",
+    classe: "bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800",
+  },
+  enProgres: {
+    emoji: "📈",
+    label: "En progrès",
+    classe: "bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800",
+  },
+  aSurveiller: {
+    emoji: "⚠️",
+    label: "À surveiller",
+    classe: "bg-rose-100 text-rose-800 border-rose-300 hover:bg-rose-100 dark:bg-rose-950/40 dark:text-rose-300 dark:border-rose-800",
+  },
+}
+
 /** Garde-fou : renvoie toujours un tableau (l'API peut être en cours de migration) */
 function enArray<T>(v: T[] | null | undefined): T[] {
   return Array.isArray(v) ? v : []
@@ -85,6 +123,27 @@ function classeBadge(badge: TopLigne["badge"]): string {
   if (badge === "Employé du mois") return "bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-100"
   if (badge === "Entretien recommandé") return "bg-rose-50 text-rose-800 border-rose-300 hover:bg-rose-50"
   return ""
+}
+
+/** Task 3 — Rendu d'un badge de gamification (chip colorée avec emoji + label) */
+function BadgeGamification({ id }: { id: string }) {
+  const cfg = BADGES_CONFIG[id]
+  if (!cfg) return null
+  return (
+    <Badge variant="outline" className={`gap-1 text-[10px] font-medium ${cfg.classe}`}>
+      <span aria-hidden>{cfg.emoji}</span>
+      {cfg.label}
+    </Badge>
+  )
+}
+
+/** Task 3 — Formate la tendance (Δ vs période précédente) */
+function formatTendance(t?: number): { texte: string; couleur: string } | null {
+  if (t === undefined || t === 0) return null
+  const signe = t > 0 ? "+" : ""
+  const texte = `${signe}${t.toFixed(2)} vs période précédente`
+  const couleur = t > 0 ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300"
+  return { texte, couleur }
 }
 
 export function TeamTab() {
@@ -98,6 +157,8 @@ export function TeamTab() {
   const [top, setTop] = useState<TopLigne[]>([])
   const [recommandations, setRecommandations] = useState<Recommandation[]>([])
   const [loading, setLoading] = useState(true)
+  // Task 3 — sélecteur de période pour le leaderboard
+  const [periode, setPeriode] = useState<PeriodeLeaderboard>("mois")
 
   // Création
   const [creationOuverte, setCreationOuverte] = useState(false)
@@ -127,7 +188,8 @@ export function TeamTab() {
       const [resZones, resEmployes, resTop] = await Promise.all([
         fetch("/api/pro/zones", { cache: "no-store" }),
         fetch("/api/pro/employes", { cache: "no-store" }),
-        fetch("/api/pro/leaderboard", { cache: "no-store" }),
+        // Task 3 — passe la période sélectionnée au leaderboard
+        fetch(`/api/pro/leaderboard?periode=${periode}`, { cache: "no-store" }),
       ])
       const [jZones, jEmployes, jTop] = await Promise.all([resZones.json(), resEmployes.json(), resTop.json()])
       if (!jEmployes.ok) {
@@ -145,7 +207,7 @@ export function TeamTab() {
     } finally {
       setLoading(false)
     }
-  }, [toast])
+  }, [toast, periode])
 
   useEffect(() => {
     load()
@@ -366,19 +428,49 @@ export function TeamTab() {
         </div>
       </div>
 
-      {/* ================= Section 1 : Top 5 du mois ================= */}
+      {/* ================= Section 1 : Top 5 (classement mensuel/trimestriel/global) ================= */}
       <Card className="shadow-sm">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-amber-500" aria-hidden />
-            Top 5 du mois
-          </CardTitle>
-          <CardDescription>Classement de vos employés sur les 30 derniers jours</CardDescription>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <CardTitle className="text-base sm:text-lg flex items-center gap-2">
+                <Trophy className="h-5 w-5 text-amber-500" aria-hidden />
+                {periode === "mois" && "Top 5 du mois"}
+                {periode === "trimestre" && "Top 5 du trimestre"}
+                {periode === "tout" && "Classement global"}
+              </CardTitle>
+              <CardDescription>
+                {periode === "mois" && "Classement de vos employés sur les 30 derniers jours"}
+                {periode === "trimestre" && "Classement de vos employés sur les 90 derniers jours"}
+                {periode === "tout" && "Classement de vos employés sur 1 an (toutes périodes)"}
+              </CardDescription>
+            </div>
+            {/* Task 3 — sélecteur de période */}
+            <div className="flex shrink-0 items-center gap-1 rounded-full border bg-muted/50 p-0.5">
+              {(["mois", "trimestre", "tout"] as const).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setPeriode(p)}
+                  aria-pressed={periode === p}
+                  className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                    periode === p
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {p === "mois" && "Ce mois"}
+                  {p === "trimestre" && "Ce trimestre"}
+                  {p === "tout" && "Tout"}
+                </button>
+              ))}
+            </div>
+          </div>
         </CardHeader>
         <CardContent>
           {top5.length === 0 ? (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              Aucun retour mentionnant un employé ce mois-ci.
+              Aucun retour mentionnant un employé sur cette période.
             </p>
           ) : (
             <div className="space-y-5">
@@ -389,7 +481,7 @@ export function TeamTab() {
                     <div
                       key={l.employeId}
                       className={`flex flex-col items-center gap-1.5 rounded-xl border p-4 text-center ${
-                        i === 0 ? "border-amber-300 bg-amber-50/60" : ""
+                        i === 0 ? "border-amber-300 bg-amber-50/60 dark:border-amber-800 dark:bg-amber-950/30" : ""
                       }`}
                     >
                       <span className="text-3xl" aria-hidden>
@@ -399,6 +491,15 @@ export function TeamTab() {
                       {l.poste && <p className="text-xs text-muted-foreground">{l.poste}</p>}
                       <Stars note={l.noteMoy} size={13} />
                       <span className="text-sm font-semibold">{l.noteMoy || "—"}</span>
+                      {/* Task 3 — badges de gamification */}
+                      {l.badges && l.badges.length > 0 && (
+                        <div className="flex flex-wrap items-center justify-center gap-1">
+                          {l.badges.map((b) => (
+                            <BadgeGamification key={b} id={b} />
+                          ))}
+                        </div>
+                      )}
+                      {/* Legacy badge (compat) */}
                       {l.badge && (
                         <Badge variant="outline" className={classeBadge(l.badge)}>
                           {l.badge === "Employé du mois" ? "🏆" : "⚠️"} {l.badge}
@@ -427,49 +528,66 @@ export function TeamTab() {
 
               {/* Liste détaillée du top 5 */}
               <ul className="space-y-2">
-                {top5.map((l, i) => (
-                  <li
-                    key={l.employeId}
-                    className={`flex items-center gap-3 rounded-xl border p-3 ${
-                      i === 0 && l.noteMoy >= 4 ? "border-amber-300 bg-amber-50/50" : ""
-                    }`}
-                  >
-                    {i < 3 ? (
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center text-xl" aria-hidden>
-                        {MEDAILLES[i]}
-                      </span>
-                    ) : (
-                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-bold">
-                        {i + 1}
-                      </span>
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                        <p className="font-medium leading-tight">{l.nom}</p>
-                        {l.poste && <p className="text-xs text-muted-foreground">{l.poste}</p>}
-                        {l.badge && (
-                          <Badge variant="outline" className={classeBadge(l.badge)}>
-                            {l.badge === "Employé du mois" ? "🏆" : "⚠️"} {l.badge}
-                          </Badge>
-                        )}
-                      </div>
-                      <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-                        <span className="flex items-center gap-1.5">
-                          <Stars note={l.noteMoy} size={13} />
-                          <span className="text-sm font-bold">{l.noteMoy || "—"}</span>
+                {top5.map((l, i) => {
+                  const tendance = formatTendance(l.tendance)
+                  return (
+                    <li
+                      key={l.employeId}
+                      className={`flex items-center gap-3 rounded-xl border p-3 ${
+                        i === 0 && l.noteMoy >= 4 ? "border-amber-300 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20" : ""
+                      }`}
+                    >
+                      {i < 3 ? (
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center text-xl" aria-hidden>
+                          {MEDAILLES[i]}
                         </span>
-                        <Badge variant="outline" className="text-green-700 border-green-300">
-                          +{l.positifs} positif{l.positifs > 1 ? "s" : ""}
-                        </Badge>
-                        {l.negatifs > 0 && (
-                          <Badge variant="outline" className="text-rose-700 border-rose-300">
-                            −{l.negatifs} négatif{l.negatifs > 1 ? "s" : ""}
+                      ) : (
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-muted text-sm font-bold">
+                          {i + 1}
+                        </span>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <p className="font-medium leading-tight">{l.nom}</p>
+                          {l.poste && <p className="text-xs text-muted-foreground">{l.poste}</p>}
+                          {/* Task 3 — badges de gamification */}
+                          {l.badges?.map((b) => (
+                            <BadgeGamification key={b} id={b} />
+                          ))}
+                          {l.badge && (
+                            <Badge variant="outline" className={classeBadge(l.badge)}>
+                              {l.badge === "Employé du mois" ? "🏆" : "⚠️"} {l.badge}
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                          <span className="flex items-center gap-1.5">
+                            <Stars note={l.noteMoy} size={13} />
+                            <span className="text-sm font-bold">{l.noteMoy || "—"}</span>
+                          </span>
+                          <Badge variant="outline" className="text-green-700 border-green-300">
+                            +{l.positifs} positif{l.positifs > 1 ? "s" : ""}
                           </Badge>
-                        )}
+                          {l.negatifs > 0 && (
+                            <Badge variant="outline" className="text-rose-700 border-rose-300">
+                              −{l.negatifs} négatif{l.negatifs > 1 ? "s" : ""}
+                            </Badge>
+                          )}
+                          {l.nbRetours !== undefined && (
+                            <span className="text-[11px] text-muted-foreground">
+                              {l.nbRetours} retour{l.nbRetours > 1 ? "s" : ""}
+                            </span>
+                          )}
+                          {tendance && (
+                            <span className={`text-[11px] font-medium ${tendance.couleur}`}>
+                              {tendance.texte}
+                            </span>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  </li>
-                ))}
+                    </li>
+                  )
+                })}
               </ul>
             </div>
           )}
@@ -534,7 +652,12 @@ export function TeamTab() {
             </p>
           ) : (
             <div className="max-h-96 space-y-2 overflow-y-auto pr-1 custom-scrollbar">
-              {employes.map((e) => (
+              {employes.map((e) => {
+                // Task 3 — récupère les badges de l'employé depuis le leaderboard
+                const topLigne = top.find((t) => t.employeId === e.id)
+                const badges = topLigne?.badges ?? []
+                const tendance = formatTendance(topLigne?.tendance)
+                return (
                 <div key={e.id} className={`rounded-xl border p-3 sm:p-4 ${!e.actif ? "opacity-60" : ""}`}>
                   <div className="flex flex-wrap items-start justify-between gap-x-3 gap-y-2.5">
                     {/* Identité */}
@@ -555,6 +678,19 @@ export function TeamTab() {
                           )}
                         </p>
                         {e.poste && <p className="text-xs text-muted-foreground">{e.poste}</p>}
+                        {/* Task 3 — badges de gamification (classement période) */}
+                        {badges.length > 0 && (
+                          <div className="mt-1.5 flex flex-wrap items-center gap-1">
+                            {badges.map((b) => (
+                              <BadgeGamification key={b} id={b} />
+                            ))}
+                            {tendance && (
+                              <span className={`text-[10px] font-medium ${tendance.couleur}`}>
+                                {tendance.texte}
+                              </span>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
                     {/* Score moyen + mentions */}
@@ -659,7 +795,8 @@ export function TeamTab() {
                     )}
                   </div>
                 </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </CardContent>

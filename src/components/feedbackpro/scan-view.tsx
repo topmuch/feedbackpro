@@ -100,6 +100,14 @@ type ScanData = {
     messageWhatsapp?: string | null
     // D8 : URL d'avis Google (saisie manuelle par le commerçant)
     googleReviewUrl?: string | null
+    // Task 4 — White-label : personnalisation marque blanche de la page
+    // de scan. Si whiteLabel=true, brandName remplace "FeedbackPro" dans le
+    // pied de page, brandColor remplace #002e85 (via la variable CSS
+    // --fp-brand), et brandLogoUrl remplace le logo FeedbackPro.
+    whiteLabel?: boolean
+    brandName?: string | null
+    brandColor?: string | null
+    brandLogoUrl?: string | null
   }
   tagsPositifs: string[]
   tagsNegatifs: string[]
@@ -1232,6 +1240,12 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
 
   return (
     <div
+      data-fp-brand={scanData?.pro?.whiteLabel ? "1" : "0"}
+      style={
+        scanData?.pro?.whiteLabel && scanData.pro.brandColor
+          ? ({ ["--fp-brand" as string]: scanData.pro.brandColor } as React.CSSProperties)
+          : undefined
+      }
       className={cn(
         "flex min-h-dvh flex-col text-[#002e85] transition-colors duration-500",
         fondGlobal
@@ -2826,10 +2840,30 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
         </footer>
       )}
 
-      {/* ====== "Propulsé par FeedbackPro" discret (welcome + error) ====== */}
+      {/* ====== "Propulsé par FeedbackPro" discret (welcome + error) ======
+          Task 4 — White-label : si le Pro a whiteLabel=true, on remplace
+          le nom "FeedbackPro" par brandName et on affiche brandLogoUrl à
+          la place du texte si un logo de marque est fourni. */}
       {(phase === "welcome" || phase === "error") && (
         <p className="pb-4 text-center text-xs text-[#002e85]/60">
-          {t.propulsePar} <span className="font-semibold text-[#002e85]/80">FeedbackPro</span>
+          {t.propulsePar}{" "}
+          {scanData?.pro?.whiteLabel && scanData.pro.brandLogoUrl ? (
+            <img
+              src={scanData.pro.brandLogoUrl}
+              alt={scanData.pro.brandName || "Logo marque"}
+              className="ml-1 inline-block h-4 w-auto align-middle"
+              onError={(e) => {
+                // Fallback : masque l'image cassée et affiche le brandName
+                ;(e.currentTarget as HTMLImageElement).style.display = "none"
+              }}
+            />
+          ) : (
+            <span className="font-semibold text-[#002e85]/80">
+              {scanData?.pro?.whiteLabel && scanData.pro.brandName
+                ? scanData.pro.brandName
+                : "FeedbackPro"}
+            </span>
+          )}
         </p>
       )}
     </div>

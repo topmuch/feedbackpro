@@ -913,6 +913,254 @@ export async function genererContenuRapport(donnees: DonneesRapport): Promise<Co
   }
 }
 
+// ============================================================
+// Task 1 — Recommandation IA ciblée pour un retour (détail Retours)
+// ------------------------------------------------------------
+// genererRecommandationPourRetour(donnees) :
+//   1. Construit un prompt focalisé sur UN retour client précis
+//      (note, tags, commentaire, zone, employé, récurrence 30j)
+//   2. Appelle le LLM via z-ai-web-dev-sdk (BACKEND uniquement)
+//   3. Parse la réponse (JSON robuste — diagnostic, actions, impact)
+//   4. En cas d'échec LLM → fallback heuristique déterministe
+//      (genererRapportHeuristique) : la route /api/pro/coach/recommandation
+//      ne renvoie JAMAIS d'erreur brute.
+//
+// Utilisée par : POST /api/pro/coach/recommandation (page détail Retours).
+// Contrairement à genererRapportIA (rapport global d'un Pro sur une période),
+// cette fonction analyse UN retour précis et propose des actions concrètes
+// immédiatement applicables.
+// ============================================================
+
+/** Données d'entrée pour la recommandation IA d'un retour précis. */
+export type DonneesRecommandation = {
+  /** Secteur / type d'établissement (ex : "Restaurant", "Hôtel"). */
+  secteur: string
+  /** Nom de l'établissement (pour personnaliser le ton). */
+  nomEtablissement: string
+  /** Le retour client à analyser. */
+  retour: {
+    note: number
+    tags: string[]
+    commentaire?: string | null
+    zone?: string | null
+    employeNom?: string | null
+    createdAt: string
+  }
+  /** Score global du Pro sur 100 (contexte pour le LLM). */
+  scoreGlobal: number
+  /** Fréquence du rapport du Pro (contexte). */
+  frequence: string
+  /** Récurrence du motif sur 30 jours (contexte). */
+  recurrence?: {
+    count: number
+    libelleTag: string | null
+  }
+}
+
+/** Recommandation renvoyée par la route (LLM ou fallback heuristique). */
+export type RecommandationRetour = {
+  /** "ia" si le LLM a répondu, "fallback" si heuristique déterministe. */
+  source: "ia" | "fallback"
+  /** Niveau d'urgence dérivé de la note (crise / mitige / positif). */
+  niveau: "crise" | "mitige" | "positif"
+  /** Diagnostic en 1-2 phrases (phrase de contexte affichée dans la card IA). */
+  diagnostic: string
+  /** 3 actions concrètes et actionnables. */
+  actions: string[]
+  /** Impact attendu (texte affiché sous les actions). */
+  impact: string
+  /** Points forts identifiés (si note positive). */
+  pointsPositifs: string[]
+}
+
+/** Détermine le niveau d'urgence selon la note (1-2 → crise, 3 → mitigé, 4-5 → positif). */
+function niveauDeNoteRetour(note: number): "crise" | "mitige" | "positif" {
+  if (note <= 2) return "crise"
+  if (note === 3) return "mitige"
+  return "positif"
+}
+
+/** Prompt système pour la recommandation ciblée d'un retour. */
+const SYSTEM_PROMPT_RECO = `Tu es le Coach IA de FeedbackPro, expert en management de la qualité pour les commerces et services.
+
+On te transmet UN retour client précis (note, tags, commentaire, zone, employé cité) ainsi que le contexte de l'établissement (secteur, score global, récurrence du motif sur 30 jours).
+
+Ta mission : produire une recommandation actionnable immédiatement, adaptée au secteur et à la note.
+
+ADAPTATION AU SECTEUR :
+- Restaurant → service en salle, qualité des plats, accueil, temps d'attente
+- Hôtel → conciergerie, accueil réception, qualité de la chambre, petit-déjeuner
+- Hôpital/Clinique → accueil patient, prise en charge, salle d'attente, empathie soignante
+- Aéroport → fluidité du check-in, file d'attente sécurité, embarquement, info-voyageur
+- Boutique/Commerce → conseil client, mise en valeur des produits, caisse
+- Salon/Spa → prise en charge, ambiance, conseil personnalisé
+
+ADAPTATION À LA NOTE :
+- 1-2★ (Crise) → mesures d'urgence : briefing équipe, formation ciblée, contact client (compensation). JAMAIS de recommandations positives.
+- 3★   (Mitigé) → identifier le point de friction, ajuster le processus, suivi personnalisé.
+- 4-5★ (Positif) → félicitations, formalisation de la bonne pratique, demande d'avis Google.
+
+RÈGLES :
+- Parle comme un coach humain, sois concret et actionnable.
+- Cite des chiffres précis (note, récurrence, score global).
+- Si un employé est cité en négatif → suggère un entretien individuel (jamais un licenciement).
+- Si un employé est cité en positif → suggère une félicitation publique.
+- Les 3 actions doivent être des phrases courtes, applicables immédiatement (cette semaine).
+
+FORMAT DE RÉPONSE : UNIQUEMENT un JSON valide, sans texte autour :
+{"diagnostic": "<1-2 phrases>", "actions": ["<action 1>", "<action 2>", "<action 3>"], "impact": "<impact attendu>", "pointsPositifs": ["<point fort 1>"]}`
+
+/**
+ * Génère une recommandation IA ciblée pour UN retour précis.
+ * Appelle le LLM via z-ai-web-dev-sdk (backend uniquement).
+ * En cas d'échec (timeout, JSON invalide, indisponibilité), fallback heuristique
+ * déterministe via genererRapportHeuristique — ne lève JAMAIS d'exception.
+ */
+export async function genererRecommandationPourRetour(
+  donnees: DonneesRecommandation
+): Promise<RecommandationRetour> {
+  try {
+    const zai = await ZAI.create()
+    const r = donnees.retour
+    const recurrenceTxt =
+      donnees.recurrence && donnees.recurrence.count >= 2 && donnees.recurrence.libelleTag
+        ? `${donnees.recurrence.count}ème signalement « ${donnees.recurrence.libelleTag} » sur 30 jours`
+        : "Premier signalement de ce type"
+
+    const prompt = `Secteur : ${donnees.secteur}
+Établissement : ${donnees.nomEtablissement}
+Score global du Pro : ${donnees.scoreGlobal}/100
+Fréquence du rapport : ${donnees.frequence}
+
+Retour client à analyser :
+- Note : ${r.note}/5
+- Zone : ${r.zone || "non précisée"}
+- Tags : ${r.tags.length > 0 ? r.tags.join(", ") : "(aucun)"}
+- Employé cité : ${r.employeNom || "(non précisé)"}
+- Commentaire : ${r.commentaire?.trim() || "(aucun)"}
+- Date : ${new Date(r.createdAt).toLocaleString("fr-FR")}
+- Récurrence : ${recurrenceTxt}
+
+Génère la recommandation au format JSON spécifié.`
+
+    const completion = (await Promise.race([
+      zai.chat.completions.create({
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT_RECO },
+          { role: "user", content: prompt },
+        ],
+        thinking: { type: "disabled" },
+      }),
+      new Promise((_, rejeter) =>
+        setTimeout(() => rejeter(new Error("Timeout Coach IA recommandation")), TIMEOUT_LLM_MS)
+      ),
+    ])) as { choices?: { message?: { content?: string } }[] }
+
+    const texte = completion?.choices?.[0]?.message?.content ?? ""
+    const parsed = extraireJson(texte)
+    const recommandation = validerRecommandationLLM(parsed, donnees)
+    if (recommandation) return recommandation
+
+    console.warn("[Coach IA] Recommandation LLM inexploitable → heuristique")
+    return genererRapportHeuristique(donnees)
+  } catch (e) {
+    console.warn("[Coach IA] Échec LLM recommandation → heuristique (non bloquant)", e)
+    return genererRapportHeuristique(donnees)
+  }
+}
+
+/** Valide et normalise le JSON renvoyé par le LLM pour une recommandation. */
+function validerRecommandationLLM(
+  obj: Record<string, unknown> | null,
+  donnees: DonneesRecommandation
+): RecommandationRetour | null {
+  if (!obj) return null
+  const diagnostic = typeof obj.diagnostic === "string" ? obj.diagnostic.trim() : ""
+  const actions = enTableauStrings(obj.actions, 3)
+  const impact = typeof obj.impact === "string" ? obj.impact.trim() : ""
+  const pointsPositifs = enTableauStrings(obj.pointsPositifs, 3)
+
+  // Un retour sans diagnostic ni actions n'est pas exploitable
+  if (!diagnostic || actions.length === 0) return null
+
+  return {
+    source: "ia",
+    niveau: niveauDeNoteRetour(donnees.retour.note),
+    diagnostic,
+    actions,
+    impact: impact || "Impact à définir selon la mise en œuvre des actions.",
+    pointsPositifs,
+  }
+}
+
+/**
+ * Fallback heuristique déterministe pour la recommandation d'un retour.
+ * Calcule diagnostic, actions et impact à partir de la note et des tags,
+ * sans appel LLM. Reprend la logique métier de retours-tab.tsx (côté client)
+ * afin que la route /api/pro/coach/recommandation produise TOUJOURS un
+ * résultat exploitable, même si le LLM est indisponible.
+ */
+export function genererRapportHeuristique(donnees: DonneesRecommandation): RecommandationRetour {
+  const r = donnees.retour
+  const niveau = niveauDeNoteRetour(r.note)
+  const zoneNom = r.zone || "zone non précisée"
+  const recurrenceTxt =
+    donnees.recurrence && donnees.recurrence.count >= 2 && donnees.recurrence.libelleTag
+      ? `${donnees.recurrence.count}ème signalement « ${donnees.recurrence.libelleTag} » ces 30 derniers jours.`
+      : r.note <= 2
+        ? "Premier signalement de ce type — réagir vite pour éviter la récurrence."
+        : "Retour isolé — surveiller l'évolution sur les prochains jours."
+
+  const tagsTxt = r.tags.length > 0 ? r.tags.join(", ") : "aucun tag"
+  const employeTxt = r.employeNom ? ` Employé cité : ${r.employeNom}.` : ""
+
+  let diagnostic: string
+  let actions: string[]
+  let impact: string
+  let pointsPositifs: string[] = []
+
+  if (niveau === "crise") {
+    diagnostic = `🚨 Client mécontent (${r.note}/5) — ${zoneNom}. ${recurrenceTxt} Risque d'avis négatif public si non traité.${employeTxt}`
+    actions = [
+      `Briefing équipe demain sur les points signalés (${tagsTxt}).`,
+      r.employeNom
+        ? `Entretien individuel avec ${r.employeNom} (jamais de sanction immédiate — écouter d'abord).`
+        : "Formation ciblée pour l'équipe concernée cette semaine.",
+      "Contacter le client pour résoudre la situation (compensation si nécessaire).",
+    ]
+    impact =
+      "Prévention d'un avis négatif public et -60% de plaintes similaires sous 2 semaines."
+  } else if (niveau === "mitige") {
+    diagnostic = `⚠️ Expérience mitigée (${r.note}/5) — ${zoneNom}. ${recurrenceTxt} Point de friction identifié : « ${tagsTxt} ».${employeTxt}`
+    actions = [
+      `Identifier le point de friction principal (« ${tagsTxt} ») avec l'équipe.`,
+      "Ajuster le processus concerné et formaliser la nouvelle procédure.",
+      "Mettre en place un suivi personnalisé pour convertir ce client en promoteur.",
+    ]
+    impact = "Transformation d'un client mitigé en client satisfait et fidélisé."
+  } else {
+    const pointFort = r.tags.length > 0 ? r.tags[0] : "l'accueil et le service"
+    diagnostic = `✅ Client satisfait (${r.note}/5) — ${zoneNom}. ${recurrenceTxt} Point fort identifié : « ${pointFort} ».${employeTxt}`
+    actions = [
+      `Féliciter publiquement l'équipe pour « ${pointFort} » lors du prochain briefing.`,
+      "Identifier ce qui a bien fonctionné et le formaliser en bonne pratique.",
+      "Demander au client s'il accepterait de laisser un avis Google.",
+    ]
+    impact =
+      "Renforcement de la réputation en ligne et fidélisation (+30% de chances que le client recommande l'établissement)."
+    pointsPositifs = r.tags.length > 0 ? [pointFort] : ["Bonne expérience signalée"]
+  }
+
+  return {
+    source: "fallback",
+    niveau,
+    diagnostic,
+    actions,
+    impact,
+    pointsPositifs,
+  }
+}
+
 // ---------- Génération + enregistrement ----------
 
 /**
@@ -968,6 +1216,31 @@ export async function genererEtEnregistrerRapport(
     } catch (e) {
       console.warn("Email du rapport IA non envoyé (non bloquant)", e)
     }
+  }
+
+  // ---------- Task 6 — Webhook "rapport IA disponible" (non bloquant) ----------
+  try {
+    const { notifierWebhooksPro, donneesRapportIA } = await import("@/lib/webhooks")
+    const proAvecWebhooks = {
+      webhookSlackUrl:
+        (pro as unknown as { webhookSlackUrl?: string | null }).webhookSlackUrl ?? null,
+      webhookDiscordUrl:
+        (pro as unknown as { webhookDiscordUrl?: string | null }).webhookDiscordUrl ?? null,
+      nomEtablissement: pro.nomEtablissement,
+    }
+    if (proAvecWebhooks.webhookSlackUrl || proAvecWebhooks.webhookDiscordUrl) {
+      const donnees = donneesRapportIA({
+        type: rapport.type,
+        scoreGlobal: rapport.scoreGlobal,
+        periodeDebut: rapport.periodeDebut,
+        periodeFin: rapport.periodeFin,
+      })
+      notifierWebhooksPro(proAvecWebhooks, donnees).catch((e) => {
+        console.warn("Webhook rapport IA (non bloquant)", e)
+      })
+    }
+  } catch (e) {
+    console.warn("Webhook rapport IA (non bloquant)", e)
   }
 
   return { rapport, source: contenu.source }

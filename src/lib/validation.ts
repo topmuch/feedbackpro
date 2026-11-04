@@ -239,6 +239,30 @@ export const settingsSchema = z.object({
     .max(300, "Place ID trop long")
     .nullable()
     .optional(),
+  // Task 6 — Webhooks sortants (Slack / Discord)
+  webhookSlackUrl: z
+    .string()
+    .trim()
+    .max(500, "URL trop longue")
+    .refine(
+      (v) =>
+        v === "" ||
+        /^https:\/\/(hooks\.slack\.com|hooks\.slack\.com)\/\S+$/i.test(v) ||
+        /^https?:\/\/\S+$/i.test(v),
+      "URL invalide (doit commencer par http:// ou https://)"
+    )
+    .nullable()
+    .optional(),
+  webhookDiscordUrl: z
+    .string()
+    .trim()
+    .max(500, "URL trop longue")
+    .refine(
+      (v) => v === "" || /^https?:\/\/\S+$/i.test(v),
+      "URL invalide (doit commencer par http:// ou https://)"
+    )
+    .nullable()
+    .optional(),
 })
 
 // ---------- Commandes de supports physiques ----------
@@ -268,11 +292,37 @@ export const alertePatchSchema = z
 // ---------- Superadmin ----------
 
 export const adminProActionSchema = z.object({
-  action: z.enum(["changerPlan", "suspendre", "reactiver", "supprimer", "resetPassword"], {
-    message: "Action invalide",
-  }),
+  action: z.enum(
+    ["changerPlan", "suspendre", "reactiver", "supprimer", "resetPassword", "whiteLabel"],
+    {
+      message: "Action invalide",
+    }
+  ),
   id: z.string().trim().min(1, "ID manquant"),
   plan: z.string().optional(),
+  // Task 4 — White-label : champs optionnels pour la personnalisation marque blanche
+  whiteLabel: z.boolean().optional(),
+  brandName: z.string().trim().max(80, "Nom de marque trop long").nullable().optional(),
+  brandColor: z
+    .string()
+    .trim()
+    .max(20, "Couleur trop longue")
+    .refine(
+      (v) => v === "" || /^#[0-9a-fA-F]{6}$/.test(v),
+      "Couleur invalide (format attendu : #002e85)"
+    )
+    .nullable()
+    .optional(),
+  brandLogoUrl: z
+    .string()
+    .trim()
+    .max(500, "URL trop longue")
+    .refine(
+      (v) => v === "" || /^https?:\/\/\S+$/i.test(v) || /^data:image\//.test(v),
+      "URL logo invalide"
+    )
+    .nullable()
+    .optional(),
 })
 
 export const adminCommandePatchSchema = z.object({

@@ -21,6 +21,13 @@
 
 import { db } from "@/lib/db"
 import { genererRapportIA } from "@/lib/ia"
+import { sendEmail } from "@/lib/email"
+import { setSetting, getSetting } from "@/lib/settings"
+import {
+  emailOnboardingJour0,
+  emailOnboardingJour3,
+  emailOnboardingJour7,
+} from "@/lib/onboarding-emails"
 
 /** Résultat d'un rapport généré par le cron (pour la réponse API / logs) */
 export type ResultatCronRapport = {
@@ -131,4 +138,124 @@ export async function cronRapportHebdomadaire(): Promise<ResultatCron> {
 
   console.log(`[CRON hebdomadaire lundi 7h] Terminé : ${rapports.length}/${pros.length} rapport(s) généré(s)`)
   return { cibles: pros.length, rapports, erreurs }
+}
+
+// ============================================================
+// CRON ONBOARDING "First Week" (Task 1)
+// ------------------------------------------------------------
+// Appelé une fois par jour. Envoie les 3 emails d'onboarding aux Pros
+// éligibles selon l'âge de leur compte :
+//   • Jour 0 (inscription J, âge < 24h)        → emailOnboardingJour0
+//   • Jour 3 (âge entre 2 et 4 jours)          → emailOnboardingJour3
+//   • Jour 7 (âge entre 6 et 8 jours)          → emailOnboardingJour7
+//
+// Tracking des envois : on utilise la table Setting avec des clés
+// `onb:<proId>:J0|J3|J7`. Cela découple le tracking des emails du
+// onboardingStep (qui est lui piloté par la bannière UI du dashboard).
+// ============================================================
+
+export async function cronOnboardingEmails(): Promise<{
+  jour0: number
+  jour3: number
+  jour7: number
+  erreurs: number
+}> {
+  const now = Date.now()
+  const unJour = 24 * 3600 * 1000
+
+  const compteurs = { jour0: 0, jour3: 0, jour7: 0, erreurs: 0 }
+
+  async function emailDejaEnvoye(proId: string, code: "J0" | "J3" | "J7"): Promise<boolean> {
+    const v = await getSetting(`onb:${proId}:${code}`, "")
+    return v === "1"
+  }
+  async function marquerEmailEnvoye(proId: string, code: "J0" | "J3" | "J7"): Promise<void> {
+    await setSetting(`onb:${proId}:${code}`, "1")
+  }
+
+  // ----- Jour 0 : Pros inscrits depuis < 24h, email pas encore envoyé
+  const prosJour0 = await db.pro.findMany({
+    where: {
+      suspendu: false,
+      createdAt: { gte: new Date(now - unJour) },
+    },
+  })
+  for (const pro of prosJour0) {
+    try {
+      if (await emailDejaEnvoye(pro.id, "J0")) continue
+      const { sujet, html } = emailOnboardingJour0(pro.nomEtablissement)
+      await sendEmail(pro.email, sujet, html)
+      await marquerEmailEnvoye(pro.id, "J0")
+      compteurs.jour0++
+    } catch (e) {
+      console.warn(`[CRON onboarding] Email jour 0 échoué pour ${pro.nomEtablissement}`, e)
+      compteurs.erreurs++
+    }
+  }
+
+  // ----- Jour 3 : Pros inscrits depuis 2 à 4 jours, email pas encore envoyé
+  const prosJour3 = await db.pro.findMany({
+    where: {
+      suspendu: false,
+      createdAt: {
+        gte: new Date(now - 4 * unJour),
+        lte: new Date(now - 2 * unJour),
+      },
+    },
+  })
+  for (const pro of prosJour3) {
+    try {
+      if (await emailDejaEnvoye(pro.id, "J3")) continue
+      const { sujet, html } = emailOnboardingJour3(pro.nomEtablissement)
+      await sendEmail(pro.email, sujet, html)
+      await marquerEmailEnvoye(pro.id, "J3")
+      compteurs.jour3++
+    } catch (e) {
+      console.warn(`[CRON onboarding] Email jour 3 échoué pour ${pro.nomEtablissement}`, e)
+      compteurs.erreurs++
+    }
+  }
+
+  // ----- Jour 7 : Pros inscrits depuis 6 à 8 jours, email pas encore envoyé
+  const prosJour7 = await db.pro.findMany({
+    where: {
+      suspendu: false,
+      createdAt: {
+        gte: new Date(now - 8 * unJour),
+        lte: new Date(now - 6 * unJour),
+      },
+    },
+  })
+  for (const pro of prosJour7) {
+    try {
+      if (await emailDejaEnvoye(pro.id, "J7")) continue
+      // Tente de récupérer le dernier rapport IA disponible
+      const dernierRapport = await db.rapportIA.findFirst({
+        where: { proId: pro.id },
+        orderBy: { createdAt: "desc" },
+      })
+      const rapportEmail = dernierRapport
+        ? {
+            type: dernierRapport.type,
+            periodeDebut: dernierRapport.periodeDebut,
+            periodeFin: dernierRapport.periodeFin,
+            scoreGlobal: dernierRapport.scoreGlobal,
+            contenuMarkdown: dernierRapport.contenuMarkdown,
+            priorites: dernierRapport.priorites,
+          }
+        : undefined
+      const { sujet, html } = emailOnboardingJour7(pro.nomEtablissement, rapportEmail)
+      await sendEmail(pro.email, sujet, html)
+      await marquerEmailEnvoye(pro.id, "J7")
+      compteurs.jour7++
+    } catch (e) {
+      console.warn(`[CRON onboarding] Email jour 7 échoué pour ${pro.nomEtablissement}`, e)
+      compteurs.erreurs++
+    }
+  }
+
+  console.log(
+    `[CRON onboarding] J0:${compteurs.jour0} J3:${compteurs.jour3} J7:${compteurs.jour7} erreurs:${compteurs.erreurs}`
+  )
+  return compteurs
 }

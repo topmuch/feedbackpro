@@ -82,6 +82,13 @@ export async function GET(req: NextRequest) {
         retours: p._count.retours,
         employes: p._count.employes,
         mrr: PLANS[p.plan as keyof typeof PLANS]?.price ?? 0,
+        // Task 4 — White-label : infos de personnalisation marque blanche
+        whiteLabel:
+          (p as unknown as { whiteLabel?: boolean }).whiteLabel ?? false,
+        brandName: (p as unknown as { brandName?: string | null }).brandName ?? null,
+        brandColor: (p as unknown as { brandColor?: string | null }).brandColor ?? null,
+        brandLogoUrl:
+          (p as unknown as { brandLogoUrl?: string | null }).brandLogoUrl ?? null,
       })),
       total: pros.length,
     })
@@ -98,7 +105,7 @@ export async function POST(req: NextRequest) {
 
     const parse = adminProActionSchema.safeParse(await req.json().catch(() => null))
     if (!parse.success) return fail(firstError(parse.error), 400)
-    const { action, id, plan } = parse.data
+    const { action, id, plan, whiteLabel, brandName, brandColor, brandLogoUrl } = parse.data
 
     const pro = await db.pro.findUnique({
       where: { id },
@@ -168,6 +175,27 @@ export async function POST(req: NextRequest) {
         }
 
         return ok({ id: pro.id, passwordTemporaire: password })
+      }
+
+      case "whiteLabel": {
+        // Task 4 — Mode White-label pour agences : personnalisation marque
+        // blanche (nom, couleur, logo) visible sur la page de scan.
+        const updated = await db.pro.update({
+          where: { id: pro.id },
+          data: {
+            whiteLabel: whiteLabel ?? true,
+            brandName: brandName === undefined ? pro.brandName : brandName || null,
+            brandColor: brandColor === undefined ? pro.brandColor : brandColor || null,
+            brandLogoUrl: brandLogoUrl === undefined ? pro.brandLogoUrl : brandLogoUrl || null,
+          },
+        })
+        return ok({
+          id: updated.id,
+          whiteLabel: updated.whiteLabel,
+          brandName: updated.brandName,
+          brandColor: updated.brandColor,
+          brandLogoUrl: updated.brandLogoUrl,
+        })
       }
     }
   } catch (e) {

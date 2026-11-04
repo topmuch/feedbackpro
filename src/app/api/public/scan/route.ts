@@ -166,6 +166,17 @@ export async function POST(req: NextRequest) {
         // D8 : URL d'avis Google (saisie manuelle par le commerçant) — proposée
         // sur l'écran de succès uniquement pour les notes ≥ 4★
         googleReviewUrl: zone.pro.googleReviewUrl,
+        // Task 4 — White-label : si whiteLabel=true, la page de scan remplace
+        // le logo FeedbackPro par brandLogoUrl, le nom par brandName et la
+        // couleur #002e85 par brandColor. Fallback sur les valeurs par défaut.
+        whiteLabel:
+          (zone.pro as unknown as { whiteLabel?: boolean }).whiteLabel ?? false,
+        brandName:
+          (zone.pro as unknown as { brandName?: string | null }).brandName ?? null,
+        brandColor:
+          (zone.pro as unknown as { brandColor?: string | null }).brandColor ?? null,
+        brandLogoUrl:
+          (zone.pro as unknown as { brandLogoUrl?: string | null }).brandLogoUrl ?? null,
       },
       // Tags affichés (IDs seuls — pour compatibilité avec le contrat v1).
       // Le scan-view utilise tagsPositifsDetails/tagsNegatifsDetails quand

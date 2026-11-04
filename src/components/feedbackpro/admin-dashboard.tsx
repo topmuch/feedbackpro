@@ -9,6 +9,7 @@
 // ============================================================
 
 import { useCallback, useEffect, useState } from "react"
+import { useTranslations } from "next-intl"
 import QRCode from "qrcode"
 import {
   LayoutDashboard,
@@ -41,6 +42,10 @@ import {
   Download,
   Send,
   Shield,
+  Activity,
+  ClipboardList,
+  Save,
+  Palette,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -50,6 +55,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 import {
   Dialog,
   DialogContent,
@@ -84,6 +90,7 @@ import { NotificationsBell } from "@/components/feedbackpro/notifications-bell"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { LanguageSelector } from "@/components/feedbackpro/language-selector"
 import { exportToCsv } from "@/lib/export-csv"
+import { cn } from "@/lib/utils"
 import {
   PLANS,
   SUPPORTS,
@@ -121,16 +128,20 @@ type OngletAdmin =
   | "messages"
   | "parametres"
   | "email"
+  | "secteurs"
+  | "retention"
 
-const ONGLETS: { id: OngletAdmin; label: string; icone: React.ComponentType<{ className?: string }> }[] = [
-  { id: "globale", label: "Vue d'ensemble", icone: LayoutDashboard },
-  { id: "commercants", label: "Commerçants", icone: Store },
-  { id: "utilisateurs", label: "Utilisateurs", icone: Users },
-  { id: "commandes", label: "Commandes", icone: Package },
-  { id: "revenus", label: "Revenus", icone: Wallet },
-  { id: "messages", label: "Messages", icone: Mail },
-  { id: "email", label: "Email & API", icone: Send },
-  { id: "parametres", label: "Paramètres", icone: Settings },
+const ONGLETS: { id: OngletAdmin; labelKey: string; icone: React.ComponentType<{ className?: string }> }[] = [
+  { id: "globale", labelKey: "nav.overview", icone: LayoutDashboard },
+  { id: "commercants", labelKey: "nav.commercants", icone: Store },
+  { id: "utilisateurs", labelKey: "nav.utilisateurs", icone: Users },
+  { id: "commandes", labelKey: "nav.commandes", icone: Package },
+  { id: "revenus", labelKey: "nav.revenus", icone: Wallet },
+  { id: "retention", labelKey: "nav.retention", icone: Activity },
+  { id: "secteurs", labelKey: "nav.secteurs", icone: ClipboardList },
+  { id: "messages", labelKey: "nav.messages", icone: Mail },
+  { id: "email", labelKey: "nav.email", icone: Send },
+  { id: "parametres", labelKey: "nav.parametres", icone: Settings },
 ]
 
 // Alias de slugs historiques (rétrocompatibilité des anciennes URLs)
@@ -192,6 +203,11 @@ type ProLigne = {
   zones: number
   retours: number
   employes: number
+  // Task 4 — White-label : infos de personnalisation marque blanche
+  whiteLabel?: boolean
+  brandName?: string | null
+  brandColor?: string | null
+  brandLogoUrl?: string | null
 }
 
 /** GET /api/admin/commandes → { commandes: [...] } */
@@ -260,6 +276,7 @@ function enArray<T>(v: T[] | null | undefined): T[] {
 // ============================================================
 
 export function AdminDashboard() {
+  const t = useTranslations()
   const [onglet, setOnglet] = useState<OngletAdmin>(() => ongletDepuisUrl())
   const [overview, setOverview] = useState<OverviewApi | null>(null)
   const [menuOuvert, setMenuOuvert] = useState(false)
@@ -332,7 +349,7 @@ export function AdminDashboard() {
   }
 
   const ongletCourant = ONGLETS.find((o) => o.id === onglet)
-  const titreOnglet = ongletCourant?.label ?? "Administration"
+  const titreOnglet = ongletCourant ? t(ongletCourant.labelKey) : t("nav.overview")
   const emailAdmin = session?.user?.email ?? ""
 
   return (
@@ -354,7 +371,7 @@ export function AdminDashboard() {
           <div className="flex min-w-0 items-center gap-2.5">
             <Sheet open={menuOuvert} onOpenChange={setMenuOuvert}>
               <SheetContent side="left" className="w-72 border-0 bg-[#002e85] p-0 text-white" aria-describedby={undefined}>
-                <SheetTitle className="sr-only">Navigation administration</SheetTitle>
+                <SheetTitle className="sr-only">{t("common.navigationAdmin")}</SheetTitle>
                 <ContenuSidebarAdmin
                   ongletActif={onglet}
                   onNaviguer={naviguer}
@@ -369,17 +386,17 @@ export function AdminDashboard() {
               size="icon"
               className="text-foreground hover:bg-muted lg:hidden"
               onClick={() => setMenuOuvert(true)}
-              aria-label="Ouvrir le menu"
+              aria-label={t("common.ouvrirMenu")}
             >
               <Menu className="h-5 w-5" aria-hidden />
             </Button>
             <div className="min-w-0">
               <p className="truncate font-semibold text-foreground">{titreOnglet}</p>
-              <p className="hidden truncate text-xs text-muted-foreground sm:block">Administration FeedbackPro</p>
+              <p className="hidden truncate text-xs text-muted-foreground sm:block">{t("dashboard.titreAdmin")}</p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-            <Badge variant="secondary" className="hidden sm:inline-flex">Superadmin</Badge>
+            <Badge variant="secondary" className="hidden sm:inline-flex">{t("nav.superadmin")}</Badge>
             <LanguageSelector tone="light" />
             <NotificationsBell tone="light" />
             <ThemeToggle />
@@ -388,7 +405,7 @@ export function AdminDashboard() {
               variant="ghost"
               size="icon"
               onClick={() => logout()}
-              aria-label="Se déconnecter"
+              aria-label={t("common.deconnexion")}
             >
               <LogOut className="h-4.5 w-4.5" aria-hidden />
             </Button>
@@ -403,6 +420,8 @@ export function AdminDashboard() {
         {onglet === "utilisateurs" && <UtilisateursTab />}
         {onglet === "commandes" && <CommandesTab onModifie={loadOverview} />}
         {onglet === "revenus" && <RevenusTab />}
+        {onglet === "retention" && <RetentionTab />}
+        {onglet === "secteurs" && <SecteursTab />}
         {onglet === "messages" && <MessagesTab onApresAction={loadMessagesNonLus} />}
         {onglet === "email" && <EmailTab />}
         {onglet === "parametres" && <ParametresTab />}
@@ -428,6 +447,7 @@ function ContenuSidebarAdmin({
   onLogout: () => void
   messagesNonLus?: number
 }) {
+  const t = useTranslations()
   return (
     <div className="flex h-full flex-col">
       {/* Logo */}
@@ -441,7 +461,7 @@ function ContenuSidebarAdmin({
       </div>
 
       {/* Navigation verticale */}
-      <nav aria-label="Sections administration" className="flex flex-col gap-1 px-3 py-2">
+      <nav aria-label={t("common.navigationAdmin")} className="flex flex-col gap-1 px-3 py-2">
         {ONGLETS.map((o) => {
           const Icone = o.icone
           const actif = ongletActif === o.id
@@ -465,7 +485,7 @@ function ContenuSidebarAdmin({
               }`}
             >
               <Icone className="h-[18px] w-[18px] shrink-0" aria-hidden />
-              <span className="truncate">{o.label}</span>
+              <span className="truncate">{t(o.labelKey)}</span>
               {badge}
             </button>
           )
@@ -476,7 +496,7 @@ function ContenuSidebarAdmin({
       <div className="mt-auto border-t border-white/10 p-3">
         <div className="rounded-2xl px-3 py-2 text-xs text-white/70">
           <p className="truncate">{emailAdmin || "—"}</p>
-          <p className="mt-0.5 text-white/50">Connecté en superadmin</p>
+          <p className="mt-0.5 text-white/50">{t("common.connecteSuperadmin")}</p>
         </div>
         <Button
           variant="ghost"
@@ -484,7 +504,7 @@ function ContenuSidebarAdmin({
           onClick={onLogout}
         >
           <LogOut className="h-4 w-4" aria-hidden />
-          Se déconnecter
+          {t("common.deconnexion")}
         </Button>
       </div>
     </div>
@@ -761,6 +781,15 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
     adresse: "",
     plan: "STARTER",
   })
+  // Task 4 — White-label : dialog de personnalisation marque blanche
+  const [dialogWl, setDialogWl] = useState<ProLigne | null>(null)
+  const [wlForm, setWlForm] = useState({
+    whiteLabel: false,
+    brandName: "",
+    brandColor: "#002e85",
+    brandLogoUrl: "",
+  })
+  const [envoiWl, setEnvoiWl] = useState(false)
   const { toast } = useToast()
 
   const load = useCallback(async () => {
@@ -965,6 +994,65 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
     fStatut === "all" ? true : fStatut === "suspendus" ? p.suspendu : !p.suspendu
   )
 
+  // ---------- Task 4 — White-label : ouverture du dialog ----------
+  function ouvrirWhiteLabel(pro: ProLigne) {
+    setDialogWl(pro)
+    setWlForm({
+      whiteLabel: pro.whiteLabel ?? false,
+      brandName: pro.brandName ?? "",
+      brandColor: pro.brandColor || "#002e85",
+      brandLogoUrl: pro.brandLogoUrl ?? "",
+    })
+  }
+
+  async function sauvegarderWhiteLabel(e: React.FormEvent) {
+    e.preventDefault()
+    if (!dialogWl || envoiWl) return
+    setEnvoiWl(true)
+    try {
+      const res = await fetch("/api/admin/pros", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "whiteLabel",
+          id: dialogWl.id,
+          whiteLabel: wlForm.whiteLabel,
+          brandName: wlForm.brandName || null,
+          brandColor: wlForm.brandColor || null,
+          brandLogoUrl: wlForm.brandLogoUrl || null,
+        }),
+      })
+      const json = await res.json()
+      if (json.ok) {
+        // Met à jour la ligne dans la liste
+        setPros((prev) =>
+          prev.map((p) =>
+            p.id === dialogWl.id
+              ? {
+                  ...p,
+                  whiteLabel: json.data.whiteLabel,
+                  brandName: json.data.brandName,
+                  brandColor: json.data.brandColor,
+                  brandLogoUrl: json.data.brandLogoUrl,
+                }
+              : p
+          )
+        )
+        toast({
+          title: wlForm.whiteLabel ? "Mode White-label activé ✓" : "Mode White-label désactivé ✓",
+          description: `Personnalisation marque blanche de « ${dialogWl.nomEtablissement} » mise à jour.`,
+        })
+        setDialogWl(null)
+      } else {
+        toast({ title: "Erreur", description: json.error || "Échec de la mise à jour", variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Mise à jour impossible pour le moment", variant: "destructive" })
+    } finally {
+      setEnvoiWl(false)
+    }
+  }
+
   return (
     <div className="space-y-4">
       {/* ---------- Recherche + filtres + ajout ---------- */}
@@ -1163,6 +1251,21 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
                           </Select>
                           <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Voir les détails" onClick={() => setDetail(p)}>
                             <Eye className="h-4 w-4" aria-hidden />
+                          </Button>
+                          {/* Task 4 — Mode White-label : ouvre le dialog de personnalisation marque blanche */}
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className={`h-8 w-8 ${
+                              p.whiteLabel
+                                ? "bg-violet-100 text-violet-700 hover:bg-violet-200 dark:bg-violet-950/40 dark:text-violet-300"
+                                : "text-violet-700 hover:bg-violet-50 dark:text-violet-300 dark:hover:bg-violet-900/40"
+                            }`}
+                            aria-label={`Mode White-label de ${p.nomEtablissement}`}
+                            title={p.whiteLabel ? "White-label activé" : "Mode White-label"}
+                            onClick={() => ouvrirWhiteLabel(p)}
+                          >
+                            <Palette className="h-4 w-4" aria-hidden />
                           </Button>
                           <Button
                             variant="ghost"
@@ -1424,6 +1527,123 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
               </Button>
             </DialogFooter>
           </form>
+        </DialogContent>
+      </Dialog>
+
+      {/* ---------- Task 4 — Dialog : Mode White-label ---------- */}
+      <Dialog open={!!dialogWl} onOpenChange={(o) => !o && setDialogWl(null)}>
+        <DialogContent className="sm:max-w-lg">
+          {dialogWl && (
+            <>
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Palette className="h-5 w-5 text-violet-600" aria-hidden />
+                  Mode White-label — {dialogWl.nomEtablissement}
+                </DialogTitle>
+                <DialogDescription>
+                  Personnalisez l&apos;apparence de la page de scan pour cet établissement (agence).
+                  Si le mode est activé, le nom, la couleur et le logo remplacent ceux de FeedbackPro.
+                </DialogDescription>
+              </DialogHeader>
+              <form onSubmit={sauvegarderWhiteLabel} className="space-y-4">
+                {/* Toggle principal */}
+                <div className="flex items-center justify-between gap-4 rounded-xl border p-3.5">
+                  <div className="min-w-0">
+                    <Label htmlFor="wl-toggle" className="cursor-pointer">
+                      Activer le mode White-label
+                    </Label>
+                    <p className="mt-0.5 text-xs text-muted-foreground">
+                      Remplace « FeedbackPro » par votre marque sur la page de scan client.
+                    </p>
+                  </div>
+                  <Switch
+                    id="wl-toggle"
+                    checked={wlForm.whiteLabel}
+                    onCheckedChange={(v) => setWlForm({ ...wlForm, whiteLabel: v })}
+                    aria-label="Activer le mode White-label"
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="wl-name">Nom de la marque</Label>
+                    <Input
+                      id="wl-name"
+                      value={wlForm.brandName}
+                      onChange={(e) => setWlForm({ ...wlForm, brandName: e.target.value })}
+                      placeholder="FeedbackPro"
+                      maxLength={80}
+                    />
+                    <p className="text-[11px] text-muted-foreground">
+                      Affiché dans le pied de page (sinon « FeedbackPro »).
+                    </p>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="wl-color">Couleur primaire</Label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="color"
+                        value={wlForm.brandColor}
+                        onChange={(e) => setWlForm({ ...wlForm, brandColor: e.target.value })}
+                        className="h-10 w-12 shrink-0 cursor-pointer rounded-md border"
+                        aria-label="Sélecteur de couleur"
+                      />
+                      <Input
+                        id="wl-color"
+                        value={wlForm.brandColor}
+                        onChange={(e) => setWlForm({ ...wlForm, brandColor: e.target.value })}
+                        maxLength={20}
+                        className="font-mono text-sm"
+                      />
+                    </div>
+                    <p className="text-[11px] text-muted-foreground">
+                      Remplace #002e85 partout sur la page de scan.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="wl-logo">URL du logo de marque</Label>
+                  <Input
+                    id="wl-logo"
+                    type="url"
+                    value={wlForm.brandLogoUrl}
+                    onChange={(e) => setWlForm({ ...wlForm, brandLogoUrl: e.target.value })}
+                    placeholder="https://…/logo.png"
+                    maxLength={500}
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Remplace le logo FeedbackPro dans le pied de page. Laissez vide pour conserver le texte.
+                  </p>
+                  {/* Aperçu live */}
+                  {wlForm.brandLogoUrl && (
+                    <div className="flex items-center gap-2 rounded-lg border bg-muted/30 p-2.5">
+                      <img
+                        src={wlForm.brandLogoUrl}
+                        alt="Aperçu logo"
+                        className="h-8 w-auto"
+                        onError={(e) => {
+                          ;(e.currentTarget as HTMLImageElement).style.display = "none"
+                        }}
+                      />
+                      <span className="text-xs text-muted-foreground">Aperçu du logo</span>
+                    </div>
+                  )}
+                </div>
+
+                <DialogFooter className="gap-2 sm:gap-0 pt-2">
+                  <Button type="button" variant="outline" onClick={() => setDialogWl(null)} disabled={envoiWl}>
+                    Annuler
+                  </Button>
+                  <Button type="submit" disabled={envoiWl}>
+                    {envoiWl && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
+                    <Save className="mr-1.5 h-4 w-4" aria-hidden />
+                    Enregistrer
+                  </Button>
+                </DialogFooter>
+              </form>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </div>
@@ -3303,6 +3523,751 @@ function MessagesTab({ onApresAction }: { onApresAction: () => void }) {
           </Card>
         </div>
       )}
+    </div>
+  )
+}
+
+// ============================================================
+// Task 2 — Onglet "Configuration secteurs" (éditeur de questionnaire)
+// ------------------------------------------------------------
+// Le superadmin peut éditer le questionnaire adaptatif (3 scénarios
+// CRISE/MITIGE/SUCCES) pour chaque SecteurConfig stocké en BDD.
+//
+// L'éditeur est volontairement simple (textarea JSON) pour commencer :
+// un sélecteur de secteur → JSON éditable → bouton Enregistrer.
+// Une preview (nombre de scénarios, nombre de questions, source)
+// aide à vérifier que la config est valide avant sauvegarde.
+//
+// Contrats API :
+//   GET /api/admin/secteurs → { secteurs: [...] }
+//   PUT /api/admin/secteurs { secteurId, questionnaireConfig } → { ok }
+// ============================================================
+
+type SecteurQuestionnaireApi = {
+  id: string
+  nom: string
+  emoji: string
+  description: string
+  macroSecteur: string | null
+  questionnaire: unknown
+  source: "bdd" | "fallback"
+  questionCount: number
+  scenarioCount: number
+}
+
+function SecteursTab() {
+  const [secteurs, setSecteurs] = useState<SecteurQuestionnaireApi[]>([])
+  const [secteurId, setSecteurId] = useState<string>("")
+  const [json, setJson] = useState<string>("")
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [erreur, setErreur] = useState<string | null>(null)
+  const { toast } = useToast()
+
+  const secteurSelectionne = secteurs.find((s) => s.id === secteurId) ?? null
+
+  async function load() {
+    setLoading(true)
+    try {
+      const res = await fetch("/api/admin/secteurs", { cache: "no-store" })
+      const j = await res.json()
+      if (j.ok) {
+        setSecteurs(j.data.secteurs as SecteurQuestionnaireApi[])
+        if (!secteurId && j.data.secteurs.length > 0) {
+          setSecteurId(j.data.secteurs[0].id)
+        }
+      } else {
+        toast({ title: "Erreur", description: j.error || "Chargement impossible", variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Chargement impossible", variant: "destructive" })
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Chargement initial
+  useEffect(() => {
+    load()
+  }, [])
+
+  // Quand le secteur sélectionné change, on recharge son JSON
+  useEffect(() => {
+    if (!secteurSelectionne) {
+      setJson("")
+      return
+    }
+    // On sérialise le questionnaire avec indentation pour l'édition
+    try {
+      const obj = secteurSelectionne.questionnaire
+      if (obj) {
+        setJson(JSON.stringify(obj, null, 2))
+      } else {
+        setJson("")
+      }
+      setErreur(null)
+    } catch {
+      setJson("")
+    }
+  }, [secteurId])
+
+  // Validation en temps réel du JSON édité
+  function validerJson(texte: string): { valide: boolean; erreur?: string; scenarioCount?: number; questionCount?: number } {
+    if (!texte.trim()) {
+      return { valide: false, erreur: "JSON vide" }
+    }
+    try {
+      const parsed = JSON.parse(texte) as unknown
+      if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+        return { valide: false, erreur: "Doit être un objet { secteur, scenarios: [] }" }
+      }
+      const obj = parsed as { scenarios?: unknown }
+      if (!Array.isArray(obj.scenarios)) {
+        return { valide: false, erreur: "Champ 'scenarios' manquant ou pas un tableau" }
+      }
+      let qCount = 0
+      for (const s of obj.scenarios as Array<Record<string, unknown>>) {
+        if (!s || typeof s.scenario !== "string" || !Array.isArray(s.questions) || s.questions.length === 0) {
+          return { valide: false, erreur: "Chaque scénario doit avoir 'scenario' (string) et 'questions' (tableau non vide)" }
+        }
+        qCount += (s.questions as unknown[]).length
+      }
+      return { valide: true, scenarioCount: obj.scenarios.length, questionCount: qCount }
+    } catch (e) {
+      return { valide: false, erreur: e instanceof Error ? e.message : "JSON invalide" }
+    }
+  }
+
+  const validation = validerJson(json)
+
+  async function enregistrer() {
+    if (!secteurId) return
+    if (!validation.valide) {
+      setErreur(validation.erreur ?? "JSON invalide")
+      return
+    }
+    setSaving(true)
+    setErreur(null)
+    try {
+      const res = await fetch("/api/admin/secteurs", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secteurId, questionnaireConfig: json }),
+      })
+      const j = await res.json()
+      if (j.ok) {
+        toast({
+          title: "Configuration enregistrée ✓",
+          description: `Le questionnaire de « ${secteurSelectionne?.nom} » a été mis à jour.`,
+        })
+        await load()
+      } else {
+        setErreur(j.error || "Échec de l'enregistrement")
+        toast({ title: "Erreur", description: j.error || "Échec de l'enregistrement", variant: "destructive" })
+      }
+    } catch {
+      setErreur("Échec de l'enregistrement")
+      toast({ title: "Erreur", description: "Échec de l'enregistrement", variant: "destructive" })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function reinitialiser() {
+    if (!secteurSelectionne) return
+    if (!confirm(`Réinitialiser le questionnaire de « ${secteurSelectionne.nom} » à la valeur par défaut (config hardcoded) ?`)) {
+      return
+    }
+    // Pour réinitialiser, on met un JSON vide → le fallback hardcoded sera utilisé
+    setSaving(true)
+    try {
+      const res = await fetch("/api/admin/secteurs", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ secteurId, questionnaireConfig: {} }),
+      })
+      const j = await res.json()
+      if (j.ok) {
+        toast({ title: "Configuration réinitialisée", description: "Le fallback hardcoded sera utilisé." })
+        await load()
+      } else {
+        toast({ title: "Erreur", description: j.error || "Échec", variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Échec", variant: "destructive" })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* En-tête */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="flex items-center gap-2 text-lg font-semibold sm:text-xl">
+            <ClipboardList className="h-5 w-5 text-primary" aria-hidden />
+            Configuration des questionnaires par secteur
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
+            Éditez le questionnaire adaptatif (scénarios CRISE / MITIGE / SUCCES) affiché aux clients lors du scan QR.
+            Les modifications sont appliquées immédiatement à tous les Pros du secteur.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={load} disabled={loading} className="gap-1.5">
+          <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} aria-hidden />
+          Rafraîchir
+        </Button>
+      </div>
+
+      {loading ? (
+        <Card>
+          <CardContent className="flex items-center gap-3 py-12">
+            <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden />
+            <span className="text-sm text-muted-foreground">Chargement des secteurs…</span>
+          </CardContent>
+        </Card>
+      ) : secteurs.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-sm text-muted-foreground">Aucun secteur configuré. Lancez le seed des secteurs.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          {/* Sélecteur de secteur */}
+          <Card>
+            <CardHeader className="pb-4">
+              <CardTitle className="text-base">1. Sélectionnez un secteur</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+                {secteurs.map((s) => (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setSecteurId(s.id)}
+                    className={cn(
+                      "flex flex-col items-start gap-1 rounded-2xl border p-3 text-left transition-colors",
+                      s.id === secteurId
+                        ? "border-primary bg-primary/5 ring-2 ring-primary/20"
+                        : "border-border hover:bg-muted/50"
+                    )}
+                  >
+                    <span className="text-xl" aria-hidden>{s.emoji || "🏪"}</span>
+                    <span className="text-sm font-medium leading-tight">{s.nom}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {s.scenarioCount} scén. · {s.questionCount} quest.
+                    </span>
+                    {s.source === "fallback" && (
+                      <Badge variant="outline" className="mt-1 h-4 px-1 text-[9px] font-normal text-amber-700">
+                        défaut
+                      </Badge>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Éditeur JSON */}
+          {secteurSelectionne && (
+            <Card>
+              <CardHeader className="pb-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <CardTitle className="flex items-center gap-2 text-base">
+                      <span aria-hidden>{secteurSelectionne.emoji || "🏪"}</span>
+                      2. Éditez le questionnaire — {secteurSelectionne.nom}
+                    </CardTitle>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Macro-secteur : {secteurSelectionne.macroSecteur ?? "générique"} · Source actuelle :{" "}
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          "ml-1 h-4 px-1.5 text-[10px] font-normal",
+                          secteurSelectionne.source === "bdd"
+                            ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                            : "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+                        )}
+                      >
+                        {secteurSelectionne.source === "bdd" ? "BDD (édité)" : "Fallback hardcoded"}
+                      </Badge>
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={reinitialiser}
+                      disabled={saving}
+                      className="gap-1.5"
+                    >
+                      <RotateCcw className="h-3.5 w-3.5" aria-hidden />
+                      Réinitialiser
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={enregistrer}
+                      disabled={saving || !validation.valide}
+                      className="gap-1.5"
+                    >
+                      {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <Save className="h-3.5 w-3.5" aria-hidden />}
+                      Enregistrer
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {/* Statut de validation */}
+                <div
+                  className={cn(
+                    "flex items-center gap-2 rounded-xl border p-2.5 text-xs",
+                    validation.valide
+                      ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                      : "border-rose-300 bg-rose-50 text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300"
+                  )}
+                >
+                  {validation.valide ? (
+                    <>
+                      <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                      <span>
+                        JSON valide — {validation.scenarioCount} scénario(s) · {validation.questionCount} question(s)
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Ban className="h-3.5 w-3.5" aria-hidden />
+                      <span>JSON invalide : {validation.erreur}</span>
+                    </>
+                  )}
+                </div>
+
+                {/* Textarea JSON */}
+                <Textarea
+                  value={json}
+                  onChange={(e) => {
+                    setJson(e.target.value)
+                    setErreur(null)
+                  }}
+                  className="min-h-[480px] font-mono text-xs leading-relaxed"
+                  placeholder='{ "secteur": "RESTAURATION", "scenarios": [...] }'
+                  spellCheck={false}
+                  aria-label="Éditeur JSON du questionnaire"
+                />
+                {erreur && (
+                  <p className="text-xs text-rose-600 dark:text-rose-400">{erreur}</p>
+                )}
+                <p className="text-[11px] text-muted-foreground">
+                  Format attendu : <code className="rounded bg-muted px-1 py-0.5 font-mono text-[10px]">{`{ secteur: string, scenarios: [{ scenario: "CRISE"|"MITIGE"|"SUCCES", noteMin, noteMax, questions: [...], tempsEstime }] }`}</code>
+                  . En cas d'erreur ou de champ vide, le fallback hardcoded (src/lib/questionnaire-config.ts) est utilisé.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
+
+// ============================================================
+// Task 3 — Onglet "Rétention" (dashboard superadmin)
+// ------------------------------------------------------------
+// Métriques de rétention des Pros :
+//   - Clients actifs par mois (AreaChart) : Pros avec ≥1 retour dans le mois
+//   - Nouveaux clients par mois (AreaChart) : Pros créés dans le mois
+//   - Taux de churn (%) : Pros suspendus OU sans retour depuis 30j / total
+//   - LTV estimée (€) : moyenne prix plan × durée moyenne abonnement
+//   - Répartition par plan (PieChart)
+//
+// Contrat API : GET /api/admin/retention
+// ============================================================
+
+type RetentionData = {
+  clientsActifsParMois: { mois: string; cle: string; count: number }[]
+  nouveauxClientsParMois: { mois: string; cle: string; count: number }[]
+  tauxChurn: number
+  prosInactifs: number
+  prosActifs: number
+  prosSuspendus: number
+  ltvEstime: number
+  dureeMoyenneAbonnementMois: number
+  prixPlanMoyen: number
+  repartitionPlans: { plan: string; count: number; pct: number }[]
+  resume: {
+    totalPros: number
+    prosActifs: number
+    prosInactifs: number
+    prosSuspendus: number
+  }
+  periode: { debut: string; fin: string; nbMois: number }
+}
+
+const COULEURS_REPARTITION = ["#002e85", "#0047c7", "#94a3b8", "#1e3a8a", "#64748b"]
+
+function RetentionTab() {
+  const [data, setData] = useState<RetentionData | null>(null)
+  const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch("/api/admin/retention", { cache: "no-store" })
+      const j = await res.json()
+      if (j.ok) {
+        setData(j.data as RetentionData)
+      } else {
+        toast({ title: "Erreur", description: j.error || "Chargement impossible", variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Chargement impossible", variant: "destructive" })
+    } finally {
+      setLoading(false)
+    }
+  }, [toast])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  if (loading) {
+    return (
+      <div className="space-y-5">
+        <div className="flex items-center gap-3">
+          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" aria-hidden />
+          <span className="text-sm text-muted-foreground">Chargement des métriques de rétention…</span>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-28 rounded-2xl" />
+          ))}
+        </div>
+        <Skeleton className="h-80 rounded-2xl" />
+      </div>
+    )
+  }
+
+  if (!data) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center">
+          <p className="text-sm text-muted-foreground">Impossible de charger les données de rétention.</p>
+          <Button variant="outline" size="sm" onClick={load} className="mt-3 gap-1.5">
+            <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+            Réessayer
+          </Button>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* En-tête */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="flex items-center gap-2 text-lg font-semibold sm:text-xl">
+            <Activity className="h-5 w-5 text-primary" aria-hidden />
+            Rétention & Fidélisation
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground sm:text-sm">
+            Suivez l'engagement des commerçants : clients actifs, churn, LTV estimée et répartition par plan.
+          </p>
+        </div>
+        <Button variant="outline" size="sm" onClick={load} className="gap-1.5">
+          <RefreshCw className="h-4 w-4" aria-hidden />
+          Rafraîchir
+        </Button>
+      </div>
+
+      {/* KPI cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <Card>
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-muted-foreground">Clients actifs (30j)</p>
+              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+                <CheckCircle2 className="h-4 w-4" aria-hidden />
+              </span>
+            </div>
+            <p className="mt-2 text-2xl font-bold tabular-nums">{data.prosActifs}</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              sur {data.resume.totalPros} Pros ({data.resume.totalPros > 0 ? Math.round((data.prosActifs / data.resume.totalPros) * 100) : 0}%)
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-muted-foreground">Taux de churn</p>
+              <span
+                className={cn(
+                  "flex h-8 w-8 items-center justify-center rounded-xl",
+                  data.tauxChurn >= 50
+                    ? "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300"
+                    : data.tauxChurn >= 25
+                      ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
+                      : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+                )}
+              >
+                <TrendingUp className="h-4 w-4" aria-hidden />
+              </span>
+            </div>
+            <p className="mt-2 text-2xl font-bold tabular-nums">{data.tauxChurn}%</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {data.prosInactifs} inactifs ({data.prosSuspendus} suspendus)
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-muted-foreground">LTV estimée</p>
+              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-primary/10 text-primary">
+                <Euro className="h-4 w-4" aria-hidden />
+              </span>
+            </div>
+            <p className="mt-2 text-2xl font-bold tabular-nums">{data.ltvEstime} €</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {data.prixPlanMoyen} €/mois × {data.dureeMoyenneAbonnementMois || "6"} mois
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-4 sm:p-5">
+            <div className="flex items-center justify-between">
+              <p className="text-xs font-medium text-muted-foreground">Total Pros</p>
+              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+                <Users className="h-4 w-4" aria-hidden />
+              </span>
+            </div>
+            <p className="mt-2 text-2xl font-bold tabular-nums">{data.resume.totalPros}</p>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              {data.repartitionPlans.length} plan(s) actifs
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Graphiques : Clients actifs + Nouveaux clients */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Activity className="h-4 w-4 text-primary" aria-hidden />
+              Clients actifs par mois
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Pros ayant eu au moins 1 retour dans le mois (12 derniers mois)
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={data.clientsActifsParMois} margin={{ top: 5, right: 10, bottom: 0, left: -20 }}>
+                  <defs>
+                    <linearGradient id="gradActifs" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#0047c7" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#0047c7" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} className="dark:stroke-slate-700" />
+                  <XAxis dataKey="mois" tick={{ fontSize: 11 }} stroke="#9ca3af" />
+                  <YAxis tick={{ fontSize: 11 }} stroke="#9ca3af" allowDecimals={false} />
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: 12,
+                      border: "1px solid #e5e7eb",
+                      fontSize: 12,
+                    }}
+                    formatter={(v: number) => [`${v} client(s)`, "Actifs"]}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="count"
+                    stroke="#0047c7"
+                    strokeWidth={2}
+                    fill="url(#gradActifs)"
+                    name="Actifs"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Plus className="h-4 w-4 text-emerald-600" aria-hidden />
+              Nouveaux clients par mois
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Pros créés dans le mois (12 derniers mois)
+            </p>
+          </CardHeader>
+          <CardContent>
+            <div className="h-64 w-full">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={data.nouveauxClientsParMois} margin={{ top: 5, right: 10, bottom: 0, left: -20 }}>
+                  <defs>
+                    <linearGradient id="gradNouveaux" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} className="dark:stroke-slate-700" />
+                  <XAxis dataKey="mois" tick={{ fontSize: 11 }} stroke="#9ca3af" />
+                  <YAxis tick={{ fontSize: 11 }} stroke="#9ca3af" allowDecimals={false} />
+                  <Tooltip
+                    contentStyle={{
+                      borderRadius: 12,
+                      border: "1px solid #e5e7eb",
+                      fontSize: 12,
+                    }}
+                    formatter={(v: number) => [`${v} nouveau(x)`, "Nouveaux"]}
+                  />
+                  <Area
+                    type="monotone"
+                    dataKey="count"
+                    stroke="#10b981"
+                    strokeWidth={2}
+                    fill="url(#gradNouveaux)"
+                    name="Nouveaux"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Répartition par plan (PieChart) + tableau détaillé */}
+      <div className="grid gap-4 lg:grid-cols-5">
+        <Card className="lg:col-span-2">
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Package className="h-4 w-4 text-primary" aria-hidden />
+              Répartition par plan
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">Distribution des Pros par formule d'abonnement</p>
+          </CardHeader>
+          <CardContent>
+            {data.repartitionPlans.length === 0 ? (
+              <div className="flex h-64 items-center justify-center text-sm text-muted-foreground">
+                Aucun Pro inscrit
+              </div>
+            ) : (
+              <div className="h-64 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={data.repartitionPlans}
+                      dataKey="count"
+                      nameKey="plan"
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={45}
+                      outerRadius={85}
+                      paddingAngle={2}
+                    >
+                      {data.repartitionPlans.map((entry, idx) => (
+                        <Cell
+                          key={`cell-${entry.plan}`}
+                          fill={COULEURS_REPARTITION[idx % COULEURS_REPARTITION.length]}
+                        />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      contentStyle={{
+                        borderRadius: 12,
+                        border: "1px solid #e5e7eb",
+                        fontSize: 12,
+                      }}
+                      formatter={(v: number, _n: string, props: { payload?: { plan?: string; pct?: number } }) => [
+                        `${v} Pro(s) (${props?.payload?.pct ?? 0}%)`,
+                        props?.payload?.plan ?? "Plan",
+                      ]}
+                    />
+                    <Legend
+                      verticalAlign="bottom"
+                      iconType="circle"
+                      wrapperStyle={{ fontSize: 11 }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-3">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Détail par plan</CardTitle>
+            <p className="text-xs text-muted-foreground">Répartition détaillée des Pros par formule</p>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="text-xs">Plan</TableHead>
+                  <TableHead className="text-right text-xs">Pros</TableHead>
+                  <TableHead className="text-right text-xs">Part</TableHead>
+                  <TableHead className="text-right text-xs">Revenu mensuel</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.repartitionPlans.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={4} className="py-8 text-center text-sm text-muted-foreground">
+                      Aucun Pro inscrit
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  data.repartitionPlans.map((r, idx) => {
+                    const prix = PLANS[r.plan as PlanId]?.price ?? 0
+                    const revenu = prix * r.count
+                    return (
+                      <TableRow key={r.plan}>
+                        <TableCell className="text-sm font-medium">
+                          <span className="flex items-center gap-2">
+                            <span
+                              className="h-3 w-3 rounded-full"
+                              style={{ backgroundColor: COULEURS_REPARTITION[idx % COULEURS_REPARTITION.length] }}
+                              aria-hidden
+                            />
+                            {nomPlan(r.plan)}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right text-sm tabular-nums">{r.count}</TableCell>
+                        <TableCell className="text-right text-sm tabular-nums">{r.pct}%</TableCell>
+                        <TableCell className="text-right text-sm tabular-nums font-medium">{revenu} €</TableCell>
+                      </TableRow>
+                    )
+                  })
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Note méthodologique */}
+      <Card>
+        <CardContent className="p-4 sm:p-5">
+          <p className="text-xs text-muted-foreground">
+            <strong className="text-foreground">Méthodologie :</strong> un Pro est considéré <em>actif</em> s'il a reçu au moins
+            1 retour dans les 30 derniers jours. Le <em>taux de churn</em> = (Pros suspendus + Pros sans retour depuis 30j) / total
+            Pros. La <em>LTV estimée</em> = prix plan moyen × durée moyenne d'abonnement (ou 6 mois par défaut si pas d'historique).
+            Données calculées sur les {data.periode.nbMois} derniers mois.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   )
 }

@@ -12,6 +12,7 @@
 // ============================================================
 
 import { useEffect, useState } from "react"
+import { useTranslations } from "next-intl"
 import {
   Bot,
   LayoutDashboard,
@@ -29,6 +30,10 @@ import {
   LogOut,
   AlertTriangle,
   ShoppingBag,
+  Building2,
+  Check,
+  ChevronDown,
+  Loader2,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -36,8 +41,17 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Sheet, SheetContent, SheetTrigger, SheetTitle } from "@/components/ui/sheet"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
 import { useAppStore } from "@/store/app-store"
+import { useToast } from "@/hooks/use-toast"
 import { PLANS, type PlanId } from "@/lib/constants"
 import { NotificationsBell } from "@/components/feedbackpro/notifications-bell"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -56,6 +70,7 @@ import { BillingTab } from "@/components/feedbackpro/billing-tab"
 import { CommanderTab } from "@/components/feedbackpro/commander-tab"
 import { RecompensesTab } from "@/components/feedbackpro/recompenses-tab"
 import { SettingsTab } from "@/components/feedbackpro/settings-tab"
+import { OnboardingBanner } from "@/components/feedbackpro/onboarding-banner"
 
 type Onglet =
   | "dashboard"
@@ -113,27 +128,27 @@ const TAB_TO_SLUG: Record<Onglet, string> = {
 
 // ---------- Navigation (Session 4) : 7 onglets principaux + groupe « Gestion » ----------
 
-type EntreeNav = { id: Onglet; label: string; icon: React.ComponentType<{ className?: string }> }
+type EntreeNav = { id: Onglet; labelKey: string; icon: React.ComponentType<{ className?: string }> }
 
 /** Onglets principaux — l'ordre ci-dessous est la spec Session 4 */
 const ONGLETS_PRINCIPAUX: EntreeNav[] = [
-  { id: "dashboard", label: "Tableau de bord", icon: LayoutDashboard },
-  { id: "coach", label: "Coach IA", icon: Bot },
-  { id: "zones", label: "Zones", icon: MapPin },
-  { id: "retours", label: "Retours", icon: Inbox },
-  { id: "team", label: "Équipe", icon: Users },
-  { id: "stats", label: "Statistiques", icon: BarChart3 },
-  { id: "qrcode", label: "QR Codes", icon: QrCode },
-  { id: "settings", label: "Paramètres", icon: Settings },
+  { id: "dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard },
+  { id: "coach", labelKey: "nav.coach", icon: Bot },
+  { id: "zones", labelKey: "nav.zones", icon: MapPin },
+  { id: "retours", labelKey: "nav.retours", icon: Inbox },
+  { id: "team", labelKey: "nav.team", icon: Users },
+  { id: "stats", labelKey: "nav.stats", icon: BarChart3 },
+  { id: "qrcode", labelKey: "nav.qrcode", icon: QrCode },
+  { id: "settings", labelKey: "nav.settings", icon: Settings },
 ]
 
 /** Onglets secondaires, après le séparateur « Gestion » */
 const ONGLETS_GESTION: EntreeNav[] = [
-  { id: "commander", label: "Commander", icon: ShoppingBag },
-  { id: "rapports", label: "Rapports IA", icon: FileText },
-  { id: "recompenses", label: "Récompenses", icon: Gift },
-  { id: "actions", label: "Actions", icon: ClipboardCheck },
-  { id: "billing", label: "Facturation", icon: CreditCard },
+  { id: "commander", labelKey: "nav.commander", icon: ShoppingBag },
+  { id: "rapports", labelKey: "nav.rapports", icon: FileText },
+  { id: "recompenses", labelKey: "nav.recompenses", icon: Gift },
+  { id: "actions", labelKey: "nav.actions", icon: ClipboardCheck },
+  { id: "billing", labelKey: "nav.billing", icon: CreditCard },
 ]
 
 /** Liste plate (squelettes de chargement uniquement) */
@@ -165,6 +180,7 @@ function ongletDepuisUrl(): Onglet {
 }
 
 export function ProDashboard() {
+  const t = useTranslations()
   const [onglet, setOnglet] = useState<Onglet>(() => ongletDepuisUrl())
   const [menuOuvert, setMenuOuvert] = useState(false)
   /** Zone présélectionnée dans l'onglet QR (arrivée depuis l'onglet Zones) */
@@ -188,6 +204,9 @@ export function ProDashboard() {
   const [etablissements, setEtablissements] = useState<
     { id: string; nomEtablissement: string; courant: boolean }[]
   >([])
+  // Task 5 — switch en cours (désactive le sélecteur pendant la requête)
+  const [switchEnCours, setSwitchEnCours] = useState<string | null>(null)
+  const { toast: toastFeedback } = useToast()
   useEffect(() => {
     if (!session) return
     let annule = false
@@ -210,6 +229,32 @@ export function ProDashboard() {
       annule = true
     }
   }, [session])
+
+  // Task 5 — Switch d'établissement : POST /api/pro/switch-etablissement
+  // puis recharge la page pour rafraîchir la session (store + cookie).
+  async function switcherEtablissement(cibleId: string) {
+    if (switchEnCours || !cibleId) return
+    setSwitchEnCours(cibleId)
+    try {
+      const res = await fetch("/api/pro/switch-etablissement", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cibleId }),
+      })
+      const json = await res.json()
+      if (json.ok) {
+        // La nouvelle session est posée via cookie ; on recharge pour
+        // rafraîchir le store Zustand et les données serveur.
+        window.location.reload()
+      } else {
+        toastFeedback({ title: "Erreur", description: json.error || "Switch impossible", variant: "destructive" })
+        setSwitchEnCours(null)
+      }
+    } catch {
+      toastFeedback({ title: "Erreur réseau", variant: "destructive" })
+      setSwitchEnCours(null)
+    }
+  }
 
   // Boutons précédent / suivant du navigateur : resynchronise l'onglet
   useEffect(() => {
@@ -296,14 +341,14 @@ export function ProDashboard() {
                   variant="ghost"
                   size="icon"
                   className="text-foreground hover:bg-muted lg:hidden"
-                  aria-label="Ouvrir le menu"
+                  aria-label={t("common.ouvrirMenu")}
                   aria-expanded={menuOuvert}
                 >
                   <Menu className="h-5 w-5" aria-hidden />
                 </Button>
               </SheetTrigger>
               <SheetContent side="left" className="w-72 border-0 bg-[#002e85] p-0 text-white" aria-describedby={undefined}>
-                <SheetTitle className="sr-only">Navigation du dashboard</SheetTitle>
+                <SheetTitle className="sr-only">{t("common.navigationDashboard")}</SheetTitle>
                 <ContenuSidebar
                   ongletActif={onglet}
                   onNaviguer={(o) => {
@@ -314,30 +359,56 @@ export function ProDashboard() {
               </SheetContent>
             </Sheet>
             {/* D7 : sélecteur d'établissement (multi-sites) — affiché uniquement
-                si le groupe compte plusieurs établissements. Le switch complet
-                nécessite une session dédiée ; le sélecteur liste donc les
-                établissements et indique l'actif ( coche ). */}
+                si le groupe compte plusieurs établissements. Task 5 : au clic
+                sur un enfant, on appelle POST /api/pro/switch-etablissement
+                puis on recharge la page (nouvelle session + cookie). */}
             {etablissements.length > 1 ? (
-              <Select value={etablissements.find((e) => e.courant)?.id ?? etablissements[0]?.id} disabled>
-                <SelectTrigger
-                  className="h-9 w-[180px] border-0 bg-muted text-xs font-semibold hover:bg-muted sm:w-[220px]"
-                  aria-label="Sélectionner un établissement"
-                >
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    className="h-9 w-[180px] justify-between gap-2 border-0 bg-muted px-3 text-xs font-semibold hover:bg-muted sm:w-[240px]"
+                    disabled={!!switchEnCours}
+                    aria-label="Sélectionner un établissement"
+                  >
+                    <span className="flex min-w-0 items-center gap-1.5">
+                      <Building2 className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                      <span className="truncate">
+                        {etablissements.find((e) => e.courant)?.nomEtablissement ?? etablissements[0]?.nomEtablissement}
+                      </span>
+                    </span>
+                    {switchEnCours ? (
+                      <Loader2 className="size-3.5 shrink-0 animate-spin" aria-hidden />
+                    ) : (
+                      <ChevronDown className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+                    )}
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-[240px]">
+                  <DropdownMenuLabel className="text-xs text-muted-foreground">
+                    Mes établissements
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
                   {etablissements.map((e) => (
-                    <SelectItem key={e.id} value={e.id}>
-                      {e.courant ? "📍 " : "🏢 "}
-                      {e.nomEtablissement}
-                    </SelectItem>
+                    <DropdownMenuItem
+                      key={e.id}
+                      onClick={() => !e.courant && switcherEtablissement(e.id)}
+                      disabled={e.courant || switchEnCours === e.id}
+                      className="flex items-center justify-between gap-2 text-sm"
+                    >
+                      <span className="flex min-w-0 items-center gap-1.5">
+                        <span aria-hidden>{e.courant ? "📍" : "🏢"}</span>
+                        <span className="truncate">{e.nomEtablissement}</span>
+                      </span>
+                      {e.courant && <Check className="size-3.5 shrink-0 text-primary" aria-hidden />}
+                    </DropdownMenuItem>
                   ))}
-                </SelectContent>
-              </Select>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
               <div className="min-w-0">
                 <p className="truncate font-semibold text-foreground">{nomEtablissement}</p>
-                <p className="hidden truncate text-xs text-muted-foreground sm:block">Tableau de bord FeedbackPro</p>
+                <p className="hidden truncate text-xs text-muted-foreground sm:block">{t("common.tableauBordFeedback")}</p>
               </div>
             )}
             {/* Task M4 — Badge Secteur : emoji + nom du secteur (masqué sur
@@ -367,12 +438,12 @@ export function ProDashboard() {
                     variant="ghost"
                     size="icon"
                     onClick={() => logout()}
-                    aria-label="Se déconnecter"
+                    aria-label={t("common.deconnexion")}
                   >
                     <LogOut className="h-4.5 w-4.5" aria-hidden />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Se déconnecter</TooltipContent>
+                <TooltipContent>{t("common.deconnexion")}</TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
@@ -391,6 +462,9 @@ export function ProDashboard() {
           </div>
         </div>
       )}
+
+      {/* ---------- Bannière d'onboarding "First Week" (Task 1) ---------- */}
+      {!suspendu && <OnboardingBanner />}
 
       {/* ---------- Contenu ---------- */}
       <main className="mx-auto w-full max-w-7xl flex-1 px-3 py-5 sm:px-5 sm:py-7 lg:px-6">
@@ -423,6 +497,7 @@ function BoutonOnglet({
   actif: boolean
   onNaviguer: (o: Onglet) => void
 }) {
+  const t = useTranslations()
   const Icon = entree.icon
   return (
     <button
@@ -437,7 +512,7 @@ function BoutonOnglet({
       )}
     >
       <Icon className="h-[18px] w-[18px] shrink-0" aria-hidden />
-      <span className="truncate">{entree.label}</span>
+      <span className="truncate">{t(entree.labelKey)}</span>
     </button>
   )
 }
@@ -451,6 +526,7 @@ function ContenuSidebar({
   ongletActif: Onglet
   onNaviguer: (o: Onglet) => void
 }) {
+  const t = useTranslations()
   return (
     <div className="flex h-full flex-col">
       {/* Logo */}
@@ -464,7 +540,7 @@ function ContenuSidebar({
       </div>
 
       {/* Navigation verticale : principaux, séparateur « Gestion », secondaires */}
-      <nav aria-label="Navigation du dashboard" className="flex flex-col gap-1 overflow-y-auto py-2 custom-scrollbar">
+      <nav aria-label={t("common.navigationDashboard")} className="flex flex-col gap-1 overflow-y-auto py-2 custom-scrollbar">
         {ONGLETS_PRINCIPAUX.map((o) => (
           <BoutonOnglet key={o.id} entree={o} actif={ongletActif === o.id} onNaviguer={onNaviguer} />
         ))}
@@ -474,7 +550,7 @@ function ContenuSidebar({
           className="px-6 pt-4 pb-1 text-[11px] font-medium uppercase tracking-wider text-white/50"
           role="presentation"
         >
-          Gestion
+          {t("nav.gestion")}
         </p>
 
         {ONGLETS_GESTION.map((o) => (
@@ -485,7 +561,7 @@ function ContenuSidebar({
       {/* Bas de sidebar : rappel de la promesse produit */}
       <div className="mt-auto border-t border-white/10 p-4">
         <p className="text-[11px] leading-relaxed text-white/60">
-          Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorités concrètes.
+          {t("common.promesseCoach")}
         </p>
       </div>
     </div>

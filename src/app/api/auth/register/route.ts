@@ -19,6 +19,8 @@ import { registerSchema, firstError } from "@/lib/validation"
 import { POSITIVE_TAGS, NEGATIVE_TAGS } from "@/lib/constants"
 import { configSecteur } from "@/lib/secteurs"
 import { sendEmail, emailBienvenue } from "@/lib/email"
+import { emailOnboardingJour0 } from "@/lib/onboarding-emails"
+import { setSetting } from "@/lib/settings"
 import { notifierSuperadmins } from "@/lib/notifications"
 
 export async function POST(req: NextRequest) {
@@ -123,10 +125,21 @@ export async function POST(req: NextRequest) {
 
     // Email de bienvenue : strictement non bloquant — un échec
     // d'envoi ne doit jamais empêcher l'inscription de réussir.
+    // Task 1 — On envoie le template "First Week" (J0) qui contient les
+    // 4 étapes pour démarrer, en complément du legacy emailBienvenue.
+    try {
+      const { sujet: sujetJ0, html: htmlJ0 } = emailOnboardingJour0(nomEtablissement)
+      await sendEmail(email, sujetJ0, htmlJ0)
+      // Marque J0 comme déjà envoyé pour éviter que le cron ne le renvoie.
+      await setSetting(`onb:${pro.id}:J0`, "1")
+    } catch (e) {
+      console.warn("Email de bienvenue (J0) non envoyé (non bloquant)", e)
+    }
+    // Conserve l'ancien template pour compat (peut être retiré plus tard).
     try {
       await sendEmail(email, "Bienvenue sur FeedbackPro 🎉", emailBienvenue(nomEtablissement))
     } catch (e) {
-      console.warn("Email de bienvenue non envoyé (non bloquant)", e)
+      console.warn("Email de bienvenue legacy non envoyé (non bloquant)", e)
     }
 
     // Notification superadmin : nouveau commerçant inscrit (cloche superadmin)

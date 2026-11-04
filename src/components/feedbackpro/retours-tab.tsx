@@ -1388,6 +1388,23 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
   const [envoiReponse, setEnvoiReponse] = useState(false)
   const [editionAction, setEditionAction] = useState(false)
   const [texteAction, setTexteAction] = useState("")
+
+  // Task 1 — Recommandation IA via le vrai LLM (z-ai-web-dev-sdk, backend).
+  // Au lieu de calculer les recommandations côté client (heuristiques), on
+  // appelle /api/pro/coach/recommandation qui interroge le LLM et renvoie
+  // un JSON structuré (diagnostic, actions, impact, niveau, source).
+  // Pendant l'attente (LLM ~3-10s), on affiche le fallback heuristique
+  // (recoIA calculé côté client) pour que la card IA ne soit jamais vide.
+  type RecoLLM = {
+    source: "ia" | "fallback"
+    niveau: "crise" | "mitige" | "positif"
+    diagnostic: string
+    actions: string[]
+    impact: string
+    pointsPositifs: string[]
+  }
+  const [recoLLM, setRecoLLM] = useState<RecoLLM | null>(null)
+  const [recoLLMLoading, setRecoLLMLoading] = useState(false)
   const [envoiAction, setEnvoiAction] = useState(false)
   // Workflow unifié d'action managériale : statut choisi dans le même formulaire
   const [texteActionStatut, setTexteActionStatut] = useState<StatutRetour>("IN_PROGRESS")
@@ -1512,6 +1529,51 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
   useEffect(() => {
     load(page)
   }, [fNote, fZone, fEmploye, fStatut, fTag, fDu, fAu, page, load])
+
+  // Task 1 — Fetch de la recommandation IA (vrai LLM) quand on ouvre un retour.
+  // On appelle /api/pro/coach/recommandation qui interroge le LLM (backend).
+  // Pendant l'attente, l'UI affiche le fallback heuristique (recoIA calculé
+  // ci-dessous à partir des données client). Dès que le LLM répond, on remplace
+  // les champs affichés (diagnostic, actions, impact, niveau) par sa réponse.
+  useEffect(() => {
+    if (!detail) {
+      setRecoLLM(null)
+      setRecoLLMLoading(false)
+      return
+    }
+    let annule = false
+    setRecoLLM(null)
+    setRecoLLMLoading(true)
+    fetch("/api/pro/coach/recommandation", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        retourId: detail.id,
+        // Recurrence pré-calculée côté client (sera recalculée côté serveur,
+        // mais on l'envoie pour fallback immédiat si DB indisponible).
+        recurrence: compterRecurrence(detail, items),
+      }),
+    })
+      .then((r) => r.json())
+      .then((j) => {
+        if (annule) return
+        if (j.ok && j.data) {
+          setRecoLLM(j.data as RecoLLM)
+        }
+        // Si l'API échoue, on garde le fallback heuristique (recoIA)
+      })
+      .catch(() => {
+        /* silencieux : fallback heuristique déjà affiché */
+      })
+      .finally(() => {
+        if (!annule) setRecoLLMLoading(false)
+      })
+    return () => {
+      annule = true
+    }
+    // items est volontairement omis : on ne veut pas relancer le LLM à chaque
+    // mise à jour de la liste. Seul l'ID du retour déclenche un nouvel appel.
+  }, [detail?.id])
 
   // Focus sur la zone de texte dès que le mode édition s'ouvre
   useEffect(() => {
@@ -1777,6 +1839,32 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
     const cfgUrgence = URGENCE_CONFIG[urgence]
     const noteZone = detail.zone?.nom ? noteMoyenneZone(detail.zone.nom, items) : null
 
+    // Task 1 — Recommandation IA effective : LLM si disponible, sinon fallback
+    // heuristique (recoIA). Les champs affichés (diagnostic, actions, impact,
+    // niveau) proviennent du LLM dès qu'il a répondu ; sinon on garde l'analyse
+    // locale déterministe pour que la card IA ne soit jamais vide.
+    const recoEffective: {
+      niveau: NiveauIA
+      diagnostic: string
+      actions: string[]
+      impact: string
+      source: "ia" | "fallback"
+    } = recoLLM
+      ? {
+          niveau: recoLLM.niveau,
+          diagnostic: recoLLM.diagnostic,
+          actions: recoLLM.actions,
+          impact: recoLLM.impact,
+          source: recoLLM.source,
+        }
+      : {
+          niveau: recoIA.niveau,
+          diagnostic: recoIA.contexte,
+          actions: recoIA.actions,
+          impact: recoIA.impact,
+          source: "fallback",
+        }
+
     // Construction du message WhatsApp pré-formaté pour alerter l'équipe
     const numeroWhatsapp = (proWhatsapp || "").replace(/[^0-9]/g, "")
     const messageWhatsapp = (() => {
@@ -1800,7 +1888,8 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
     const tendance = recurrence.tagFrequent ? evolutionTag(recurrence.tagFrequent, items) : null
 
     // NOUVEAU : Niveau IA (crise / mitigé / positif) + config visuelle du Coach IA
-    const niveau = recoIA.niveau
+    // Task 1 : le niveau provient du LLM si disponible, sinon du fallback heuristique.
+    const niveau = recoEffective.niveau
     const cfgNiveau = NIVEAU_IA_CONFIG[niveau]
 
     // Phrase de contexte affichée dans l'en-tête sticky (NIVEAU 1) selon la note
@@ -1951,7 +2040,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                   <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
                   🔍 Diagnostic
                 </p>
-                <p className="text-sm leading-relaxed">{recoIA.contexte}</p>
+                <p className="text-sm leading-relaxed">{recoEffective.diagnostic}</p>
               </div>
 
               {/* Tendance / mini-graphique (uniquement si récurrence ≥ 2) */}
@@ -1976,7 +2065,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                   👉 Actions prioritaires
                 </p>
                 <ol className="space-y-2">
-                  {recoIA.actions.map((a, i) => (
+                  {recoEffective.actions.map((a, i) => (
                     <li key={i} className="flex items-start gap-2 text-sm">
                       <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20 text-[11px] font-bold">
                         {i + 1}
@@ -1993,7 +2082,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                   <TrendingUp className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
                   <span>
                     <span className="text-[10px] uppercase tracking-wide text-white/70">📈 Impact prévu — </span>
-                    {recoIA.impact}
+                    {recoEffective.impact}
                   </span>
                 </p>
               </div>
@@ -2002,12 +2091,40 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
               <Button
                 type="button"
                 className="w-full gap-1.5 bg-white text-foreground hover:bg-white/90"
-                onClick={() => appliquerRecommandationsIA(recoIA)}
+                onClick={() =>
+                  appliquerRecommandationsIA({
+                    ...recoIA,
+                    niveau: recoEffective.niveau,
+                    contexte: recoEffective.diagnostic,
+                    actions: recoEffective.actions,
+                    impact: recoEffective.impact,
+                  })
+                }
               >
                 <Sparkles className="h-4 w-4" aria-hidden />
                 Appliquer ces recommandations
                 <ArrowRight className="h-3.5 w-3.5" aria-hidden />
               </Button>
+
+              {/* Task 1 — Indicateur de source (LLM ou heuristique) + état de chargement */}
+              <div className="flex items-center justify-center gap-1.5 text-[10px] font-medium text-white/70">
+                {recoLLMLoading ? (
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+                    <span>Coach IA en cours d'analyse…</span>
+                  </>
+                ) : recoEffective.source === "ia" ? (
+                  <>
+                    <Sparkles className="h-3 w-3" aria-hidden />
+                    <span>Recommandation générée par le Coach IA (LLM)</span>
+                  </>
+                ) : (
+                  <>
+                    <Lightbulb className="h-3 w-3" aria-hidden />
+                    <span>Analyse heuristique (LLM indisponible — fallback local)</span>
+                  </>
+                )}
+              </div>
             </CardContent>
           </Card>
         </div>

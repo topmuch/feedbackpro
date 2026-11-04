@@ -42,6 +42,8 @@ export type ProData = {
   recompenseLimite: string | null
   messageWhatsapp: string | null
   onboardingDone: boolean
+  /** Task 1 — Programme d'onboarding "First Week" (0..5) */
+  onboardingStep: number
   suspendu: boolean
   smsAlertes: boolean
   /** D7 : ID du Pro parent (multi-établissements), null si établissement principal */
@@ -49,6 +51,14 @@ export type ProData = {
   /** D8 : Google Business Profile (saisie manuelle, pas d'API réelle) */
   googlePlaceId: string | null
   googleReviewUrl: string | null
+  /** Task 4 — White-label pour agences */
+  whiteLabel: boolean
+  brandName: string | null
+  brandColor: string | null
+  brandLogoUrl: string | null
+  /** Task 6 — Webhooks sortants (Slack / Discord) */
+  webhookSlackUrl: string | null
+  webhookDiscordUrl: string | null
   createdAt: string
 }
 
@@ -80,12 +90,26 @@ export function serializePro(pro: Pro): ProData {
       (pro as unknown as { recompenseLimite?: string | null }).recompenseLimite ?? null,
     messageWhatsapp: pro.messageWhatsapp,
     onboardingDone: pro.onboardingDone,
+    // Task 1 — onboardingStep (lecture défensive pour la migration)
+    onboardingStep:
+      (pro as unknown as { onboardingStep?: number }).onboardingStep ?? 0,
     suspendu: pro.suspendu,
     smsAlertes: pro.smsAlertes,
     // D7 + D8
     proId: pro.proId,
     googlePlaceId: pro.googlePlaceId,
     googleReviewUrl: pro.googleReviewUrl,
+    // Task 4 — White-label (lecture défensive pour la migration)
+    whiteLabel: (pro as unknown as { whiteLabel?: boolean }).whiteLabel ?? false,
+    brandName: (pro as unknown as { brandName?: string | null }).brandName ?? null,
+    brandColor: (pro as unknown as { brandColor?: string | null }).brandColor ?? null,
+    brandLogoUrl:
+      (pro as unknown as { brandLogoUrl?: string | null }).brandLogoUrl ?? null,
+    // Task 6 — Webhooks (lecture défensive pour la migration)
+    webhookSlackUrl:
+      (pro as unknown as { webhookSlackUrl?: string | null }).webhookSlackUrl ?? null,
+    webhookDiscordUrl:
+      (pro as unknown as { webhookDiscordUrl?: string | null }).webhookDiscordUrl ?? null,
     createdAt: pro.createdAt.toISOString(),
   }
 }
