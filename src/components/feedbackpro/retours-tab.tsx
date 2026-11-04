@@ -60,6 +60,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible"
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -316,8 +321,15 @@ function impactEstime(c: CategorieIA): string {
   return "-60% de plaintes similaires sous 2 semaines si les actions sont mises en œuvre."
 }
 
+// Niveau IA déterminé par la NOTE du retour (prioritaire sur la catégorie) :
+// - "crise"    : note ≤ 2 → recommandations d'urgence (briefing, formation, compensation)
+// - "mitige"   : note = 3 → identification des points de friction + ajustements
+// - "positif"  : note ≥ 4 → félicitations, formalisation, demande d'avis Google
+type NiveauIA = "crise" | "mitige" | "positif"
+
 type RecommandationIA = {
   categorie: CategorieIA
+  niveau: NiveauIA
   probleme: string
   contexte: string
   recurrence: { count: number; tagFrequent: string | null; libelleTag: string | null }
@@ -326,24 +338,139 @@ type RecommandationIA = {
 }
 
 /**
+ * Détermine le niveau IA (crise / mitigé / positif) selon la note du retour.
+ * Cette fonction est le cœur de la correction du bug « recommandations inversées » :
+ * c'est la NOTE qui pilote le ton et le type d'actions, pas uniquement les tags.
+ */
+function niveauDeNote(note: number): NiveauIA {
+  if (note <= 2) return "crise"
+  if (note === 3) return "mitige"
+  return "positif"
+}
+
+// Config visuelle du Coach IA selon le niveau (dégradé de fond + libellé).
+// - Crise   : rouge bordeaux (urgence maximale)
+// - Mitigé  : ambre/orange (alerte modérée)
+// - Positif : vert (succès)
+const NIVEAU_IA_CONFIG: Record<
+  NiveauIA,
+  { label: string; emoji: string; gradient: string; badgeBg: string }
+> = {
+  crise: {
+    label: "Urgent / Crise",
+    emoji: "🚨",
+    gradient: "from-[#720032] to-[#5a0026]",
+    badgeBg: "bg-white/25",
+  },
+  mitige: {
+    label: "Mitigé",
+    emoji: "⚠️",
+    gradient: "from-amber-500 to-orange-600",
+    badgeBg: "bg-white/25",
+  },
+  positif: {
+    label: "Positif",
+    emoji: "✅",
+    gradient: "from-[#0da14b] to-[#0a8f3f]",
+    badgeBg: "bg-white/25",
+  },
+}
+
+/**
  * Construit la recommandation IA d'un retour à partir des données chargées.
  * Pure : aucun effet de bord, aucun appel réseau.
+ *
+ * CORRECTION DU BUG IA : Les recommandations sont désormais adaptées à la NOTE
+ * du retour (et non plus uniquement à la catégorie de tags). Un retour à 1-2★
+ * ne produira plus jamais de recommandations positives (« Féliciter l'équipe »,
+ * « Demander un avis Google ») — voir `niveauDeNote`.
+ *
+ * - 1-2★ (Crise)   : briefing équipe, formation, contact client (compensation)
+ * - 3★   (Mitigé)  : identification point de friction, ajustement processus, suivi
+ * - 4-5★ (Positif) : félicitations, formalisation bonne pratique, avis Google
  */
 function genererRecommandationIA(retour: Retour, tous: Retour[]): RecommandationIA {
   const categorie = categorieDominante(retour)
   const recurrence = compterRecurrence(retour, tous)
-  const actions = genererActions(categorie)
-  const impact = impactEstime(categorie)
+  const niveau = niveauDeNote(retour.note)
+  const zoneNom = retour.zone?.nom ?? "zone non précisée"
   const libelleTag = recurrence.libelleTag
-  const contexte =
+
+  // Phrase de récurrence réutilisée dans le diagnostic
+  const phraseRecurrence =
     recurrence.count >= 2 && libelleTag
       ? `${ordinalFr(recurrence.count)} signalement « ${libelleTag} » ces 30 derniers jours.`
       : retour.note <= 2
         ? "Premier signalement de ce type — réagir vite pour éviter la récurrence."
         : "Retour isolé — surveiller l'évolution sur les prochains jours."
+
+  // Libellés du problème / point fort principal (1er tag négatif / positif)
+  const premierNeg = tagsNegatifsDe(retour).map(tagLabel)[0] ?? null
+  const premierPos = tagsPositifsDe(retour).map(tagLabel)[0] ?? null
+  const libelleCategorie = LIBELLE_PROBLEME[categorie]
+
+  // Libellé court de la formation (sans « Formation » / « Atelier » / parenthèses)
+  const formationCourte = (() => {
+    const f = formationPourCategorie(categorie)
+    if (!f) return "ciblée"
+    return f
+      .replace(/^(Formation|Atelier)\s*«?\s*/i, "")
+      .replace(/»?\s*$/, "")
+      .replace(/\s*\([^)]*\)\s*$/, "")
+      .trim()
+      .toLowerCase()
+  })()
+
+  let contexte: string
+  let actions: string[]
+  let impact: string
+
+  // Sujet de l'action corrective : on utilise le libellé de la catégorie IA
+  // lorsqu'elle est pertinente (catégorie négative identifiée via les tags).
+  // Si la catégorie est "Positif" (aucun tag négatif — ex : retour 2/5 sans
+  // tag), on retombe sur un libellé générique pour éviter l'absurdité
+  // « Briefing équipe demain sur bonne expérience signalée ».
+  const sujetAction =
+    categorie !== "Positif"
+      ? libelleCategorie.toLowerCase()
+      : "le problème signalé par le client"
+
+  if (niveau === "crise") {
+    const problemeTxt = premierNeg ?? sujetAction
+    contexte = `🚨 Client mécontent (${retour.note}/5) — ${zoneNom}. ${phraseRecurrence} Risque d'avis négatif public si non traité.`
+    actions = [
+      `Briefing équipe demain sur ${sujetAction} (point signalé : « ${problemeTxt.toLowerCase()} »).`,
+      `Formation ${formationCourte} pour l'équipe concernée.`,
+      "Contacter le client pour résoudre la situation (compensation si nécessaire).",
+    ]
+    impact =
+      "Prévention d'un avis négatif public et -60% de plaintes similaires sous 2 semaines."
+  } else if (niveau === "mitige") {
+    const problemeTxt = premierNeg ?? "le point de friction identifié"
+    contexte = `⚠️ Expérience mitigée (${retour.note}/5) — ${zoneNom}. ${phraseRecurrence} Point de friction identifié : « ${problemeTxt.toLowerCase()} ».`
+    actions = [
+      `Identifier le point de friction principal (« ${problemeTxt.toLowerCase()} ») avec l'équipe.`,
+      `Ajuster le processus sur ${sujetAction}.`,
+      "Mettre en place un suivi personnalisé pour convertir ce client en promoteur.",
+    ]
+    impact =
+      "Transformation d'un client mitigé en client satisfait et fidélisé."
+  } else {
+    const pointFortTxt = premierPos ?? "l'accueil et le service"
+    contexte = `✅ Client satisfait (${retour.note}/5) — ${zoneNom}. ${phraseRecurrence} Point fort identifié : « ${pointFortTxt.toLowerCase()} ».`
+    actions = [
+      `Féliciter publiquement l'équipe pour « ${pointFortTxt.toLowerCase()} » lors du prochain briefing.`,
+      "Identifier ce qui a bien fonctionné et le formaliser en bonne pratique.",
+      "Demander au client s'il accepterait de laisser un avis Google.",
+    ]
+    impact =
+      "Renforcement de la réputation en ligne et fidélisation (+30% de chances que le client recommande l'établissement)."
+  }
+
   return {
     categorie,
-    probleme: LIBELLE_PROBLEME[categorie],
+    niveau,
+    probleme: libelleCategorie,
     contexte,
     recurrence,
     actions,
@@ -1268,6 +1395,9 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
   const [dialogEmployeNom, setDialogEmployeNom] = useState<string | null>(null)
   // NOUVEAU : Dialog plein écran pour la photo
   const [photoZoom, setPhotoZoom] = useState(false)
+  // NOUVEAU : Section "Détails & Historique" repliable (NIVEAU 3 du Dashboard d'Urgence).
+  // Repliée par défaut : le Coach IA (NIVEAU 2) reste le focus visuel.
+  const [detailsOuverts, setDetailsOuverts] = useState(false)
   const reponseRef = useRef<HTMLTextAreaElement>(null)
   const actionRef = useRef<HTMLTextAreaElement>(null)
   // Refs pour le scroll
@@ -1669,10 +1799,17 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
     const zoneTouchee = zoneLaPlusTouchee(detail, items)
     const tendance = recurrence.tagFrequent ? evolutionTag(recurrence.tagFrequent, items) : null
 
-    // Scroll vers la carte IA
-    function scrollToIA() {
-      iaRef.current?.scrollIntoView({ behavior: "smooth", block: "start" })
-    }
+    // NOUVEAU : Niveau IA (crise / mitigé / positif) + config visuelle du Coach IA
+    const niveau = recoIA.niveau
+    const cfgNiveau = NIVEAU_IA_CONFIG[niveau]
+
+    // Phrase de contexte affichée dans l'en-tête sticky (NIVEAU 1) selon la note
+    const phraseContexte =
+      niveau === "crise"
+        ? "Client mécontent — Risque d'avis négatif public"
+        : niveau === "mitige"
+          ? "Expérience mitigée — Points de friction à adresser"
+          : "Client satisfait — Opportunité de fidélisation et d'avis Google"
 
     // Initiales de l'employé pour l'avatar
     const initialesEmploye = (() => {
@@ -1696,10 +1833,10 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
           </Button>
         </div>
 
-        {/* ---------- En-tête sticky : note + zone + priorité + actions rapides ---------- */}
-        <div className="sticky top-0 z-20 rounded-3xl border bg-card/95 backdrop-blur shadow-sm">
+        {/* ============ NIVEAU 1 — En-tête Sticky (toujours visible au scroll) ============ */}
+        <div className="sticky top-0 z-20 rounded-3xl border bg-card/95 backdrop-blur shadow-md">
           <div className="p-4 sm:p-5 space-y-3">
-            {/* Ligne 1 : note + zone + date */}
+            {/* Ligne 1 : note + zone + date + badge urgence (à droite) */}
             <div className="flex flex-wrap items-center gap-2">
               <Stars note={detail.note} size={18} />
               <span className="text-sm font-semibold tabular-nums">{detail.note}/5</span>
@@ -1728,26 +1865,23 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                   {(detail.nps ?? 0) >= 9 ? " 🟢" : (detail.nps ?? 0) >= 7 ? " 🟡" : " 🔴"}
                 </Badge>
               )}
-            </div>
-
-            {/* Ligne 2 : priorité (badge urgence + contexte récurrence) */}
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="outline" className={cn("h-6 px-2 text-xs font-medium", cfgUrgence.badge)}>
+              {/* Badge d'urgence aligné à droite (couleur selon la note) */}
+              <Badge
+                variant="outline"
+                className={cn("ml-auto h-6 px-2 text-xs font-semibold", cfgUrgence.badge)}
+                title={recurrence.count >= 2 && recurrence.libelleTag ? `${ordinalFr(recurrence.count)} signalement « ${recurrence.libelleTag} » ce mois` : undefined}
+              >
                 <span aria-hidden>{cfgUrgence.emoji}</span>
-                Priorité {urgence === "urgent" ? "HAUTE" : urgence === "atraiter" ? "MOYENNE" : urgence === "mitige" ? "BASSE" : "POSITIVE"}
+                {urgence === "urgent" ? "URGENT" : urgence === "atraiter" ? "À TRAITER" : urgence === "mitige" ? "MITIGÉ" : "POSITIF"}
               </Badge>
-              {recurrence.count >= 2 && recurrence.libelleTag ? (
-                <span className="text-xs text-amber-700 dark:text-amber-400">
-                  {ordinalFr(recurrence.count)} signalement similaire ce mois-ci
-                </span>
-              ) : (
-                <span className="text-xs text-muted-foreground">
-                  Statut : {STATUT_RETOUR_LABEL[detail.statut] ?? detail.statut}
-                </span>
-              )}
             </div>
 
-            {/* Ligne 3 : 4 actions rapides */}
+            {/* Ligne 2 : phrase de contexte selon la note (spécification Dashboard d'Urgence) */}
+            <p className="text-sm font-medium text-foreground">
+              {phraseContexte}
+            </p>
+
+            {/* Ligne 3 : 3 boutons d'action rapide (Répondre / WhatsApp / Marquer résolu) */}
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant={editionReponse ? "default" : "outline"}
@@ -1769,15 +1903,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                   </Button>
                 </a>
               )}
-              <Button
-                variant="outline"
-                className="h-10 gap-1.5 transition-transform hover:scale-105"
-                onClick={scrollToIA}
-              >
-                <Sparkles className="h-4 w-4" aria-hidden />
-                <span>Coach IA</span>
-              </Button>
-              {detail.statut !== "RESOLVED" && (
+              {detail.statut !== "RESOLVED" ? (
                 <Button
                   variant="ghost"
                   className="h-10 gap-1.5 ml-auto text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
@@ -1787,408 +1913,353 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                   <span className="hidden sm:inline">Marquer résolu</span>
                   <span className="sm:hidden">Résolu</span>
                 </Button>
+              ) : (
+                <Badge
+                  variant="outline"
+                  className="ml-auto h-9 gap-1 px-3 text-xs font-medium border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                >
+                  <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
+                  Résolu
+                </Badge>
               )}
             </div>
           </div>
         </div>
 
-        {/* ---------- Layout 3 colonnes (desktop) ---------- */}
-        <div className="grid gap-5 lg:grid-cols-5">
-          {/* ===== Colonne Gauche (40%) — Le Contexte ===== */}
-          <div className="lg:col-span-2 space-y-4">
-            {/* Zone */}
-            <Card className="rounded-3xl shadow-sm">
-              <CardContent className="p-4 sm:p-5 space-y-2">
-                <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                  <MapPin className="h-3.5 w-3.5" aria-hidden />
-                  Zone concernée
-                </p>
-                {detail.zone?.nom ? (
-                  <>
-                    <p className="text-lg font-semibold">{detail.zone.nom}</p>
-                    {noteZone !== null && (
-                      <div className="flex items-center gap-2">
-                        <Stars note={noteZone} size={14} />
-                        <span className="text-xs text-muted-foreground">
-                          Note moyenne : <span className="font-medium text-foreground">{noteZone.toFixed(2)}/5</span>
-                        </span>
-                      </div>
-                    )}
-                  </>
-                ) : (
-                  <p className="text-sm text-muted-foreground">Zone non précisée</p>
-                )}
-              </CardContent>
-            </Card>
+        {/* ============ NIVEAU 2 — Coach IA (mise en avant maximale, juste sous le header) ============
+            Fond dégradé selon l'urgence : rouge bordeaux (1-2★), ambre/orange (3★), vert (4-5★).
+            CRITIQUE : les recommandations (recoIA.actions / contexte / impact) sont adaptées à la
+            note via genererRecommandationIA() — plus de recommandations positives sur un 2/5. */}
+        <div ref={iaRef} className="scroll-mt-24">
+          <Card className={cn("rounded-3xl border-none text-white shadow-lg bg-gradient-to-br", cfgNiveau.gradient)}>
+            <CardContent className="p-4 sm:p-6 space-y-4">
+              {/* Header : icône + titre + badge niveau (Urgent/Crise, Mitigé, Positif) */}
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white/15" aria-hidden>
+                  <Bot className="h-5 w-5" />
+                </span>
+                <h3 className="text-base font-semibold">🧠 Recommandation du Coach IA</h3>
+                <Badge variant="outline" className={cn("ml-auto h-6 border-white/30 px-2 text-xs font-semibold text-white", cfgNiveau.badgeBg)}>
+                  <span aria-hidden>{cfgNiveau.emoji}</span>
+                  {cfgNiveau.label}
+                </Badge>
+              </div>
 
-            {/* Employé */}
-            <Card className="rounded-3xl shadow-sm">
-              <CardContent className="p-4 sm:p-5 space-y-3">
-                <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                  <User className="h-3.5 w-3.5" aria-hidden />
-                  Employé concerné
+              {/* Diagnostic (phrase adaptée à la note) */}
+              <div className="space-y-1.5">
+                <p className="flex items-center gap-1.5 text-xs font-medium text-white/80">
+                  <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
+                  🔍 Diagnostic
                 </p>
-                {(() => {
-                  const emp = detail.employe?.nom ?? null
-                  const pers = detail.personnelMentionne ?? null
-                  const nomCliquable = emp || pers
-                  if (!nomCliquable) {
-                    return <p className="text-sm text-muted-foreground">Non spécifié</p>
-                  }
-                  const statsDispos = statsEmploye(nomCliquable, items) !== null
-                  return (
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary/10 text-base font-bold text-primary">
-                        {initialesEmploye || "?"}
-                      </span>
-                      <div className="min-w-0">
-                        {emp && (
-                          <p className="truncate text-sm font-semibold">{emp}</p>
-                        )}
-                        {pers && !emp && (
-                          <p className="truncate text-sm font-semibold">{pers}</p>
-                        )}
-                        {pers && emp && pers !== emp && (
-                          <p className="truncate text-xs text-muted-foreground">Mentionné : {pers}</p>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => statsDispos && setDialogEmployeNom(nomCliquable)}
-                          disabled={!statsDispos}
-                          className={cn(
-                            "mt-0.5 inline-flex items-center gap-1 text-xs",
-                            statsDispos
-                              ? "text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:underline"
-                              : "text-muted-foreground cursor-default"
-                          )}
-                          title={statsDispos ? "Voir l'historique de l'employé" : undefined}
-                        >
-                          <GraduationCap className="h-3 w-3" aria-hidden />
-                          Voir le profil
-                        </button>
-                      </div>
-                    </div>
-                  )
-                })()}
-              </CardContent>
-            </Card>
+                <p className="text-sm leading-relaxed">{recoIA.contexte}</p>
+              </div>
 
-            {/* Photo jointe (avec zoom au clic → Dialog plein écran) */}
-            {detail.photoUrl && (
-              <Card className="rounded-3xl shadow-sm overflow-hidden">
-                <CardContent className="p-4 sm:p-5 space-y-2">
-                  <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                    <Camera className="h-3.5 w-3.5" aria-hidden />
-                    Photo jointe par le client
+              {/* Tendance / mini-graphique (uniquement si récurrence ≥ 2) */}
+              {recurrence.count >= 2 && (
+                <div className="rounded-2xl border border-white/15 bg-white/10 p-3">
+                  <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-white/90">
+                    <TrendingUp className="h-3.5 w-3.5" aria-hidden />
+                    Tendance sur 30 jours
                   </p>
-                  <button
-                    type="button"
-                    onClick={() => setPhotoZoom(true)}
-                    className="group relative block w-full overflow-hidden rounded-2xl border"
-                  >
-                    <img
-                      src={detail.photoUrl}
-                      alt="Photo jointe au retour par le client"
-                      className="max-h-72 w-full object-cover transition-transform group-hover:scale-105"
-                    />
-                    <span className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/30">
-                      <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-foreground opacity-0 transition-opacity group-hover:opacity-100">
-                        <ZoomIn className="h-5 w-5" aria-hidden />
-                      </span>
-                    </span>
-                  </button>
-                </CardContent>
-              </Card>
-            )}
+                  <MiniGraphiqueRecurrence
+                    retourCourant={detail}
+                    tous={items}
+                    tagFrequent={recurrence.tagFrequent}
+                  />
+                </div>
+              )}
 
-            {/* Timeline : historique des statuts/actions sur ce retour (spec : Card Timeline en colonne gauche) */}
-            <Card className="rounded-3xl shadow-sm">
-              <CardContent className="p-4 sm:p-5 space-y-3">
-                <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                  <Clock className="h-3.5 w-3.5" aria-hidden />
-                  Timeline du retour
+              {/* Actions prioritaires (adaptées à la note) */}
+              <div className="space-y-2">
+                <p className="flex items-center gap-1.5 text-xs font-medium text-white/80">
+                  <Lightbulb className="h-3.5 w-3.5" aria-hidden />
+                  👉 Actions prioritaires
                 </p>
-                {historiqueAffiche.length > 0 ? (
-                  <ol>
-                    {historiqueAffiche.map((h, i) => (
-                      <li key={`${h.statut}-${h.at}-${i}`} className="relative flex items-start gap-2.5 pb-4 last:pb-0">
-                        {i < historiqueAffiche.length - 1 && (
-                          <span className="absolute top-4 bottom-0 left-[6px] w-px bg-border" aria-hidden />
-                        )}
-                        <span className={`mt-1 h-3 w-3 shrink-0 rounded-full ${pastilleClass(h.statut)}`} aria-hidden />
-                        <div className="min-w-0 text-xs">
-                          <Badge variant="outline" className={`h-5 px-1.5 text-[11px] ${statutBadgeClass(h.statut)}`}>
-                            {STATUT_RETOUR_LABEL[h.statut] ?? h.statut}
-                          </Badge>
-                          <p className="mt-1 text-muted-foreground">{formatDate(h.at)}</p>
-                        </div>
-                      </li>
-                    ))}
-                  </ol>
-                ) : (
-                  <p className="text-sm text-muted-foreground italic">Aucun historique</p>
-                )}
-              </CardContent>
-            </Card>
-          </div>
+                <ol className="space-y-2">
+                  {recoIA.actions.map((a, i) => (
+                    <li key={i} className="flex items-start gap-2 text-sm">
+                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20 text-[11px] font-bold">
+                        {i + 1}
+                      </span>
+                      <span className="leading-relaxed text-white/95">{a}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
 
-          {/* ===== Colonne Centrale (40%) — L'Analyse IA (mise en avant) ===== */}
-          <div className="lg:col-span-2 space-y-4">
-            <div ref={iaRef} className="scroll-mt-24">
-              {/* Card IA dégradée bleue */}
-              <Card className="rounded-3xl border-none bg-gradient-to-br from-[#002e85] to-[#0047c7] text-white shadow-lg">
-                <CardContent className="p-4 sm:p-6 space-y-4">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white/15" aria-hidden>
-                      <Bot className="h-5 w-5" />
-                    </span>
-                    <h3 className="text-base font-semibold">🧠 Recommandation du Coach IA</h3>
-                    <Badge variant="outline" className="ml-auto h-6 border-white/30 bg-white/10 px-2 text-xs font-normal text-white capitalize">
-                      {recoIA.categorie}
-                    </Badge>
-                  </div>
+              {/* Impact attendu */}
+              <div className="rounded-2xl border border-white/20 bg-white/10 p-3">
+                <p className="flex items-start gap-1.5 text-sm font-medium">
+                  <TrendingUp className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
+                  <span>
+                    <span className="text-[10px] uppercase tracking-wide text-white/70">📈 Impact prévu — </span>
+                    {recoIA.impact}
+                  </span>
+                </p>
+              </div>
 
-                  {/* Diagnostic */}
-                  <div className="space-y-1.5">
-                    <p className="flex items-center gap-1.5 text-xs font-medium text-white/80">
-                      <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
-                      Diagnostic
-                    </p>
-                    <p className="text-sm leading-relaxed">
-                      {recoIA.contexte}
-                    </p>
-                  </div>
+              {/* Bouton Appliquer → pré-remplit le formulaire d'action managériale */}
+              <Button
+                type="button"
+                className="w-full gap-1.5 bg-white text-foreground hover:bg-white/90"
+                onClick={() => appliquerRecommandationsIA(recoIA)}
+              >
+                <Sparkles className="h-4 w-4" aria-hidden />
+                Appliquer ces recommandations
+                <ArrowRight className="h-3.5 w-3.5" aria-hidden />
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
 
-                  {/* Tendance / mini-graphique */}
-                  {recurrence.count >= 2 && (
-                    <div className="rounded-2xl border border-white/15 bg-white/10 p-3">
-                      <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-white/90">
-                        <TrendingUp className="h-3.5 w-3.5" aria-hidden />
-                        Tendance sur 30 jours
-                      </p>
-                      <MiniGraphiqueRecurrence
-                        retourCourant={detail}
-                        tous={items}
-                        tagFrequent={recurrence.tagFrequent}
-                      />
-                    </div>
+        {/* ============ NIVEAU 3 — Détails & Historique (section repliable par défaut) ============
+            Repliée par défaut : le Coach IA (NIVEAU 2) reste le focus visuel.
+            Contient : tags (visibles !), zone, employé, commentaire, photo, contexte, timeline. */}
+        <Card className="rounded-3xl shadow-sm">
+          <Collapsible open={detailsOuverts} onOpenChange={setDetailsOuverts}>
+            <CollapsibleTrigger asChild>
+              <button
+                type="button"
+                className="flex w-full items-center justify-between gap-2 rounded-3xl p-4 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5"
+                aria-expanded={detailsOuverts}
+              >
+                <span className="flex items-center gap-2 text-sm font-semibold">
+                  <ClipboardCheck className="h-4 w-4 text-primary" aria-hidden />
+                  📋 Détails du retour
+                </span>
+                <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
+                  {detailsOuverts ? "Replier" : "Déplier"}
+                  {detailsOuverts ? (
+                    <ChevronDown className="h-4 w-4" aria-hidden />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" aria-hidden />
                   )}
-
-                  {/* Actions prioritaires */}
+                </span>
+              </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <CardContent className="space-y-5 border-t px-4 pt-5 sm:px-5">
+                {/* Tags associés (VISIBLES — c'était un des bugs : ils n'apparaissaient pas) */}
+                {detail.tags.length > 0 && (
                   <div className="space-y-2">
-                    <p className="flex items-center gap-1.5 text-xs font-medium text-white/80">
-                      <Lightbulb className="h-3.5 w-3.5" aria-hidden />
-                      Actions prioritaires
+                    <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                      <Target className="h-3.5 w-3.5" aria-hidden />
+                      Tags
                     </p>
-                    <ol className="space-y-2">
-                      {recoIA.actions.map((a, i) => (
-                        <li key={i} className="flex items-start gap-2 text-sm">
-                          <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20 text-[11px] font-bold">
-                            {i + 1}
+                    <div className="flex flex-wrap gap-1.5">
+                      {detail.tags.map((t) => {
+                        const neg = SET_NEGATIFS.has(t)
+                        const pos = SET_POSITIFS.has(t)
+                        return (
+                          <span
+                            key={t}
+                            className={cn(
+                              "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium",
+                              neg
+                                ? "border-rose-300 bg-rose-100 text-rose-800 dark:border-rose-700 dark:bg-rose-950/50 dark:text-rose-300"
+                                : pos
+                                  ? "border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
+                                  : "border-border bg-muted text-muted-foreground"
+                            )}
+                            title={tagLabel(t)}
+                          >
+                            <span className="truncate">{tagLabel(t)}</span>
                           </span>
-                          <span className="leading-relaxed text-white/95">{a}</span>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Zone + Employé (grille 2 colonnes sur desktop) */}
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {/* Zone + note moyenne */}
+                  <div className="space-y-1.5">
+                    <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                      <MapPin className="h-3.5 w-3.5" aria-hidden />
+                      Zone
+                    </p>
+                    {detail.zone?.nom ? (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <p className="text-sm font-semibold">{detail.zone.nom}</p>
+                        {noteZone !== null && (
+                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                            <Stars note={noteZone} size={12} />
+                            <span>
+                              note moy. <span className="font-medium text-foreground">{noteZone.toFixed(2)}/5</span>
+                            </span>
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">Non précisée</p>
+                    )}
+                  </div>
+
+                  {/* Employé (nom cliquable → Dialog historique) */}
+                  <div className="space-y-1.5">
+                    <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                      <User className="h-3.5 w-3.5" aria-hidden />
+                      Employé
+                    </p>
+                    {(() => {
+                      const emp = detail.employe?.nom ?? null
+                      const pers = detail.personnelMentionne ?? null
+                      const nomCliquable = emp || pers
+                      if (!nomCliquable) {
+                        return <p className="text-sm text-muted-foreground">Non spécifié</p>
+                      }
+                      const statsDispos = statsEmploye(nomCliquable, items) !== null
+                      return (
+                        <div className="flex items-center gap-2">
+                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                            {initialesEmploye || "?"}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold">{emp ?? pers}</p>
+                            {pers && emp && pers !== emp && (
+                              <p className="truncate text-xs text-muted-foreground">Mentionné : {pers}</p>
+                            )}
+                            <button
+                              type="button"
+                              onClick={() => statsDispos && setDialogEmployeNom(nomCliquable)}
+                              disabled={!statsDispos}
+                              className={cn(
+                                "mt-0.5 inline-flex items-center gap-1 text-xs",
+                                statsDispos
+                                  ? "text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:underline"
+                                  : "text-muted-foreground cursor-default"
+                              )}
+                              title={statsDispos ? "Voir l'historique de l'employé" : undefined}
+                            >
+                              <GraduationCap className="h-3 w-3" aria-hidden />
+                              Voir le profil
+                            </button>
+                          </div>
+                        </div>
+                      )
+                    })()}
+                  </div>
+                </div>
+
+                {/* Commentaire client */}
+                <div className="space-y-1.5">
+                  <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <MessageSquareReply className="h-3.5 w-3.5" aria-hidden />
+                    Commentaire client
+                  </p>
+                  {detail.commentaire ? (
+                    <blockquote className="border-l-4 border-primary/30 bg-muted/40 px-4 py-3 text-sm italic leading-relaxed">
+                      &ldquo;{detail.commentaire}&rdquo;
+                    </blockquote>
+                  ) : (
+                    <p className="text-sm italic text-muted-foreground">Aucun commentaire</p>
+                  )}
+                  <p className="text-xs text-muted-foreground">
+                    Reçu {canalLabel(detail.canalChoisi)} · {formatDate(detail.createdAt)}
+                  </p>
+                </div>
+
+                {/* Photo jointe (avec zoom au clic → Dialog plein écran) */}
+                {detail.photoUrl && (
+                  <div className="space-y-2">
+                    <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                      <Camera className="h-3.5 w-3.5" aria-hidden />
+                      Photo jointe par le client
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setPhotoZoom(true)}
+                      className="group relative block w-full max-w-xs overflow-hidden rounded-2xl border"
+                    >
+                      <img
+                        src={detail.photoUrl}
+                        alt="Photo jointe au retour par le client"
+                        className="max-h-64 w-full object-cover transition-transform group-hover:scale-105"
+                      />
+                      <span className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/30">
+                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-foreground opacity-0 transition-opacity group-hover:opacity-100">
+                          <ZoomIn className="h-5 w-5" aria-hidden />
+                        </span>
+                      </span>
+                    </button>
+                  </div>
+                )}
+
+                {/* Contexte : récurrence + tendance zone + zone la plus touchée + catégorie/canal/statut */}
+                <div className="rounded-2xl border bg-muted/30 p-3 space-y-1.5">
+                  <p className="flex items-center gap-1.5 text-xs font-semibold">
+                    <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+                    📊 Contexte
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    • {recurrence.count >= 2
+                      ? `${ordinalFr(recurrence.count)} signalement similaire ce mois`
+                      : "1er signalement similaire ce mois"}
+                    {recurrence.libelleTag ? ` (« ${recurrence.libelleTag} »)` : ""}
+                  </p>
+                  {detail.zone?.nom && (
+                    <p className="text-xs text-muted-foreground">
+                      • Tendance zone {detail.zone.nom} :{" "}
+                      {tendance
+                        ? tendance.nouveau
+                          ? "🆕 nouveau vs semaine dernière"
+                          : tendance.pct > 0
+                            ? `↗️ +${tendance.pct}% vs semaine dernière`
+                            : tendance.pct < 0
+                              ? `↘️ ${tendance.pct}% vs semaine dernière`
+                              : "→ stable vs semaine dernière"
+                        : "—"}
+                    </p>
+                  )}
+                  {zoneTouchee && (
+                    <p className="text-xs text-muted-foreground">
+                      • Zone la plus touchée (30 j) :{" "}
+                      <span className="font-medium text-foreground">{zoneTouchee.nom}</span>{" "}
+                      ({zoneTouchee.count} signalement{zoneTouchee.count > 1 ? "s" : ""})
+                    </p>
+                  )}
+                  <p className="flex flex-wrap items-center gap-x-1 text-xs text-muted-foreground">
+                    <span>• Catégorie IA : <span className="font-medium text-foreground capitalize">{recoIA.categorie}</span></span>
+                    <span>· Canal : <span className="font-medium text-foreground">{canalLabel(detail.canalChoisi)}</span></span>
+                    <span>· Statut :</span>
+                    <Badge variant="outline" className={cn("h-4 px-1.5 text-[10px] align-middle", statutBadgeClass(detail.statut))}>
+                      {STATUT_RETOUR_LABEL[detail.statut] ?? detail.statut}
+                    </Badge>
+                  </p>
+                </div>
+
+                {/* Timeline : historique des statuts/actions */}
+                <div className="space-y-2">
+                  <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                    <Clock className="h-3.5 w-3.5" aria-hidden />
+                    🕐 Timeline
+                  </p>
+                  {historiqueAffiche.length > 0 ? (
+                    <ol>
+                      {historiqueAffiche.map((h, i) => (
+                        <li key={`${h.statut}-${h.at}-${i}`} className="relative flex items-start gap-2.5 pb-4 last:pb-0">
+                          {i < historiqueAffiche.length - 1 && (
+                            <span className="absolute top-4 bottom-0 left-[6px] w-px bg-border" aria-hidden />
+                          )}
+                          <span className={`mt-1 h-3 w-3 shrink-0 rounded-full ${pastilleClass(h.statut)}`} aria-hidden />
+                          <div className="min-w-0 text-xs">
+                            <Badge variant="outline" className={`h-5 px-1.5 text-[11px] ${statutBadgeClass(h.statut)}`}>
+                              {STATUT_RETOUR_LABEL[h.statut] ?? h.statut}
+                            </Badge>
+                            <p className="mt-1 text-muted-foreground">{formatDate(h.at)}</p>
+                          </div>
                         </li>
                       ))}
                     </ol>
-                  </div>
-
-                  {/* Impact attendu */}
-                  <div className="rounded-2xl border border-emerald-300/30 bg-emerald-400/15 p-3">
-                    <p className="flex items-start gap-1.5 text-sm font-medium text-emerald-50">
-                      <TrendingUp className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-                      <span>
-                        <span className="text-[10px] uppercase tracking-wide text-emerald-200">Impact prévu — </span>
-                        {recoIA.impact}
-                      </span>
-                    </p>
-                  </div>
-
-                  {/* Bouton Appliquer */}
-                  <Button
-                    type="button"
-                    className="w-full gap-1.5 bg-white text-[#002e85] hover:bg-white/90"
-                    onClick={() => appliquerRecommandationsIA(recoIA)}
-                  >
-                    <Sparkles className="h-4 w-4" aria-hidden />
-                    Appliquer ces recommandations
-                    <ArrowRight className="h-3.5 w-3.5" aria-hidden />
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Commentaire client (sous l'IA, dans la colonne centrale) */}
-            <Card className="rounded-3xl shadow-sm">
-              <CardContent className="p-4 sm:p-5 space-y-2">
-                <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                  <MessageSquareReply className="h-3.5 w-3.5" aria-hidden />
-                  Commentaire client
-                </p>
-                {detail.commentaire ? (
-                  <blockquote className="border-l-4 border-primary/30 bg-muted/40 px-4 py-3 text-sm italic leading-relaxed">
-                    &ldquo;{detail.commentaire}&rdquo;
-                  </blockquote>
-                ) : (
-                  <p className="text-sm italic text-muted-foreground">Aucun commentaire</p>
-                )}
-                <div className="flex flex-wrap items-center gap-2 pt-1 text-xs text-muted-foreground">
-                  <span>Reçu {canalLabel(detail.canalChoisi)}</span>
-                  <span>•</span>
-                  <span>{formatDate(detail.createdAt)}</span>
+                  ) : (
+                    <p className="text-sm text-muted-foreground italic">Aucun historique</p>
+                  )}
                 </div>
               </CardContent>
-            </Card>
-          </div>
-
-          {/* ===== Colonne Droite (20%) — Actions Rapides ===== */}
-          <div className="lg:col-span-1 space-y-4">
-            {/* Templates de réponse */}
-            <Card className="rounded-3xl shadow-sm">
-              <CardContent className="p-4 sm:p-5 space-y-3">
-                <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                  <Sparkles className="h-3.5 w-3.5" aria-hidden />
-                  Templates de réponse
-                </p>
-                <div className="space-y-1.5">
-                  {[
-                    { idx: 0, label: "Empathique", emoji: "💛" },
-                    { idx: 1, label: "Action", emoji: "🎯" },
-                    { idx: 2, label: "Compensation", emoji: "🎁" },
-                  ].map((tpl) => (
-                    <Button
-                      key={tpl.idx}
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      className="h-9 w-full justify-start gap-1.5 text-xs transition-transform hover:scale-105"
-                      onClick={() => {
-                        setTexteReponse(templatesReponse[tpl.idx])
-                        setEditionReponse(true)
-                        setTimeout(() => reponseRef.current?.focus(), 30)
-                      }}
-                    >
-                      <span aria-hidden>{tpl.emoji}</span>
-                      {tpl.label}
-                    </Button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Stats rapides */}
-            <Card className="rounded-3xl shadow-sm">
-              <CardContent className="p-4 sm:p-5 space-y-2.5">
-                <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                  <TrendingUp className="h-3.5 w-3.5" aria-hidden />
-                  Stats rapides
-                </p>
-                <div className="space-y-1.5 text-xs">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-muted-foreground">Signalements ce mois</span>
-                    <span className="font-semibold">{recurrence.count}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-muted-foreground">Catégorie IA</span>
-                    <span className="font-semibold capitalize">{recoIA.categorie}</span>
-                  </div>
-                  {/* Zone la plus touchée (spec : "Zone la plus touchée") */}
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-muted-foreground">Zone la plus touchée</span>
-                    {zoneTouchee ? (
-                      <span className="font-semibold truncate max-w-[55%]" title={zoneTouchee.nom}>
-                        {zoneTouchee.nom} ({zoneTouchee.count})
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground italic">—</span>
-                    )}
-                  </div>
-                  {/* Tendance hebdo (spec : "tendance (↗️ +40%)") */}
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-muted-foreground">Tendance 7j</span>
-                    {tendance ? (
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-1 font-semibold",
-                          tendance.nouveau
-                            ? "text-blue-700 dark:text-blue-300"
-                            : tendance.pct > 0
-                              ? "text-red-700 dark:text-red-400"
-                              : tendance.pct < 0
-                                ? "text-emerald-700 dark:text-emerald-400"
-                                : "text-muted-foreground"
-                        )}
-                        title={`Cette semaine : ${tendance.thisWeek} · Semaine précédente : ${tendance.lastWeek}`}
-                      >
-                        {tendance.nouveau ? (
-                          <span aria-hidden>🆕</span>
-                        ) : tendance.pct > 0 ? (
-                          <span aria-hidden>↗️</span>
-                        ) : tendance.pct < 0 ? (
-                          <span aria-hidden>↘️</span>
-                        ) : (
-                          <span aria-hidden>→</span>
-                        )}
-                        {tendance.nouveau
-                          ? "Nouveau"
-                          : tendance.pct > 0
-                            ? `+${tendance.pct}%`
-                            : tendance.pct < 0
-                              ? `${tendance.pct}%`
-                              : "Stable"}
-                      </span>
-                    ) : (
-                      <span className="text-muted-foreground italic">—</span>
-                    )}
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-muted-foreground">Canal</span>
-                    <span className="font-semibold">{canalLabel(detail.canalChoisi)}</span>
-                  </div>
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="text-muted-foreground">Statut</span>
-                    <Badge variant="outline" className={cn("h-5 px-1.5 text-[10px]", statutBadgeClass(detail.statut))}>
-                      {STATUT_RETOUR_LABEL[detail.statut] ?? detail.statut}
-                    </Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Tags associés (spec : "liste des tags avec icônes + couleurs") */}
-            {detail.tags.length > 0 && (
-              <Card className="rounded-3xl shadow-sm">
-                <CardContent className="p-4 sm:p-5 space-y-2">
-                  <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                    <Target className="h-3.5 w-3.5" aria-hidden />
-                    Tags associés
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {detail.tags.map((t) => {
-                      const neg = SET_NEGATIFS.has(t)
-                      const pos = SET_POSITIFS.has(t)
-                      return (
-                        <span
-                          key={t}
-                          className={cn(
-                            "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium",
-                            neg
-                              ? "border-rose-300 bg-rose-100 text-rose-800 dark:border-rose-700 dark:bg-rose-950/50 dark:text-rose-300"
-                              : pos
-                                ? "border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
-                                : "border-border bg-muted text-muted-foreground"
-                          )}
-                          title={tagLabel(t)}
-                        >
-                          <span className="truncate">{tagLabel(t)}</span>
-                        </span>
-                      )
-                    })}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-          </div>
-        </div>
+            </CollapsibleContent>
+          </Collapsible>
+        </Card>
 
         {/* ---------- Formulaire de réponse (pleine largeur) ---------- */}
         <Card className="rounded-3xl shadow-sm">
