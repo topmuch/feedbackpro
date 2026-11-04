@@ -23,7 +23,7 @@ import {
   Sparkles,
 } from "lucide-react"
 import { jsPDF } from "jspdf"
-import { genererAffichePng as genererAffichePngFeedback, genererAffichePdf as genererAffichePdfFeedback, genererQrDataUrl } from "@/lib/qr-poster"
+import { genererAffichePng as genererAffichePngFeedback, genererQrDataUrl } from "@/lib/qr-poster"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
