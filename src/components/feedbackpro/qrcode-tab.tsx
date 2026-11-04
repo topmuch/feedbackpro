@@ -20,8 +20,10 @@ import {
   ShoppingCart,
   Loader2,
   Maximize2,
+  Sparkles,
 } from "lucide-react"
 import { jsPDF } from "jspdf"
+import { genererAffichePng as genererAffichePngFeedback, genererAffichePdf as genererAffichePdfFeedback, genererQrDataUrl } from "@/lib/qr-poster"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -54,7 +56,7 @@ type ZoneQr = {
   noteMoyenne?: number | null
 }
 
-type Telechargement = "png" | "a4" | "etiquettes" | null
+type Telechargement = "png" | "a4" | "etiquettes" | "affiche-a4" | "affiche-a5" | null
 
 /** Résumé d'une commande de supports attachée à une zone. */
 type CommandeZone = {
@@ -469,9 +471,24 @@ function CarteZone({
         telechargerPng(qr, `qr-${slugifier(zone.nom)}-1000x1000.png`)
       } else if (type === "a4") {
         genererAffichePdf(qr, nomEtablissement, zone.nom, logoDataUrl)
-      } else {
+      } else if (type === "etiquettes") {
         genererPlanchePdf(qr, nomEtablissement, zone.nom)
+      } else if (type === "affiche-a4" || type === "affiche-a5") {
+        // Nouveau design d'affiche FeedbackPro (style « VOTRE AVIS COMPTE »)
+        const format = type === "affiche-a4" ? "A4" : "A5"
+        const url = lienScan ?? `${window.location.origin}/r/${zone.qrToken}`
+        const qrDataUrlPoster = await genererQrDataUrl(url)
+        const pngDataUrl = await genererAffichePngFeedback({
+          qrDataUrl: qrDataUrlPoster,
+          nomEtablissement,
+          zoneNom: zone.nom,
+          format,
+        })
+        telechargerPng(pngDataUrl, `affiche-feedbackpro-${slugifier(zone.nom)}-${format}.png`)
+        toast({ title: `Affiche ${format} téléchargée ✓`, description: "Design FeedbackPro « VOTRE AVIS COMPTE »" })
       }
+    } catch (e) {
+      toast({ title: "Erreur", description: "Génération impossible", variant: "destructive" })
     } finally {
       setTelechargement(null)
     }
@@ -587,7 +604,7 @@ function CarteZone({
           </Button>
         </div>
 
-        {/* 4 actions (grid 2×2) */}
+        {/* 6 actions (grid 2×3) */}
         <div className="mt-auto grid grid-cols-2 gap-2 border-t pt-3">
           <BoutonAction
             icone={telechargement === "png" ? Loader2 : Download}
@@ -601,8 +618,24 @@ function CarteZone({
             icone={telechargement === "a4" ? Loader2 : FileText}
             tourne={telechargement === "a4"}
             label="PDF A4"
-            sousTitre="Affiche « VOTRE AVIS COMPTE »"
+            sousTitre="Affiche classique"
             onClick={() => telecharger("a4")}
+            disabled={telechargement !== null || !apercu}
+          />
+          <BoutonAction
+            icone={telechargement === "affiche-a4" ? Loader2 : Sparkles}
+            tourne={telechargement === "affiche-a4"}
+            label="Affiche A4"
+            sousTitre="Design « VOTRE AVIS COMPTE »"
+            onClick={() => telecharger("affiche-a4")}
+            disabled={telechargement !== null || !apercu}
+          />
+          <BoutonAction
+            icone={telechargement === "affiche-a5" ? Loader2 : Sparkles}
+            tourne={telechargement === "affiche-a5"}
+            label="Affiche A5"
+            sousTitre="Chevalet « VOTRE AVIS »"
+            onClick={() => telecharger("affiche-a5")}
             disabled={telechargement !== null || !apercu}
           />
           <BoutonAction
