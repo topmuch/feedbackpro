@@ -75,6 +75,16 @@ import {
   type LangueScan,
   type TraductionsScan,
 } from "@/lib/i18n"
+import {
+  getQuestionnaireConfig,
+  getScenarioByNote,
+  filterQuestionsByConditions,
+  type Secteur,
+  type SecteurConfig,
+  type ScenarioConfig,
+  type Question,
+  type Option,
+} from "@/lib/questionnaire-config"
 
 // ---------- Types locaux (contrat API) ----------
 
@@ -108,9 +118,25 @@ type ScanData = {
     positifs: { id: string; label: string }[]
     negatifs: { id: string; label: string }[]
   }
+  // ----- v3 : secteur du questionnaire adaptatif -----
+  // Mappe le macro-secteur du Pro vers l'id Secteur du questionnaire-config
+  // (RESTAURATION, HOTELLERIE, TRANSPORT, SANTE, ADMINISTRATION).
+  // Null si le Pro n'est pas rattaché à un macro-secteur couvert — auquel cas
+  // le scan-view retombe sur le flux historique (tags + commentaire + NPS).
+  secteurQuestionnaire?: Secteur | null
 }
 
-type Phase = "loading" | "error" | "welcome" | "step1" | "step2" | "step3" | "step4" | "success"
+type Phase =
+  | "loading"
+  | "error"
+  | "welcome"
+  | "step1"
+  | "step2"
+  | "step3"
+  | "step4"
+  | "questions"
+  | "recap"
+  | "success"
 type CanalEnvoi = "whatsapp" | "aucun"
 
 // ---------- Constantes d'affichage ----------
@@ -125,6 +151,125 @@ const COULEURS_CONFETTI = ["#2563EB", "#10B981", "#FBBF24", "#EC4899", "#8B5CF6"
 // Longueur maximale du commentaire côté client (spec refonte : 500).
 // Le schéma serveur (retourSchema) reste à 2000 — plus permissif.
 const MAX_COMMENTAIRE = 500
+
+// ---------- Helpers questionnaire adaptatif ----------
+
+/**
+ * Retourne la liste des options à afficher pour une question :
+ *  - question sans `condition` : question.options telle quelle
+ *  - question conditionnelle (Q2 dépend de Q1) : on cherche l'option dont
+ *    l'id correspond à la réponse de la question parente, et on renvoie
+ *    ses `sousOptions` (les choices réellement sélectionnables).
+ *
+ * Renvoie un tableau vide si la question n'a pas d'options ou si la
+ * réponse parente ne correspond à aucune option (cas défensif).
+ */
+function optionsPourQuestion(
+  question: Question,
+  reponses: Record<string, string | string[]>
+): Option[] {
+  if (!question.options) return []
+  if (!question.condition) return question.options
+  const parentAnswer = reponses[question.condition.questionId]
+  if (typeof parentAnswer !== "string") return []
+  const parent = question.options.find((o) => o.id === parentAnswer)
+  return parent?.sousOptions ?? []
+}
+
+/**
+ * Indique si une réponse est considérée comme "renseignée" pour la
+ * validation de la question (bouton Suivant activé).
+ *  - unique/email/texte/photo : string non vide
+ *  - multiple : tableau non vide
+ */
+function reponseRenseignee(valeur: string | string[] | undefined): boolean {
+  if (valeur === undefined) return false
+  if (Array.isArray(valeur)) return valeur.length > 0
+  return valeur.trim().length > 0
+}
+
+/**
+ * Mappe les réponses du questionnaire adaptatif vers le payload de
+ * l'API /api/retour (contrat PRESERVÉ — aucune casse) :
+ *   - tags : ids des options sélectionnées (unique + multiple + sousOptions)
+ *   - commentaire : concaténation des réponses texte (hors description de
+ *     personnel/agent/soignant, qui va dans `personnelMentionne`)
+ *   - personnelMentionne : réponse texte de la question dont l'id contient
+ *     "description" (et "personnel" / "agent" / "soignant")
+ *   - emailClient : réponse email
+ *   - photoUrl : réponse photo
+ *   - nps : dérivé de la question "recommandation" (oui_absolument → 10,
+ *     oui_probablement → 8) ; null sinon (le serveur l'accepte nullable)
+ *
+ * On conserve également le commentaire libre éventuel saisi dans le flux
+ * legacy (pour les secteurs non couverts par le questionnaire).
+ */
+function mapperReponsesEnPayload(
+  questions: Question[],
+  reponses: Record<string, string | string[]>,
+  commentaireLibre: string,
+  emailLibre: string
+): {
+  tags: string[]
+  commentaire: string | undefined
+  personnelMentionne: string | undefined
+  emailClient: string | undefined
+  photoUrl: string | undefined
+  nps: number | undefined
+} {
+  const tags: string[] = []
+  const textes: string[] = []
+  let personnelMentionne = ""
+  let emailClient = ""
+  let photoUrl = ""
+  let nps: number | undefined
+
+  for (const q of questions) {
+    const r = reponses[q.id]
+    if (!reponseRenseignee(r)) continue
+
+    if (q.type === "unique" || q.type === "multiple") {
+      if (Array.isArray(r)) tags.push(...r)
+      else tags.push(r)
+      // Dérivation NPS depuis la question de recommandation
+      if (/recommandation/i.test(q.id) && typeof r === "string") {
+        if (r === "oui_absolument") nps = 10
+        else if (r === "oui_probablement") nps = 8
+        else if (r === "non") nps = 3
+      }
+    } else if (q.type === "texte") {
+      const val = (Array.isArray(r) ? r.join(", ") : r).trim()
+      if (!val) continue
+      // Détecte les questions de description de personnel/agent/soignant
+      if (/description|personnel|agent|soignant|felicit/i.test(q.id)) {
+        if (!personnelMentionne) personnelMentionne = val
+        else textes.push(`${q.texte}: ${val}`)
+      } else {
+        textes.push(`${q.texte}: ${val}`)
+      }
+    } else if (q.type === "email") {
+      const val = (Array.isArray(r) ? r[0] ?? "" : r).trim()
+      if (val) emailClient = val
+    } else if (q.type === "photo") {
+      const val = (Array.isArray(r) ? r[0] ?? "" : r).trim()
+      if (val) photoUrl = val
+    }
+  }
+
+  // Le commentaire libre (flux legacy) est prépendu si saisi
+  const lib = commentaireLibre.trim()
+  const concat = textes.length > 0 ? textes.join(" | ") : ""
+  const commentaire = [lib, concat].filter(Boolean).join(" | ") || undefined
+
+  return {
+    tags: tags.slice(0, 8), // le schéma serveur limite à 8 tags
+    commentaire,
+    personnelMentionne: personnelMentionne || undefined,
+    emailClient: emailClient || emailLibre.trim() || undefined,
+    photoUrl: photoUrl || undefined,
+    nps,
+  }
+}
 
 // ---------- Petits utilitaires ----------
 
@@ -352,6 +497,17 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
   // dédié sur l'écran de succès ("sera envoyé à la reconnexion").
   const [horsLigne, setHorsLigne] = useState(false)
 
+  // ---------- Questionnaire adaptatif v3 ----------
+  // Réponses du questionnaire : questionId → valeur (string pour unique/
+  // texte/email/photo, string[] pour multiple). Stocké dans localStorage
+  // (clé fp_scan_<token>) pour reprise après fermeture accidentelle.
+  const [reponses, setReponses] = useState<Record<string, string | string[]>>({})
+  // Index de la question visible courante (0-based dans `questionsVisibles`).
+  const [qIndex, setQIndex] = useState(0)
+  // Commentaire libre optionnel (saisi sur l'écran récap, en complément des
+  // questions adaptatives — utile pour apporter un contexte supplémentaire).
+  const [commentaireLibre, setCommentaireLibre] = useState("")
+
   // Référence du textarea : inutilisée (on s'appuie sur le field-sizing
   // natif du composant Textarea shadcn + max-h-48 pour caper la hauteur).
   // Conservée pour une éventuelle logique future d'auto-resize JS.
@@ -372,6 +528,79 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
     setLangue(mem ?? detecterLangueNavigateur())
   }, [])
 
+  // v3 — Secteur du questionnaire (depuis scanData.secteurQuestionnaire).
+  // Déclaré tôt (avant les useEffects ci-dessous) car il est requis pour
+  // l'auto-save et la restauration du brouillon. Null si le Pro n'est pas
+  // rattaché à un macro-secteur couvert (Boutique, Salon, Institut, Garage,
+  // Autre) — auquel cas on retombe sur le flux historique (tags + commentaire
+  // + NPS + photo des étapes 2/3/4).
+  const secteurQ: Secteur | null = scanData?.secteurQuestionnaire ?? null
+  const useAdaptiveFlow = secteurQ !== null
+
+  // v3 — Auto-save du brouillon (note + réponses adaptatives + commentaire
+  // libre) dans localStorage. Clé : fp_scan_<token>. Reprise possible après
+  // fermeture accidentelle de l'onglet (l'utilisateur re-scann le QR et
+  // retrouve son brouillon). Best-effort : silencieux en cas d'échec
+  // (mode privé, quota dépassé).
+  useEffect(() => {
+    if (!useAdaptiveFlow) return
+    if (note === 0 && Object.keys(reponses).length === 0) return
+    try {
+      const brouillon = JSON.stringify({
+        note,
+        reponses,
+        commentaireLibre,
+        qIndex,
+        ts: Date.now(),
+      })
+      localStorage.setItem(`fp_scan_${token}`, brouillon)
+    } catch {
+      /* silencieux */
+    }
+  }, [token, note, reponses, commentaireLibre, qIndex, useAdaptiveFlow])
+
+  // v3 — Restauration du brouillon au chargement du scan (une fois que
+  // scanData est disponible et qu'on est sur le secteur adaptatif). On ne
+  // restaure que si le brouillon a moins de 2 heures (sinon on purge).
+  // Restitution silencieuse : si le JSON est corrompu, on purge et on
+  // repart à zéro sans crasher.
+  const brouillonRestaureRef = useRef(false)
+  useEffect(() => {
+    if (!scanData || !useAdaptiveFlow) return
+    if (brouillonRestaureRef.current) return
+    brouillonRestaureRef.current = true
+    try {
+      const brut = localStorage.getItem(`fp_scan_${token}`)
+      if (!brut) return
+      const data = JSON.parse(brut) as {
+        note?: number
+        reponses?: Record<string, string | string[]>
+        commentaireLibre?: string
+        qIndex?: number
+        ts?: number
+      }
+      // Péremption : 2 h max
+      if (typeof data.ts === "number" && Date.now() - data.ts > 2 * 60 * 60 * 1000) {
+        localStorage.removeItem(`fp_scan_${token}`)
+        return
+      }
+      if (typeof data.note === "number" && data.note >= 1 && data.note <= 5) {
+        setNote(data.note)
+      }
+      if (data.reponses && typeof data.reponses === "object") {
+        setReponses(data.reponses)
+      }
+      if (typeof data.commentaireLibre === "string") {
+        setCommentaireLibre(data.commentaireLibre)
+      }
+      if (typeof data.qIndex === "number" && data.qIndex >= 0) {
+        setQIndex(data.qIndex)
+      }
+    } catch {
+      /* silencieux */
+    }
+  }, [scanData, useAdaptiveFlow, token])
+
   // Auto-resize du textarea (étape 3) : on s'appuie sur le field-sizing
   // natif (déjà présent sur le composant Textarea shadcn) + max-h-48 pour
   // caper la hauteur. Aucune logique JS nécessaire.
@@ -384,6 +613,60 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
   const estPositif = note >= 4
   // Note affichée : celle survolée (prévisualisation) sinon celle choisie
   const afficheNote = survol ?? note
+
+  // ---------- Questionnaire adaptatif v3 ----------
+  // (secteurQ et useAdaptiveFlow sont déclarés plus haut, avant les
+  // useEffects d'auto-save/restauration, car ils sont requis par ceux-ci.)
+
+  // Config du questionnaire (mémoïsée — ne change qu'au changement de secteur)
+  const configQ: SecteurConfig | null = useMemo(() => {
+    if (!secteurQ) return null
+    try {
+      return getQuestionnaireConfig(secteurQ)
+    } catch {
+      return null
+    }
+  }, [secteurQ])
+
+  // Scénario (CRISE/MITIGE/SUCCES) selon la note — mémoïsé sur [configQ, note].
+  // Null tant que la note n'est pas encore choisie (note === 0).
+  const scenario: ScenarioConfig | null = useMemo(() => {
+    if (!configQ || note < 1 || note > 5) return null
+    try {
+      return getScenarioByNote(configQ, note)
+    } catch {
+      return null
+    }
+  }, [configQ, note])
+
+  // Questions visibles après filtrage conditionnel. Recalculé à chaque
+  // nouvelle réponse (une réponse peut débloquer la question suivante).
+  const questionsVisibles: Question[] = useMemo(() => {
+    if (!scenario) return []
+    return filterQuestionsByConditions(scenario.questions, reponses)
+  }, [scenario, reponses])
+
+  // Question courante (ou null si l'index est hors borne — cas défensif).
+  const questionCourante: Question | null = questionsVisibles[qIndex] ?? null
+
+  // Indique si la question courante est valide (bouton Suivant activé) :
+  //  - obligatoire : réponse renseignée
+  //  - optionnelle : toujours valide (peut être vide)
+  //  - multiple avec maxSelections : ne pas dépasser le max
+  const questionValide = (() => {
+    if (!questionCourante) return true
+    const r = reponses[questionCourante.id]
+    if (questionCourante.obligatoire && !reponseRenseignee(r)) return false
+    if (
+      questionCourante.type === "multiple" &&
+      questionCourante.maxSelections &&
+      Array.isArray(r) &&
+      r.length > questionCourante.maxSelections
+    ) {
+      return false
+    }
+    return true
+  })()
 
   // Récompense affichée sur l'écran de succès : gagnée à l'envoi, sinon pro
   const recompenseFinale = recompenseGagnee ?? scanData?.pro.recompense ?? null
@@ -425,6 +708,16 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
       setSens(1)
       // Task M3 — reset du flag offline (nouveau scan = repart à zéro)
       setHorsLigne(false)
+      // v3 — reset des réponses adaptatives
+      setReponses({})
+      setQIndex(0)
+      setCommentaireLibre("")
+      // v3 — purge du brouillon localStorage (nouveau scan = repart à zéro)
+      try {
+        localStorage.removeItem(`fp_scan_${token}`)
+      } catch {
+        /* silencieux */
+      }
       // Étape 0 — Bienvenue (auto-transition 2 s vers step1)
       setPhase("welcome")
     } catch (e) {
@@ -442,6 +735,69 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
   function allerEtape(suivante: Phase, direction: 1 | -1) {
     setSens(direction)
     setPhase(suivante)
+  }
+
+  // ---------- v3 : navigation dans le questionnaire adaptatif ----------
+  // Avance d'une question (ou passe au récap si dernière question).
+  function questionSuivante() {
+    if (!questionCourante) {
+      // Pas de question courante (cas défensif) → on passe au récap
+      allerEtape("recap", 1)
+      return
+    }
+    if (qIndex >= questionsVisibles.length - 1) {
+      // Dernière question → récap
+      allerEtape("recap", 1)
+      return
+    }
+    setSens(1)
+    setQIndex((i) => Math.min(i + 1, questionsVisibles.length - 1))
+  }
+
+  // Recule d'une question (ou revient à l'étape note si première question).
+  function questionPrecedente() {
+    if (qIndex <= 0) {
+      allerEtape("step1", -1)
+      return
+    }
+    setSens(-1)
+    setQIndex((i) => Math.max(i - 1, 0))
+  }
+
+  // Met à jour la réponse d'une question (string pour unique/texte/email/
+  // photo, string[] pour multiple).
+  function repondre(
+    questionId: string,
+    valeur: string | string[]
+  ) {
+    setReponses((prev) => ({ ...prev, [questionId]: valeur }))
+  }
+
+  // Bascule une option dans une question multiple (ajoute/retire l'id).
+  // Respecte `maxSelections` : si le max est atteint et qu'on tente d'ajouter,
+  // on remplace la première sélection (FIFO) pour rester sous le plafond.
+  function basculerOptionMultiple(question: Question, optionId: string) {
+    const courant = reponses[question.id]
+    const liste: string[] = Array.isArray(courant) ? courant : []
+    if (liste.includes(optionId)) {
+      repondre(question.id, liste.filter((id) => id !== optionId))
+      return
+    }
+    const max = question.maxSelections
+    if (max && liste.length >= max) {
+      // Remplace la plus ancienne sélection (FIFO)
+      repondre(question.id, [...liste.slice(1), optionId])
+      return
+    }
+    repondre(question.id, [...liste, optionId])
+  }
+
+  // Aller directement à une question précise (depuis le récap "Modifier")
+  function allerAQuestion(index: number) {
+    if (index < 0 || index >= questionsVisibles.length) return
+    setSens(-1)
+    setQIndex(index)
+    setPhase("questions")
   }
 
   function annulerTimer() {
@@ -463,6 +819,9 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
     setNote(n)
     // Les tags dépendent de la note : on repart d'une sélection vide
     setTags([])
+    // v3 — reset des réponses adaptatives (la note détermine le scénario)
+    setReponses({})
+    setQIndex(0)
     setPulse(n)
     // Feedback haptique (spec refonte) : navigator.vibrate si supporté.
     // Try/catch : certains navigateurs (iOS Safari) rejectent la promesse.
@@ -474,9 +833,11 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
       /* silencieux : le haptique est un bonus, pas une nécessité */
     }
     annulerTimer()
-    // Auto-transition vers step2 après 500 ms (spec refonte)
+    // Auto-transition après 500 ms (spec refonte) :
+    //  - flux adaptatif (secteur couvert) → "questions" (première question)
+    //  - flux legacy (secteur non couvert) → "step2" (tags historiques)
     timerRef.current = setTimeout(() => {
-      allerEtape("step2", 1)
+      allerEtape(useAdaptiveFlow ? "questions" : "step2", 1)
       timerRef.current = null
     }, 500)
   }
@@ -552,6 +913,19 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
     }
   }, [declencheurTagsEmployes])
 
+  // v3 — Sync photoUrl → reponses[questionCourante.id] quand la question
+  // courante est de type photo. L'upload passe par onPhotoChoisie (handler
+  // partagé avec le flux legacy) qui met à jour photoUrl ; on propage
+  // ensuite la valeur vers les réponses du questionnaire adaptatif.
+  useEffect(() => {
+    if (phase !== "questions") return
+    if (!questionCourante || questionCourante.type !== "photo") return
+    const actuel = reponses[questionCourante.id]
+    const valeur = photoUrl ?? ""
+    if (actuel === valeur) return
+    repondre(questionCourante.id, valeur)
+  }, [photoUrl, phase, questionCourante, reponses, repondre])
+
   function basculerTag(id: string) {
     setTags((prev) => (prev.includes(id) ? prev.filter((tg) => tg !== id) : [...prev, id]))
   }
@@ -599,23 +973,68 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
     // Ouvre l'onglet AVANT l'attente réseau : évite le blocage anti-popup
     const fenetre = canal === "whatsapp" && numero ? window.open("", "_blank") : null
 
-    // Task M3 — Payload construit une fois pour pouvoir le stocker hors ligne
-    // en cas d'échec réseau (Background Sync via IndexedDB).
-    const payload = JSON.stringify({
-      qrToken: token,
-      note,
-      tags,
-      commentaire: commentaire.trim() || undefined,
-      personnelMentionne: personnel.trim() || undefined,
-      emailClient: emailClient.trim() || undefined,
-      canalChoisi: canal,
-      // RGPD : la ville approximative n'est enregistrée que si opt-in
-      geoConsent,
-      // D1 : NPS transmis uniquement pour les notes ≥ 4 (sinon undefined)
-      nps: estPositif ? nps : undefined,
-      // D2 : photo jointe (URL relative) si le client en a ajouté une
-      photoUrl: photoUrl || undefined,
-    })
+    // v3 — Construction du payload selon le flux :
+    //  - flux adaptatif : mappe les réponses du questionnaire vers le
+    //    contrat API (tags + commentaire + personnelMentionne + email +
+    //    photo + nps). Le commentaire libre (saisi sur le récap) est
+    //    prépendu au commentaire concaténé des questions texte.
+    //  - flux legacy : conserve le comportement historique (tags de la
+    //    étape 2, commentaire/NPS/photo de l'étape 3).
+    const payloadObj: {
+      qrToken: string
+      note: number
+      tags: string[]
+      commentaire?: string
+      personnelMentionne?: string
+      emailClient?: string
+      canalChoisi: CanalEnvoi
+      geoConsent: boolean
+      nps?: number
+      photoUrl?: string
+    } = useAdaptiveFlow
+      ? {
+          qrToken: token,
+          note,
+          canalChoisi: canal,
+          geoConsent,
+          ...mapperReponsesEnPayload(
+            scenario?.questions ?? [],
+            reponses,
+            commentaireLibre,
+            emailClient
+          ),
+        }
+      : {
+          qrToken: token,
+          note,
+          tags,
+          commentaire: commentaire.trim() || undefined,
+          personnelMentionne: personnel.trim() || undefined,
+          emailClient: emailClient.trim() || undefined,
+          canalChoisi: canal,
+          // RGPD : la ville approximative n'est enregistrée que si opt-in
+          geoConsent,
+          // D1 : NPS transmis uniquement pour les notes ≥ 4 (sinon undefined)
+          nps: estPositif ? nps : undefined,
+          // D2 : photo jointe (URL relative) si le client en a ajouté une
+          photoUrl: photoUrl || undefined,
+        }
+
+    // v3 — Pour le flux adaptatif, on s'assure que le NPS historique (slider
+    // de l'étape 3) n'est pas écrasé si la question de recommandation n'a pas
+    // été répondue. On garde aussi le NPS dérivé si présent.
+    if (useAdaptiveFlow && payloadObj.nps === undefined && estPositif) {
+      // Pas de question recommandation répondue — on garde le NPS par défaut
+      // (8) pour les notes positives, conformément au contrat D1.
+      payloadObj.nps = nps
+    }
+
+    // Tags effectivement envoyés (pour le message WhatsApp)
+    const tagsEnvoyes = payloadObj.tags ?? []
+    const commentaireEnvoye = payloadObj.commentaire ?? ""
+    const personnelEnvoye = payloadObj.personnelMentionne ?? ""
+
+    const payload = JSON.stringify(payloadObj)
 
     try {
       const res = await fetch("/api/public/retour", {
@@ -646,9 +1065,9 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
           },
           {
             note,
-            tags,
-            commentaire: commentaire.trim() || null,
-            personnelMentionne: personnel.trim() || null,
+            tags: tagsEnvoyes,
+            commentaire: commentaireEnvoye || null,
+            personnelMentionne: personnelEnvoye || null,
             zoneNom: scanData.zone.nom,
           }
         )
@@ -657,6 +1076,13 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
         const lien = `https://api.whatsapp.com/send?phone=${numero}&text=${encodeURIComponent(message)}`
         if (fenetre) fenetre.location.href = lien
         else window.location.href = lien // popup bloquée : dernier recours
+      }
+
+      // v3 — Envoi réussi : purge du brouillon localStorage
+      try {
+        localStorage.removeItem(`fp_scan_${token}`)
+      } catch {
+        /* silencieux */
       }
 
       allerEtape("success", 1)
@@ -723,18 +1149,28 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
     return "bg-white"
   })()
 
-  // Indicateur d'étape (1 à 4) pour les étapes step1 à step4
-  const numEtape =
-    phase === "step1"
-      ? 1
-      : phase === "step2"
-        ? 2
-        : phase === "step3"
-          ? 3
-          : phase === "step4"
-            ? 4
-            : 0
-  const TOTAL_ETAPES = 4
+  // Indicateur d'étape (1 à N) pour les étapes step1 à step4 / questions / recap.
+  //  - step1 = 1 (note)
+  //  - step2 = 2 (tags — flux legacy)
+  //  - step3 = 3 (commentaire + NPS + photo — flux legacy)
+  //  - step4 = 4 (récap + envoi — flux legacy)
+  //  - questions = 2 (première question) à 2 + nbQuestions - 1
+  //  - recap = 2 + nbQuestions (dernière étape avant envoi)
+  const numEtape = (() => {
+    if (phase === "step1") return 1
+    if (phase === "step2") return 2
+    if (phase === "step3") return 3
+    if (phase === "step4") return 4
+    if (phase === "questions") return 2 + qIndex
+    if (phase === "recap") return 2 + Math.max(questionsVisibles.length, 1)
+    return 0
+  })()
+  // Total dynamique : flux adaptatif = 2 (note) + nbQuestions + 1 (recap)
+  //  - minimum 3 (note + au moins une question + recap)
+  //  - flux legacy = 4 (note + tags + commentaire + envoi)
+  const TOTAL_ETAPES = useAdaptiveFlow
+    ? Math.max(3, 2 + Math.max(questionsVisibles.length, 1) + 1)
+    : 4
 
   // Sujet de l'étape affiché dans l'indicateur (VOTRE NOTE / DÉTAILS…)
   const sujetEtape =
@@ -746,7 +1182,11 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
           ? t.sujetCommentaire
           : phase === "step4"
             ? t.sujetEnvoi
-            : ""
+            : phase === "questions"
+              ? t.sujetQuestions
+              : phase === "recap"
+                ? t.sujetEnvoi
+                : ""
 
   // Bouton « Retour » : recule d'une étape, ou quitte le formulaire à step1.
   function retourEtape() {
@@ -754,6 +1194,17 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
     else if (phase === "step2") allerEtape("step1", -1)
     else if (phase === "step3") allerEtape("step2", -1)
     else if (phase === "step4") allerEtape("step3", -1)
+    else if (phase === "questions") questionPrecedente()
+    else if (phase === "recap") {
+      // Retour depuis le récap → dernière question (ou étape note si pas de questions)
+      if (questionsVisibles.length > 0) {
+        setSens(-1)
+        setQIndex(questionsVisibles.length - 1)
+        setPhase("questions")
+      } else {
+        allerEtape("step1", -1)
+      }
+    }
   }
 
   // Affiche le top bar (Retour + langue + exit) sur toutes les étapes sauf
@@ -763,13 +1214,21 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
     phase === "step1" ||
     phase === "step2" ||
     phase === "step3" ||
-    phase === "step4"
+    phase === "step4" ||
+    phase === "questions" ||
+    phase === "recap"
 
-  // Affiche le footer (Suivant + progress bar) sur les étapes 2 à 4.
+  // Affiche le footer (Suivant + progress bar) sur les étapes 2 à 4
+  // + questions + recap.
   // (Step1 a une auto-transition après clic — pas de bouton Suivant visible,
   //  mais on garde quand même la progress bar pour la cohérence visuelle.)
   const avecFooterProgress =
-    phase === "step1" || phase === "step2" || phase === "step3" || phase === "step4"
+    phase === "step1" ||
+    phase === "step2" ||
+    phase === "step3" ||
+    phase === "step4" ||
+    phase === "questions" ||
+    phase === "recap"
 
   return (
     <div
@@ -786,7 +1245,9 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
             {(phase === "step1" ||
               phase === "step2" ||
               phase === "step3" ||
-              phase === "step4") && (
+              phase === "step4" ||
+              phase === "questions" ||
+              phase === "recap") && (
               <button
                 type="button"
                 onClick={retourEtape}
@@ -980,6 +1441,543 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                     </div>
                   )}
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* ---------- v3 : ÉTAPE QUESTIONS ADAPTATIVES ----------
+              Affichée uniquement si le Pro est rattaché à un macro-secteur
+              couvert par le questionnaire-config. Une question à la fois,
+              dans une card blanche (style QRTags) avec :
+                - texte de la question + badge obligatoire/optionnel
+                - compteur de sélection (si multiple avec maxSelections)
+                - input adapté au type (unique/multiple/texte/email/photo)
+              Navigation : bouton « Suivant » (désactivé si obligatoire non
+              répondue) en bas + bouton « Retour » en haut à gauche. */}
+          {phase === "questions" && scanData && questionCourante && (
+            <div className="flex flex-1 flex-col">
+              <div className="mb-5 flex justify-center">
+                <LogoPetit pro={scanData.pro} zone={scanData.zone} />
+              </div>
+
+              <div className="flex flex-col items-center text-center">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#002e85]/70 sm:text-sm">
+                  {t.etapeSur(numEtape, TOTAL_ETAPES, sujetEtape)}
+                </p>
+                <h1 className="mt-3 text-balance text-2xl font-black leading-tight text-[#002e85] sm:text-3xl">
+                  {t.titreQuestionsH1}
+                </h1>
+                {scenario && (
+                  <p className="mt-2 text-sm text-[#002e85]/70 sm:text-base">
+                    {t.sousTitreQuestions(scenario.tempsEstime)}
+                  </p>
+                )}
+              </div>
+
+              {/* Card question (style QRTags : bg-white border-2 border-[#002e85] rounded-2xl) */}
+              <div className="mt-6 max-h-[60vh] flex-1 overflow-y-auto pe-1 fp-scan-scroll">
+                <div
+                  className="rounded-2xl border-2 border-[#002e85] bg-white p-4 text-gray-900 sm:p-6"
+                  role="group"
+                  aria-label={questionCourante.texte}
+                >
+                  {/* En-tête : numéro + texte + badge obligatoire */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-xs font-bold uppercase tracking-wide text-[#002e85]/60">
+                        Q{questionCourante.numero}
+                      </p>
+                      <h2 className="mt-1 text-balance text-lg font-bold leading-snug text-gray-900 sm:text-xl">
+                        {questionCourante.texte}
+                      </h2>
+                    </div>
+                    <span
+                      className={cn(
+                        "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide",
+                        questionCourante.obligatoire
+                          ? "bg-[#002e85] text-white"
+                          : "bg-gray-100 text-gray-600"
+                      )}
+                    >
+                      {questionCourante.obligatoire ? t.obligatoire : t.optionnel}
+                    </span>
+                  </div>
+
+                  {/* Compteur multiple */}
+                  {questionCourante.type === "multiple" && (
+                    <p className="mt-2 text-xs font-medium text-[#002e85]/70">
+                      {t.multiCompteur(
+                        Array.isArray(reponses[questionCourante.id])
+                          ? (reponses[questionCourante.id] as string[]).length
+                          : 0,
+                        questionCourante.maxSelections
+                      )}
+                    </p>
+                  )}
+
+                  {/* ----- Type UNIQUE : grid de cards emoji ----- */}
+                  {questionCourante.type === "unique" && (
+                    <div
+                      className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3"
+                      role="radiogroup"
+                      aria-label={questionCourante.texte}
+                    >
+                      {optionsPourQuestion(questionCourante, reponses).map((opt, idx) => {
+                        const actif = reponses[questionCourante.id] === opt.id
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            role="radio"
+                            aria-checked={actif}
+                            aria-label={opt.label}
+                            onClick={() => repondre(questionCourante.id, opt.id)}
+                            className={cn(
+                              "fp-scan-tag-enter flex min-h-20 flex-col items-center justify-center gap-1 rounded-2xl border-2 p-2 text-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-[#002e85] focus-visible:ring-offset-2 sm:min-h-24 sm:p-3",
+                              actif
+                                ? "border-[#002e85] bg-[#002e85] text-white"
+                                : "border-[#002e85] bg-white text-gray-900 hover:scale-105",
+                              actif && "fp-scan-card-pop"
+                            )}
+                            style={{ animationDelay: `${idx * 50}ms` }}
+                          >
+                            {opt.emoji && (
+                              <span aria-hidden className="text-2xl leading-none sm:text-3xl">
+                                {opt.emoji}
+                              </span>
+                            )}
+                            <span className="text-xs font-semibold leading-tight sm:text-sm">
+                              {opt.label}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {/* ----- Type MULTIPLE : grid de cards emoji multi-sélection ----- */}
+                  {questionCourante.type === "multiple" && (
+                    <div
+                      className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3"
+                      role="group"
+                      aria-label={questionCourante.texte}
+                    >
+                      {optionsPourQuestion(questionCourante, reponses).map((opt, idx) => {
+                        const liste = Array.isArray(reponses[questionCourante.id])
+                          ? (reponses[questionCourante.id] as string[])
+                          : []
+                        const actif = liste.includes(opt.id)
+                        return (
+                          <button
+                            key={opt.id}
+                            type="button"
+                            aria-pressed={actif}
+                            aria-label={opt.label}
+                            onClick={() => basculerOptionMultiple(questionCourante, opt.id)}
+                            className={cn(
+                              "fp-scan-tag-enter flex min-h-20 flex-col items-center justify-center gap-1 rounded-2xl border-2 p-2 text-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-[#002e85] focus-visible:ring-offset-2 sm:min-h-24 sm:p-3",
+                              actif
+                                ? "border-[#002e85] bg-[#002e85] text-white"
+                                : "border-[#002e85] bg-white text-gray-900 hover:scale-105",
+                              actif && "fp-scan-card-pop"
+                            )}
+                            style={{ animationDelay: `${idx * 50}ms` }}
+                          >
+                            {opt.emoji && (
+                              <span aria-hidden className="text-2xl leading-none sm:text-3xl">
+                                {opt.emoji}
+                              </span>
+                            )}
+                            <span className="text-xs font-semibold leading-tight sm:text-sm">
+                              {opt.label}
+                            </span>
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  {/* ----- Type TEXTE : textarea auto-resize ----- */}
+                  {questionCourante.type === "texte" && (
+                    <div className="mt-4">
+                      <Textarea
+                        value={(typeof reponses[questionCourante.id] === "string"
+                          ? (reponses[questionCourante.id] as string)
+                          : "")}
+                        onChange={(e) =>
+                          repondre(
+                            questionCourante.id,
+                            e.target.value.slice(0, MAX_COMMENTAIRE)
+                          )
+                        }
+                        rows={3}
+                        maxLength={MAX_COMMENTAIRE}
+                        aria-label={questionCourante.texte}
+                        placeholder={questionCourante.placeholder ?? ""}
+                        className="min-h-[120px] max-h-[300px] border-2 border-[#002e85] bg-white text-base text-gray-900 placeholder:text-gray-400"
+                      />
+                      <div className="mt-1 text-right text-xs text-[#002e85]/70">
+                        {t.compteurChars(
+                          typeof reponses[questionCourante.id] === "string"
+                            ? (reponses[questionCourante.id] as string).length
+                            : 0,
+                          MAX_COMMENTAIRE
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ----- Type EMAIL : input email ----- */}
+                  {questionCourante.type === "email" && (
+                    <div className="mt-4">
+                      <Input
+                        type="email"
+                        inputMode="email"
+                        value={(typeof reponses[questionCourante.id] === "string"
+                          ? (reponses[questionCourante.id] as string)
+                          : "")}
+                        onChange={(e) => repondre(questionCourante.id, e.target.value.slice(0, 120))}
+                        maxLength={120}
+                        autoComplete="off"
+                        aria-label={questionCourante.texte}
+                        placeholder={questionCourante.placeholder ?? t.emailLabel}
+                        className="h-12 border-2 border-[#002e85] bg-white text-base text-gray-900 placeholder:text-gray-400"
+                      />
+                      <p className="mt-1.5 text-xs leading-relaxed text-[#002e85]/70">
+                        {t.emailAide}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* ----- Type PHOTO : 2 boutons (Prendre / Choisir) + preview ----- */}
+                  {questionCourante.type === "photo" && (
+                    <div className="mt-4">
+                      <p className="mb-1.5 text-sm font-medium text-[#002e85]/90">
+                        {t.photoLabel}
+                      </p>
+                      {photoUrl ? (
+                        <div className="flex items-center gap-3 rounded-2xl border-2 border-[#002e85] bg-white p-2.5">
+                          <img
+                            src={photoUrl}
+                            alt="Photo jointe"
+                            className="size-16 shrink-0 rounded-lg border border-gray-300 object-cover"
+                          />
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs text-gray-600">{t.photoAide}</p>
+                            <div className="mt-1.5 flex flex-wrap gap-2">
+                              <button
+                                type="button"
+                                onClick={() => photoInputRef.current?.click()}
+                                className="flex h-8 items-center gap-1 rounded-lg border border-gray-300 bg-white px-2 text-xs font-semibold text-gray-700 hover:bg-gray-100"
+                              >
+                                <Upload className="h-3.5 w-3.5" aria-hidden />
+                                {t.photoChanger}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setPhotoUrl(null)
+                                  setPhotoErreur(null)
+                                  repondre(questionCourante.id, "")
+                                }}
+                                className="flex h-8 items-center gap-1 rounded-lg bg-rose-50 px-2 text-xs font-semibold text-rose-700 hover:bg-rose-100"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                                {t.photoRetirer}
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            type="button"
+                            onClick={() => photoCameraRef.current?.click()}
+                            disabled={photoEnCours}
+                            className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl border-2 border-[#002e85] bg-white py-2.5 text-sm font-semibold text-gray-900 transition-all hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002e85] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            {photoEnCours ? (
+                              <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+                            ) : (
+                              <Camera className="h-5 w-5" aria-hidden />
+                            )}
+                            <span className="text-xs">
+                              {photoEnCours ? t.photoEnCours : t.photoPrendre}
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => photoInputRef.current?.click()}
+                            disabled={photoEnCours}
+                            className="flex min-h-14 flex-col items-center justify-center gap-1 rounded-2xl border-2 border-[#002e85] bg-white py-2.5 text-sm font-semibold text-gray-900 transition-all hover:scale-[1.02] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002e85] focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+                          >
+                            <ImagePlus className="h-5 w-5" aria-hidden />
+                            <span className="text-xs">{t.photoChoisir}</span>
+                          </button>
+                        </div>
+                      )}
+                      <p className="mt-1.5 text-center text-xs text-[#002e85]/70">{t.photoAide}</p>
+                      {/* Input caché appareil photo (capture=environment) */}
+                      <input
+                        ref={photoCameraRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/gif"
+                        capture="environment"
+                        className="sr-only"
+                        onChange={onPhotoChoisie}
+                        aria-label={t.photoPrendre}
+                        tabIndex={-1}
+                      />
+                      {/* Input caché galerie (sans capture) */}
+                      <input
+                        ref={photoInputRef}
+                        type="file"
+                        accept="image/png,image/jpeg,image/webp,image/gif"
+                        className="sr-only"
+                        onChange={onPhotoChoisie}
+                        aria-label={t.photoChoisir}
+                        tabIndex={-1}
+                      />
+                      {photoErreur && (
+                        <p className="mt-1.5 text-xs text-rose-600" role="alert">
+                          {photoErreur}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ---------- v3 : ÉTAPE RÉCAP + ENVOI (flux adaptatif) ----------
+              Card blanche avec : note + réponses aux questions adaptatives
+              (une ligne par question, avec bouton « Modifier » qui ramène à
+              la question) + commentaire libre optionnel + email optionnel +
+              consentement géo + récompense teaser. Bouton « Envoyer » plein
+              largeur dans le footer (identique au flux legacy). */}
+          {phase === "recap" && scanData && (
+            <div className="flex flex-1 flex-col">
+              <div className="mb-5 flex justify-center">
+                <LogoPetit pro={scanData.pro} zone={scanData.zone} />
+              </div>
+
+              <div className="flex flex-col items-center text-center">
+                <p className="text-xs font-semibold uppercase tracking-wide text-[#002e85]/70 sm:text-sm">
+                  {t.etapeSur(numEtape, TOTAL_ETAPES, sujetEtape)}
+                </p>
+                <h1 className="mt-3 text-balance text-2xl font-black leading-tight text-[#002e85] sm:text-3xl">
+                  {t.titreEnvoiH1}
+                </h1>
+                <p className="mt-2 text-sm text-[#002e85]/70 sm:text-base">{t.sousTitreEnvoi}</p>
+              </div>
+
+              <div className="mt-6 max-h-[60vh] flex-1 space-y-4 overflow-y-auto pe-1 fp-scan-scroll">
+                {/* Récap card (blanche, border-2 [#002e85]) */}
+                <div className="rounded-2xl border-2 border-[#002e85] bg-white p-4 text-gray-900">
+                  {/* Note */}
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-semibold text-gray-600">
+                      {t.recapVotreNote}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => allerEtape("step1", -1)}
+                      className="text-xs font-semibold text-[#002e85] underline underline-offset-2 hover:text-[#002e85]"
+                    >
+                      {t.recapModifier}
+                    </button>
+                  </div>
+                  <div className="mt-1.5 flex items-center gap-0.5">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <Star
+                        key={i}
+                        aria-hidden
+                        className={cn(
+                          "size-5",
+                          i <= note
+                            ? "fill-amber-400 text-amber-400"
+                            : "fill-gray-200 text-gray-200"
+                        )}
+                      />
+                    ))}
+                    <span className="ms-2 text-sm font-bold text-gray-700">{note}/5</span>
+                  </div>
+
+                  {/* Réponses aux questions adaptatives */}
+                  {questionsVisibles.length > 0 ? (
+                    <div className="mt-3 border-t border-gray-200 pt-3">
+                      <span className="text-sm font-semibold text-gray-600">
+                        {t.recapVosReponses}
+                      </span>
+                      <div className="mt-2 space-y-2.5">
+                        {questionsVisibles.map((q, idx) => {
+                          const r = reponses[q.id]
+                          // Rendu texte de la réponse
+                          let texteReponse = ""
+                          if (q.type === "unique" || q.type === "multiple") {
+                            const ids = Array.isArray(r) ? r : r ? [r as string] : []
+                            const labels = ids
+                              .map((id) => {
+                                const opt = optionsPourQuestion(q, reponses).find(
+                                  (o) => o.id === id
+                                )
+                                return opt ? `${opt.emoji ?? ""} ${opt.label}`.trim() : id
+                              })
+                              .filter(Boolean)
+                            texteReponse = labels.join(", ")
+                          } else if (q.type === "texte" || q.type === "email") {
+                            texteReponse = typeof r === "string" ? r.trim() : ""
+                          } else if (q.type === "photo") {
+                            texteReponse = typeof r === "string" && r ? t.recapPhotoAjoutee : ""
+                          }
+                          return (
+                            <div key={q.id} className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-semibold uppercase tracking-wide text-[#002e85]/60">
+                                  Q{q.numero}
+                                </p>
+                                <p className="text-xs text-gray-500">{q.texte}</p>
+                                <p className="mt-0.5 break-words text-sm text-gray-800">
+                                  {texteReponse || t.nonRenseigne}
+                                </p>
+                                {q.type === "photo" && typeof r === "string" && r && (
+                                  <img
+                                    src={r}
+                                    alt="Photo jointe"
+                                    className="mt-1.5 size-16 rounded-lg border border-gray-300 object-cover"
+                                  />
+                                )}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => allerAQuestion(idx)}
+                                className="shrink-0 text-xs font-semibold text-[#002e85] underline underline-offset-2 hover:text-[#002e85]"
+                              >
+                                {t.recapModifier}
+                              </button>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="mt-3 border-t border-gray-200 pt-3">
+                      <span className="text-sm font-semibold text-gray-600">
+                        {t.recapVosReponses}
+                      </span>
+                      <p className="mt-0.5 text-sm text-gray-500">{t.recapReponsesVides}</p>
+                    </div>
+                  )}
+                </div>
+
+                {/* Commentaire libre (optionnel, en complément des questions) */}
+                <div>
+                  <label
+                    htmlFor="commentaire-libre"
+                    className="mb-1.5 block text-sm font-medium text-[#002e85]/90"
+                  >
+                    {t.titreCommentaireH1}{" "}
+                    <span className="font-normal text-[#002e85]/60">{t.optionnel}</span>
+                  </label>
+                  <Textarea
+                    id="commentaire-libre"
+                    value={commentaireLibre}
+                    onChange={(e) => setCommentaireLibre(e.target.value.slice(0, MAX_COMMENTAIRE))}
+                    rows={3}
+                    maxLength={MAX_COMMENTAIRE}
+                    aria-label={t.titreCommentaireH1}
+                    placeholder={estPositif ? t.commentairePositif : t.commentaireNegatif}
+                    className="min-h-[100px] max-h-[260px] border-2 border-[#002e85] bg-white text-base text-gray-900 placeholder:text-gray-400"
+                  />
+                  <div className="mt-1 text-right text-xs text-[#002e85]/70">
+                    {t.compteurChars(commentaireLibre.length, MAX_COMMENTAIRE)}
+                  </div>
+                </div>
+
+                {/* Email optionnel (si pas déjà collecté via une question email) */}
+                {!questionsVisibles.some((q) => q.type === "email") && (
+                  <div>
+                    <Input
+                      type="email"
+                      inputMode="email"
+                      value={emailClient}
+                      onChange={(e) => setEmailClient(e.target.value)}
+                      maxLength={120}
+                      autoComplete="off"
+                      aria-label={t.emailLabel}
+                      placeholder={t.emailLabel}
+                      className="h-12 border-2 border-[#002e85] bg-white text-base text-gray-900 placeholder:text-gray-400"
+                    />
+                    <p className="mt-1.5 text-xs leading-relaxed text-[#002e85]/70">
+                      {t.emailAide}
+                    </p>
+                  </div>
+                )}
+
+                {/* Consentement géolocalisation approximative (RGPD — opt-in) */}
+                <div className="rounded-2xl border-2 border-[#002e85]/30 bg-[#002e85]/5 p-3">
+                  <div className="flex items-start gap-2.5">
+                    <Checkbox
+                      id="geo-consent-adaptive"
+                      checked={geoConsent}
+                      onCheckedChange={(v) => setGeoConsent(v === true)}
+                      className="mt-0.5 border-[#002e85]"
+                    />
+                    <label
+                      htmlFor="geo-consent-adaptive"
+                      className="cursor-pointer text-xs leading-relaxed text-[#002e85]/85"
+                    >
+                      {t.geoConsent}{" "}
+                      <a
+                        href="/confidentialite"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-medium text-[#002e85] underline underline-offset-2"
+                      >
+                        {t.politique}
+                      </a>
+                    </label>
+                  </div>
+                </div>
+
+                {/* Badge récompense (teaser — code promo dévoilé au succès) */}
+                {scanData.pro.recompense && (
+                  <div className="flex items-center gap-3 rounded-2xl border-2 border-amber-300 bg-amber-50 p-3">
+                    <Gift className="size-6 shrink-0 text-amber-700" aria-hidden />
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-amber-900">
+                        {t.recompenseBadgePrefix} {scanData.pro.recompense}
+                      </p>
+                      <p className="mt-0.5 text-xs text-amber-800/90">{t.recompenseMontrez}</p>
+                    </div>
+                  </div>
+                )}
+
+                {/* Erreur d'envoi (inline, données conservées) */}
+                {erreurEnvoi && (
+                  <div
+                    role="alert"
+                    className="flex items-start gap-2 rounded-2xl border-2 border-rose-200 bg-rose-50 p-3 text-sm text-rose-700"
+                  >
+                    <AlertCircle className="mt-0.5 size-4 shrink-0" aria-hidden />
+                    <div>
+                      <p>{erreurEnvoi}</p>
+                      <button
+                        type="button"
+                        onClick={() => envoyer(dernierCanal)}
+                        className="mt-1 text-sm font-semibold text-rose-700 underline underline-offset-2 hover:text-rose-800"
+                      >
+                        {t.reessayer}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Rassurance selon la note */}
+                <p className="text-center text-xs leading-relaxed text-[#002e85]/80">
+                  {estPositif ? t.rassurancePositif : t.rassuranceNegatif}
+                </p>
               </div>
             </div>
           )}
@@ -1638,7 +2636,10 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
       {/* ====== Footer (progress bar + Suivant/Envoyer) ====== */}
       {avecFooterProgress && (
         <footer className="space-y-3 px-4 pb-4 sm:px-6">
-          {/* Barre de progression — 4 segments (QRTags style) */}
+          {/* Barre de progression — segments dynamiques (QRTags style).
+              4 segments pour le flux legacy, 2 + nbQuestions + 1 pour le
+              flux adaptatif. Chaque segment est un rectangle arrondi qui
+              se remplit en blanc lorsque l'étape est atteinte. */}
           <div
             className="flex gap-1.5"
             role="progressbar"
@@ -1647,7 +2648,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
             aria-valuemax={TOTAL_ETAPES}
             aria-label={t.ariaProgression}
           >
-            {[1, 2, 3, 4].map((i) => (
+            {Array.from({ length: TOTAL_ETAPES }, (_, i) => i + 1).map((i) => (
               <div
                 key={i}
                 className="h-1 flex-1 overflow-hidden rounded-full bg-white/25"
@@ -1663,7 +2664,68 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
             ))}
           </div>
 
-          {/* Bouton « Suivant » (étape 2) — désactivé si aucun tag */}
+          {/* v3 — Bouton « Suivant » (étape questions) : désactivé si la
+              question courante est obligatoire et non répondue, ou si le
+              maxSelections d'une question multiple est dépassé. Le label
+              passe à « Valider » sur la dernière question avant le récap. */}
+          {phase === "questions" && (
+            <button
+              type="button"
+              onClick={questionSuivante}
+              disabled={!questionValide}
+              className={cn(
+                "flex w-full items-center justify-center gap-2 rounded-2xl bg-[#002e85] py-4 text-lg font-bold text-white shadow-lg transition-all",
+                !questionValide
+                  ? "cursor-not-allowed opacity-50"
+                  : "hover:scale-[1.01] active:scale-[0.99]"
+              )}
+            >
+              {qIndex >= questionsVisibles.length - 1 ? t.valider : t.suivant}
+              <ArrowRight className="size-5" aria-hidden />
+            </button>
+          )}
+
+          {/* v3 — Bouton « Envoyer » (étape récap flux adaptatif) */}
+          {phase === "recap" && (
+            <>
+              <button
+                type="button"
+                onClick={() => envoyer("aucun")}
+                disabled={soumission !== null}
+                className={cn(
+                  "fp-scan-pulse-soft flex w-full items-center justify-center gap-2 rounded-2xl bg-[#002e85] py-5 text-xl font-bold text-white shadow-lg transition-all",
+                  soumission !== null
+                    ? "cursor-wait opacity-80"
+                    : "hover:scale-[1.01] active:scale-[0.99]"
+                )}
+              >
+                {soumission === "aucun" ? (
+                  <>
+                    <Loader2 className="size-5 animate-spin" aria-hidden /> {t.envoiEnCours}
+                  </>
+                ) : (
+                  <>
+                    <Check className="size-5" aria-hidden /> {t.envoyer}
+                  </>
+                )}
+              </button>
+
+              {/* D8 : avis Google — lien discret (si 4-5★ + URL configurée) */}
+              {lienAvisGoogle && (
+                <a
+                  href={lienAvisGoogle}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-amber-300 bg-amber-50 text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-100"
+                >
+                  <span aria-hidden>⭐</span>
+                  {t.avisGoogle}
+                </a>
+              )}
+            </>
+          )}
+
+          {/* Bouton « Suivant » (étape 2 — flux legacy) — désactivé si aucun tag */}
           {phase === "step2" && (
             <button
               type="button"
@@ -1681,7 +2743,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
             </button>
           )}
 
-          {/* Bouton « Suivant » (étape 3) */}
+          {/* Bouton « Suivant » (étape 3 — flux legacy) */}
           {phase === "step3" && (
             <button
               type="button"
@@ -1693,7 +2755,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
             </button>
           )}
 
-          {/* Étape 4 — Bouton principal « Envoyer » + WhatsApp + avis Google */}
+          {/* Étape 4 — Bouton principal « Envoyer » (flux legacy) + WhatsApp + avis Google */}
           {phase === "step4" && (
             <>
               <button

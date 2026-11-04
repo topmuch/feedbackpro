@@ -147,6 +147,29 @@ export interface TraductionsScan {
   recapModifier: string
   // Étiquettes étoiles courtes (cards emoji étape 1)
   etoileLabel: (n: number) => string
+  // ---- Questionnaire adaptatif v3 ----
+  // Sujet de l'étape "questions" affiché dans l'indicateur (ÉTAPE 2 SUR N — QUESTIONS)
+  sujetQuestions: string
+  // Titre H1 générique au-dessus de la question courante
+  titreQuestionsH1: string
+  // Sous-titre : temps estimé (ex : "≈ 60 secondes")
+  sousTitreQuestions: (temps: string) => string
+  // Bouton "Suivant" déjà existant (suivant) — réutilisé
+  // Bouton "Valider" pour la dernière question avant le récap
+  valider: string
+  // Indique qu'une question est obligatoire / optionnelle
+  obligatoire: string
+  // Compteur de sélection multiple : "2 / 3 sélectionnés"
+  multiCompteur: (n: number, max: number | undefined) => string
+  // Aide : "Choisissez une option" / "Sélectionnez tout ce qui correspond"
+  aideUnique: string
+  aideMultiple: string
+  // Aide pour la question photo (réutilise photoAide ci-dessus)
+  // Récap : étiquettes pour les réponses adaptatives
+  recapVosReponses: string
+  recapReponsesVides: string
+  // Étiquette générique d'une réponse non renseignée
+  nonRenseigne: string
 }
 
 export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
@@ -260,6 +283,19 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     recapNps: "Recommandation",
     recapModifier: "Modifier",
     etoileLabel: (n) => `${n} étoile${n > 1 ? "s" : ""}`,
+    // ---- Questionnaire adaptatif v3 ----
+    sujetQuestions: "QUESTIONS",
+    titreQuestionsH1: "Quelques précisions…",
+    sousTitreQuestions: (temps) => `≈ ${temps}`,
+    valider: "Valider",
+    obligatoire: "obligatoire",
+    multiCompteur: (n, max) =>
+      max ? `${n} / ${max} sélectionné${n > 1 ? "s" : ""}` : `${n} sélectionné${n > 1 ? "s" : ""}`,
+    aideUnique: "Choisissez une option",
+    aideMultiple: "Sélectionnez tout ce qui correspond",
+    recapVosReponses: "Vos réponses",
+    recapReponsesVides: "Aucune réponse",
+    nonRenseigne: "—",
   },
   en: {
     dir: "ltr",
@@ -368,6 +404,19 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     recapNps: "Recommendation",
     recapModifier: "Edit",
     etoileLabel: (n) => `${n} star${n > 1 ? "s" : ""}`,
+    // ---- Adaptive questionnaire v3 ----
+    sujetQuestions: "QUESTIONS",
+    titreQuestionsH1: "A few details…",
+    sousTitreQuestions: (temps) => `≈ ${temps}`,
+    valider: "Confirm",
+    obligatoire: "required",
+    multiCompteur: (n, max) =>
+      max ? `${n} / ${max} selected` : `${n} selected`,
+    aideUnique: "Pick one option",
+    aideMultiple: "Select all that apply",
+    recapVosReponses: "Your answers",
+    recapReponsesVides: "No answer",
+    nonRenseigne: "—",
   },
   ar: {
     dir: "rtl",
@@ -476,6 +525,19 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     recapNps: "التوصية",
     recapModifier: "تعديل",
     etoileLabel: (n) => `${n} نج${n > 1 ? "وم" : "مة"}`,
+    // ---- الاستبيان التكيفي v3 ----
+    sujetQuestions: "الأسئلة",
+    titreQuestionsH1: "بعض التفاصيل…",
+    sousTitreQuestions: (temps) => `≈ ${temps}`,
+    valider: "تأكيد",
+    obligatoire: "مطلوب",
+    multiCompteur: (n, max) =>
+      max ? `${n} / ${max} محدد` : `${n} محدد`,
+    aideUnique: "اختر خياراً واحداً",
+    aideMultiple: "حدد كل ما ينطبق",
+    recapVosReponses: "إجاباتك",
+    recapReponsesVides: "لا توجد إجابة",
+    nonRenseigne: "—",
   },
 }
 

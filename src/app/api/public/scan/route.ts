@@ -33,6 +33,38 @@ import {
   tagsEmployesPourMacro,
   type MacroSecteurId,
 } from "@/lib/secteurs-v2"
+import type { Secteur } from "@/lib/questionnaire-config"
+
+/**
+ * Mappe un macro-secteur v2 (issu de secteurs-v2.ts) vers l'id de secteur
+ * du questionnaire adaptatif (questionnaire-config.ts). Renvoie null si le
+ * macro-secteur n'est pas couvert par le questionnaire (cas rare — les 5
+ * macro-secteurs v2 sont tous couverts).
+ *
+ * Mapping :
+ *   RESTAURATION               → RESTAURATION
+ *   HOTELLERIE                 → HOTELLERIE
+ *   TRANSPORT_AEROPORT_GARE    → TRANSPORT
+ *   SANTE_HOPITAL_CLINIQUE     → SANTE
+ *   ADMINISTRATION_ERP_PUBLIC  → ADMINISTRATION
+ */
+function secteurQuestionnairePourMacro(macroId: MacroSecteurId | null): Secteur | null {
+  if (!macroId) return null
+  switch (macroId) {
+    case "RESTAURATION":
+      return "RESTAURATION"
+    case "HOTELLERIE":
+      return "HOTELLERIE"
+    case "TRANSPORT_AEROPORT_GARE":
+      return "TRANSPORT"
+    case "SANTE_HOPITAL_CLINIQUE":
+      return "SANTE"
+    case "ADMINISTRATION_ERP_PUBLIC":
+      return "ADMINISTRATION"
+    default:
+      return null
+  }
+}
 
 /** Parse un JSON string[] avec tolérance (champ SQLite string JSON). */
 function parseArray(v: string | null | undefined): string[] {
@@ -146,6 +178,13 @@ export async function POST(req: NextRequest) {
       tagsPositifsDetails,
       tagsNegatifsDetails,
       tagsEmployes: tagsEmployesBrut,
+      // ----- v3 : secteur du questionnaire adaptatif -----
+      // Mappe le macro-secteur vers l'id Secteur du questionnaire-config
+      // (RESTAURATION, HOTELLERIE, TRANSPORT, SANTE, ADMINISTRATION).
+      // Null si le Pro n'est pas rattaché à un macro-secteur couvert
+      // (Boutique, Salon, Institut, Garage, Autre) — auquel cas le scan-view
+      // retombe sur le flux historique (tags + commentaire + NPS + photo).
+      secteurQuestionnaire: secteurQuestionnairePourMacro(macroId),
     })
   } catch (e) {
     console.error("scan error", e)
