@@ -1,10 +1,9 @@
 import type { NextConfig } from "next";
-import createNextIntlPlugin from "next-intl/plugin";
+
 
 // Task M2 — next-intl : le plugin branche le request config
 // (src/i18n/request.ts) qui résout la locale depuis le cookie `fp_locale`
 // et charge dynamiquement les messages JSON correspondants.
-const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 
 const nextConfig: NextConfig = {
   output: "standalone",
@@ -59,4 +58,4 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withNextIntl(nextConfig);
+export default nextConfig;
