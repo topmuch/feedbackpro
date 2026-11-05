@@ -2894,6 +2894,72 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
             </div>
           )}
 
+          {/* ---------- ÉTAPE LOTERIE — SCRATCH & WIN ---------- */}
+          {phase === "loterie" && scanData && (
+            <div className="relative flex flex-1 flex-col items-center justify-center gap-6 py-4 text-center">
+              {/* Confettis de fond */}
+              <ConfettiLeger />
+
+              <h1 className="text-balance text-2xl font-black text-[#002e85] sm:text-3xl">
+                🎁 Tentez votre chance !
+              </h1>
+              <p className="text-balance text-sm text-[#002e85]/70">
+                Grattez le ticket pour découvrir si vous avez gagné
+              </p>
+
+              {/* ScratchCard ou Loading ou Erreur */}
+              {loterieChargement && !loterieResultat ? (
+                <div className="flex flex-col items-center gap-3 py-8">
+                  <Loader2 className="size-8 animate-spin text-[#002e85]" />
+                  <p className="text-sm text-[#002e85]/60">Tirage en cours…</p>
+                </div>
+              ) : loterieResultat ? (
+                <div className="flex w-full max-w-sm flex-col items-center gap-4">
+                  <ScratchCard
+                    gain={loterieResultat.gagne ? loterieResultat.gain : "Merci pour votre participation !"}
+                    gagne={loterieResultat.gagne}
+                    onComplete={() => {
+                      // Après le grattage, on reste sur l'écran avec le résultat
+                      // puis le client clique sur "Fermer"
+                    }}
+                    labelGrattez="Grattez ici 👆"
+                  />
+
+                  {loterieResultat.gagne && loterieResultat.code && (
+                    <div className="fp-scan-reward-in w-full rounded-2xl border-2 border-amber-300 bg-amber-50 p-4 shadow-lg">
+                      <p className="text-sm font-bold text-amber-800">Votre code promo :</p>
+                      <p className="mt-2 font-mono text-2xl font-bold tracking-wider text-amber-700">
+                        {loterieResultat.code}
+                      </p>
+                      <p className="mt-2 text-xs text-amber-600">
+                        Montrez ce code au personnel pour profiter de votre gain
+                      </p>
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => allerEtape("success", 1)}
+                    className="mt-2 rounded-2xl bg-[#002e85] px-6 py-3 text-sm font-bold text-white shadow-lg transition-transform hover:scale-105"
+                  >
+                    {t.fermer}
+                  </button>
+                </div>
+              ) : loterieErreur ? (
+                <div className="flex flex-col items-center gap-4">
+                  <p className="text-sm text-[#002e85]/60">{loterieErreur}</p>
+                  <button
+                    type="button"
+                    onClick={() => allerEtape("success", 1)}
+                    className="rounded-2xl bg-[#002e85] px-6 py-3 text-sm font-bold text-white shadow-lg"
+                  >
+                    {t.fermer}
+                  </button>
+                </div>
+              ) : null}
+            </div>
+          )}
+
           {/* ---------- ÉTAPE 5 — REMERCIEMENT ---------- */}
           {phase === "success" && scanData && (
             <div className="relative flex flex-1 flex-col items-center justify-center gap-4 py-4 text-center">
