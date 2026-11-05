@@ -159,6 +159,7 @@ const EST_ONGLET = (v: string): v is OngletAdmin => ONGLETS.some((o) => o.id ===
  * Défaut : Vue d'ensemble.
  */
 function ongletDepuisUrl(): OngletAdmin {
+  if (typeof window === "undefined") return "globale"
   try {
     const params = new URLSearchParams(window.location.search)
     const t = params.get("tabAdmin")

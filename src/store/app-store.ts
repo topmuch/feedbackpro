@@ -83,6 +83,7 @@ function deriveView(scanToken: string | null, session: SessionData | null): View
  *  - /?scan=<qrToken> : forme historique
  */
 export function tokenDepuisUrl(): string | null {
+  if (typeof window === "undefined") return null
   try {
     const match = window.location.pathname.match(/^\/r\/([A-Za-z0-9_-]+)\/?$/)
     if (match) return match[1]

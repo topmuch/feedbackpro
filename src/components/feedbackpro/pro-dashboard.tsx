@@ -168,6 +168,7 @@ function champPro(pro: unknown, cles: string[], defaut = ""): string {
 
 /** Lit l'onglet courant depuis l'URL visible (/dashboard/<slug> ou /?tab=<slug>) */
 function ongletDepuisUrl(): Onglet {
+  if (typeof window === "undefined") return "dashboard"
   try {
     const match = window.location.pathname.match(/^\/dashboard(?:\/([a-z-]+))?\/?$/)
     const slug = match?.[1] ?? new URLSearchParams(window.location.search).get("tab")
