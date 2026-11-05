@@ -584,7 +584,7 @@ function GlobaleTab({ overview }: { overview: OverviewApi | null }) {
   const commandesEnCours = overview.commandesEnCours ?? 0
   // Module abonnement_multi_sites : KPI revenu multi-sites (affiché
   // seulement si le module est actif côté superadmin).
-  const moduleMultiSitesActif = (overview.modulesActifs ?? []).includes("abonnement_multi_sites")
+  const moduleMultiSitesActif = Array.isArray(overview.modulesActifs) ? overview.modulesActifs.includes("abonnement_multi_sites") : false
   const revenuMultiSites = overview.revenuMultiSites ?? 0
 
   // Croissance des inscriptions (30 derniers jours) — champs tolérants

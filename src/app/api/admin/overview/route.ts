@@ -102,7 +102,7 @@ export async function GET(req: NextRequest) {
       // Liste des modules actifs (pour que la vue d'ensemble puisse
       // afficher/masquer les KPI conditionnels sans réclamer une seconde
       // requête /api/admin/modules).
-      modulesActifs: await getModulesActifs(),
+      modulesActifs: [...(await getModulesActifs())],
     })
   } catch (e) {
     console.error("admin overview error", e)
