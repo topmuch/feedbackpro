@@ -2010,83 +2010,92 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
       (!!pro?.recompenseActive && !!proRecompense) || !!detail.recompenseUtilisee
 
     return (
-      <div className="mx-auto max-w-4xl space-y-6">
+      <div className="mx-auto max-w-4xl space-y-4">
         {/* ============ SECTION 1 — En-tête contextuel sticky ============ */}
-        <div className="sticky top-0 z-20 rounded-2xl border bg-card/95 backdrop-blur shadow-md">
+        <div className={cn("sticky top-0 z-20 rounded-2xl shadow-lg text-white", cfgUrgence.cardBg)}>
           <div className="p-4 sm:p-5 space-y-3">
             {/* Ligne 1 : Bouton retour + statut + urgence (à droite) */}
             <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="sm" onClick={fermerDetail} className="gap-1.5 h-8">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={fermerDetail}
+                className="gap-1.5 h-8 bg-white/20 hover:bg-white/30 text-white hover:text-white"
+              >
                 <ArrowLeft className="h-4 w-4" aria-hidden />
                 <span className="hidden sm:inline">Retour à la liste</span>
                 <span className="sm:hidden">Retour</span>
               </Button>
-              <Badge variant="outline" className={cn("h-6 px-2 text-xs font-semibold", statutBadgeClass(detail.statut))}>
+              <Badge className="h-6 px-2 text-xs font-semibold bg-white/20 text-white border-transparent hover:bg-white/25">
                 {STATUT_RETOUR_LABEL[detail.statut] ?? detail.statut}
               </Badge>
               {!detail.lu && (
-                <Badge className="h-5 gap-0.5 border border-blue-300 bg-blue-500 px-1.5 text-[10px] font-semibold text-white shadow-sm shadow-blue-500/30">
+                <Badge className="h-6 gap-0.5 bg-white/25 px-2 text-xs font-semibold text-white border-transparent">
                   <span aria-hidden>✨</span>
                   Nouveau
                 </Badge>
               )}
               {typeof detail.nps === "number" && (
-                <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] font-normal" title="Net Promoter Score (0-10)">
+                <Badge className="h-6 gap-1 px-2 text-xs font-medium bg-white/15 text-white border-transparent" title="Net Promoter Score (0-10)">
                   NPS {detail.nps}/10
                   {(detail.nps ?? 0) >= 9 ? " 🟢" : (detail.nps ?? 0) >= 7 ? " 🟡" : " 🔴"}
                 </Badge>
               )}
               <Badge
-                variant="outline"
-                className={cn("ml-auto h-6 px-2 text-xs font-semibold", cfgUrgence.badge)}
+                className="ml-auto h-7 px-3 text-base font-bold bg-white/25 text-white border-transparent shadow-sm"
                 title={recurrence.count >= 2 && recurrence.libelleTag ? `${ordinalFr(recurrence.count)} signalement « ${recurrence.libelleTag} » ce mois` : undefined}
               >
-                <span aria-hidden>{cfgUrgence.emoji}</span>
+                <span aria-hidden className="mr-0.5">{cfgUrgence.emoji}</span>
                 {urgence === "urgent" ? "URGENT" : urgence === "atraiter" ? "À TRAITER" : urgence === "mitige" ? "MITIGÉ" : "POSITIF"}
               </Badge>
             </div>
 
-            {/* Ligne 2 : Note + zone + email client + timestamp relatif */}
-            <div className="flex flex-wrap items-center gap-2">
-              <Stars note={detail.note} size={18} />
-              <span className="text-sm font-semibold tabular-nums">{detail.note}/5</span>
-              <span className="text-muted-foreground">•</span>
+            {/* Ligne 2 : Note géante + Stars XL + zone + email client + timestamp relatif */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <div className="flex items-center gap-3">
+                <span className="text-4xl font-black tabular-nums leading-none">
+                  {detail.note}
+                  <span className="text-2xl font-bold opacity-70">/5</span>
+                </span>
+                <Stars note={detail.note} size={32} />
+              </div>
+              <span className="text-white/40">•</span>
               {detail.zone?.nom ? (
-                <Badge variant="outline" className="h-6 gap-1 px-2 text-xs font-normal">
-                  <MapPin className="h-3 w-3 text-muted-foreground" aria-hidden />
+                <Badge className="h-7 gap-1 px-2.5 text-xs font-medium bg-white/15 text-white border-transparent">
+                  <MapPin className="h-3.5 w-3.5" aria-hidden />
                   {detail.zone.nom}
                 </Badge>
               ) : (
-                <span className="text-xs text-muted-foreground">Zone non précisée</span>
+                <span className="text-xs text-white/80">Zone non précisée</span>
               )}
               {detail.emailClient && (
                 <>
-                  <span className="text-muted-foreground">•</span>
+                  <span className="text-white/40">•</span>
                   <a
                     href={`mailto:${detail.emailClient}`}
-                    className="inline-flex items-center gap-1 text-xs font-medium text-primary underline-offset-2 hover:underline"
+                    className="inline-flex items-center gap-1 text-xs font-medium text-white/80 underline-offset-2 hover:underline"
                     title="Envoyer un email au client"
                   >
-                    <MailOpen className="h-3 w-3" aria-hidden />
+                    <MailOpen className="h-3.5 w-3.5" aria-hidden />
                     <span className="hidden sm:inline">{detail.emailClient}</span>
                     <span className="sm:hidden">Email client</span>
                   </a>
                 </>
               )}
-              <span className="text-muted-foreground">•</span>
-              <span className="text-xs text-muted-foreground" title={formatDate(detail.createdAt)}>
+              <span className="text-white/40">•</span>
+              <span className="text-xs text-white/80" title={formatDate(detail.createdAt)}>
                 {formatRelative(detail.createdAt)}
               </span>
             </div>
 
             {/* Ligne 3 : phrase de contexte selon la note */}
-            <p className="text-sm font-medium text-foreground">{phraseContexte}</p>
+            <p className="text-sm font-medium text-white/90">{phraseContexte}</p>
 
             {/* Ligne 4 : 4 boutons (Répondre / WhatsApp / Supprimer / Marquer résolu) */}
             <div className="flex flex-wrap items-center gap-2">
               <Button
-                variant={editionReponse ? "default" : "outline"}
-                className="h-10 gap-1.5 transition-transform hover:scale-105"
+                variant="ghost"
+                className="h-10 gap-1.5 bg-white/20 hover:bg-white/30 text-white hover:text-white transition-transform hover:scale-105"
                 onClick={() => {
                   setTexteReponse(detail.reponsePro || "")
                   setEditionReponse(true)
@@ -2101,7 +2110,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
               </Button>
               {lienWhatsapp && (
                 <a href={lienWhatsapp} target="_blank" rel="noopener noreferrer" className="inline-flex">
-                  <Button variant="outline" className="h-10 gap-1.5 transition-transform hover:scale-105" type="button">
+                  <Button variant="ghost" className="h-10 gap-1.5 bg-white/20 hover:bg-white/30 text-white hover:text-white transition-transform hover:scale-105" type="button">
                     <Smartphone className="h-4 w-4" aria-hidden />
                     <span className="hidden sm:inline">WhatsApp</span>
                     <span className="sm:hidden">WA</span>
@@ -2110,7 +2119,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
               )}
               <Button
                 variant="ghost"
-                className="h-10 gap-1.5 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                className="h-10 gap-1.5 bg-white/20 hover:bg-white/30 text-white hover:text-white"
                 onClick={() => setConfirmSuppression(true)}
               >
                 <Trash2 className="h-4 w-4" aria-hidden />
@@ -2119,7 +2128,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
               {detail.statut !== "RESOLVED" ? (
                 <Button
                   variant="ghost"
-                  className="h-10 gap-1.5 ml-auto text-emerald-700 hover:bg-emerald-50 hover:text-emerald-800 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
+                  className="h-10 gap-1.5 ml-auto bg-white/20 hover:bg-white/30 text-white hover:text-white"
                   onClick={() => majRetour(detail.id, { statut: "RESOLVED", lu: true })}
                 >
                   <CheckCheck className="h-4 w-4" aria-hidden />
@@ -2128,8 +2137,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                 </Button>
               ) : (
                 <Badge
-                  variant="outline"
-                  className="ml-auto h-9 gap-1 px-3 text-xs font-medium border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                  className="ml-auto h-9 gap-1 px-3 text-xs font-medium bg-white/25 text-white border-transparent"
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
                   Résolu
@@ -2143,9 +2151,9 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
         <Card className="rounded-2xl shadow-sm">
           <CardContent className="p-4 sm:p-6 space-y-4">
             {/* Titre + compteur */}
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="flex items-center gap-1.5 text-sm font-semibold">
-                <ClipboardCheck className="h-4 w-4 text-primary" aria-hidden />
+            <div className="flex items-center justify-between gap-2 border-b pb-3">
+              <h3 className="flex items-center gap-2 text-lg font-bold">
+                <ClipboardCheck className="h-5 w-5 text-primary" aria-hidden />
                 📋 Réponses au questionnaire
               </h3>
               <span className="text-xs text-muted-foreground">
@@ -2161,29 +2169,33 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                   const pos = SET_POSITIFS.has(t)
                   const gravite = neg
                     ? (detail.note <= 2
-                        ? { label: "Critique", emoji: "🔴", cls: "bg-red-100 text-red-800 border-red-300 dark:bg-red-950/50 dark:text-red-300 dark:border-red-800" }
+                        ? { label: "Critique", emoji: "🔴", cls: "bg-red-100 text-red-800 border-red-300 dark:bg-red-950/50 dark:text-red-300 dark:border-red-800", borderL: "border-l-red-500", bgLight: "bg-red-50/60 dark:bg-red-950/20" }
                         : detail.note === 3
-                          ? { label: "Moyenne", emoji: "🟡", cls: "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-950/50 dark:text-yellow-300 dark:border-yellow-800" }
-                          : { label: "Élevée", emoji: "🟠", cls: "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950/50 dark:text-orange-300 dark:border-orange-800" })
+                          ? { label: "Moyenne", emoji: "🟡", cls: "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-950/50 dark:text-yellow-300 dark:border-yellow-800", borderL: "border-l-yellow-500", bgLight: "bg-yellow-50/60 dark:bg-yellow-950/20" }
+                          : { label: "Élevée", emoji: "🟠", cls: "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950/50 dark:text-orange-300 dark:border-orange-800", borderL: "border-l-orange-500", bgLight: "bg-orange-50/60 dark:bg-orange-950/20" })
                     : pos
-                      ? { label: "OK", emoji: "🟢", cls: "bg-green-100 text-green-800 border-green-300 dark:bg-green-950/50 dark:text-green-300 dark:border-green-800" }
-                      : { label: "Neutre", emoji: "⚪", cls: "bg-gray-100 text-gray-800 border-gray-300 dark:bg-muted dark:text-muted-foreground dark:border-border" }
+                      ? { label: "OK", emoji: "🟢", cls: "bg-green-100 text-green-800 border-green-300 dark:bg-green-950/50 dark:text-green-300 dark:border-green-800", borderL: "border-l-green-500", bgLight: "bg-green-50/60 dark:bg-green-950/20" }
+                      : { label: "Neutre", emoji: "⚪", cls: "bg-gray-100 text-gray-800 border-gray-300 dark:bg-muted dark:text-muted-foreground dark:border-border", borderL: "border-l-gray-300 dark:border-l-border", bgLight: "" }
                   return (
                     <div
                       key={t}
-                      className="flex items-start justify-between gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-border dark:bg-card"
+                      className={cn(
+                        "flex items-start justify-between gap-3 rounded-xl border border-l-4 bg-white p-4 shadow-sm dark:border-border dark:bg-card",
+                        gravite.borderL,
+                        gravite.bgLight
+                      )}
                     >
                       <div className="min-w-0 flex-1">
                         <p className="text-[11px] font-medium text-muted-foreground">
                           Q{(idx + 1).toString().padStart(2, "0")}
                         </p>
-                        <p className="mt-0.5 text-sm font-semibold leading-tight">
+                        <p className="mt-0.5 text-base font-bold leading-tight">
                           {tagLabel(t)}
                         </p>
                       </div>
                       <span
                         className={cn(
-                          "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold",
+                          "inline-flex shrink-0 items-center gap-1 rounded-full border px-3 py-1 text-sm font-bold",
                           gravite.cls
                         )}
                       >
@@ -2434,12 +2446,12 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
           <Card className={cn("rounded-2xl border-none text-white shadow-lg bg-gradient-to-br", cfgNiveau.gradient)}>
             <CardContent className="p-4 sm:p-6 space-y-4">
               {/* Header : icône + titre + badge niveau */}
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2 border-b border-white/20 pb-3">
                 <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white/15" aria-hidden>
                   <Bot className="h-5 w-5" />
                 </span>
-                <h3 className="text-base font-semibold">🧠 Recommandation du Coach IA</h3>
-                <Badge variant="outline" className={cn("ml-auto h-6 border-white/30 px-2 text-xs font-semibold text-white", cfgNiveau.badgeBg)}>
+                <h3 className="text-lg font-bold">🧠 Recommandation du Coach IA</h3>
+                <Badge variant="outline" className={cn("ml-auto h-7 border-white/30 px-3 text-sm font-bold text-white", cfgNiveau.badgeBg)}>
                   <span aria-hidden>{cfgNiveau.emoji}</span>
                   {cfgNiveau.label}
                 </Badge>
@@ -2451,7 +2463,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                   <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
                   🔍 Diagnostic
                 </p>
-                <p className="text-sm leading-relaxed">{recoEffective.diagnostic}</p>
+                <p className="text-lg font-medium leading-relaxed">{recoEffective.diagnostic}</p>
               </div>
 
               {/* Tendance / mini-graphique (uniquement si récurrence ≥ 2) */}
@@ -2477,31 +2489,28 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                 </p>
                 <ol className="space-y-2">
                   {recoEffective.actions.map((a, i) => (
-                    <li key={i} className="flex items-start gap-2 text-sm">
-                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/20 text-[11px] font-bold">
+                    <li key={i} className="flex items-start gap-3 rounded-lg bg-white/10 p-3">
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/25 text-base font-black">
                         {i + 1}
                       </span>
-                      <span className="leading-relaxed text-white/95">{a}</span>
+                      <span className="pt-1 text-sm leading-relaxed text-white/95">{a}</span>
                     </li>
                   ))}
                 </ol>
               </div>
 
               {/* Impact attendu */}
-              <div className="rounded-2xl border border-white/20 bg-white/10 p-3">
-                <p className="flex items-start gap-1.5 text-sm font-medium">
-                  <TrendingUp className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-                  <span>
-                    <span className="text-[10px] uppercase tracking-wide text-white/70">📈 Impact prévu — </span>
-                    {recoEffective.impact}
-                  </span>
-                </p>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-[10px] uppercase tracking-wide text-white/70">📈 Impact prévu</span>
+                <span className="inline-flex rounded-full bg-white/20 px-4 py-2 text-lg font-bold">
+                  {recoEffective.impact}
+                </span>
               </div>
 
               {/* Bouton Appliquer → pré-remplit le formulaire d'action managériale (SECTION 5) */}
               <Button
                 type="button"
-                className="w-full gap-1.5 bg-white text-foreground hover:bg-white/90"
+                className="w-full gap-1.5 bg-white text-foreground hover:bg-white/90 text-lg font-bold h-14"
                 onClick={() =>
                   appliquerRecommandationsIA({
                     ...recoIA,
@@ -2544,11 +2553,11 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
         <div ref={actionFormRef} className="scroll-mt-24">
           <Card className="rounded-2xl shadow-sm">
             <CardContent className="p-4 sm:p-6 space-y-4">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 border-b pb-3">
                 <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10" aria-hidden>
                   <ClipboardCheck className="h-5 w-5 text-primary" />
                 </span>
-                <h3 className="text-sm font-semibold">✍️ Appréciation du gérant</h3>
+                <h3 className="text-lg font-bold">✍️ Appréciation du gérant</h3>
               </div>
 
               {/* Tags d'action prédéfinis (multi-sélection) */}
@@ -2571,7 +2580,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                         }}
                         aria-pressed={selected}
                         className={cn(
-                          "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                          "inline-flex items-center gap-1.5 rounded-full border px-4 h-12 text-sm font-medium transition-colors",
                           selected
                             ? "border-primary bg-primary text-primary-foreground shadow-sm"
                             : "border-border bg-background text-foreground hover:bg-muted"
@@ -2596,7 +2605,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                   rows={4}
                   value={texteAction}
                   onChange={(e) => setTexteAction(e.target.value)}
-                  placeholder="Ex : J'ai briefé l'équipe ce matin sur l'accueil, prévu un atelier produit jeudi…"
+                  placeholder="Décrivez l'action que vous avez mise en place..."
                   aria-label="Commentaire libre sur l'action managériale"
                 />
               </div>
@@ -2636,11 +2645,11 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
               </div>
 
               {/* Boutons enregistrer + réinitialiser */}
-              <div className="flex flex-wrap justify-end gap-2">
-                {detail.actionPrise && (
+              {detail.actionPrise && (
+                <div className="flex justify-end">
                   <Button
                     variant="ghost"
-                    className="h-10"
+                    className="h-9"
                     onClick={() => {
                       const parsed = parserActionPrise(detail.actionPrise)
                       setActionTagsSelectionnes(new Set(parsed.tags))
@@ -2650,20 +2659,20 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                   >
                     Réinitialiser
                   </Button>
+                </div>
+              )}
+              <Button
+                className="w-full h-12 gap-1.5 text-base font-bold"
+                onClick={enregistrerAction}
+                disabled={envoiAction || (actionTagsSelectionnes.size === 0 && !texteAction.trim())}
+              >
+                {envoiAction ? (
+                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                ) : (
+                  <ClipboardCheck className="h-4 w-4" aria-hidden />
                 )}
-                <Button
-                  className="h-10 px-4 gap-1.5"
-                  onClick={enregistrerAction}
-                  disabled={envoiAction || (actionTagsSelectionnes.size === 0 && !texteAction.trim())}
-                >
-                  {envoiAction ? (
-                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                  ) : (
-                    <ClipboardCheck className="h-4 w-4" aria-hidden />
-                  )}
-                  Enregistrer l&apos;action
-                </Button>
-              </div>
+                Enregistrer l&apos;action
+              </Button>
 
               {/* Aperçu de la dernière action enregistrée (si existe) */}
               {detail.actionPrise && (
@@ -2682,9 +2691,9 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
         <div ref={reponseFormRef} className="scroll-mt-24">
           <Card className="rounded-2xl shadow-sm">
             <CardContent className="p-4 sm:p-6 space-y-3">
-              <div className="flex flex-wrap items-center gap-2">
-                <h3 className="flex items-center gap-1.5 text-sm font-semibold">
-                  <MessageSquareReply className="h-4 w-4 text-primary" aria-hidden />
+              <div className="flex flex-wrap items-center gap-2 border-b pb-3">
+                <h3 className="flex items-center gap-2 text-lg font-bold">
+                  <MessageSquareReply className="h-5 w-5 text-primary" aria-hidden />
                   Réponse au client
                 </h3>
                 {detail.emailClient ? (
@@ -2791,14 +2800,6 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
               )}
             </CardContent>
           </Card>
-        </div>
-
-        {/* ---------- Bouton retour bas de page ---------- */}
-        <div className="flex justify-end">
-          <Button variant="outline" className="h-10" onClick={fermerDetail}>
-            <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden />
-            Retour à la liste
-          </Button>
         </div>
 
         {/* ---------- Dialog historique de l'employé ---------- */}
