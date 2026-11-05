@@ -155,6 +155,7 @@ type Phase =
   | "recap"
   | "success"
   | "loterie"
+  | "rattrapage"
 type CanalEnvoi = "whatsapp" | "aucun"
 
 // ---------- Types pour la loterie (module 4) ----------
@@ -604,6 +605,21 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
   const [loterieChargement, setLoterieChargement] = useState(false)
   // Erreur loterie (jamais bloquante — l'écran de succès reste accessible)
   const [loterieErreur, setLoterieErreur] = useState<string | null>(null)
+
+  // ---------- Feature 1 — Rattrapage client (anti-TripAdvisor) ----------
+  // Compte à rebours (en secondes) affiché sur l'écran "Rattrapage".
+  // Initialisé à 120 (2 minutes) au montage de la phase, décompté chaque
+  // seconde par un useEffect dédié. Quand le compteur atteint 0, on bascule
+  // en mode "manager informé" (message de fin + bouton Fermer).
+  const [rattrapageSecondes, setRattrapageSecondes] = useState(120)
+  // Nom du client saisi (optionnel) sur l'écran rattrapage — envoyé au
+  // backend via POST /api/public/retour/rattrapage pour que le manager
+  // puisse identifier le client sur place.
+  const [rattrapageNom, setRattrapageNom] = useState("")
+  // Indique que le nom a été envoyé au backend (évite les double-clics).
+  const [rattrapageNomEnvoye, setRattrapageNomEnvoye] = useState(false)
+  // Indique que le compte à rebours est terminé (affichage du message final).
+  const [rattrapageTermine, setRattrapageTermine] = useState(false)
 
   // ---------- Module 2 — Voice-to-text (Web Speech API) ----------
   // Reconnaissance vocale active ou non
@@ -1220,6 +1236,20 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
         /* silencieux */
       }
 
+      // ---------- Feature 1 — Rattrapage client (anti-TripAdvisor) ----------
+      // Si le retour est négatif (note ≤ 2) ET le module alertes_temps_reel
+      // est actif ET le retour a effectivement été créé (retourIdCree non
+      // null, i.e. pas de mode hors ligne), on affiche l'écran "Rattrapage"
+      // au lieu de l'écran de remerciement classique. Le client est informé
+      // que le manager arrive, et peut saisir son nom pour faciliter la
+      // prise en charge sur place.
+      const moduleAlertesActif = modulesActifs.has("alertes_temps_reel")
+      const rattrapageActif = note <= 2 && moduleAlertesActif && !horsLigne && !!retourIdCree
+      if (rattrapageActif) {
+        allerEtape("rattrapage", 1)
+        return
+      }
+
       // ---------- Module 4 — Loterie : écran scratch si module actif ET
       // Pro a une récompense configurée (recompenseActive && recompense). ----------
       const proAvecRecompense = !!scanData.pro.recompense
@@ -1394,8 +1424,59 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
     if (phase === "loterie" && !loterieResultat && !loterieChargement && !loterieErreur) {
       tirerLoterie()
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase])
+
+  // ---------- Feature 1 — Rattrapage : compte à rebours + envoi du nom ----------
+  // Au montage de la phase "rattrapage" : reset du compteur à 120 s et
+  // démarrage du setInterval. Quand le compteur atteint 0, on bascule en
+  // mode "manager informé" (rattrapageTermine=true) et on envoie le nom
+  // du client au backend (s'il a été saisi et pas déjà envoyé).
+  useEffect(() => {
+    if (phase !== "rattrapage") return
+    setRattrapageSecondes(120)
+    setRattrapageTermine(false)
+    setRattrapageNomEnvoye(false)
+    const interval = setInterval(() => {
+      setRattrapageSecondes((s) => {
+        if (s <= 1) {
+          clearInterval(interval)
+          setRattrapageTermine(true)
+          return 0
+        }
+        return s - 1
+      })
+    }, 1000)
+    return () => clearInterval(interval)
+  }, [phase])
+
+  // Envoie le nom du client au backend (POST /api/public/retour/rattrapage).
+  // Best-effort : silencieux en cas d'échec (le rattrapage fonctionne sans
+  // le nom — c'est juste un confort pour le manager sur place).
+  async function envoyerNomRattrapage() {
+    if (!retourIdCree || rattrapageNomEnvoye) return
+    const nom = rattrapageNom.trim()
+    if (!nom) return
+    setRattrapageNomEnvoye(true)
+    try {
+      await fetch("/api/public/retour/rattrapage", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ retourId: retourIdCree, nomClient: nom }),
+      })
+    } catch {
+      /* silencieux : non bloquant */
+    }
+  }
+
+  // Quand le compte à rebours se termine, on envoie le nom (s'il a été saisi
+  // et pas encore envoyé) — c'est le dernier moment où le client peut saisir
+  // son nom pour être rattrapé sur place.
+  useEffect(() => {
+    if (phase !== "rattrapage") return
+    if (rattrapageTermine && !rattrapageNomEnvoye) {
+      void envoyerNomRattrapage()
+    }
+  }, [rattrapageTermine, phase])
 
   // ---------- Écran de chargement ----------
   if (phase === "loading") {
@@ -2957,6 +3038,112 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                   </button>
                 </div>
               ) : null}
+            </div>
+          )}
+
+          {/* ---------- FEATURE 1 — RATTRAPAGE CLIENT (anti-TripAdvisor) ---------- */}
+          {/* Affiché après l'envoi d'un retour négatif (≤ 2★) si le module
+              alertes_temps_reel est actif. Le client est informé que le
+              manager arrive, avec un compte à rebours de 2 min et un champ
+              optionnel pour laisser son nom (rattrapage sur place). */}
+          {phase === "rattrapage" && scanData && (
+            <div className="relative flex flex-1 flex-col items-center justify-center gap-5 rounded-3xl bg-gradient-to-br from-amber-50 to-orange-50 p-6 text-center dark:from-amber-950/40 dark:to-orange-950/40">
+              {/* Icône handshake animée (pulse doux) */}
+              <div
+                aria-hidden
+                className="fp-scan-pulse-soft text-6xl drop-shadow-sm sm:text-7xl"
+              >
+                🤝
+              </div>
+
+              <h1 className="text-balance text-2xl font-bold text-amber-900 dark:text-amber-100 sm:text-3xl">
+                Nous sommes désolés
+              </h1>
+
+              {!rattrapageTermine ? (
+                <>
+                  {/* Message personnalisé avec nom de l'établissement */}
+                  <p className="text-balance max-w-md text-sm leading-relaxed text-amber-800 dark:text-amber-200 sm:text-base">
+                    Le manager de{" "}
+                    <strong className="font-semibold">{scanData.pro.nomEtablissement}</strong>{" "}
+                    vient d&apos;être alerté. Il vous rejoint dans{" "}
+                    <strong className="font-semibold">2 minutes</strong> pour vous proposer une
+                    solution.
+                  </p>
+
+                  {/* Compte à rebours visuel (pulse) */}
+                  <div
+                    role="timer"
+                    aria-live="polite"
+                    aria-label={`Le manager arrive dans ${Math.floor(rattrapageSecondes / 60)} minute ${rattrapageSecondes % 60} secondes`}
+                    className="fp-scan-pulse-soft flex h-24 w-24 items-center justify-center rounded-full border-4 border-amber-400 bg-white text-2xl font-black tabular-nums text-amber-700 shadow-lg dark:bg-amber-950/60 dark:text-amber-100 sm:h-28 sm:w-28 sm:text-3xl"
+                  >
+                    {String(Math.floor(rattrapageSecondes / 60)).padStart(1, "0")}:
+                    {String(rattrapageSecondes % 60).padStart(2, "0")}
+                  </div>
+
+                  {/* Champ optionnel : nom du client (pour faciliter le rattrapage) */}
+                  <div className="w-full max-w-sm space-y-1.5">
+                    <label
+                      htmlFor="rattrapage-nom"
+                      className="text-xs font-medium text-amber-800 dark:text-amber-200"
+                    >
+                      Votre nom (pour faciliter le rattrapage) — optionnel
+                    </label>
+                    <Input
+                      id="rattrapage-nom"
+                      type="text"
+                      value={rattrapageNom}
+                      onChange={(e) => setRattrapageNom(e.target.value.slice(0, 120))}
+                      onBlur={() => void envoyerNomRattrapage()}
+                      placeholder="Ex : Marie, table 12…"
+                      maxLength={120}
+                      className="border-amber-300 bg-white/80 text-amber-900 placeholder:text-amber-400 focus-visible:ring-amber-500 dark:bg-amber-950/60 dark:text-amber-100"
+                    />
+                    {rattrapageNomEnvoye && (
+                      <p className="text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
+                        ✓ Votre nom a bien été transmis au manager
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Boutons d&apos;action */}
+                  <div className="flex w-full max-w-sm flex-col gap-2.5">
+                    <Button
+                      type="button"
+                      onClick={() => void envoyerNomRattrapage()}
+                      className="h-12 w-full rounded-2xl bg-emerald-600 text-sm font-bold text-white shadow-lg transition-transform hover:scale-[1.01] hover:bg-emerald-700 active:scale-[0.99]"
+                    >
+                      Je peux attendre
+                    </Button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        void envoyerNomRattrapage()
+                        allerEtape("success", 1)
+                      }}
+                      className="h-11 w-full rounded-2xl border border-amber-400 bg-white/60 text-sm font-semibold text-amber-800 transition-colors hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-100"
+                    >
+                      Je préfère partir
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  {/* Message de fin (après le compte à rebours) */}
+                  <p className="text-balance max-w-md text-sm leading-relaxed text-amber-800 dark:text-amber-200 sm:text-base">
+                    Le manager a été informé. Si vous êtes encore là, n&apos;hésitez pas à le
+                    solliciter.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => allerEtape("success", 1)}
+                    className="h-12 w-full max-w-xs rounded-2xl bg-amber-600 text-sm font-bold text-white shadow-lg transition-transform hover:scale-[1.01] hover:bg-amber-700 active:scale-[0.99]"
+                  >
+                    Fermer
+                  </button>
+                </>
+              )}
             </div>
           )}
 

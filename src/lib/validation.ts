@@ -162,6 +162,14 @@ export const retourSchema = z.object({
     .max(500, "URL de photo trop longue")
     .nullable()
     .optional(),
+  // Feature 1 — Rattrapage client : nom saisi par le client sur l'écran
+  // "Rattrapage" (après envoi d'un retour négatif ≤ 2★). Optionnel.
+  nomClientRattrapage: z
+    .string()
+    .trim()
+    .max(120, "Nom trop long")
+    .nullable()
+    .optional(),
 })
 
 /** Résolution d'une zone par son QR token (POST /api/public/scan) */

@@ -387,3 +387,71 @@ function escapeHtml(v: string): string {
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;")
 }
+
+// ============================================================
+// Feature 1 — Boucle de suivi rattrapage client
+// ------------------------------------------------------------
+// Email envoyé 24h après un retour négatif (note ≤ 2★) pour lequel le
+// client a laissé son nom ET son email (cf. cron
+// /api/cron/suivi-rattrapage). Le but : vérifier que le rattrapage du
+// manager a fonctionné, et capter un retour "post-rattrapage" qui
+// pourrait influencer la perception du client avant qu'il aille leave
+// un avis négatif sur TripAdvisor / Google.
+// ============================================================
+
+/**
+ * Email de suivi post-rattrapage : "Le manager a-t-il pu résoudre votre
+ * problème lors de votre visite chez [établissement] ? Cliquez ici pour
+ * nous le dire."
+ *
+ * Le lien « nous le dire » ouvre un mailto pré-rempli vers l'email du
+ * commerçant (réponse directe, pas de page publique dédiée — le client
+ * reste dans une conversation privée avec le manager).
+ */
+export function emailSuiviRattrapage(
+  pro: { nomEtablissement: string; email: string },
+  client: { nom: string; email: string },
+  retour: { note: number; zoneNom: string; dateVisite: Date | string }
+): { sujet: string; html: string } {
+  const dateTxt = new Date(retour.dateVisite).toLocaleDateString("fr-FR", {
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  })
+  // Sujet du mailto pré-rempli (URL-encodé pour éviter les accents mal interprétés)
+  const sujetMailto = encodeURIComponent(
+    `Suite de ma visite chez ${pro.nomEtablissement}`
+  )
+  const corpsMailto = encodeURIComponent(
+    `Bonjour,\n\nSuite à ma visite du ${dateTxt} (zone : ${retour.zoneNom}),\nje souhaite vous faire un retour sur la prise en charge de ma réclamation :\n\n(votre message ici)\n\nCordialement,\n${client.nom}`
+  )
+  const mailtoHref = `mailto:${encodeURIComponent(pro.email)}?subject=${sujetMailto}&body=${corpsMailto}`
+
+  const sujet = `Suite de votre visite chez ${pro.nomEtablissement} — votre avis nous intéresse`
+  const corps = `
+    <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;color:#1c1917;">Suite de votre visite 🤝</h1>
+    <p style="margin:0 0 12px;font-size:15px;line-height:1.7;color:#44403c;">
+      Bonjour <strong>${escapeHtml(client.nom)}</strong>,
+    </p>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#44403c;">
+      Vous avez partagé un retour le <strong>${dateTxt}</strong> chez
+      <strong>${escapeHtml(pro.nomEtablissement)}</strong> (note ${retour.note}/5 sur la zone
+      « ${escapeHtml(retour.zoneNom)} »). Le manager a été alerté en temps réel pour vous
+      proposer une solution sur place.
+    </p>
+    <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#44403c;">
+      Pour nous aider à améliorer notre service, pourriez-vous nous indiquer si le problème a pu
+      être résolu lors de votre visite ? Votre retour est précieux et reste strictement privé.
+    </p>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#eff6ff;border-radius:8px;margin:0 0 20px;">
+      <tr><td style="padding:20px;text-align:center;">
+        <p style="margin:0 0 8px;font-size:14px;color:#1c1917;">Le manager a-t-il pu résoudre votre problème ?</p>
+        ${bouton("Oui, tout est rentré dans l'ordre ✓", mailtoHref)}
+        <p style="margin:12px 0 0;font-size:12px;color:#78716c;">Cliquez pour ouvrir votre messagerie — votre réponse sera adressée directement au manager.</p>
+      </td></tr>
+    </table>
+    <p style="margin:20px 0 0;font-size:13px;line-height:1.7;color:#78716c;">
+      Merci de votre confiance,<br />L'équipe FeedbackPro
+    </p>`
+  return { sujet, html: enveloppe(sujet, corps) }
+}

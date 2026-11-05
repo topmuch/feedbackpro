@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return fail(firstError(parsed.error), 400)
     }
-    const { qrToken, note, tags, commentaire, personnelMentionne, canalChoisi, emailClient, nps, photoUrl } = parsed.data
+    const { qrToken, note, tags, commentaire, personnelMentionne, canalChoisi, emailClient, nps, photoUrl, nomClientRattrapage } = parsed.data
 
     // ---------- Résolution de la zone via le QR token ----------
     const zone = await db.zone.findUnique({
@@ -197,6 +197,10 @@ export async function POST(req: NextRequest) {
         nps: typeof nps === "number" ? nps : null,
         // D2 : photo jointe (URL relative /uploads/…), None si pas de photo.
         photoUrl: photoUrl || null,
+        // Feature 1 — Rattrapage client : nom saisi par le client sur l'écran
+        // de rattrapage (optionnel). Permet au manager d'identifier le client
+        // sur place et d'envoyer un email de suivi 24h plus tard.
+        nomClientRattrapage: nomClientRattrapage || null,
         statut: "NEW",
         // Historique des statuts : entrée initiale à la création
         historique: JSON.stringify([{ statut: "NEW", at: new Date().toISOString() }]),
@@ -247,11 +251,22 @@ export async function POST(req: NextRequest) {
 
     // ---------- Notification in-app (cloche) ----------
     // Nouveau retour négatif (≤ 2) → titre distinct ; sinon « nouveau retour ».
+    // Feature 1 — Pour les retours négatifs avec module alertes_temps_reel
+    // actif, on RICHE le message de la notification avec des METADATA
+    // (retourId, note, tags, commentaire, nomClient) afin que le toast
+    // persistant du dashboard puisse afficher un panneau d'action
+    // "Je m'en occupe" + "Voir le détail". Format : lignes séparées par
+    // « | » : [NOTE] tags — commentaire [— Client : Nom]
+    const tagsTxt = validTags.map(tagLabel).join(", ")
+    const commentaireTxt = retour.commentaire ? ` — ${retour.commentaire.slice(0, 120)}` : ""
+    const clientTxt = retour.nomClientRattrapage ? ` — Client : ${retour.nomClientRattrapage}` : ""
+    const rattrapageTxt =
+      note <= 2 && moduleAlertesActif ? " — En attente de rattrapage" : ""
     await creerNotification(
       pro.userId,
       note <= 2 ? "retour_negatif" : "nouveau_retour",
-      note <= 2 ? "🚨 Nouveau retour négatif" : "💬 Nouveau retour client",
-      `Note ${note}/5 sur la zone « ${zone.nom} »${retour.commentaire ? ` — ${retour.commentaire.slice(0, 80)}` : ""}`
+      note <= 2 ? `🚨 Retour négatif — ${zone.nom}` : "💬 Nouveau retour client",
+      `${note}/5${tagsTxt ? ` — ${tagsTxt}` : ""}${commentaireTxt}${clientTxt}${rattrapageTxt}|retourId=${retour.id}`
     )
 
     // ---------- D4 : Alertes intelligentes du Coach IA ----------

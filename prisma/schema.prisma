@@ -77,6 +77,7 @@ model Pro {
   createdAt         DateTime       @default(now())
   updatedAt         DateTime       @updatedAt
   alertes           Alerte[]
+  audits            AuditMatin[]
   commandes         Commande[]
   employes          Employe[]
   parent            Pro?           @relation("ProChildren", fields: [proId], references: [id])
@@ -132,6 +133,15 @@ model Retour {
   canalChoisi        String?
   ipCity             String?
   recompenseUtilisee Boolean  @default(false)
+  // Feature 1 — Rattrapage client : nom saisi par le client sur l'écran
+  // "Rattrapage" (après envoi d'un retour négatif ≤ 2★). Optionnel.
+  // Permet au manager d'identifier le client sur place pour le rattraper
+  // avant son départ, et d'envoyer un email de suivi 24h plus tard.
+  nomClientRattrapage String?
+  // Feature 1 — Date à laquelle le manager a marqué l'alerte rattrapage
+  // comme "prise en charge" (clic sur "Je m'en occupe" dans le toast).
+  // Null tant que l'alerte n'a pas été traitée.
+  rattrapagePrisEnChargeAt DateTime?
   statut             String   @default("NEW")
   historique         String   @default("[]")
   lu                 Boolean  @default(false)
@@ -348,3 +358,35 @@ model GagnantLoterie {
   @@index([proId, createdAt])
   @@index([retourId])
 }
+
+// ============================================================
+// Feature 2 — Auto-Audit du Matin (checklist dictée par l'IA)
+// ------------------------------------------------------------
+// Chaque matin, le manager remplit une checklist générée par le Coach
+// IA à partir des problèmes récurrents détectés la veille (tags
+// négatifs les plus fréquents, zones problématiques, etc.).
+//
+//   items     : JSON [{ id, label, urgence, photoRequise, valide, photoUrl?, note? }]
+//   photoUrls : JSON string[] (photos additionnelles attachées à l'audit)
+//   scoreManager : % d'items validés (calculé serveur à l'enregistrement)
+//   notes     : commentaires libres du manager (textarea en bas du formulaire)
+//
+// La checklist du jour est générée par GET /api/pro/audit-matin via
+// le LLM (z-ai-web-dev-sdk, backend) avec un fallback heuristique
+// déterministe. L'historique 30 jours est consultable dans l'onglet
+// « Audit Matin » du dashboard Pro.
+// ============================================================
+model AuditMatin {
+  id           String   @id @default(cuid())
+  proId        String
+  pro          Pro      @relation(fields: [proId], references: [id], onDelete: Cascade)
+  date         DateTime @default(now())
+  items        String   @default("[]") // JSON: [{ id, label, valide, photoUrl?, note? }]
+  photoUrls    String   @default("[]") // JSON: string[]
+  scoreManager Int      @default(0) // score auto-calculé (% items validés)
+  notes        String?  // commentaires libres du manager
+  createdAt    DateTime @default(now())
+
+  @@index([proId, date])
+}
+

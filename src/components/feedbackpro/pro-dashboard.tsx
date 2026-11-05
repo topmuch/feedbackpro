@@ -33,6 +33,7 @@ import {
   Check,
   ChevronDown,
   Loader2,
+  Sunrise,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -58,6 +59,7 @@ import { LanguageSelector } from "@/components/feedbackpro/language-selector"
 import { configSecteur } from "@/lib/secteurs"
 import { OverviewTab } from "@/components/feedbackpro/overview-tab"
 import { CoachIaTab } from "@/components/feedbackpro/coach-ia-tab"
+import { AuditMatinTab } from "@/components/feedbackpro/audit-matin-tab"
 import { RapportsTab } from "@/components/feedbackpro/rapports-tab"
 import { RetoursTab } from "@/components/feedbackpro/retours-tab"
 import { TeamTab } from "@/components/feedbackpro/team-tab"
@@ -74,6 +76,7 @@ import { OnboardingBanner } from "@/components/feedbackpro/onboarding-banner"
 type Onglet =
   | "dashboard"
   | "coach"
+  | "audit-matin"
   | "zones"
   | "retours"
   | "team"
@@ -92,6 +95,8 @@ const SLUG_TO_TAB: Record<string, Onglet> = {
   "tableau-de-bord": "dashboard",
   coach: "coach",
   overview: "coach", // slug legacy (ancienne « Vue d'ensemble ») → Coach IA
+  "audit-matin": "audit-matin", // Feature 2 — Auto-Audit du matin
+  audit: "audit-matin", // alias court
   retours: "retours",
   equipe: "team",
   team: "team",
@@ -112,6 +117,7 @@ const SLUG_TO_TAB: Record<string, Onglet> = {
 const TAB_TO_SLUG: Record<Onglet, string> = {
   dashboard: "tableau-de-bord",
   coach: "coach",
+  "audit-matin": "audit-matin",
   retours: "retours",
   team: "equipe",
   zones: "zones",
@@ -133,6 +139,8 @@ type EntreeNav = { id: Onglet; labelKey: string; icon: React.ComponentType<{ cla
 const ONGLETS_PRINCIPAUX: EntreeNav[] = [
   { id: "dashboard", labelKey: "nav.dashboard", icon: LayoutDashboard },
   { id: "coach", labelKey: "nav.coach", icon: Bot },
+  // Feature 2 — Auto-Audit du matin (juste après Coach IA, comme un rituel quotidien)
+  { id: "audit-matin", labelKey: "nav.auditMatin", icon: Sunrise },
   { id: "zones", labelKey: "nav.zones", icon: MapPin },
   { id: "retours", labelKey: "nav.retours", icon: Inbox },
   { id: "team", labelKey: "nav.team", icon: Users },
@@ -180,7 +188,7 @@ function ongletDepuisUrl(): Onglet {
 }
 
 export function ProDashboard() {
-  const t = (key: string) => { const map: Record<string, string> = {"nav.dashboard": "Tableau de bord", "nav.coach": "Coach IA", "nav.zones": "Zones", "nav.retours": "Retours", "nav.team": "Equipe", "nav.stats": "Statistiques", "nav.qrcode": "QR Codes", "nav.settings": "Parametres", "nav.commander": "Commander", "nav.rapports": "Rapports IA", "nav.recompenses": "Recompenses", "nav.actions": "Actions", "nav.billing": "Facturation", "nav.gestion": "Gestion", "common.ouvrirMenu": "Ouvrir le menu", "common.navigationDashboard": "Navigation du dashboard", "common.deconnexion": "Deconnexion", "common.tableauBordFeedback": "Tableau de bord FeedbackPro", "common.promesseCoach": "Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorites concretes."}; return map[key] || key }
+  const t = (key: string) => { const map: Record<string, string> = {"nav.dashboard": "Tableau de bord", "nav.coach": "Coach IA", "nav.auditMatin": "Audit Matin", "nav.zones": "Zones", "nav.retours": "Retours", "nav.team": "Equipe", "nav.stats": "Statistiques", "nav.qrcode": "QR Codes", "nav.settings": "Parametres", "nav.commander": "Commander", "nav.rapports": "Rapports IA", "nav.recompenses": "Recompenses", "nav.actions": "Actions", "nav.billing": "Facturation", "nav.gestion": "Gestion", "common.ouvrirMenu": "Ouvrir le menu", "common.navigationDashboard": "Navigation du dashboard", "common.deconnexion": "Deconnexion", "common.tableauBordFeedback": "Tableau de bord FeedbackPro", "common.promesseCoach": "Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorites concretes."}; return map[key] || key }
   const [onglet, setOnglet] = useState<Onglet>(() => ongletDepuisUrl())
   const [menuOuvert, setMenuOuvert] = useState(false)
   /** Zone présélectionnée dans l'onglet QR (arrivée depuis l'onglet Zones) */
@@ -470,6 +478,7 @@ export function ProDashboard() {
       <main className="mx-auto w-full max-w-7xl flex-1 px-3 py-5 sm:px-5 sm:py-7 lg:px-6">
         {onglet === "dashboard" && <OverviewTab />}
         {onglet === "coach" && <CoachIaTab onOuvrirRapports={() => naviguer("rapports")} />}
+        {onglet === "audit-matin" && <AuditMatinTab />}
         {onglet === "rapports" && <RapportsTab />}
         {onglet === "retours" && <RetoursTab onOuvrirCoachIA={() => naviguer("coach")} />}
         {onglet === "team" && <TeamTab />}
@@ -497,7 +506,7 @@ function BoutonOnglet({
   actif: boolean
   onNaviguer: (o: Onglet) => void
 }) {
-  const t = (key: string) => { const map: Record<string, string> = {"nav.dashboard": "Tableau de bord", "nav.coach": "Coach IA", "nav.zones": "Zones", "nav.retours": "Retours", "nav.team": "Equipe", "nav.stats": "Statistiques", "nav.qrcode": "QR Codes", "nav.settings": "Parametres", "nav.commander": "Commander", "nav.rapports": "Rapports IA", "nav.recompenses": "Recompenses", "nav.actions": "Actions", "nav.billing": "Facturation", "nav.gestion": "Gestion", "common.ouvrirMenu": "Ouvrir le menu", "common.navigationDashboard": "Navigation du dashboard", "common.deconnexion": "Deconnexion", "common.tableauBordFeedback": "Tableau de bord FeedbackPro", "common.promesseCoach": "Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorites concretes."}; return map[key] || key }
+  const t = (key: string) => { const map: Record<string, string> = {"nav.dashboard": "Tableau de bord", "nav.coach": "Coach IA", "nav.auditMatin": "Audit Matin", "nav.zones": "Zones", "nav.retours": "Retours", "nav.team": "Equipe", "nav.stats": "Statistiques", "nav.qrcode": "QR Codes", "nav.settings": "Parametres", "nav.commander": "Commander", "nav.rapports": "Rapports IA", "nav.recompenses": "Recompenses", "nav.actions": "Actions", "nav.billing": "Facturation", "nav.gestion": "Gestion", "common.ouvrirMenu": "Ouvrir le menu", "common.navigationDashboard": "Navigation du dashboard", "common.deconnexion": "Deconnexion", "common.tableauBordFeedback": "Tableau de bord FeedbackPro", "common.promesseCoach": "Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorites concretes."}; return map[key] || key }
   const Icon = entree.icon
   return (
     <button
@@ -526,7 +535,7 @@ function ContenuSidebar({
   ongletActif: Onglet
   onNaviguer: (o: Onglet) => void
 }) {
-  const t = (key: string) => { const map: Record<string, string> = {"nav.dashboard": "Tableau de bord", "nav.coach": "Coach IA", "nav.zones": "Zones", "nav.retours": "Retours", "nav.team": "Equipe", "nav.stats": "Statistiques", "nav.qrcode": "QR Codes", "nav.settings": "Parametres", "nav.commander": "Commander", "nav.rapports": "Rapports IA", "nav.recompenses": "Recompenses", "nav.actions": "Actions", "nav.billing": "Facturation", "nav.gestion": "Gestion", "common.ouvrirMenu": "Ouvrir le menu", "common.navigationDashboard": "Navigation du dashboard", "common.deconnexion": "Deconnexion", "common.tableauBordFeedback": "Tableau de bord FeedbackPro", "common.promesseCoach": "Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorites concretes."}; return map[key] || key }
+  const t = (key: string) => { const map: Record<string, string> = {"nav.dashboard": "Tableau de bord", "nav.coach": "Coach IA", "nav.auditMatin": "Audit Matin", "nav.zones": "Zones", "nav.retours": "Retours", "nav.team": "Equipe", "nav.stats": "Statistiques", "nav.qrcode": "QR Codes", "nav.settings": "Parametres", "nav.commander": "Commander", "nav.rapports": "Rapports IA", "nav.recompenses": "Recompenses", "nav.actions": "Actions", "nav.billing": "Facturation", "nav.gestion": "Gestion", "common.ouvrirMenu": "Ouvrir le menu", "common.navigationDashboard": "Navigation du dashboard", "common.deconnexion": "Deconnexion", "common.tableauBordFeedback": "Tableau de bord FeedbackPro", "common.promesseCoach": "Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorites concretes."}; return map[key] || key }
   return (
     <div className="flex h-full flex-col">
       {/* Logo */}

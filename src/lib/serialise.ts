@@ -63,6 +63,15 @@ export function serialiserRetour(
         ? r.photoUrl.replace("/uploads/", "/api/uploads/")
         : r.photoUrl
       : null,
+    // Feature 1 — Rattrapage client : nom saisi par le client sur l'écran
+    // de rattrapage (optionnel). Null si le client n'a pas souhaité laisser
+    // son nom.
+    nomClientRattrapage:
+      (r as unknown as { nomClientRattrapage?: string | null }).nomClientRattrapage ?? null,
+    rattrapagePrisEnChargeAt:
+      (r as unknown as { rattrapagePrisEnChargeAt?: Date | string | null }).rattrapagePrisEnChargeAt instanceof Date
+        ? ((r as unknown as { rattrapagePrisEnChargeAt: Date }).rattrapagePrisEnChargeAt).toISOString()
+        : (r as unknown as { rattrapagePrisEnChargeAt?: string | null }).rattrapagePrisEnChargeAt ?? null,
     // Historique : objets { statut, at } — parse sans conversion en String
     historique: parseJsonTableau<{ statut: string; at: string }>(r.historique),
     lu: r.lu,

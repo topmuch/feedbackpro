@@ -148,7 +148,7 @@ export async function PATCH(req: NextRequest) {
 }
 
 const postSchema = z.object({
-  action: z.enum(["repondre", "supprimer"]),
+  action: z.enum(["repondre", "supprimer", "rattrapagePrisEnCharge"]),
   id: z.string().trim().min(1, "ID manquant"),
   message: z.string().trim().min(5, "Message trop court (5 caractères minimum)").max(2000, "Message trop long").optional(),
 })
@@ -173,6 +173,23 @@ export async function POST(req: NextRequest) {
     if (action === "supprimer") {
       await db.retour.delete({ where: { id } })
       return ok({ supprime: true, id })
+    }
+
+    // ---------- Action : marquer le rattrapage comme pris en charge ----------
+    // Feature 1 — Appelé par le bouton "Je m'en occupe" du toast persistant
+    // affiché dans le dashboard Pro. Horodate la prise en charge pour audit
+    // et pour le cron de suivi (n'envoie l'email de suivi que si le manager
+    // n'a pas marqué l'alerte comme traitée).
+    if (action === "rattrapagePrisEnCharge") {
+      await db.retour.update({
+        where: { id },
+        data: { rattrapagePrisEnChargeAt: new Date() },
+      })
+      const retour = await db.retour.findUnique({
+        where: { id },
+        include: { zone: { select: { nom: true } }, employe: { select: { nom: true } } },
+      })
+      return ok({ retour: retour ? serialiserRetour(retour) : null, prisEnCharge: true })
     }
 
     // ---------- Action : répondre au client ----------
