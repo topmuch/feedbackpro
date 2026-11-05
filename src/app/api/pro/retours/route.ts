@@ -148,9 +148,9 @@ export async function PATCH(req: NextRequest) {
 }
 
 const postSchema = z.object({
-  action: z.literal("repondre"),
+  action: z.enum(["repondre", "supprimer"]),
   id: z.string().trim().min(1, "ID manquant"),
-  message: z.string().trim().min(5, "Message trop court (5 caractères minimum)").max(2000, "Message trop long"),
+  message: z.string().trim().min(5, "Message trop court (5 caractères minimum)").max(2000, "Message trop long").optional(),
 })
 
 export async function POST(req: NextRequest) {
@@ -160,7 +160,7 @@ export async function POST(req: NextRequest) {
 
     const parsed = postSchema.safeParse(await req.json().catch(() => null))
     if (!parsed.success) return fail(firstError(parsed.error), 400)
-    const { id, message } = parsed.data
+    const { id, action, message } = parsed.data
 
     // Vérifie que le retour appartient bien à l'établissement
     const existing = await db.retour.findFirst({
@@ -168,6 +168,15 @@ export async function POST(req: NextRequest) {
       include: { zone: { select: { nom: true } } },
     })
     if (!existing) return fail("Retour introuvable", 404)
+
+    // ---------- Action : supprimer le retour ----------
+    if (action === "supprimer") {
+      await db.retour.delete({ where: { id } })
+      return ok({ supprime: true, id })
+    }
+
+    // ---------- Action : répondre au client ----------
+    if (!message) return fail("Message manquant", 400)
 
     // Garde-fou : si le client n'a pas laissé d'email, on refuse l'envoi
     if (!existing.emailClient) {

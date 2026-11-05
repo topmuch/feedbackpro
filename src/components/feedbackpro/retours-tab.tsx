@@ -42,6 +42,7 @@ import {
   Target,
   ArrowRight,
   CheckCheck,
+  Trash2,
   ZoomIn,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
@@ -1384,6 +1385,8 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
   // Modale de détail
   const [detail, setDetail] = useState<Retour | null>(null)
   const [editionReponse, setEditionReponse] = useState(false)
+  const [confirmSuppression, setConfirmSuppression] = useState(false)
+  const [suppressionEnCours, setSuppressionEnCours] = useState(false)
   const [texteReponse, setTexteReponse] = useState("")
   const [envoiReponse, setEnvoiReponse] = useState(false)
   const [editionAction, setEditionAction] = useState(false)
@@ -1635,6 +1638,36 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
     setEditionAction(false)
     setDialogEmployeNom(null)
     setPhotoZoom(false)
+    setConfirmSuppression(false)
+  }
+
+  // Suppression d'un retour (POST /api/pro/retours action=supprimer)
+  async function supprimerRetour() {
+    if (!detail) return
+    setSuppressionEnCours(true)
+    try {
+      const res = await fetch("/api/pro/retours", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "supprimer", id: detail.id }),
+      })
+      const json = await res.json().catch(() => null)
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || "Erreur lors de la suppression")
+      }
+      // Retirer le retour de la liste
+      setItems((prev) => prev.filter((r) => r.id !== detail.id))
+      toast({ title: "Retour supprimé", description: "Le retour a été définitivement supprimé." })
+      fermerDetail()
+    } catch (e) {
+      toast({
+        title: "Erreur",
+        description: e instanceof Error ? e.message : "Suppression impossible",
+        variant: "destructive",
+      })
+    } finally {
+      setSuppressionEnCours(false)
+    }
   }
 
   // Enregistrement de la réponse du commerçant.
@@ -2011,6 +2044,15 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                   Résolu
                 </Badge>
               )}
+              {/* Bouton supprimer */}
+              <Button
+                variant="ghost"
+                className="h-10 gap-1.5 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                onClick={() => setConfirmSuppression(true)}
+              >
+                <Trash2 className="h-4 w-4" aria-hidden />
+                <span className="hidden sm:inline">Supprimer</span>
+              </Button>
             </div>
           </div>
         </div>
@@ -2727,11 +2769,42 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
             )}
           </DialogContent>
         </Dialog>
+
+        {/* ---------- Dialog confirmation suppression ---------- */}
+        <Dialog open={confirmSuppression} onOpenChange={(o) => !o && setConfirmSuppression(false)}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Trash2 className="h-5 w-5 text-rose-600" />
+                Supprimer ce retour ?
+              </DialogTitle>
+              <DialogDescription>
+                Cette action est irréversible. Le retour client (note, tags, commentaire, photo) sera définitivement supprimé de votre dashboard et de vos statistiques.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="flex items-center justify-end gap-2 pt-4">
+              <Button variant="outline" onClick={() => setConfirmSuppression(false)} disabled={suppressionEnCours}>
+                Annuler
+              </Button>
+              <Button
+                variant="destructive"
+                onClick={supprimerRetour}
+                disabled={suppressionEnCours}
+                className="gap-1.5"
+              >
+                {suppressionEnCours ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                Supprimer définitivement
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     )
   }
-
-  // ---------- Vue Liste — "L'Inbox Intelligente" ----------
 
   return (
     <div className="space-y-5">
