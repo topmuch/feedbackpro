@@ -6,7 +6,7 @@
 // Le paramètre d'URL ?scan=<token> correspond au QR code scanné
 // ============================================================
 
-import { useEffect } from "react"
+import React, { useEffect } from "react"
 import { Loader2 } from "lucide-react"
 import { useAppStore, tokenDepuisUrl } from "@/store/app-store"
 import { LandingView } from "@/components/feedbackpro/landing-view"
@@ -15,6 +15,34 @@ import { ScanView } from "@/components/feedbackpro/scan-view"
 import { ProDashboard } from "@/components/feedbackpro/pro-dashboard"
 import { AdminDashboard } from "@/components/feedbackpro/admin-dashboard"
 import { AppFooter } from "@/components/feedbackpro/shared"
+
+
+class ErrorBoundary extends React.Component<
+  { children: React.ReactNode },
+  { hasError: boolean; error: string }
+> {
+  constructor(props: { children: React.ReactNode }) {
+    super(props)
+    this.state = { hasError: false, error: "" }
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error: error.message }
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <main className="flex min-h-screen flex-col items-center justify-center gap-4 p-8">
+          <h1 className="text-xl font-bold text-red-600">Erreur de chargement</h1>
+          <p className="text-sm text-muted-foreground max-w-md text-center">{this.state.error}</p>
+          <button onClick={() => window.location.reload()} className="rounded-lg bg-primary px-4 py-2 text-white">
+            Recharger
+          </button>
+        </main>
+      )
+    }
+    return this.props.children
+  }
+}
 
 export default function Home() {
   const view = useAppStore((s) => s.view)
@@ -120,6 +148,7 @@ export default function Home() {
   }
 
   return (
+    <ErrorBoundary>
     <div className="flex min-h-screen flex-col bg-background">
       <main className="flex-1 flex flex-col">
         {view === "landing" && <LandingView onLogin={nav.login} onSignup={nav.signup} />}
@@ -138,5 +167,6 @@ export default function Home() {
           La landing possède son propre footer complet (liens légaux). */}
       {view !== "scan" && view !== "landing" && <AppFooter />}
     </div>
+    </ErrorBoundary>
   )
 }
