@@ -120,6 +120,21 @@ export async function POST(req: NextRequest) {
 
     if (!zone) return fail("QR code invalide ou expiré", 404)
 
+    // ----- Module smart_qr : créneau horaire contextuel -----
+    // 6h-11h → "matin"        (petit-déjeuner, rapidité)
+    // 11h-14h → "dejeuner"    (menu, disponibilité)
+    // 14h-18h → "apres_midi"  (service, confort)
+    // 18h-22h → "soir"        (dîner, ambiance)
+    // 22h-6h  → "nuit"        (calme, sécurité, réception de nuit)
+    const creneauHoraire = (() => {
+      const h = new Date().getHours()
+      if (h >= 6 && h < 11) return "matin" as const
+      if (h >= 11 && h < 14) return "dejeuner" as const
+      if (h >= 14 && h < 18) return "apres_midi" as const
+      if (h >= 18 && h < 22) return "soir" as const
+      return "nuit" as const
+    })()
+
     // ----- v2 : résolution du contexte sectoriel du Pro -----
     const secteur = await chercherSecteurDuPro(zone.pro)
     const macroId: MacroSecteurId | null = secteur
@@ -196,6 +211,10 @@ export async function POST(req: NextRequest) {
       // (Boutique, Salon, Institut, Garage, Autre) — auquel cas le scan-view
       // retombe sur le flux historique (tags + commentaire + NPS + photo).
       secteurQuestionnaire: secteurQuestionnairePourMacro(macroId),
+      // ----- Module smart_qr : créneau horaire contextuel -----
+      // Renvoyé systématiquement (léger). Le scan-view ne l'utilise QUE si
+      // le module "smart_qr" est actif côté client (cf. /api/modules-public).
+      creneauHoraire,
     })
   } catch (e) {
     console.error("scan error", e)

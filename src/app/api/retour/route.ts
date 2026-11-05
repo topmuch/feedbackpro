@@ -20,6 +20,8 @@ import { parseJsonArray, detecterAlertesIntelligentes } from "@/lib/ia"
 import { analyserEtAlerterRetour } from "@/lib/alertes"
 import { creerNotification } from "@/lib/notifications"
 import { notifierWebhooksPro, donneesNouveauRetour } from "@/lib/webhooks"
+import { sendSMS } from "@/lib/twilio"
+import { getModuleActif, getModuleConfig, MODULE_KEYS } from "@/lib/modules"
 import {
   macroSecteurPourSecteur,
   MACRO_SECTEURS,
@@ -207,17 +209,40 @@ export async function POST(req: NextRequest) {
     })
 
     // ---------- Alerte temps réel pour les réclamations (note <= 2) ----------
-    // Session 5 §4 : sauvegarde déjà faite ; analyse rapide de récurrence
-    // dans la zone → SMS (Twilio) si problème récurrent, sinon simple
-    // notification dashboard. Strictement non bloquant.
+    // Module "alertes_temps_reel" : si ACTIF, on déclenche la chaîne
+    // complète (notification + alerte + webhook + SMS). Si INACTIF, on
+    // n'envoie qu'une notification dashboard basique (sans SMS, sans
+    // alerte prioritaire) — le module module le comportement.
     let infoAlerte: { recurrente: boolean; nbSignalements: number; canal: "SMS" | "DASHBOARD" } | null = null
-    if (note <= 2) {
+    const moduleAlertesActif = await getModuleActif(MODULE_KEYS.ALERTES_TEMPS_REEL)
+    if (note <= 2 && moduleAlertesActif) {
       infoAlerte = await analyserEtAlerterRetour(
         pro,
         { id: zone.id, nom: zone.nom },
         { id: retour.id, note: retour.note },
         validTags.map(tagLabel)
       )
+      // ---------- SMS Twilio optionnel (config phone du module) ----------
+      // Si le Pro a activé les SMS ET qu'un phone Twilio est configuré
+      // dans la config du module alertes_temps_reel, on envoie un SMS
+      // immédiat au numéro du Pro (whatsapp) — en plus de la chaîne
+      // précédente (qui gère déjà SMS via la récurrence).
+      try {
+        type CfgAlertes = { phone?: string }
+        const cfg = await getModuleConfig<CfgAlertes>(MODULE_KEYS.ALERTES_TEMPS_REEL)
+        const cible = cfg?.phone || pro.whatsapp
+        if (pro.smsAlertes && cible) {
+          const smsTxt = `🚨 FeedbackPro : retour ${note}/5 sur « ${zone.nom} » (${pro.nomEtablissement}).${retour.commentaire ? ` Commentaire : ${retour.commentaire.slice(0, 120)}` : ""}`
+          await sendSMS(cible, smsTxt).catch((e) =>
+            console.warn("SMS alertes_temps_reel non envoyé (non bloquant)", e)
+          )
+        }
+      } catch (e) {
+        console.warn("SMS module alertes_temps_reel (non bloquant)", e)
+      }
+    } else if (note <= 2) {
+      // Module désactivé : notification simple sans SMS ni alerte prioritaire
+      // (on garde la Notification ci-dessous — son titre reste "retour négatif")
     }
 
     // ---------- Notification in-app (cloche) ----------

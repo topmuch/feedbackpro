@@ -170,6 +170,33 @@ export interface TraductionsScan {
   recapReponsesVides: string
   // Étiquette générique d'une réponse non renseignée
   nonRenseigne: string
+  // ---- Modules activables ----
+  // Voice-to-text (module "voice_to_text")
+  parler: string
+  arreterParler: string
+  voixEnCours: string
+  voixNonSupportee: string
+  voixErreur: string
+  // Smart QR (module "smart_qr") — phrases d'accroche par créneau horaire
+  creneauMatin: string
+  creneauDejeuner: string
+  creneauApresMidi: string
+  creneauSoir: string
+  creneauNuit: string
+  // Loterie (module "loterie")
+  loterieTitre: string
+  loterieInstructions: string
+  loterieGrattez: string
+  loterieGagne: string
+  loteriePerdu: string
+  loterieMontrez: string
+  loterieErreur: string
+  // Double Shield (module "double_shield")
+  doubleShieldPrive: string
+  doubleShieldGoogleTitre: string
+  doubleShieldGoogleSousTitre: string
+  doubleShieldCopier: string
+  doubleShieldCopie: string
 }
 
 export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
@@ -296,6 +323,29 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     recapVosReponses: "Vos réponses",
     recapReponsesVides: "Aucune réponse",
     nonRenseigne: "—",
+    // Modules activables
+    parler: "🎤 Parler",
+    arreterParler: "Arrêter",
+    voixEnCours: "Écoute en cours…",
+    voixNonSupportee: "Saisie vocale non supportée par votre navigateur",
+    voixErreur: "Erreur de reconnaissance vocale — réessayez",
+    creneauMatin: "Comment s'est passé votre petit-déjeuner ?",
+    creneauDejeuner: "Comment s'est passé votre déjeuner ?",
+    creneauApresMidi: "Comment s'est passé votre moment cet après-midi ?",
+    creneauSoir: "Comment se passe votre dîner ?",
+    creneauNuit: "Comment s'est passé votre passage de nuit ?",
+    loterieTitre: "🎰 Grattez votre ticket !",
+    loterieInstructions: "Tirez le doigt sur le ticket pour découvrir si vous avez gagné.",
+    loterieGrattez: "Grattez ici",
+    loterieGagne: "🎉 Vous avez gagné !",
+    loteriePerdu: "Merci pour votre participation ! Retentez votre chance à votre prochaine visite.",
+    loterieMontrez: "Montrez ce code au comptoir pour profiter de votre gain",
+    loterieErreur: "Impossible de charger le ticket — réessayez plus tard",
+    doubleShieldPrive: "🔒 Votre retour est privé et confidentiel. Le manager vous répondra directement, sans exposition publique.",
+    doubleShieldGoogleTitre: "⭐ Laissez un avis Google en 1 clic",
+    doubleShieldGoogleSousTitre: "Votre avis positif mérite d'être public — copiez le texte ci-dessous puis collez-le sur Google.",
+    doubleShieldCopier: "Copier le texte",
+    doubleShieldCopie: "Texte copié ✓",
   },
   en: {
     dir: "ltr",
@@ -417,6 +467,29 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     recapVosReponses: "Your answers",
     recapReponsesVides: "No answer",
     nonRenseigne: "—",
+    // Modules activables
+    parler: "🎤 Speak",
+    arreterParler: "Stop",
+    voixEnCours: "Listening…",
+    voixNonSupportee: "Voice input not supported by your browser",
+    voixErreur: "Voice recognition error — please retry",
+    creneauMatin: "How was your breakfast?",
+    creneauDejeuner: "How was your lunch?",
+    creneauApresMidi: "How was your afternoon moment?",
+    creneauSoir: "How is your dinner going?",
+    creneauNuit: "How was your night experience?",
+    loterieTitre: "🎰 Scratch your ticket!",
+    loterieInstructions: "Drag your finger across the ticket to find out if you won.",
+    loterieGrattez: "Scratch here",
+    loterieGagne: "🎉 You won!",
+    loteriePerdu: "Thanks for playing! Try again on your next visit.",
+    loterieMontrez: "Show this code at the counter to claim your reward",
+    loterieErreur: "Could not load the ticket — try again later",
+    doubleShieldPrive: "🔒 Your feedback is private and confidential. The manager will reply directly, with no public exposure.",
+    doubleShieldGoogleTitre: "⭐ Leave a Google review in 1 click",
+    doubleShieldGoogleSousTitre: "Your positive feedback deserves to be public — copy the text below and paste it on Google.",
+    doubleShieldCopier: "Copy text",
+    doubleShieldCopie: "Text copied ✓",
   },
   ar: {
     dir: "rtl",
@@ -538,6 +611,29 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     recapVosReponses: "إجاباتك",
     recapReponsesVides: "لا توجد إجابة",
     nonRenseigne: "—",
+    // Modules activables (Arabic — labels courts, le flux reste FR/EN primaire)
+    parler: "🎤 تحدث",
+    arreterParler: "إيقاف",
+    voixEnCours: "جاري الاستماع…",
+    voixNonSupportee: "الإدخال الصوتي غير مدعوم من متصفحك",
+    voixErreur: "خطأ في التعرف الصوتي — حاول مرة أخرى",
+    creneauMatin: "كيف كان فطورك؟",
+    creneauDejeuner: "كيف كان غداؤك؟",
+    creneauApresMidi: "كيف كان وقتك بعد الظهر؟",
+    creneauSoir: "كيف كان عشاؤك؟",
+    creneauNuit: "كيف كانت تجربتك الليلية؟",
+    loterieTitre: "🎰 اخدش تذكرتك!",
+    loterieInstructions: "اسحب إصبعك على التذكرة لمعرفة ما إذا فزت.",
+    loterieGrattez: "اخدش هنا",
+    loterieGagne: "🎉 لقد فزت!",
+    loteriePerdu: "شكراً لمشاركتك! حاول مرة أخرى في زيارتك القادمة.",
+    loterieMontrez: "أظهر هذا الرمز في المكتب للحصول على مكافأتك",
+    loterieErreur: "تعذر تحميل التذكرة — حاول لاحقاً",
+    doubleShieldPrive: "🔒 ملاحظاتك خاصة وسرية. سيرد المدير مباشرة، دون أي عرض عام.",
+    doubleShieldGoogleTitre: "⭐ اترك تقييم Google بنقرة واحدة",
+    doubleShieldGoogleSousTitre: "ملاحظاتك الإيجابية تستحق أن تكون علنية — انسخ النص أدناه والصقه على Google.",
+    doubleShieldCopier: "نسخ النص",
+    doubleShieldCopie: "تم نسخ النص ✓",
   },
 }
 

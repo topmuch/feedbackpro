@@ -5,6 +5,8 @@
 // ------------------------------------------------------------
 // - Plan actuel (badge) + grille comparative des 3 plans
 //   (PLANS 29€ / 99€ / 249€ de src/lib/constants.ts)
+//   + plan FRANCHISE (199/399/799 €) si le module
+//   "abonnement_multi_sites" est activé par le superadmin.
 // - Changement de plan via POST /api/pro/billing/checkout :
 //   · Stripe configuré → redirection vers la Checkout Session
 //   · Sans clés (mode démo) → paiement simulé via POST /api/pro/plan
@@ -92,6 +94,11 @@ export function BillingTab() {
   // ---------- Période de facturation (toggle Mensuel / Annuel -20 %) ----------
   const [periode, setPeriode] = useState<PeriodeFacturation>("mensuel")
 
+  // ---------- Module abonnement_multi_sites : on affiche la card
+  // FRANCHISE seulement si le module est activé côté superadmin ----------
+  const [moduleMultiSitesActif, setModuleMultiSitesActif] = useState(false)
+  const [chargementModules, setChargementModules] = useState(true)
+
   // ---------- Factures (commandes de supports) ----------
   const [commandes, setCommandes] = useState<Commande[]>([])
   const [chargementFactures, setChargementFactures] = useState(true)
@@ -149,6 +156,28 @@ export function BillingTab() {
       }
     }
     charger()
+  }, [])
+
+  // ---------- Chargement des modules actifs (endpoint public, pas d'auth) ----------
+  // Utilisé pour décider si on affiche la card FRANCHISE. Best-effort :
+  // en cas d'échec, on n'affiche pas le plan Franchise (fallback safe).
+  useEffect(() => {
+    async function chargerModules() {
+      try {
+        const res = await fetch("/api/modules-public", { cache: "no-store" })
+        const json = await res.json()
+        if (json.ok && Array.isArray(json.data.modules)) {
+          setModuleMultiSitesActif(
+            (json.data.modules as string[]).includes("abonnement_multi_sites")
+          )
+        }
+      } catch {
+        /* silencieux : on reste à false */
+      } finally {
+        setChargementModules(false)
+      }
+    }
+    chargerModules()
   }, [])
 
   // ---------- Consommation de retours sur 30 jours (audit UX) ----------
@@ -425,91 +454,112 @@ export function BillingTab() {
         </CardContent>
       </Card>
 
-      {/* ---------- Grille comparative des plans (29 / 99 / 249 €) ---------- */}
-      <div className="grid gap-4 md:grid-cols-3">
-        {(Object.keys(PLANS) as PlanId[]).map((id) => {
-          const p = PLANS[id]
-          const estActuel = id === planActuel
-          const estSuperieur = p.price > planActuelDef.price
-          const prix = prixAffiche(p.price, periode)
-          return (
-            <Card
-              key={id}
-              className={
-                estActuel
-                  ? "border-primary shadow-sm ring-1 ring-primary"
-                  : "shadow-sm transition-shadow hover:shadow-md"
-              }
-            >
-              <CardHeader className="pb-3">
-                <div className="flex items-center justify-between gap-2">
-                  <CardTitle className="text-base">{p.name}</CardTitle>
-                  {estActuel && <Badge className="bg-primary text-primary-foreground hover:bg-primary">Plan actuel</Badge>}
-                </div>
-                <CardDescription className="pt-1">{p.tagline}</CardDescription>
-                <p className="pt-2 text-2xl font-bold tracking-tight">
-                  {/* Audit UX : en annuel, le prix mensuel d'origine est barré */}
-                  {periode === "annuel" && p.price > 0 && (
-                    <span className="mr-1.5 text-base font-normal text-muted-foreground line-through decoration-muted-foreground/60">
-                      {p.price} €
-                    </span>
-                  )}
-                  {prix} €
-                  {p.price > 0 && (
-                    <span className="text-sm font-normal text-muted-foreground">
-                      {" "}
-                      /mois{periode === "annuel" ? " · facturé annuellement" : ""}
-                    </span>
-                  )}
-                </p>
-                {periode === "annuel" && p.price > 0 && (
-                  <p className="text-[11px] font-medium text-green-700">
-                    {prix * 12} €/an au lieu de {p.price * 12} € · économie de {(p.price - prix) * 12} €
-                  </p>
-                )}
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <ul className="space-y-2">
-                  {p.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2 text-sm">
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
-                      <span>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                {/* Limites du plan reformulées en bénéfices (audit UX) */}
-                <p className="text-xs text-muted-foreground">
-                  Jusqu&apos;à {p.limites.zones} zones et {p.limites.employes} employés, retours {libelleRetours(p.limites.retours)}
-                </p>
-                {estActuel ? (
-                  // Audit UX : badge vert « ✓ Plan actif » à la place du bouton grisé désactivé.
-                  <div
-                    className="flex w-full items-center justify-center gap-1.5 rounded-md border border-green-300 bg-green-50 px-4 py-2.5 text-sm font-semibold text-green-800 dark:border-green-800/60 dark:bg-green-950/40 dark:text-green-300"
-                    role="status"
-                    aria-label="Plan actuel actif"
-                  >
-                    <Check className="h-4 w-4" aria-hidden />
-                    Plan actif
+      {/* ---------- Grille comparative des plans (29 / 99 / 249 € + Franchise) ---------- */}
+      <div
+        className={cn(
+          "grid gap-4",
+          moduleMultiSitesActif ? "md:grid-cols-2 xl:grid-cols-4" : "md:grid-cols-3"
+        )}
+      >
+        {(Object.keys(PLANS) as PlanId[])
+          .filter((id) => !PLANS[id].reserveModule || moduleMultiSitesActif)
+          .map((id) => {
+            const p = PLANS[id]
+            const estActuel = id === planActuel
+            const estSuperieur = p.price > planActuelDef.price
+            const prix = prixAffiche(p.price, periode)
+            return (
+              <Card
+                key={id}
+                className={
+                  estActuel
+                    ? "border-primary shadow-sm ring-1 ring-primary"
+                    : p.id === "FRANCHISE"
+                      ? "shadow-sm ring-1 ring-amber-400/50 transition-shadow hover:shadow-md"
+                      : "shadow-sm transition-shadow hover:shadow-md"
+                }
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <CardTitle className="text-base">{p.name}</CardTitle>
+                    {estActuel ? (
+                      <Badge className="bg-primary text-primary-foreground hover:bg-primary">Plan actuel</Badge>
+                    ) : p.id === "FRANCHISE" ? (
+                      <Badge className="border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-50 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-300">
+                        Multi-sites
+                      </Badge>
+                    ) : null}
                   </div>
-                ) : (
-                  <Button
-                    className="w-full"
-                    variant="default"
-                    disabled={planEnCours !== null}
-                    onClick={() => (id === "ENTERPRISE" ? contacterEnterprise() : changerPlan(id))}
-                  >
-                    {planEnCours === id && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
-                    {id === "ENTERPRISE"
-                      ? "Nous contacter"
-                      : estSuperieur
-                        ? `Passer au plan ${p.name}`
-                        : `Rétrograder vers ${p.name}`}
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          )
-        })}
+                  <CardDescription className="pt-1">{p.tagline}</CardDescription>
+                  <p className="pt-2 text-2xl font-bold tracking-tight">
+                    {/* Audit UX : en annuel, le prix mensuel d'origine est barré */}
+                    {periode === "annuel" && p.price > 0 && (
+                      <span className="mr-1.5 text-base font-normal text-muted-foreground line-through decoration-muted-foreground/60">
+                        {p.price} €
+                      </span>
+                    )}
+                    {prix} €
+                    {p.price > 0 && (
+                      <span className="text-sm font-normal text-muted-foreground">
+                        {" "}
+                        /mois{periode === "annuel" ? " · facturé annuellement" : ""}
+                      </span>
+                    )}
+                  </p>
+                  {periode === "annuel" && p.price > 0 && (
+                    <p className="text-[11px] font-medium text-green-700">
+                      {prix * 12} €/an au lieu de {p.price * 12} € · économie de {(p.price - prix) * 12} €
+                    </p>
+                  )}
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <ul className="space-y-2">
+                    {p.features.map((f) => (
+                      <li key={f} className="flex items-start gap-2 text-sm">
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-primary" aria-hidden />
+                        <span>{f}</span>
+                      </li>
+                    ))}
+                  </ul>
+                  {/* Limites du plan reformulées en bénéfices (audit UX) */}
+                  <p className="text-xs text-muted-foreground">
+                    Jusqu&apos;à {p.limites.zones} zones et {p.limites.employes} employés, retours {libelleRetours(p.limites.retours)}
+                  </p>
+                  {estActuel ? (
+                    // Audit UX : badge vert « ✓ Plan actif » à la place du bouton grisé désactivé.
+                    <div
+                      className="flex w-full items-center justify-center gap-1.5 rounded-md border border-green-300 bg-green-50 px-4 py-2.5 text-sm font-semibold text-green-800 dark:border-green-800/60 dark:bg-green-950/40 dark:text-green-300"
+                      role="status"
+                      aria-label="Plan actuel actif"
+                    >
+                      <Check className="h-4 w-4" aria-hidden />
+                      Plan actif
+                    </div>
+                  ) : (
+                    <Button
+                      className="w-full"
+                      variant="default"
+                      disabled={planEnCours !== null || chargementModules}
+                      onClick={() =>
+                        id === "ENTERPRISE" || id === "FRANCHISE"
+                          ? contacterEnterprise()
+                          : changerPlan(id)
+                      }
+                    >
+                      {planEnCours === id && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+                      {id === "ENTERPRISE"
+                        ? "Nous contacter"
+                        : id === "FRANCHISE"
+                          ? "Demander un devis"
+                          : estSuperieur
+                            ? `Passer au plan ${p.name}`
+                            : `Rétrograder vers ${p.name}`}
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+            )
+          })}
       </div>
 
       {/* ---------- Bandeau sécurité paiement ---------- */}

@@ -276,7 +276,7 @@ export const commandeSchema = z.object({
 })
 
 export const planSchema = z.object({
-  plan: z.enum(["STARTER", "PRO", "ENTERPRISE"], { message: "Plan invalide" }),
+  plan: z.enum(["STARTER", "PRO", "ENTERPRISE", "FRANCHISE"], { message: "Plan invalide" }),
 })
 
 // ---------- Alertes ----------

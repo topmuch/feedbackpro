@@ -24,7 +24,8 @@
     "secteurs": "Configuration secteurs",
     "messages": "Messages",
     "email": "Email & API",
-    "parametres": "Paramètres"
+    "parametres": "Paramètres",
+    "modules": "Modules"
   },
   "landing": {
     "badge": "Le Coach IA d'Audit Qualité Continu",

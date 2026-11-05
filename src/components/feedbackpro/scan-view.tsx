@@ -43,6 +43,9 @@ import {
   ImagePlus,
   Loader2,
   MessageCircle,
+  Mic,
+  MicOff,
+  Puzzle,
   ShieldCheck,
   Star,
   Ticket,
@@ -85,6 +88,7 @@ import {
   type Question,
   type Option,
 } from "@/lib/questionnaire-config"
+import { ScratchCard } from "@/components/feedbackpro/scratch-card"
 
 // ---------- Types locaux (contrat API) ----------
 
@@ -132,6 +136,11 @@ type ScanData = {
   // Null si le Pro n'est pas rattaché à un macro-secteur couvert — auquel cas
   // le scan-view retombe sur le flux historique (tags + commentaire + NPS).
   secteurQuestionnaire?: Secteur | null
+  // ----- Module smart_qr : créneau horaire contextuel -----
+  // "matin" | "dejeuner" | "apres_midi" | "soir" | "nuit"
+  // Renvoyé systématiquement par /api/public/scan mais exploité
+  // côté client seulement si le module "smart_qr" est actif.
+  creneauHoraire?: "matin" | "dejeuner" | "apres_midi" | "soir" | "nuit"
 }
 
 type Phase =
@@ -145,7 +154,32 @@ type Phase =
   | "questions"
   | "recap"
   | "success"
+  | "loterie"
 type CanalEnvoi = "whatsapp" | "aucun"
+
+// ---------- Types pour la loterie (module 4) ----------
+type LoterieResultat = {
+  gagne: boolean
+  gain: string
+  code: string | null
+  dejaTire?: boolean
+}
+
+// ---------- Type minimum pour SpeechRecognition (TS lib dom n'expose pas
+// l'API Web Speech de manière stable entre versions — on déclare le sous-
+// ensemble strictement nécessaire). ----------
+type SpeechRecognitionLike = {
+  lang: string
+  continuous: boolean
+  interimResults: boolean
+  maxAlternatives: number
+  start: () => void
+  stop: () => void
+  abort: () => void
+  onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }>>; resultIndex: number }) => void) | null
+  onerror: ((event: { error: string }) => void) | null
+  onend: (() => void) | null
+}
 
 // ---------- Constantes d'affichage ----------
 
@@ -311,7 +345,34 @@ function definitionTag(id: string, positif: boolean): TagDef {
 // Phrase d'accroche adaptée au type de zone (étape 0 — Bienvenue).
 // Détecte le preset (restauration, toilettes, bien-être, accueil) à
 // partir du nom de la zone ; retombe sur une phrase générique.
-function phraseAccroche(nomZone: string, t: TraductionsScan): string {
+//
+// Module smart_qr : si le module est actif ET que creneauHoraire est
+// disponible, on adapte la phrase selon l'heure du scan (matin,
+// déjeuner, après-midi, soir, nuit) — surcharge le preset de zone.
+function phraseAccroche(
+  nomZone: string,
+  t: TraductionsScan,
+  opts?: {
+    smartQr?: boolean
+    creneauHoraire?: "matin" | "dejeuner" | "apres_midi" | "soir" | "nuit" | null
+  }
+): string {
+  // ----- Module smart_qr : phrase contextuelle selon l'heure -----
+  if (opts?.smartQr && opts.creneauHoraire) {
+    switch (opts.creneauHoraire) {
+      case "matin":
+        return t.creneauMatin
+      case "dejeuner":
+        return t.creneauDejeuner
+      case "apres_midi":
+        return t.creneauApresMidi
+      case "soir":
+        return t.creneauSoir
+      case "nuit":
+        return t.creneauNuit
+    }
+  }
+  // ----- Comportement historique (préservé si module inactif) -----
   const preset = presetPourZone(nomZone)
   if (!preset) return t.phraseDefault
   switch (preset.id) {
@@ -464,6 +525,34 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
   const [scanData, setScanData] = useState<ScanData | null>(null)
   const [erreurScan, setErreurScan] = useState<string | null>(null)
 
+  // ---------- Modules activables (chargés depuis /api/modules-public) ----------
+  // Liste des clés des modules actifs (cf. src/lib/modules.ts). Récupérée
+  // une fois au chargement du scan et réutilisée pour décider d'afficher
+  // le bouton micro (voice_to_text), le ticket à gratter (loterie), etc.
+  const [modulesActifs, setModulesActifs] = useState<Set<string>>(new Set())
+  useEffect(() => {
+    let annule = false
+    async function charger() {
+      try {
+        const res = await fetch("/api/modules-public", { cache: "no-store" })
+        const json = await res.json()
+        if (!annule && json.ok && Array.isArray(json.data.modules)) {
+          setModulesActifs(new Set(json.data.modules as string[]))
+        }
+      } catch {
+        /* silencieux : fallback = aucun module actif côté client */
+      }
+    }
+    charger()
+    return () => {
+      annule = true
+    }
+  }, [])
+  const moduleVoiceActif = modulesActifs.has("voice_to_text")
+  const moduleLoterieActif = modulesActifs.has("loterie")
+  const moduleSmartQrActif = modulesActifs.has("smart_qr")
+  const moduleDoubleShieldActif = modulesActifs.has("double_shield")
+
   // Réponses du client
   const [note, setNote] = useState(0)
   const [tags, setTags] = useState<string[]>([])
@@ -504,6 +593,38 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
   // (sans réseau) plutôt qu'envoyé immédiatement. Affiche un message
   // dédié sur l'écran de succès ("sera envoyé à la reconnexion").
   const [horsLigne, setHorsLigne] = useState(false)
+
+  // ---------- Module 4 — Loterie (Scratch & Win) ----------
+  // ID du retour créé (récupéré depuis la réponse de /api/public/retour) —
+  // nécessaire pour appeler POST /api/public/loterie après le succès.
+  const [retourIdCree, setRetourIdCree] = useState<string | null>(null)
+  // Résultat du tirage loterie (null = pas encore tiré)
+  const [loterieResultat, setLoterieResultat] = useState<LoterieResultat | null>(null)
+  // Chargement du tirage
+  const [loterieChargement, setLoterieChargement] = useState(false)
+  // Erreur loterie (jamais bloquante — l'écran de succès reste accessible)
+  const [loterieErreur, setLoterieErreur] = useState<string | null>(null)
+
+  // ---------- Module 2 — Voice-to-text (Web Speech API) ----------
+  // Reconnaissance vocale active ou non
+  const [voixEnCours, setVoixEnCours] = useState(false)
+  // Transcription intermédiaire (affichée en gris pendant l'écoute)
+  const [voixIntermediaire, setVoixIntermediaire] = useState("")
+  // Erreur de reconnaissance (ex : permission refusée, navigateur incompatible)
+  const [voixErreur, setVoixErreur] = useState<string | null>(null)
+  // Référence vers l'instance SpeechRecognition (créée à la demande)
+  const voixRef = useRef<SpeechRecognitionLike | null>(null)
+  // Détection du support navigateur (window.SpeechRecognition || webkit)
+  const [voixSupportee, setVoixSupportee] = useState(false)
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const w = window as unknown as {
+      SpeechRecognition?: new () => SpeechRecognitionLike
+      webkitSpeechRecognition?: new () => SpeechRecognitionLike
+    }
+    const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition
+    setVoixSupportee(!!Ctor)
+  }, [])
 
   // ---------- Questionnaire adaptatif v3 ----------
   // Réponses du questionnaire : questionId → valeur (string pour unique/
@@ -1062,6 +1183,12 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
       if (typeof json.data?.codeRecompense === "string" && json.data.codeRecompense) {
         setCodeRecompense(json.data.codeRecompense as string)
       }
+      // Module 4 — Loterie : on récupère l'ID du retour créé pour pouvoir
+      // appeler POST /api/public/loterie après l'écran de succès. Si le
+      // module est désactivé ou le Pro sans récompense, on reste sur success.
+      if (typeof json.data?.retour?.id === "string" && json.data.retour.id) {
+        setRetourIdCree(json.data.retour.id as string)
+      }
 
       // Ouvre WhatsApp avec le message pré-rempli (uniquement si numéro configuré)
       if (canal === "whatsapp" && numero) {
@@ -1093,7 +1220,14 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
         /* silencieux */
       }
 
-      allerEtape("success", 1)
+      // ---------- Module 4 — Loterie : écran scratch si module actif ET
+      // Pro a une récompense configurée (recompenseActive && recompense). ----------
+      const proAvecRecompense = !!scanData.pro.recompense
+      if (moduleLoterieActif && proAvecRecompense && !horsLigne) {
+        allerEtape("loterie", 1)
+      } else {
+        allerEtape("success", 1)
+      }
     } catch (e) {
       // Task M3 — Mode offline : si l'envoi échoue (réseau coupé), on stocke
       // le payload dans IndexedDB (en plus du SW Background Sync qui peut le
@@ -1123,6 +1257,145 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
       setSoumission(null)
     }
   }
+
+  // ---------- Module 2 — Voice-to-text (Web Speech API) ----------
+  // Démarre / arrête la reconnaissance vocale. La transcription alimente
+  // le champ `commentaire` (ou `commentaireLibre` en flux adaptatif).
+  function basculerVoix() {
+    if (voixEnCours) {
+      stopperVoix()
+      return
+    }
+    if (!voixSupportee) {
+      setVoixErreur(t.voixNonSupportee)
+      return
+    }
+    try {
+      const w = window as unknown as {
+        SpeechRecognition?: new () => SpeechRecognitionLike
+        webkitSpeechRecognition?: new () => SpeechRecognitionLike
+      }
+      const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition
+      if (!Ctor) {
+        setVoixErreur(t.voixNonSupportee)
+        return
+      }
+      const rec = new Ctor()
+      rec.lang = langue === "ar" ? "ar-SA" : langue === "en" ? "en-US" : "fr-FR"
+      rec.continuous = true
+      rec.interimResults = true
+      rec.maxAlternatives = 1
+
+      let finalText = ""
+      rec.onresult = (event) => {
+        let interim = ""
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const res = event.results[i]
+          // La lib DOM ne fournit pas de type stable pour SpeechRecognitionResult.
+          // On extrait simplement le transcript de la première alternative.
+          const transcript = res[0]?.transcript ?? ""
+          finalText += transcript
+          // Si l'entrée n'est pas finale, on l'ajoute à l'aperçu intermédiaire
+          // (la lib ne définit pas `isFinal` proprement → on concatène et on
+          // rafraîchit le placeholder en gris via voixIntermediaire).
+          interim += transcript
+        }
+        setVoixIntermediaire(interim)
+        // Met à jour le commentaire en direct (append au texte existant)
+        const cible = useAdaptiveFlow ? commentaireLibre : commentaire
+        const setter = useAdaptiveFlow ? setCommentaireLibre : setCommentaire
+        const base = cible.replace(/\s+$/, "")
+        const nouveau = (base ? base + " " : "") + finalText.replace(/^\s+/, "")
+        setter(nouveau.slice(0, MAX_COMMENTAIRE * 2))
+        // Réinitialise le tampon final après intégration
+        finalText = ""
+      }
+      rec.onerror = (event) => {
+        console.warn("SpeechRecognition error", event.error)
+        if (event.error === "not-allowed" || event.error === "service-not-allowed") {
+          setVoixErreur("Micro bloqué — autorisez l'accès au microphone dans votre navigateur.")
+        } else if (event.error === "no-speech") {
+          /* silencieux : aucune parole détectée, on continue */
+        } else {
+          setVoixErreur(t.voixErreur)
+        }
+      }
+      rec.onend = () => {
+        setVoixEnCours(false)
+        setVoixIntermediaire("")
+      }
+      rec.start()
+      voixRef.current = rec
+      setVoixEnCours(true)
+      setVoixErreur(null)
+    } catch (e) {
+      console.warn("SpeechRecognition start error", e)
+      setVoixErreur(t.voixErreur)
+    }
+  }
+
+  function stopperVoix() {
+    try {
+      voixRef.current?.stop()
+    } catch {
+      /* silencieux */
+    }
+    setVoixEnCours(false)
+    setVoixIntermediaire("")
+  }
+
+  // Cleanup : arrête la reconnaissance si le composant se démonte
+  useEffect(() => {
+    return () => {
+      try {
+        voixRef.current?.abort()
+      } catch {
+        /* silencieux */
+      }
+    }
+  }, [])
+
+  // ---------- Module 4 — Loterie : appel POST /api/public/loterie ----------
+  // Déclenché quand on entre dans la phase "loterie". Tire au sort serveur
+  // et stocke le résultat. Best-effort : en cas d'erreur, on bascule sur
+  // l'écran de succès classique (jamais bloquant).
+  async function tirerLoterie() {
+    if (!scanData || !retourIdCree || loterieResultat || loterieChargement) return
+    setLoterieChargement(true)
+    setLoterieErreur(null)
+    try {
+      const res = await fetch("/api/public/loterie", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ qrToken: token, retourId: retourIdCree }),
+      })
+      const json = await res.json().catch(() => null)
+      if (!res.ok || !json?.ok) {
+        throw new Error(json?.error || t.loterieErreur)
+      }
+      const resultat = {
+        gagne: !!json.data.gagne,
+        gain: typeof json.data.gain === "string" ? json.data.gain : "",
+        code: typeof json.data.code === "string" ? json.data.code : null,
+        dejaTire: !!json.data.dejaTire,
+      } satisfies LoterieResultat
+      setLoterieResultat(resultat)
+    } catch (e) {
+      console.warn("loterie error", e)
+      setLoterieErreur(t.loterieErreur)
+      // Bascule sur l'écran de succès classique après 1,5 s
+      setTimeout(() => allerEtape("success", 1), 1500)
+    } finally {
+      setLoterieChargement(false)
+    }
+  }
+
+  useEffect(() => {
+    if (phase === "loterie" && !loterieResultat && !loterieChargement && !loterieErreur) {
+      tirerLoterie()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase])
 
   // ---------- Écran de chargement ----------
   if (phase === "loading") {
@@ -1369,7 +1642,10 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                 className="fp-scan-welcome-phrase mt-1 max-w-xs text-balance text-base font-medium leading-snug text-[#002e85]/85"
                 style={{ animationDelay: "600ms" }}
               >
-                {phraseAccroche(scanData.zone.nom, t)}
+                {phraseAccroche(scanData.zone.nom, t, {
+                  smartQr: moduleSmartQrActif,
+                  creneauHoraire: scanData.creneauHoraire ?? null,
+                })}
               </p>
 
               {/* Bouton « Continuer » — cascade 800 ms (pulse subtil) */}
@@ -2193,17 +2469,67 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
               </div>
 
               <div className="mt-6 max-h-[60vh] flex-1 space-y-4 overflow-y-auto pe-1 fp-scan-scroll">
-                {/* Textarea auto-resize : min 120 px, max 300 px, max 500 chars */}
+                {/* Textarea auto-resize : min 120 px, max 300 px, max 500 chars.
+                    Module 2 — Voice-to-text : si le module est actif ET le
+                    navigateur supporte SpeechRecognition, on ajoute un bouton
+                    micro flottant en haut à droite du textarea. Le client
+                    parle → le texte est transcrit en temps réel. */}
                 <div>
-                  <Textarea
-                    value={commentaire}
-                    onChange={(e) => setCommentaire(e.target.value.slice(0, MAX_COMMENTAIRE))}
-                    rows={3}
-                    maxLength={MAX_COMMENTAIRE}
-                    aria-label={t.titreCommentaireH1}
-                    placeholder={estPositif ? t.commentairePositif : t.commentaireNegatif}
-                    className="min-h-[120px] max-h-[300px] border-2 border-[#002e85] bg-white text-base text-gray-900 placeholder:text-gray-400"
-                  />
+                  <div className="relative">
+                    <Textarea
+                      value={commentaire}
+                      onChange={(e) => setCommentaire(e.target.value.slice(0, MAX_COMMENTAIRE))}
+                      rows={3}
+                      maxLength={MAX_COMMENTAIRE}
+                      aria-label={t.titreCommentaireH1}
+                      placeholder={
+                        voixEnCours && voixIntermediaire
+                          ? voixIntermediaire
+                          : estPositif
+                            ? t.commentairePositif
+                            : t.commentaireNegatif
+                      }
+                      className="min-h-[120px] max-h-[300px] border-2 border-[#002e85] bg-white text-base text-gray-900 placeholder:text-gray-400"
+                    />
+                    {moduleVoiceActif && voixSupportee && (
+                      <button
+                        type="button"
+                        onClick={basculerVoix}
+                        aria-label={voixEnCours ? t.arreterParler : t.parler}
+                        aria-pressed={voixEnCours}
+                        className={cn(
+                          "absolute end-2 top-2 inline-flex size-11 items-center justify-center rounded-full shadow-md transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#002e85] focus-visible:ring-offset-2",
+                          voixEnCours
+                            ? "bg-rose-500 text-white animate-pulse"
+                            : "bg-white text-[#002e85] border-2 border-[#002e85]/30 hover:bg-[#002e85]/5"
+                        )}
+                      >
+                        {voixEnCours ? (
+                          <MicOff className="size-5" aria-hidden />
+                        ) : (
+                          <Mic className="size-5" aria-hidden />
+                        )}
+                      </button>
+                    )}
+                    {voixEnCours && (
+                      <p
+                        className="mt-1.5 flex items-center gap-1.5 text-xs font-medium text-rose-600"
+                        role="status"
+                        aria-live="polite"
+                      >
+                        <span
+                          className="inline-block size-2 animate-pulse rounded-full bg-rose-500"
+                          aria-hidden
+                        />
+                        {t.voixEnCours}
+                      </p>
+                    )}
+                  </div>
+                  {voixErreur && (
+                    <p className="mt-1 text-xs text-rose-600" role="alert">
+                      {voixErreur}
+                    </p>
+                  )}
                   <div className="mt-1 text-right text-xs text-[#002e85]/70">
                     {t.compteurChars(commentaire.length, MAX_COMMENTAIRE)}
                   </div>

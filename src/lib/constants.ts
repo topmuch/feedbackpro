@@ -6,8 +6,10 @@
 import { labelPourTagSectoriel } from "@/lib/secteurs-v2"
 
 // ---------- Plans d'abonnement (S1 : Starter 29€ / Pro 99€ / Enterprise 249€) ----------
+// Module "abonnement_multi_sites" : plan FRANCHISE (199/399/799 €) —
+// affiché dans le billing-tab seulement si le module est activé.
 
-export type PlanId = "STARTER" | "PRO" | "ENTERPRISE"
+export type PlanId = "STARTER" | "PRO" | "ENTERPRISE" | "FRANCHISE"
 
 export const PLANS: Record<
   PlanId,
@@ -18,6 +20,8 @@ export const PLANS: Record<
     tagline: string
     features: string[]
     limites: { retours: string; employes: string; zones: string }
+    /** Plan réservé au module abonnement_multi_sites (visible seulement si actif) */
+    reserveModule?: boolean
   }
 > = {
   STARTER: {
@@ -64,6 +68,23 @@ export const PLANS: Record<
       "Support prioritaire",
     ],
     limites: { retours: "∞", employes: "∞", zones: "∞" },
+  },
+  FRANCHISE: {
+    id: "FRANCHISE",
+    name: "Franchise",
+    price: 199,
+    tagline: "Multi-établissements avec comparaison cross-sites et API",
+    features: [
+      "Tout Enterprise, plus :",
+      "5 établissements inclus (199 €/mois)",
+      "10 établissements : 399 €/mois",
+      "25+ établissements : 799 €/mois",
+      "Comparaison cross-sites (tableaux de bord consolidés)",
+      "API & webhooks sortants",
+      "Account manager dédié",
+    ],
+    limites: { retours: "∞", employes: "∞", zones: "∞" },
+    reserveModule: true,
   },
 }
 
@@ -354,4 +375,5 @@ export const PLAN_LIMITS: Record<PlanId, { employes: number; zones: number }> = 
   STARTER: { employes: 2, zones: 3 },
   PRO: { employes: 15, zones: 15 },
   ENTERPRISE: { employes: 999, zones: 999 },
+  FRANCHISE: { employes: 999, zones: 999 },
 }

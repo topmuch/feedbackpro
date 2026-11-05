@@ -12,6 +12,7 @@ import { db } from "@/lib/db"
 import { ok, fail } from "@/lib/session"
 import { requireAdmin, unauthorized } from "@/lib/guards"
 import { PLANS } from "@/lib/constants"
+import { getModulesActifs } from "@/lib/modules"
 
 export async function GET(req: NextRequest) {
   try {
@@ -21,7 +22,7 @@ export async function GET(req: NextRequest) {
     const ilYA30j = new Date(Date.now() - 30 * 24 * 3600 * 1000)
 
     const [pros, retours30j, commandes] = await Promise.all([
-      db.pro.findMany({ select: { id: true, plan: true, suspendu: true, createdAt: true, nomEtablissement: true } }),
+      db.pro.findMany({ select: { id: true, plan: true, suspendu: true, createdAt: true, nomEtablissement: true, proId: true } }),
       db.retour.groupBy({
         by: ["proId"],
         where: { createdAt: { gte: ilYA30j } },
@@ -31,7 +32,7 @@ export async function GET(req: NextRequest) {
     ])
 
     // ---------- Répartition des plans ----------
-    const repartitionPlans = { STARTER: 0, PRO: 0, ENTERPRISE: 0 }
+    const repartitionPlans = { STARTER: 0, PRO: 0, ENTERPRISE: 0, FRANCHISE: 0 }
     for (const p of pros) {
       if (p.plan in repartitionPlans) {
         repartitionPlans[p.plan as keyof typeof repartitionPlans] += 1
@@ -45,6 +46,15 @@ export async function GET(req: NextRequest) {
     // ---------- MRR : plans actifs non suspendus (29 € / 99 € / 249 €) ----------
     const mrr = pros
       .filter((p) => !p.suspendu)
+      .reduce((s, p) => s + (PLANS[p.plan as keyof typeof PLANS]?.price ?? 0), 0)
+
+    // ---------- Module abonnement_multi_sites : revenu multi-sites ----------
+    // On somme le prix du plan de chaque Pro qui a un proId non-null (enfant
+    // d'un groupe multi-établissements). Renvoyé au superadmin pour afficher
+    // un KPI dédié dans la vue d'ensemble (visible seulement si le module est
+    // activé, mais le calcul est toujours fait — léger).
+    const revenuMultiSites = pros
+      .filter((p) => !p.suspendu && p.proId)
       .reduce((s, p) => s + (PLANS[p.plan as keyof typeof PLANS]?.price ?? 0), 0)
 
     // ---------- Commandes ----------
@@ -85,6 +95,14 @@ export async function GET(req: NextRequest) {
       croissance30j,
       repartitionPlans,
       top10Pros,
+      // Module abonnement_multi_sites : KPI revenu multi-sites (somme des
+      // prix de plan des Pros avec proId non-null). Affiché en superadmin
+      // seulement si le module est actif.
+      revenuMultiSites,
+      // Liste des modules actifs (pour que la vue d'ensemble puisse
+      // afficher/masquer les KPI conditionnels sans réclamer une seconde
+      // requête /api/admin/modules).
+      modulesActifs: await getModulesActifs(),
     })
   } catch (e) {
     console.error("admin overview error", e)

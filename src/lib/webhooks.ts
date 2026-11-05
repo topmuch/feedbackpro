@@ -19,6 +19,7 @@
 // ============================================================
 
 import { tagLabel } from "@/lib/constants"
+import { getModuleActif, MODULE_KEYS } from "@/lib/modules"
 
 export type WebhookType = "slack" | "discord"
 
@@ -162,6 +163,11 @@ export async function envoyerWebhook(
  * Helper de haut niveau : envoie un webhook à toutes les URLs configurées
  * d'un Pro (Slack + Discord) pour un événement donné.
  *
+ * Module "webhooks_sortants" : si le module est DÉSACTIVÉ, cette fonction
+ * devient un no-op (aucun envoi, log d'info). Le toggle est géré côté
+ * superadmin (onglet Modules) et le cache mémoire de src/lib/modules.ts
+ * garantit une réactivité < 30 s.
+ *
  * @param pro Pro cible (doit contenir webhookSlackUrl, webhookDiscordUrl,
  *            nomEtablissement)
  * @param d   Données de l'événement (sans nomEtablissement, ajouté automatiquement)
@@ -174,6 +180,12 @@ export async function notifierWebhooksPro(
   },
   d: Omit<WebhookDonnees, "nomEtablissement">
 ): Promise<void> {
+  // Module webhooks_sortants désactivé → no-op
+  const moduleActif = await getModuleActif(MODULE_KEYS.WEBHOOKS_SORTANTS)
+  if (!moduleActif) {
+    console.log("[Webhooks] Module webhooks_sortants désactivé — envoi ignoré")
+    return
+  }
   const donnees: WebhookDonnees = {
     ...d,
     nomEtablissement: pro.nomEtablissement,

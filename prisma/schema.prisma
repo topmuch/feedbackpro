@@ -238,42 +238,42 @@ model Notification {
 // schéma SQLite ne gère pas nativement les listes/objets).
 // ============================================================
 model SecteurConfig {
-  id                String   @id @default(cuid())
-  nom               String   @unique
+  id                  String   @id @default(cuid())
+  nom                 String   @unique
   // JSON : [{ nom: string, tagsPos: string[], tagsNeg: string[] }]
-  zonesDefaut       String
+  zonesDefaut         String
   // JSON : string[] — tags globaux (communs à toutes les zones du secteur)
-  tagsGlobaux       String   @default("[]")
+  tagsGlobaux         String   @default("[]")
   // JSON : [{ id, label, target, unit }] — KPIs spéciaux (ex : « temps d'attente »)
-  kpisSpeciaux      String   @default("[]")
+  kpisSpeciaux        String   @default("[]")
   // JSON : string[] — codes langues supportés (["fr","en"] par défaut pour un restaurant FR)
-  languesSupportees String   @default("[]")
+  languesSupportees   String   @default("[]")
   // JSON : { photosInterdites: boolean, zonesSensibles: string[] }
-  reglesSecurite    String   @default("{}")
+  reglesSecurite      String   @default("{}")
   // JSON : string[] — 4 axes d'audit du macro-secteur (ex : "Accueil &
   // Service", "Rapidité & Flux"…). Injectés depuis la base de vérité
   // sectorielle v2 (5 macro-secteurs × 4 piliers). Pour les secteurs non
   // couverts par la base (Boutique, Salon…), on dépose des piliers
   // génériques afin que l'UI scan-view puisse toujours regrouper les
   // tags par pilier.
-  piliers           String   @default("[]")
+  piliers             String   @default("[]")
   // JSON : { positifs: [{id,label,contextes[]}], negatifs: [{id,label,contextes[]}] }
   // Tags employés transversaux (communs à tous les macro-secteurs) avec
   // leurs contextes d'application (TOUS = tous secteurs, sinon liste de
   // macros : "HOTELLERIE", "SANTE"…). Permet au scan-view d'afficher une
   // section "Comportement de l'employé" filtrée par secteur du Pro, et au
   // Coach IA d'interpréter les mentions comportementales dans les retours.
-  tagsEmployes      String   @default("{}")
-  emoji             String   @default("")
-  description       String   @default("")
+  tagsEmployes        String   @default("{}")
+  emoji               String   @default("")
+  description         String   @default("")
   // Task 2 — Configuration du questionnaire adaptatif (3 scénarios
   // CRISE/MITIGE/SUCCES) stockée en JSON. Éditable depuis le superadmin
   // (onglet "Configuration secteurs"). Voir src/lib/questionnaire-config.ts
   // pour le type ScenarioConfig[]. Fallback sur le hardcoded QUESTIONNAIRE_CONFIG
   // si vide ou invalide (getQuestionnaireConfigFromDb).
-  questionnaireConfig String @default("{}")
-  createdAt         DateTime @default(now())
-  pros              Pro[]
+  questionnaireConfig String   @default("{}")
+  createdAt           DateTime @default(now())
+  pros                Pro[]
 }
 
 // ============================================================
@@ -295,4 +295,56 @@ model Message {
   createdAt DateTime @default(now())
 
   @@index([lu, createdAt])
+}
+
+// ============================================================
+// Task Modules — Système de modules activables
+// ------------------------------------------------------------
+// Chaque module est une fonctionnalité optionnelle qui peut être
+// activée/désactivée depuis le superadmin (onglet « Modules »).
+// La config spécifique (tauxGain, phone, etc.) est stockée en JSON
+// dans le champ `config`. Côté serveur, src/lib/modules.ts expose
+// getModuleActif(key) et getModulesActifs() avec un cache mémoire
+// court (TTL 30 s) pour éviter de hit la BDD à chaque requête.
+//
+// Modules gérés (cf. prisma/seed-modules.ts) :
+//   - alertes_temps_reel     (activé par défaut) — SMS/Notification si note ≤ 2
+//   - voice_to_text          — bouton micro sur la page de scan
+//   - abonnement_multi_sites — plan FRANCHISE (199/399/799 €)
+//   - loterie                — ticket à gratter digital après l'avis
+//   - smart_qr               — questions adaptées selon l'heure du scan
+//   - double_shield          (activé par défaut) — redirection avis Google / privé
+//   - webhooks_sortants      (activé par défaut) — Slack/Discord
+// ============================================================
+model Module {
+  id          String   @id @default(cuid())
+  key         String   @unique
+  nom         String
+  description String
+  actif       Boolean  @default(false)
+  config      String   @default("{}")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ============================================================
+// Task Module 4 — Loterie instantanée (Scratch & Win)
+// ------------------------------------------------------------
+// Quand un client valide son avis et que le module loterie est
+// actif, un ticket à gratter digital est présenté. Si le client
+// gagne (probabilité = module.config.tauxGain, défaut 30 %), un
+// code promo est dévoilé et un enregistrement GagnantLoterie est
+// créé pour audit (et éviter qu'un même client gagne plusieurs
+// fois en exploitant un QR code).
+// ============================================================
+model GagnantLoterie {
+  id        String   @id @default(cuid())
+  proId     String
+  retourId  String
+  gain      String
+  code      String
+  createdAt DateTime @default(now())
+
+  @@index([proId, createdAt])
+  @@index([retourId])
 }

@@ -46,8 +46,9 @@ import {
   ClipboardList,
   Save,
   Palette,
+  Puzzle,
 } from "lucide-react"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
@@ -130,6 +131,7 @@ type OngletAdmin =
   | "email"
   | "secteurs"
   | "retention"
+  | "modules"
 
 const ONGLETS: { id: OngletAdmin; labelKey: string; icone: React.ComponentType<{ className?: string }> }[] = [
   { id: "globale", labelKey: "nav.overview", icone: LayoutDashboard },
@@ -139,6 +141,7 @@ const ONGLETS: { id: OngletAdmin; labelKey: string; icone: React.ComponentType<{
   { id: "revenus", labelKey: "nav.revenus", icone: Wallet },
   { id: "retention", labelKey: "nav.retention", icone: Activity },
   { id: "secteurs", labelKey: "nav.secteurs", icone: ClipboardList },
+  { id: "modules", labelKey: "nav.modules", icone: Puzzle },
   { id: "messages", labelKey: "nav.messages", icone: Mail },
   { id: "email", labelKey: "nav.email", icone: Send },
   { id: "parametres", labelKey: "nav.parametres", icone: Settings },
@@ -185,6 +188,10 @@ type OverviewApi = {
   croissance30j?: { jour?: string; date?: string; nouveaux?: number; total?: number; count?: number }[]
   repartitionPlans?: Record<string, number> | { plan?: string; count?: number }[]
   top10Pros?: { nomEtablissement?: string; nomCommerce?: string; retours?: number }[]
+  // Module abonnement_multi_sites : revenu KPI dédié (somme des prix de
+  // plan des Pros avec proId non-null). Affiché seulement si le module est actif.
+  revenuMultiSites?: number
+  modulesActifs?: string[]
 }
 
 /** GET /api/admin/pros → { pros: [{ ...pro, zones, retours, employes (counts) }] } */
@@ -258,6 +265,7 @@ const COULEURS_PLANS: Record<string, string> = {
   STARTER: "#94a3b8",
   PRO: "#0047c7",
   ENTERPRISE: "#002e85",
+  FRANCHISE: "#d97706", // ambre — distinct des autres plans
 }
 const COULEURS_SUPPORTS = ["#002e85", "#0047c7", "#1e3a8a"]
 
@@ -422,6 +430,7 @@ export function AdminDashboard() {
         {onglet === "revenus" && <RevenusTab />}
         {onglet === "retention" && <RetentionTab />}
         {onglet === "secteurs" && <SecteursTab />}
+        {onglet === "modules" && <ModulesTab />}
         {onglet === "messages" && <MessagesTab onApresAction={loadMessagesNonLus} />}
         {onglet === "email" && <EmailTab />}
         {onglet === "parametres" && <ParametresTab />}
@@ -572,6 +581,10 @@ function GlobaleTab({ overview }: { overview: OverviewApi | null }) {
   const prosActifs = overview.prosActifs ?? 0
   const mrr = overview.mrr ?? 0
   const commandesEnCours = overview.commandesEnCours ?? 0
+  // Module abonnement_multi_sites : KPI revenu multi-sites (affiché
+  // seulement si le module est actif côté superadmin).
+  const moduleMultiSitesActif = (overview.modulesActifs ?? []).includes("abonnement_multi_sites")
+  const revenuMultiSites = overview.revenuMultiSites ?? 0
 
   // Croissance des inscriptions (30 derniers jours) — champs tolérants
   const croissance = enArray(overview.croissance30j).map((p) => ({
@@ -620,7 +633,7 @@ function GlobaleTab({ overview }: { overview: OverviewApi | null }) {
           icon={Euro}
           label="MRR abonnements"
           value={`${mrr} €`}
-          hint="29/99/249 € par plan"
+          hint="29/99/249/199 € par plan"
           gradient="from-amber-500 to-orange-600"
         />
         <ColoredKpi
@@ -631,6 +644,32 @@ function GlobaleTab({ overview }: { overview: OverviewApi | null }) {
           gradient="from-violet-500 to-purple-700"
         />
       </div>
+
+      {/* ---------- Module abonnement_multi_sites : KPI Revenu multi-sites ----------
+          Affiché seulement si le module est activé. Compte la somme des
+          prix de plan des Pros avec proId non-null (établissements enfants
+          d'un groupe multi-sites). */}
+      {moduleMultiSitesActif && (
+        <Card className="border-amber-300 bg-amber-50/40 shadow-sm dark:border-amber-800/40 dark:bg-amber-950/10">
+          <CardContent className="flex items-center gap-4 p-5 sm:p-6">
+            <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-sm">
+              <Building2 className="h-6 w-6" aria-hidden />
+            </div>
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300">
+                Revenu multi-sites · module Franchise
+              </p>
+              <p className="mt-0.5 text-2xl font-bold tracking-tight text-amber-900 dark:text-amber-200 sm:text-3xl">
+                {revenuMultiSites} €
+                <span className="ms-1 text-sm font-normal text-amber-700/80 dark:text-amber-300/70">/mois</span>
+              </p>
+              <p className="mt-1 text-xs text-amber-800/80 dark:text-amber-300/70">
+                Somme des prix de plan des Pros rattachés à un groupe multi-établissements (proId non-null).
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* ---------- Croissance des inscriptions (30 derniers jours) ---------- */}
       <Card>
@@ -4268,6 +4307,305 @@ function RetentionTab() {
           </p>
         </CardContent>
       </Card>
+    </div>
+  )
+}
+
+// ============================================================
+// Sous-onglet Modules (système de modules activables)
+// ============================================================
+
+type ModuleLigne = {
+  id: string
+  key: string
+  nom: string
+  description: string
+  actif: boolean
+  config: Record<string, unknown>
+  updatedAt: string
+}
+
+/** Couleurs / emojis distinctifs par module (repère visuel rapide) */
+const MODULE_STYLES: Record<
+  string,
+  { emoji: string; gradient: string }
+> = {
+  alertes_temps_reel: { emoji: "🚨", gradient: "from-rose-500 to-rose-700" },
+  voice_to_text: { emoji: "🎤", gradient: "from-violet-500 to-purple-700" },
+  abonnement_multi_sites: { emoji: "🏢", gradient: "from-amber-500 to-orange-600" },
+  loterie: { emoji: "🎰", gradient: "from-pink-500 to-rose-600" },
+  smart_qr: { emoji: "🕒", gradient: "from-cyan-500 to-blue-700" },
+  double_shield: { emoji: "🛡️", gradient: "from-emerald-500 to-emerald-700" },
+  webhooks_sortants: { emoji: "🔔", gradient: "from-slate-500 to-slate-700" },
+}
+
+function ModulesTab() {
+  const [modules, setModules] = useState<ModuleLigne[]>([])
+  const [loading, setLoading] = useState(true)
+  const [majEnCours, setMajEnCours] = useState<string | null>(null)
+  // Édition de la config (JSON éditable) — un module à la fois
+  const [editKey, setEditKey] = useState<string | null>(null)
+  const [editConfig, setEditConfig] = useState("")
+  const [editErreur, setEditErreur] = useState<string | null>(null)
+  const { toast } = useToast()
+
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch("/api/admin/modules", { cache: "no-store" })
+      const json = await res.json()
+      if (json.ok) setModules(json.data.modules as ModuleLigne[])
+      else toast({ title: "Erreur", description: json.error, variant: "destructive" })
+    } catch {
+      toast({ title: "Erreur réseau", variant: "destructive" })
+    } finally {
+      setLoading(false)
+    }
+  }, [toast])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  async function toggleActif(m: ModuleLigne) {
+    setMajEnCours(m.key)
+    try {
+      const res = await fetch("/api/admin/modules", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: m.key, actif: !m.actif }),
+      })
+      const json = await res.json()
+      if (json.ok) {
+        toast({
+          title: `${m.nom} ${!m.actif ? "activé" : "désactivé"} ${!m.actif ? "✓" : ""}`,
+        })
+        await load()
+      } else {
+        toast({ title: "Erreur", description: json.error, variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Erreur réseau", variant: "destructive" })
+    } finally {
+      setMajEnCours(null)
+    }
+  }
+
+  function ouvrirEdition(m: ModuleLigne) {
+    setEditKey(m.key)
+    setEditConfig(JSON.stringify(m.config, null, 2))
+    setEditErreur(null)
+  }
+
+  async function sauverConfig(m: ModuleLigne) {
+    let parsed: unknown
+    try {
+      parsed = JSON.parse(editConfig)
+    } catch {
+      setEditErreur("JSON invalide — vérifiez la syntaxe (accolades, virgules…)")
+      return
+    }
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      setEditErreur("La config doit être un objet JSON (pas un tableau ou une valeur simple)")
+      return
+    }
+    setMajEnCours(m.key)
+    try {
+      const res = await fetch("/api/admin/modules", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key: m.key, config: parsed }),
+      })
+      const json = await res.json()
+      if (json.ok) {
+        toast({ title: `Config de ${m.nom} sauvegardée ✓` })
+        setEditKey(null)
+        setEditErreur(null)
+        await load()
+      } else {
+        setEditErreur(json.error || "Erreur serveur")
+      }
+    } catch {
+      setEditErreur("Erreur réseau")
+    } finally {
+      setMajEnCours(null)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-12 rounded-2xl" />
+        <div className="grid gap-4 md:grid-cols-2">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-44 rounded-2xl" />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-5">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Modules activables</h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Activez ou désactivez les fonctionnalités optionnelles de la plateforme.
+          La configuration (JSON) est éditable pour les modules qui acceptent des paramètres.
+        </p>
+      </div>
+
+      {modules.length === 0 ? (
+        <Card>
+          <CardContent className="py-10 text-center text-sm text-muted-foreground">
+            Aucun module trouvé. Exécutez <code className="rounded bg-muted px-1.5 py-0.5">bun prisma/seed-modules.ts</code> pour
+            installer les 7 modules par défaut.
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid gap-4 md:grid-cols-2">
+          {modules.map((m) => {
+            const style = MODULE_STYLES[m.key] ?? { emoji: "🧩", gradient: "from-slate-500 to-slate-700" }
+            const enEdition = editKey === m.key
+            return (
+              <Card
+                key={m.id}
+                className={cn(
+                  "overflow-hidden shadow-sm transition-shadow hover:shadow-md",
+                  m.actif && "ring-1 ring-emerald-500/40"
+                )}
+              >
+                <CardHeader className="pb-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-start gap-3">
+                      <div
+                        className={cn(
+                          "flex size-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br text-xl text-white shadow-sm",
+                          style.gradient
+                        )}
+                        aria-hidden
+                      >
+                        {style.emoji}
+                      </div>
+                      <div className="min-w-0">
+                        <CardTitle className="truncate text-base">{m.nom}</CardTitle>
+                        <p className="mt-0.5 font-mono text-[10px] uppercase tracking-wide text-muted-foreground">
+                          {m.key}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Badge
+                        variant={m.actif ? "default" : "secondary"}
+                        className={
+                          m.actif
+                            ? "border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-50 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300"
+                            : ""
+                        }
+                      >
+                        {m.actif ? "Actif" : "Inactif"}
+                      </Badge>
+                      <Switch
+                        checked={m.actif}
+                        onCheckedChange={() => toggleActif(m)}
+                        disabled={majEnCours === m.key}
+                        aria-label={`Activer/désactiver le module ${m.nom}`}
+                      />
+                    </div>
+                  </div>
+                  <CardDescription className="pt-2 text-xs leading-relaxed">
+                    {m.description}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {/* Aperçu de la config */}
+                  {!enEdition && (
+                    <div className="rounded-xl bg-muted/40 p-3">
+                      <div className="mb-1 flex items-center justify-between">
+                        <p className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+                          Configuration
+                        </p>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-xs"
+                          onClick={() => ouvrirEdition(m)}
+                        >
+                          <Save className="mr-1 h-3 w-3" aria-hidden />
+                          Éditer
+                        </Button>
+                      </div>
+                      <pre className="max-h-32 overflow-auto whitespace-pre-wrap break-words font-mono text-[11px] text-foreground/80 fp-scan-scroll">
+                        {JSON.stringify(m.config, null, 2) || "{}"}
+                      </pre>
+                    </div>
+                  )}
+
+                  {/* Édition JSON inline */}
+                  {enEdition && (
+                    <div className="space-y-2 rounded-xl border border-primary/40 bg-primary/5 p-3">
+                      <p className="text-[11px] font-semibold uppercase tracking-wide text-primary">
+                        Édition de la config (JSON)
+                      </p>
+                      <Textarea
+                        value={editConfig}
+                        onChange={(e) => setEditConfig(e.target.value)}
+                        rows={6}
+                        className="font-mono text-xs"
+                        spellCheck={false}
+                        aria-label={`Config JSON du module ${m.nom}`}
+                      />
+                      {editErreur && (
+                        <p className="text-xs text-rose-600 dark:text-rose-400" role="alert">
+                          {editErreur}
+                        </p>
+                      )}
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8"
+                          onClick={() => {
+                            setEditKey(null)
+                            setEditErreur(null)
+                          }}
+                          disabled={majEnCours === m.key}
+                        >
+                          Annuler
+                        </Button>
+                        <Button
+                          size="sm"
+                          className="h-8"
+                          onClick={() => sauverConfig(m)}
+                          disabled={majEnCours === m.key}
+                        >
+                          {majEnCours === m.key ? (
+                            <Loader2 className="mr-1 h-3.5 w-3.5 animate-spin" aria-hidden />
+                          ) : (
+                            <Save className="mr-1 h-3.5 w-3.5" aria-hidden />
+                          )}
+                          Sauver
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  <p className="text-[10px] text-muted-foreground">
+                    Dernière modif. {formatDate(m.updatedAt)}
+                  </p>
+                </CardContent>
+              </Card>
+            )
+          })}
+        </div>
+      )}
+
+      <div className="rounded-xl border bg-muted/30 p-4 text-xs text-muted-foreground">
+        <strong className="text-foreground">Astuce :</strong> les modules sont lus
+        par les endpoints publics (scan, retour) via <code className="rounded bg-muted px-1 py-0.5">src/lib/modules.ts</code> avec
+        un cache mémoire de 30 s. Une modification ici est répercutée immédiatement
+        (le cache est invalidé à chaque sauvegarde).
+      </div>
     </div>
   )
 }
