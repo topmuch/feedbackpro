@@ -2197,33 +2197,49 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
               </button>
             </CollapsibleTrigger>
             <CollapsibleContent>
-              <CardContent className="space-y-5 border-t px-4 pt-5 sm:px-5">
-                {/* Tags associés (VISIBLES — c'était un des bugs : ils n'apparaissaient pas) */}
+              <CardContent className="space-y-4 border-t px-4 pt-5 sm:px-5">
+                {/* ============ Cards visuelles par dimension évaluée ============
+                    Chaque tag devient une card avec badge de gravité (🔴/🟠/🟡/🟢) */}
                 {detail.tags.length > 0 && (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                       <Target className="h-3.5 w-3.5" aria-hidden />
-                      Tags
+                      Dimensions évaluées ({detail.tags.length})
                     </p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {detail.tags.map((t) => {
+                    <div className="grid gap-2.5 sm:grid-cols-2">
+                      {detail.tags.map((t, idx) => {
                         const neg = SET_NEGATIFS.has(t)
                         const pos = SET_POSITIFS.has(t)
+                        const gravite = neg
+                          ? (detail.note <= 2 ? { label: "Critique", emoji: "🔴", cls: "bg-red-100 text-red-800 border-red-300 dark:bg-red-950/50 dark:text-red-300 dark:border-red-800" }
+                            : detail.note === 3 ? { label: "Moyenne", emoji: "🟡", cls: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800" }
+                            : { label: "À surveiller", emoji: "🟠", cls: "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950/50 dark:text-orange-300 dark:border-orange-800" })
+                          : pos
+                            ? { label: "OK", emoji: "🟢", cls: "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800" }
+                            : { label: "Neutre", emoji: "⚪", cls: "bg-muted text-muted-foreground border-border" }
                         return (
-                          <span
+                          <div
                             key={t}
-                            className={cn(
-                              "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium",
-                              neg
-                                ? "border-rose-300 bg-rose-100 text-rose-800 dark:border-rose-700 dark:bg-rose-950/50 dark:text-rose-300"
-                                : pos
-                                  ? "border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300"
-                                  : "border-border bg-muted text-muted-foreground"
-                            )}
-                            title={tagLabel(t)}
+                            className="flex items-start justify-between gap-3 rounded-2xl border bg-card p-3 shadow-sm"
                           >
-                            <span className="truncate">{tagLabel(t)}</span>
-                          </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-[11px] font-medium text-muted-foreground">
+                                Q{(idx + 1).toString().padStart(2, "0")}
+                              </p>
+                              <p className="mt-0.5 text-sm font-semibold leading-tight">
+                                {tagLabel(t)}
+                              </p>
+                            </div>
+                            <span
+                              className={cn(
+                                "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold",
+                                gravite.cls
+                              )}
+                            >
+                              <span aria-hidden>{gravite.emoji}</span>
+                              {gravite.label}
+                            </span>
+                          </div>
                         )
                       })}
                     </div>
