@@ -61,11 +61,6 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import {
-  Collapsible,
-  CollapsibleContent,
-  CollapsibleTrigger,
-} from "@/components/ui/collapsible"
-import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -103,6 +98,58 @@ type Retour = {
   nps?: number | null
   // D2 : photo jointe (URL relative /uploads/…), null si aucune
   photoUrl?: string | null
+  // D3 : récompense client utilisée (true si le client a consommé le code promo)
+  recompenseUtilisee?: boolean
+}
+
+// ---------- SECTION 5 — Tags d'action managériale prédéfinis ----------
+// Le gérant sélectionne un ou plusieurs tags cliquables pour qualifier
+// l'action prise. Ils sont préfixés dans le champ `actionPrise` (ex:
+// "🎓 Formation équipe | ⚙️ Modification processus — J'ai briefé l'équipe…").
+const ACTION_TAGS: { id: string; label: string }[] = [
+  { id: "formation", label: "🎓 Formation équipe" },
+  { id: "recadrage", label: "⚠️ Recadrage individuel" },
+  { id: "processus", label: "⚙️ Modification processus" },
+  { id: "compensation", label: "🎁 Compensation client" },
+  { id: "felicitations", label: "🏆 Félicitations" },
+  { id: "autre", label: "📝 Autre" },
+]
+const ACTION_TAG_LABELS: string[] = ACTION_TAGS.map((t) => t.label)
+
+/**
+ * Parse un `actionPrise` existant pour ressortir les tags sélectionnés
+ * et le commentaire libre. Format attendu :
+ *   "🎓 Formation équipe | ⚙️ Modification processus — J'ai briefé…"
+ * Robuste : si le format ne correspond pas, on remonte tout en commentaire.
+ */
+function parserActionPrise(s: string | null): { tags: string[]; commentaire: string } {
+  if (!s || !s.trim()) return { tags: [], commentaire: "" }
+  const idx = s.indexOf(" — ")
+  let tagsPart: string
+  let commentaire: string
+  if (idx === -1) {
+    tagsPart = s
+    commentaire = ""
+  } else {
+    tagsPart = s.slice(0, idx)
+    commentaire = s.slice(idx + 3)
+  }
+  const parts = tagsPart.split(" | ").map((p) => p.trim()).filter(Boolean)
+  const tags = parts.filter((p) => ACTION_TAG_LABELS.includes(p))
+  // Si rien n'a matché en tag → tout est un commentaire libre (legacy)
+  if (tags.length === 0 && commentaire === "") {
+    return { tags: [], commentaire: s }
+  }
+  return { tags, commentaire }
+}
+
+/** Reconstruit la chaîne `actionPrise` à partir des tags + commentaire. */
+function construireActionPrise(tags: string[], commentaire: string): string {
+  const c = commentaire.trim()
+  if (tags.length === 0 && !c) return ""
+  if (tags.length === 0) return c
+  if (!c) return tags.join(" | ")
+  return `${tags.join(" | ")} — ${c}`
 }
 
 type ZoneFiltre = { id: string; nom: string }
@@ -1411,18 +1458,19 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
   const [envoiAction, setEnvoiAction] = useState(false)
   // Workflow unifié d'action managériale : statut choisi dans le même formulaire
   const [texteActionStatut, setTexteActionStatut] = useState<StatutRetour>("IN_PROGRESS")
+  // SECTION 5 — Tags d'action prédéfinis (multi-sélection). Pré-remplis
+  // depuis `detail.actionPrise` à l'ouverture (format "tag1 | tag2 — commentaire").
+  const [actionTagsSelectionnes, setActionTagsSelectionnes] = useState<Set<string>>(new Set())
   // Dialog d'historique d'un employé (Improvement 6)
   const [dialogEmployeNom, setDialogEmployeNom] = useState<string | null>(null)
   // NOUVEAU : Dialog plein écran pour la photo
   const [photoZoom, setPhotoZoom] = useState(false)
-  // NOUVEAU : Section "Détails & Historique" repliable (NIVEAU 3 du Dashboard d'Urgence).
-  // Repliée par défaut : le Coach IA (NIVEAU 2) reste le focus visuel.
-  const [detailsOuverts, setDetailsOuverts] = useState(false)
   const reponseRef = useRef<HTMLTextAreaElement>(null)
   const actionRef = useRef<HTMLTextAreaElement>(null)
   // Refs pour le scroll
   const iaRef = useRef<HTMLDivElement>(null)
   const actionFormRef = useRef<HTMLDivElement>(null)
+  const reponseFormRef = useRef<HTMLDivElement>(null)
 
   // Session globale (Pro : pour récupérer nomEtablissement + whatsapp)
   const session = useAppStore((s) => s.session)
@@ -1613,8 +1661,10 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
   // Ouverture de la modale
   function ouvrirDetail(r: Retour) {
     setDetail(r)
+    const parsed = parserActionPrise(r.actionPrise)
+    setActionTagsSelectionnes(new Set(parsed.tags))
     setTexteReponse(r.reponsePro || "")
-    setTexteAction(r.actionPrise || "")
+    setTexteAction(parsed.commentaire)
     setTexteActionStatut(r.statut === "NEW" ? "IN_PROGRESS" : r.statut)
     setEditionReponse(false)
     setEditionAction(false)
@@ -1624,8 +1674,10 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
 
   function ouvrirReponse(r: Retour) {
     setDetail(r)
+    const parsed = parserActionPrise(r.actionPrise)
+    setActionTagsSelectionnes(new Set(parsed.tags))
     setTexteReponse(r.reponsePro || "")
-    setTexteAction(r.actionPrise || "")
+    setTexteAction(parsed.commentaire)
     setTexteActionStatut(r.statut === "NEW" ? "IN_PROGRESS" : r.statut)
     setEditionReponse(true)
     setEditionAction(false)
@@ -1731,21 +1783,25 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
   }
 
   // Enregistrement de l'action managériale + statut (workflow unifié).
-  // Le commerçant consigne son action ET choisit le nouveau statut dans le
-  // même formulaire. Le dropdown de statut séparé en bas de page est supprimé.
+  // Le commerçant consigne son action (tags prédéfinis + commentaire libre)
+  // ET choisit le nouveau statut dans le même formulaire.
   async function enregistrerAction() {
-    if (!detail || !texteAction.trim()) return
+    if (!detail) return
+    const tags = Array.from(actionTagsSelectionnes)
+    const commentaire = texteAction.trim()
+    const actionPrise = construireActionPrise(tags, commentaire)
+    if (!actionPrise) return
     setEnvoiAction(true)
     const nouveauStatut = texteActionStatut
     await majRetour(detail.id, {
-      actionPrise: texteAction.trim(),
+      actionPrise,
       statut: nouveauStatut,
       lu: true,
     })
     setEnvoiAction(false)
     setEditionAction(false)
     toast({
-      title: "Action managériale enregistrée",
+      title: "Appréciation du gérant enregistrée",
       description:
         nouveauStatut !== detail.statut
           ? `Statut mis à jour : « ${STATUT_RETOUR_LABEL[nouveauStatut] ?? nouveauStatut} ».`
@@ -1945,36 +2001,29 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
         .toUpperCase()
     })()
 
-    return (
-      <div className="space-y-5">
-        {/* Bouton retour (au-dessus du sticky header) */}
-        <div className="flex items-center gap-3">
-          <Button variant="outline" onClick={fermerDetail} className="gap-1.5">
-            <ArrowLeft className="h-4 w-4" aria-hidden />
-            Retour à la liste
-          </Button>
-        </div>
+    // SECTION 3 — Récompense client : visible si le Pro a configuré une
+    // récompense (active + texte) OU si le retour a consommé une récompense.
+    const proRecompense = pro?.recompense ?? null
+    const proRecompenseType = pro?.recompenseType ?? null
+    const proRecompenseCode = pro?.recompenseCode ?? null
+    const recompenseVisible =
+      (!!pro?.recompenseActive && !!proRecompense) || !!detail.recompenseUtilisee
 
-        {/* ============ NIVEAU 1 — En-tête Sticky (toujours visible au scroll) ============ */}
-        <div className="sticky top-0 z-20 rounded-3xl border bg-card/95 backdrop-blur shadow-md">
+    return (
+      <div className="mx-auto max-w-4xl space-y-6">
+        {/* ============ SECTION 1 — En-tête contextuel sticky ============ */}
+        <div className="sticky top-0 z-20 rounded-2xl border bg-card/95 backdrop-blur shadow-md">
           <div className="p-4 sm:p-5 space-y-3">
-            {/* Ligne 1 : note + zone + date + badge urgence (à droite) */}
+            {/* Ligne 1 : Bouton retour + statut + urgence (à droite) */}
             <div className="flex flex-wrap items-center gap-2">
-              <Stars note={detail.note} size={18} />
-              <span className="text-sm font-semibold tabular-nums">{detail.note}/5</span>
-              <span className="text-muted-foreground">•</span>
-              {detail.zone?.nom ? (
-                <Badge variant="outline" className="h-6 gap-1 px-2 text-xs font-normal">
-                  <MapPin className="h-3 w-3 text-muted-foreground" aria-hidden />
-                  {detail.zone.nom}
-                </Badge>
-              ) : (
-                <span className="text-xs text-muted-foreground">Zone non précisée</span>
-              )}
-              <span className="text-muted-foreground">•</span>
-              <span className="text-xs text-muted-foreground" title={formatDate(detail.createdAt)}>
-                {formatRelative(detail.createdAt)}
-              </span>
+              <Button variant="outline" size="sm" onClick={fermerDetail} className="gap-1.5 h-8">
+                <ArrowLeft className="h-4 w-4" aria-hidden />
+                <span className="hidden sm:inline">Retour à la liste</span>
+                <span className="sm:hidden">Retour</span>
+              </Button>
+              <Badge variant="outline" className={cn("h-6 px-2 text-xs font-semibold", statutBadgeClass(detail.statut))}>
+                {STATUT_RETOUR_LABEL[detail.statut] ?? detail.statut}
+              </Badge>
               {!detail.lu && (
                 <Badge className="h-5 gap-0.5 border border-blue-300 bg-blue-500 px-1.5 text-[10px] font-semibold text-white shadow-sm shadow-blue-500/30">
                   <span aria-hidden>✨</span>
@@ -1987,7 +2036,6 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                   {(detail.nps ?? 0) >= 9 ? " 🟢" : (detail.nps ?? 0) >= 7 ? " 🟡" : " 🔴"}
                 </Badge>
               )}
-              {/* Badge d'urgence aligné à droite (couleur selon la note) */}
               <Badge
                 variant="outline"
                 className={cn("ml-auto h-6 px-2 text-xs font-semibold", cfgUrgence.badge)}
@@ -1998,12 +2046,43 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
               </Badge>
             </div>
 
-            {/* Ligne 2 : phrase de contexte selon la note (spécification Dashboard d'Urgence) */}
-            <p className="text-sm font-medium text-foreground">
-              {phraseContexte}
-            </p>
+            {/* Ligne 2 : Note + zone + email client + timestamp relatif */}
+            <div className="flex flex-wrap items-center gap-2">
+              <Stars note={detail.note} size={18} />
+              <span className="text-sm font-semibold tabular-nums">{detail.note}/5</span>
+              <span className="text-muted-foreground">•</span>
+              {detail.zone?.nom ? (
+                <Badge variant="outline" className="h-6 gap-1 px-2 text-xs font-normal">
+                  <MapPin className="h-3 w-3 text-muted-foreground" aria-hidden />
+                  {detail.zone.nom}
+                </Badge>
+              ) : (
+                <span className="text-xs text-muted-foreground">Zone non précisée</span>
+              )}
+              {detail.emailClient && (
+                <>
+                  <span className="text-muted-foreground">•</span>
+                  <a
+                    href={`mailto:${detail.emailClient}`}
+                    className="inline-flex items-center gap-1 text-xs font-medium text-primary underline-offset-2 hover:underline"
+                    title="Envoyer un email au client"
+                  >
+                    <MailOpen className="h-3 w-3" aria-hidden />
+                    <span className="hidden sm:inline">{detail.emailClient}</span>
+                    <span className="sm:hidden">Email client</span>
+                  </a>
+                </>
+              )}
+              <span className="text-muted-foreground">•</span>
+              <span className="text-xs text-muted-foreground" title={formatDate(detail.createdAt)}>
+                {formatRelative(detail.createdAt)}
+              </span>
+            </div>
 
-            {/* Ligne 3 : 3 boutons d'action rapide (Répondre / WhatsApp / Marquer résolu) */}
+            {/* Ligne 3 : phrase de contexte selon la note */}
+            <p className="text-sm font-medium text-foreground">{phraseContexte}</p>
+
+            {/* Ligne 4 : 4 boutons (Répondre / WhatsApp / Supprimer / Marquer résolu) */}
             <div className="flex flex-wrap items-center gap-2">
               <Button
                 variant={editionReponse ? "default" : "outline"}
@@ -2011,7 +2090,10 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                 onClick={() => {
                   setTexteReponse(detail.reponsePro || "")
                   setEditionReponse(true)
-                  setTimeout(() => reponseRef.current?.focus(), 50)
+                  setTimeout(() => {
+                    reponseFormRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
+                    reponseRef.current?.focus()
+                  }, 60)
                 }}
               >
                 <MessageSquareReply className="h-4 w-4" aria-hidden />
@@ -2021,10 +2103,19 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                 <a href={lienWhatsapp} target="_blank" rel="noopener noreferrer" className="inline-flex">
                   <Button variant="outline" className="h-10 gap-1.5 transition-transform hover:scale-105" type="button">
                     <Smartphone className="h-4 w-4" aria-hidden />
-                    <span>WhatsApp équipe</span>
+                    <span className="hidden sm:inline">WhatsApp</span>
+                    <span className="sm:hidden">WA</span>
                   </Button>
                 </a>
               )}
+              <Button
+                variant="ghost"
+                className="h-10 gap-1.5 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40"
+                onClick={() => setConfirmSuppression(true)}
+              >
+                <Trash2 className="h-4 w-4" aria-hidden />
+                <span className="hidden sm:inline">Supprimer</span>
+              </Button>
               {detail.statut !== "RESOLVED" ? (
                 <Button
                   variant="ghost"
@@ -2044,27 +2135,305 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                   Résolu
                 </Badge>
               )}
-              {/* Bouton supprimer */}
-              <Button
-                variant="ghost"
-                className="h-10 gap-1.5 text-rose-600 hover:bg-rose-50 hover:text-rose-700 dark:text-rose-400 dark:hover:bg-rose-950/40"
-                onClick={() => setConfirmSuppression(true)}
-              >
-                <Trash2 className="h-4 w-4" aria-hidden />
-                <span className="hidden sm:inline">Supprimer</span>
-              </Button>
             </div>
           </div>
         </div>
 
-        {/* ============ NIVEAU 2 — Coach IA (mise en avant maximale, juste sous le header) ============
+        {/* ============ SECTION 2 — Réponses au questionnaire (cards, OUVERT) ============ */}
+        <Card className="rounded-2xl shadow-sm">
+          <CardContent className="p-4 sm:p-6 space-y-4">
+            {/* Titre + compteur */}
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="flex items-center gap-1.5 text-sm font-semibold">
+                <ClipboardCheck className="h-4 w-4 text-primary" aria-hidden />
+                📋 Réponses au questionnaire
+              </h3>
+              <span className="text-xs text-muted-foreground">
+                {detail.tags.length} dimension{detail.tags.length > 1 ? "s" : ""} évaluée{detail.tags.length > 1 ? "s" : ""}
+              </span>
+            </div>
+
+            {/* Cards visuelles par dimension (toujours visibles — plus de Collapsible) */}
+            {detail.tags.length > 0 ? (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {detail.tags.map((t, idx) => {
+                  const neg = SET_NEGATIFS.has(t)
+                  const pos = SET_POSITIFS.has(t)
+                  const gravite = neg
+                    ? (detail.note <= 2
+                        ? { label: "Critique", emoji: "🔴", cls: "bg-red-100 text-red-800 border-red-300 dark:bg-red-950/50 dark:text-red-300 dark:border-red-800" }
+                        : detail.note === 3
+                          ? { label: "Moyenne", emoji: "🟡", cls: "bg-yellow-100 text-yellow-800 border-yellow-300 dark:bg-yellow-950/50 dark:text-yellow-300 dark:border-yellow-800" }
+                          : { label: "Élevée", emoji: "🟠", cls: "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950/50 dark:text-orange-300 dark:border-orange-800" })
+                    : pos
+                      ? { label: "OK", emoji: "🟢", cls: "bg-green-100 text-green-800 border-green-300 dark:bg-green-950/50 dark:text-green-300 dark:border-green-800" }
+                      : { label: "Neutre", emoji: "⚪", cls: "bg-gray-100 text-gray-800 border-gray-300 dark:bg-muted dark:text-muted-foreground dark:border-border" }
+                  return (
+                    <div
+                      key={t}
+                      className="flex items-start justify-between gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-border dark:bg-card"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="text-[11px] font-medium text-muted-foreground">
+                          Q{(idx + 1).toString().padStart(2, "0")}
+                        </p>
+                        <p className="mt-0.5 text-sm font-semibold leading-tight">
+                          {tagLabel(t)}
+                        </p>
+                      </div>
+                      <span
+                        className={cn(
+                          "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold",
+                          gravite.cls
+                        )}
+                      >
+                        <span aria-hidden>{gravite.emoji}</span>
+                        {gravite.label}
+                      </span>
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <p className="text-sm italic text-muted-foreground">Aucune dimension évaluée.</p>
+            )}
+
+            {/* Commentaire libre (card séparée) */}
+            <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-border dark:bg-card space-y-1.5">
+              <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <MessageSquareReply className="h-3.5 w-3.5" aria-hidden />
+                💬 Commentaire libre
+              </p>
+              {detail.commentaire ? (
+                <blockquote className="border-l-4 border-primary/30 bg-muted/40 px-4 py-2 text-sm italic leading-relaxed">
+                  &ldquo;{detail.commentaire}&rdquo;
+                </blockquote>
+              ) : (
+                <p className="text-sm italic text-muted-foreground">Aucun commentaire</p>
+              )}
+            </div>
+
+            {/* Photo jointe (card séparée, cliquable → zoom) */}
+            {detail.photoUrl && (
+              <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-border dark:bg-card space-y-2">
+                <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <Camera className="h-3.5 w-3.5" aria-hidden />
+                  📸 Photo jointe par le client
+                </p>
+                <button
+                  type="button"
+                  onClick={() => setPhotoZoom(true)}
+                  className="group relative block w-full max-w-xs overflow-hidden rounded-xl border"
+                >
+                  <img
+                    src={detail.photoUrl}
+                    alt="Photo jointe au retour par le client"
+                    className="max-h-64 w-full object-cover transition-transform group-hover:scale-105"
+                  />
+                  <span className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/30">
+                    <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-foreground opacity-0 transition-opacity group-hover:opacity-100">
+                      <ZoomIn className="h-5 w-5" aria-hidden />
+                    </span>
+                  </span>
+                </button>
+              </div>
+            )}
+
+            {/* Zone + Employé (grille 2 colonnes sur desktop) */}
+            <div className="grid gap-3 sm:grid-cols-2">
+              {/* Zone + note moyenne */}
+              <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-border dark:bg-card space-y-1.5">
+                <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <MapPin className="h-3.5 w-3.5" aria-hidden />
+                  Zone
+                </p>
+                {detail.zone?.nom ? (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold">{detail.zone.nom}</p>
+                    {noteZone !== null && (
+                      <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                        <Stars note={noteZone} size={12} />
+                        <span>
+                          note moy. <span className="font-medium text-foreground">{noteZone.toFixed(2)}/5</span>
+                        </span>
+                      </span>
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">Non précisée</p>
+                )}
+              </div>
+
+              {/* Employé (nom cliquable → Dialog historique) */}
+              <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-border dark:bg-card space-y-1.5">
+                <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                  <User className="h-3.5 w-3.5" aria-hidden />
+                  Employé
+                </p>
+                {(() => {
+                  const emp = detail.employe?.nom ?? null
+                  const pers = detail.personnelMentionne ?? null
+                  const nomCliquable = emp || pers
+                  if (!nomCliquable) {
+                    return <p className="text-sm text-muted-foreground">Non spécifié</p>
+                  }
+                  const statsDispos = statsEmploye(nomCliquable, items) !== null
+                  return (
+                    <div className="flex items-center gap-2">
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
+                        {initialesEmploye || "?"}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold">{emp ?? pers}</p>
+                        {pers && emp && pers !== emp && (
+                          <p className="truncate text-xs text-muted-foreground">Mentionné : {pers}</p>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => statsDispos && setDialogEmployeNom(nomCliquable)}
+                          disabled={!statsDispos}
+                          className={cn(
+                            "mt-0.5 inline-flex items-center gap-1 text-xs",
+                            statsDispos
+                              ? "text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:underline"
+                              : "text-muted-foreground cursor-default"
+                          )}
+                          title={statsDispos ? "Voir l'historique de l'employé" : undefined}
+                        >
+                          <GraduationCap className="h-3 w-3" aria-hidden />
+                          Voir le profil
+                        </button>
+                      </div>
+                    </div>
+                  )
+                })()}
+              </div>
+            </div>
+
+            {/* Contexte : récurrence + tendance zone + zone la plus touchée + catégorie/canal */}
+            <div className="rounded-xl border bg-muted/30 p-4 space-y-1.5">
+              <p className="flex items-center gap-1.5 text-xs font-semibold">
+                <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
+                📊 Contexte
+              </p>
+              <p className="text-xs text-muted-foreground">
+                • {recurrence.count >= 2
+                  ? `${ordinalFr(recurrence.count)} signalement similaire ce mois`
+                  : "1er signalement similaire ce mois"}
+                {recurrence.libelleTag ? ` (« ${recurrence.libelleTag} »)` : ""}
+              </p>
+              {detail.zone?.nom && (
+                <p className="text-xs text-muted-foreground">
+                  • Tendance zone {detail.zone.nom} :{" "}
+                  {tendance
+                    ? tendance.nouveau
+                      ? "🆕 nouveau vs semaine dernière"
+                      : tendance.pct > 0
+                        ? `↗️ +${tendance.pct}% vs semaine dernière`
+                        : tendance.pct < 0
+                          ? `↘️ ${tendance.pct}% vs semaine dernière`
+                          : "→ stable vs semaine dernière"
+                    : "—"}
+                </p>
+              )}
+              {zoneTouchee && (
+                <p className="text-xs text-muted-foreground">
+                  • Zone la plus touchée (30 j) :{" "}
+                  <span className="font-medium text-foreground">{zoneTouchee.nom}</span>{" "}
+                  ({zoneTouchee.count} signalement{zoneTouchee.count > 1 ? "s" : ""})
+                </p>
+              )}
+              <p className="flex flex-wrap items-center gap-x-1 text-xs text-muted-foreground">
+                <span>• Catégorie IA : <span className="font-medium text-foreground capitalize">{recoIA.categorie}</span></span>
+                <span>· Canal : <span className="font-medium text-foreground">{canalLabel(detail.canalChoisi)}</span></span>
+                <span>· Reçu {formatDate(detail.createdAt)}</span>
+              </p>
+            </div>
+
+            {/* Timeline : historique des statuts/actions */}
+            <div className="space-y-2">
+              <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <Clock className="h-3.5 w-3.5" aria-hidden />
+                🕐 Timeline
+              </p>
+              {historiqueAffiche.length > 0 ? (
+                <ol>
+                  {historiqueAffiche.map((h, i) => (
+                    <li key={`${h.statut}-${h.at}-${i}`} className="relative flex items-start gap-2.5 pb-4 last:pb-0">
+                      {i < historiqueAffiche.length - 1 && (
+                        <span className="absolute top-4 bottom-0 left-[6px] w-px bg-border" aria-hidden />
+                      )}
+                      <span className={`mt-1 h-3 w-3 shrink-0 rounded-full ${pastilleClass(h.statut)}`} aria-hidden />
+                      <div className="min-w-0 text-xs">
+                        <Badge variant="outline" className={`h-5 px-1.5 text-[11px] ${statutBadgeClass(h.statut)}`}>
+                          {STATUT_RETOUR_LABEL[h.statut] ?? h.statut}
+                        </Badge>
+                        <p className="mt-1 text-muted-foreground">{formatDate(h.at)}</p>
+                      </div>
+                    </li>
+                  ))}
+                </ol>
+              ) : (
+                <p className="text-sm text-muted-foreground italic">Aucun historique</p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* ============ SECTION 3 — Récompense client (si présente) ============
+            Visible seulement si le Pro a configuré une récompense (active + texte)
+            OU si le retour a consommé une récompense (detail.recompenseUtilisee). */}
+        {recompenseVisible && (
+          <Card className="rounded-2xl border-amber-200 bg-amber-50 shadow-sm dark:border-amber-800/60 dark:bg-amber-950/30">
+            <CardContent className="p-4 sm:p-6 space-y-3">
+              <div className="flex items-center gap-2">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-200/70 dark:bg-amber-900/50" aria-hidden>
+                  <span className="text-lg">🎁</span>
+                </span>
+                <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                  Récompense client
+                </h3>
+                {detail.recompenseUtilisee ? (
+                  <Badge variant="outline" className="ml-auto h-6 gap-1 px-2 text-xs font-semibold border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+                    ✅ Utilisé
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="ml-auto h-6 gap-1 px-2 text-xs font-semibold border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
+                    ⏳ En attente
+                  </Badge>
+                )}
+              </div>
+              <dl className="grid gap-2 text-sm sm:grid-cols-2">
+                {proRecompenseType && (
+                  <div>
+                    <dt className="text-xs font-medium text-amber-800/70 dark:text-amber-300/70">Type</dt>
+                    <dd className="font-medium text-amber-900 dark:text-amber-100">{proRecompenseType}</dd>
+                  </div>
+                )}
+                {proRecompenseCode && (
+                  <div>
+                    <dt className="text-xs font-medium text-amber-800/70 dark:text-amber-300/70">Code</dt>
+                    <dd className="font-mono font-semibold text-amber-900 dark:text-amber-100">{proRecompenseCode}</dd>
+                  </div>
+                )}
+                {proRecompense && (
+                  <div className="sm:col-span-2">
+                    <dt className="text-xs font-medium text-amber-800/70 dark:text-amber-300/70">Texte affiché au client</dt>
+                    <dd className="text-amber-900 dark:text-amber-100">{proRecompense}</dd>
+                  </div>
+                )}
+              </dl>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* ============ SECTION 4 — Recommandation du Coach IA ============
             Fond dégradé selon l'urgence : rouge bordeaux (1-2★), ambre/orange (3★), vert (4-5★).
-            CRITIQUE : les recommandations (recoIA.actions / contexte / impact) sont adaptées à la
-            note via genererRecommandationIA() — plus de recommandations positives sur un 2/5. */}
+            Les recommandations sont adaptées à la note via genererRecommandationIA(). */}
         <div ref={iaRef} className="scroll-mt-24">
-          <Card className={cn("rounded-3xl border-none text-white shadow-lg bg-gradient-to-br", cfgNiveau.gradient)}>
+          <Card className={cn("rounded-2xl border-none text-white shadow-lg bg-gradient-to-br", cfgNiveau.gradient)}>
             <CardContent className="p-4 sm:p-6 space-y-4">
-              {/* Header : icône + titre + badge niveau (Urgent/Crise, Mitigé, Positif) */}
+              {/* Header : icône + titre + badge niveau */}
               <div className="flex flex-wrap items-center gap-2">
                 <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white/15" aria-hidden>
                   <Bot className="h-5 w-5" />
@@ -2076,7 +2445,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                 </Badge>
               </div>
 
-              {/* Diagnostic (phrase adaptée à la note) */}
+              {/* Diagnostic */}
               <div className="space-y-1.5">
                 <p className="flex items-center gap-1.5 text-xs font-medium text-white/80">
                   <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
@@ -2100,7 +2469,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                 </div>
               )}
 
-              {/* Actions prioritaires (adaptées à la note) */}
+              {/* Actions prioritaires */}
               <div className="space-y-2">
                 <p className="flex items-center gap-1.5 text-xs font-medium text-white/80">
                   <Lightbulb className="h-3.5 w-3.5" aria-hidden />
@@ -2129,7 +2498,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                 </p>
               </div>
 
-              {/* Bouton Appliquer → pré-remplit le formulaire d'action managériale */}
+              {/* Bouton Appliquer → pré-remplit le formulaire d'action managériale (SECTION 5) */}
               <Button
                 type="button"
                 className="w-full gap-1.5 bg-white text-foreground hover:bg-white/90"
@@ -2148,7 +2517,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                 <ArrowRight className="h-3.5 w-3.5" aria-hidden />
               </Button>
 
-              {/* Task 1 — Indicateur de source (LLM ou heuristique) + état de chargement */}
+              {/* Indicateur de source (LLM ou heuristique) + état de chargement */}
               <div className="flex items-center justify-center gap-1.5 text-[10px] font-medium text-white/70">
                 {recoLLMLoading ? (
                   <>
@@ -2171,480 +2540,253 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
           </Card>
         </div>
 
-        {/* ============ NIVEAU 3 — Détails & Historique (section repliable par défaut) ============
-            Repliée par défaut : le Coach IA (NIVEAU 2) reste le focus visuel.
-            Contient : tags (visibles !), zone, employé, commentaire, photo, contexte, timeline. */}
-        <Card className="rounded-3xl shadow-sm">
-          <Collapsible open={detailsOuverts} onOpenChange={setDetailsOuverts}>
-            <CollapsibleTrigger asChild>
-              <button
-                type="button"
-                className="flex w-full items-center justify-between gap-2 rounded-3xl p-4 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring sm:p-5"
-                aria-expanded={detailsOuverts}
-              >
-                <span className="flex items-center gap-2 text-sm font-semibold">
-                  <ClipboardCheck className="h-4 w-4 text-primary" aria-hidden />
-                  📋 Détails du retour
+        {/* ============ SECTION 5 — Appréciation du gérant (toujours visible) ============ */}
+        <div ref={actionFormRef} className="scroll-mt-24">
+          <Card className="rounded-2xl shadow-sm">
+            <CardContent className="p-4 sm:p-6 space-y-4">
+              <div className="flex items-center gap-2">
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10" aria-hidden>
+                  <ClipboardCheck className="h-5 w-5 text-primary" />
                 </span>
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
-                  {detailsOuverts ? "Replier" : "Déplier"}
-                  {detailsOuverts ? (
-                    <ChevronDown className="h-4 w-4" aria-hidden />
-                  ) : (
-                    <ChevronRight className="h-4 w-4" aria-hidden />
-                  )}
-                </span>
-              </button>
-            </CollapsibleTrigger>
-            <CollapsibleContent>
-              <CardContent className="space-y-4 border-t px-4 pt-5 sm:px-5">
-                {/* ============ Cards visuelles par dimension évaluée ============
-                    Chaque tag devient une card avec badge de gravité (🔴/🟠/🟡/🟢) */}
-                {detail.tags.length > 0 && (
-                  <div className="space-y-3">
-                    <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                      <Target className="h-3.5 w-3.5" aria-hidden />
-                      Dimensions évaluées ({detail.tags.length})
-                    </p>
-                    <div className="grid gap-2.5 sm:grid-cols-2">
-                      {detail.tags.map((t, idx) => {
-                        const neg = SET_NEGATIFS.has(t)
-                        const pos = SET_POSITIFS.has(t)
-                        const gravite = neg
-                          ? (detail.note <= 2 ? { label: "Critique", emoji: "🔴", cls: "bg-red-100 text-red-800 border-red-300 dark:bg-red-950/50 dark:text-red-300 dark:border-red-800" }
-                            : detail.note === 3 ? { label: "Moyenne", emoji: "🟡", cls: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800" }
-                            : { label: "À surveiller", emoji: "🟠", cls: "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950/50 dark:text-orange-300 dark:border-orange-800" })
-                          : pos
-                            ? { label: "OK", emoji: "🟢", cls: "bg-emerald-100 text-emerald-800 border-emerald-300 dark:bg-emerald-950/50 dark:text-emerald-300 dark:border-emerald-800" }
-                            : { label: "Neutre", emoji: "⚪", cls: "bg-muted text-muted-foreground border-border" }
-                        return (
-                          <div
-                            key={t}
-                            className="flex items-start justify-between gap-3 rounded-2xl border bg-card p-3 shadow-sm"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[11px] font-medium text-muted-foreground">
-                                Q{(idx + 1).toString().padStart(2, "0")}
-                              </p>
-                              <p className="mt-0.5 text-sm font-semibold leading-tight">
-                                {tagLabel(t)}
-                              </p>
-                            </div>
-                            <span
-                              className={cn(
-                                "inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold",
-                                gravite.cls
-                              )}
-                            >
-                              <span aria-hidden>{gravite.emoji}</span>
-                              {gravite.label}
-                            </span>
-                          </div>
-                        )
-                      })}
-                    </div>
-                  </div>
-                )}
+                <h3 className="text-sm font-semibold">✍️ Appréciation du gérant</h3>
+              </div>
 
-                {/* Zone + Employé (grille 2 colonnes sur desktop) */}
-                <div className="grid gap-4 sm:grid-cols-2">
-                  {/* Zone + note moyenne */}
-                  <div className="space-y-1.5">
-                    <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                      <MapPin className="h-3.5 w-3.5" aria-hidden />
-                      Zone
-                    </p>
-                    {detail.zone?.nom ? (
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-sm font-semibold">{detail.zone.nom}</p>
-                        {noteZone !== null && (
-                          <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                            <Stars note={noteZone} size={12} />
-                            <span>
-                              note moy. <span className="font-medium text-foreground">{noteZone.toFixed(2)}/5</span>
-                            </span>
-                          </span>
-                        )}
-                      </div>
-                    ) : (
-                      <p className="text-sm text-muted-foreground">Non précisée</p>
-                    )}
-                  </div>
-
-                  {/* Employé (nom cliquable → Dialog historique) */}
-                  <div className="space-y-1.5">
-                    <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                      <User className="h-3.5 w-3.5" aria-hidden />
-                      Employé
-                    </p>
-                    {(() => {
-                      const emp = detail.employe?.nom ?? null
-                      const pers = detail.personnelMentionne ?? null
-                      const nomCliquable = emp || pers
-                      if (!nomCliquable) {
-                        return <p className="text-sm text-muted-foreground">Non spécifié</p>
-                      }
-                      const statsDispos = statsEmploye(nomCliquable, items) !== null
-                      return (
-                        <div className="flex items-center gap-2">
-                          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-bold text-primary">
-                            {initialesEmploye || "?"}
-                          </span>
-                          <div className="min-w-0">
-                            <p className="truncate text-sm font-semibold">{emp ?? pers}</p>
-                            {pers && emp && pers !== emp && (
-                              <p className="truncate text-xs text-muted-foreground">Mentionné : {pers}</p>
-                            )}
-                            <button
-                              type="button"
-                              onClick={() => statsDispos && setDialogEmployeNom(nomCliquable)}
-                              disabled={!statsDispos}
-                              className={cn(
-                                "mt-0.5 inline-flex items-center gap-1 text-xs",
-                                statsDispos
-                                  ? "text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:underline"
-                                  : "text-muted-foreground cursor-default"
-                              )}
-                              title={statsDispos ? "Voir l'historique de l'employé" : undefined}
-                            >
-                              <GraduationCap className="h-3 w-3" aria-hidden />
-                              Voir le profil
-                            </button>
-                          </div>
-                        </div>
-                      )
-                    })()}
-                  </div>
-                </div>
-
-                {/* Commentaire client */}
-                <div className="space-y-1.5">
-                  <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                    <MessageSquareReply className="h-3.5 w-3.5" aria-hidden />
-                    Commentaire client
-                  </p>
-                  {detail.commentaire ? (
-                    <blockquote className="border-l-4 border-primary/30 bg-muted/40 px-4 py-3 text-sm italic leading-relaxed">
-                      &ldquo;{detail.commentaire}&rdquo;
-                    </blockquote>
-                  ) : (
-                    <p className="text-sm italic text-muted-foreground">Aucun commentaire</p>
-                  )}
-                  <p className="text-xs text-muted-foreground">
-                    Reçu {canalLabel(detail.canalChoisi)} · {formatDate(detail.createdAt)}
-                  </p>
-                </div>
-
-                {/* Photo jointe (avec zoom au clic → Dialog plein écran) */}
-                {detail.photoUrl && (
-                  <div className="space-y-2">
-                    <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                      <Camera className="h-3.5 w-3.5" aria-hidden />
-                      Photo jointe par le client
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => setPhotoZoom(true)}
-                      className="group relative block w-full max-w-xs overflow-hidden rounded-2xl border"
-                    >
-                      <img
-                        src={detail.photoUrl}
-                        alt="Photo jointe au retour par le client"
-                        className="max-h-64 w-full object-cover transition-transform group-hover:scale-105"
-                      />
-                      <span className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/30">
-                        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90 text-foreground opacity-0 transition-opacity group-hover:opacity-100">
-                          <ZoomIn className="h-5 w-5" aria-hidden />
-                        </span>
-                      </span>
-                    </button>
-                  </div>
-                )}
-
-                {/* Contexte : récurrence + tendance zone + zone la plus touchée + catégorie/canal/statut */}
-                <div className="rounded-2xl border bg-muted/30 p-3 space-y-1.5">
-                  <p className="flex items-center gap-1.5 text-xs font-semibold">
-                    <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
-                    📊 Contexte
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    • {recurrence.count >= 2
-                      ? `${ordinalFr(recurrence.count)} signalement similaire ce mois`
-                      : "1er signalement similaire ce mois"}
-                    {recurrence.libelleTag ? ` (« ${recurrence.libelleTag} »)` : ""}
-                  </p>
-                  {detail.zone?.nom && (
-                    <p className="text-xs text-muted-foreground">
-                      • Tendance zone {detail.zone.nom} :{" "}
-                      {tendance
-                        ? tendance.nouveau
-                          ? "🆕 nouveau vs semaine dernière"
-                          : tendance.pct > 0
-                            ? `↗️ +${tendance.pct}% vs semaine dernière`
-                            : tendance.pct < 0
-                              ? `↘️ ${tendance.pct}% vs semaine dernière`
-                              : "→ stable vs semaine dernière"
-                        : "—"}
-                    </p>
-                  )}
-                  {zoneTouchee && (
-                    <p className="text-xs text-muted-foreground">
-                      • Zone la plus touchée (30 j) :{" "}
-                      <span className="font-medium text-foreground">{zoneTouchee.nom}</span>{" "}
-                      ({zoneTouchee.count} signalement{zoneTouchee.count > 1 ? "s" : ""})
-                    </p>
-                  )}
-                  <p className="flex flex-wrap items-center gap-x-1 text-xs text-muted-foreground">
-                    <span>• Catégorie IA : <span className="font-medium text-foreground capitalize">{recoIA.categorie}</span></span>
-                    <span>· Canal : <span className="font-medium text-foreground">{canalLabel(detail.canalChoisi)}</span></span>
-                    <span>· Statut :</span>
-                    <Badge variant="outline" className={cn("h-4 px-1.5 text-[10px] align-middle", statutBadgeClass(detail.statut))}>
-                      {STATUT_RETOUR_LABEL[detail.statut] ?? detail.statut}
-                    </Badge>
-                  </p>
-                </div>
-
-                {/* Timeline : historique des statuts/actions */}
-                <div className="space-y-2">
-                  <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                    <Clock className="h-3.5 w-3.5" aria-hidden />
-                    🕐 Timeline
-                  </p>
-                  {historiqueAffiche.length > 0 ? (
-                    <ol>
-                      {historiqueAffiche.map((h, i) => (
-                        <li key={`${h.statut}-${h.at}-${i}`} className="relative flex items-start gap-2.5 pb-4 last:pb-0">
-                          {i < historiqueAffiche.length - 1 && (
-                            <span className="absolute top-4 bottom-0 left-[6px] w-px bg-border" aria-hidden />
-                          )}
-                          <span className={`mt-1 h-3 w-3 shrink-0 rounded-full ${pastilleClass(h.statut)}`} aria-hidden />
-                          <div className="min-w-0 text-xs">
-                            <Badge variant="outline" className={`h-5 px-1.5 text-[11px] ${statutBadgeClass(h.statut)}`}>
-                              {STATUT_RETOUR_LABEL[h.statut] ?? h.statut}
-                            </Badge>
-                            <p className="mt-1 text-muted-foreground">{formatDate(h.at)}</p>
-                          </div>
-                        </li>
-                      ))}
-                    </ol>
-                  ) : (
-                    <p className="text-sm text-muted-foreground italic">Aucun historique</p>
-                  )}
-                </div>
-              </CardContent>
-            </CollapsibleContent>
-          </Collapsible>
-        </Card>
-
-        {/* ---------- Formulaire de réponse (pleine largeur) ---------- */}
-        <Card className="rounded-3xl shadow-sm">
-          <CardContent className="p-4 sm:p-6 space-y-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <h3 className="flex items-center gap-1.5 text-sm font-semibold">
-                <MessageSquareReply className="h-4 w-4 text-primary" aria-hidden />
-                Réponse au client
-              </h3>
-              {detail.emailClient ? (
-                <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] font-normal text-blue-700 dark:text-blue-300">
-                  <Send className="h-3 w-3" aria-hidden />
-                  {detail.emailClient}
-                </Badge>
-              ) : (
-                <TooltipProvider delayDuration={200}>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-normal text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
-                        Pas d'email client
-                      </span>
-                    </TooltipTrigger>
-                    <TooltipContent>Le client n'a pas laissé d'email — la réponse sera conservée en interne.</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              )}
-            </div>
-
-            {editionReponse ? (
+              {/* Tags d'action prédéfinis (multi-sélection) */}
               <div className="space-y-2">
-                {/* 3 templates de réponse IA */}
-                <div>
-                  <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                    <Sparkles className="h-3.5 w-3.5" aria-hidden />
-                    Suggestions de réponses IA
-                  </p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {templatesReponse.map((tpl, i) => (
-                      <Button
-                        key={i}
+                <p className="text-xs font-medium text-muted-foreground">Actions prises (tags cliquables)</p>
+                <div className="flex flex-wrap gap-2">
+                  {ACTION_TAGS.map((tag) => {
+                    const selected = actionTagsSelectionnes.has(tag.label)
+                    return (
+                      <button
+                        key={tag.id}
                         type="button"
-                        variant="outline"
-                        size="sm"
-                        className="h-8 gap-1 px-2 text-xs"
                         onClick={() => {
-                          setTexteReponse(tpl)
-                          setTimeout(() => reponseRef.current?.focus(), 30)
+                          setActionTagsSelectionnes((prev) => {
+                            const next = new Set(prev)
+                            if (next.has(tag.label)) next.delete(tag.label)
+                            else next.add(tag.label)
+                            return next
+                          })
                         }}
+                        aria-pressed={selected}
+                        className={cn(
+                          "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                          selected
+                            ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                            : "border-border bg-background text-foreground hover:bg-muted"
+                        )}
                       >
-                        <Sparkles className="h-3 w-3" aria-hidden />
-                        Template {i + 1}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-                <Textarea
-                  ref={reponseRef}
-                  id="reponse-pro"
-                  rows={4}
-                  value={texteReponse}
-                  onChange={(e) => setTexteReponse(e.target.value)}
-                  placeholder={
-                    detail.emailClient
-                      ? "Votre réponse sera envoyée par email au client."
-                      : "Réponse conservée en interne (le client n'a pas laissé d'email)."
-                  }
-                  aria-label="Votre réponse"
-                />
-                <div className="flex justify-end gap-2">
-                  {detail.reponsePro && (
-                    <Button
-                      variant="ghost"
-                      className="h-10"
-                      onClick={() => { setTexteReponse(detail.reponsePro || ""); setEditionReponse(false) }}
-                    >
-                      Annuler
-                    </Button>
-                  )}
-                  <Button
-                    className="h-10 px-4"
-                    onClick={enregistrerReponse}
-                    disabled={envoiReponse || !texteReponse.trim()}
-                  >
-                    {envoiReponse && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
-                    {detail.emailClient ? "Envoyer la réponse" : "Enregistrer"}
-                  </Button>
+                        <span aria-hidden>{selected ? "✅" : "⬜"}</span>
+                        {tag.label}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
-            ) : detail.reponsePro ? (
-              <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3">
-                <p className="text-sm leading-relaxed whitespace-pre-wrap">{detail.reponsePro}</p>
+
+              {/* Commentaire libre */}
+              <div className="space-y-1.5">
+                <Label htmlFor="action-prise" className="text-xs font-medium text-muted-foreground">
+                  Commentaire libre
+                </Label>
+                <Textarea
+                  ref={actionRef}
+                  id="action-prise"
+                  rows={4}
+                  value={texteAction}
+                  onChange={(e) => setTexteAction(e.target.value)}
+                  placeholder="Ex : J'ai briefé l'équipe ce matin sur l'accueil, prévu un atelier produit jeudi…"
+                  aria-label="Commentaire libre sur l'action managériale"
+                />
+              </div>
+
+              {/* Statut du retour (3 pills) */}
+              <div className="space-y-1.5">
+                <Label className="text-xs font-medium text-muted-foreground">Statut du retour</Label>
+                <div className="flex flex-wrap gap-2">
+                  {(["NEW", "IN_PROGRESS", "RESOLVED"] as const).map((s) => {
+                    const selected = texteActionStatut === s
+                    const cls = s === "NEW"
+                      ? "border-rose-300 bg-rose-100 text-rose-800 dark:border-rose-800 dark:bg-rose-950/50 dark:text-rose-300"
+                      : s === "IN_PROGRESS"
+                        ? "border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
+                        : "border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300"
+                    return (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => setTexteActionStatut(s)}
+                        aria-pressed={selected}
+                        className={cn(
+                          "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                          selected ? cls : "border-border bg-background text-foreground hover:bg-muted"
+                        )}
+                      >
+                        {STATUT_RETOUR_LABEL[s] ?? s}
+                      </button>
+                    )
+                  })}
+                </div>
+                {texteActionStatut !== detail.statut && (
+                  <p className="text-xs text-muted-foreground">
+                    Le statut passera de « {STATUT_RETOUR_LABEL[detail.statut] ?? detail.statut} » à « {STATUT_RETOUR_LABEL[texteActionStatut] ?? texteActionStatut} » à l'enregistrement.
+                  </p>
+                )}
+              </div>
+
+              {/* Boutons enregistrer + réinitialiser */}
+              <div className="flex flex-wrap justify-end gap-2">
+                {detail.actionPrise && (
+                  <Button
+                    variant="ghost"
+                    className="h-10"
+                    onClick={() => {
+                      const parsed = parserActionPrise(detail.actionPrise)
+                      setActionTagsSelectionnes(new Set(parsed.tags))
+                      setTexteAction(parsed.commentaire)
+                      setTexteActionStatut(detail.statut === "NEW" ? "IN_PROGRESS" : detail.statut)
+                    }}
+                  >
+                    Réinitialiser
+                  </Button>
+                )}
                 <Button
-                  variant="ghost"
-                  size="sm"
-                  className="mt-2 h-9"
-                  onClick={() => { setTexteReponse(detail.reponsePro || ""); setEditionReponse(true) }}
+                  className="h-10 px-4 gap-1.5"
+                  onClick={enregistrerAction}
+                  disabled={envoiAction || (actionTagsSelectionnes.size === 0 && !texteAction.trim())}
                 >
-                  <MessageSquareReply className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-                  Modifier la réponse
+                  {envoiAction ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <ClipboardCheck className="h-4 w-4" aria-hidden />
+                  )}
+                  Enregistrer l&apos;action
                 </Button>
               </div>
-            ) : (
-              <Button
-                variant="outline"
-                className="h-10"
-                onClick={() => { setTexteReponse(""); setEditionReponse(true) }}
-              >
-                <MessageSquareReply className="mr-1.5 h-4 w-4" aria-hidden />
-                {detail.emailClient ? "Rédiger une réponse" : "Consigner une réponse interne"}
-              </Button>
-            )}
-          </CardContent>
-        </Card>
 
-        {/* ---------- Formulaire d'action managériale (pleine largeur) ---------- */}
-        <div ref={actionFormRef} className="scroll-mt-24">
-          <Card className="rounded-3xl shadow-sm">
+              {/* Aperçu de la dernière action enregistrée (si existe) */}
+              {detail.actionPrise && (
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-800/60 dark:bg-emerald-950/30">
+                  <p className="mb-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                    Dernière action enregistrée
+                  </p>
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{detail.actionPrise}</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* ---------- Formulaire de réponse (accessible via bouton "Répondre" du header) ---------- */}
+        <div ref={reponseFormRef} className="scroll-mt-24">
+          <Card className="rounded-2xl shadow-sm">
             <CardContent className="p-4 sm:p-6 space-y-3">
-              <h3 className="flex items-center gap-1.5 text-sm font-semibold">
-                <ClipboardCheck className="h-4 w-4 text-primary" aria-hidden />
-                Action managériale prise
-              </h3>
-              {editionAction ? (
-                <div className="space-y-3">
-                  <Textarea
-                    ref={actionRef}
-                    id="action-prise"
-                    rows={4}
-                    value={texteAction}
-                    onChange={(e) => setTexteAction(e.target.value)}
-                    placeholder="Ex : Recadrage verbal, formation produit programmée, réorganisation du créneau du soir…"
-                    aria-label="Action managériale prise"
-                  />
-                  {/* Choix du statut dans le même formulaire (workflow unifié) */}
-                  <div className="flex flex-wrap items-center gap-2">
-                    <Label htmlFor="action-statut" className="text-xs text-muted-foreground">
-                      Nouveau statut
-                    </Label>
-                    <Select
-                      value={texteActionStatut}
-                      onValueChange={(v) => setTexteActionStatut(v as StatutRetour)}
-                    >
-                      <SelectTrigger id="action-statut" className="h-9 w-44" aria-label="Nouveau statut">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="NEW">Nouveau</SelectItem>
-                        <SelectItem value="IN_PROGRESS">En cours</SelectItem>
-                        <SelectItem value="RESOLVED">Résolu</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <p className="text-xs text-muted-foreground">
-                      {texteActionStatut !== detail.statut
-                        ? `Le statut passera de « ${STATUT_RETOUR_LABEL[detail.statut] ?? detail.statut} » à « ${STATUT_RETOUR_LABEL[texteActionStatut] ?? texteActionStatut} » à l'enregistrement.`
-                        : "Le statut reste inchangé."}
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="flex items-center gap-1.5 text-sm font-semibold">
+                  <MessageSquareReply className="h-4 w-4 text-primary" aria-hidden />
+                  Réponse au client
+                </h3>
+                {detail.emailClient ? (
+                  <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] font-normal text-blue-700 dark:text-blue-300">
+                    <Send className="h-3 w-3" aria-hidden />
+                    {detail.emailClient}
+                  </Badge>
+                ) : (
+                  <TooltipProvider delayDuration={200}>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-normal text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                          Pas d'email client
+                        </span>
+                      </TooltipTrigger>
+                      <TooltipContent>Le client n'a pas laissé d'email — la réponse sera conservée en interne.</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+              </div>
+
+              {editionReponse ? (
+                <div className="space-y-2">
+                  {/* 3 templates de réponse IA */}
+                  <div>
+                    <p className="mb-1.5 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                      <Sparkles className="h-3.5 w-3.5" aria-hidden />
+                      Suggestions de réponses IA
                     </p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {templatesReponse.map((tpl, i) => (
+                        <Button
+                          key={i}
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="h-8 gap-1 px-2 text-xs"
+                          onClick={() => {
+                            setTexteReponse(tpl)
+                            setTimeout(() => reponseRef.current?.focus(), 30)
+                          }}
+                        >
+                          <Sparkles className="h-3 w-3" aria-hidden />
+                          Template {i + 1}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
+                  <Textarea
+                    ref={reponseRef}
+                    id="reponse-pro"
+                    rows={4}
+                    value={texteReponse}
+                    onChange={(e) => setTexteReponse(e.target.value)}
+                    placeholder={
+                      detail.emailClient
+                        ? "Votre réponse sera envoyée par email au client."
+                        : "Réponse conservée en interne (le client n'a pas laissé d'email)."
+                    }
+                    aria-label="Votre réponse"
+                  />
                   <div className="flex justify-end gap-2">
-                    {detail.actionPrise && (
+                    {detail.reponsePro && (
                       <Button
                         variant="ghost"
                         className="h-10"
-                        onClick={() => {
-                          setTexteAction(detail.actionPrise || "")
-                          setTexteActionStatut(detail.statut === "NEW" ? "IN_PROGRESS" : detail.statut)
-                          setEditionAction(false)
-                        }}
+                        onClick={() => { setTexteReponse(detail.reponsePro || ""); setEditionReponse(false) }}
                       >
                         Annuler
                       </Button>
                     )}
                     <Button
                       className="h-10 px-4"
-                      onClick={enregistrerAction}
-                      disabled={envoiAction || !texteAction.trim()}
+                      onClick={enregistrerReponse}
+                      disabled={envoiReponse || !texteReponse.trim()}
                     >
-                      {envoiAction && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
-                      Enregistrer l&apos;action et le statut
+                      {envoiReponse && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
+                      {detail.emailClient ? "Envoyer la réponse" : "Enregistrer"}
                     </Button>
                   </div>
                 </div>
-              ) : detail.actionPrise ? (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-800/60 dark:bg-emerald-950/30">
-                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{detail.actionPrise}</p>
+              ) : detail.reponsePro ? (
+                <div className="rounded-2xl border border-primary/20 bg-primary/5 px-4 py-3">
+                  <p className="text-sm leading-relaxed whitespace-pre-wrap">{detail.reponsePro}</p>
                   <Button
                     variant="ghost"
                     size="sm"
                     className="mt-2 h-9"
-                    onClick={() => {
-                      setTexteAction(detail.actionPrise || "")
-                      setTexteActionStatut(detail.statut === "NEW" ? "IN_PROGRESS" : detail.statut)
-                      setEditionAction(true)
-                    }}
+                    onClick={() => { setTexteReponse(detail.reponsePro || ""); setEditionReponse(true) }}
                   >
-                    <ClipboardCheck className="mr-1.5 h-3.5 w-3.5" aria-hidden />
-                    Modifier l&apos;action
+                    <MessageSquareReply className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                    Modifier la réponse
                   </Button>
                 </div>
               ) : (
                 <Button
                   variant="outline"
                   className="h-10"
-                  onClick={() => {
-                    setTexteAction("")
-                    setTexteActionStatut(detail.statut === "NEW" ? "IN_PROGRESS" : detail.statut)
-                    setEditionAction(true)
-                  }}
+                  onClick={() => { setTexteReponse(""); setEditionReponse(true) }}
                 >
-                  <ClipboardCheck className="mr-1.5 h-4 w-4" aria-hidden />
-                  Consigner une action managériale
+                  <MessageSquareReply className="mr-1.5 h-4 w-4" aria-hidden />
+                  {detail.emailClient ? "Rédiger une réponse" : "Consigner une réponse interne"}
                 </Button>
               )}
             </CardContent>
