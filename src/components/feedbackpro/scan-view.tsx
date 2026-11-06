@@ -1243,7 +1243,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
       // au lieu de l'écran de remerciement classique. Le client est informé
       // que le manager arrive, et peut saisir son nom pour faciliter la
       // prise en charge sur place.
-      const moduleAlertesActif = modulesActifs.has("alertes_temps_reel")
+      const moduleAlertesActif = modulesActifs.has("alertes_temps_reel") || modulesActifs.size === 0
       const rattrapageActif = note <= 2 && moduleAlertesActif && !horsLigne && !!retourIdCree
       if (rattrapageActif) {
         allerEtape("rattrapage", 1)

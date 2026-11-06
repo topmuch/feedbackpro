@@ -133,7 +133,7 @@ const TAB_TO_SLUG: Record<Onglet, string> = {
 
 // ---------- Navigation (Session 4) : 7 onglets principaux + groupe « Gestion » ----------
 
-type EntreeNav = { id: Onglet; labelKey: string; icon: React.ComponentType<{ className?: string }> }
+type EntreeNav = { id: Onglet; labelKey: string; icon: React.ComponentType<{ className?: string }>; badge?: number }
 
 /** Onglets principaux — l'ordre ci-dessous est la spec Session 4 */
 const ONGLETS_PRINCIPAUX: EntreeNav[] = [
@@ -215,6 +215,28 @@ export function ProDashboard() {
   // Task 5 — switch en cours (désactive le sélecteur pendant la requête)
   const [switchEnCours, setSwitchEnCours] = useState<string | null>(null)
   const { toast: toastFeedback } = useToast()
+
+  // Badge retours non lus sur la sidebar
+  const [retoursNonLus, setRetoursNonLus] = useState(0)
+  useEffect(() => {
+    if (!session) return
+    let cancelled = false
+    async function fetchNonLus() {
+      try {
+        const res = await fetch("/api/pro/retours?statut=NEW&limit=1", { cache: "no-store" })
+        const json = await res.json()
+        if (!cancelled && json.ok) {
+          setRetoursNonLus(json.data?.total ?? 0)
+        }
+      } catch {
+        /* silencieux */
+      }
+    }
+    fetchNonLus()
+    // Poll toutes les 30s pour les nouveaux retours
+    const interval = setInterval(fetchNonLus, 30000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [session])
   useEffect(() => {
     if (!session) return
     let annule = false
@@ -335,7 +357,7 @@ export function ProDashboard() {
     <div className="flex min-h-screen flex-col bg-muted/30 lg:pl-80 lg:pr-3">
       {/* ---------- Sidebar détachée (desktop lg+) ---------- */}
       <aside className="fixed inset-y-3 left-3 z-40 hidden w-72 flex-col rounded-3xl bg-[#002e85] text-white shadow-xl lg:flex">
-        <ContenuSidebar ongletActif={onglet} onNaviguer={naviguer} />
+        <ContenuSidebar ongletActif={onglet} onNaviguer={naviguer} retoursNonLus={retoursNonLus} />
       </aside>
 
       {/* ---------- Top bar discrète (card blanc arrondie) ---------- */}
@@ -363,6 +385,7 @@ export function ProDashboard() {
                     naviguer(o)
                     setMenuOuvert(false)
                   }}
+                  retoursNonLus={retoursNonLus}
                 />
               </SheetContent>
             </Sheet>
@@ -522,6 +545,11 @@ function BoutonOnglet({
     >
       <Icon className="h-[18px] w-[18px] shrink-0" aria-hidden />
       <span className="truncate">{t(entree.labelKey)}</span>
+      {entree.badge && entree.badge > 0 ? (
+        <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white shadow-sm">
+          {entree.badge > 99 ? "99+" : entree.badge}
+        </span>
+      ) : null}
     </button>
   )
 }
@@ -531,9 +559,11 @@ function BoutonOnglet({
 function ContenuSidebar({
   ongletActif,
   onNaviguer,
+  retoursNonLus = 0,
 }: {
   ongletActif: Onglet
   onNaviguer: (o: Onglet) => void
+  retoursNonLus?: number
 }) {
   const t = (key: string) => { const map: Record<string, string> = {"nav.dashboard": "Tableau de bord", "nav.coach": "Coach IA", "nav.auditMatin": "Audit Matin", "nav.zones": "Zones", "nav.retours": "Retours", "nav.team": "Equipe", "nav.stats": "Statistiques", "nav.qrcode": "QR Codes", "nav.settings": "Parametres", "nav.commander": "Commander", "nav.rapports": "Rapports IA", "nav.recompenses": "Recompenses", "nav.actions": "Actions", "nav.billing": "Facturation", "nav.gestion": "Gestion", "common.ouvrirMenu": "Ouvrir le menu", "common.navigationDashboard": "Navigation du dashboard", "common.deconnexion": "Deconnexion", "common.tableauBordFeedback": "Tableau de bord FeedbackPro", "common.promesseCoach": "Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorites concretes."}; return map[key] || key }
   return (
@@ -551,7 +581,7 @@ function ContenuSidebar({
       {/* Navigation verticale : principaux, séparateur « Gestion », secondaires */}
       <nav aria-label={t("common.navigationDashboard")} className="flex flex-col gap-1 overflow-y-auto py-2 custom-scrollbar">
         {ONGLETS_PRINCIPAUX.map((o) => (
-          <BoutonOnglet key={o.id} entree={o} actif={ongletActif === o.id} onNaviguer={onNaviguer} />
+          <BoutonOnglet key={o.id} entree={{ ...o, badge: o.id === "retours" ? retoursNonLus : undefined }} actif={ongletActif === o.id} onNaviguer={onNaviguer} />
         ))}
 
         {/* Séparateur visuel : label « Gestion » en majuscules */}
