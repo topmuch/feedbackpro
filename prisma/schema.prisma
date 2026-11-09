@@ -390,3 +390,60 @@ model AuditMatin {
   @@index([proId, date])
 }
 
+
+// ============================================================
+// Fonctionnalité Aéroport — PWA de signalement voyageurs
+// ------------------------------------------------------------
+// Modèles dédiés (isolés du flux FeedbackPro classique) pour la
+// Web App de signalement de problèmes en aéroport. Les voyageurs
+// scannent un QR code portant un tag URL lisible (ex: tapis_bagages_1),
+// qui est résolu en AirportZone. La zone porte ses 4 problématiques
+// prédéfinies (boutons rapides). Le signalement est stocké dans
+// AirportReport avec génération d'un payload WhatsApp destiné aux
+// équipes opérationnelles de l'aéroport.
+// ============================================================
+model AirportZone {
+  id         String   @id @default(cuid())
+  // Code métier lisible : "bagages", "sanitaires", "files_attente",
+  // "embarquement", "restauration". Sert de clé d'union avec la config
+  // statique src/lib/airport-config.ts.
+  code       String   @unique
+  nom        String
+  emoji      String   @default("📍")
+  description String?
+  // JSON string[] — tags URL acceptés pour cette zone
+  // (ex: ["tapis_bagages_1","tapis_bagages_4"] pour la zone "bagages").
+  // Plusieurs tags physiques peuvent pointer vers la même zone logique.
+  tags       String   @default("[]")
+  // JSON string[] — 4 problématiques prédéfinies (boutons rapides)
+  problemes String   @default("[]")
+  createdAt  DateTime @default(now())
+  reports    AirportReport[]
+}
+
+model AirportReport {
+  id          String   @id @default(cuid())
+  zoneId      String
+  zone        AirportZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  // Tag URL scanné (ex: "tapis_bagages_1") — gardé pour tracer l'emplacement physique précis
+  tagScanne   String
+  // Problématique sélectionnée par le voyageur (libellé exact du bouton cliqué)
+  problemType String
+  commentaire String?
+  photoUrl    String?
+  // Opt-in WhatsApp du voyageur (numéro international sans +, ex: 33612345678)
+  // Null tant que le voyageur n'a pas demandé à être notifié de la résolution.
+  whatsappOptin Boolean @default(false)
+  whatsappPhone String?
+  // Statut opérationnel : "EN_ATTENTE" → "EN_COURS" → "RESOLU"
+  statut      String   @default("EN_ATTENTE")
+  // Payload WhatsApp généré à la création (texte exact envoyé aux équipes terrain)
+  whatsappPayload String?
+  // Date de résolution (pour déclencher la notification au voyageur)
+  resolvedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([zoneId, createdAt])
+  @@index([statut])
+}

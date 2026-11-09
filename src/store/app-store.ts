@@ -9,7 +9,7 @@
 
 import { create } from "zustand"
 
-export type View = "loading" | "landing" | "auth" | "dashboard" | "admin" | "scan"
+export type View = "loading" | "landing" | "auth" | "dashboard" | "admin" | "scan" | "airport"
 
 /** Établissement (Pro) tel que renvoyé par /api/auth/me et les routes de session */
 export type ProData = {
@@ -49,6 +49,8 @@ type AppState = {
   view: View
   authMode: "login" | "signup"
   scanToken: string | null
+  /** Tag URL aéroport scanné (ex: "tapis_bagages_1") */
+  airportTag: string | null
   session: SessionData | null
   booted: boolean
   /** Pré-remplissage du formulaire de connexion (comptes de démo) */
@@ -60,15 +62,19 @@ type AppState = {
   setView: (v: View) => void
   openScan: (token: string) => void
   closeScan: () => void
+  /** Ouvre la PWA aéroport avec un tag URL scanné (/aeroport/<tag> ou ?airport=<tag>) */
+  openAirport: (tag: string) => void
+  closeAirport: () => void
   setSession: (s: SessionData | null) => void
   refreshSession: () => Promise<void>
   logout: () => Promise<void>
   updatePro: (pro: ProData) => void
 }
 
-/** Détermine la vue à partir de la session (et du scan actif) */
-function deriveView(scanToken: string | null, session: SessionData | null): View {
+/** Détermine la vue à partir de la session (et du scan / airport actif) */
+function deriveView(scanToken: string | null, airportTag: string | null, session: SessionData | null): View {
   if (scanToken) return "scan"
+  if (airportTag) return "airport"
   if (!session) return "landing"
   if (session.user.role === "SUPERADMIN") return "admin"
   // Inscription et connexion aboutissent directement au dashboard
@@ -93,10 +99,29 @@ export function tokenDepuisUrl(): string | null {
   }
 }
 
+/**
+ * Extrait le tag aéroport de l'URL courante.
+ * Deux formes supportées :
+ *  - /aeroport/<tag> : URL courte imprimée sur les QR codes aéroport
+ *    (rewritée par next.config → /?airport=<tag>)
+ *  - /?airport=<tag> : forme explicite
+ */
+export function airportTagDepuisUrl(): string | null {
+  if (typeof window === "undefined") return null
+  try {
+    const match = window.location.pathname.match(/^\/aeroport\/([A-Za-z0-9_-]+)\/?$/)
+    if (match) return match[1]
+    return new URLSearchParams(window.location.search).get("airport")
+  } catch {
+    return null
+  }
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
   view: "loading",
   authMode: "login",
   scanToken: null,
+  airportTag: null,
   session: null,
   booted: false,
   prefillLogin: null,
@@ -146,11 +171,43 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch {
       /* ignore */
     }
-    set({ view: deriveView(null, get().session) })
+    set({ view: deriveView(null, get().airportTag, get().session) })
+  },
+
+  // Ouvre la PWA aéroport (depuis /aeroport/<tag> ou ?airport=<tag>)
+  openAirport: (tag) => {
+    set({ airportTag: tag, view: "airport" })
+    try {
+      if (/^\/aeroport\//.test(window.location.pathname)) {
+        window.history.replaceState({}, "", `/aeroport/${tag}`)
+      } else {
+        const url = new URL(window.location.href)
+        url.searchParams.set("airport", tag)
+        window.history.pushState({}, "", url.toString())
+      }
+    } catch {
+      /* ignore */
+    }
+  },
+
+  closeAirport: () => {
+    set({ airportTag: null })
+    try {
+      if (/^\/aeroport\//.test(window.location.pathname)) {
+        window.history.replaceState({}, "", "/")
+      } else {
+        const url = new URL(window.location.href)
+        url.searchParams.delete("airport")
+        window.history.replaceState({}, "", url.toString())
+      }
+    } catch {
+      /* ignore */
+    }
+    set({ view: deriveView(get().scanToken, null, get().session) })
   },
 
   setSession: (s) => {
-    set({ session: s, view: deriveView(get().scanToken, s), booted: true })
+    set({ session: s, view: deriveView(get().scanToken, get().airportTag, s), booted: true })
   },
 
   // Charge la session courante depuis le serveur
@@ -162,7 +219,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch {
       set({ session: null })
     }
-    set({ booted: true, view: deriveView(get().scanToken, get().session) })
+    set({ booted: true, view: deriveView(get().scanToken, get().airportTag, get().session) })
   },
 
   logout: async () => {
@@ -178,6 +235,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     const s = get().session
     if (!s) return
     const session = { ...s, pro }
-    set({ session, view: deriveView(get().scanToken, session) })
+    set({ session, view: deriveView(get().scanToken, get().airportTag, session) })
   },
 }))

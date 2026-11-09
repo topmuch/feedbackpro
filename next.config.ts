@@ -23,6 +23,13 @@ const nextConfig: NextConfig = {
         destination: "/?scan=:token",
       },
       {
+        // PWA Aéroport : /aeroport/<tag> (ex: /aeroport/tapis_bagages_1)
+        // Le tag URL est résolu côté client (AirportScanView) puis
+        // appelle GET /api/airport/zone/[tag] pour récupérer la zone.
+        source: "/aeroport/:tag",
+        destination: "/?airport=:tag",
+      },
+      {
         // Session 2 : page de login dédiée (/login)
         source: "/login",
         destination: "/?auth=login",
