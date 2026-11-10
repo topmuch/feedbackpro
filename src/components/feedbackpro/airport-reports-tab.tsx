@@ -1,0 +1,560 @@
+'use client'
+
+// ============================================================
+// <AirportReportsTab /> — Liste filtrable des signalements
+// ------------------------------------------------------------
+// Filtres : zone (toutes + 5), statut (tous/EN_ATTENTE/EN_COURS/
+// RESOLU), recherche numéro de vol.
+//
+// APIs :
+//   GET  /api/airport/reports?zone=<code>&statut=<s>&limit=<n>
+//   POST /api/airport/ops/resolve  body { reportId }
+//
+// Polling : refresh auto toutes les 10 s + bouton manuel.
+// ============================================================
+
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import {
+  AlertCircle,
+  Camera,
+  CheckCircle2,
+  Clock,
+  Loader2,
+  MapPin,
+  Plane,
+  RefreshCw,
+  Search,
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Badge } from '@/components/ui/badge'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
+import { useToast } from '@/hooks/use-toast'
+
+// ---------------------------------------------------------------
+// Types (contrat API)
+// ---------------------------------------------------------------
+
+type Statut = 'EN_ATTENTE' | 'EN_COURS' | 'RESOLU'
+
+type Report = {
+  id: string
+  zone: { code: string; nom: string; emoji: string } | null
+  tagScanne: string
+  problemType: string
+  commentaire: string | null
+  photoUrl: string | null
+  photoCategory: string | null
+  routedTeam: string | null
+  photoAnalysis: string | null
+  flightNumber: string | null
+  whatsappOptin: boolean
+  whatsappPhone: string | null
+  statut: string
+  whatsappPayload: string | null
+  createdAt: string
+  resolvedAt: string | null
+}
+
+type ReportsResponse = {
+  ok: true
+  data: { reports: Report[]; count: number }
+}
+
+type ErrorResponse = { ok: false; error: string }
+
+type ZoneLite = { code: string; nom: string; emoji: string }
+
+// ---------------------------------------------------------------
+// Helpers
+// ---------------------------------------------------------------
+
+const STATUT_META: Record<Statut, { label: string; cls: string; dot: string }> = {
+  EN_ATTENTE: {
+    label: 'EN ATTENTE',
+    cls: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+    dot: 'bg-amber-400',
+  },
+  EN_COURS: {
+    label: 'EN COURS',
+    cls: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
+    dot: 'bg-sky-400',
+  },
+  RESOLU: {
+    label: 'RÉSOLU',
+    cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+    dot: 'bg-emerald-400',
+  },
+}
+
+function statutMeta(s: string): { label: string; cls: string; dot: string } {
+  return (
+    STATUT_META[s as Statut] ?? {
+      label: s,
+      cls: 'bg-slate-500/15 text-slate-300 border-slate-500/30',
+      dot: 'bg-slate-400',
+    }
+  )
+}
+
+const TEAM_META: Record<string, { emoji: string; label: string; cls: string }> = {
+  nettoyage: { emoji: '🧹', label: 'Nettoyage', cls: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' },
+  maintenance: { emoji: '🔧', label: 'Maintenance', cls: 'border-amber-500/30 bg-amber-500/10 text-amber-300' },
+  securite: { emoji: '🛡️', label: 'Sécurité', cls: 'border-rose-500/30 bg-rose-500/10 text-rose-300' },
+  accueil: { emoji: '👋', label: 'Accueil', cls: 'border-sky-500/30 bg-sky-500/10 text-sky-300' },
+  other: { emoji: '❓', label: 'Autre', cls: 'border-slate-600/40 bg-slate-700/30 text-slate-300' },
+}
+
+function teamMeta(t: string | null): { emoji: string; label: string; cls: string } | null {
+  if (!t) return null
+  return TEAM_META[t] ?? { emoji: '❓', label: t, cls: TEAM_META.other.cls }
+}
+
+function relativeTime(iso: string | null): string {
+  if (!iso) return '—'
+  const diff = Date.now() - new Date(iso).getTime()
+  if (diff < 0) return "à l'instant"
+  const sec = Math.floor(diff / 1000)
+  if (sec < 10) return "à l'instant"
+  if (sec < 60) return `il y a ${sec} s`
+  const min = Math.floor(sec / 60)
+  if (min < 60) return `il y a ${min} min`
+  const h = Math.floor(min / 60)
+  if (h < 24) return `il y a ${h} h`
+  const j = Math.floor(h / 24)
+  return `il y a ${j} j`
+}
+
+function shortId(id: string): string {
+  return id.length > 8 ? id.slice(-8) : id
+}
+
+async function fetchReports(
+  zone: string,
+  statut: string,
+  limit: number,
+): Promise<Report[]> {
+  const params = new URLSearchParams()
+  if (zone && zone !== 'all') params.set('zone', zone)
+  if (statut && statut !== 'all') params.set('statut', statut)
+  params.set('limit', String(limit))
+  const res = await fetch(`/api/airport/reports?${params.toString()}`, {
+    cache: 'no-store',
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const json = (await res.json()) as ReportsResponse | ErrorResponse
+  if (!json.ok) throw new Error(json.error)
+  return json.data.reports
+}
+
+async function resolveReport(reportId: string): Promise<void> {
+  const res = await fetch('/api/airport/ops/resolve', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ reportId }),
+  })
+  const json = (await res.json()) as { ok: boolean; error?: string }
+  if (!json.ok) throw new Error(json.error ?? 'Erreur résolution')
+}
+
+// ---------------------------------------------------------------
+// Composant principal
+// ---------------------------------------------------------------
+
+export default function AirportReportsTab() {
+  const { toast } = useToast()
+
+  // Filtres
+  const [zoneFilter, setZoneFilter] = useState<string>('all')
+  const [statutFilter, setStatutFilter] = useState<string>('all')
+  const [flightSearch, setFlightSearch] = useState<string>('')
+
+  // Données
+  const [reports, setReports] = useState<Report[]>([])
+  const [zones, setZones] = useState<ZoneLite[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
+  const [error, setError] = useState<string | null>(null)
+  const [lastFetch, setLastFetch] = useState<Date | null>(null)
+  const [resolvingId, setResolvingId] = useState<string | null>(null)
+
+  // Ref pour éviter un poll en cours
+  const pollingRef = useRef<boolean>(false)
+
+  // --- Chargement initial des zones (pour le filtre) ---
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await fetch('/api/airport/zones', { cache: 'no-store' })
+        const json = (await res.json()) as {
+          ok: boolean
+          data?: { zones: ZoneLite[] }
+          error?: string
+        }
+        if (!cancelled && json.ok && json.data) {
+          setZones(
+            json.data.zones.map((z) => ({ code: z.code, nom: z.nom, emoji: z.emoji })),
+          )
+        }
+      } catch {
+        // Silencieux : le filtre "toutes" fonctionne sans cette liste
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // --- Fetch des reports ---
+  const load = useCallback(async () => {
+    if (pollingRef.current) return
+    pollingRef.current = true
+    setLoading(true)
+    setError(null)
+    try {
+      const r = await fetchReports(zoneFilter, statutFilter, 100)
+      setReports(r)
+      setLastFetch(new Date())
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Erreur de chargement')
+    } finally {
+      setLoading(false)
+      pollingRef.current = false
+    }
+  }, [zoneFilter, statutFilter])
+
+  // Re-fetch quand filtre change
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  // Polling 10s
+  useEffect(() => {
+    const t = setInterval(() => {
+      void load()
+    }, 10000)
+    return () => clearInterval(t)
+  }, [load])
+
+  // --- Filtrage local par numéro de vol ---
+  const filteredReports = useMemo(() => {
+    if (!flightSearch.trim()) return reports
+    const q = flightSearch.trim().toUpperCase()
+    return reports.filter((r) => (r.flightNumber ?? '').toUpperCase().includes(q))
+  }, [reports, flightSearch])
+
+  // --- Resolve handler ---
+  const handleResolve = useCallback(
+    async (reportId: string) => {
+      setResolvingId(reportId)
+      try {
+        await resolveReport(reportId)
+        // Mise à jour locale immédiate (optimistic)
+        setReports((prev) =>
+          prev.map((r) =>
+            r.id === reportId
+              ? { ...r, statut: 'RESOLU', resolvedAt: new Date().toISOString() }
+              : r,
+          ),
+        )
+        toast({
+          title: 'Signalement résolu',
+          description: `ID ${shortId(reportId)} marqué RESOLU.`,
+        })
+      } catch (e) {
+        toast({
+          title: 'Erreur de résolution',
+          description: e instanceof Error ? e.message : 'Erreur inconnue',
+          variant: 'destructive',
+        })
+      } finally {
+        setResolvingId(null)
+      }
+    },
+    [toast],
+  )
+
+  return (
+    <div className="flex h-[calc(100vh-128px)] flex-col">
+      {/* ---------- FILTRES ---------- */}
+      <div className="shrink-0 border-b border-slate-800 bg-slate-900/40 px-4 py-3 sm:px-6">
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Zone select */}
+          <div className="flex items-center gap-1.5">
+            <MapPin className="h-3.5 w-3.5 text-slate-500" />
+            <Select value={zoneFilter} onValueChange={setZoneFilter}>
+              <SelectTrigger className="h-8 w-40 border-slate-700 bg-slate-900 text-xs text-slate-200">
+                <SelectValue placeholder="Toutes les zones" />
+              </SelectTrigger>
+              <SelectContent className="border-slate-700 bg-slate-900 text-slate-200">
+                <SelectItem value="all" className="text-xs">Toutes les zones</SelectItem>
+                {zones.map((z) => (
+                  <SelectItem key={z.code} value={z.code} className="text-xs">
+                    {z.emoji} {z.nom}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {/* Statut select */}
+          <Select value={statutFilter} onValueChange={setStatutFilter}>
+            <SelectTrigger className="h-8 w-36 border-slate-700 bg-slate-900 text-xs text-slate-200">
+              <SelectValue placeholder="Tous statuts" />
+            </SelectTrigger>
+            <SelectContent className="border-slate-700 bg-slate-900 text-slate-200">
+              <SelectItem value="all" className="text-xs">Tous statuts</SelectItem>
+              <SelectItem value="EN_ATTENTE" className="text-xs">🟡 En attente</SelectItem>
+              <SelectItem value="EN_COURS" className="text-xs">🔵 En cours</SelectItem>
+              <SelectItem value="RESOLU" className="text-xs">🟢 Résolu</SelectItem>
+            </SelectContent>
+          </Select>
+
+          {/* Recherche vol */}
+          <div className="relative flex-1 min-w-[180px]">
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
+            <Input
+              value={flightSearch}
+              onChange={(e) => setFlightSearch(e.target.value)}
+              placeholder="Rechercher n° de vol (ex: AF123)"
+              className="h-8 border-slate-700 bg-slate-900 pl-8 text-xs text-slate-200"
+            />
+          </div>
+
+          {/* Refresh */}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void load()}
+            disabled={loading}
+            className="h-8 border-slate-700 bg-slate-800/40 px-2.5 text-xs text-slate-300 hover:bg-slate-800 hover:text-white"
+          >
+            {loading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5" />
+            )}
+            <span className="ml-1.5 hidden sm:inline">Rafraîchir</span>
+          </Button>
+
+          {/* Compteur + last fetch */}
+          <div className="ml-auto flex items-center gap-2 text-[11px] text-slate-500">
+            <span className="tabular-nums">
+              {filteredReports.length} signalement{filteredReports.length > 1 ? 's' : ''}
+            </span>
+            {lastFetch && (
+              <span className="hidden items-center gap-1 sm:flex">
+                <Clock className="h-3 w-3" />
+                MAJ {relativeTime(lastFetch.toISOString())}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ---------- LISTE ---------- */}
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        {error ? (
+          <div className="flex h-full items-center justify-center p-6">
+            <div className="flex max-w-md flex-col items-center gap-3 rounded-lg border border-rose-500/30 bg-rose-500/5 p-6 text-center">
+              <AlertCircle className="h-8 w-8 text-rose-400" />
+              <div>
+                <p className="font-semibold text-rose-200">Erreur</p>
+                <p className="mt-1 text-sm text-slate-400">{error}</p>
+              </div>
+              <Button variant="outline" size="sm" onClick={() => void load()}>
+                Réessayer
+              </Button>
+            </div>
+          </div>
+        ) : loading && reports.length === 0 ? (
+          <div className="flex h-full items-center justify-center text-slate-400">
+            <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+            Chargement des signalements…
+          </div>
+        ) : filteredReports.length === 0 ? (
+          <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-slate-500">
+            <span className="text-4xl" aria-hidden>
+              📭
+            </span>
+            <p className="text-sm">Aucun signalement pour ces filtres.</p>
+            <p className="text-[11px] text-slate-600">
+              Modifiez les filtres ou rafraîchissez dans quelques secondes.
+            </p>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-800">
+            {filteredReports.map((r) => (
+              <ReportRow
+                key={r.id}
+                report={r}
+                onResolve={handleResolve}
+                resolving={resolvingId === r.id}
+              />
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------
+// Sous-composant : ligne de signalement
+// ---------------------------------------------------------------
+
+type ReportRowProps = {
+  report: Report
+  onResolve: (id: string) => void
+  resolving: boolean
+}
+
+function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
+  const s = statutMeta(report.statut)
+  const team = teamMeta(report.routedTeam)
+  const isResolved = report.statut === 'RESOLU'
+
+  return (
+    <div className="px-4 py-3 transition hover:bg-slate-900/40 sm:px-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
+        {/* Photo thumbnail (si présente) */}
+        <div className="shrink-0 sm:order-1">
+          {report.photoUrl ? (
+            <a
+              href={report.photoUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block h-16 w-16 overflow-hidden rounded-md border border-slate-700 bg-slate-800"
+              title="Voir la photo"
+            >
+              <img
+                src={report.photoUrl}
+                alt={`Photo jointe au signalement ${shortId(report.id)}`}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            </a>
+          ) : (
+            <div className="flex h-16 w-16 items-center justify-center rounded-md border border-dashed border-slate-800 bg-slate-900/40 text-slate-700">
+              <Camera className="h-5 w-5" />
+            </div>
+          )}
+        </div>
+
+        {/* Main content */}
+        <div className="min-w-0 flex-1 sm:order-2">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-base" aria-hidden>
+              {report.zone?.emoji ?? '📍'}
+            </span>
+            <span className="text-sm font-semibold text-slate-100">
+              {report.zone?.nom ?? 'Zone inconnue'}
+            </span>
+            <code className="rounded bg-slate-800/60 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">
+              {report.zone?.code ?? '—'}
+            </code>
+            <span
+              className={cn(
+                'inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold',
+                s.cls,
+              )}
+            >
+              <span className={cn('h-1.5 w-1.5 rounded-full', s.dot)} />
+              {s.label}
+            </span>
+          </div>
+
+          <div className="mt-1 text-sm text-slate-300">{report.problemType}</div>
+
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
+            <span className="font-mono">{report.tagScanne}</span>
+            {report.flightNumber && (
+              <span className="inline-flex items-center gap-1 rounded border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 font-medium text-sky-300">
+                <Plane className="h-3 w-3" />
+                {report.flightNumber}
+              </span>
+            )}
+            {report.photoCategory && (
+              <span className="inline-flex items-center gap-1 rounded border border-fuchsia-500/30 bg-fuchsia-500/10 px-1.5 py-0.5 font-medium text-fuchsia-300">
+                📷 {report.photoCategory}
+              </span>
+            )}
+            {team && (
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-medium',
+                  team.cls,
+                )}
+              >
+                {team.emoji} {team.label}
+              </span>
+            )}
+            {report.whatsappOptin && report.whatsappPhone && (
+              <span className="inline-flex items-center gap-1 rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 font-medium text-emerald-300">
+                💬 notifié
+              </span>
+            )}
+          </div>
+
+          {report.commentaire && (
+            <p className="mt-1.5 line-clamp-2 text-xs italic text-slate-500">
+              « {report.commentaire} »
+            </p>
+          )}
+
+          <div className="mt-1.5 flex items-center gap-3 text-[10px] text-slate-500">
+            <span className="tabular-nums" title={new Date(report.createdAt).toLocaleString('fr-FR')}>
+              Créé {relativeTime(report.createdAt)}
+            </span>
+            {report.resolvedAt && (
+              <span
+                className="tabular-nums text-emerald-500/80"
+                title={new Date(report.resolvedAt).toLocaleString('fr-FR')}
+              >
+                Résolu {relativeTime(report.resolvedAt)}
+              </span>
+            )}
+            <span className="font-mono text-slate-600">#{shortId(report.id)}</span>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="shrink-0 sm:order-3">
+          {!isResolved && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => onResolve(report.id)}
+              disabled={resolving}
+              className="bg-emerald-600 text-white hover:bg-emerald-500 disabled:bg-slate-700"
+            >
+              {resolving ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              Résoudre
+            </Button>
+          )}
+          {isResolved && (
+            <Badge
+              variant="outline"
+              className="border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+            >
+              <CheckCircle2 className="mr-1 h-3 w-3" />
+              Traité
+            </Badge>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
