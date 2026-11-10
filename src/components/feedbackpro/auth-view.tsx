@@ -21,6 +21,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Check,
+  Clock,
   ImagePlus,
   Loader2,
   Lock,
@@ -30,6 +31,7 @@ import {
   Plus,
   ScanLine,
   Smartphone,
+  Star,
   Store,
   X,
 } from "lucide-react"
@@ -182,11 +184,12 @@ type ValeursConnexion = z.infer<typeof connexionSchema>
 type ValeursInscription = z.infer<typeof inscriptionSchema>
 
 // Wizard : libellés + champs validés à chaque étape
+// `sousTitre` est purement indicatif (rendu par IndicateurEtapes).
 const ETAPES = [
-  { numero: 1, titre: "Compte" },
-  { numero: 2, titre: "Établissement" },
-  { numero: 3, titre: "Vos zones" },
-  { numero: 4, titre: "Finalisation" },
+  { numero: 1, titre: "Compte", sousTitre: "Vos identifiants" },
+  { numero: 2, titre: "Établissement", sousTitre: "Votre activité" },
+  { numero: 3, titre: "Vos zones", sousTitre: "Vos points de contact" },
+  { numero: 4, titre: "Finalisation", sousTitre: "Confirmation" },
 ] as const
 
 const CHAMPS_PAR_ETAPE: (keyof ValeursInscription)[][] = [
@@ -211,13 +214,13 @@ export function AuthView() {
   const modeInscription = authMode === "signup"
 
   return (
-    <div className="grid min-h-[calc(100vh-3.5rem)] grid-cols-1 bg-muted/30 lg:grid-cols-2">
+    <div className="grid min-h-[calc(100vh-3.5rem)] grid-cols-1 bg-gradient-to-br from-background via-muted/40 to-muted/20 lg:grid-cols-[1.1fr_1fr]">
       {/* ---------- Colonne gauche : visuel marketing (desktop uniquement) ---------- */}
       <PanneauMarketing modeInscription={modeInscription} />
 
       {/* ---------- Colonne droite : formulaire ---------- */}
       <div className="flex items-center justify-center px-4 py-8 sm:px-6 sm:py-12">
-        <div className="w-full max-w-md">
+        <div className={`w-full ${modeInscription ? "max-w-2xl" : "max-w-md"}`}>
           {/* Logo + titre */}
           <div className="mb-6 flex flex-col items-center text-center">
             <button
@@ -228,7 +231,7 @@ export function AuthView() {
             >
               <ScanLine className="h-6 w-6" aria-hidden />
             </button>
-            <h1 className="text-2xl font-bold tracking-tight">
+            <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">
               {modeInscription ? "Créez votre compte" : "Bon retour !"}
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -238,8 +241,8 @@ export function AuthView() {
             </p>
           </div>
 
-          <Card className="border-border/70 shadow-lg shadow-black/5">
-            <CardContent className="p-5 sm:p-7">
+          <Card className="border-border/70 shadow-xl shadow-black/5 backdrop-blur-sm">
+            <CardContent className="p-5 sm:p-7 lg:p-8">
               {/* key : réinitialise l'état quand on change de mode */}
               {modeInscription ? <InscriptionWizard key="signup" /> : <ConnexionForm key="login" />}
             </CardContent>
@@ -289,7 +292,7 @@ export function AuthView() {
 
 // ============================================================
 // Panneau marketing (colonne gauche, desktop uniquement)
-// Dégradé bleu + mockup dashboard + témoignage client.
+// Dégradé émeraude/teal + mockup dashboard animé + témoignage.
 // Masqué en mobile (lg:flex) pour laisser toute la place au formulaire.
 // ============================================================
 
@@ -297,57 +300,86 @@ function PanneauMarketing({ modeInscription }: { modeInscription: boolean }) {
   return (
     <aside
       aria-hidden="true"
-      className="relative hidden overflow-hidden bg-gradient-to-br from-blue-600 via-blue-700 to-blue-900 lg:flex lg:flex-col lg:justify-between lg:p-10 xl:p-12"
+      className="relative hidden overflow-hidden bg-gradient-to-br from-emerald-600 via-teal-700 to-emerald-900 lg:flex lg:flex-col lg:justify-between lg:p-10 xl:p-12"
     >
-      {/* Décoration : cercles translucides en arrière-plan */}
-      <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-white/10" />
-      <div className="pointer-events-none absolute -bottom-32 -left-16 h-80 w-80 rounded-full bg-white/5" />
-      <div className="pointer-events-none absolute right-1/3 top-1/2 h-40 w-40 rounded-full bg-white/5" />
+      {/* Décoration : grille subtile en arrière-plan */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.12]"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
+          backgroundSize: "32px 32px",
+        }}
+      />
+      {/* Décoration : cercles translucides animés en arrière-plan */}
+      <div className="fp-blob pointer-events-none absolute -right-24 -top-24 h-80 w-80 rounded-full bg-white/10" />
+      <div className="fp-blob pointer-events-none absolute -bottom-32 -left-16 h-96 w-96 rounded-full bg-white/5 [animation-delay:-6s]" />
+      <div className="fp-float-slow pointer-events-none absolute right-1/3 top-1/2 h-44 w-44 rounded-full bg-emerald-300/10" />
+      <div className="fp-float pointer-events-none absolute left-1/4 top-1/4 h-24 w-24 rounded-full bg-teal-200/10 [animation-delay:-3s]" />
+
+      {/* Badges métriques flottants */}
+      <div className="fp-float pointer-events-none absolute right-8 top-28 z-10 flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold text-emerald-50 shadow-lg backdrop-blur-md [animation-delay:-1s]">
+        <Star className="h-3.5 w-3.5 fill-amber-300 text-amber-300" aria-hidden />
+        4,7/5
+      </div>
+      <div className="fp-float-slow pointer-events-none absolute bottom-44 right-10 z-10 flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold text-emerald-50 shadow-lg backdrop-blur-md [animation-delay:-4s]">
+        <span className="h-1.5 w-1.5 rounded-full bg-emerald-300" />
+        +38 retours / sem.
+      </div>
+      <div className="fp-float pointer-events-none absolute bottom-72 left-8 z-10 flex items-center gap-2 rounded-full bg-white/15 px-3 py-1.5 text-xs font-semibold text-emerald-50 shadow-lg backdrop-blur-md [animation-delay:-2.5s]">
+        <span className="h-1.5 w-1.5 rounded-full bg-amber-300" />
+        −23% réclamations
+      </div>
 
       {/* ---------- En-tête : logo + baseline ---------- */}
-      <div className="relative flex items-center gap-3 text-white">
-        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 backdrop-blur">
+      <div className="relative flex items-center gap-3 text-emerald-50">
+        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-white/15 shadow-lg shadow-emerald-950/30 backdrop-blur">
           <ScanLine className="h-6 w-6" aria-hidden />
         </span>
         <div>
           <p className="text-lg font-bold leading-tight">FeedbackPro</p>
-          <p className="text-xs text-white/80">Le Coach IA d'audit qualité continu</p>
+          <p className="text-xs text-emerald-100/80">Le Coach IA d'audit qualité continu</p>
         </div>
       </div>
 
       {/* ---------- Bloc central : promesse + mockup dashboard ---------- */}
-      <div className="relative space-y-6 text-white">
+      <div className="relative space-y-6 text-emerald-50">
         <div className="space-y-3">
           <h2 className="text-3xl font-bold leading-tight xl:text-4xl">
             {modeInscription
               ? "Transformez chaque client en auditeur qualité."
               : "Votre rapport du jour vous attend."}
           </h2>
-          <p className="max-w-md text-sm leading-relaxed text-white/85">
+          <p className="max-w-md text-sm leading-relaxed text-emerald-100/85">
             Scannez un QR code, laissez une note, et notre IA vous livre chaque matin un rapport
             d'audit avec 3 priorités concrètes pour améliorer votre service.
           </p>
         </div>
 
         {/* Mockup dashboard (aperçu visuel simplifié) */}
-        <div className="relative rounded-2xl bg-white/95 p-4 text-stone-900 shadow-2xl shadow-black/20">
+        <motion.div
+          initial={{ opacity: 0, y: 16 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, ease: "easeOut", delay: 0.15 }}
+          className="fp-float-mockup relative rounded-2xl bg-white p-4 text-stone-900 shadow-2xl shadow-emerald-950/40 ring-1 ring-white/40"
+        >
           <div className="flex items-center justify-between border-b border-stone-200 pb-2.5">
             <div>
               <p className="text-xs font-medium text-stone-500">Rapport du jour</p>
               <p className="text-sm font-bold">Le Petit Bistrot</p>
             </div>
-            <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold text-green-700">
+            <span className="animate-pulse rounded-full bg-green-100 px-2.5 py-0.5 text-[10px] font-bold text-green-700 shadow-sm">
               +12 % vs hier
             </span>
           </div>
           <div className="mt-3 grid grid-cols-3 gap-2">
-            <div className="rounded-lg bg-blue-50 p-2">
-              <p className="text-[9px] font-medium text-blue-700">Note moyenne</p>
-              <p className="text-lg font-bold text-blue-900">4,6</p>
-            </div>
             <div className="rounded-lg bg-emerald-50 p-2">
-              <p className="text-[9px] font-medium text-emerald-700">Retours</p>
-              <p className="text-lg font-bold text-emerald-900">38</p>
+              <p className="text-[9px] font-medium text-emerald-700">Note moyenne</p>
+              <p className="text-lg font-bold text-emerald-900">4,6</p>
+            </div>
+            <div className="rounded-lg bg-teal-50 p-2">
+              <p className="text-[9px] font-medium text-teal-700">Retours</p>
+              <p className="text-lg font-bold text-teal-900">38</p>
             </div>
             <div className="rounded-lg bg-amber-50 p-2">
               <p className="text-[9px] font-medium text-amber-700">Alertes</p>
@@ -358,47 +390,48 @@ function PanneauMarketing({ modeInscription }: { modeInscription: boolean }) {
             <p className="text-[10px] font-semibold uppercase tracking-wide text-stone-500">
               3 priorités du jour
             </p>
-            <div className="flex items-center gap-2 rounded-md bg-stone-50 p-1.5">
-              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-amber-500 text-[9px] font-bold text-white">
-                1
-              </span>
-              <p className="text-[11px] leading-tight text-stone-700">
-                Réduire le temps d'attente en salle à 12 h
-              </p>
-            </div>
-            <div className="flex items-center gap-2 rounded-md bg-stone-50 p-1.5">
-              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-blue-500 text-[9px] font-bold text-white">
-                2
-              </span>
-              <p className="text-[11px] leading-tight text-stone-700">
-                Reformuler la carte des desserts
-              </p>
-            </div>
-            <div className="flex items-center gap-2 rounded-md bg-stone-50 p-1.5">
-              <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-[9px] font-bold text-white">
-                3
-              </span>
-              <p className="text-[11px] leading-tight text-stone-700">
-                Féliciter l'équipe pour l'accueil à l'entrée
-              </p>
-            </div>
+            {[
+              { n: 1, color: "bg-amber-500", text: "Réduire le temps d'attente en salle à 12 h" },
+              { n: 2, color: "bg-teal-500", text: "Reformuler la carte des desserts" },
+              { n: 3, color: "bg-emerald-500", text: "Féliciter l'équipe pour l'accueil à l'entrée" },
+            ].map((p, i) => (
+              <motion.div
+                key={p.n}
+                initial={{ opacity: 0, x: -8 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.35, ease: "easeOut", delay: 0.4 + i * 0.12 }}
+                className="flex items-center gap-2 rounded-md bg-stone-50 p-1.5"
+              >
+                <span
+                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full ${p.color} text-[9px] font-bold text-white`}
+                >
+                  {p.n}
+                </span>
+                <p className="text-[11px] leading-tight text-stone-700">{p.text}</p>
+              </motion.div>
+            ))}
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* ---------- Témoignage client ---------- */}
-      <figure className="relative rounded-2xl bg-white/10 p-5 text-white backdrop-blur">
-        <blockquote className="text-sm leading-relaxed text-white/95">
+      <figure className="relative rounded-2xl border border-white/15 bg-white/10 p-5 text-emerald-50 shadow-lg backdrop-blur">
+        <div className="mb-2 flex gap-0.5" aria-hidden>
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Star key={i} className="h-3.5 w-3.5 fill-amber-300 text-amber-300" />
+          ))}
+        </div>
+        <blockquote className="text-sm leading-relaxed text-emerald-50/95">
           « En 3 semaines, notre note moyenne est passée de 4,1 à 4,7. Le rapport quotidien
           devient un réflexe pour toute l'équipe. »
         </blockquote>
         <figcaption className="mt-3 flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-sm font-bold">
+          <span className="flex h-9 w-9 items-center justify-center rounded-full bg-white/20 text-sm font-bold shadow-inner">
             M
           </span>
           <div>
             <p className="text-xs font-semibold">Maria L.</p>
-            <p className="text-[11px] text-white/75">Gérante · Pizzeria Da Mario, Lyon</p>
+            <p className="text-[11px] text-emerald-100/75">Gérante · Pizzeria Da Mario, Lyon</p>
           </div>
         </figcaption>
       </figure>
@@ -546,7 +579,7 @@ function ConnexionForm() {
 }
 
 // ============================================================
-// WIZARD D'INSCRIPTION (3 étapes)
+// WIZARD D'INSCRIPTION (4 étapes)
 // ============================================================
 
 function InscriptionWizard() {
@@ -741,45 +774,64 @@ function InscriptionWizard() {
           initial={{ opacity: 0, x: 32 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -32 }}
-          transition={{ duration: 0.25, ease: "easeOut" }}
+          transition={{ duration: 0.35, ease: "easeOut" }}
           className="space-y-4"
         >
           {/* ============ ÉTAPE 1 — COMPTE ============ */}
           {etape === 1 && (
             <>
-              <div className="space-y-1.5">
-                <Label htmlFor="email-inscription">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-                  <Input
-                    id="email-inscription"
-                    type="email"
-                    inputMode="email"
-                    placeholder="vous@etablissement.fr"
-                    className="h-11 pl-9"
-                    autoComplete="email"
-                    aria-invalid={!!errors.email}
-                    {...register("email")}
-                  />
+              {/* Bandeau d'accueil — rassure sur la rapidité de l'inscription */}
+              <div className="flex items-center gap-3 rounded-xl border border-primary/15 bg-gradient-to-r from-primary/5 to-transparent p-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                  <ScanLine className="h-5 w-5" aria-hidden />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold leading-tight">Bienvenue sur FeedbackPro</p>
+                  <p className="text-xs leading-snug text-muted-foreground">
+                    Créez votre compte établissement en 4 étapes simples.
+                  </p>
                 </div>
-                <ErreurChamp message={errors.email?.message} />
+                <span className="ml-auto inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-bold text-amber-700 dark:bg-amber-950/60 dark:text-amber-300">
+                  <Clock className="h-3 w-3" aria-hidden />
+                  1 minute suffit
+                </span>
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="password-inscription">Mot de passe</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-                  <Input
-                    id="password-inscription"
-                    type="password"
-                    placeholder="6 caractères minimum"
-                    className="h-11 pl-9"
-                    autoComplete="new-password"
-                    aria-invalid={!!errors.password}
-                    {...register("password")}
-                  />
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <Label htmlFor="email-inscription">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                    <Input
+                      id="email-inscription"
+                      type="email"
+                      inputMode="email"
+                      placeholder="vous@etablissement.fr"
+                      className="h-12 pl-9 transition-all duration-200 focus-visible:border-primary/60"
+                      autoComplete="email"
+                      aria-invalid={!!errors.email}
+                      {...register("email")}
+                    />
+                  </div>
+                  <ErreurChamp message={errors.email?.message} />
                 </div>
-                <ErreurChamp message={errors.password?.message} />
+
+                <div className="space-y-1.5">
+                  <Label htmlFor="password-inscription">Mot de passe</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                    <Input
+                      id="password-inscription"
+                      type="password"
+                      placeholder="6 caractères minimum"
+                      className="h-12 pl-9 transition-all duration-200 focus-visible:border-primary/60"
+                      autoComplete="new-password"
+                      aria-invalid={!!errors.password}
+                      {...register("password")}
+                    />
+                  </div>
+                  <ErreurChamp message={errors.password?.message} />
+                </div>
               </div>
 
               <div className="space-y-1.5">
@@ -790,7 +842,7 @@ function InscriptionWizard() {
                     id="confirmation-inscription"
                     type="password"
                     placeholder="Ressaisissez votre mot de passe"
-                    className="h-11 pl-9"
+                    className="h-12 pl-9 transition-all duration-200 focus-visible:border-primary/60"
                     autoComplete="new-password"
                     aria-invalid={!!errors.confirmation}
                     {...register("confirmation")}
@@ -811,7 +863,7 @@ function InscriptionWizard() {
                   <Input
                     id="nomEtablissement"
                     placeholder="Ex : Le Petit Bistrot"
-                    className="h-11 pl-9"
+                    className="h-12 pl-9 transition-all duration-200 focus-visible:border-primary/60"
                     autoComplete="organization"
                     aria-invalid={!!errors.nomEtablissement}
                     {...register("nomEtablissement")}
@@ -848,9 +900,9 @@ function InscriptionWizard() {
                               field.onChange(type)
                               appliquerSecteur(type)
                             }}
-                            className={`flex min-h-[88px] flex-col items-start gap-1 rounded-lg border p-2.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
+                            className={`flex min-h-[96px] flex-col items-start gap-1 rounded-lg border p-2.5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${
                               selectionne
-                                ? "border-primary bg-primary/5 ring-1 ring-primary"
+                                ? "border-primary bg-primary/5 shadow-sm ring-1 ring-primary"
                                 : "border-border bg-background hover:border-primary/40 hover:bg-muted/40"
                             }`}
                           >
@@ -899,7 +951,7 @@ function InscriptionWizard() {
                   <Input
                     id="adresse"
                     placeholder="Ex : 12 rue de la République"
-                    className="h-11 pl-9"
+                    className="h-12 pl-9 transition-all duration-200 focus-visible:border-primary/60"
                     autoComplete="street-address"
                     aria-invalid={!!errors.adresse}
                     {...register("adresse")}
@@ -914,7 +966,7 @@ function InscriptionWizard() {
                   <Input
                     id="ville"
                     placeholder="Ex : Lyon"
-                    className="h-11"
+                    className="h-12 transition-all duration-200 focus-visible:border-primary/60"
                     autoComplete="address-level2"
                     aria-invalid={!!errors.ville}
                     {...register("ville")}
@@ -931,7 +983,7 @@ function InscriptionWizard() {
                       type="tel"
                       inputMode="numeric"
                       placeholder="33612345678"
-                      className="h-11 pl-9"
+                      className="h-12 pl-9 transition-all duration-200 focus-visible:border-primary/60"
                       autoComplete="tel"
                       aria-invalid={!!errors.whatsapp}
                       aria-describedby="aide-whatsapp"
@@ -960,22 +1012,29 @@ function InscriptionWizard() {
 
                 {/* Chips des zones déjà créées */}
                 <div className="flex flex-wrap gap-2" aria-live="polite">
-                  {zonesActuelles.map((nom) => (
-                    <span
-                      key={nom}
-                      className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 py-1.5 pl-3.5 pr-1.5 text-sm font-medium text-primary"
-                    >
-                      {nom}
-                      <button
-                        type="button"
-                        onClick={() => retirerZone(nom)}
-                        aria-label={`Retirer la zone ${nom}`}
-                        className="flex h-6 w-6 items-center justify-center rounded-full text-primary/70 transition-colors hover:bg-primary/10 hover:text-primary"
+                  <AnimatePresence>
+                    {zonesActuelles.map((nom) => (
+                      <motion.span
+                        key={nom}
+                        layout
+                        initial={{ scale: 0, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        exit={{ scale: 0, opacity: 0 }}
+                        transition={{ duration: 0.25, ease: "backOut" }}
+                        className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/5 py-1.5 pl-3.5 pr-1.5 text-sm font-medium text-primary shadow-sm"
                       >
-                        <X className="h-3.5 w-3.5" aria-hidden />
-                      </button>
-                    </span>
-                  ))}
+                        {nom}
+                        <button
+                          type="button"
+                          onClick={() => retirerZone(nom)}
+                          aria-label={`Retirer la zone ${nom}`}
+                          className="flex h-6 w-6 items-center justify-center rounded-full text-primary/70 transition-colors hover:bg-primary/10 hover:text-primary"
+                        >
+                          <X className="h-3.5 w-3.5" aria-hidden />
+                        </button>
+                      </motion.span>
+                    ))}
+                  </AnimatePresence>
                   {zonesActuelles.length === 0 && (
                     <span className="text-sm text-muted-foreground">Aucune zone — créez-en au moins une.</span>
                   )}
@@ -997,14 +1056,14 @@ function InscriptionWizard() {
                     maxLength={60}
                     autoComplete="off"
                     aria-label="Nom de la nouvelle zone"
-                    className="h-11"
+                    className="h-12 transition-all duration-200 focus-visible:border-primary/60"
                   />
                   <Button
                     type="button"
                     variant="outline"
                     onClick={ajouterZone}
                     disabled={!nouvelleZone.trim() || zonesActuelles.length >= 10}
-                    className="h-11 shrink-0 px-4"
+                    className="h-12 shrink-0 px-4 transition-all duration-200 hover:-translate-y-0.5"
                     aria-label="Ajouter la zone"
                   >
                     <Plus className="h-4 w-4" aria-hidden />
@@ -1066,7 +1125,7 @@ function InscriptionWizard() {
                   <div className="min-w-0 space-y-1.5">
                     <label
                       htmlFor="logo-input"
-                      className="inline-flex h-11 cursor-pointer items-center gap-2 rounded-md border border-dashed border-primary/40 bg-primary/5 px-4 text-sm font-medium text-primary transition-colors hover:bg-primary/10"
+                      className="inline-flex h-12 cursor-pointer items-center gap-2 rounded-md border border-dashed border-primary/40 bg-primary/5 px-4 text-sm font-medium text-primary transition-all duration-200 hover:-translate-y-0.5 hover:bg-primary/10"
                     >
                       {logoEnCours ? (
                         <>
@@ -1105,7 +1164,7 @@ function InscriptionWizard() {
               </div>
 
               {/* Récapitulatif des informations */}
-              <div className="rounded-xl border border-border/70 bg-muted/40 p-4">
+              <div className="rounded-xl border border-primary/20 bg-gradient-to-br from-primary/5 via-muted/40 to-muted/20 p-4 shadow-sm">
                 <p className="text-sm font-semibold">Récapitulatif</p>
                 <dl className="mt-3 space-y-2 text-sm">
                   <div className="flex items-start justify-between gap-3">
@@ -1200,7 +1259,7 @@ function InscriptionWizard() {
 
               {erreurApi && <ErreurApi message={erreurApi} />}
 
-              <Button type="submit" className="h-12 w-full text-base" disabled={isSubmitting}>
+              <Button type="submit" className="h-14 w-full bg-gradient-to-r from-primary to-primary/80 text-lg shadow-lg shadow-primary/30 transition-transform hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary/40" disabled={isSubmitting}>
                 {isSubmitting ? (
                   <>
                     <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -1221,12 +1280,16 @@ function InscriptionWizard() {
           {erreurApi && <ErreurApi message={erreurApi} />}
           <div className="flex gap-3">
             {etape > 1 && (
-              <Button type="button" variant="ghost" onClick={revenir} className="h-11 px-4">
+              <Button type="button" variant="ghost" onClick={revenir} className="h-12 px-4 transition-all duration-200">
                 <ArrowLeft className="h-4 w-4" aria-hidden />
                 Retour
               </Button>
             )}
-            <Button type="button" onClick={continuer} className="h-11 flex-1 text-base">
+            <Button
+              type="button"
+              onClick={continuer}
+              className="h-12 flex-1 bg-gradient-to-r from-primary to-primary/80 text-base shadow-md shadow-primary/25 transition-transform hover:-translate-y-0.5 hover:shadow-lg hover:shadow-primary/30"
+            >
               Continuer
               <ArrowRight className="h-4 w-4" aria-hidden />
             </Button>
@@ -1239,7 +1302,7 @@ function InscriptionWizard() {
 
 // ============================================================
 // Indicateur de progression du wizard (Compte · Établissement ·
-// Finalisation) : cercles numérotés + connecteurs
+// Vos zones · Finalisation) : cercles numérotés animés + connecteurs
 // ============================================================
 
 function IndicateurEtapes({ etape }: { etape: number }) {
@@ -1254,33 +1317,60 @@ function IndicateurEtapes({ etape }: { etape: number }) {
             className={i < ETAPES.length - 1 ? "flex flex-1 items-start" : "flex items-start"}
             aria-current={courante ? "step" : undefined}
           >
-            <div className="flex flex-col items-center gap-1">
-              <span
+            <div className="flex w-16 flex-col items-center gap-1.5 text-center sm:w-20">
+              <motion.span
+                animate={
+                  courante
+                    ? { scale: [1, 1.06, 1] }
+                    : { scale: 1 }
+                }
+                transition={
+                  courante
+                    ? { duration: 1.8, ease: "easeInOut", repeat: Infinity, repeatDelay: 0.4 }
+                    : { duration: 0.2 }
+                }
                 className={
                   finie
-                    ? "flex h-8 w-8 items-center justify-center rounded-full bg-primary text-primary-foreground"
+                    ? "flex h-10 w-10 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md shadow-primary/30"
                     : courante
-                      ? "flex h-8 w-8 items-center justify-center rounded-full border-2 border-primary bg-card text-primary"
-                      : "flex h-8 w-8 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground"
+                      ? "flex h-10 w-10 items-center justify-center rounded-full border-2 border-primary bg-card text-primary shadow-md shadow-primary/20"
+                      : "flex h-10 w-10 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground"
                 }
               >
-                {finie ? <Check className="h-4 w-4" aria-hidden /> : <span className="text-xs font-bold">{e.numero}</span>}
-              </span>
-              <span
-                className={
-                  courante
-                    ? "text-[11px] font-semibold text-primary sm:text-xs"
-                    : "text-[11px] font-medium text-muted-foreground sm:text-xs"
-                }
-              >
-                {e.titre}
-              </span>
+                {finie ? <Check className="h-4 w-4" aria-hidden /> : <span className="text-sm font-bold">{e.numero}</span>}
+              </motion.span>
+              <div className="space-y-0.5">
+                <p
+                  className={
+                    courante
+                      ? "text-xs font-semibold text-primary sm:text-sm"
+                      : finie
+                        ? "text-xs font-semibold text-foreground sm:text-sm"
+                        : "text-xs font-medium text-muted-foreground sm:text-sm"
+                  }
+                >
+                  {e.titre}
+                </p>
+                <p
+                  className={
+                    courante
+                      ? "hidden text-[10px] leading-tight text-primary/70 sm:block"
+                      : "hidden text-[10px] leading-tight text-muted-foreground/80 sm:block"
+                  }
+                >
+                  {e.sousTitre}
+                </p>
+              </div>
             </div>
             {i < ETAPES.length - 1 && (
-              <div
-                className={finie ? "mx-2 mb-5 h-0.5 flex-1 rounded-full bg-primary" : "mx-2 mb-5 h-0.5 flex-1 rounded-full bg-border"}
-                aria-hidden="true"
-              />
+              <div className="relative mx-1.5 mb-7 h-0.5 flex-1 overflow-visible rounded-full bg-border sm:mx-2" aria-hidden="true">
+                <motion.div
+                  className="absolute inset-y-0 left-0 rounded-full bg-primary"
+                  initial={{ width: 0 }}
+                  animate={{ width: finie ? "100%" : "0%" }}
+                  transition={{ duration: 0.5, ease: "easeOut" }}
+                />
+              </div>
             )}
           </li>
         )
