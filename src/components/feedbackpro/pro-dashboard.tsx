@@ -390,7 +390,10 @@ export function ProDashboard() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-muted/30 lg:pl-80 lg:pr-3">
+    <div className={cn(
+      "flex min-h-screen flex-col bg-muted/30 lg:pl-80",
+      onglet !== "airport-wallboard" && "lg:pr-3"
+    )}>
       {/* ---------- Sidebar détachée (desktop lg+) ---------- */}
       <aside className="fixed inset-y-3 left-3 z-40 hidden w-72 flex-col rounded-3xl bg-[#002e85] text-white shadow-xl lg:flex">
         <ContenuSidebar ongletActif={onglet} onNaviguer={naviguer} retoursNonLus={retoursNonLus} estAeroport={typeEtablissement === "Aéroport"} />
@@ -531,11 +534,22 @@ export function ProDashboard() {
         </div>
       )}
 
-      {/* ---------- Bannière d'onboarding "First Week" (Task 1) ---------- */}
-      {!suspendu && <OnboardingBanner />}
+      {/* ---------- Bannière d'onboarding "First Week" (Task 1) ----------
+          Masquée sur l'onglet wallboard pour que l'iframe remplisse toute
+          la page. ---------- */}
+      {!suspendu && onglet !== "airport-wallboard" && <OnboardingBanner />}
 
       {/* ---------- Contenu ---------- */}
-      <main className="mx-auto w-full max-w-7xl flex-1 px-3 py-5 sm:px-5 sm:py-7 lg:px-6">
+      {/* Quand l'onglet wallboard est actif, on passe en mode "plein écran" :
+          pas de max-width, pas de padding, flex-1 min-h-0 pour que l'iframe
+          remplisse toute la zone restante sous le header. */}
+      <main
+        className={cn(
+          onglet === "airport-wallboard"
+            ? "flex min-h-0 flex-1 flex-col"
+            : "mx-auto w-full max-w-7xl flex-1 px-3 py-5 sm:px-5 sm:py-7 lg:px-6"
+        )}
+      >
         {onglet === "dashboard" && <OverviewTab />}
         {onglet === "coach" && <CoachIaTab onOuvrirRapports={() => naviguer("rapports")} />}
         {onglet === "audit-matin" && <AuditMatinTab />}
