@@ -408,7 +408,7 @@ export default function AirportZonesTab() {
 
   if (loading) {
     return (
-      <div className="flex h-[calc(100vh-128px)] items-center justify-center text-slate-400">
+      <div className="flex h-[calc(100vh-128px)] items-center justify-center text-muted-foreground">
         <Loader2 className="mr-2 h-5 w-5 animate-spin" />
         Chargement des zones…
       </div>
@@ -419,10 +419,10 @@ export default function AirportZonesTab() {
     return (
       <div className="flex h-[calc(100vh-128px)] items-center justify-center">
         <div className="flex max-w-md flex-col items-center gap-3 rounded-lg border border-rose-500/30 bg-rose-500/5 p-6 text-center">
-          <AlertCircle className="h-8 w-8 text-rose-400" />
+          <AlertCircle className="h-8 w-8 text-rose-600" />
           <div>
-            <p className="font-semibold text-rose-200">Erreur de chargement</p>
-            <p className="mt-1 text-sm text-slate-400">{error}</p>
+            <p className="font-semibold text-rose-700">Erreur de chargement</p>
+            <p className="mt-1 text-sm text-muted-foreground">{error}</p>
           </div>
           <Button variant="outline" size="sm" onClick={() => void load()}>
             Réessayer
@@ -434,7 +434,7 @@ export default function AirportZonesTab() {
 
   if (zones.length === 0 || !form) {
     return (
-      <div className="flex h-[calc(100vh-128px)] items-center justify-center text-slate-400">
+      <div className="flex h-[calc(100vh-128px)] items-center justify-center text-muted-foreground">
         Aucune zone aéroport configurée.
       </div>
     )
@@ -443,13 +443,13 @@ export default function AirportZonesTab() {
   return (
     <div className="flex h-[calc(100vh-128px)] flex-col lg:flex-row">
       {/* ---------- SIDEBAR ---------- */}
-      <aside className="w-full shrink-0 overflow-x-auto border-b border-slate-800 bg-slate-900/40 lg:w-64 lg:border-b-0 lg:border-r lg:overflow-y-auto">
+      <aside className="w-full shrink-0 overflow-x-auto border-b border-border bg-card/40 lg:w-64 lg:border-b-0 lg:border-r lg:overflow-y-auto">
         <div className="flex gap-2 p-3 lg:flex-col lg:gap-1">
           <div className="mb-2 hidden items-center justify-between lg:flex">
-            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
               Zones aéroport
             </h2>
-            <Badge variant="outline" className="border-slate-700 text-[10px] text-slate-400">
+            <Badge variant="outline" className="border-border text-[10px] text-muted-foreground">
               {zones.length}
             </Badge>
           </div>
@@ -463,8 +463,8 @@ export default function AirportZonesTab() {
                 className={cn(
                   'flex w-full shrink-0 items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition',
                   active
-                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-100'
-                    : 'border-transparent text-slate-300 hover:border-slate-700 hover:bg-slate-800/40 hover:text-white',
+                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700'
+                    : 'border-transparent text-muted-foreground hover:border-border hover:bg-muted/40 hover:text-foreground',
                 )}
               >
                 <span className="text-lg leading-none" aria-hidden>
@@ -472,7 +472,7 @@ export default function AirportZonesTab() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <div className="truncate font-medium">{z.nom}</div>
-                  <div className="truncate text-[11px] text-slate-500">
+                  <div className="truncate text-[11px] text-muted-foreground/70">
                     <code className="font-mono">{z.code}</code>
                   </div>
                 </div>
@@ -480,8 +480,8 @@ export default function AirportZonesTab() {
                   className={cn(
                     'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums',
                     z.reportsCount > 0
-                      ? 'bg-amber-500/20 text-amber-300'
-                      : 'bg-slate-700/60 text-slate-400',
+                      ? 'bg-amber-500/20 text-amber-700'
+                      : 'bg-muted/60 text-muted-foreground',
                   )}
                   title={`${z.reportsCount} signalement(s)`}
                 >
@@ -585,22 +585,22 @@ function ZoneEditForm({
       {/* Header du formulaire */}
       <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-slate-700 bg-slate-900 text-2xl">
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-2xl">
             {form.emoji || '📍'}
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <h2 className="truncate text-lg font-semibold text-slate-100">
+              <h2 className="truncate text-lg font-semibold text-foreground">
                 {form.nom || 'Sans nom'}
               </h2>
               {dirty && (
-                <Badge className="border-amber-500/40 bg-amber-500/15 text-amber-300 hover:bg-amber-500/15">
+                <Badge className="border-amber-500/40 bg-amber-500/15 text-amber-700 hover:bg-amber-500/15">
                   non sauvegardé
                 </Badge>
               )}
             </div>
-            <p className="text-xs text-slate-500">
-              Code zone : <code className="font-mono text-slate-400">{code}</code>
+            <p className="text-xs text-muted-foreground/70">
+              Code zone : <code className="font-mono text-muted-foreground">{code}</code>
               {saved && (
                 <span className="ml-2">
                   · {saved.tags.length} tag(s) · {saved.problemes.length} problématique(s)
@@ -617,7 +617,7 @@ function ZoneEditForm({
             size="sm"
             onClick={onReset}
             disabled={!dirty || saving}
-            className="border-slate-700 bg-slate-800/40 text-slate-300 hover:bg-slate-800 hover:text-white"
+            className="border-border bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
             Réinitialiser
@@ -627,7 +627,7 @@ function ZoneEditForm({
             size="sm"
             onClick={onSave}
             disabled={!dirty || saving}
-            className="bg-emerald-600 text-white hover:bg-emerald-500 disabled:bg-slate-700 disabled:text-slate-400"
+            className="bg-emerald-600 text-white hover:bg-emerald-500 disabled:bg-muted disabled:text-muted-foreground"
           >
             {saving ? (
               <>
@@ -650,7 +650,7 @@ function ZoneEditForm({
           {/* Emoji + Nom côte à côte */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-[100px_1fr]">
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="zone-emoji" className="text-xs font-medium uppercase tracking-wider text-slate-400">
+              <Label htmlFor="zone-emoji" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Emoji
               </Label>
               <Input
@@ -658,13 +658,13 @@ function ZoneEditForm({
                 value={form.emoji}
                 onChange={(e) => patch({ emoji: e.target.value.slice(0, 8) })}
                 maxLength={8}
-                className="bg-slate-900 text-center text-2xl"
+                className="bg-card text-center text-2xl"
                 placeholder="🚻"
               />
-              <p className="text-[10px] text-slate-500">max 8 caractères</p>
+              <p className="text-[10px] text-muted-foreground/70">max 8 caractères</p>
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="zone-nom" className="text-xs font-medium uppercase tracking-wider text-slate-400">
+              <Label htmlFor="zone-nom" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Nom de la zone
               </Label>
               <Input
@@ -672,16 +672,16 @@ function ZoneEditForm({
                 value={form.nom}
                 onChange={(e) => patch({ nom: e.target.value.slice(0, 60) })}
                 maxLength={60}
-                className="bg-slate-900"
+                className="bg-card"
                 placeholder="Ex : Sanitaires et Soins"
               />
-              <p className="text-[10px] text-slate-500">{form.nom.length}/60 caractères</p>
+              <p className="text-[10px] text-muted-foreground/70">{form.nom.length}/60 caractères</p>
             </div>
           </div>
 
           {/* Description */}
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="zone-desc" className="text-xs font-medium uppercase tracking-wider text-slate-400">
+            <Label htmlFor="zone-desc" className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Description (optionnel)
             </Label>
             <Textarea
@@ -690,27 +690,27 @@ function ZoneEditForm({
               onChange={(e) => patch({ description: e.target.value.slice(0, 200) })}
               maxLength={200}
               rows={2}
-              className="bg-slate-900 resize-none"
+              className="bg-card resize-none"
               placeholder="Sous-titre affiché en haut de l'écran du voyageur"
             />
-            <p className="text-[10px] text-slate-500">{form.description.length}/200 caractères</p>
+            <p className="text-[10px] text-muted-foreground/70">{form.description.length}/200 caractères</p>
           </div>
 
           {/* Tags URL */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <Label className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-slate-400">
+              <Label className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 <Tag className="h-3.5 w-3.5" />
                 Tags URL (QR codes)
               </Label>
-              <span className="text-[10px] tabular-nums text-slate-500">
+              <span className="text-[10px] tabular-nums text-muted-foreground/70">
                 {form.tags.length}/10
               </span>
             </div>
 
             <div className="flex flex-col gap-2">
               {form.tags.length === 0 && (
-                <p className="rounded-md border border-dashed border-slate-700 bg-slate-900/40 px-3 py-2 text-xs text-slate-500">
+                <p className="rounded-md border border-dashed border-border bg-card/40 px-3 py-2 text-xs text-muted-foreground/70">
                   Aucun tag. Ajoutez-en un ci-dessous.
                 </p>
               )}
@@ -723,14 +723,14 @@ function ZoneEditForm({
                         value={t}
                         onChange={(e) => updateTag(i, e.target.value)}
                         className={cn(
-                          'bg-slate-900 font-mono text-sm',
+                          'bg-card font-mono text-sm',
                           err && 'border-rose-500/50 focus-visible:ring-rose-500/20',
                         )}
                         placeholder="tapis_bagages_1"
                       />
                     </div>
                     {err && (
-                      <span className="shrink-0 text-[10px] text-rose-400" title={err}>
+                      <span className="shrink-0 text-[10px] text-rose-600" title={err}>
                         <AlertCircle className="h-3.5 w-3.5" />
                       </span>
                     )}
@@ -738,7 +738,7 @@ function ZoneEditForm({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 shrink-0 text-slate-500 hover:bg-rose-500/10 hover:text-rose-400"
+                      className="h-8 w-8 shrink-0 text-muted-foreground/70 hover:bg-rose-500/10 hover:text-rose-600"
                       onClick={() => removeTag(i)}
                       aria-label="Supprimer ce tag"
                     >
@@ -752,7 +752,7 @@ function ZoneEditForm({
             {/* Ajout d'un nouveau tag */}
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
+                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/70" />
                 <Input
                   value={newTag}
                   onChange={(e) => setNewTag(e.target.value)}
@@ -763,7 +763,7 @@ function ZoneEditForm({
                     }
                   }}
                   placeholder="nouveau_tag"
-                  className="bg-slate-900 pl-8 font-mono text-sm"
+                  className="bg-card pl-8 font-mono text-sm"
                   disabled={form.tags.length >= 10}
                 />
               </div>
@@ -773,20 +773,20 @@ function ZoneEditForm({
                 variant="outline"
                 onClick={submitNewTag}
                 disabled={!!newTagErr || !newTag.trim() || form.tags.length >= 10}
-                className="border-emerald-500/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:text-emerald-200"
+                className="border-emerald-500/40 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 hover:text-emerald-700"
               >
                 <Plus className="h-3.5 w-3.5" />
               </Button>
             </div>
 
             {newTagErr && (
-              <p className="text-[10px] text-rose-400">{newTagErr}</p>
+              <p className="text-[10px] text-rose-600">{newTagErr}</p>
             )}
 
             {/* Suggestions */}
             {unusedSuggestions.length > 0 && form.tags.length < 10 && (
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[10px] uppercase tracking-wider text-slate-500">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">
                   Suggestions :
                 </span>
                 {unusedSuggestions.slice(0, 5).map((s) => (
@@ -794,7 +794,7 @@ function ZoneEditForm({
                     key={s}
                     type="button"
                     onClick={() => addTag(s)}
-                    className="rounded-md border border-slate-700 bg-slate-800/50 px-2 py-0.5 font-mono text-[11px] text-slate-300 transition hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-300"
+                    className="rounded-md border border-border bg-muted/50 px-2 py-0.5 font-mono text-[11px] text-muted-foreground transition hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-600"
                   >
                     + {s}
                   </button>
@@ -809,10 +809,10 @@ function ZoneEditForm({
           {/* Problématiques */}
           <div className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
-              <Label className="text-xs font-medium uppercase tracking-wider text-slate-400">
+              <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                 Problématiques (boutons rapides PWA)
               </Label>
-              <span className="text-[10px] tabular-nums text-slate-500">
+              <span className="text-[10px] tabular-nums text-muted-foreground/70">
                 {form.problemes.length}/6
               </span>
             </div>
@@ -826,7 +826,7 @@ function ZoneEditForm({
                       value={p}
                       onChange={(e) => updateProbleme(i, e.target.value.slice(0, 100))}
                       className={cn(
-                        'bg-slate-900 text-sm',
+                        'bg-card text-sm',
                         err && 'border-rose-500/50 focus-visible:ring-rose-500/20',
                       )}
                       placeholder="Ex : Tapis arrêté ou bloqué"
@@ -836,7 +836,7 @@ function ZoneEditForm({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 shrink-0 text-slate-500 hover:bg-rose-500/10 hover:text-rose-400"
+                      className="h-8 w-8 shrink-0 text-muted-foreground/70 hover:bg-rose-500/10 hover:text-rose-600"
                       onClick={() => removeProbleme(i)}
                       disabled={form.problemes.length <= 1}
                       aria-label="Supprimer cette problématique"
@@ -854,32 +854,32 @@ function ZoneEditForm({
                 variant="outline"
                 size="sm"
                 onClick={addProbleme}
-                className="self-start border-slate-700 bg-slate-800/40 text-slate-300 hover:bg-slate-800 hover:text-white"
+                className="self-start border-border bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
               >
                 <Plus className="mr-1.5 h-3.5 w-3.5" />
                 Ajouter une problématique
               </Button>
             )}
 
-            <p className="text-[10px] text-slate-500">
+            <p className="text-[10px] text-muted-foreground/70">
               3 à 100 caractères par problématique · entre 1 et 6 boutons affichés sur la PWA voyageur.
             </p>
           </div>
 
           {/* Preview PWA */}
           <div className="flex flex-col gap-2">
-            <Label className="text-xs font-medium uppercase tracking-wider text-slate-400">
+            <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Aperçu PWA voyageur
             </Label>
-            <div className="rounded-lg border border-slate-700 bg-slate-900/60 p-3">
-              <div className="mb-2 flex items-center gap-2 border-b border-slate-800 pb-2">
+            <div className="rounded-lg border border-border bg-card/60 p-3">
+              <div className="mb-2 flex items-center gap-2 border-b border-border pb-2">
                 <span className="text-xl">{form.emoji || '📍'}</span>
                 <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-slate-100">
+                  <div className="truncate text-sm font-semibold text-foreground">
                     {form.nom || 'Sans nom'}
                   </div>
                   {form.description && (
-                    <div className="truncate text-[11px] text-slate-400">
+                    <div className="truncate text-[11px] text-muted-foreground">
                       {form.description}
                     </div>
                   )}
@@ -891,29 +891,29 @@ function ZoneEditForm({
                   .map((p, i) => (
                     <div
                       key={`prev-${i}`}
-                      className="flex min-h-[60px] items-center justify-center rounded-md border border-amber-500/30 bg-amber-500/5 p-2 text-center text-xs font-medium text-amber-200"
+                      className="flex min-h-[60px] items-center justify-center rounded-md border border-amber-500/30 bg-amber-500/5 p-2 text-center text-xs font-medium text-amber-700"
                     >
                       {p}
                     </div>
                   ))}
                 {form.problemes.filter((p) => p.trim().length > 0).length === 0 && (
-                  <div className="col-span-2 rounded-md border border-dashed border-slate-700 p-3 text-center text-[11px] text-slate-500">
+                  <div className="col-span-2 rounded-md border border-dashed border-border p-3 text-center text-[11px] text-muted-foreground/70">
                     Aucune problématique à afficher
                   </div>
                 )}
               </div>
             </div>
-            <p className="text-[10px] text-slate-500">
+            <p className="text-[10px] text-muted-foreground/70">
               Voici comment les boutons apparaîtront sur l'écran du voyageur après scan du QR code.
             </p>
           </div>
 
           {/* État sauvegardé */}
           {saved && (
-            <div className="flex items-start gap-2 rounded-md border border-slate-800 bg-slate-900/40 p-3 text-[11px] text-slate-400">
-              <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-500" />
+            <div className="flex items-start gap-2 rounded-md border border-border bg-card/40 p-3 text-[11px] text-muted-foreground">
+              <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
               <div>
-                <p className="font-medium text-slate-300">Dernière version sauvegardée</p>
+                <p className="font-medium text-muted-foreground">Dernière version sauvegardée</p>
                 <p className="mt-0.5">
                   {saved.emoji} {saved.nom} — {saved.tags.length} tag(s),{' '}
                   {saved.problemes.length} problématique(s).

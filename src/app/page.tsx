@@ -13,7 +13,6 @@ import { LandingView } from "@/components/feedbackpro/landing-view"
 import { AuthView } from "@/components/feedbackpro/auth-view"
 import { ScanView } from "@/components/feedbackpro/scan-view"
 import { AirportScanView } from "@/components/feedbackpro/airport-scan-view"
-import AirportDashboard from "@/components/feedbackpro/airport-dashboard"
 import { ProDashboard } from "@/components/feedbackpro/pro-dashboard"
 import { AdminDashboard } from "@/components/feedbackpro/admin-dashboard"
 import { AppFooter } from "@/components/feedbackpro/shared"
@@ -157,16 +156,6 @@ export default function Home() {
     )
   }
 
-  // ---------- Dashboard Ops Aéroport (Pro connecté, secteur Aéroport) ----------
-  // Plein écran, sans footer global (le dashboard aéroport a son propre footer).
-  if (view === "airport-ops" && session?.pro) {
-    return (
-      <main className="min-h-screen bg-background">
-        <AirportDashboard />
-      </main>
-    )
-  }
-
   // ---------- Navigation ----------
   const nav = {
     login: () => setAuthMode("login"),
@@ -192,7 +181,7 @@ export default function Home() {
       </main>
       {/* Le pied de page global reste collé en bas (mt-auto) sur auth/dashboard.
           La landing possède son propre footer complet (liens légaux). */}
-      {view !== "scan" && view !== "airport" && view !== "airport-ops" && view !== "landing" && <AppFooter />}
+      {view !== "scan" && view !== "airport" && view !== "landing" && <AppFooter />}
     </div>
     </ErrorBoundary>
   )

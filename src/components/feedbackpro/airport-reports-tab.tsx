@@ -79,17 +79,17 @@ type ZoneLite = { code: string; nom: string; emoji: string }
 const STATUT_META: Record<Statut, { label: string; cls: string; dot: string }> = {
   EN_ATTENTE: {
     label: 'EN ATTENTE',
-    cls: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+    cls: 'bg-amber-500/15 text-amber-700 border-amber-500/30',
     dot: 'bg-amber-400',
   },
   EN_COURS: {
     label: 'EN COURS',
-    cls: 'bg-sky-500/15 text-sky-300 border-sky-500/30',
+    cls: 'bg-sky-500/15 text-sky-700 border-sky-500/30',
     dot: 'bg-sky-400',
   },
   RESOLU: {
     label: 'RÉSOLU',
-    cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30',
+    cls: 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30',
     dot: 'bg-emerald-400',
   },
 }
@@ -98,18 +98,18 @@ function statutMeta(s: string): { label: string; cls: string; dot: string } {
   return (
     STATUT_META[s as Statut] ?? {
       label: s,
-      cls: 'bg-slate-500/15 text-slate-300 border-slate-500/30',
-      dot: 'bg-slate-400',
+      cls: 'bg-muted/15 text-muted-foreground border-border/30',
+      dot: 'bg-muted-foreground',
     }
   )
 }
 
 const TEAM_META: Record<string, { emoji: string; label: string; cls: string }> = {
-  nettoyage: { emoji: '🧹', label: 'Nettoyage', cls: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' },
-  maintenance: { emoji: '🔧', label: 'Maintenance', cls: 'border-amber-500/30 bg-amber-500/10 text-amber-300' },
-  securite: { emoji: '🛡️', label: 'Sécurité', cls: 'border-rose-500/30 bg-rose-500/10 text-rose-300' },
-  accueil: { emoji: '👋', label: 'Accueil', cls: 'border-sky-500/30 bg-sky-500/10 text-sky-300' },
-  other: { emoji: '❓', label: 'Autre', cls: 'border-slate-600/40 bg-slate-700/30 text-slate-300' },
+  nettoyage: { emoji: '🧹', label: 'Nettoyage', cls: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600' },
+  maintenance: { emoji: '🔧', label: 'Maintenance', cls: 'border-amber-500/30 bg-amber-500/10 text-amber-700' },
+  securite: { emoji: '🛡️', label: 'Sécurité', cls: 'border-rose-500/30 bg-rose-500/10 text-rose-700' },
+  accueil: { emoji: '👋', label: 'Accueil', cls: 'border-sky-500/30 bg-sky-500/10 text-sky-700' },
+  other: { emoji: '❓', label: 'Autre', cls: 'border-border/40 bg-muted/30 text-muted-foreground' },
 }
 
 function teamMeta(t: string | null): { emoji: string; label: string; cls: string } | null {
@@ -284,16 +284,16 @@ export default function AirportReportsTab() {
   return (
     <div className="flex h-[calc(100vh-128px)] flex-col">
       {/* ---------- FILTRES ---------- */}
-      <div className="shrink-0 border-b border-slate-800 bg-slate-900/40 px-4 py-3 sm:px-6">
+      <div className="shrink-0 border-b border-border bg-card/40 px-4 py-3 sm:px-6">
         <div className="flex flex-wrap items-center gap-2">
           {/* Zone select */}
           <div className="flex items-center gap-1.5">
-            <MapPin className="h-3.5 w-3.5 text-slate-500" />
+            <MapPin className="h-3.5 w-3.5 text-muted-foreground/70" />
             <Select value={zoneFilter} onValueChange={setZoneFilter}>
-              <SelectTrigger className="h-8 w-40 border-slate-700 bg-slate-900 text-xs text-slate-200">
+              <SelectTrigger className="h-8 w-40 border-border bg-card text-xs text-foreground">
                 <SelectValue placeholder="Toutes les zones" />
               </SelectTrigger>
-              <SelectContent className="border-slate-700 bg-slate-900 text-slate-200">
+              <SelectContent className="border-border bg-card text-foreground">
                 <SelectItem value="all" className="text-xs">Toutes les zones</SelectItem>
                 {zones.map((z) => (
                   <SelectItem key={z.code} value={z.code} className="text-xs">
@@ -306,10 +306,10 @@ export default function AirportReportsTab() {
 
           {/* Statut select */}
           <Select value={statutFilter} onValueChange={setStatutFilter}>
-            <SelectTrigger className="h-8 w-36 border-slate-700 bg-slate-900 text-xs text-slate-200">
+            <SelectTrigger className="h-8 w-36 border-border bg-card text-xs text-foreground">
               <SelectValue placeholder="Tous statuts" />
             </SelectTrigger>
-            <SelectContent className="border-slate-700 bg-slate-900 text-slate-200">
+            <SelectContent className="border-border bg-card text-foreground">
               <SelectItem value="all" className="text-xs">Tous statuts</SelectItem>
               <SelectItem value="EN_ATTENTE" className="text-xs">🟡 En attente</SelectItem>
               <SelectItem value="EN_COURS" className="text-xs">🔵 En cours</SelectItem>
@@ -319,12 +319,12 @@ export default function AirportReportsTab() {
 
           {/* Recherche vol */}
           <div className="relative flex-1 min-w-[180px]">
-            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-slate-500" />
+            <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/70" />
             <Input
               value={flightSearch}
               onChange={(e) => setFlightSearch(e.target.value)}
               placeholder="Rechercher n° de vol (ex: AF123)"
-              className="h-8 border-slate-700 bg-slate-900 pl-8 text-xs text-slate-200"
+              className="h-8 border-border bg-card pl-8 text-xs text-foreground"
             />
           </div>
 
@@ -335,7 +335,7 @@ export default function AirportReportsTab() {
             size="sm"
             onClick={() => void load()}
             disabled={loading}
-            className="h-8 border-slate-700 bg-slate-800/40 px-2.5 text-xs text-slate-300 hover:bg-slate-800 hover:text-white"
+            className="h-8 border-border bg-muted/40 px-2.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             {loading ? (
               <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -346,7 +346,7 @@ export default function AirportReportsTab() {
           </Button>
 
           {/* Compteur + last fetch */}
-          <div className="ml-auto flex items-center gap-2 text-[11px] text-slate-500">
+          <div className="ml-auto flex items-center gap-2 text-[11px] text-muted-foreground/70">
             <span className="tabular-nums">
               {filteredReports.length} signalement{filteredReports.length > 1 ? 's' : ''}
             </span>
@@ -365,10 +365,10 @@ export default function AirportReportsTab() {
         {error ? (
           <div className="flex h-full items-center justify-center p-6">
             <div className="flex max-w-md flex-col items-center gap-3 rounded-lg border border-rose-500/30 bg-rose-500/5 p-6 text-center">
-              <AlertCircle className="h-8 w-8 text-rose-400" />
+              <AlertCircle className="h-8 w-8 text-rose-600" />
               <div>
-                <p className="font-semibold text-rose-200">Erreur</p>
-                <p className="mt-1 text-sm text-slate-400">{error}</p>
+                <p className="font-semibold text-rose-700">Erreur</p>
+                <p className="mt-1 text-sm text-muted-foreground">{error}</p>
               </div>
               <Button variant="outline" size="sm" onClick={() => void load()}>
                 Réessayer
@@ -376,22 +376,22 @@ export default function AirportReportsTab() {
             </div>
           </div>
         ) : loading && reports.length === 0 ? (
-          <div className="flex h-full items-center justify-center text-slate-400">
+          <div className="flex h-full items-center justify-center text-muted-foreground">
             <Loader2 className="mr-2 h-5 w-5 animate-spin" />
             Chargement des signalements…
           </div>
         ) : filteredReports.length === 0 ? (
-          <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-slate-500">
+          <div className="flex h-full flex-col items-center justify-center gap-2 p-6 text-center text-muted-foreground/70">
             <span className="text-4xl" aria-hidden>
               📭
             </span>
             <p className="text-sm">Aucun signalement pour ces filtres.</p>
-            <p className="text-[11px] text-slate-600">
+            <p className="text-[11px] text-muted-foreground/70">
               Modifiez les filtres ou rafraîchissez dans quelques secondes.
             </p>
           </div>
         ) : (
-          <div className="divide-y divide-slate-800">
+          <div className="divide-y divide-border">
             {filteredReports.map((r) => (
               <ReportRow
                 key={r.id}
@@ -423,7 +423,7 @@ function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
   const isResolved = report.statut === 'RESOLU'
 
   return (
-    <div className="px-4 py-3 transition hover:bg-slate-900/40 sm:px-6">
+    <div className="px-4 py-3 transition hover:bg-card/40 sm:px-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
         {/* Photo thumbnail (si présente) */}
         <div className="shrink-0 sm:order-1">
@@ -432,7 +432,7 @@ function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
               href={report.photoUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="block h-16 w-16 overflow-hidden rounded-md border border-slate-700 bg-slate-800"
+              className="block h-16 w-16 overflow-hidden rounded-md border border-border bg-muted"
               title="Voir la photo"
             >
               <img
@@ -443,7 +443,7 @@ function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
               />
             </a>
           ) : (
-            <div className="flex h-16 w-16 items-center justify-center rounded-md border border-dashed border-slate-800 bg-slate-900/40 text-slate-700">
+            <div className="flex h-16 w-16 items-center justify-center rounded-md border border-dashed border-border bg-card/40 text-muted-foreground">
               <Camera className="h-5 w-5" />
             </div>
           )}
@@ -455,10 +455,10 @@ function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
             <span className="text-base" aria-hidden>
               {report.zone?.emoji ?? '📍'}
             </span>
-            <span className="text-sm font-semibold text-slate-100">
+            <span className="text-sm font-semibold text-foreground">
               {report.zone?.nom ?? 'Zone inconnue'}
             </span>
-            <code className="rounded bg-slate-800/60 px-1.5 py-0.5 font-mono text-[10px] text-slate-400">
+            <code className="rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
               {report.zone?.code ?? '—'}
             </code>
             <span
@@ -472,18 +472,18 @@ function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
             </span>
           </div>
 
-          <div className="mt-1 text-sm text-slate-300">{report.problemType}</div>
+          <div className="mt-1 text-sm text-muted-foreground">{report.problemType}</div>
 
-          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-slate-500">
+          <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground/70">
             <span className="font-mono">{report.tagScanne}</span>
             {report.flightNumber && (
-              <span className="inline-flex items-center gap-1 rounded border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 font-medium text-sky-300">
+              <span className="inline-flex items-center gap-1 rounded border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 font-medium text-sky-700">
                 <Plane className="h-3 w-3" />
                 {report.flightNumber}
               </span>
             )}
             {report.photoCategory && (
-              <span className="inline-flex items-center gap-1 rounded border border-fuchsia-500/30 bg-fuchsia-500/10 px-1.5 py-0.5 font-medium text-fuchsia-300">
+              <span className="inline-flex items-center gap-1 rounded border border-fuchsia-500/30 bg-fuchsia-500/10 px-1.5 py-0.5 font-medium text-fuchsia-700">
                 📷 {report.photoCategory}
               </span>
             )}
@@ -498,19 +498,19 @@ function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
               </span>
             )}
             {report.whatsappOptin && report.whatsappPhone && (
-              <span className="inline-flex items-center gap-1 rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 font-medium text-emerald-300">
+              <span className="inline-flex items-center gap-1 rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 font-medium text-emerald-600">
                 💬 notifié
               </span>
             )}
           </div>
 
           {report.commentaire && (
-            <p className="mt-1.5 line-clamp-2 text-xs italic text-slate-500">
+            <p className="mt-1.5 line-clamp-2 text-xs italic text-muted-foreground/70">
               « {report.commentaire} »
             </p>
           )}
 
-          <div className="mt-1.5 flex items-center gap-3 text-[10px] text-slate-500">
+          <div className="mt-1.5 flex items-center gap-3 text-[10px] text-muted-foreground/70">
             <span className="tabular-nums" title={new Date(report.createdAt).toLocaleString('fr-FR')}>
               Créé {relativeTime(report.createdAt)}
             </span>
@@ -522,7 +522,7 @@ function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
                 Résolu {relativeTime(report.resolvedAt)}
               </span>
             )}
-            <span className="font-mono text-slate-600">#{shortId(report.id)}</span>
+            <span className="font-mono text-muted-foreground/70">#{shortId(report.id)}</span>
           </div>
         </div>
 
@@ -534,7 +534,7 @@ function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
               size="sm"
               onClick={() => onResolve(report.id)}
               disabled={resolving}
-              className="bg-emerald-600 text-white hover:bg-emerald-500 disabled:bg-slate-700"
+              className="bg-emerald-600 text-white hover:bg-emerald-500 disabled:bg-muted"
             >
               {resolving ? (
                 <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
@@ -547,7 +547,7 @@ function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
           {isResolved && (
             <Badge
               variant="outline"
-              className="border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+              className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
             >
               <CheckCircle2 className="mr-1 h-3 w-3" />
               Traité

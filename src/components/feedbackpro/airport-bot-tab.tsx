@@ -97,15 +97,15 @@ const COMMANDS: readonly Command[] = [
 ] as const
 
 const ROLE_META: Record<string, { label: string; cls: string }> = {
-  ops: { label: 'Ops', cls: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300' },
-  manager: { label: 'Manager', cls: 'border-sky-500/30 bg-sky-500/10 text-sky-300' },
-  nettoyage: { label: 'Nettoyage', cls: 'border-amber-500/30 bg-amber-500/10 text-amber-300' },
-  maintenance: { label: 'Maintenance', cls: 'border-orange-500/30 bg-orange-500/10 text-orange-300' },
-  securite: { label: 'Sécurité', cls: 'border-rose-500/30 bg-rose-500/10 text-rose-300' },
+  ops: { label: 'Ops', cls: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600' },
+  manager: { label: 'Manager', cls: 'border-sky-500/30 bg-sky-500/10 text-sky-700' },
+  nettoyage: { label: 'Nettoyage', cls: 'border-amber-500/30 bg-amber-500/10 text-amber-700' },
+  maintenance: { label: 'Maintenance', cls: 'border-orange-500/30 bg-orange-500/10 text-orange-700' },
+  securite: { label: 'Sécurité', cls: 'border-rose-500/30 bg-rose-500/10 text-rose-700' },
 }
 
 function roleMeta(r: string): { label: string; cls: string } {
-  return ROLE_META[r] ?? { label: r, cls: 'border-slate-600/40 bg-slate-700/30 text-slate-300' }
+  return ROLE_META[r] ?? { label: r, cls: 'border-border/40 bg-muted/30 text-muted-foreground' }
 }
 
 function formatPhone(p: string): string {
@@ -185,12 +185,12 @@ export default function AirportBotTab() {
     <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6">
       {/* ---------- HEADER ---------- */}
       <div className="mb-6 flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-slate-700 bg-slate-900 text-2xl">
+        <div className="flex h-12 w-12 items-center justify-center rounded-lg border border-border bg-card text-2xl">
           🤖
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-slate-100">Bot WhatsApp Ops</h2>
-          <p className="text-xs text-slate-500">
+          <h2 className="text-lg font-semibold text-foreground">Bot WhatsApp Ops</h2>
+          <p className="text-xs text-muted-foreground/70">
             Assistant conversationnel pour les équipes terrain — commandes par SMS WhatsApp.
           </p>
         </div>
@@ -212,14 +212,14 @@ export default function AirportBotTab() {
               <div
                 className={cn(
                   'flex h-10 w-10 shrink-0 items-center justify-center rounded-md',
-                  modeDemo ? 'bg-amber-500/15 text-amber-300' : 'bg-emerald-500/15 text-emerald-300',
+                  modeDemo ? 'bg-amber-500/15 text-amber-700' : 'bg-emerald-500/15 text-emerald-600',
                 )}
               >
                 {modeDemo ? <AlertCircle className="h-5 w-5" /> : <Zap className="h-5 w-5" />}
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
-                  <h3 className="text-sm font-semibold text-slate-100">
+                  <h3 className="text-sm font-semibold text-foreground">
                     {modeDemo ? 'Mode démo' : 'Bot actif'}
                   </h3>
                   <Badge
@@ -227,14 +227,14 @@ export default function AirportBotTab() {
                     className={cn(
                       'text-[10px]',
                       modeDemo
-                        ? 'border-amber-500/40 bg-amber-500/10 text-amber-300'
-                        : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300',
+                        ? 'border-amber-500/40 bg-amber-500/10 text-amber-700'
+                        : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600',
                     )}
                   >
                     {modeDemo ? 'DÉMO' : 'LIVE'}
                   </Badge>
                 </div>
-                <p className="mt-1 text-xs text-slate-400">
+                <p className="mt-1 text-xs text-muted-foreground">
                   {modeDemo
                     ? "Aucun numéro ops actif enregistré. Le webhook accepte les requêtes mais aucun agent n'est autorisé à recevoir des réponses. Ajoutez des contacts ci-contre."
                     : `${actifs} numéro${actifs > 1 ? 's' : ''} ops actif${actifs > 1 ? 's' : ''}. Le webhook Twilio est prêt à recevoir des messages.`}
@@ -244,16 +244,16 @@ export default function AirportBotTab() {
           </div>
 
           {/* Webhook URL */}
-          <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-4">
+          <div className="rounded-lg border border-border bg-card/40 p-4">
             <div className="mb-2 flex items-center gap-2">
-              <Terminal className="h-4 w-4 text-slate-400" />
-              <h3 className="text-sm font-semibold text-slate-200">URL du webhook Twilio</h3>
+              <Terminal className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-semibold text-foreground">URL du webhook Twilio</h3>
             </div>
-            <p className="mb-3 text-xs text-slate-500">
+            <p className="mb-3 text-xs text-muted-foreground/70">
               Configurez cette URL dans la console Twilio → Messaging → A MESSAGE COMES IN → WhatsApp.
             </p>
             <div className="flex items-center gap-2">
-              <code className="min-w-0 flex-1 truncate rounded-md border border-slate-700 bg-slate-950 px-3 py-2 font-mono text-xs text-emerald-300">
+              <code className="min-w-0 flex-1 truncate rounded-md border border-border bg-background px-3 py-2 font-mono text-xs text-emerald-600">
                 {webhookUrl}
               </code>
               <Button
@@ -261,7 +261,7 @@ export default function AirportBotTab() {
                 variant="outline"
                 size="sm"
                 onClick={() => copyToClipboard(webhookUrl, 'URL du webhook copiée')}
-                className="shrink-0 border-slate-700 bg-slate-800/40 text-slate-300 hover:bg-slate-800 hover:text-white"
+                className="shrink-0 border-border bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
               >
                 <Copy className="h-3.5 w-3.5" />
               </Button>
@@ -269,11 +269,11 @@ export default function AirportBotTab() {
           </div>
 
           {/* Commandes */}
-          <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-4">
+          <div className="rounded-lg border border-border bg-card/40 p-4">
             <div className="mb-3 flex items-center gap-2">
-              <MessageCircle className="h-4 w-4 text-slate-400" />
-              <h3 className="text-sm font-semibold text-slate-200">Commandes disponibles</h3>
-              <Badge variant="outline" className="ml-auto border-slate-700 text-[10px] text-slate-400">
+              <MessageCircle className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-semibold text-foreground">Commandes disponibles</h3>
+              <Badge variant="outline" className="ml-auto border-border text-[10px] text-muted-foreground">
                 {COMMANDS.length}
               </Badge>
             </div>
@@ -281,17 +281,17 @@ export default function AirportBotTab() {
               {COMMANDS.map((c) => (
                 <div
                   key={c.cmd}
-                  className="rounded-md border border-slate-800 bg-slate-950/60 p-3"
+                  className="rounded-md border border-border bg-background/60 p-3"
                 >
                   <div className="flex flex-wrap items-center gap-2">
-                    <code className="rounded bg-slate-800 px-2 py-0.5 font-mono text-xs font-semibold text-emerald-300">
+                    <code className="rounded bg-muted px-2 py-0.5 font-mono text-xs font-semibold text-emerald-600">
                       {c.cmd}
                     </code>
                     {c.example && (
-                      <code className="font-mono text-[10px] text-slate-500">ex: {c.example}</code>
+                      <code className="font-mono text-[10px] text-muted-foreground/70">ex: {c.example}</code>
                     )}
                   </div>
-                  <p className="mt-1.5 text-xs text-slate-400">{c.desc}</p>
+                  <p className="mt-1.5 text-xs text-muted-foreground">{c.desc}</p>
                 </div>
               ))}
             </div>
@@ -301,17 +301,17 @@ export default function AirportBotTab() {
         {/* ---------- COLONNE DROITE : contacts + twilio config ---------- */}
         <div className="flex flex-col gap-5">
           {/* Numéros autorisés */}
-          <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-4">
+          <div className="rounded-lg border border-border bg-card/40 p-4">
             <div className="mb-3 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Shield className="h-4 w-4 text-slate-400" />
-                <h3 className="text-sm font-semibold text-slate-200">Numéros autorisés</h3>
+                <Shield className="h-4 w-4 text-muted-foreground" />
+                <h3 className="text-sm font-semibold text-foreground">Numéros autorisés</h3>
               </div>
               <Button
                 type="button"
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 text-slate-500 hover:bg-slate-800 hover:text-white"
+                className="h-7 w-7 text-muted-foreground/70 hover:bg-muted hover:text-foreground"
                 onClick={() => void load()}
                 disabled={loading}
                 title="Rafraîchir"
@@ -325,19 +325,19 @@ export default function AirportBotTab() {
             </div>
 
             {error ? (
-              <div className="rounded-md border border-rose-500/30 bg-rose-500/5 p-3 text-xs text-rose-300">
+              <div className="rounded-md border border-rose-500/30 bg-rose-500/5 p-3 text-xs text-rose-700">
                 {error}
               </div>
             ) : loading && contacts.length === 0 ? (
-              <div className="flex items-center justify-center py-6 text-xs text-slate-500">
+              <div className="flex items-center justify-center py-6 text-xs text-muted-foreground/70">
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                 Chargement…
               </div>
             ) : contacts.length === 0 ? (
-              <div className="rounded-md border border-dashed border-slate-700 bg-slate-950/40 p-4 text-center text-xs text-slate-500">
-                <Phone className="mx-auto mb-2 h-6 w-6 text-slate-600" />
+              <div className="rounded-md border border-dashed border-border bg-background/40 p-4 text-center text-xs text-muted-foreground/70">
+                <Phone className="mx-auto mb-2 h-6 w-6 text-muted-foreground/70" />
                 Aucun numéro ops enregistré.
-                <p className="mt-1 text-[10px] text-slate-600">
+                <p className="mt-1 text-[10px] text-muted-foreground/70">
                   Ajoutez des enregistrements dans la table <code>AirportOpsContact</code> via le seed.
                 </p>
               </div>
@@ -351,16 +351,16 @@ export default function AirportBotTab() {
                       className={cn(
                         'rounded-md border p-2.5',
                         c.actif
-                          ? 'border-slate-700 bg-slate-950/60'
-                          : 'border-slate-800 bg-slate-950/30 opacity-60',
+                          ? 'border-border bg-background/60'
+                          : 'border-border bg-background/30 opacity-60',
                       )}
                     >
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <div className="truncate text-xs font-semibold text-slate-200">
+                          <div className="truncate text-xs font-semibold text-foreground">
                             {c.name}
                           </div>
-                          <div className="mt-0.5 font-mono text-[11px] text-slate-400">
+                          <div className="mt-0.5 font-mono text-[11px] text-muted-foreground">
                             {formatPhone(c.phone)}
                           </div>
                         </div>
@@ -373,11 +373,11 @@ export default function AirportBotTab() {
                       </div>
                       <div className="mt-1.5 flex items-center gap-1.5">
                         {c.actif ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-400">
+                          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600">
                             <Check className="h-2.5 w-2.5" /> Actif
                           </span>
                         ) : (
-                          <span className="inline-flex items-center gap-1 text-[10px] text-slate-500">
+                          <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground/70">
                             <AlertCircle className="h-2.5 w-2.5" /> Suspendu
                           </span>
                         )}
@@ -388,19 +388,19 @@ export default function AirportBotTab() {
               </div>
             )}
 
-            <div className="mt-3 flex items-center justify-between border-t border-slate-800 pt-2 text-[10px] text-slate-500">
+            <div className="mt-3 flex items-center justify-between border-t border-border pt-2 text-[10px] text-muted-foreground/70">
               <span>{count} contact{count > 1 ? 's' : ''}</span>
-              <span className="text-emerald-400">{actifs} actif{actifs > 1 ? 's' : ''}</span>
+              <span className="text-emerald-600">{actifs} actif{actifs > 1 ? 's' : ''}</span>
             </div>
           </div>
 
           {/* Twilio config */}
-          <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-4">
+          <div className="rounded-lg border border-border bg-card/40 p-4">
             <div className="mb-3 flex items-center gap-2">
-              <Terminal className="h-4 w-4 text-slate-400" />
-              <h3 className="text-sm font-semibold text-slate-200">Variables d'environnement</h3>
+              <Terminal className="h-4 w-4 text-muted-foreground" />
+              <h3 className="text-sm font-semibold text-foreground">Variables d'environnement</h3>
             </div>
-            <p className="mb-3 text-xs text-slate-500">
+            <p className="mb-3 text-xs text-muted-foreground/70">
               À définir dans <code className="font-mono">.env</code> pour activer le bot en production.
             </p>
             <div className="flex flex-col gap-2">
@@ -410,9 +410,9 @@ export default function AirportBotTab() {
                 { key: 'TWILIO_PHONE', desc: 'Numéro WhatsApp expéditeur (sandbox ou production)' },
                 { key: 'AIRPORT_OPS_WHATSAPP', desc: 'Numéro ops destinataire (routage alertes)' },
               ].map((v) => (
-                <div key={v.key} className="flex items-center justify-between gap-2 rounded-md border border-slate-800 bg-slate-950/60 px-2.5 py-1.5">
-                  <code className="font-mono text-[11px] text-emerald-300">{v.key}</code>
-                  <span className="truncate text-[10px] text-slate-500" title={v.desc}>
+                <div key={v.key} className="flex items-center justify-between gap-2 rounded-md border border-border bg-background/60 px-2.5 py-1.5">
+                  <code className="font-mono text-[11px] text-emerald-600">{v.key}</code>
+                  <span className="truncate text-[10px] text-muted-foreground/70" title={v.desc}>
                     {v.desc}
                   </span>
                 </div>

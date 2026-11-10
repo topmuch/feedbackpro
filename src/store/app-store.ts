@@ -77,12 +77,10 @@ function deriveView(scanToken: string | null, airportTag: string | null, session
   if (airportTag) return "airport"
   if (!session) return "landing"
   if (session.user.role === "SUPERADMIN") return "admin"
-  // Routage par secteur : un Pro "Aéroport" est automatiquement dirigé
-  // vers le dashboard ops aéroport (wallboard, zones, signalements, bot).
-  // Les autres secteurs vont sur le dashboard Pro classique.
-  if (session.pro?.typeEtablissement === "Aéroport") return "airport-ops"
-  // Inscription et connexion aboutissent directement au dashboard
-  // (la zone « Accueil » est créée automatiquement à l'inscription).
+  // Tous les Pro (y compris Aéroport) vont sur le dashboard Pro classique.
+  // Les features aéroport (Wallboard, Zones aéroport, Signalements, Bot)
+  // sont accessibles via des onglets supplémentaires dans le ProDashboard,
+  // affichés uniquement si typeEtablissement === "Aéroport".
   return "dashboard"
 }
 

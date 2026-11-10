@@ -34,6 +34,9 @@ import {
   ChevronDown,
   Loader2,
   Sunrise,
+  Monitor,
+  Plane,
+  MessageCircle,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -72,6 +75,10 @@ import { CommanderTab } from "@/components/feedbackpro/commander-tab"
 import { RecompensesTab } from "@/components/feedbackpro/recompenses-tab"
 import { SettingsTab } from "@/components/feedbackpro/settings-tab"
 import { OnboardingBanner } from "@/components/feedbackpro/onboarding-banner"
+import AirportZonesTab from "@/components/feedbackpro/airport-zones-tab"
+import AirportReportsTab from "@/components/feedbackpro/airport-reports-tab"
+import AirportBotTab from "@/components/feedbackpro/airport-bot-tab"
+import { AirportWallboardTab } from "@/components/feedbackpro/airport-wallboard-tab"
 
 type Onglet =
   | "dashboard"
@@ -88,6 +95,12 @@ type Onglet =
   | "actions"
   | "billing"
   | "commander"
+  // Task 2-4 — onglets spécifiques au secteur Aéroport
+  // (visibles uniquement si session.pro.typeEtablissement === "Aéroport")
+  | "airport-wallboard"
+  | "airport-zones"
+  | "airport-reports"
+  | "airport-bot"
 
 /** Slug URL → onglet interne (ex. /dashboard/qr-codes → "qrcode") */
 const SLUG_TO_TAB: Record<string, Onglet> = {
@@ -111,6 +124,11 @@ const SLUG_TO_TAB: Record<string, Onglet> = {
   billing: "billing",
   parametres: "settings",
   settings: "settings", // alias anglophone du slug canonique « parametres »
+  // Task 2-4 — slugs aéroport
+  "aeroport-wallboard": "airport-wallboard",
+  "aeroport-zones": "airport-zones",
+  "aeroport-signalements": "airport-reports",
+  "aeroport-bot": "airport-bot",
 }
 
 /** Onglet interne → slug URL (ex. "qrcode" → /dashboard/qr-codes) */
@@ -129,6 +147,11 @@ const TAB_TO_SLUG: Record<Onglet, string> = {
   actions: "actions",
   billing: "billing",
   settings: "parametres",
+  // Task 2-4 — slugs aéroport
+  "airport-wallboard": "aeroport-wallboard",
+  "airport-zones": "aeroport-zones",
+  "airport-reports": "aeroport-signalements",
+  "airport-bot": "aeroport-bot",
 }
 
 // ---------- Navigation (Session 4) : 7 onglets principaux + groupe « Gestion » ----------
@@ -156,6 +179,19 @@ const ONGLETS_GESTION: EntreeNav[] = [
   { id: "recompenses", labelKey: "nav.recompenses", icon: Gift },
   { id: "actions", labelKey: "nav.actions", icon: ClipboardCheck },
   { id: "billing", labelKey: "nav.billing", icon: CreditCard },
+]
+
+/**
+ * Task 2-4 — Onglets spécifiques au secteur Aéroport.
+ * Affichés dans une section « ✈️ Aéroport » dédiée, uniquement si
+ * `session.pro.typeEtablissement === "Aéroport"`. L'accent emerald
+ * reste la signature visuelle aéroport (bouton Wallboard, accents Zones).
+ */
+const ONGLETS_AEROPORT: EntreeNav[] = [
+  { id: "airport-wallboard", labelKey: "nav.airportWallboard", icon: Monitor },
+  { id: "airport-zones", labelKey: "nav.airportZones", icon: Plane },
+  { id: "airport-reports", labelKey: "nav.airportReports", icon: Inbox },
+  { id: "airport-bot", labelKey: "nav.airportBot", icon: MessageCircle },
 ]
 
 /** Liste plate (squelettes de chargement uniquement) */
@@ -188,7 +224,7 @@ function ongletDepuisUrl(): Onglet {
 }
 
 export function ProDashboard() {
-  const t = (key: string) => { const map: Record<string, string> = {"nav.dashboard": "Tableau de bord", "nav.coach": "Coach IA", "nav.auditMatin": "Audit Matin", "nav.zones": "Zones", "nav.retours": "Retours", "nav.team": "Equipe", "nav.stats": "Statistiques", "nav.qrcode": "QR Codes", "nav.settings": "Parametres", "nav.commander": "Commander", "nav.rapports": "Rapports IA", "nav.recompenses": "Recompenses", "nav.actions": "Actions", "nav.billing": "Facturation", "nav.gestion": "Gestion", "common.ouvrirMenu": "Ouvrir le menu", "common.navigationDashboard": "Navigation du dashboard", "common.deconnexion": "Deconnexion", "common.tableauBordFeedback": "Tableau de bord FeedbackPro", "common.promesseCoach": "Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorites concretes."}; return map[key] || key }
+  const t = (key: string) => { const map: Record<string, string> = {"nav.dashboard": "Tableau de bord", "nav.coach": "Coach IA", "nav.auditMatin": "Audit Matin", "nav.zones": "Zones", "nav.retours": "Retours", "nav.team": "Equipe", "nav.stats": "Statistiques", "nav.qrcode": "QR Codes", "nav.settings": "Parametres", "nav.commander": "Commander", "nav.rapports": "Rapports IA", "nav.recompenses": "Recompenses", "nav.actions": "Actions", "nav.billing": "Facturation", "nav.airportWallboard": "Wallboard", "nav.airportZones": "Zones aéroport", "nav.airportReports": "Signalements", "nav.airportBot": "Bot WhatsApp", "nav.aeroport": "Aéroport", "nav.gestion": "Gestion", "common.ouvrirMenu": "Ouvrir le menu", "common.navigationDashboard": "Navigation du dashboard", "common.deconnexion": "Deconnexion", "common.tableauBordFeedback": "Tableau de bord FeedbackPro", "common.promesseCoach": "Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorites concretes."}; return map[key] || key }
   const [onglet, setOnglet] = useState<Onglet>(() => ongletDepuisUrl())
   const [menuOuvert, setMenuOuvert] = useState(false)
   /** Zone présélectionnée dans l'onglet QR (arrivée depuis l'onglet Zones) */
@@ -357,7 +393,7 @@ export function ProDashboard() {
     <div className="flex min-h-screen flex-col bg-muted/30 lg:pl-80 lg:pr-3">
       {/* ---------- Sidebar détachée (desktop lg+) ---------- */}
       <aside className="fixed inset-y-3 left-3 z-40 hidden w-72 flex-col rounded-3xl bg-[#002e85] text-white shadow-xl lg:flex">
-        <ContenuSidebar ongletActif={onglet} onNaviguer={naviguer} retoursNonLus={retoursNonLus} />
+        <ContenuSidebar ongletActif={onglet} onNaviguer={naviguer} retoursNonLus={retoursNonLus} estAeroport={typeEtablissement === "Aéroport"} />
       </aside>
 
       {/* ---------- Top bar discrète (card blanc arrondie) ---------- */}
@@ -386,6 +422,7 @@ export function ProDashboard() {
                     setMenuOuvert(false)
                   }}
                   retoursNonLus={retoursNonLus}
+                  estAeroport={typeEtablissement === "Aéroport"}
                 />
               </SheetContent>
             </Sheet>
@@ -513,6 +550,11 @@ export function ProDashboard() {
         {onglet === "commander" && <CommanderTab />}
         {onglet === "billing" && <BillingTab />}
         {onglet === "settings" && <SettingsTab />}
+        {/* Task 2-4 — onglets aéroport (secteur « Aéroport » uniquement). */}
+        {onglet === "airport-wallboard" && <AirportWallboardTab />}
+        {onglet === "airport-zones" && <AirportZonesTab />}
+        {onglet === "airport-reports" && <AirportReportsTab />}
+        {onglet === "airport-bot" && <AirportBotTab />}
       </main>
     </div>
   )
@@ -529,7 +571,7 @@ function BoutonOnglet({
   actif: boolean
   onNaviguer: (o: Onglet) => void
 }) {
-  const t = (key: string) => { const map: Record<string, string> = {"nav.dashboard": "Tableau de bord", "nav.coach": "Coach IA", "nav.auditMatin": "Audit Matin", "nav.zones": "Zones", "nav.retours": "Retours", "nav.team": "Equipe", "nav.stats": "Statistiques", "nav.qrcode": "QR Codes", "nav.settings": "Parametres", "nav.commander": "Commander", "nav.rapports": "Rapports IA", "nav.recompenses": "Recompenses", "nav.actions": "Actions", "nav.billing": "Facturation", "nav.gestion": "Gestion", "common.ouvrirMenu": "Ouvrir le menu", "common.navigationDashboard": "Navigation du dashboard", "common.deconnexion": "Deconnexion", "common.tableauBordFeedback": "Tableau de bord FeedbackPro", "common.promesseCoach": "Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorites concretes."}; return map[key] || key }
+  const t = (key: string) => { const map: Record<string, string> = {"nav.dashboard": "Tableau de bord", "nav.coach": "Coach IA", "nav.auditMatin": "Audit Matin", "nav.zones": "Zones", "nav.retours": "Retours", "nav.team": "Equipe", "nav.stats": "Statistiques", "nav.qrcode": "QR Codes", "nav.settings": "Parametres", "nav.commander": "Commander", "nav.rapports": "Rapports IA", "nav.recompenses": "Recompenses", "nav.actions": "Actions", "nav.billing": "Facturation", "nav.airportWallboard": "Wallboard", "nav.airportZones": "Zones aéroport", "nav.airportReports": "Signalements", "nav.airportBot": "Bot WhatsApp", "nav.aeroport": "Aéroport", "nav.gestion": "Gestion", "common.ouvrirMenu": "Ouvrir le menu", "common.navigationDashboard": "Navigation du dashboard", "common.deconnexion": "Deconnexion", "common.tableauBordFeedback": "Tableau de bord FeedbackPro", "common.promesseCoach": "Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorites concretes."}; return map[key] || key }
   const Icon = entree.icon
   return (
     <button
@@ -560,12 +602,14 @@ function ContenuSidebar({
   ongletActif,
   onNaviguer,
   retoursNonLus = 0,
+  estAeroport = false,
 }: {
   ongletActif: Onglet
   onNaviguer: (o: Onglet) => void
   retoursNonLus?: number
+  estAeroport?: boolean
 }) {
-  const t = (key: string) => { const map: Record<string, string> = {"nav.dashboard": "Tableau de bord", "nav.coach": "Coach IA", "nav.auditMatin": "Audit Matin", "nav.zones": "Zones", "nav.retours": "Retours", "nav.team": "Equipe", "nav.stats": "Statistiques", "nav.qrcode": "QR Codes", "nav.settings": "Parametres", "nav.commander": "Commander", "nav.rapports": "Rapports IA", "nav.recompenses": "Recompenses", "nav.actions": "Actions", "nav.billing": "Facturation", "nav.gestion": "Gestion", "common.ouvrirMenu": "Ouvrir le menu", "common.navigationDashboard": "Navigation du dashboard", "common.deconnexion": "Deconnexion", "common.tableauBordFeedback": "Tableau de bord FeedbackPro", "common.promesseCoach": "Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorites concretes."}; return map[key] || key }
+  const t = (key: string) => { const map: Record<string, string> = {"nav.dashboard": "Tableau de bord", "nav.coach": "Coach IA", "nav.auditMatin": "Audit Matin", "nav.zones": "Zones", "nav.retours": "Retours", "nav.team": "Equipe", "nav.stats": "Statistiques", "nav.qrcode": "QR Codes", "nav.settings": "Parametres", "nav.commander": "Commander", "nav.rapports": "Rapports IA", "nav.recompenses": "Recompenses", "nav.actions": "Actions", "nav.billing": "Facturation", "nav.airportWallboard": "Wallboard", "nav.airportZones": "Zones aéroport", "nav.airportReports": "Signalements", "nav.airportBot": "Bot WhatsApp", "nav.aeroport": "Aéroport", "nav.gestion": "Gestion", "common.ouvrirMenu": "Ouvrir le menu", "common.navigationDashboard": "Navigation du dashboard", "common.deconnexion": "Deconnexion", "common.tableauBordFeedback": "Tableau de bord FeedbackPro", "common.promesseCoach": "Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorites concretes."}; return map[key] || key }
   return (
     <div className="flex h-full flex-col">
       {/* Logo */}
@@ -583,6 +627,23 @@ function ContenuSidebar({
         {ONGLETS_PRINCIPAUX.map((o) => (
           <BoutonOnglet key={o.id} entree={{ ...o, badge: o.id === "retours" ? retoursNonLus : undefined }} actif={ongletActif === o.id} onNaviguer={onNaviguer} />
         ))}
+
+        {/* Task 2-4 — Section « ✈️ Aéroport » (uniquement pour le secteur Aéroport).
+            Placée APRÈS les onglets principaux et AVANT le séparateur « Gestion »
+            pour rester près des onglets opérationnels (Zones, Retours). */}
+        {estAeroport && (
+          <>
+            <p
+              className="px-6 pt-4 pb-1 text-[11px] font-medium uppercase tracking-wider text-emerald-300/80"
+              role="presentation"
+            >
+              ✈️ {t("nav.aeroport")}
+            </p>
+            {ONGLETS_AEROPORT.map((o) => (
+              <BoutonOnglet key={o.id} entree={o} actif={ongletActif === o.id} onNaviguer={onNaviguer} />
+            ))}
+          </>
+        )}
 
         {/* Séparateur visuel : label « Gestion » en majuscules */}
         <p
