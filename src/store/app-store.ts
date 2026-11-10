@@ -9,7 +9,7 @@
 
 import { create } from "zustand"
 
-export type View = "loading" | "landing" | "auth" | "dashboard" | "admin" | "scan" | "airport"
+export type View = "loading" | "landing" | "auth" | "dashboard" | "admin" | "scan" | "airport" | "airport-ops"
 
 /** Établissement (Pro) tel que renvoyé par /api/auth/me et les routes de session */
 export type ProData = {
@@ -77,6 +77,10 @@ function deriveView(scanToken: string | null, airportTag: string | null, session
   if (airportTag) return "airport"
   if (!session) return "landing"
   if (session.user.role === "SUPERADMIN") return "admin"
+  // Routage par secteur : un Pro "Aéroport" est automatiquement dirigé
+  // vers le dashboard ops aéroport (wallboard, zones, signalements, bot).
+  // Les autres secteurs vont sur le dashboard Pro classique.
+  if (session.pro?.typeEtablissement === "Aéroport") return "airport-ops"
   // Inscription et connexion aboutissent directement au dashboard
   // (la zone « Accueil » est créée automatiquement à l'inscription).
   return "dashboard"

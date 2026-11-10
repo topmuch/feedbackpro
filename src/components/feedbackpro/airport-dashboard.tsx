@@ -24,8 +24,9 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import { Plane, ExternalLink, Home, Monitor } from 'lucide-react'
+import { Plane, ExternalLink, Home, Monitor, LogOut, Building2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useAppStore } from '@/store/app-store'
 import AirportZonesTab from '@/components/feedbackpro/airport-zones-tab'
 import AirportReportsTab from '@/components/feedbackpro/airport-reports-tab'
 import AirportBotTab from '@/components/feedbackpro/airport-bot-tab'
@@ -101,6 +102,13 @@ export default function AirportDashboard() {
   // hydration mismatch (horloge live, date, etc.). Le dashboard est
   // affiché dès le premier useEffect côté client.
   const [mounted, setMounted] = useState(false)
+  // Session : nom de l'aéroport + déconnexion (si le dashboard est
+  // accédé depuis un compte Pro connecté, on affiche son nom et un
+  // bouton de déconnexion).
+  const session = useAppStore((s) => s.session)
+  const logout = useAppStore((s) => s.logout)
+  const setView = useAppStore((s) => s.setView)
+  const airportName = session?.pro?.nomEtablissement ?? null
   useEffect(() => {
     // Différé (setTimeout 0) pour respecter la règle set-state-in-effect
     const t = setTimeout(() => {
@@ -169,7 +177,16 @@ export default function AirportDashboard() {
               <span className="text-emerald-400">DASHBOARD</span>
             </h1>
             <p className="hidden text-[11px] text-slate-400 sm:block" suppressHydrationWarning>
-              Dashboard opérationnel · {today ? formatDateLong(today) : ""}
+              {airportName ? (
+                <span className="inline-flex items-center gap-1">
+                  <Building2 className="h-3 w-3 text-emerald-400" />
+                  {airportName}
+                  <span className="text-slate-600">·</span>
+                  {today ? formatDateLong(today) : ""}
+                </span>
+              ) : (
+                <>Dashboard opérationnel · {today ? formatDateLong(today) : ""}</>
+              )}
             </p>
           </div>
         </div>
@@ -198,15 +215,30 @@ export default function AirportDashboard() {
             <ExternalLink className="h-3 w-3 opacity-60" />
           </Link>
 
-          {/* Lien retour accueil */}
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 rounded-md border border-slate-700 bg-slate-800/60 px-2.5 py-1.5 text-xs font-medium text-slate-200 transition hover:border-slate-600 hover:bg-slate-800 hover:text-white"
-            title="Retour à l'accueil FeedbackPro"
-          >
-            <Home className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Accueil</span>
-          </Link>
+          {/* Déconnexion (si session active) */}
+          {session && (
+            <button
+              type="button"
+              onClick={() => logout()}
+              className="inline-flex items-center gap-1.5 rounded-md border border-slate-700 bg-slate-800/60 px-2.5 py-1.5 text-xs font-medium text-slate-200 transition hover:border-rose-500/40 hover:bg-slate-800 hover:text-rose-300"
+              title="Se déconnecter"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Déconnexion</span>
+            </button>
+          )}
+
+          {/* Lien retour accueil (si pas de session — mode public) */}
+          {!session && (
+            <Link
+              href="/"
+              className="inline-flex items-center gap-1.5 rounded-md border border-slate-700 bg-slate-800/60 px-2.5 py-1.5 text-xs font-medium text-slate-200 transition hover:border-slate-600 hover:bg-slate-800 hover:text-white"
+              title="Retour à l'accueil FeedbackPro"
+            >
+              <Home className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Accueil</span>
+            </Link>
+          )}
         </div>
       </header>
 

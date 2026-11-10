@@ -505,10 +505,22 @@ function ConnexionForm() {
         }
         return
       }
-      // Succès : recharge la session puis redirige selon le rôle
+      // Succès : recharge la session — refreshSession() appelle deriveView()
+      // qui calcule la bonne vue selon le rôle ET le secteur (un Pro
+      // "Aéroport" sera automatiquement routé vers "airport-ops").
       await refreshSession()
-      const role = useAppStore.getState().session?.user.role
-      setView(role === "SUPERADMIN" ? "admin" : "dashboard")
+      // Safety net : si deriveView n'a pas changé la vue (par exemple si
+      // la session n'a pas été mise à jour à temps), on force au moins
+      // la sortie de la vue "auth". deriveView aura déjà positionné la
+      // bonne vue (dashboard / admin / airport-ops).
+      const st = useAppStore.getState()
+      if (st.view === "auth") {
+        const role = st.session?.user.role
+        const secteur = st.session?.pro?.typeEtablissement
+        if (role === "SUPERADMIN") setView("admin")
+        else if (secteur === "Aéroport") setView("airport-ops")
+        else setView("dashboard")
+      }
     } catch {
       setErreurApi("Impossible de contacter le serveur. Vérifiez votre connexion.")
     }
@@ -750,13 +762,20 @@ function InscriptionWizard() {
         setErreurApi(json?.error || "Impossible de créer votre compte. Réessayez dans un instant.")
         return
       }
-      // Succès : session fraîche + redirection dashboard + toast de bienvenue
+      // Succès : session fraîche + redirection automatique selon le secteur
+      // (un Pro "Aéroport" sera routé vers le dashboard ops aéroport).
       await refreshSession()
       toast({
         title: "Bienvenue sur FeedbackPro 🎉",
-        description: `${valeurs.zones.length} zone${valeurs.zones.length > 1 ? "s" : ""} créée${valeurs.zones.length > 1 ? "s" : ""} — imprimez vos QR codes dans l'onglet QR`,
+        description: `${valeurs.zones.length} zone${valeurs.zones.length > 1 ? "s" : ""} créée${valeurs.zones.length > 1 ? "s" : ""} — votre dashboard est prêt.`,
       })
-      setView("dashboard")
+      // Safety net : si deriveView n'a pas changé la vue, on force la
+      // bonne redirection selon le secteur choisi à l'inscription.
+      const st = useAppStore.getState()
+      if (st.view === "auth" || st.view === "loading") {
+        if (valeurs.typeEtablissement === "Aéroport") setView("airport-ops")
+        else setView("dashboard")
+      }
     } catch {
       setErreurApi("Impossible de contacter le serveur. Vérifiez votre connexion.")
     }
