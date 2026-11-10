@@ -28,6 +28,7 @@ import {
   buildAirportWhatsappLink,
   type AirportWhatsappPayload,
 } from '@/lib/airport-config'
+import { analyserEtRouterReport } from '@/lib/airport-vlm'
 
 export const runtime = 'nodejs'
 
@@ -63,6 +64,7 @@ export async function POST(req: NextRequest) {
     photoUrl?: string
     whatsappOptin?: boolean
     whatsappPhone?: string
+    flightNumber?: string
   }
 
   // --- Validation ---
@@ -80,6 +82,20 @@ export async function POST(req: NextRequest) {
   }
   if (b.photoUrl && typeof b.photoUrl !== 'string') {
     return fail('Photo invalide', 400)
+  }
+  // Validation numéro de vol (optionnel, format libre mais on normalise)
+  let flightNumber: string | null = null
+  if (b.flightNumber && typeof b.flightNumber === 'string') {
+    const fn = b.flightNumber.trim().toUpperCase().replace(/\s+/g, '')
+    // Format attendu : 2 lettres + 1-4 chiffres (ex: AF123, DL6049, BA049)
+    if (/^[A-Z0-9]{2}[0-9]{1,4}$/.test(fn)) {
+      flightNumber = fn
+    } else if (fn.length >= 2 && fn.length <= 8) {
+      // Accepter formats laxistes (compagnie + numéro collés)
+      flightNumber = fn.slice(0, 8)
+    } else {
+      return fail('Numéro de vol invalide (format attendu : AF123, DL6049…)', 400)
+    }
   }
 
   // --- Résolution tag → zone ---
@@ -131,12 +147,26 @@ export async function POST(req: NextRequest) {
       problemType: b.problemType,
       commentaire: b.commentaire?.trim() || null,
       photoUrl: b.photoUrl ?? null,
+      flightNumber,
       whatsappOptin: optin,
       whatsappPhone: phone,
       statut: 'EN_ATTENTE',
       whatsappPayload: whatsappMessage,
     },
   })
+
+  // --- Analyse VLM asynchrone (non bloquante) ---
+  // Si une photo est jointe, on lance l'analyse en arrière-plan.
+  // Le VLM catégorise la photo et route le signalement vers la bonne
+  // équipe ops (nettoyage / maintenance / securite / logistique…).
+  // L'utilisateur ne attend pas cette analyse (peut prendre 5-15s).
+  if (b.photoUrl) {
+    // fire-and-forget : pas d'await, on logge juste les erreurs
+    analyserEtRouterReport(report.id, b.photoUrl).catch((err) => {
+      console.warn('[airport-report] VLM async error:', err instanceof Error ? err.message : String(err))
+    })
+    console.log(`[airport-report] VLM analysis queued for report ${report.id}`)
+  }
 
   // --- Logging serveur (mode démo WhatsApp) ---
   // En production, on brancherait ici l'API WhatsApp Business (Twilio)
@@ -158,6 +188,7 @@ export async function POST(req: NextRequest) {
       statut: report.statut,
       problemType: report.problemType,
       tagScanne: report.tagScanne,
+      flightNumber: report.flightNumber,
       createdAt: report.createdAt,
     },
     whatsapp: {
@@ -169,5 +200,8 @@ export async function POST(req: NextRequest) {
       nom: zone.nom,
       emoji: zone.emoji,
     },
+    // Indique au client qu'une analyse VLM est en cours (pour affichage
+    // d'un badge « analyse IA en cours » sur l'écran de confirmation).
+    vlmPending: Boolean(b.photoUrl),
   })
 }

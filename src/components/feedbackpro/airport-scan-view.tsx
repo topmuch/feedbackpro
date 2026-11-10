@@ -74,6 +74,7 @@ type ReportResult = {
     statut: string
     problemType: string
     tagScanne: string
+    flightNumber: string | null
     createdAt: string
   }
   whatsapp: {
@@ -85,6 +86,8 @@ type ReportResult = {
     nom: string
     emoji: string
   }
+  /** Analyse VLM en cours (si photo jointe) */
+  vlmPending?: boolean
 }
 
 type WhatsappOptinResult = {
@@ -182,6 +185,9 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
   const [photoError, setPhotoError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // Numéro de vol optionnel (rattachement signalement → vol)
+  const [flightNumber, setFlightNumber] = useState("")
+
   // Soumission du signalement
   const [submitting, setSubmitting] = useState(false)
   const [submitError, setSubmitError] = useState<string | null>(null)
@@ -274,6 +280,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
         problemType: string
         commentaire?: string
         photoUrl?: string
+        flightNumber?: string
       } = {
         tag: zoneData.tagScanne,
         problemType: selectedProblem,
@@ -281,6 +288,8 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
       const c = commentaire.trim()
       if (c) body.commentaire = c
       if (photoUrl) body.photoUrl = photoUrl
+      const fn = flightNumber.trim()
+      if (fn) body.flightNumber = fn
       const result = await apiPost<ReportResult>("/api/airport/report", body)
       setReportResult(result)
       setPhase("confirmation")
@@ -294,7 +303,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
     } finally {
       setSubmitting(false)
     }
-  }, [zoneData, selectedProblem, submitting, commentaire, photoUrl])
+  }, [zoneData, selectedProblem, submitting, commentaire, photoUrl, flightNumber])
 
   // ---------- Opt-in WhatsApp (POST /api/airport/whatsapp-optin) ----------
   const activerWhatsapp = useCallback(async () => {
@@ -328,6 +337,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
     setCommentaire("")
     setPhotoUrl(null)
     setPhotoError(null)
+    setFlightNumber("")
     setSubmitError(null)
     setReportResult(null)
     setWhatsappPhone("")
@@ -616,6 +626,29 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
             ) : null}
           </div>
 
+          {/* Numéro de vol optionnel (rattachement signalement → vol) */}
+          <div className="mt-2 space-y-2">
+            <Label htmlFor="airport-flight" className="text-sm font-semibold text-slate-800">
+              Numéro de vol <span className="font-normal text-slate-500">(optionnel)</span>
+            </Label>
+            <div className="flex items-center gap-2">
+              <Plane className="size-4 shrink-0 text-slate-400" aria-hidden />
+              <Input
+                id="airport-flight"
+                type="text"
+                value={flightNumber}
+                onChange={(e) => setFlightNumber(e.target.value.toUpperCase().slice(0, 8))}
+                placeholder="Ex : AF123, DL6049…"
+                className="bg-white font-mono text-sm uppercase tracking-wider"
+                autoComplete="off"
+                inputMode="text"
+              />
+            </div>
+            <p className="text-xs text-slate-500">
+              Pour escalade compagnie en cas de problème critique sur ce vol.
+            </p>
+          </div>
+
           {/* Erreur de soumission */}
           {submitError ? (
             <Alert variant="destructive" className="mt-5">
@@ -693,6 +726,26 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                 {reportResult.report.problemType}
               </p>
             </div>
+            {reportResult.report.flightNumber ? (
+              <div className="mt-2 flex items-start gap-2">
+                <span className="mt-0.5 min-w-[64px] text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Vol
+                </span>
+                <p className="flex-1 inline-flex items-center gap-1.5 text-sm font-semibold text-slate-800">
+                  <Plane className="size-3.5 text-slate-500" aria-hidden />
+                  <span className="font-mono">{reportResult.report.flightNumber}</span>
+                </p>
+              </div>
+            ) : null}
+            {reportResult.vlmPending ? (
+              <div className="mt-2 flex items-start gap-2 rounded-lg bg-violet-50 p-2.5 text-xs text-violet-800">
+                <Loader2 className="mt-0.5 size-3.5 shrink-0 animate-spin text-violet-600" aria-hidden />
+                <p>
+                  <strong>Analyse IA de votre photo en cours…</strong> Le système catégorise
+                  automatiquement le problème et route vers la bonne équipe ops.
+                </p>
+              </div>
+            ) : null}
             <div className="mt-2 flex items-center justify-between gap-2">
               <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
                 Signalement

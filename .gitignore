@@ -70,3 +70,6 @@ tool-results/
 /tool-results/
 # Répertoire monté de l'environnement
 /upload/
+
+# Runtime-uploaded photos (airport PWA, scan-view)
+/data/uploads/

@@ -431,6 +431,21 @@ model AirportReport {
   problemType String
   commentaire String?
   photoUrl    String?
+  // --- Feature VLM (analyse auto photo) ---
+  // Catégorie auto-détectée par le modèle de vision (ex: "poubelle_pleine",
+  // "papier_toilette_epuise", "prise_usb_cassee", "tapis_arrete"…).
+  // Null si pas de photo ou analyse en cours/échouée.
+  photoCategory String?
+  // Équipe à laquelle le signalement a été auto-routé (ex: "nettoyage",
+  // "maintenance", "securite", "accueil"). Dérivé de photoCategory + zone.
+  routedTeam  String?
+  // Analyse brute JSON retournée par le VLM (description, objets détectés,
+  // niveau d'urgence estimé). Pour audit et affichage wallboard.
+  photoAnalysis String?
+  // --- Feature numéro de vol ---
+  // Numéro de vol saisi optionnellement par le voyageur (ex: "AF123", "DL6049").
+  // Permet le rattachement signalement → vol et l'escalade compagnie.
+  flightNumber String?
   // Opt-in WhatsApp du voyageur (numéro international sans +, ex: 33612345678)
   // Null tant que le voyageur n'a pas demandé à être notifié de la résolution.
   whatsappOptin Boolean @default(false)
@@ -446,4 +461,27 @@ model AirportReport {
 
   @@index([zoneId, createdAt])
   @@index([statut])
+  @@index([routedTeam])
+  @@index([flightNumber])
+}
+
+// ============================================================
+// Task 6 — WhatsApp Ops Bot : liste blanche des numéros ops
+// ------------------------------------------------------------
+// Seuls les numéros présents dans cette table (avec actif=true)
+// peuvent interroger le bot WhatsApp (/api/airport/whatsapp-webhook).
+// Un contact ops est rattaché à un rôle métier (ops, manager,
+// nettoyage, maintenance, securite) — utilisé pour l'audit et le
+// filtrage futur des commandes par équipe.
+// ============================================================
+model AirportOpsContact {
+  id        String   @id @default(cuid())
+  // Format international sans + (ex: 33612345678). Unique.
+  phone     String   @unique
+  // Libellé libre affiché dans les logs d'audit (ex: "Marc - Responsable Ops")
+  name      String
+  // Rôle métier : ops | manager | nettoyage | maintenance | securite
+  role      String   @default("ops")
+  actif     Boolean  @default(true)
+  createdAt DateTime @default(now())
 }
