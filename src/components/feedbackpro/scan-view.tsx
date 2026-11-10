@@ -1763,9 +1763,9 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                 </p>
 
                 {/* Grille de 5 cards (emoji + label "N étoile(s)") —
-                    grid-cols-5 desktop, grid-cols-5 mobile aussi (cards
-                    étroites mais lisibles : emoji 3xl + label 11px).
-                    Touch target ≥ 96 px de haut (h-24 sm:h-28). */}
+                    grid-cols-5 desktop ET mobile. Emojis en GRAND format
+                    (text-5xl) pour un effet visuel immédiat au scan.
+                    Touch target ≥ 100 px de haut (min-h-28 sm:min-h-32). */}
                 <div
                   role="radiogroup"
                   aria-label={t.ariaEtoiles}
@@ -1784,14 +1784,14 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                         aria-label={t.donnerEtoiles(i)}
                         onClick={() => choisirNote(i)}
                         className={cn(
-                          "flex min-h-20 flex-col items-center justify-center gap-1 rounded-2xl border-2 p-1.5 text-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:min-h-24 sm:p-2",
+                          "flex min-h-28 flex-col items-center justify-center gap-1.5 rounded-2xl border-2 p-1.5 text-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:min-h-32 sm:p-2",
                           active
-                            ? "border-[#002e85] bg-[#002e85] text-white"
+                            ? "border-[#002e85] bg-[#002e85] text-white shadow-lg shadow-[#002e85]/30 scale-105"
                             : "border-[#002e85] bg-white text-gray-900 hover:scale-105",
                           isClicked && "fp-scan-card-pop"
                         )}
                       >
-                        <span aria-hidden className="text-3xl leading-none sm:text-4xl">
+                        <span aria-hidden className="text-5xl leading-none sm:text-6xl">
                           {EMOJIS_NOTE[i]}
                         </span>
                         <span className="text-[10px] font-semibold leading-tight sm:text-xs">
@@ -1886,10 +1886,10 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                     </p>
                   )}
 
-                  {/* ----- Type UNIQUE : grid de cards emoji ----- */}
+                  {/* ----- Type UNIQUE : grid de cards emoji GRAND format ----- */}
                   {questionCourante.type === "unique" && (
                     <div
-                      className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3"
+                      className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3"
                       role="radiogroup"
                       aria-label={questionCourante.texte}
                     >
@@ -1904,16 +1904,16 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                             aria-label={opt.label}
                             onClick={() => repondre(questionCourante.id, opt.id)}
                             className={cn(
-                              "fp-scan-tag-enter flex min-h-20 flex-col items-center justify-center gap-1 rounded-2xl border-2 p-2 text-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-[#002e85] focus-visible:ring-offset-2 sm:min-h-24 sm:p-3",
+                              "fp-scan-tag-enter flex min-h-32 flex-col items-center justify-center gap-2 rounded-2xl border-2 p-3 text-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-[#002e85] focus-visible:ring-offset-2 sm:min-h-36 sm:p-4",
                               actif
-                                ? "border-[#002e85] bg-[#002e85] text-white"
+                                ? "border-[#002e85] bg-[#002e85] text-white shadow-lg shadow-[#002e85]/30 scale-105"
                                 : "border-[#002e85] bg-white text-gray-900 hover:scale-105",
                               actif && "fp-scan-card-pop"
                             )}
                             style={{ animationDelay: `${idx * 50}ms` }}
                           >
                             {opt.emoji && (
-                              <span aria-hidden className="text-2xl leading-none sm:text-3xl">
+                              <span aria-hidden className="text-5xl leading-none sm:text-6xl">
                                 {opt.emoji}
                               </span>
                             )}
@@ -1926,10 +1926,10 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                     </div>
                   )}
 
-                  {/* ----- Type MULTIPLE : grid de cards emoji multi-sélection ----- */}
+                  {/* ----- Type MULTIPLE : grid de cards emoji GRAND format multi-sélection ----- */}
                   {questionCourante.type === "multiple" && (
                     <div
-                      className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3"
+                      className="mt-4 grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3"
                       role="group"
                       aria-label={questionCourante.texte}
                     >
@@ -1946,16 +1946,16 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                             aria-label={opt.label}
                             onClick={() => basculerOptionMultiple(questionCourante, opt.id)}
                             className={cn(
-                              "fp-scan-tag-enter flex min-h-20 flex-col items-center justify-center gap-1 rounded-2xl border-2 p-2 text-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-[#002e85] focus-visible:ring-offset-2 sm:min-h-24 sm:p-3",
+                              "fp-scan-tag-enter flex min-h-32 flex-col items-center justify-center gap-2 rounded-2xl border-2 p-3 text-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-[#002e85] focus-visible:ring-offset-2 sm:min-h-36 sm:p-4",
                               actif
-                                ? "border-[#002e85] bg-[#002e85] text-white"
+                                ? "border-[#002e85] bg-[#002e85] text-white shadow-lg shadow-[#002e85]/30 scale-105"
                                 : "border-[#002e85] bg-white text-gray-900 hover:scale-105",
                               actif && "fp-scan-card-pop"
                             )}
                             style={{ animationDelay: `${idx * 50}ms` }}
                           >
                             {opt.emoji && (
-                              <span aria-hidden className="text-2xl leading-none sm:text-3xl">
+                              <span aria-hidden className="text-5xl leading-none sm:text-6xl">
                                 {opt.emoji}
                               </span>
                             )}
@@ -2392,7 +2392,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                           <span aria-hidden className="me-1">▸</span>
                           {groupe.pilier}
                         </p>
-                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3">
+                        <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3">
                           {groupe.tags.map((tg, idx) => {
                             const actif = tags.includes(tg.id)
                             const def = definitionTag(tg.id, estPositif)
@@ -2403,15 +2403,15 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                                 aria-pressed={actif}
                                 onClick={() => basculerTag(tg.id)}
                                 className={cn(
-                                  "fp-scan-tag-enter flex min-h-20 flex-col items-center justify-center gap-1 rounded-2xl border-2 p-2 text-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:min-h-24 sm:p-3",
+                                  "fp-scan-tag-enter flex min-h-32 flex-col items-center justify-center gap-2 rounded-2xl border-2 p-3 text-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:min-h-36 sm:p-4",
                                   actif
-                                    ? "border-[#002e85] bg-[#002e85] text-white"
+                                    ? "border-[#002e85] bg-[#002e85] text-white shadow-lg shadow-[#002e85]/30 scale-105"
                                     : "border-[#002e85] bg-white text-gray-900 hover:scale-105",
                                   actif && "fp-scan-card-pop"
                                 )}
                                 style={{ animationDelay: `${(gIdx * 4 + idx) * 50}ms` }}
                               >
-                                <span aria-hidden className="text-2xl leading-none sm:text-3xl">
+                                <span aria-hidden className="text-5xl leading-none sm:text-6xl">
                                   {def.emoji}
                                 </span>
                                 <span className="text-xs font-semibold leading-tight sm:text-sm">
@@ -2428,7 +2428,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                   <div
                     role="group"
                     aria-label={estPositif ? t.ariaTagsPositifs : t.ariaTagsNegatifs}
-                    className="grid grid-cols-2 gap-2 sm:grid-cols-3 sm:gap-3"
+                    className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 sm:gap-3"
                   >
                     {idsTags.map((id, idx) => {
                       const def = definitionTag(id, estPositif)
@@ -2440,15 +2440,15 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                           aria-pressed={actif}
                           onClick={() => basculerTag(id)}
                           className={cn(
-                            "fp-scan-tag-enter flex min-h-20 flex-col items-center justify-center gap-1 rounded-2xl border-2 p-2 text-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:min-h-24 sm:p-3",
+                            "fp-scan-tag-enter flex min-h-32 flex-col items-center justify-center gap-2 rounded-2xl border-2 p-3 text-center outline-none transition-all focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-white sm:min-h-36 sm:p-4",
                             actif
-                              ? "border-[#002e85] bg-[#002e85] text-white"
+                              ? "border-[#002e85] bg-[#002e85] text-white shadow-lg shadow-[#002e85]/30 scale-105"
                               : "border-[#002e85] bg-white text-gray-900 hover:scale-105",
                             actif && "fp-scan-card-pop"
                           )}
                           style={{ animationDelay: `${idx * 50}ms` }}
                         >
-                          <span aria-hidden className="text-2xl leading-none sm:text-3xl">
+                          <span aria-hidden className="text-5xl leading-none sm:text-6xl">
                             {def.emoji}
                           </span>
                           <span className="text-xs font-semibold leading-tight sm:text-sm">
