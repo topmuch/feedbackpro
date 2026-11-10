@@ -39,9 +39,11 @@ import {
   Camera,
   CheckCircle2,
   ChevronLeft,
+  LifeBuoy,
   Loader2,
   MapPin,
   MessageSquare,
+  Phone,
   Plane,
   Send,
   ShieldCheck,
@@ -53,6 +55,13 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 
 // ---------- Types locaux (contrat API) ----------
 
@@ -199,6 +208,14 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
   const [whatsappSubmitted, setWhatsappSubmitted] = useState<WhatsappOptinResult | null>(null)
   const [whatsappError, setWhatsappError] = useState<string | null>(null)
 
+  // --- Bouton "Aide" PWA (dialog + état de la demande) ---
+  const [helpOpen, setHelpOpen] = useState(false)
+  const [helpMessage, setHelpMessage] = useState("")
+  const [helpPhone, setHelpPhone] = useState("")
+  const [helpSubmitting, setHelpSubmitting] = useState(false)
+  const [helpError, setHelpError] = useState<string | null>(null)
+  const [helpSuccess, setHelpSuccess] = useState<string | null>(null)
+
   // ---------- Effet : fetch de la zone au montage + quand le tag change ----------
   useEffect(() => {
     let cancelled = false
@@ -329,6 +346,54 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
     }
   }, [reportResult, whatsappSubmitting, whatsappPhone])
 
+  // ---------- Bouton "Aide" PWA (POST /api/airport/help) ----------
+  // Ouvre le dialog (avec le numéro WhatsApp pré-rempli si déjà saisi).
+  const ouvrirAide = useCallback(() => {
+    setHelpError(null)
+    setHelpSuccess(null)
+    setHelpMessage("")
+    setHelpPhone(whatsappPhone)
+    setHelpOpen(true)
+  }, [whatsappPhone])
+
+  // Envoie effectif de la demande d'aide
+  const envoyerDemandeAide = useCallback(async () => {
+    if (!zoneData || helpSubmitting) return
+    setHelpError(null)
+    const tag = zoneData.tagScanne
+    const body: {
+      tag: string
+      message?: string
+      travelerPhone?: string
+      reportId?: string
+    } = { tag }
+    const msg = helpMessage.trim()
+    if (msg) body.message = msg
+    if (helpPhone.trim()) {
+      const phone = helpPhone.replace(/[^\d]/g, "")
+      if (phone && /^\d{8,15}$/.test(phone)) {
+        body.travelerPhone = phone
+      } else if (phone) {
+        setHelpError("Numéro invalide (format attendu : +33 6 12 34 56 78)")
+        return
+      }
+    }
+    if (reportResult?.report.id) body.reportId = reportResult.report.id
+    setHelpSubmitting(true)
+    try {
+      const result = await apiPost<{
+        helpRequestId: string
+        statut: string
+        message: string
+      }>("/api/airport/help", body)
+      setHelpSuccess(result.message)
+    } catch (err) {
+      setHelpError(err instanceof Error ? err.message : "Envoi impossible")
+    } finally {
+      setHelpSubmitting(false)
+    }
+  }, [zoneData, helpSubmitting, helpMessage, helpPhone, reportResult])
+
   // ---------- "Signaler un autre problème" : reset vers zone_detectee ----------
   // On conserve le tag/zone (zoneData) — seul le signalement courant est réinitialisé.
   const signalerAutre = useCallback(() => {
@@ -343,6 +408,11 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
     setWhatsappPhone("")
     setWhatsappSubmitted(null)
     setWhatsappError(null)
+    setHelpOpen(false)
+    setHelpMessage("")
+    setHelpPhone("")
+    setHelpError(null)
+    setHelpSuccess(null)
     setPhase("zone_detectee")
     try {
       window.scrollTo({ top: 0, behavior: "smooth" })
@@ -817,6 +887,135 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
               </div>
             )}
           </section>
+
+          {/* ---------- Bouton "Aide" PWA ---------- */}
+          {/* Bouton rouge plein large — reste visible même après une demande réussie. */}
+          <section className="mt-4">
+            <button
+              type="button"
+              onClick={ouvrirAide}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-rose-600 py-4 text-base font-bold text-white shadow-lg shadow-rose-600/20 transition-all hover:bg-rose-700 active:scale-[0.99]"
+              aria-label="Demander de l'aide immédiatement"
+            >
+              <LifeBuoy className="size-5" aria-hidden />
+              🆘 Demander de l'aide immédiatement
+            </button>
+            <p className="mt-1.5 text-center text-xs text-muted-foreground">
+              Un agent ops vient vous aider sur place
+            </p>
+          </section>
+
+          {/* ---------- Dialog "Demande d'aide" ---------- */}
+          <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
+            <DialogContent className="sm:max-w-md">
+              {helpSuccess ? (
+                <div className="flex flex-col items-center gap-4 py-4 text-center">
+                  <div className="flex size-16 animate-in fade-in zoom-in-50 items-center justify-center rounded-full bg-emerald-50 ring-4 ring-emerald-100 duration-300">
+                    <CheckCircle2 className="size-10 text-emerald-500" aria-hidden />
+                  </div>
+                  <div>
+                    <h2 className="text-xl font-bold text-slate-900">
+                      ✅ Demande envoyée
+                    </h2>
+                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+                      {helpSuccess}
+                    </p>
+                  </div>
+                  <Button
+                    type="button"
+                    onClick={() => setHelpOpen(false)}
+                    className="h-11 w-full rounded-xl bg-slate-900 text-white hover:bg-slate-800"
+                  >
+                    Fermer
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2 text-rose-700">
+                      <LifeBuoy className="size-5" aria-hidden />
+                      Demander de l'aide
+                    </DialogTitle>
+                    <DialogDescription>
+                      Un agent ops est notifié et vient vous aider sur place.
+                      Position détectée : {zoneData?.tagScanne ?? "—"}
+                    </DialogDescription>
+                  </DialogHeader>
+
+                  <div className="space-y-3">
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="help-message"
+                        className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                      >
+                        Précisez votre besoin (optionnel)
+                      </Label>
+                      <Textarea
+                        id="help-message"
+                        value={helpMessage}
+                        onChange={(e) =>
+                          setHelpMessage(e.target.value.slice(0, 500))
+                        }
+                        maxLength={500}
+                        rows={3}
+                        placeholder="Ex : mon bagage est bloqué, j'ai besoin d'aide pour le récupérer…"
+                        className="resize-none bg-white text-sm"
+                      />
+                      <p className="text-right text-[10px] text-muted-foreground">
+                        {helpMessage.length}/500
+                      </p>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <Label
+                        htmlFor="help-phone"
+                        className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground"
+                      >
+                        <Phone className="size-3" aria-hidden />
+                        Pour que l'agent vous contacte (optionnel)
+                      </Label>
+                      <Input
+                        id="help-phone"
+                        type="tel"
+                        inputMode="tel"
+                        value={helpPhone}
+                        onChange={(e) => setHelpPhone(e.target.value)}
+                        placeholder="+33 6 12 34 56 78"
+                        className="h-11 bg-white text-base"
+                      />
+                    </div>
+
+                    {helpError ? (
+                      <Alert variant="destructive">
+                        <AlertTriangle className="size-4" aria-hidden />
+                        <AlertTitle>Envoi impossible</AlertTitle>
+                        <AlertDescription>{helpError}</AlertDescription>
+                      </Alert>
+                    ) : null}
+
+                    <Button
+                      type="button"
+                      onClick={envoyerDemandeAide}
+                      disabled={helpSubmitting}
+                      className="h-11 w-full rounded-xl bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-70"
+                    >
+                      {helpSubmitting ? (
+                        <>
+                          <Loader2 className="size-4 animate-spin" aria-hidden />
+                          Envoi en cours…
+                        </>
+                      ) : (
+                        <>
+                          <Send className="size-4" aria-hidden />
+                          Envoyer la demande
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </>
+              )}
+            </DialogContent>
+          </Dialog>
 
           {/* Tertiaire : voir le message envoyé aux équipes */}
           <details className="mt-4 group rounded-xl border border-slate-200 bg-white p-3">

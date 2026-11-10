@@ -52,6 +52,15 @@ type RecentReport = {
   createdAt: string
 }
 
+// Feature 3 — SLA temps de résolution par zone (renvoyé par le wallboard)
+type SlaStats = {
+  targetMinutes: number | null
+  resolvedCount: number
+  avgResolutionMinutes: number | null
+  slaCompliancePercent: number
+  pendingBreaches: number
+}
+
 type WallboardData = {
   stats: {
     total_24h: number
@@ -64,6 +73,38 @@ type WallboardData = {
   top_zones: ZoneAgg[]
   recent_reports: RecentReport[]
   by_team: Record<TeamKey, number>
+  sla?: Record<string, SlaStats>
+}
+
+// ---------------------------------------------------------------
+// Types — /api/airport/alerts/check
+// ---------------------------------------------------------------
+type AlertType =
+  | 'SPIKE_15MIN'
+  | 'SPIKE_30MIN'
+  | 'SPIKE_1H'
+  | 'PENDING_COUNT'
+  | 'NO_RESOLUTION_HOURS'
+
+type TriggeredAlert = {
+  thresholdId: string
+  type: AlertType
+  zoneCode: string
+  currentValue: number
+  threshold: number
+  severity: 'warning' | 'critical'
+  message: string
+  triggeredAt: string
+  suppressed: boolean
+}
+
+type AlertsCheckResponse = {
+  ok: true
+  data: {
+    alerts: TriggeredAlert[]
+    lastCheckedAt: string
+    stats: { totalActive: number; triggered: number; critical: number; warning: number }
+  }
 }
 
 // ---------------------------------------------------------------
@@ -153,9 +194,83 @@ async function fetchWallboard(): Promise<WallboardData> {
   return json.data
 }
 
+async function fetchAlerts(): Promise<TriggeredAlert[]> {
+  const res = await fetch('/api/airport/alerts/check', { cache: 'no-store' })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const json = (await res.json()) as
+    | AlertsCheckResponse
+    | { ok: false; error: string }
+  if (!json.ok) throw new Error(json.error ?? 'réponse invalide')
+  return json.data.alerts
+}
+
 // ---------------------------------------------------------------
 // Sous-composants
 // ---------------------------------------------------------------
+
+/**
+ * Bannière d'alerte — affichée en haut du wallboard quand au moins
+ * une alerte est active. Style distinct selon la sévérité :
+ *   - critical : bordure rouge pulsante
+ *   - warning  : bordure amber solide
+ */
+function AlertBanner({ alert }: { alert: TriggeredAlert }) {
+  const isCritical = alert.severity === 'critical'
+  return (
+    <div
+      className={`flex items-start gap-3 rounded-lg border p-3 ${
+        isCritical
+          ? 'border-rose-500/60 bg-rose-500/10 shadow-[0_0_24px_-4px_rgba(244,63,94,0.4)]'
+          : 'border-amber-500/50 bg-amber-500/10'
+      }`}
+    >
+      <span
+        className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full ${
+          isCritical
+            ? 'animate-pulse bg-rose-500 text-white'
+            : 'bg-amber-500 text-white'
+        }`}
+        aria-hidden
+      >
+        {isCritical ? '🚨' : '⚠️'}
+      </span>
+      <div className="min-w-0 flex-1">
+        <div className="flex flex-wrap items-baseline gap-x-2">
+          <span
+            className={`text-xs font-bold uppercase tracking-wider ${
+              isCritical ? 'text-rose-300' : 'text-amber-300'
+            }`}
+          >
+            {isCritical ? 'ALERTE CRITIQUE' : 'Alerte'}
+          </span>
+          <span className="text-[10px] font-mono uppercase text-slate-400">
+            {alert.type.replace(/_/g, ' ')}
+          </span>
+          <span className="text-[10px] tabular-nums text-slate-500">
+            · {relativeTime(alert.triggeredAt)}
+          </span>
+        </div>
+        <p className="mt-0.5 text-sm font-medium text-slate-100">
+          {alert.message}
+        </p>
+      </div>
+      <div
+        className={`shrink-0 rounded-md border px-2 py-1 text-right font-mono text-xs tabular-nums ${
+          isCritical
+            ? 'border-rose-500/40 bg-rose-500/15 text-rose-200'
+            : 'border-amber-500/40 bg-amber-500/15 text-amber-200'
+        }`}
+      >
+        <div className="text-base font-bold leading-none">
+          {alert.currentValue}
+        </div>
+        <div className="text-[9px] uppercase text-slate-400">
+          / {alert.threshold}
+        </div>
+      </div>
+    </div>
+  )
+}
 
 function StatCard({
   label,
@@ -260,6 +375,99 @@ function TeamBar({ team, count, max }: { team: TeamKey; count: number; max: numb
   )
 }
 
+// Feature 3 — SLA par zone : ligne compacte affichée dans le wallboard.
+// Chaque zone a sa propre carte avec :
+//   - emoji + nom + objectif SLA (emerald)
+//   - moyenne résolution (emerald si ≤ target, rose si > target)
+//   - % conformité SLA (emerald ≥80, amber 60-80, rose <60)
+//   - retards (rose si >0, emerald sinon)
+function SlaRow({ zone, sla }: { zone: ZoneAgg; sla?: SlaStats }) {
+  // SLA non configuré pour cette zone → carte discrète
+  if (!sla || sla.targetMinutes === null) {
+    return (
+      <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-2.5">
+        <div className="flex items-center gap-1.5">
+          <span className="text-base leading-none">{zone.emoji}</span>
+          <span className="truncate text-xs font-semibold text-slate-200">{zone.nom}</span>
+        </div>
+        <div className="mt-1.5 text-[10px] text-slate-500">SLA non défini</div>
+      </div>
+    )
+  }
+
+  const target = sla.targetMinutes
+  const avg = sla.avgResolutionMinutes
+  const pct = sla.slaCompliancePercent
+  const breaches = sla.pendingBreaches
+  const hasResolutions = sla.resolvedCount > 0
+
+  // Couleur de la moyenne : emerald si ≤ target, rose si > target.
+  const avgCls =
+    avg === null
+      ? 'text-slate-500'
+      : avg <= target
+        ? 'text-emerald-400'
+        : 'text-rose-400'
+
+  // Couleur de la conformité : emerald ≥80, amber 60-80, rose <60.
+  const pctCls = !hasResolutions
+    ? 'text-slate-500'
+    : pct >= 80
+      ? 'text-emerald-400'
+      : pct >= 60
+        ? 'text-amber-400'
+        : 'text-rose-400'
+
+  // Badge retards : rose si >0, emerald sinon.
+  const brCls =
+    breaches > 0
+      ? 'border-rose-500/30 bg-rose-500/10 text-rose-300'
+      : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
+
+  return (
+    <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-2.5">
+      {/* Header : emoji + nom + objectif */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <span className="text-base leading-none">{zone.emoji}</span>
+          <span className="truncate text-xs font-semibold text-slate-100">{zone.nom}</span>
+        </div>
+        <span
+          className="shrink-0 font-mono text-[10px] font-semibold tabular-nums text-emerald-400"
+          title={`Objectif SLA : ${target} min`}
+        >
+          ≤ {target}m
+        </span>
+      </div>
+
+      {/* Mini-stats : moyenne | conformité | retards */}
+      <div className="mt-2 grid grid-cols-3 gap-1 text-center">
+        <div className="flex flex-col rounded-md bg-slate-800/40 px-1 py-1">
+          <span className="text-[9px] uppercase tracking-wider text-slate-500">Moy.</span>
+          <span className={`font-mono text-xs font-bold tabular-nums ${avgCls}`}>
+            {avg !== null ? `${avg}m` : '—'}
+          </span>
+        </div>
+        <div className="flex flex-col rounded-md bg-slate-800/40 px-1 py-1">
+          <span className="text-[9px] uppercase tracking-wider text-slate-500">Conform.</span>
+          <span className={`font-mono text-xs font-bold tabular-nums ${pctCls}`}>
+            {hasResolutions ? `${pct}%` : '—'}
+          </span>
+        </div>
+        <div
+          className={`flex flex-col rounded-md border px-1 py-1 ${brCls}`}
+          title={`${breaches} signalement(s) en retard sur le SLA`}
+        >
+          <span className="text-[9px] uppercase tracking-wider opacity-70">Retards</span>
+          <span className="font-mono text-xs font-bold tabular-nums">
+            {breaches > 0 ? `⚠ ${breaches}` : '✓'}
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function FeedCard({ r, fresh }: { r: RecentReport; fresh: boolean }) {
   const s = statutMeta(r.statut)
   const team = r.routedTeam ? TEAM_META[(r.routedTeam as TeamKey) in TEAM_META ? (r.routedTeam as TeamKey) : 'other'] : null
@@ -342,6 +550,10 @@ export default function OpsWallboardPage() {
   const seenIdsRef = useRef<Set<string>>(new Set())
   const firstLoadRef = useRef<boolean>(true)
 
+  // --- État des alertes (poll 30s) ---
+  const [alerts, setAlerts] = useState<TriggeredAlert[]>([])
+  const [alertsError, setAlertsError] = useState<string | null>(null)
+
   // --- Polling API toutes les 5s ---
   const poll = useCallback(async () => {
     try {
@@ -384,6 +596,26 @@ export default function OpsWallboardPage() {
       clearInterval(api)
     }
   }, [poll])
+
+  // --- Polling alertes toutes les 30s ---
+  const pollAlerts = useCallback(async () => {
+    try {
+      const a = await fetchAlerts()
+      setAlerts(a)
+      setAlertsError(null)
+    } catch (e) {
+      setAlertsError(e instanceof Error ? e.message : 'erreur alertes')
+    }
+  }, [])
+
+  useEffect(() => {
+    const initial = setTimeout(() => void pollAlerts(), 1500)
+    const api = setInterval(() => void pollAlerts(), 30000)
+    return () => {
+      clearTimeout(initial)
+      clearInterval(api)
+    }
+  }, [pollAlerts])
 
   // --- Horloge toutes les 1s ---
   useEffect(() => {
@@ -452,6 +684,36 @@ export default function OpsWallboardPage() {
         </div>
       </header>
 
+      {/* ---------- ALERTES ACTIVES (au-dessus du main grid, seulement si alerts > 0) ---------- */}
+      {alerts.length > 0 && (
+        <section className="shrink-0 border-b border-slate-800 bg-slate-900/80 p-3">
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-rose-300">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-rose-500" />
+              </span>
+              Alertes actives
+              <span className="rounded-md border border-rose-500/30 bg-rose-500/15 px-1.5 py-0.5 text-[10px] font-bold text-rose-200 tabular-nums">
+                {alerts.length}
+              </span>
+            </h2>
+            {alertsError ? (
+              <span className="text-[10px] text-slate-500">{alertsError}</span>
+            ) : (
+              <span className="text-[10px] text-slate-500">
+                Rafraîchi toutes les 30 s
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
+            {alerts.map((a, idx) => (
+              <AlertBanner key={`${a.thresholdId}-${a.zoneCode}-${idx}`} alert={a} />
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* ---------- MAIN GRID ---------- */}
       <main className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto p-4 lg:grid-cols-12 lg:overflow-hidden">
         {/* --- Colonne gauche : stats --- */}
@@ -498,7 +760,7 @@ export default function OpsWallboardPage() {
         </section>
 
         {/* --- Colonne centre : zone heat list --- */}
-        <section className="flex min-h-0 flex-col gap-3 lg:col-span-6 lg:overflow-hidden">
+        <section className="flex min-h-0 flex-col gap-3 lg:col-span-3 lg:overflow-hidden">
           <div className="flex items-center justify-between">
             <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
               Charge par zone · 24h
@@ -512,6 +774,35 @@ export default function OpsWallboardPage() {
           <div className="flex flex-1 flex-col gap-2 lg:overflow-y-auto lg:pr-1">
             {data ? (
               data.zones.map((z) => <ZoneRow key={z.code} zone={z} max={maxEnAttente} />)
+            ) : (
+              <>
+                <ZoneSkeleton />
+                <ZoneSkeleton />
+                <ZoneSkeleton />
+                <ZoneSkeleton />
+                <ZoneSkeleton />
+              </>
+            )}
+          </div>
+        </section>
+
+        {/* --- Colonne centre-droite : SLA par zone (Feature 3) --- */}
+        <section className="flex min-h-0 flex-col gap-3 lg:col-span-3 lg:overflow-hidden">
+          <div className="flex items-center justify-between">
+            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+              SLA par zone
+            </h2>
+            {data && (
+              <span className="text-[11px] tabular-nums text-slate-500">
+                24h
+              </span>
+            )}
+          </div>
+          <div className="flex flex-1 flex-col gap-2 lg:overflow-y-auto lg:pr-1">
+            {data ? (
+              data.zones.map((z) => (
+                <SlaRow key={`sla-${z.code}`} zone={z} sla={data.sla?.[z.code]} />
+              ))
             ) : (
               <>
                 <ZoneSkeleton />

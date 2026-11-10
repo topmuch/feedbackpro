@@ -55,7 +55,7 @@ export async function GET(req: NextRequest) {
   // Format PDF : poster A4 avec QR + nom zone + instructions
   if (format === 'pdf') {
     const pdfBuffer = await genererPosterPdf(pngDataUrl, tag, zoneNom, zoneEmoji, scanUrl)
-    return new NextResponse(pdfBuffer, {
+    return new NextResponse(new Uint8Array(pdfBuffer), {
       status: 200,
       headers: {
         'Content-Type': 'application/pdf',

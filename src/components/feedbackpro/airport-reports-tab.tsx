@@ -19,8 +19,10 @@ import {
   Camera,
   CheckCircle2,
   Clock,
+  Hand,
   Loader2,
   MapPin,
+  Phone,
   Plane,
   RefreshCw,
   Search,
@@ -59,6 +61,21 @@ type Report = {
   whatsappPhone: string | null
   statut: string
   whatsappPayload: string | null
+  createdAt: string
+  resolvedAt: string | null
+}
+
+type HelpStatut = 'EN_ATTENTE' | 'PRIS_EN_CHARGE' | 'RESOLU'
+
+type HelpRequest = {
+  id: string
+  tagScanne: string
+  zoneCode: string | null
+  message: string | null
+  travelerPhone: string | null
+  reportId: string | null
+  statut: string
+  assignedTo: string | null
   createdAt: string
   resolvedAt: string | null
 }
@@ -283,6 +300,9 @@ export default function AirportReportsTab() {
 
   return (
     <div className="flex h-[calc(100vh-128px)] flex-col">
+      {/* ---------- DEMANDES D'AIDE EN ATTENTE ---------- */}
+      <HelpRequestsBar />
+
       {/* ---------- FILTRES ---------- */}
       <div className="shrink-0 border-b border-border bg-card/40 px-4 py-3 sm:px-6">
         <div className="flex flex-wrap items-center gap-2">
@@ -554,6 +574,285 @@ function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
             </Badge>
           )}
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// Sous-composant : <HelpRequestsBar />
+// ------------------------------------------------------------
+// Bannière en haut de l'onglet "Signalements" qui affiche les
+// demandes d'aide voyageur en attente (EN_ATTENTE) et celles
+// récemment prises en charge (PRIS_EN_CHARGE). Polling 10s.
+//
+// APIs :
+//   GET  /api/airport/help?statut=EN_ATTENTE
+//   POST /api/airport/help/[id]/take     body { phone }
+//   POST /api/airport/help/[id]/resolve
+// ============================================================
+
+const ZONE_EMOJI: Record<string, string> = {
+  bagages: '🛢️',
+  sanitaires: '🚻',
+  files_attente: '⏳',
+  embarquement: '🛋️',
+  restauration: '🍽️',
+}
+
+function zoneEmoji(code: string | null): string {
+  if (!code) return '📍'
+  return ZONE_EMOJI[code] ?? '📍'
+}
+
+function HelpRequestsBar() {
+  const { toast } = useToast()
+  const [pending, setPending] = useState<HelpRequest[]>([])
+  const [inProgress, setInProgress] = useState<HelpRequest[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
+  const [actionId, setActionId] = useState<string | null>(null)
+  const pollingRef = useRef<boolean>(false)
+
+  const load = useCallback(async () => {
+    if (pollingRef.current) return
+    pollingRef.current = true
+    try {
+      const [pendRes, progRes] = await Promise.all([
+        fetch('/api/airport/help?statut=EN_ATTENTE', { cache: 'no-store' }),
+        fetch('/api/airport/help?statut=PRIS_EN_CHARGE', { cache: 'no-store' }),
+      ])
+      const pendJson = (await pendRes.json()) as
+        | { ok: true; data: { requests: HelpRequest[] } }
+        | { ok: false; error: string }
+      const progJson = (await progRes.json()) as
+        | { ok: true; data: { requests: HelpRequest[] } }
+        | { ok: false; error: string }
+      if (pendJson.ok) setPending(pendJson.data.requests)
+      if (progJson.ok) setInProgress(progJson.data.requests)
+    } catch {
+      // Silencieux : la bannière se recharge au prochain poll
+    } finally {
+      setLoading(false)
+      pollingRef.current = false
+    }
+  }, [])
+
+  useEffect(() => {
+    void load()
+    const t = setInterval(() => void load(), 10000)
+    return () => clearInterval(t)
+  }, [load])
+
+  const handleTake = useCallback(
+    async (id: string) => {
+      // Demande le numéro de l'agent ops (audit)
+      const phone = window.prompt(
+        'Votre numéro WhatsApp ops (pour audit et contact voyageur) :',
+      )
+      if (!phone) return
+      const cleaned = phone.replace(/[^0-9]/g, '')
+      if (!/^\d{8,15}$/.test(cleaned)) {
+        toast({
+          title: 'Numéro invalide',
+          description: 'Format attendu : international sans + (ex: 33612345678)',
+          variant: 'destructive',
+        })
+        return
+      }
+      setActionId(id)
+      try {
+        const res = await fetch(`/api/airport/help/${id}/take`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: cleaned }),
+        })
+        const json = (await res.json()) as { ok: boolean; error?: string }
+        if (!json.ok) throw new Error(json.error ?? 'Erreur')
+        toast({
+          title: 'Demande prise en charge',
+          description: `Affectée à ${cleaned}.`,
+        })
+        await load()
+      } catch (e) {
+        toast({
+          title: 'Erreur',
+          description: e instanceof Error ? e.message : 'Erreur inconnue',
+          variant: 'destructive',
+        })
+      } finally {
+        setActionId(null)
+      }
+    },
+    [load, toast],
+  )
+
+  const handleResolve = useCallback(
+    async (id: string) => {
+      setActionId(id)
+      try {
+        const res = await fetch(`/api/airport/help/${id}/resolve`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({}),
+        })
+        const json = (await res.json()) as { ok: boolean; error?: string }
+        if (!json.ok) throw new Error(json.error ?? 'Erreur')
+        toast({
+          title: 'Demande résolue',
+          description: 'Le voyageur a été aidé sur place.',
+        })
+        await load()
+      } catch (e) {
+        toast({
+          title: 'Erreur',
+          description: e instanceof Error ? e.message : 'Erreur inconnue',
+          variant: 'destructive',
+        })
+      } finally {
+        setActionId(null)
+      }
+    },
+    [load, toast],
+  )
+
+  const all = [...pending, ...inProgress]
+  const isEmpty = !loading && all.length === 0
+
+  return (
+    <div className="shrink-0 border-b border-rose-500/20 bg-rose-500/5 px-4 py-3 sm:px-6">
+      <div className="mb-2 flex items-center justify-between">
+        <h2 className="flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-rose-700">
+          <Hand className="h-3.5 w-3.5" />
+          Demandes d'aide en attente
+          {!loading && all.length > 0 && (
+            <Badge className="ml-1 border-rose-500/40 bg-rose-500/20 text-rose-700 hover:bg-rose-500/20">
+              {all.length}
+            </Badge>
+          )}
+        </h2>
+        {loading && (
+          <span className="flex items-center gap-1 text-[10px] text-muted-foreground">
+            <Loader2 className="h-3 w-3 animate-spin" />
+            chargement…
+          </span>
+        )}
+      </div>
+
+      {isEmpty ? (
+        <p className="text-xs text-muted-foreground">
+          Aucune demande d'aide en attente.
+        </p>
+      ) : (
+        <div className="flex flex-col gap-2 lg:flex-row lg:overflow-x-auto lg:pb-1">
+          {all.map((h) => (
+            <HelpRequestCard
+              key={h.id}
+              help={h}
+              actionLoading={actionId === h.id}
+              onTake={() => void handleTake(h.id)}
+              onResolve={() => void handleResolve(h.id)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------
+// Sous-composant : carte demande d'aide
+// ---------------------------------------------------------------
+
+type HelpRequestCardProps = {
+  help: HelpRequest
+  actionLoading: boolean
+  onTake: () => void
+  onResolve: () => void
+}
+
+function HelpRequestCard({
+  help,
+  actionLoading,
+  onTake,
+  onResolve,
+}: HelpRequestCardProps) {
+  const isPending = help.statut === 'EN_ATTENTE'
+  return (
+    <div
+      className={cn(
+        'flex shrink-0 flex-col gap-2 rounded-lg border bg-card p-3 lg:w-80',
+        isPending
+          ? 'border-rose-500/40 bg-rose-500/5'
+          : 'border-amber-500/40 bg-amber-500/5',
+      )}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex min-w-0 items-center gap-1.5">
+          <span className="text-base leading-none">{zoneEmoji(help.zoneCode)}</span>
+          <code className="truncate font-mono text-[11px] text-muted-foreground">
+            {help.tagScanne}
+          </code>
+        </div>
+        <Badge
+          variant="outline"
+          className={cn(
+            'shrink-0 text-[9px] font-bold uppercase',
+            isPending
+              ? 'border-rose-500/40 bg-rose-500/15 text-rose-700'
+              : 'border-amber-500/40 bg-amber-500/15 text-amber-700',
+          )}
+        >
+          {isPending ? 'En attente' : 'En cours'}
+        </Badge>
+      </div>
+
+      {help.message && (
+        <p className="line-clamp-2 text-xs italic text-foreground">
+          « {help.message} »
+        </p>
+      )}
+
+      <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
+        {help.travelerPhone && (
+          <span className="inline-flex items-center gap-1 rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 font-medium text-emerald-700">
+            <Phone className="h-3 w-3" />
+            +{help.travelerPhone}
+          </span>
+        )}
+        <span className="tabular-nums">{relativeTime(help.createdAt)}</span>
+      </div>
+
+      <div className="flex items-center gap-1.5">
+        {isPending && (
+          <Button
+            type="button"
+            size="sm"
+            onClick={onTake}
+            disabled={actionLoading}
+            className="h-7 flex-1 bg-amber-600 text-[11px] text-white hover:bg-amber-500"
+          >
+            {actionLoading ? (
+              <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+            ) : (
+              <Hand className="mr-1 h-3 w-3" />
+            )}
+            Prendre en charge
+          </Button>
+        )}
+        <Button
+          type="button"
+          size="sm"
+          onClick={onResolve}
+          disabled={actionLoading}
+          className="h-7 flex-1 bg-emerald-600 text-[11px] text-white hover:bg-emerald-500"
+        >
+          {actionLoading ? (
+            <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+          ) : (
+            <CheckCircle2 className="mr-1 h-3 w-3" />
+          )}
+          Résoudre
+        </Button>
       </div>
     </div>
   )

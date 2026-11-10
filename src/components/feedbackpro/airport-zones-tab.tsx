@@ -30,7 +30,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertCircle,
+  Bell,
   Check,
+  Clock,
   Download,
   FileText,
   Loader2,
@@ -39,6 +41,7 @@ import {
   RotateCcw,
   Save,
   Search,
+  Target,
   Tag,
   Trash2,
   X,
@@ -49,6 +52,14 @@ import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
+import { Switch } from '@/components/ui/switch'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 
 // ---------------------------------------------------------------
@@ -1106,13 +1117,15 @@ function ZoneEditForm({
           </div>
         )}
       </div>
+
+      {/* ---------- ALERTES & SEUILS (pleine largeur, sous les QR codes) ---------- */}
+      <AlertThresholdsSection zoneCode={code} />
+
+      {/* ---------- SLA TEMPS DE RÉSOLUTION (après les alertes) ---------- */}
+      <SlaConfigSection zoneCode={code} />
     </div>
   )
 }
-
-// ---------------------------------------------------------------
-// Sous-composant : carte QR code (aperçu + téléchargement PNG/PDF)
-// ---------------------------------------------------------------
 
 type QrCardProps = {
   tag: string
@@ -1218,6 +1231,795 @@ function QrCard({
           )}
           PDF
         </Button>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// Sous-composant : AlertThresholdsSection
+// ------------------------------------------------------------
+// Section "ALERTES & SEUILS" affichée dans le formulaire d'édition
+// d'une zone. Montre les seuils d'alerte applicables à cette zone
+// (zoneCode === currentZone OU zoneCode === "ALL").
+//
+// APIs :
+//   GET    /api/airport/thresholds                → tous les seuils
+//   POST   /api/airport/thresholds                → crée un seuil
+//   PUT    /api/airport/thresholds/[id]           → met à jour (debounce 500ms)
+//   DELETE /api/airport/thresholds/[id]           → supprime
+//
+// Save est "inline" : chaque modification est envoyée après
+// 500ms d'inactivité (ou sur blur du champ threshold).
+// ============================================================
+
+type ThresholdType =
+  | 'SPIKE_15MIN'
+  | 'SPIKE_30MIN'
+  | 'SPIKE_1H'
+  | 'PENDING_COUNT'
+  | 'NO_RESOLUTION_HOURS'
+
+type Threshold = {
+  id: string
+  zoneCode: string
+  type: ThresholdType
+  threshold: number
+  active: boolean
+  lastTriggeredAt: string | null
+  createdAt: string
+  updatedAt: string
+}
+
+type ThresholdsResponse = {
+  ok: true
+  data: {
+    thresholds: Threshold[]
+    count: number
+    zones: string[]
+    types: ThresholdType[]
+  }
+}
+
+type MutationResponse = {
+  ok: true
+  data: { threshold: Threshold }
+} | { ok: false; error: string }
+
+const THRESHOLD_TYPE_LABELS: Record<ThresholdType, string> = {
+  SPIKE_15MIN: 'Pic 15 min',
+  SPIKE_30MIN: 'Pic 30 min',
+  SPIKE_1H: 'Pic 1 heure',
+  PENDING_COUNT: 'File d\'attente (cumul)',
+  NO_RESOLUTION_HOURS: 'Sans résolution (heures)',
+}
+
+const THRESHOLD_TYPE_HINTS: Record<ThresholdType, string> = {
+  SPIKE_15MIN: 'Alerter si ≥ N signalements en 15 min',
+  SPIKE_30MIN: 'Alerter si ≥ N signalements en 30 min',
+  SPIKE_1H: 'Alerter si ≥ N signalements en 1 heure',
+  PENDING_COUNT: 'Alerter si ≥ N signalements en attente (cumul)',
+  NO_RESOLUTION_HOURS: 'Alerter si plus vieux signalement en attente > N heures',
+}
+
+const ALL_THRESHOLD_TYPES: ThresholdType[] = [
+  'SPIKE_15MIN',
+  'SPIKE_30MIN',
+  'SPIKE_1H',
+  'PENDING_COUNT',
+  'NO_RESOLUTION_HOURS',
+]
+
+type AlertThresholdsSectionProps = {
+  zoneCode: string
+}
+
+function AlertThresholdsSection({ zoneCode }: AlertThresholdsSectionProps) {
+  const { toast } = useToast()
+  const [all, setAll] = useState<Threshold[]>([])
+  const [loading, setLoading] = useState<boolean>(true)
+  const [creating, setCreating] = useState<boolean>(false)
+  const [savingId, setSavingId] = useState<Record<string, boolean>>({})
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const debounceRef = useRef<Record<string, ReturnType<typeof setTimeout>>>({})
+
+  // --- Chargement initial ---
+  const load = useCallback(async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/airport/thresholds', { cache: 'no-store' })
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const json = (await res.json()) as ThresholdsResponse | { ok: false; error: string }
+      if (!json.ok) throw new Error((json as { ok: false; error: string }).error)
+      setAll(json.data.thresholds)
+    } catch (e) {
+      toast({
+        title: 'Erreur de chargement',
+        description: e instanceof Error ? e.message : 'Erreur inconnue',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [toast])
+
+  useEffect(() => {
+    void load()
+  }, [load])
+
+  // --- Seuils visibles : ceux qui s'appliquent à cette zone ---
+  const visible = useMemo(() => {
+    return all.filter(
+      (t) => t.zoneCode === zoneCode || t.zoneCode === 'ALL',
+    )
+  }, [all, zoneCode])
+
+  // --- Mutation PUT (debounce) ---
+  const saveThreshold = useCallback(
+    async (id: string, patch: Partial<Threshold>) => {
+      setSavingId((prev) => ({ ...prev, [id]: true }))
+      try {
+        const res = await fetch(`/api/airport/thresholds/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(patch),
+        })
+        const json = (await res.json()) as MutationResponse
+        if (!json.ok) throw new Error(json.error)
+        setAll((prev) =>
+          prev.map((t) => (t.id === id ? { ...t, ...json.data.threshold } : t)),
+        )
+      } catch (e) {
+        toast({
+          title: 'Erreur de sauvegarde',
+          description: e instanceof Error ? e.message : 'Erreur inconnue',
+          variant: 'destructive',
+        })
+      } finally {
+        setSavingId((prev) => {
+          const next = { ...prev }
+          delete next[id]
+          return next
+        })
+      }
+    },
+    [toast],
+  )
+
+  // --- Modification locale d'un champ + debounce 500ms ---
+  const updateField = useCallback(
+    (id: string, patch: Partial<Threshold>) => {
+      // Mise à jour locale immédiate (optimistic) pour la réactivité UI
+      setAll((prev) => prev.map((t) => (t.id === id ? { ...t, ...patch } : t)))
+      // Clear debounce existant pour ce id
+      const existing = debounceRef.current[id]
+      if (existing) clearTimeout(existing)
+      // Nouveau debounce 500ms
+      debounceRef.current[id] = setTimeout(() => {
+        void saveThreshold(id, patch)
+      }, 500)
+    },
+    [saveThreshold],
+  )
+
+  // Flush immédiat sur blur (sans attendre le debounce)
+  const flushSave = useCallback(
+    (id: string) => {
+      const existing = debounceRef.current[id]
+      if (existing) {
+        clearTimeout(existing)
+        delete debounceRef.current[id]
+        // Récupère l'état local courant pour envoyer les vraies valeurs
+        const current = all.find((t) => t.id === id)
+        if (current) {
+          void saveThreshold(id, {
+            zoneCode: current.zoneCode,
+            type: current.type,
+            threshold: current.threshold,
+            active: current.active,
+          })
+        }
+      }
+    },
+    [all, saveThreshold],
+  )
+
+  // --- Suppression ---
+  const handleDelete = useCallback(
+    async (id: string) => {
+      if (!window.confirm('Supprimer ce seuil d\'alerte ?')) return
+      setDeletingId(id)
+      try {
+        const res = await fetch(`/api/airport/thresholds/${id}`, {
+          method: 'DELETE',
+        })
+        const json = (await res.json()) as { ok: boolean; error?: string }
+        if (!json.ok) throw new Error(json.error ?? 'Erreur suppression')
+        setAll((prev) => prev.filter((t) => t.id !== id))
+        toast({
+          title: 'Seuil supprimé',
+          description: 'L\'alerte ne sera plus déclenchée.',
+        })
+      } catch (e) {
+        toast({
+          title: 'Erreur de suppression',
+          description: e instanceof Error ? e.message : 'Erreur inconnue',
+          variant: 'destructive',
+        })
+      } finally {
+        setDeletingId(null)
+      }
+    },
+    [toast],
+  )
+
+  // --- Ajout d'un seuil (zoneCode par défaut = zone courante) ---
+  const handleAdd = useCallback(async () => {
+    setCreating(true)
+    try {
+      const res = await fetch('/api/airport/thresholds', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          zoneCode,
+          type: 'SPIKE_30MIN',
+          threshold: 3,
+          active: true,
+        }),
+      })
+      const json = (await res.json()) as MutationResponse
+      if (!json.ok) throw new Error(json.error)
+      setAll((prev) => [...prev, json.data.threshold])
+      toast({
+        title: 'Seuil créé',
+        description: `Nouvelle alerte sur ${zoneCode === 'ALL' ? 'toutes zones' : zoneCode}.`,
+      })
+    } catch (e) {
+      toast({
+        title: 'Erreur de création',
+        description: e instanceof Error ? e.message : 'Erreur inconnue',
+        variant: 'destructive',
+      })
+    } finally {
+      setCreating(false)
+    }
+  }, [zoneCode, toast])
+
+  // Cleanup des timeouts au démontage
+  useEffect(() => {
+    const ref = debounceRef.current
+    return () => {
+      for (const k of Object.keys(ref)) {
+        clearTimeout(ref[k])
+      }
+    }
+  }, [])
+
+  return (
+    <div className="mt-6 flex flex-col gap-3">
+      <div className="flex items-center gap-1.5">
+        <Bell className="h-3.5 w-3.5 text-muted-foreground" />
+        <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          Alertes &amp; Seuils
+        </Label>
+        <span className="ml-auto text-[10px] tabular-nums text-muted-foreground/70">
+          {loading ? '…' : `${visible.length} seuil(s) applicable(s)`}
+        </span>
+      </div>
+      <p className="-mt-1 text-[11px] text-muted-foreground/70">
+        Détection automatique de pics de signalements et d'alertes de file d'attente.
+        Les seuils "ALL" s'appliquent à toutes les zones.
+      </p>
+
+      {loading ? (
+        <div className="flex items-center gap-2 rounded-md border border-border bg-card/40 p-4 text-xs text-muted-foreground">
+          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          Chargement des seuils…
+        </div>
+      ) : visible.length === 0 ? (
+        <div className="rounded-md border border-dashed border-border bg-card/40 px-3 py-4 text-center text-xs text-muted-foreground/70">
+          Aucun seuil configuré pour cette zone. Cliquez sur "Ajouter un seuil" pour
+          activer la détection de pics.
+        </div>
+      ) : (
+        <div className="overflow-x-auto rounded-md border border-border">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/40 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+              <tr>
+                <th className="px-3 py-2 text-left">Zone</th>
+                <th className="px-3 py-2 text-left">Type</th>
+                <th className="px-3 py-2 text-left">Seuil</th>
+                <th className="px-3 py-2 text-center">Actif</th>
+                <th className="px-3 py-2 text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border bg-card/40">
+              {visible.map((t) => (
+                <ThresholdRow
+                  key={t.id}
+                  threshold={t}
+                  saving={!!savingId[t.id]}
+                  deleting={deletingId === t.id}
+                  onChange={(patch) => updateField(t.id, patch)}
+                  onBlur={() => flushSave(t.id)}
+                  onDelete={() => void handleDelete(t.id)}
+                />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        onClick={() => void handleAdd()}
+        disabled={creating}
+        className="self-start border-border bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
+      >
+        {creating ? (
+          <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+        ) : (
+          <Plus className="mr-1.5 h-3.5 w-3.5" />
+        )}
+        Ajouter un seuil
+      </Button>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------
+// Sous-composant : ligne d'un seuil
+// ---------------------------------------------------------------
+
+type ThresholdRowProps = {
+  threshold: Threshold
+  saving: boolean
+  deleting: boolean
+  onChange: (patch: Partial<Threshold>) => void
+  onBlur: () => void
+  onDelete: () => void
+}
+
+function ThresholdRow({
+  threshold,
+  saving,
+  deleting,
+  onChange,
+  onBlur,
+  onDelete,
+}: ThresholdRowProps) {
+  return (
+    <tr className="align-middle">
+      {/* Zone */}
+      <td className="px-3 py-2">
+        <Select
+          value={threshold.zoneCode}
+          onValueChange={(v) => onChange({ zoneCode: v })}
+        >
+          <SelectTrigger className="h-8 w-32 border-border bg-card text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="border-border bg-card">
+            <SelectItem value="ALL" className="text-xs">🌐 Toutes zones</SelectItem>
+            <SelectItem value="bagages" className="text-xs">🛢️ Bagages</SelectItem>
+            <SelectItem value="sanitaires" className="text-xs">🚻 Sanitaires</SelectItem>
+            <SelectItem value="files_attente" className="text-xs">⏳ Files d'attente</SelectItem>
+            <SelectItem value="embarquement" className="text-xs">🛋️ Embarquement</SelectItem>
+            <SelectItem value="restauration" className="text-xs">🍽️ Restauration</SelectItem>
+          </SelectContent>
+        </Select>
+      </td>
+
+      {/* Type */}
+      <td className="px-3 py-2">
+        <Select
+          value={threshold.type}
+          onValueChange={(v) => onChange({ type: v as ThresholdType })}
+        >
+          <SelectTrigger className="h-8 w-44 border-border bg-card text-xs">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="border-border bg-card">
+            {ALL_THRESHOLD_TYPES.map((ty) => (
+              <SelectItem key={ty} value={ty} className="text-xs">
+                {THRESHOLD_TYPE_LABELS[ty]}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <p className="mt-0.5 text-[10px] text-muted-foreground/70">
+          {THRESHOLD_TYPE_HINTS[threshold.type]}
+        </p>
+      </td>
+
+      {/* Seuil (number) */}
+      <td className="px-3 py-2">
+        <div className="flex items-center gap-1.5">
+          <Input
+            type="number"
+            min={1}
+            max={1000}
+            value={threshold.threshold}
+            onChange={(e) => {
+              const n = parseInt(e.target.value, 10)
+              if (Number.isFinite(n)) onChange({ threshold: n })
+            }}
+            onBlur={onBlur}
+            className="h-8 w-20 border-border bg-card text-xs tabular-nums"
+          />
+          <span className="text-[10px] text-muted-foreground/70">
+            {threshold.type === 'NO_RESOLUTION_HOURS' ? 'h' : 'signalements'}
+          </span>
+        </div>
+      </td>
+
+      {/* Actif */}
+      <td className="px-3 py-2 text-center">
+        <Switch
+          checked={threshold.active}
+          onCheckedChange={(checked) => onChange({ active: checked })}
+        />
+      </td>
+
+      {/* Actions */}
+      <td className="px-3 py-2 text-right">
+        <div className="flex items-center justify-end gap-1.5">
+          {saving && (
+            <span className="text-[10px] text-muted-foreground/70">
+              <Loader2 className="inline h-3 w-3 animate-spin" /> sauvegarde…
+            </span>
+          )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground/70 hover:bg-rose-500/10 hover:text-rose-600"
+            onClick={onDelete}
+            disabled={deleting}
+            aria-label="Supprimer ce seuil"
+          >
+            {deleting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Trash2 className="h-3.5 w-3.5" />
+            )}
+          </Button>
+        </div>
+      </td>
+    </tr>
+  )
+}
+
+// ============================================================
+// Sous-composant : SlaConfigSection (Feature 3 — SLA)
+// ------------------------------------------------------------
+// Section "SLA TEMPS DE RÉSOLUTION" affichée sous les alertes.
+// Pour la zone en cours d'édition :
+//   - input numérique "Objectif de résolution (minutes)" ;
+//   - bouton Save (et save-on-blur) qui PUT /api/airport/sla/[zoneCode] ;
+//   - aperçu live "Sur les 24 dernières heures : X résolus, moyenne
+//     Y min, Z% dans les délais" rafraîchi toutes les 30 s via le
+//     wallboard (qui expose déjà le champ sla[code]).
+//
+// APIs :
+//   GET /api/airport/wallboard  → data.sla[zoneCode]
+//   PUT /api/airport/sla/[zoneCode] body { targetMinutes }
+// ============================================================
+
+type SlaStats = {
+  targetMinutes: number | null
+  resolvedCount: number
+  avgResolutionMinutes: number | null
+  slaCompliancePercent: number
+  pendingBreaches: number
+}
+
+type WallboardSlaResponse = {
+  ok: true
+  data: {
+    sla?: Record<string, SlaStats>
+  }
+}
+
+type SlaPutResponse = {
+  ok: true
+  data: {
+    sla: {
+      zoneCode: string
+      targetMinutes: number
+      active: boolean
+      updatedAt: string
+    }
+  }
+}
+
+type SlaGetResponse = {
+  ok: true
+  data: {
+    slas: Array<{
+      zoneCode: string
+      zoneNom: string
+      zoneEmoji: string
+      targetMinutes: number | null
+      active: boolean
+      id: string | null
+      updatedAt: string | null
+    }>
+  }
+}
+
+function SlaConfigSection({ zoneCode }: { zoneCode: string }) {
+  const { toast } = useToast()
+
+  // Target local (dirty tracking)
+  const [target, setTarget] = useState<string>('') // string pour gérer le champ vide
+  const [savedTarget, setSavedTarget] = useState<number | null>(null)
+  const [saving, setSaving] = useState<boolean>(false)
+  const [loaded, setLoaded] = useState<boolean>(false)
+
+  // Stats live (depuis le wallboard)
+  const [stats, setStats] = useState<SlaStats | null>(null)
+  const [statsLoading, setStatsLoading] = useState<boolean>(true)
+
+  // --- Charge la cible SLA initiale (GET /api/airport/sla) ---
+  useEffect(() => {
+    let cancelled = false
+    void (async () => {
+      try {
+        const res = await fetch('/api/airport/sla', { cache: 'no-store' })
+        if (!res.ok) return
+        const json = (await res.json()) as SlaGetResponse | { ok: false; error: string }
+        if (!json.ok) return
+        const row = json.data.slas.find((s) => s.zoneCode === zoneCode)
+        if (cancelled) return
+        if (row) {
+          setSavedTarget(row.targetMinutes)
+          setTarget(row.targetMinutes !== null ? String(row.targetMinutes) : '')
+        } else {
+          setSavedTarget(null)
+          setTarget('')
+        }
+        setLoaded(true)
+      } catch {
+        if (!cancelled) setLoaded(true)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [zoneCode])
+
+  // --- Poll stats live toutes les 30s (depuis le wallboard) ---
+  useEffect(() => {
+    let cancelled = false
+    const fetchStats = async () => {
+      try {
+        const res = await fetch('/api/airport/wallboard', { cache: 'no-store' })
+        if (!res.ok) return
+        const json = (await res.json()) as WallboardSlaResponse | { ok: false; error: string }
+        if (!json.ok || !json.data) return
+        const s = json.data.sla?.[zoneCode] ?? null
+        if (!cancelled) {
+          setStats(s)
+          setStatsLoading(false)
+        }
+      } catch {
+        if (!cancelled) setStatsLoading(false)
+      }
+    }
+    void fetchStats()
+    const t = setInterval(() => void fetchStats(), 30_000)
+    return () => {
+      cancelled = true
+      clearInterval(t)
+    }
+  }, [zoneCode])
+
+  const dirty = useMemo<boolean>(() => {
+    if (!loaded) return false
+    const cur = target.trim() === '' ? null : parseInt(target, 10)
+    if (Number.isNaN(cur)) return false
+    return cur !== savedTarget
+  }, [target, savedTarget, loaded])
+
+  const handleSave = useCallback(async () => {
+    const trimmed = target.trim()
+    if (trimmed === '') {
+      toast({
+        title: 'Objectif manquant',
+        description: 'Saisissez un nombre de minutes (1 à 1440).',
+        variant: 'destructive',
+      })
+      return
+    }
+    const n = parseInt(trimmed, 10)
+    if (!Number.isFinite(n) || n < 1 || n > 1440) {
+      toast({
+        title: 'Valeur invalide',
+        description: 'L\'objectif doit être un entier entre 1 et 1440 minutes (24h).',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setSaving(true)
+    try {
+      const res = await fetch(`/api/airport/sla/${encodeURIComponent(zoneCode)}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ targetMinutes: n }),
+      })
+      const json = (await res.json()) as SlaPutResponse | { ok: false; error: string }
+      if (!json.ok) throw new Error(json.error)
+      setSavedTarget(json.data.sla.targetMinutes)
+      setTarget(String(json.data.sla.targetMinutes))
+      toast({
+        title: 'SLA mis à jour',
+        description: `Objectif ${json.data.sla.targetMinutes} min pour la zone « ${zoneCode} ».`,
+      })
+    } catch (e) {
+      toast({
+        title: 'Erreur SLA',
+        description: e instanceof Error ? e.message : 'Erreur inconnue',
+        variant: 'destructive',
+      })
+    } finally {
+      setSaving(false)
+    }
+  }, [target, zoneCode, toast])
+
+  const complianceColor = (pct: number): string => {
+    if (pct >= 80) return 'text-emerald-600'
+    if (pct >= 60) return 'text-amber-600'
+    return 'text-rose-600'
+  }
+
+  const avgColor = (avg: number | null, targetMin: number | null): string => {
+    if (avg === null || targetMin === null) return 'text-muted-foreground'
+    return avg <= targetMin ? 'text-emerald-600' : 'text-rose-600'
+  }
+
+  return (
+    <div className="mt-6 flex flex-col gap-3 rounded-lg border border-border bg-card/40 p-4">
+      <div className="flex items-center gap-1.5">
+        <Target className="h-3.5 w-3.5 text-emerald-600" />
+        <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+          SLA Temps de résolution
+        </Label>
+        <Badge
+          variant="outline"
+          className={cn(
+            'ml-auto text-[10px]',
+            savedTarget !== null
+              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700'
+              : 'border-border text-muted-foreground',
+          )}
+        >
+          {savedTarget !== null ? `${savedTarget} min` : 'Non défini'}
+        </Badge>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-[200px_1fr]">
+        {/* Input objectif */}
+        <div className="flex flex-col gap-1.5">
+          <Label
+            htmlFor="sla-target"
+            className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground"
+          >
+            Objectif de résolution (minutes)
+          </Label>
+          <div className="flex items-center gap-2">
+            <Input
+              id="sla-target"
+              type="number"
+              min={1}
+              max={1440}
+              step={1}
+              value={target}
+              onChange={(e) => setTarget(e.target.value)}
+              onBlur={() => {
+                if (dirty) void handleSave()
+              }}
+              placeholder="ex : 15"
+              className="bg-card tabular-nums"
+              disabled={saving || !loaded}
+            />
+            <span className="shrink-0 text-xs text-muted-foreground/70">min</span>
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => void handleSave()}
+              disabled={!dirty || saving || !loaded}
+              className={cn(
+                'shrink-0 border-emerald-500/40 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 hover:text-emerald-800',
+                !dirty && 'opacity-50',
+              )}
+            >
+              {saving ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Save className="h-3.5 w-3.5" />
+              )}
+            </Button>
+          </div>
+          <p className="text-[10px] leading-relaxed text-muted-foreground/70">
+            Les signalements de cette zone doivent être résolus dans ce délai. Le wallboard affiche
+            le respect du SLA en temps réel.
+          </p>
+        </div>
+
+        {/* Aperçu live */}
+        <div className="flex flex-col gap-2 rounded-md border border-border bg-background/60 p-3">
+          <div className="flex items-center gap-1.5">
+            <Clock className="h-3 w-3 text-muted-foreground/70" />
+            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+              Sur les 24 dernières heures
+            </span>
+            {statsLoading && (
+              <Loader2 className="ml-auto h-3 w-3 animate-spin text-muted-foreground/70" />
+            )}
+          </div>
+          {stats ? (
+            <div className="grid grid-cols-3 gap-2">
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">
+                  Résolus
+                </span>
+                <span className="font-mono text-lg font-bold tabular-nums text-foreground">
+                  {stats.resolvedCount}
+                </span>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">
+                  Moyenne
+                </span>
+                <span
+                  className={cn(
+                    'font-mono text-lg font-bold tabular-nums',
+                    avgColor(stats.avgResolutionMinutes, stats.targetMinutes),
+                  )}
+                >
+                  {stats.avgResolutionMinutes !== null ? `${stats.avgResolutionMinutes} min` : '—'}
+                </span>
+              </div>
+              <div className="flex flex-col gap-0.5">
+                <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">
+                  Dans les délais
+                </span>
+                <span
+                  className={cn(
+                    'font-mono text-lg font-bold tabular-nums',
+                    complianceColor(stats.slaCompliancePercent),
+                  )}
+                >
+                  {stats.resolvedCount > 0 ? `${stats.slaCompliancePercent}%` : '—'}
+                </span>
+              </div>
+            </div>
+          ) : (
+            <div className="text-[11px] text-muted-foreground/70">
+              {statsLoading ? 'Chargement…' : 'Aucune donnée disponible.'}
+            </div>
+          )}
+          {stats && stats.pendingBreaches > 0 && (
+            <div className="mt-1 flex items-center gap-1.5 rounded-md border border-rose-500/30 bg-rose-500/5 px-2 py-1 text-[11px] text-rose-700">
+              <AlertCircle className="h-3 w-3" />
+              <span>
+                {stats.pendingBreaches} signalement{stats.pendingBreaches > 1 ? 's' : ''} en attente
+                dépasse{stats.pendingBreaches > 1 ? 'nt' : ''} le SLA
+                {savedTarget !== null ? ` (${savedTarget} min)` : ''}.
+              </span>
+            </div>
+          )}
+          {stats && stats.pendingBreaches === 0 && stats.targetMinutes !== null && (
+            <div className="mt-1 flex items-center gap-1.5 rounded-md border border-emerald-500/30 bg-emerald-500/5 px-2 py-1 text-[11px] text-emerald-700">
+              <Check className="h-3 w-3" />
+              <span>Aucun signalement en retard sur le SLA.</span>
+            </div>
+          )}
+        </div>
       </div>
     </div>
   )

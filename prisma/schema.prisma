@@ -485,3 +485,104 @@ model AirportOpsContact {
   actif     Boolean  @default(true)
   createdAt DateTime @default(now())
 }
+
+// ============================================================
+// Fonctionnalité Aéroport — Seuils d'alerte + détection pics
+// ------------------------------------------------------------
+// Le manager configure des seuils par zone (ex: "alerter si >3
+// signalements en 30min sur Sanitaires"). Le système détecte les
+// franchissements et notifie automatiquement via WhatsApp/email.
+// ============================================================
+model AirportAlertThreshold {
+  id          String   @id @default(cuid())
+  // Code zone : "bagages" | "sanitaires" | "files_attente" |
+  // "embarquement" | "restauration" | "ALL" (toutes zones)
+  zoneCode    String
+  // Type de seuil :
+  // "SPIKE_15MIN" — pic de signalements en 15 min
+  // "SPIKE_30MIN" — pic de signalements en 30 min
+  // "SPIKE_1H"    — pic de signalements en 1 heure
+  // "PENDING_COUNT" — nombre de signalements EN_ATTENTE cumulés
+  // "NO_RESOLUTION_HOURS" — aucune résolution depuis X heures
+  type        String
+  // Valeur du seuil (ex: 3 pour 3 signalements, 5 pour 5 pending)
+  threshold   Int
+  active      Boolean  @default(true)
+  // Dernière fois que l'alerte a été déclenchée (anti-spam)
+  lastTriggeredAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([zoneCode, active])
+  @@index([type, active])
+}
+
+// ============================================================
+// Fonctionnalité Aéroport — Bouton "Aide" PWA voyageur
+// ------------------------------------------------------------
+// Quand un voyageur clique "Demander de l'aide" sur l'écran de
+// confirmation, une AirportHelpRequest est créée et notifiée à
+// l'agent ops le plus proche via le bot WhatsApp.
+// ============================================================
+model AirportHelpRequest {
+  id          String   @id @default(cuid())
+  // Tag URL scanné (localisation précise du voyageur)
+  tagScanne   String
+  // Code zone résolu (ex: "sanitaires") pour routage
+  zoneCode    String?
+  // Message optionnel du voyageur (ex: "Besoin d'aide pour mon bagage")
+  message     String?
+  // Numéro WhatsApp du voyageur (pour que l'agent le contacte)
+  travelerPhone String?
+  // Lien optionnel vers le signalement qui a déclenché la demande d'aide
+  reportId    String?
+  // Statut : "EN_ATTENTE" → "PRIS_EN_CHARGE" → "RESOLU"
+  statut      String   @default("EN_ATTENTE")
+  // Numéro de l'agent ops qui a pris en charge
+  assignedTo  String?
+  createdAt   DateTime @default(now())
+  resolvedAt  DateTime?
+
+  @@index([zoneCode, statut])
+  @@index([statut, createdAt])
+}
+
+// ============================================================
+// Fonctionnalité Aéroport — SLA temps de résolution
+// ------------------------------------------------------------
+// Objectif de temps de résolution par zone (en minutes). Le
+// wallboard affiche le SLA respecté vs dépassé. Permet de prouver
+// le ROI vs FeedbackNow (résolution en minutes, pas en heures).
+// ============================================================
+model AirportSla {
+  id            String   @id @default(cuid())
+  // Code zone (unique — un SLA par zone)
+  zoneCode      String   @unique
+  // Objectif de résolution en minutes (ex: 15 pour sanitaires)
+  targetMinutes Int
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ============================================================
+// Fonctionnalité Aéroport — Planification des quarts (shifts)
+// ------------------------------------------------------------
+// Définit les shifts ops (matin/après-midi/nuit) avec les numéros
+// WhatsApp actifs sur chaque shift. Les alertes sont routées vers
+// l'équipe active au moment du déclenchement.
+// ============================================================
+model AirportShift {
+  id          String   @id @default(cuid())
+  name        String   // "Matin", "Après-midi", "Nuit"
+  // Heures au format "HH:MM" (24h)
+  startTime   String   // "06:00"
+  endTime     String   // "14:00"
+  // Jours de la semaine actifs : JSON [0,1,2,3,4,5,6] (0=dimanche)
+  daysOfWeek  String   @default("[0,1,2,3,4,5,6]")
+  // Numéros WhatsApp ops actifs sur ce shift : JSON string[]
+  opsPhones   String   @default("[]")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

@@ -17,7 +17,16 @@
 //                 last_report_at, trend }],
 //       top_zones: [...],     // top 3 zones par count_24h
 //       recent_reports: [...], // 10 derniers signalements
-//       by_team: { nettoyage, maintenance, securite, accueil, other }
+//       by_team: { nettoyage, maintenance, securite, accueil, other },
+//       sla: {                                  // Feature 3 — SLA par zone
+//         [zoneCode]: {
+//           targetMinutes: number | null,
+//           resolvedCount: number,
+//           avgResolutionMinutes: number | null,
+//           slaCompliancePercent: number,
+//           pendingBreaches: number
+//         }
+//       }
 //     }
 //   }
 //
@@ -95,6 +104,38 @@ export async function GET() {
     })
   }
 
+  // --- SLA per zone (Feature 3) ---
+  // targetMinutes = null si aucun SLA défini → l'UI affiche "Non défini".
+  // resolvedCount / slaCompliancePercent ne sont calculés que sur les
+  // reports RESOLU des dernières 24h (cohérent avec le reste du wallboard).
+  // pendingBreaches = EN_ATTENTE reports (fenêtre 48h) dont l'âge dépasse
+  // targetMinutes. Les EN_ATTENTE plus anciens que 48h ne sont pas comptés
+  // (anomalies rares, à traiter séparément).
+  type SlaAgg = {
+    targetMinutes: number | null
+    resolvedCount: number
+    resolvedWithinTarget: number
+    sumResolutionMs: number
+    pendingBreaches: number
+  }
+  const slaByZone = new Map<string, SlaAgg>()
+  for (const z of AIRPORT_ZONES) {
+    slaByZone.set(z.code, {
+      targetMinutes: null,
+      resolvedCount: 0,
+      resolvedWithinTarget: 0,
+      sumResolutionMs: 0,
+      pendingBreaches: 0,
+    })
+  }
+  const slaRows = await db.airportSla.findMany()
+  for (const r of slaRows) {
+    const agg = slaByZone.get(r.zoneCode)
+    if (agg && r.active) {
+      agg.targetMinutes = r.targetMinutes
+    }
+  }
+
   // --- Stats globales + by_team ---
   let total_24h = 0
   let en_attente = 0
@@ -131,6 +172,21 @@ export async function GET() {
       zoneAggByCode.set(code, agg)
     }
 
+    const statut = r.statut as Statut
+
+    // SLA — pendingBreaches (sur les 48h, peu importe inLast24)
+    // On calcule cela avant la branche inLast24 pour ne pas rater les
+    // EN_ATTENTE créés entre H-48 et H-24.
+    if (statut === 'EN_ATTENTE') {
+      const slaAgg = slaByZone.get(code)
+      if (slaAgg && slaAgg.targetMinutes !== null) {
+        const ageMs = now - c
+        if (ageMs > slaAgg.targetMinutes * 60_000) {
+          slaAgg.pendingBreaches++
+        }
+      }
+    }
+
     if (inLast24) {
       total_24h++
       agg.count_24h++
@@ -140,7 +196,6 @@ export async function GET() {
       // by_team : on ne compte que sur les 24h (cahier des charges)
       byTeam[bucketTeam(r.routedTeam)]++
       // statuts
-      const statut = r.statut as Statut
       if (statut === 'EN_ATTENTE') en_attente++
       else if (statut === 'EN_COURS') en_cours++
       else if (statut === 'RESOLU') {
@@ -150,6 +205,16 @@ export async function GET() {
           if (ms >= 0) {
             sumResolutionMs += ms
             resolvedSamples++
+
+            // SLA — métriques de résolution
+            const slaAgg = slaByZone.get(code)
+            if (slaAgg) {
+              slaAgg.resolvedCount++
+              slaAgg.sumResolutionMs += ms
+              if (slaAgg.targetMinutes !== null && ms / 60_000 <= slaAgg.targetMinutes) {
+                slaAgg.resolvedWithinTarget++
+              }
+            }
           }
         }
       }
@@ -198,6 +263,32 @@ export async function GET() {
   const avg_resolution_minutes =
     resolvedSamples > 0 ? Math.round((sumResolutionMs / resolvedSamples) / 60000) : null
 
+  // --- SLA final : assemblage du dictionnaire par zone ---
+  const sla: Record<string, {
+    targetMinutes: number | null
+    resolvedCount: number
+    avgResolutionMinutes: number | null
+    slaCompliancePercent: number
+    pendingBreaches: number
+  }> = {}
+  for (const z of AIRPORT_ZONES) {
+    const agg = slaByZone.get(z.code)
+    if (!agg) continue
+    sla[z.code] = {
+      targetMinutes: agg.targetMinutes,
+      resolvedCount: agg.resolvedCount,
+      avgResolutionMinutes:
+        agg.resolvedCount > 0
+          ? Math.round((agg.sumResolutionMs / agg.resolvedCount) / 60000)
+          : null,
+      slaCompliancePercent:
+        agg.resolvedCount > 0
+          ? Math.round((agg.resolvedWithinTarget / agg.resolvedCount) * 100)
+          : 0,
+      pendingBreaches: agg.pendingBreaches,
+    }
+  }
+
   return ok({
     stats: {
       total_24h,
@@ -210,5 +301,6 @@ export async function GET() {
     top_zones,
     recent_reports: recent,
     by_team: byTeam,
+    sla,
   })
 }
