@@ -27,12 +27,15 @@
 //   - Toast succès/erreur via useToast
 // ============================================================
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertCircle,
   Check,
+  Download,
+  FileText,
   Loader2,
   Plus,
+  QrCode,
   RotateCcw,
   Save,
   Search,
@@ -86,6 +89,30 @@ type ErrorResponse = {
   ok: false
   error: string
 }
+
+// ---------------------------------------------------------------
+// Types QR code (API /api/airport/qrcode)
+// ---------------------------------------------------------------
+
+type QrApiResponse = {
+  ok: true
+  data: {
+    url: string
+    pngDataUrl: string
+    tag: string
+    zoneNom: string
+    zoneEmoji: string
+  }
+} | ErrorResponse
+
+type QrCacheEntry = {
+  pngDataUrl?: string
+  url?: string
+  loading?: boolean
+  error?: string
+}
+
+type QrCache = Record<string, QrCacheEntry>
 
 // ---------------------------------------------------------------
 // Validation helpers (client-side mirror of the API rules)
@@ -403,6 +430,105 @@ export default function AirportZonesTab() {
   }, [saved])
 
   // ---------------------------------------------------------------
+  // QR codes — cache persistant (survit aux changements de zone)
+  // ---------------------------------------------------------------
+  // Pour chaque tag URL d'une zone, on pré-charge l'aperçu PNG
+  // (data URL base64) depuis /api/airport/qrcode. Le cache est keyé
+  // par tag : changer de zone ne déclenche pas de refetch si le tag
+  // est déjà connu. Le manager peut ensuite télécharger le PNG ou
+  // générer un poster A4 PDF pour impression.
+  // ---------------------------------------------------------------
+  const [qrCache, setQrCache] = useState<QrCache>({})
+  const [pdfLoading, setPdfLoading] = useState<Record<string, boolean>>({})
+  const fetchedTagsRef = useRef<Set<string>>(new Set())
+
+  const fetchQr = useCallback(async (tag: string) => {
+    setQrCache((prev) => ({
+      ...prev,
+      [tag]: { ...prev[tag], loading: true, error: undefined },
+    }))
+    try {
+      const res = await fetch(`/api/airport/qrcode?tag=${encodeURIComponent(tag)}`)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const json = (await res.json()) as QrApiResponse
+      if (!json.ok) throw new Error(json.error)
+      setQrCache((prev) => ({
+        ...prev,
+        [tag]: { pngDataUrl: json.data.pngDataUrl, url: json.data.url, loading: false },
+      }))
+    } catch (e) {
+      setQrCache((prev) => ({
+        ...prev,
+        [tag]: { loading: false, error: e instanceof Error ? e.message : 'Erreur' },
+      }))
+    }
+  }, [])
+
+  // Fetch automatique des QR manquants quand les tags du formulaire
+  // changent. Le ref + le cache garantissent qu'on ne refetch pas un
+  // tag déjà chargé (même après changement de zone ou édition).
+  useEffect(() => {
+    if (!form) return
+    const validTags = form.tags.filter((t) => validateTag(t) === null)
+    for (const t of validTags) {
+      if (fetchedTagsRef.current.has(t)) continue
+      const entry = qrCache[t]
+      if (entry?.pngDataUrl || entry?.loading) continue
+      fetchedTagsRef.current.add(t)
+      void fetchQr(t)
+    }
+  }, [form, qrCache, fetchQr])
+
+  const handleDownloadPng = useCallback(
+    (tag: string) => {
+      const entry = qrCache[tag]
+      if (!entry?.pngDataUrl) return
+      const a = document.createElement('a')
+      a.href = entry.pngDataUrl
+      a.download = `${tag}.png`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+    },
+    [qrCache],
+  )
+
+  const handleDownloadPdf = useCallback(
+    async (tag: string) => {
+      setPdfLoading((prev) => ({ ...prev, [tag]: true }))
+      toast({ title: 'Génération du PDF…', description: `Poster A4 pour « ${tag} »` })
+      try {
+        const res = await fetch(
+          `/api/airport/qrcode?tag=${encodeURIComponent(tag)}&format=pdf`,
+        )
+        if (!res.ok) throw new Error(`HTTP ${res.status}`)
+        const blob = await res.blob()
+        const objUrl = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = objUrl
+        a.download = `${tag}.pdf`
+        document.body.appendChild(a)
+        a.click()
+        document.body.removeChild(a)
+        setTimeout(() => URL.revokeObjectURL(objUrl), 2000)
+      } catch (e) {
+        toast({
+          title: 'Erreur PDF',
+          description: e instanceof Error ? e.message : 'Erreur inconnue',
+          variant: 'destructive',
+        })
+      } finally {
+        setPdfLoading((prev) => {
+          const next = { ...prev }
+          delete next[tag]
+          return next
+        })
+      }
+    },
+    [toast],
+  )
+
+  // ---------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------
 
@@ -505,6 +631,11 @@ export default function AirportZonesTab() {
           onChange={setForm}
           onSave={handleSave}
           onReset={handleReset}
+          qrCache={qrCache}
+          pdfLoading={pdfLoading}
+          onDownloadPng={handleDownloadPng}
+          onDownloadPdf={handleDownloadPdf}
+          onRefetchQr={fetchQr}
         />
       </section>
     </div>
@@ -524,6 +655,11 @@ type ZoneEditFormProps = {
   onChange: (next: FormState) => void
   onSave: () => void
   onReset: () => void
+  qrCache: QrCache
+  pdfLoading: Record<string, boolean>
+  onDownloadPng: (tag: string) => void
+  onDownloadPdf: (tag: string) => void
+  onRefetchQr: (tag: string) => void
 }
 
 function ZoneEditForm({
@@ -535,6 +671,11 @@ function ZoneEditForm({
   onChange,
   onSave,
   onReset,
+  qrCache,
+  pdfLoading,
+  onDownloadPng,
+  onDownloadPdf,
+  onRefetchQr,
 }: ZoneEditFormProps) {
   const suggestions = TAG_SUGGESTIONS[code] ?? []
   const unusedSuggestions = suggestions.filter((s) => !form.tags.includes(s))
@@ -922,6 +1063,161 @@ function ZoneEditForm({
             </div>
           )}
         </div>
+      </div>
+
+      {/* ---------- QR CODES (pleine largeur, sous la grille 2 col) ---------- */}
+      <div className="mt-6 flex flex-col gap-3">
+        <div className="flex items-center gap-1.5">
+          <QrCode className="h-3.5 w-3.5 text-muted-foreground" />
+          <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            QR Codes
+          </Label>
+          <span className="ml-auto text-[10px] tabular-nums text-muted-foreground/70">
+            {form.tags.length} tag(s)
+          </span>
+        </div>
+        <p className="-mt-1 text-[11px] text-muted-foreground/70">
+          Téléchargez et imprimez les QR codes pour chaque tag URL. Les voyageurs les scanneront
+          pour signaler un problème.
+        </p>
+
+        {form.tags.length === 0 ? (
+          <div className="rounded-md border border-dashed border-border bg-card/40 px-3 py-4 text-center text-xs text-muted-foreground/70">
+            Ajoutez au moins un tag URL ci-dessus pour générer les QR codes.
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {form.tags.map((tag) => {
+              const entry = qrCache[tag]
+              const tagErr = validateTag(tag)
+              return (
+                <QrCard
+                  key={`qr-${tag}`}
+                  tag={tag}
+                  entry={entry}
+                  tagErr={tagErr}
+                  pdfLoading={!!pdfLoading[tag]}
+                  onDownloadPng={() => onDownloadPng(tag)}
+                  onDownloadPdf={() => void onDownloadPdf(tag)}
+                  onRetry={() => onRefetchQr(tag)}
+                />
+              )
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------
+// Sous-composant : carte QR code (aperçu + téléchargement PNG/PDF)
+// ---------------------------------------------------------------
+
+type QrCardProps = {
+  tag: string
+  entry: QrCacheEntry | undefined
+  tagErr: string | null
+  pdfLoading: boolean
+  onDownloadPng: () => void
+  onDownloadPdf: () => void
+  onRetry: () => void
+}
+
+function QrCard({
+  tag,
+  entry,
+  tagErr,
+  pdfLoading,
+  onDownloadPng,
+  onDownloadPdf,
+  onRetry,
+}: QrCardProps) {
+  // L'URL publique renvoyée par l'API est absolue (ex: https://app…/?airport=tag).
+  // On n'affiche que le chemin relatif pour rester lisible dans la carte.
+  const rawUrl = entry?.url ?? `/?airport=${tag}`
+  let urlDisplay = rawUrl
+  try {
+    const parsed = new URL(rawUrl)
+    urlDisplay = parsed.pathname + parsed.search
+  } catch {
+    // rawUrl est déjà relative — on l'affiche telle quelle.
+  }
+
+  return (
+    <div className="flex flex-col items-center gap-2 rounded-xl border border-border bg-card p-4">
+      {/* Aperçu QR (120×120) */}
+      <div className="flex size-28 items-center justify-center rounded-lg border border-border bg-white p-1">
+        {tagErr ? (
+          <div className="flex flex-col items-center gap-1 text-center">
+            <AlertCircle className="h-5 w-5 text-rose-500" />
+            <span className="text-[9px] text-rose-600">tag invalide</span>
+          </div>
+        ) : entry?.loading ? (
+          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+        ) : entry?.error ? (
+          <div className="flex flex-col items-center gap-1.5 text-center">
+            <span className="text-[10px] font-medium text-rose-600">QR indisponible</span>
+            <Button
+              type="button"
+              size="sm"
+              variant="ghost"
+              className="h-6 px-2 text-[10px] text-muted-foreground hover:bg-muted"
+              onClick={onRetry}
+            >
+              Réessayer
+            </Button>
+          </div>
+        ) : entry?.pngDataUrl ? (
+          <img
+            src={entry.pngDataUrl}
+            alt={`QR code ${tag}`}
+            className="h-full w-full object-contain"
+          />
+        ) : null}
+      </div>
+
+      {/* Nom du tag (monospace) */}
+      <code className="break-all text-center font-mono text-xs text-muted-foreground">
+        {tag}
+      </code>
+
+      {/* URL publique scannée par le QR */}
+      <span
+        className="block max-w-full truncate text-[10px] text-muted-foreground/70"
+        title={rawUrl}
+      >
+        {urlDisplay}
+      </span>
+
+      {/* Boutons de téléchargement */}
+      <div className="mt-1 flex w-full gap-1.5">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={onDownloadPng}
+          disabled={!entry?.pngDataUrl || entry?.loading}
+          className="flex-1 border-border bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <Download className="h-3.5 w-3.5" />
+          PNG
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          onClick={onDownloadPdf}
+          disabled={pdfLoading || !!tagErr}
+          className="flex-1 border-border bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          {pdfLoading ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <FileText className="h-3.5 w-3.5" />
+          )}
+          PDF
+        </Button>
       </div>
     </div>
   )
