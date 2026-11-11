@@ -24,7 +24,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Plane, TriangleAlert, OctagonAlert } from 'lucide-react'
+import { Plane, TriangleAlert, OctagonAlert, Volume2, VolumeX } from 'lucide-react'
 
 // ---------------------------------------------------------------
 // Types — match exact du contrat /api/airport/wallboard
@@ -51,6 +51,7 @@ type RecentReport = {
   statut: string
   photoCategory: string | null
   routedTeam: string | null
+  flightNumber?: string | null
   createdAt: string
 }
 
@@ -477,6 +478,52 @@ function MiniRowSkeleton() {
 }
 
 // ---------------------------------------------------------------
+// Helpers son — Ding + TTS (synthèse vocale navigateur)
+// ---------------------------------------------------------------
+// Le wallboard émet un "ding" à chaque nouveau signalement, suivi
+// d'une annonce vocale (TTS) qui décrit le problème. Les alertes
+// critiques déclenchent un ding différent (grave) + une annonce
+// "Alerte critique". L'utilisateur peut couper le son via un
+// bouton 🔊/🔇 dans le header (préférence persistée en localStorage).
+//
+// Politique autoplay : les navigateurs bloquent l'audio sans
+// interaction utilisateur. On active donc le son au premier clic
+// sur le bouton mute (qui passe alors en "son activé"). Avant ça,
+// le TTS et le ding sont silencieux (mais l'animation visuelle
+// continue de fonctionner).
+
+const SOUND_NORMAL = '/sounds/ding.wav'
+const SOUND_CRITICAL = '/sounds/ding-critical.wav'
+
+/** Joue un fichier son si l'audio est activé */
+function playSound(src: string, audioRef: React.RefObject<HTMLAudioElement | null>) {
+  const a = audioRef.current
+  if (!a) return
+  a.src = src
+  a.volume = 0.6
+  a.play().catch(() => {
+    // Autoplay bloqué — silencieux, l'utilisateur doit cliquer
+  })
+}
+
+/** Annonce vocale via Web Speech API (synthèse navigateur) */
+function speak(text: string, enabled: boolean) {
+  if (!enabled) return
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
+  try {
+    window.speechSynthesis.cancel() // coupe l'annonce précédente
+    const u = new SpeechSynthesisUtterance(text)
+    u.lang = 'fr-FR'
+    u.rate = 1.05
+    u.pitch = 1.0
+    u.volume = 0.9
+    window.speechSynthesis.speak(u)
+  } catch {
+    // TTS indisponible — silencieux
+  }
+}
+
+// ---------------------------------------------------------------
 // Page principale
 // ---------------------------------------------------------------
 export default function OpsWallboardPage() {
@@ -486,6 +533,14 @@ export default function OpsWallboardPage() {
   const [freshIds, setFreshIds] = useState<Set<string>>(new Set())
   const seenIdsRef = useRef<Set<string>>(new Set())
   const firstLoadRef = useRef<boolean>(true)
+
+  // --- État son (ding + TTS) ---
+  // soundOn : false au démarrage (autoplay bloqué). L'utilisateur
+  // clique le bouton 🔊 pour activer → true. Persistance localStorage.
+  const [soundOn, setSoundOn] = useState<boolean>(false)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  // Track des IDs d'alertes déjà annoncées (évite de re-dire la même)
+  const announcedAlertsRef = useRef<Set<string>>(new Set())
 
   // --- État des alertes (poll 30s) ---
   const [alerts, setAlerts] = useState<TriggeredAlert[]>([])
@@ -497,10 +552,12 @@ export default function OpsWallboardPage() {
       const d = await fetchWallboard()
       // Détecte les nouveaux IDs (jamais vus) pour l'animation d'entrée
       const newFresh = new Set<string>()
+      const newReports: RecentReport[] = []
       for (const r of d.recent_reports) {
         if (!seenIdsRef.current.has(r.id)) {
           newFresh.add(r.id)
           seenIdsRef.current.add(r.id)
+          newReports.push(r)
         }
       }
       // Sur le tout premier chargement, on n'anime pas (sinon les 10
@@ -514,6 +571,21 @@ export default function OpsWallboardPage() {
         // ne rejoue pas l'animation
         if (newFresh.size > 0) {
           setTimeout(() => setFreshIds(new Set()), 1500)
+          // --- DING + TTS pour chaque nouveau signalement ---
+          // On prend le plus récent (le tableau est trié desc par l'API).
+          // Si plusieurs arrivent dans le même poll, on annonce le dernier
+          // (évite une cacophonie de TTS).
+          if (soundOn && newReports.length > 0) {
+            const latest = newReports[0]
+            playSound(SOUND_NORMAL, audioRef)
+            // TTS : "Sanitaires. Poubelle qui déborde. Vol AF 456."
+            const zoneNom = latest.zone?.nom ?? latest.tagScanne
+            const parts: string[] = [zoneNom]
+            parts.push(latest.problemType)
+            if (latest.flightNumber) parts.push(`Vol ${latest.flightNumber}`)
+            // Petit délai (400ms) pour que le ding finisse avant la voix
+            setTimeout(() => speak(parts.join('. '), soundOn), 400)
+          }
         }
       }
       setData(d)
@@ -521,7 +593,7 @@ export default function OpsWallboardPage() {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'erreur inconnue')
     }
-  }, [])
+  }, [soundOn])
 
   useEffect(() => {
     // Premier poll différé (setTimeout 0) pour ne pas appeler setState
@@ -538,12 +610,32 @@ export default function OpsWallboardPage() {
   const pollAlerts = useCallback(async () => {
     try {
       const a = await fetchAlerts()
+      // --- DING CRITIQUE pour les nouvelles alertes ---
+      // On annonce uniquement les alertes critiques jamais annoncées
+      // (évite de re-dire la même alerte tous les 30s).
+      if (soundOn) {
+        for (const alert of a) {
+          const alertKey = `${alert.thresholdId}-${alert.type}`
+          if (!announcedAlertsRef.current.has(alertKey) && alert.severity === 'critical') {
+            announcedAlertsRef.current.add(alertKey)
+            playSound(SOUND_CRITICAL, audioRef)
+            setTimeout(() => speak(`Alerte critique. ${alert.message}`, soundOn), 500)
+            break // une seule annonce par poll (évite la cacophonie)
+          }
+        }
+        // Nettoie les alertes qui ne sont plus actives (pour pouvoir
+        // re-annoncer si elles reviennent plus tard)
+        const activeKeys = new Set(a.map(al => `${al.thresholdId}-${al.type}`))
+        for (const k of [...announcedAlertsRef.current]) {
+          if (!activeKeys.has(k)) announcedAlertsRef.current.delete(k)
+        }
+      }
       setAlerts(a)
       setAlertsError(null)
     } catch (e) {
       setAlertsError(e instanceof Error ? e.message : 'erreur alertes')
     }
-  }, [])
+  }, [soundOn])
 
   useEffect(() => {
     const initial = setTimeout(() => void pollAlerts(), 1500)
@@ -558,6 +650,43 @@ export default function OpsWallboardPage() {
   useEffect(() => {
     const t = setInterval(() => setNow(new Date()), 1000)
     return () => clearInterval(t)
+  }, [])
+
+  // --- Chargement de la préférence son (localStorage) au mount ---
+  // Différé (setTimeout 0) pour respecter la règle set-state-in-effect.
+  // Note : même si la préférence est "on", le navigateur bloquera
+  // l'audio tant que l'utilisateur n'aura pas cliqué au moins une
+  // fois sur la page. Le bouton 🔊 est donc indispensable.
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        const saved = localStorage.getItem('wallboard_sound')
+        if (saved === '1') setSoundOn(true)
+      } catch {
+        /* localStorage indisponible */
+      }
+    }, 0)
+    return () => clearTimeout(t)
+  }, [])
+
+  // --- Bascule du son + persistance ---
+  const toggleSound = useCallback(() => {
+    setSoundOn((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem('wallboard_sound', next ? '1' : '0')
+      } catch {
+        /* ignore */
+      }
+      // Petit test son quand on active (feedback utilisateur immédiat)
+      if (next) {
+        playSound(SOUND_NORMAL, audioRef)
+        speak('Son activé.', true)
+      } else if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel()
+      }
+      return next
+    })
   }, [])
 
   // --- Refresh relatif des "il y a X min" toutes les 30s ---
@@ -588,6 +717,8 @@ export default function OpsWallboardPage() {
 
   return (
     <div className="flex min-h-screen flex-col bg-neutral-950 p-3 font-sans text-white sm:p-4">
+      {/* Élément audio caché pour le ding (play() programmatique) */}
+      <audio ref={audioRef} preload="auto" />
       <div className="mx-auto flex w-full max-w-[1920px] flex-1 flex-col overflow-hidden rounded-[20px] border border-neutral-800 bg-[#0a0a0a] shadow-2xl">
         {/* ---------- HEADER BAR (gradient amber → orange) ---------- */}
         <header className="flex h-16 shrink-0 items-center justify-between gap-3 bg-gradient-to-r from-amber-400 to-orange-500 px-4 sm:px-6">
@@ -648,6 +779,21 @@ export default function OpsWallboardPage() {
             >
               {formatClock(now)}
             </div>
+            {/* Bouton mute 🔊/🔇 — active/désactive le ding + TTS */}
+            <button
+              type="button"
+              onClick={toggleSound}
+              aria-pressed={soundOn}
+              aria-label={soundOn ? "Couper le son" : "Activer le son (ding + annonces vocales)"}
+              title={soundOn ? "Son activé — clic pour couper" : "Son coupé — clic pour activer ding + annonces vocales"}
+              className="flex items-center justify-center rounded-lg bg-black px-2.5 py-1.5 transition-transform hover:scale-105"
+            >
+              {soundOn ? (
+                <Volume2 className="size-5 text-amber-400" aria-hidden />
+              ) : (
+                <VolumeX className="size-5 text-black/50" aria-hidden />
+              )}
+            </button>
           </div>
         </header>
 
