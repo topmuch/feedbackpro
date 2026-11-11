@@ -2,19 +2,20 @@
 // Page /ops-wallboard — Wallboard Ops Room Aéroport
 // ------------------------------------------------------------
 // Affichage TV plein écran pour la salle de supervision ops.
-// Sombre (slate-950), accents emerald/amber/rose/sky.
-// Poll l'API /api/airport/wallboard toutes les 5s, horloge 1s.
+// Style "departure board" (panneau d'affichage des départs) :
+//   - carte noire (#0a0a0a) à coins arrondis sur fond très sombre
+//   - header gradient amber→orange avec icône avion + horloge
+//   - bannières d'alertes (rouge/amber) sous le header
+//   - strip stats compact (5 tuiles)
+//   - grille principale type "dot-matrix" : cellules #1a1a1a séparées
+//     par des gaps noirs, texte monospace, 10 lignes (placeholder
+//     dots "· · ·" pour les emplacements vides, comme un vrai board)
+//   - footer 2 colonnes : SLA par zone | Charge par zone (barres amber)
 //
-// Layout 100vh :
-//   ┌───────────────────────────────────────────────────────────┐
-//   │ TOP BAR  h-16  (titre | clock | LIVE)                     │
-//   ├──────────┬──────────────────────────┬─────────────────────┤
-//   │  Stats   │   Zone heat list (5)     │   Team routing      │
-//   │  4 cards │   barres horizontales    │   5 équipes         │
-//   │  (3 col) │   (6 col)                │   (3 col)           │
-//   ├──────────┴──────────────────────────┴─────────────────────┤
-//   │ LIVE FEED  h-64  (10 derniers signalements, scroll H)     │
-//   └───────────────────────────────────────────────────────────┘
+// Polling identique au précédent :
+//   - /api/airport/wallboard toutes les 5s
+//   - /api/airport/alerts/check toutes les 30s
+//   - horloge 1s
 //
 // Aucun scroll sur 1920×1080. Sur petits écrans, empilement vertical
 // avec scroll (overflow-y-auto sur le main).
@@ -23,6 +24,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Plane, TriangleAlert, OctagonAlert } from 'lucide-react'
 
 // ---------------------------------------------------------------
 // Types — match exact du contrat /api/airport/wallboard
@@ -141,50 +143,53 @@ function formatDateFR(d: Date): string {
   })
 }
 
-function formatDuration(min: number | null): string {
-  if (min === null) return '—'
-  if (min < 60) return `${min} min`
-  const h = Math.floor(min / 60)
-  const m = min % 60
-  return m ? `${h} h ${m}` : `${h} h`
+// Statut meta — palette departures board :
+//   EN_ATTENTE → amber
+//   EN_COURS   → sky
+//   RESOLU     → green
+const STATUT_META: Record<Statut, { label: string; badge: string; dot: string }> = {
+  EN_ATTENTE: {
+    label: 'EN ATTENTE',
+    badge: 'border-amber-500/50 bg-amber-500/15 text-amber-400',
+    dot: 'bg-amber-400',
+  },
+  EN_COURS: {
+    label: 'EN COURS',
+    badge: 'border-sky-500/50 bg-sky-500/15 text-sky-400',
+    dot: 'bg-sky-400',
+  },
+  RESOLU: {
+    label: 'RÉSOLU',
+    badge: 'border-green-500/50 bg-green-500/15 text-green-500',
+    dot: 'bg-green-500',
+  },
 }
 
-const STATUT_META: Record<Statut, { label: string; cls: string; dot: string }> = {
-  EN_ATTENTE: { label: 'EN ATTENTE', cls: 'bg-amber-500/15 text-amber-300 border-amber-500/30', dot: 'bg-amber-400' },
-  EN_COURS: { label: 'EN COURS', cls: 'bg-sky-500/15 text-sky-300 border-sky-500/30', dot: 'bg-sky-400' },
-  RESOLU: { label: 'RÉSOLU', cls: 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30', dot: 'bg-emerald-400' },
+function statutMeta(s: string): { label: string; badge: string; dot: string } {
+  return (
+    STATUT_META[s as Statut] ?? {
+      label: s,
+      badge: 'border-neutral-600 bg-neutral-700/40 text-neutral-400',
+      dot: 'bg-neutral-500',
+    }
+  )
 }
 
-function statutMeta(s: string): { label: string; cls: string; dot: string } {
-  return STATUT_META[s as Statut] ?? {
-    label: s,
-    cls: 'bg-slate-500/15 text-slate-300 border-slate-500/30',
-    dot: 'bg-slate-400',
-  }
+const TEAM_META: Record<TeamKey, { emoji: string; label: string }> = {
+  nettoyage: { emoji: '🧹', label: 'Nettoyage' },
+  maintenance: { emoji: '🔧', label: 'Maintenance' },
+  securite: { emoji: '🛡️', label: 'Sécurité' },
+  accueil: { emoji: '👋', label: 'Accueil' },
+  other: { emoji: '❓', label: 'Autre' },
 }
 
-const TEAM_META: Record<TeamKey, { emoji: string; label: string; bar: string }> = {
-  nettoyage: { emoji: '🧹', label: 'Nettoyage', bar: 'bg-emerald-500' },
-  maintenance: { emoji: '🔧', label: 'Maintenance', bar: 'bg-amber-500' },
-  securite: { emoji: '🛡️', label: 'Sécurité', bar: 'bg-rose-500' },
-  accueil: { emoji: '👋', label: 'Accueil', bar: 'bg-sky-500' },
-  other: { emoji: '❓', label: 'Autre', bar: 'bg-slate-500' },
-}
-
-function trendMeta(t: Trend): { arrow: string; cls: string } {
-  if (t === 'up') return { arrow: '↗', cls: 'text-rose-400' }
-  if (t === 'down') return { arrow: '↘', cls: 'text-emerald-400' }
-  return { arrow: '→', cls: 'text-slate-400' }
-}
-
-function severityBarClass(count: number): string {
-  if (count > 5) return 'bg-rose-500'
-  if (count > 0) return 'bg-amber-500'
-  return 'bg-slate-700'
+function teamMeta(key: string | null): { emoji: string; label: string } | null {
+  if (!key) return null
+  return TEAM_META[key as TeamKey] ?? TEAM_META.other
 }
 
 // ---------------------------------------------------------------
-// Fetch helper
+// Fetch helpers
 // ---------------------------------------------------------------
 async function fetchWallboard(): Promise<WallboardData> {
   const res = await fetch('/api/airport/wallboard', { cache: 'no-store' })
@@ -209,334 +214,266 @@ async function fetchAlerts(): Promise<TriggeredAlert[]> {
 // ---------------------------------------------------------------
 
 /**
- * Bannière d'alerte — affichée en haut du wallboard quand au moins
- * une alerte est active. Style distinct selon la sévérité :
- *   - critical : bordure rouge pulsante
- *   - warning  : bordure amber solide
+ * Bannière d'alerte — une par ligne, sous le header.
+ *   critical : bg-red-950/80 border-red-500, animate-pulse, rouge
+ *   warning  : bg-amber-950/80 border-amber-500, amber
  */
-function AlertBanner({ alert }: { alert: TriggeredAlert }) {
+function AlertRow({ alert }: { alert: TriggeredAlert }) {
   const isCritical = alert.severity === 'critical'
   return (
     <div
-      className={`flex items-start gap-3 rounded-lg border p-3 ${
+      role="alert"
+      className={`flex items-center gap-3 rounded-md border px-3 py-2 font-mono text-sm ${
         isCritical
-          ? 'border-rose-500/60 bg-rose-500/10 shadow-[0_0_24px_-4px_rgba(244,63,94,0.4)]'
-          : 'border-amber-500/50 bg-amber-500/10'
+          ? 'animate-pulse border-red-500 bg-red-950/80 text-red-300'
+          : 'border-amber-500 bg-amber-950/80 text-amber-300'
       }`}
     >
-      <span
-        className={`mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full ${
-          isCritical
-            ? 'animate-pulse bg-rose-500 text-white'
-            : 'bg-amber-500 text-white'
-        }`}
-        aria-hidden
-      >
-        {isCritical ? '🚨' : '⚠️'}
+      <span className="shrink-0" aria-hidden>
+        {isCritical ? <OctagonAlert className="size-4" /> : <TriangleAlert className="size-4" />}
       </span>
-      <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-baseline gap-x-2">
-          <span
-            className={`text-xs font-bold uppercase tracking-wider ${
-              isCritical ? 'text-rose-300' : 'text-amber-300'
-            }`}
-          >
-            {isCritical ? 'ALERTE CRITIQUE' : 'Alerte'}
-          </span>
-          <span className="text-[10px] font-mono uppercase text-slate-400">
-            {alert.type.replace(/_/g, ' ')}
-          </span>
-          <span className="text-[10px] tabular-nums text-slate-500">
-            · {relativeTime(alert.triggeredAt)}
-          </span>
-        </div>
-        <p className="mt-0.5 text-sm font-medium text-slate-100">
-          {alert.message}
-        </p>
-      </div>
-      <div
-        className={`shrink-0 rounded-md border px-2 py-1 text-right font-mono text-xs tabular-nums ${
-          isCritical
-            ? 'border-rose-500/40 bg-rose-500/15 text-rose-200'
-            : 'border-amber-500/40 bg-amber-500/15 text-amber-200'
+      <span
+        className={`shrink-0 text-[11px] font-bold uppercase tracking-wider ${
+          isCritical ? 'text-red-400' : 'text-amber-400'
         }`}
       >
-        <div className="text-base font-bold leading-none">
-          {alert.currentValue}
-        </div>
-        <div className="text-[9px] uppercase text-slate-400">
-          / {alert.threshold}
-        </div>
-      </div>
+        {isCritical ? 'Critique' : 'Alerte'}
+      </span>
+      <span className="shrink-0 text-[11px] uppercase tracking-wider text-white/60">
+        {alert.zoneCode} · {alert.type.replace(/_/g, ' ')}
+      </span>
+      <span className="min-w-0 flex-1 truncate text-white">{alert.message}</span>
+      <span className="shrink-0 tabular-nums text-white/80">
+        {alert.currentValue}/{alert.threshold}
+      </span>
+      <span className="shrink-0 text-[11px] tabular-nums text-white/50">
+        {relativeTime(alert.triggeredAt)}
+      </span>
     </div>
   )
 }
 
-function StatCard({
+/** Tuile statistique compacte : gros chiffre monospace + label amber */
+function StatTile({
   label,
   value,
-  hint,
-  accent,
-  pulse,
-  mono = true,
+  accent = 'white',
 }: {
   label: string
   value: string | number
-  hint?: string
-  accent: 'emerald' | 'amber' | 'sky' | 'rose'
-  pulse?: boolean
-  mono?: boolean
+  accent?: 'white' | 'amber' | 'sky' | 'green'
 }) {
-  const accentMap: Record<string, { text: string; ring: string; glow: string }> = {
-    emerald: { text: 'text-emerald-400', ring: 'ring-emerald-500/20', glow: 'shadow-emerald-500/10' },
-    amber: { text: 'text-amber-400', ring: 'ring-amber-500/20', glow: 'shadow-amber-500/10' },
-    sky: { text: 'text-sky-400', ring: 'ring-sky-500/20', glow: 'shadow-sky-500/10' },
-    rose: { text: 'text-rose-400', ring: 'ring-rose-500/20', glow: 'shadow-rose-500/10' },
-  }
-  const a = accentMap[accent]
+  const textCls = {
+    white: 'text-white',
+    amber: 'text-amber-400',
+    sky: 'text-sky-400',
+    green: 'text-green-500',
+  }[accent]
   return (
-    <div
-      className={`flex flex-col justify-between rounded-xl border border-slate-800 bg-slate-900/60 p-4 ring-1 ${a.ring} ${a.glow} shadow-lg`}
-    >
-      <div className="flex items-center justify-between">
-        <span className="text-[11px] font-medium uppercase tracking-wider text-slate-400">
-          {label}
-        </span>
-        {pulse && (
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
-          </span>
-        )}
-      </div>
-      <div className={`mt-2 text-4xl font-bold tabular-nums ${a.text} ${mono ? 'font-mono' : ''}`}>
+    <div className="flex flex-col items-center justify-center gap-0.5 rounded-md bg-[#1a1a1a] px-3 py-2">
+      <span className={`font-mono text-2xl font-bold tabular-nums sm:text-3xl ${textCls}`}>
         {value}
-      </div>
-      {hint ? (
-        <div className="mt-1 text-[11px] tabular-nums text-slate-500">{hint}</div>
-      ) : null}
+      </span>
+      <span className="font-mono text-[10px] font-semibold uppercase tracking-wider text-amber-400">
+        {label}
+      </span>
     </div>
   )
 }
 
-function ZoneRow({ zone, max }: { zone: ZoneAgg; max: number }) {
-  const pct = max > 0 ? Math.max(4, Math.round((zone.count_en_attente / max) * 100)) : 0
-  const bar = severityBarClass(zone.count_en_attente)
-  const t = trendMeta(zone.trend)
-  return (
-    <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-3">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="text-xl leading-none">{zone.emoji}</span>
-          <span className="truncate text-sm font-semibold text-slate-100">{zone.nom}</span>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <span className="rounded-md border border-slate-700 bg-slate-800/70 px-2 py-0.5 text-xs font-semibold tabular-nums text-slate-200">
-            {zone.count_en_attente} <span className="text-slate-400">en attente</span>
-          </span>
-          <span className={`text-base font-bold ${t.cls}`} title={`Tendance vs 24h précédentes : ${zone.trend}`}>
-            {t.arrow}
-          </span>
-        </div>
-      </div>
-      <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-slate-800">
-        <div
-          className={`h-full ${bar} transition-all duration-700`}
-          style={{ width: `${zone.count_en_attente === 0 ? 0 : pct}%` }}
-        />
-      </div>
-      <div className="mt-1.5 flex items-center justify-between text-[11px] text-slate-500">
-        <span className="tabular-nums">{zone.count_24h} signal. 24h</span>
-        <span>{relativeTime(zone.last_report_at)}</span>
-      </div>
-    </div>
-  )
-}
-
-function TeamBar({ team, count, max }: { team: TeamKey; count: number; max: number }) {
-  const meta = TEAM_META[team]
-  const pct = max > 0 ? Math.max(4, Math.round((count / max) * 100)) : 0
-  return (
-    <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-3">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="text-base leading-none">{meta.emoji}</span>
-          <span className="text-xs font-medium text-slate-300">{meta.label}</span>
-        </div>
-        <span className="font-mono text-lg font-bold tabular-nums text-slate-100">{count}</span>
-      </div>
-      <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
-        <div
-          className={`h-full ${meta.bar} transition-all duration-700`}
-          style={{ width: `${count === 0 ? 0 : pct}%` }}
-        />
-      </div>
-    </div>
-  )
-}
-
-// Feature 3 — SLA par zone : ligne compacte affichée dans le wallboard.
-// Chaque zone a sa propre carte avec :
-//   - emoji + nom + objectif SLA (emerald)
-//   - moyenne résolution (emerald si ≤ target, rose si > target)
-//   - % conformité SLA (emerald ≥80, amber 60-80, rose <60)
-//   - retards (rose si >0, emerald sinon)
-function SlaRow({ zone, sla }: { zone: ZoneAgg; sla?: SlaStats }) {
-  // SLA non configuré pour cette zone → carte discrète
-  if (!sla || sla.targetMinutes === null) {
-    return (
-      <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-2.5">
-        <div className="flex items-center gap-1.5">
-          <span className="text-base leading-none">{zone.emoji}</span>
-          <span className="truncate text-xs font-semibold text-slate-200">{zone.nom}</span>
-        </div>
-        <div className="mt-1.5 text-[10px] text-slate-500">SLA non défini</div>
-      </div>
-    )
-  }
-
-  const target = sla.targetMinutes
-  const avg = sla.avgResolutionMinutes
-  const pct = sla.slaCompliancePercent
-  const breaches = sla.pendingBreaches
-  const hasResolutions = sla.resolvedCount > 0
-
-  // Couleur de la moyenne : emerald si ≤ target, rose si > target.
-  const avgCls =
-    avg === null
-      ? 'text-slate-500'
-      : avg <= target
-        ? 'text-emerald-400'
-        : 'text-rose-400'
-
-  // Couleur de la conformité : emerald ≥80, amber 60-80, rose <60.
-  const pctCls = !hasResolutions
-    ? 'text-slate-500'
-    : pct >= 80
-      ? 'text-emerald-400'
-      : pct >= 60
-        ? 'text-amber-400'
-        : 'text-rose-400'
-
-  // Badge retards : rose si >0, emerald sinon.
-  const brCls =
-    breaches > 0
-      ? 'border-rose-500/30 bg-rose-500/10 text-rose-300'
-      : 'border-emerald-500/30 bg-emerald-500/10 text-emerald-300'
-
-  return (
-    <div className="rounded-lg border border-slate-800 bg-slate-900/40 p-2.5">
-      {/* Header : emoji + nom + objectif */}
-      <div className="flex items-center justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-1.5">
-          <span className="text-base leading-none">{zone.emoji}</span>
-          <span className="truncate text-xs font-semibold text-slate-100">{zone.nom}</span>
-        </div>
-        <span
-          className="shrink-0 font-mono text-[10px] font-semibold tabular-nums text-emerald-400"
-          title={`Objectif SLA : ${target} min`}
-        >
-          ≤ {target}m
-        </span>
-      </div>
-
-      {/* Mini-stats : moyenne | conformité | retards */}
-      <div className="mt-2 grid grid-cols-3 gap-1 text-center">
-        <div className="flex flex-col rounded-md bg-slate-800/40 px-1 py-1">
-          <span className="text-[9px] uppercase tracking-wider text-slate-500">Moy.</span>
-          <span className={`font-mono text-xs font-bold tabular-nums ${avgCls}`}>
-            {avg !== null ? `${avg}m` : '—'}
-          </span>
-        </div>
-        <div className="flex flex-col rounded-md bg-slate-800/40 px-1 py-1">
-          <span className="text-[9px] uppercase tracking-wider text-slate-500">Conform.</span>
-          <span className={`font-mono text-xs font-bold tabular-nums ${pctCls}`}>
-            {hasResolutions ? `${pct}%` : '—'}
-          </span>
-        </div>
-        <div
-          className={`flex flex-col rounded-md border px-1 py-1 ${brCls}`}
-          title={`${breaches} signalement(s) en retard sur le SLA`}
-        >
-          <span className="text-[9px] uppercase tracking-wider opacity-70">Retards</span>
-          <span className="font-mono text-xs font-bold tabular-nums">
-            {breaches > 0 ? `⚠ ${breaches}` : '✓'}
-          </span>
-        </div>
-      </div>
-    </div>
-  )
-}
-
-function FeedCard({ r, fresh }: { r: RecentReport; fresh: boolean }) {
+/** Ligne de la grille principale (un signalement) */
+function BoardRow({ r, fresh }: { r: RecentReport; fresh: boolean }) {
   const s = statutMeta(r.statut)
-  const team = r.routedTeam ? TEAM_META[(r.routedTeam as TeamKey) in TEAM_META ? (r.routedTeam as TeamKey) : 'other'] : null
+  const team = teamMeta(r.routedTeam)
   return (
     <div
-      className={`flex h-full w-72 shrink-0 flex-col justify-between rounded-lg border border-slate-800 bg-slate-900/60 p-3 ${
+      role="row"
+      className={`grid shrink-0 grid-cols-[1.2fr_2.5fr_1fr_1.3fr_0.8fr] gap-1.5 ${
         fresh ? 'animate-in fade-in slide-in-from-top-2 duration-500' : ''
       }`}
     >
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex min-w-0 items-center gap-2">
-          <span className="text-lg leading-none">{r.zone?.emoji ?? '📍'}</span>
-          <div className="min-w-0">
-            <div className="truncate text-xs font-semibold text-slate-100">
-              {r.zone?.nom ?? 'Zone inconnue'}
-            </div>
-            <div className="truncate text-[11px] text-slate-500">{r.tagScanne}</div>
-          </div>
-        </div>
+      {/* ZONE */}
+      <div
+        role="cell"
+        className="flex min-w-0 items-center gap-2 rounded-md bg-[#1a1a1a] px-3 py-2"
+      >
+        <span className="text-base leading-none" aria-hidden>
+          {r.zone?.emoji ?? '📍'}
+        </span>
+        <span className="truncate font-mono text-sm font-semibold text-amber-400">
+          {r.zone?.nom ?? 'Zone inconnue'}
+        </span>
+      </div>
+
+      {/* PROBLÈME */}
+      <div
+        role="cell"
+        className="flex min-w-0 items-center rounded-md bg-[#1a1a1a] px-3 py-2"
+      >
+        <span className="truncate font-mono text-sm text-white" title={r.problemType}>
+          {r.problemType}
+        </span>
+      </div>
+
+      {/* STATUT */}
+      <div role="cell" className="flex items-center rounded-md bg-[#1a1a1a] px-3 py-2">
         <span
-          className={`inline-flex shrink-0 items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold ${s.cls}`}
+          className={`inline-flex items-center gap-1.5 rounded border px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-wider ${s.badge}`}
         >
-          <span className={`h-1.5 w-1.5 rounded-full ${s.dot}`} />
+          <span className={`size-1.5 rounded-full ${s.dot}`} aria-hidden />
           {s.label}
         </span>
       </div>
-      <div className="mt-2 line-clamp-2 text-xs text-slate-300">{r.problemType}</div>
-      <div className="mt-2 flex flex-wrap items-center gap-1">
-        {r.photoCategory && (
-          <span className="rounded border border-fuchsia-500/30 bg-fuchsia-500/10 px-1.5 py-0.5 text-[10px] font-medium text-fuchsia-300">
-            📷 {r.photoCategory}
-          </span>
-        )}
-        {team && (
-          <span className="rounded border border-slate-700 bg-slate-800/60 px-1.5 py-0.5 text-[10px] font-medium text-slate-300">
-            {team.emoji} {team.label}
-          </span>
+
+      {/* ÉQUIPE */}
+      <div
+        role="cell"
+        className="flex min-w-0 items-center gap-1.5 rounded-md bg-[#1a1a1a] px-3 py-2"
+      >
+        {team ? (
+          <>
+            <span className="text-sm leading-none" aria-hidden>
+              {team.emoji}
+            </span>
+            <span className="truncate font-mono text-sm text-amber-400">{team.label}</span>
+          </>
+        ) : (
+          <span className="font-mono text-sm text-neutral-600">—</span>
         )}
       </div>
-      <div className="mt-2 text-[11px] tabular-nums text-slate-500">{relativeTime(r.createdAt)}</div>
+
+      {/* IL Y A */}
+      <div
+        role="cell"
+        className="flex items-center justify-end rounded-md bg-[#1a1a1a] px-3 py-2"
+      >
+        <span className="font-mono text-sm tabular-nums text-white">
+          {relativeTime(r.createdAt)}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+/** Ligne "emplacement vide" — dots muted gray, comme un vrai departure board */
+function PlaceholderRow() {
+  return (
+    <div
+      role="row"
+      aria-hidden
+      className="grid shrink-0 grid-cols-[1.2fr_2.5fr_1fr_1.3fr_0.8fr] gap-1.5"
+    >
+      <div className="rounded-md bg-[#1a1a1a] px-3 py-2 font-mono text-sm text-neutral-700">
+        · · · · ·
+      </div>
+      <div className="truncate rounded-md bg-[#1a1a1a] px-3 py-2 font-mono text-sm text-neutral-700">
+        · · · · · · · · · ·
+      </div>
+      <div className="rounded-md bg-[#1a1a1a] px-3 py-2 font-mono text-sm text-neutral-700">
+        · · ·
+      </div>
+      <div className="rounded-md bg-[#1a1a1a] px-3 py-2 font-mono text-sm text-neutral-700">
+        · · · ·
+      </div>
+      <div className="rounded-md bg-[#1a1a1a] px-3 py-2 text-right font-mono text-sm text-neutral-700">
+        · · ·
+      </div>
+    </div>
+  )
+}
+
+/** Ligne SLA par zone (footer gauche) */
+function SlaBottomRow({ zone, sla }: { zone: ZoneAgg; sla?: SlaStats }) {
+  if (!sla || sla.targetMinutes === null) {
+    return (
+      <div className="flex items-center gap-2 rounded-md bg-[#1a1a1a] px-3 py-1.5">
+        <span className="text-sm leading-none" aria-hidden>
+          {zone.emoji}
+        </span>
+        <span className="min-w-0 flex-1 truncate font-mono text-xs text-white">
+          {zone.nom}
+        </span>
+        <span className="font-mono text-[10px] uppercase text-neutral-600">N/A</span>
+      </div>
+    )
+  }
+  const pct = sla.slaCompliancePercent
+  const hasResolutions = sla.resolvedCount > 0
+  const pctCls = !hasResolutions
+    ? 'text-neutral-500'
+    : pct >= 80
+      ? 'text-green-500'
+      : pct >= 60
+        ? 'text-amber-400'
+        : 'text-red-500'
+  return (
+    <div className="flex items-center gap-2 rounded-md bg-[#1a1a1a] px-3 py-1.5">
+      <span className="text-sm leading-none" aria-hidden>
+        {zone.emoji}
+      </span>
+      <span className="min-w-0 flex-1 truncate font-mono text-xs text-white" title={zone.nom}>
+        {zone.nom}
+      </span>
+      <span className="font-mono text-[10px] tabular-nums text-amber-400">
+        ≤{sla.targetMinutes}m
+      </span>
+      <span
+        className={`w-12 text-right font-mono text-xs font-bold tabular-nums ${pctCls}`}
+        title={`Moyenne résolution : ${sla.avgResolutionMinutes ?? '—'} min · Retards : ${sla.pendingBreaches}`}
+      >
+        {hasResolutions ? `${pct}%` : '—'}
+      </span>
+    </div>
+  )
+}
+
+/** Ligne charge par zone (footer droit) — barre amber + count */
+function ZoneChargeRow({ zone, max }: { zone: ZoneAgg; max: number }) {
+  const pct = max > 0 ? Math.max(2, Math.round((zone.count_en_attente / max) * 100)) : 0
+  const barCls =
+    zone.count_en_attente > 5
+      ? 'bg-red-500'
+      : zone.count_en_attente > 0
+        ? 'bg-amber-400'
+        : 'bg-neutral-700'
+  return (
+    <div className="flex items-center gap-2 rounded-md bg-[#1a1a1a] px-3 py-1.5">
+      <span className="text-sm leading-none" aria-hidden>
+        {zone.emoji}
+      </span>
+      <span className="min-w-0 flex-1 truncate font-mono text-xs text-white" title={zone.nom}>
+        {zone.nom}
+      </span>
+      <div className="h-1.5 w-24 overflow-hidden rounded-full bg-black/60">
+        <div
+          className={`h-full ${barCls} transition-all duration-700`}
+          style={{ width: `${zone.count_en_attente === 0 ? 0 : pct}%` }}
+        />
+      </div>
+      <span className="w-8 text-right font-mono text-xs font-bold tabular-nums text-white">
+        {zone.count_en_attente}
+      </span>
     </div>
   )
 }
 
 // --- Squelettes de chargement ---
 function StatSkeleton() {
+  return <div className="h-[68px] animate-pulse rounded-md bg-[#1a1a1a]" />
+}
+
+function RowSkeleton() {
   return (
-    <div className="h-[104px] animate-pulse rounded-xl border border-slate-800 bg-slate-900/60 p-4">
-      <div className="h-3 w-2/3 rounded bg-slate-800" />
-      <div className="mt-6 h-9 w-1/2 rounded bg-slate-800" />
-      <div className="mt-2 h-3 w-1/3 rounded bg-slate-800" />
+    <div className="grid shrink-0 grid-cols-[1.2fr_2.5fr_1fr_1.3fr_0.8fr] gap-1.5">
+      {Array.from({ length: 5 }).map((_, i) => (
+        <div key={i} className="h-11 animate-pulse rounded-md bg-[#1a1a1a]" />
+      ))}
     </div>
   )
 }
 
-function ZoneSkeleton() {
-  return (
-    <div className="animate-pulse rounded-lg border border-slate-800 bg-slate-900/40 p-3">
-      <div className="flex justify-between">
-        <div className="h-4 w-1/3 rounded bg-slate-800" />
-        <div className="h-4 w-16 rounded bg-slate-800" />
-      </div>
-      <div className="mt-3 h-2 w-full rounded bg-slate-800" />
-      <div className="mt-2 flex justify-between">
-        <div className="h-3 w-20 rounded bg-slate-800" />
-        <div className="h-3 w-16 rounded bg-slate-800" />
-      </div>
-    </div>
-  )
+function MiniRowSkeleton() {
+  return <div className="h-8 animate-pulse rounded-md bg-[#1a1a1a]" />
 }
 
 // ---------------------------------------------------------------
@@ -567,7 +504,7 @@ export default function OpsWallboardPage() {
         }
       }
       // Sur le tout premier chargement, on n'anime pas (sinon les 10
-      // cartes existantes déclenchent une vague d'animation)
+      // lignes existantes déclenchent une vague d'animation)
       if (firstLoadRef.current) {
         firstLoadRef.current = false
         setFreshIds(new Set())
@@ -630,257 +567,206 @@ export default function OpsWallboardPage() {
     () => (data ? Math.max(1, ...data.zones.map((z) => z.count_en_attente)) : 1),
     [data],
   )
-  const maxTeam = useMemo(
-    () => (data ? Math.max(1, ...Object.values(data.by_team)) : 1),
-    [data],
-  )
 
-  const teamEntries = useMemo<Array<[TeamKey, number]>>(() => {
-    if (!data) return []
-    const entries: Array<[TeamKey, number]> = [
-      ['nettoyage', data.by_team.nettoyage ?? 0],
-      ['maintenance', data.by_team.maintenance ?? 0],
-      ['securite', data.by_team.securite ?? 0],
-      ['accueil', data.by_team.accueil ?? 0],
-      ['other', data.by_team.other ?? 0],
-    ]
-    return entries.sort((a, b) => b[1] - a[1])
+  // SLA global moyen : moyenne des slaCompliancePercent sur les zones
+  // configurées (targetMinutes non null ET resolvedCount > 0).
+  const overallSlaPct = useMemo<string>(() => {
+    if (!data?.sla) return '—'
+    const entries = Object.values(data.sla).filter(
+      (s) => s.targetMinutes !== null && s.resolvedCount > 0,
+    )
+    if (entries.length === 0) return '—'
+    const sum = entries.reduce((acc, s) => acc + s.slaCompliancePercent, 0)
+    return `${Math.round(sum / entries.length)}%`
   }, [data])
 
+  // Lignes du board (max 10) + placeholders pour combler
+  const rows = data?.recent_reports ?? []
+  const filledRows = rows.slice(0, 10)
+  const placeholderCount = Math.max(0, 10 - filledRows.length)
+  const topAlerts = alerts.slice(0, 3)
+
   return (
-    <div className="flex h-screen flex-col overflow-hidden bg-slate-950 font-sans text-slate-100">
-      {/* ---------- TOP BAR ---------- */}
-      <header className="flex h-16 shrink-0 items-center justify-between border-b border-slate-800 bg-slate-900 px-6">
-        <div className="flex items-center gap-3">
-          <span className="text-2xl leading-none">✈️</span>
-          <h1 className="font-mono text-lg font-bold tracking-tight text-slate-100 sm:text-xl">
-            AÉROPORT OPS <span className="text-slate-500">—</span>{' '}
-            <span className="text-emerald-400">WALLBOARD</span>
-          </h1>
-        </div>
-
-        <div className="hidden flex-col items-center md:flex">
-          <div className="font-mono text-2xl font-bold tabular-nums text-slate-100">
-            {formatClock(now)}
+    <div className="flex min-h-screen flex-col bg-neutral-950 p-3 font-sans text-white sm:p-4">
+      <div className="mx-auto flex w-full max-w-[1920px] flex-1 flex-col overflow-hidden rounded-[20px] border border-neutral-800 bg-[#0a0a0a] shadow-2xl">
+        {/* ---------- HEADER BAR (gradient amber → orange) ---------- */}
+        <header className="flex h-16 shrink-0 items-center justify-between gap-3 bg-gradient-to-r from-amber-400 to-orange-500 px-4 sm:px-6">
+          <div className="flex items-center gap-3">
+            <div
+              className="flex size-11 items-center justify-center rounded-xl bg-black"
+              aria-hidden
+            >
+              <Plane className="size-6 text-amber-400" strokeWidth={2.5} />
+            </div>
+            <div className="flex flex-col leading-tight">
+              <h1 className="text-lg font-extrabold tracking-tight text-black sm:text-2xl">
+                AÉROPORT OPS
+              </h1>
+              <span className="hidden font-mono text-[10px] uppercase tracking-[0.25em] text-black/60 sm:block">
+                Wallboard · Départs
+              </span>
+            </div>
           </div>
-          <div className="text-[11px] capitalize text-slate-400">{formatDateFR(now)}</div>
-        </div>
 
-        <div className="flex items-center gap-2">
-          {error ? (
-            <span className="inline-flex items-center gap-1.5 rounded-md border border-rose-500/30 bg-rose-500/10 px-2 py-1 text-xs font-medium text-rose-300">
-              <span className="h-2 w-2 rounded-full bg-rose-400" />
-              ERREUR
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-500/30 bg-emerald-500/10 px-2 py-1 text-xs font-medium text-emerald-300">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
-              </span>
-              LIVE
-            </span>
-          )}
-        </div>
-      </header>
-
-      {/* ---------- ALERTES ACTIVES (au-dessus du main grid, seulement si alerts > 0) ---------- */}
-      {alerts.length > 0 && (
-        <section className="shrink-0 border-b border-slate-800 bg-slate-900/80 p-3">
-          <div className="mb-2 flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-rose-300">
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-rose-400 opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-rose-500" />
-              </span>
-              Alertes actives
-              <span className="rounded-md border border-rose-500/30 bg-rose-500/15 px-1.5 py-0.5 text-[10px] font-bold text-rose-200 tabular-nums">
-                {alerts.length}
-              </span>
-            </h2>
-            {alertsError ? (
-              <span className="text-[10px] text-slate-500">{alertsError}</span>
-            ) : (
-              <span className="text-[10px] text-slate-500">
-                Rafraîchi toutes les 30 s
-              </span>
-            )}
+          <div className="hidden flex-col items-center md:flex">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-black/70">
+              {formatDateFR(now)}
+            </div>
+            <div className="font-mono text-[10px] uppercase tracking-wider text-black/50">
+              {alertsError
+                ? 'Alertes : erreur'
+                : `${alerts.length} alerte(s) active(s)`}
+            </div>
           </div>
-          <div className="grid grid-cols-1 gap-2 md:grid-cols-2 xl:grid-cols-3">
-            {alerts.map((a, idx) => (
-              <AlertBanner key={`${a.thresholdId}-${a.zoneCode}-${idx}`} alert={a} />
+
+          <div className="flex items-center gap-3">
+            {/* LIVE indicator */}
+            <div className="flex items-center gap-1.5 rounded-full bg-black/15 px-2.5 py-1">
+              {error ? (
+                <>
+                  <span className="size-2 rounded-full bg-red-600" aria-hidden />
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-black">
+                    Erreur
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span className="relative flex size-2" aria-hidden>
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-green-500 opacity-75" />
+                    <span className="relative inline-flex size-2 rounded-full bg-green-500" />
+                  </span>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-black">
+                    Live
+                  </span>
+                </>
+              )}
+            </div>
+            {/* Clock badge */}
+            <div
+              className="rounded-lg bg-black px-3 py-1.5 font-mono text-lg font-bold tabular-nums text-white sm:text-xl"
+              aria-label="Heure courante"
+            >
+              {formatClock(now)}
+            </div>
+          </div>
+        </header>
+
+        {/* ---------- ALERTES ACTIVES ---------- */}
+        {topAlerts.length > 0 && (
+          <section
+            aria-label="Alertes actives"
+            className="shrink-0 space-y-1.5 bg-black p-2"
+          >
+            {topAlerts.map((a, idx) => (
+              <AlertRow key={`${a.thresholdId}-${a.zoneCode}-${idx}`} alert={a} />
             ))}
-          </div>
-        </section>
-      )}
+          </section>
+        )}
 
-      {/* ---------- MAIN GRID ---------- */}
-      <main className="grid min-h-0 flex-1 grid-cols-1 gap-4 overflow-y-auto p-4 lg:grid-cols-12 lg:overflow-hidden">
-        {/* --- Colonne gauche : stats --- */}
-        <section className="flex flex-col gap-3 lg:col-span-3 lg:overflow-hidden">
-          <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-            Vue d'ensemble · 24h
-          </h2>
+        {/* ---------- STATS STRIP ---------- */}
+        <section
+          aria-label="Statistiques 24h"
+          className="grid shrink-0 grid-cols-2 gap-1.5 bg-black p-2 sm:grid-cols-3 lg:grid-cols-5"
+        >
           {data ? (
-            <div className="flex flex-col gap-3">
-              <StatCard
-                label="Signalements 24h"
-                value={data.stats.total_24h}
-                accent="emerald"
-                hint="Total tous statuts confondus"
-              />
-              <StatCard
-                label="En attente"
-                value={data.stats.en_attente}
-                accent="amber"
-                pulse={data.stats.en_attente > 0}
-                hint="Nécessitent une action"
-              />
-              <StatCard
-                label="En cours"
-                value={data.stats.en_cours}
-                accent="sky"
-                hint="Pris en charge par une équipe"
-              />
-              <StatCard
-                label="Résolus 24h"
-                value={data.stats.resolus_24h}
-                accent="emerald"
-                hint={`Temps moyen : ${formatDuration(data.stats.avg_resolution_minutes)}`}
-              />
-            </div>
+            <>
+              <StatTile label="24H" value={data.stats.total_24h} />
+              <StatTile label="EN ATTENTE" value={data.stats.en_attente} accent="amber" />
+              <StatTile label="EN COURS" value={data.stats.en_cours} accent="sky" />
+              <StatTile label="RÉSOLUS" value={data.stats.resolus_24h} accent="green" />
+              <StatTile label="SLA %" value={overallSlaPct} accent="green" />
+            </>
           ) : (
-            <div className="flex flex-col gap-3">
-              <StatSkeleton />
-              <StatSkeleton />
-              <StatSkeleton />
-              <StatSkeleton />
-            </div>
+            Array.from({ length: 5 }).map((_, i) => <StatSkeleton key={i} />)
           )}
         </section>
 
-        {/* --- Colonne centre : zone heat list --- */}
-        <section className="flex min-h-0 flex-col gap-3 lg:col-span-3 lg:overflow-hidden">
-          <div className="flex items-center justify-between">
-            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-              Charge par zone · 24h
-            </h2>
-            {data && (
-              <span className="text-[11px] tabular-nums text-slate-500">
-                Trié par en-attente décroissant
-              </span>
-            )}
+        {/* ---------- MAIN BOARD (departure grid) ---------- */}
+        <main
+          aria-label="Derniers signalements"
+          className="flex min-h-0 flex-1 flex-col gap-1.5 bg-black p-2"
+        >
+          {/* Column headers */}
+          <div
+            role="row"
+            className="grid shrink-0 grid-cols-[1.2fr_2.5fr_1fr_1.3fr_0.8fr] gap-1.5"
+          >
+            <div className="px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-wider text-amber-400">
+              Zone
+            </div>
+            <div className="px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-wider text-amber-400">
+              Problème
+            </div>
+            <div className="px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-wider text-amber-400">
+              Statut
+            </div>
+            <div className="px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-wider text-amber-400">
+              Équipe
+            </div>
+            <div className="px-3 py-1 text-right font-mono text-[11px] font-bold uppercase tracking-wider text-amber-400">
+              Il y a
+            </div>
           </div>
-          <div className="flex flex-1 flex-col gap-2 lg:overflow-y-auto lg:pr-1">
-            {data ? (
-              data.zones.map((z) => <ZoneRow key={z.code} zone={z} max={maxEnAttente} />)
-            ) : (
-              <>
-                <ZoneSkeleton />
-                <ZoneSkeleton />
-                <ZoneSkeleton />
-                <ZoneSkeleton />
-                <ZoneSkeleton />
-              </>
-            )}
-          </div>
-        </section>
 
-        {/* --- Colonne centre-droite : SLA par zone (Feature 3) --- */}
-        <section className="flex min-h-0 flex-col gap-3 lg:col-span-3 lg:overflow-hidden">
-          <div className="flex items-center justify-between">
-            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+          {/* Rows */}
+          <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
+            {data ? (
+              filledRows.length > 0 ? (
+                <>
+                  {filledRows.map((r) => (
+                    <BoardRow key={r.id} r={r} fresh={freshIds.has(r.id)} />
+                  ))}
+                  {Array.from({ length: placeholderCount }).map((_, i) => (
+                    <PlaceholderRow key={`ph-${i}`} />
+                  ))}
+                </>
+              ) : (
+                <div className="flex flex-1 items-center justify-center rounded-md bg-[#1a1a1a] p-6 font-mono text-sm text-neutral-600">
+                  Aucun signalement dans les dernières 24h
+                </div>
+              )
+            ) : (
+              Array.from({ length: 10 }).map((_, i) => <RowSkeleton key={i} />)
+            )}
+          </div>
+        </main>
+
+        {/* ---------- BOTTOM STRIP (SLA + charge par zone) ---------- */}
+        <footer
+          aria-label="Synthèse SLA et charge par zone"
+          className="grid shrink-0 grid-cols-1 gap-1.5 bg-black p-2 lg:grid-cols-2"
+        >
+          <section className="flex flex-col gap-1.5">
+            <h2 className="px-1 font-mono text-[11px] font-bold uppercase tracking-wider text-amber-400">
               SLA par zone
             </h2>
-            {data && (
-              <span className="text-[11px] tabular-nums text-slate-500">
-                24h
-              </span>
-            )}
-          </div>
-          <div className="flex flex-1 flex-col gap-2 lg:overflow-y-auto lg:pr-1">
-            {data ? (
-              data.zones.map((z) => (
-                <SlaRow key={`sla-${z.code}`} zone={z} sla={data.sla?.[z.code]} />
-              ))
-            ) : (
-              <>
-                <ZoneSkeleton />
-                <ZoneSkeleton />
-                <ZoneSkeleton />
-                <ZoneSkeleton />
-                <ZoneSkeleton />
-              </>
-            )}
-          </div>
-        </section>
+            <div className="flex flex-col gap-1.5">
+              {data ? (
+                data.zones.slice(0, 5).map((z) => (
+                  <SlaBottomRow key={`sla-${z.code}`} zone={z} sla={data.sla?.[z.code]} />
+                ))
+              ) : (
+                Array.from({ length: 5 }).map((_, i) => <MiniRowSkeleton key={i} />)
+              )}
+            </div>
+          </section>
 
-        {/* --- Colonne droite : team routing --- */}
-        <section className="flex min-h-0 flex-col gap-3 lg:col-span-3 lg:overflow-hidden">
-          <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-            Routage par équipe · 24h
-          </h2>
-          <div className="flex flex-1 flex-col gap-2 lg:overflow-y-auto lg:pr-1">
-            {data ? (
-              teamEntries.map(([k, count]) => (
-                <TeamBar key={k} team={k} count={count} max={maxTeam} />
-              ))
-            ) : (
-              <>
-                <ZoneSkeleton />
-                <ZoneSkeleton />
-                <ZoneSkeleton />
-                <ZoneSkeleton />
-                <ZoneSkeleton />
-              </>
-            )}
-          </div>
-        </section>
-      </main>
-
-      {/* ---------- BOTTOM STRIP : LIVE FEED ---------- */}
-      <footer className="h-64 shrink-0 border-t border-slate-800 bg-slate-900/50 p-4">
-        <div className="mb-2 flex items-center justify-between">
-          <h2 className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
-            Flux temps réel · 10 derniers signalements
-          </h2>
-          <span className="text-[11px] tabular-nums text-slate-500">
-            {data ? `${data.recent_reports.length} signalements` : '…'}
-          </span>
-        </div>
-        <div className="flex h-[168px] gap-3 overflow-x-auto pb-2">
-          {data ? (
-            data.recent_reports.length === 0 ? (
-              <div className="flex h-full w-full items-center justify-center text-sm text-slate-500">
-                Aucun signalement dans les dernières 24h
-              </div>
-            ) : (
-              data.recent_reports.map((r) => (
-                <FeedCard key={r.id} r={r} fresh={freshIds.has(r.id)} />
-              ))
-            )
-          ) : (
-            Array.from({ length: 6 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-full w-72 shrink-0 animate-pulse rounded-lg border border-slate-800 bg-slate-900/60 p-3"
-              >
-                <div className="h-4 w-2/3 rounded bg-slate-800" />
-                <div className="mt-4 h-3 w-full rounded bg-slate-800" />
-                <div className="mt-2 h-3 w-1/2 rounded bg-slate-800" />
-                <div className="mt-6 h-3 w-1/3 rounded bg-slate-800" />
-              </div>
-            ))
-          )}
-        </div>
-      </footer>
-
-      {/* Scrollbar discret pour la grille principale (mobile uniquement) */}
-      <style>{`
-        main::-webkit-scrollbar, .overflow-x-auto::-webkit-scrollbar { height: 6px; width: 6px; }
-        main::-webkit-scrollbar-thumb, .overflow-x-auto::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 3px; }
-        main::-webkit-scrollbar-track, .overflow-x-auto::-webkit-scrollbar-track { background: transparent; }
-      `}</style>
+          <section className="flex flex-col gap-1.5">
+            <h2 className="px-1 font-mono text-[11px] font-bold uppercase tracking-wider text-amber-400">
+              Charge par zone · en attente
+            </h2>
+            <div className="flex flex-col gap-1.5">
+              {data ? (
+                data.zones.slice(0, 5).map((z) => (
+                  <ZoneChargeRow key={`chg-${z.code}`} zone={z} max={maxEnAttente} />
+                ))
+              ) : (
+                Array.from({ length: 5 }).map((_, i) => <MiniRowSkeleton key={i} />)
+              )}
+            </div>
+          </section>
+        </footer>
+      </div>
     </div>
   )
 }
