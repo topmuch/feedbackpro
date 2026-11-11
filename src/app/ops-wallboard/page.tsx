@@ -77,6 +77,14 @@ type WallboardData = {
   recent_reports: RecentReport[]
   by_team: Record<TeamKey, number>
   sla?: Record<string, SlaStats>
+  // Signalements résolus dans les dernières 30 secondes (pour le son "résolu")
+  recently_resolved?: {
+    id: string
+    zone: { code: string; nom: string; emoji: string } | null
+    problemType: string
+    tagScanne: string
+    resolvedAt: Date | null
+  }[]
 }
 
 // ---------------------------------------------------------------
@@ -537,6 +545,9 @@ export default function OpsWallboardPage() {
   // Track des statuts précédents pour détecter les résolutions
   // (quand un signalement passe de EN_ATTENTE/EN_COURS → RESOLU)
   const previousStatusRef = useRef<Map<string, string>>(new Map())
+  // Track des IDs déjà annoncés comme résolus (anti-spam — évite de
+  // re-annoncer la même résolution à chaque poll pendant 30s)
+  const announcedResolvedRef = useRef<Set<string>>(new Set())
 
   // --- État son (ding + TTS) ---
   // soundOn : false au démarrage (autoplay bloqué). L'utilisateur
@@ -597,13 +608,13 @@ export default function OpsWallboardPage() {
       }
 
       // --- Détection des résolutions (son "résolu") ---
-      // Compare les statuts actuels avec les précédents. Si un
-      // signalement passe à RESOLU, joue un son de succès + TTS.
-      if (soundOn && !firstLoadRef.current) {
-        for (const r of d.recent_reports) {
-          const prevStatut = previousStatusRef.current.get(r.id)
-          if (prevStatut && prevStatut !== 'RESOLU' && r.statut === 'RESOLU') {
-            // Résolution détectée !
+      // APPROCHE ROBUSTE : l'API renvoie recently_resolved (signalements
+      // résolus dans les dernières 30s). On joue le son pour ceux qu'on
+      // n'a pas encore annoncés (anti-spam via announcedResolvedRef).
+      if (soundOn && d.recently_resolved && d.recently_resolved.length > 0) {
+        for (const r of d.recently_resolved) {
+          if (!announcedResolvedRef.current.has(r.id)) {
+            announcedResolvedRef.current.add(r.id)
             playSound(SOUND_RESOLVED, audioRef)
             const zoneNom = r.zone?.nom ?? r.tagScanne
             setTimeout(() => speak(`Signalement résolu. ${zoneNom}. ${r.problemType}.`, soundOn), 400)
@@ -611,7 +622,15 @@ export default function OpsWallboardPage() {
           }
         }
       }
-      // Met à jour les statuts précédents pour le prochain poll
+      // Nettoie les IDs qui ne sont plus dans recently_resolved
+      // (pour pouvoir re-annoncer si une nouvelle résolution arrive)
+      if (d.recently_resolved) {
+        const activeIds = new Set(d.recently_resolved.map(r => r.id))
+        for (const id of [...announcedResolvedRef.current]) {
+          if (!activeIds.has(id)) announcedResolvedRef.current.delete(id)
+        }
+      }
+      // Met à jour les statuts précédents (fallback pour l'approche précédente)
       for (const r of d.recent_reports) {
         previousStatusRef.current.set(r.id, r.statut)
       }

@@ -302,5 +302,17 @@ export async function GET() {
     recent_reports: recent,
     by_team: byTeam,
     sla,
+    // Signalements résolus dans les dernières 30 secondes — permet au
+    // wallboard de jouer le son "résolu" même s'il vient d'être ouvert
+    // ou s'il a manqué la transition de statut.
+    recently_resolved: reports
+      .filter((r) => r.statut === 'RESOLU' && r.resolvedAt && (now - r.resolvedAt.getTime()) < 30000)
+      .map((r) => ({
+        id: r.id,
+        zone: r.zone ? { code: r.zone.code, nom: r.zone.nom, emoji: r.zone.emoji } : null,
+        problemType: r.problemType,
+        tagScanne: r.tagScanne,
+        resolvedAt: r.resolvedAt,
+      })),
   })
 }
