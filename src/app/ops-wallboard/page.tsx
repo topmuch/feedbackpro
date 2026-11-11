@@ -31,7 +31,7 @@ import { Plane, TriangleAlert, OctagonAlert, Volume2, VolumeX } from 'lucide-rea
 // ---------------------------------------------------------------
 type Statut = 'EN_ATTENTE' | 'EN_COURS' | 'RESOLU'
 type Trend = 'up' | 'down' | 'stable'
-type TeamKey = 'nettoyage' | 'maintenance' | 'securite' | 'accueil' | 'other'
+type TeamKey = 'nettoyage' | 'maintenance' | 'securite' | 'accueil' | 'logistique' | 'other'
 
 type ZoneAgg = {
   code: string
@@ -189,6 +189,7 @@ const TEAM_META: Record<TeamKey, { emoji: string; label: string }> = {
   maintenance: { emoji: '🔧', label: 'Maintenance' },
   securite: { emoji: '🛡️', label: 'Sécurité' },
   accueil: { emoji: '👋', label: 'Accueil' },
+  logistique: { emoji: '🛃', label: 'Logistique' },
   other: { emoji: '❓', label: 'Autre' },
 }
 

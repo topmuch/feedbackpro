@@ -44,8 +44,8 @@ export const dynamic = 'force-dynamic'
 
 type Statut = 'EN_ATTENTE' | 'EN_COURS' | 'RESOLU'
 
-type TeamKey = 'nettoyage' | 'maintenance' | 'securite' | 'accueil' | 'other'
-const TEAM_KEYS: TeamKey[] = ['nettoyage', 'maintenance', 'securite', 'accueil', 'other']
+type TeamKey = 'nettoyage' | 'maintenance' | 'securite' | 'accueil' | 'logistique' | 'other'
+const TEAM_KEYS: TeamKey[] = ['nettoyage', 'maintenance', 'securite', 'accueil', 'logistique', 'other']
 
 function bucketTeam(raw: string | null | undefined): TeamKey {
   if (!raw) return 'other'
@@ -148,6 +148,7 @@ export async function GET() {
     maintenance: 0,
     securite: 0,
     accueil: 0,
+    logistique: 0,
     other: 0,
   }
 
@@ -256,6 +257,7 @@ export async function GET() {
       statut: r.statut,
       photoCategory: r.photoCategory ?? null,
       routedTeam: r.routedTeam ?? null,
+      flightNumber: r.flightNumber ?? null,
       createdAt: r.createdAt.toISOString(),
     }))
 

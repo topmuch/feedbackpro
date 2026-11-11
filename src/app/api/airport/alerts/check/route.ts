@@ -32,6 +32,7 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { ok } from '@/lib/session'
 import { AIRPORT_ZONES } from '@/lib/airport-config'
+import { getActiveShiftPhones, getAllActiveOpsPhones } from '@/lib/airport-shifts'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -99,20 +100,6 @@ function buildMessage(
 
 function severity(current: number, threshold: number): Severity {
   return current >= threshold * 2 ? 'critical' : 'warning'
-}
-
-/**
- * Récupère les numéros ops actifs — pour l'instant tous les
- * AirportOpsContact actifs. Quand les shifts (Feature 4) seront
- * en place, on appellera getActiveShiftPhones() qui filtre par
- * créneau horaire.
- */
-async function getActiveOpsPhones(): Promise<string[]> {
-  const contacts = await db.airportOpsContact.findMany({
-    where: { actif: true },
-    select: { phone: true },
-  })
-  return contacts.map((c) => c.phone)
 }
 
 // ---------------------------------------------------------------
@@ -310,7 +297,10 @@ export async function GET(_req: NextRequest) {
   // En production : envoyer un WhatsApp aux ops actifs pour
   // chaque nouvelle alerte (non supprimée).
   if (toUpdate.length > 0) {
-    const opsPhones = await getActiveOpsPhones()
+    const shiftResult = await getActiveShiftPhones()
+    const opsPhones = shiftResult.phones.length > 0
+      ? shiftResult.phones
+      : (await getAllActiveOpsPhones()).phones
     for (const a of toUpdate) {
       console.log(
         `[airport-alerts] 🚨 ${a.severity.toUpperCase()} — ${a.message} (ops: ${opsPhones.length} actif(s))`,

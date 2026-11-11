@@ -23,6 +23,7 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { ok, fail } from '@/lib/session'
 import { resoudreZoneParTag } from '@/lib/airport-config'
+import { getActiveShiftPhones, getAllActiveOpsPhones } from '@/lib/airport-shifts'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -34,20 +35,6 @@ function normalizePhone(raw: string | undefined | null): string | null {
   const cleaned = raw.replace(/[^\d]/g, '')
   if (!/^\d{8,15}$/.test(cleaned)) return null
   return cleaned
-}
-
-/**
- * Récupère les numéros ops actifs — pour l'instant tous les
- * AirportOpsContact actifs. Quand les shifts (Feature 4) seront
- * en place, on appellera getActiveShiftPhones() qui filtre par
- * créneau horaire.
- */
-async function getActiveShiftPhones(): Promise<string[]> {
-  const contacts = await db.airportOpsContact.findMany({
-    where: { actif: true },
-    select: { phone: true },
-  })
-  return contacts.map((c) => c.phone)
 }
 
 function serializeHelp(h: {
@@ -138,8 +125,11 @@ export async function POST(req: NextRequest) {
   })
 
   // --- Construction du payload WhatsApp qui serait envoyé
-  // aux ops actifs (mode démo — log serveur uniquement).
-  const opsPhones = await getActiveShiftPhones()
+  // aux ops actifs selon le shift en cours (fallback: tous les ops actifs).
+  const shiftResult = await getActiveShiftPhones()
+  const opsPhones = shiftResult.phones.length > 0
+    ? shiftResult.phones
+    : (await getAllActiveOpsPhones()).phones
   const zoneLabel = config ? `${config.emoji} ${config.nom}` : 'Zone inconnue'
   const whatsappLines: string[] = [
     '🆘 *DEMANDE D\'AIDE VOYAGEUR*',

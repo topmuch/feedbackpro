@@ -61,9 +61,24 @@ export async function POST(
     data: {
       statut: 'RESOLU',
       resolvedAt: now,
+      assignedTo: phone ?? undefined,
     },
-    select: { id: true, statut: true, resolvedAt: true },
+    select: { id: true, statut: true, resolvedAt: true, reportId: true },
   })
+
+  // F10: Si la demande d'aide est liée à un signalement (reportId),
+  // on résout aussi le signalement en cascade (une seule action).
+  if (updated.reportId) {
+    try {
+      await db.airportReport.update({
+        where: { id: updated.reportId },
+        data: { statut: 'RESOLU', resolvedAt: now },
+      })
+      console.log(`[airport-help] resolve — report lié ${updated.reportId} aussi résolu`)
+    } catch {
+      // Le report a pu être supprimé — on ignore
+    }
+  }
 
   console.log(
     `[airport-help] resolve — demande ${updated.id} résolue par ${phone ?? 'unknown'}`,
@@ -73,5 +88,6 @@ export async function POST(
     id: updated.id,
     statut: updated.statut,
     resolvedAt: updated.resolvedAt?.toISOString() ?? null,
+    linkedReportResolved: !!updated.reportId,
   })
 }
