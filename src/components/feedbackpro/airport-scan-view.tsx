@@ -827,57 +827,60 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
   if (phase === "confirmation" && reportResult) {
     const dateFormatee = formaterDate(reportResult.report.createdAt)
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 py-8">
-          {/* Coche succès animée (pop-in) */}
+      <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-emerald-50/30 to-violet-50/40">
+        {/* Blobs flottants — ambiance célébration */}
+        <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-emerald-300/20 blur-3xl" />
+        <div className="pointer-events-none absolute top-1/3 -left-20 h-64 w-64 rounded-full bg-violet-300/15 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 right-1/4 h-56 w-56 rounded-full bg-sky-300/15 blur-3xl" />
+
+        <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col px-4 py-8">
+          {/* Coche succès — cercle glassmorphism avec halo emerald */}
           <div className="flex flex-col items-center text-center">
-            <div className="flex size-24 animate-in fade-in zoom-in-50 items-center justify-center rounded-full bg-emerald-50 ring-4 ring-emerald-100 duration-500">
-              <CheckCircle2 className="size-20 text-emerald-500" aria-hidden />
+            <div className="relative">
+              <div className="absolute inset-0 -m-6 rounded-full bg-gradient-to-br from-emerald-300/40 to-teal-300/30 blur-2xl" />
+              <div className="relative flex size-24 animate-in fade-in zoom-in-50 items-center justify-center rounded-3xl bg-white/70 shadow-xl backdrop-blur-md ring-1 ring-white/60 duration-500">
+                <CheckCircle2 className="size-14 text-emerald-500" strokeWidth={2.5} aria-hidden />
+              </div>
             </div>
-            <h1 className="mt-5 text-4xl font-black tracking-tight text-slate-900">Merci !</h1>
-            <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
+            <h1 className="mt-5 text-4xl font-black tracking-tight bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 bg-clip-text text-transparent">
+              Merci !
+            </h1>
+            <p className="mt-2 text-sm leading-relaxed text-slate-500">
               Votre signalement a bien été reçu. L'équipe technique de l'aéroport a été notifiée
               et intervient sur place.
             </p>
           </div>
 
-          {/* Carte récapitulatif */}
-          <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+          {/* Carte récapitulatif — glassmorphism */}
+          <div className="mt-6 relative overflow-hidden rounded-2xl bg-white/70 p-4 shadow-lg backdrop-blur-md ring-1 ring-white/60">
+            <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-emerald-500" />
             <div className="flex items-center gap-3">
-              <span className="text-3xl" aria-hidden>
-                {reportResult.zone.emoji}
-              </span>
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white shadow-md">
+                <span className="text-xl" aria-hidden>{reportResult.zone.emoji}</span>
+              </div>
               <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Zone
-                </p>
-                <p className="truncate text-sm font-bold text-slate-900">
-                  {reportResult.zone.nom}
-                </p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-violet-600">Zone</p>
+                <p className="truncate text-sm font-bold text-slate-800">{reportResult.zone.nom}</p>
               </div>
             </div>
-            <div className="my-3 h-px bg-slate-100" />
+            <div className="my-3 h-px bg-gradient-to-r from-transparent via-slate-200 to-transparent" />
             <div className="flex items-start gap-2">
-              <span className="mt-0.5 min-w-[64px] text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Problème
-              </span>
-              <p className="flex-1 text-sm font-semibold text-slate-800">
-                {reportResult.report.problemType}
-              </p>
+              <span className="mt-0.5 min-w-[64px] text-[10px] font-bold uppercase tracking-wider text-slate-400">Problème</span>
+              <p className="flex-1 text-sm font-bold text-slate-800">{reportResult.report.problemType}</p>
             </div>
             {reportResult.report.flightNumber ? (
               <div className="mt-2 flex items-start gap-2">
-                <span className="mt-0.5 min-w-[64px] text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Vol
-                </span>
-                <p className="flex-1 inline-flex items-center gap-1.5 text-sm font-semibold text-slate-800">
-                  <Plane className="size-3.5 text-slate-500" aria-hidden />
+                <span className="mt-0.5 min-w-[64px] text-[10px] font-bold uppercase tracking-wider text-slate-400">Vol</span>
+                <p className="flex-1 inline-flex items-center gap-1.5 text-sm font-bold text-slate-800">
+                  <div className="flex size-5 items-center justify-center rounded-md bg-gradient-to-br from-sky-500 to-blue-600 text-white">
+                    <Plane className="size-3" aria-hidden />
+                  </div>
                   <span className="font-mono">{reportResult.report.flightNumber}</span>
                 </p>
               </div>
             ) : null}
             {reportResult.vlmPending ? (
-              <div className="mt-2 flex items-start gap-2 rounded-lg bg-violet-50 p-2.5 text-xs text-violet-800">
+              <div className="mt-3 flex items-start gap-2 rounded-xl bg-violet-50/80 backdrop-blur-md p-3 text-xs text-violet-800 ring-1 ring-violet-100">
                 <Loader2 className="mt-0.5 size-3.5 shrink-0 animate-spin text-violet-600" aria-hidden />
                 <p>
                   <strong>Analyse IA de votre photo en cours…</strong> Le système catégorise
@@ -885,33 +888,34 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                 </p>
               </div>
             ) : null}
-            <div className="mt-2 flex items-center justify-between gap-2">
-              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                Signalement
-              </span>
-              <span className="font-mono text-xs text-slate-500">
-                #{reportResult.report.id.slice(0, 8)} · {dateFormatee}
-              </span>
+            <div className="mt-3 flex items-center justify-between gap-2">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Signalement</span>
+              <span className="font-mono text-xs text-slate-400">#{reportResult.report.id.slice(0, 8)} · {dateFormatee}</span>
             </div>
           </div>
 
-          {/* Section opt-in WhatsApp */}
-          <section className="mt-6 rounded-2xl border border-emerald-200 bg-emerald-50/50 p-4">
+          {/* Section opt-in WhatsApp — glassmorphism emerald */}
+          <section className="mt-6 relative overflow-hidden rounded-2xl bg-white/70 p-4 shadow-lg backdrop-blur-md ring-1 ring-white/60">
+            <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500" />
             <div className="flex items-start gap-2">
-              <MessageSquare className="mt-0.5 size-5 shrink-0 text-emerald-600" aria-hidden />
+              <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md">
+                <MessageSquare className="size-4" aria-hidden />
+              </div>
               <div className="min-w-0">
-                <h2 className="text-sm font-bold text-emerald-900">
+                <h2 className="text-sm font-bold text-slate-800">
                   Recevoir un WhatsApp lorsque le problème est résolu
                 </h2>
-                <p className="mt-0.5 text-xs text-emerald-800/80">
+                <p className="mt-0.5 text-xs text-slate-500">
                   On vous prévient dès qu'une équipe intervient. Aucun usage commercial.
                 </p>
               </div>
             </div>
 
             {whatsappSubmitted ? (
-              <div className="mt-3 flex items-start gap-2 rounded-lg bg-emerald-100 p-3 text-sm text-emerald-900">
-                <ShieldCheck className="mt-0.5 size-4 shrink-0 text-emerald-600" aria-hidden />
+              <div className="mt-3 flex items-start gap-2 rounded-xl bg-emerald-50/80 backdrop-blur-sm p-3 text-sm text-emerald-900 ring-1 ring-emerald-100">
+                <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white">
+                  <ShieldCheck className="size-3" aria-hidden />
+                </div>
                 <p>
                   ✅ Vous serez notifié au{" "}
                   <strong>{masquerTelephone(whatsappSubmitted.whatsappPhone)}</strong> dès que le
@@ -926,7 +930,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                   value={whatsappPhone}
                   onChange={(e) => setWhatsappPhone(e.target.value)}
                   placeholder="+33 6 12 34 56 78"
-                  className="h-11 bg-white text-base"
+                  className="h-11 rounded-xl border-2 border-white bg-white/60 backdrop-blur-md text-base ring-1 ring-white/40 focus:border-emerald-400 focus:ring-emerald-200"
                   aria-label="Numéro WhatsApp"
                 />
                 {whatsappError ? (
@@ -935,11 +939,11 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                     {whatsappError}
                   </p>
                 ) : null}
-                <Button
+                <button
                   type="button"
                   onClick={activerWhatsapp}
                   disabled={whatsappSubmitting}
-                  className="h-11 w-full rounded-xl bg-emerald-600 text-white hover:bg-emerald-700 disabled:opacity-70"
+                  className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-sm font-bold text-white shadow-md transition-all hover:shadow-lg active:scale-[0.99] disabled:opacity-70"
                 >
                   {whatsappSubmitting ? (
                     <>
@@ -952,57 +956,58 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                       Activer la notification
                     </>
                   )}
-                </Button>
+                </button>
               </div>
             )}
           </section>
 
-          {/* ---------- Bouton "Aide" PWA ---------- */}
-          {/* Bouton rouge plein large — reste visible même après une demande réussie. */}
+          {/* ---------- Bouton "Aide" — gradient rose vibrant ---------- */}
           <section className="mt-4">
             <button
               type="button"
               onClick={ouvrirAide}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-rose-600 py-4 text-base font-bold text-white shadow-lg shadow-rose-600/20 transition-all hover:bg-rose-700 active:scale-[0.99]"
+              className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-rose-500 via-pink-500 to-rose-600 py-4 text-base font-bold text-white shadow-xl shadow-rose-500/30 transition-all hover:shadow-2xl hover:shadow-rose-500/40 active:scale-[0.99]"
               aria-label="Demander de l'aide immédiatement"
             >
+              <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
               <LifeBuoy className="size-5" aria-hidden />
               🆘 Demander de l'aide immédiatement
             </button>
-            <p className="mt-1.5 text-center text-xs text-muted-foreground">
+            <p className="mt-1.5 text-center text-xs text-slate-400">
               Un agent ops vient vous aider sur place
             </p>
           </section>
 
           {/* ---------- Dialog "Demande d'aide" ---------- */}
           <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
-            <DialogContent className="sm:max-w-md">
+            <DialogContent className="sm:max-w-md rounded-2xl border-2 border-white bg-white/90 backdrop-blur-xl">
               {helpSuccess ? (
                 <div className="flex flex-col items-center gap-4 py-4 text-center">
-                  <div className="flex size-16 animate-in fade-in zoom-in-50 items-center justify-center rounded-full bg-emerald-50 ring-4 ring-emerald-100 duration-300">
-                    <CheckCircle2 className="size-10 text-emerald-500" aria-hidden />
+                  <div className="relative">
+                    <div className="absolute inset-0 -m-4 rounded-full bg-emerald-300/30 blur-xl" />
+                    <div className="relative flex size-16 animate-in fade-in zoom-in-50 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg duration-300">
+                      <CheckCircle2 className="size-9" aria-hidden />
+                    </div>
                   </div>
                   <div>
-                    <h2 className="text-xl font-bold text-slate-900">
-                      ✅ Demande envoyée
-                    </h2>
-                    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                      {helpSuccess}
-                    </p>
+                    <h2 className="text-xl font-black text-slate-900">✅ Demande envoyée</h2>
+                    <p className="mt-2 text-sm leading-relaxed text-slate-500">{helpSuccess}</p>
                   </div>
-                  <Button
+                  <button
                     type="button"
                     onClick={() => setHelpOpen(false)}
-                    className="h-11 w-full rounded-xl bg-slate-900 text-white hover:bg-slate-800"
+                    className="flex h-11 w-full items-center justify-center rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-sm font-bold text-white shadow-md transition-all hover:shadow-lg active:scale-[0.99]"
                   >
                     Fermer
-                  </Button>
+                  </button>
                 </div>
               ) : (
                 <>
                   <DialogHeader>
                     <DialogTitle className="flex items-center gap-2 text-rose-700">
-                      <LifeBuoy className="size-5" aria-hidden />
+                      <div className="flex size-7 items-center justify-center rounded-lg bg-gradient-to-br from-rose-500 to-pink-600 text-white">
+                        <LifeBuoy className="size-4" aria-hidden />
+                      </div>
                       Demander de l'aide
                     </DialogTitle>
                     <DialogDescription>
@@ -1013,34 +1018,25 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
 
                   <div className="space-y-3">
                     <div className="space-y-1.5">
-                      <Label
-                        htmlFor="help-message"
-                        className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
-                      >
+                      <Label htmlFor="help-message" className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                        <span className="inline-block h-1 w-3 rounded-full bg-gradient-to-r from-rose-500 to-pink-500" />
                         Précisez votre besoin (optionnel)
                       </Label>
                       <Textarea
                         id="help-message"
                         value={helpMessage}
-                        onChange={(e) =>
-                          setHelpMessage(e.target.value.slice(0, 500))
-                        }
+                        onChange={(e) => setHelpMessage(e.target.value.slice(0, 500))}
                         maxLength={500}
                         rows={3}
                         placeholder="Ex : mon bagage est bloqué, j'ai besoin d'aide pour le récupérer…"
-                        className="resize-none bg-white text-sm"
+                        className="resize-none rounded-xl border-2 border-white bg-white/60 backdrop-blur-md text-sm ring-1 ring-white/40 focus:border-rose-400 focus:ring-rose-200"
                       />
-                      <p className="text-right text-[10px] text-muted-foreground">
-                        {helpMessage.length}/500
-                      </p>
+                      <p className="text-right text-[10px] text-slate-400">{helpMessage.length}/500</p>
                     </div>
 
                     <div className="space-y-1.5">
-                      <Label
-                        htmlFor="help-phone"
-                        className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wide text-muted-foreground"
-                      >
-                        <Phone className="size-3" aria-hidden />
+                      <Label htmlFor="help-phone" className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                        <span className="inline-block h-1 w-3 rounded-full bg-gradient-to-r from-sky-500 to-blue-500" />
                         Pour que l'agent vous contacte (optionnel)
                       </Label>
                       <Input
@@ -1050,24 +1046,24 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                         value={helpPhone}
                         onChange={(e) => setHelpPhone(e.target.value)}
                         placeholder="+33 6 12 34 56 78"
-                        className="h-11 bg-white text-base"
+                        className="h-11 rounded-xl border-2 border-white bg-white/60 backdrop-blur-md text-base ring-1 ring-white/40 focus:border-sky-400 focus:ring-sky-200"
                       />
                     </div>
 
                     {helpError ? (
-                      <Alert variant="destructive">
-                        <AlertTriangle className="size-4" aria-hidden />
-                        <AlertTitle>Envoi impossible</AlertTitle>
-                        <AlertDescription>{helpError}</AlertDescription>
-                      </Alert>
+                      <div className="flex items-center gap-2 rounded-xl border-2 border-rose-200 bg-rose-50/80 backdrop-blur-md p-3">
+                        <AlertTriangle className="size-4 shrink-0 text-rose-500" aria-hidden />
+                        <p className="text-xs text-rose-600">{helpError}</p>
+                      </div>
                     ) : null}
 
-                    <Button
+                    <button
                       type="button"
                       onClick={envoyerDemandeAide}
                       disabled={helpSubmitting}
-                      className="h-11 w-full rounded-xl bg-rose-600 text-white hover:bg-rose-700 disabled:opacity-70"
+                      className="group relative flex h-11 w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 text-sm font-bold text-white shadow-md transition-all hover:shadow-lg active:scale-[0.99] disabled:opacity-70"
                     >
+                      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
                       {helpSubmitting ? (
                         <>
                           <Loader2 className="size-4 animate-spin" aria-hidden />
@@ -1079,42 +1075,46 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                           Envoyer la demande
                         </>
                       )}
-                    </Button>
+                    </button>
                   </div>
                 </>
               )}
             </DialogContent>
           </Dialog>
 
-          {/* Tertiaire : voir le message envoyé aux équipes */}
-          <details className="mt-4 group rounded-xl border border-slate-200 bg-white p-3">
-            <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-medium text-slate-700 transition-colors group-hover:text-slate-900">
-              <span>Voir le message envoyé aux équipes</span>
-              <span className="text-xs text-muted-foreground group-open:hidden">afficher</span>
-              <span className="hidden text-xs text-muted-foreground group-open:inline">masquer</span>
+          {/* Tertiaire : voir le message — glassmorphism */}
+          <details className="mt-4 group rounded-2xl border-2 border-white bg-white/60 backdrop-blur-md p-3 ring-1 ring-white/40">
+            <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-bold text-slate-600 transition-colors group-hover:text-slate-900">
+              <span className="flex items-center gap-1.5">
+                <span className="inline-block h-1 w-3 rounded-full bg-gradient-to-r from-slate-400 to-slate-500" />
+                Voir le message envoyé aux équipes
+              </span>
+              <span className="text-xs text-slate-400 group-open:hidden">afficher</span>
+              <span className="hidden text-xs text-slate-400 group-open:inline">masquer</span>
             </summary>
-            <pre className="mt-3 overflow-x-auto rounded-lg bg-slate-900 p-3 font-mono text-xs leading-relaxed text-slate-100 whitespace-pre-wrap">
+            <pre className="mt-3 overflow-x-auto rounded-xl bg-slate-900 p-3 font-mono text-xs leading-relaxed text-slate-100 whitespace-pre-wrap">
               {reportResult.whatsapp.message}
             </pre>
           </details>
 
-          {/* Actions collées en bas (mt-auto sur flex-col min-h-screen) */}
+          {/* Actions collées en bas */}
           <div className="mt-auto flex flex-col gap-3 pt-6">
             <button
               type="button"
               onClick={signalerAutre}
-              className="flex h-12 w-full items-center justify-center gap-2 rounded-xl border-2 border-slate-900 bg-slate-900 text-sm font-bold text-white transition-colors hover:bg-slate-800"
+              className="group relative flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 text-sm font-bold text-white shadow-xl shadow-purple-500/30 transition-all hover:shadow-2xl active:scale-[0.99]"
             >
+              <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
               Signaler un autre problème
             </button>
             <button
               type="button"
               onClick={onExit}
-              className="text-center text-xs font-medium text-muted-foreground underline-offset-4 hover:text-slate-700 hover:underline"
+              className="text-center text-xs font-medium text-slate-400 underline-offset-4 hover:text-slate-600 hover:underline"
             >
               Quitter
             </button>
-            <p className="mt-2 text-center text-xs text-muted-foreground">
+            <p className="mt-2 text-center text-xs text-slate-300">
               ✈️ Aéroport — Service voyageur
             </p>
           </div>
