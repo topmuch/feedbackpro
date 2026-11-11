@@ -541,6 +541,9 @@ export default function OpsWallboardPage() {
   const audioRef = useRef<HTMLAudioElement | null>(null)
   // Track des IDs d'alertes déjà annoncées (évite de re-dire la même)
   const announcedAlertsRef = useRef<Set<string>>(new Set())
+  // Bannière d'activation du son : affichée à l'ouverture si le son
+  // n'est pas déjà activé. Se ferme après activation ou après 10s.
+  const [showSoundBanner, setShowSoundBanner] = useState<boolean>(false)
 
   // --- État des alertes (poll 30s) ---
   const [alerts, setAlerts] = useState<TriggeredAlert[]>([])
@@ -654,16 +657,24 @@ export default function OpsWallboardPage() {
 
   // --- Chargement de la préférence son (localStorage) au mount ---
   // Différé (setTimeout 0) pour respecter la règle set-state-in-effect.
-  // Note : même si la préférence est "on", le navigateur bloquera
-  // l'audio tant que l'utilisateur n'aura pas cliqué au moins une
-  // fois sur la page. Le bouton 🔊 est donc indispensable.
+  // Si le son n'était pas activé lors de la dernière visite, on affiche
+  // la bannière d'activation (auto-dismiss après 10s).
   useEffect(() => {
     const t = setTimeout(() => {
+      let alreadyOn = false
       try {
-        const saved = localStorage.getItem('wallboard_sound')
-        if (saved === '1') setSoundOn(true)
+        alreadyOn = localStorage.getItem('wallboard_sound') === '1'
       } catch {
         /* localStorage indisponible */
+      }
+      if (alreadyOn) {
+        setSoundOn(true)
+      } else {
+        // Son pas encore activé → affiche la bannière d'activation
+        setShowSoundBanner(true)
+        // Auto-dismiss après 10s (si l'utilisateur ignore la bannière)
+        const dismiss = setTimeout(() => setShowSoundBanner(false), 10000)
+        return () => clearTimeout(dismiss)
       }
     }, 0)
     return () => clearTimeout(t)
@@ -678,6 +689,8 @@ export default function OpsWallboardPage() {
       } catch {
         /* ignore */
       }
+      // Ferme la bannière d'activation (si elle était visible)
+      setShowSoundBanner(false)
       // Petit test son quand on active (feedback utilisateur immédiat)
       if (next) {
         playSound(SOUND_NORMAL, audioRef)
@@ -779,23 +792,75 @@ export default function OpsWallboardPage() {
             >
               {formatClock(now)}
             </div>
-            {/* Bouton mute 🔊/🔇 — active/désactive le ding + TTS */}
+            {/* Bouton mute 🔊/🔇 — active/désactive le ding + TTS.
+                Rendu très visible (amber sur noir) car c'est le seul
+                contrôle du wallboard et doit être cliqué au moins une
+                fois pour débloquer l'audio navigateur. */}
             <button
               type="button"
               onClick={toggleSound}
               aria-pressed={soundOn}
               aria-label={soundOn ? "Couper le son" : "Activer le son (ding + annonces vocales)"}
               title={soundOn ? "Son activé — clic pour couper" : "Son coupé — clic pour activer ding + annonces vocales"}
-              className="flex items-center justify-center rounded-lg bg-black px-2.5 py-1.5 transition-transform hover:scale-105"
+              className="flex items-center gap-1.5 rounded-lg bg-black px-3 py-1.5 transition-transform hover:scale-105"
             >
               {soundOn ? (
-                <Volume2 className="size-5 text-amber-400" aria-hidden />
+                <>
+                  <Volume2 className="size-5 text-amber-400" aria-hidden />
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-amber-400">ON</span>
+                </>
               ) : (
-                <VolumeX className="size-5 text-black/50" aria-hidden />
+                <>
+                  <VolumeX className="size-5 text-white" aria-hidden />
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-white">OFF</span>
+                </>
               )}
             </button>
           </div>
         </header>
+
+        {/* ---------- BANNIÈRE D'ACTIVATION DU SON ----------
+            Affichée à l'ouverture si le son n'est pas activé.
+            Auto-dismiss après 10s ou au clic sur "Activer". */}
+        {showSoundBanner && !soundOn && (
+          <div className="flex shrink-0 items-center justify-between gap-4 border-b border-amber-500/40 bg-gradient-to-r from-amber-950 via-amber-900 to-amber-950 px-4 py-3 sm:px-6">
+            <div className="flex items-center gap-3">
+              <span
+                className="relative flex size-3 shrink-0"
+                aria-hidden
+              >
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                <span className="relative inline-flex size-3 rounded-full bg-amber-400" />
+              </span>
+              <div className="flex flex-col">
+                <p className="text-sm font-bold text-amber-100">
+                  🔔 Activez le son pour les alertes vocales
+                </p>
+                <p className="text-[11px] text-amber-200/70">
+                  Le wallboard annoncera chaque nouveau signalement à voix haute (ding + description).
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={toggleSound}
+                className="flex items-center gap-1.5 rounded-lg bg-amber-400 px-4 py-2 text-sm font-bold text-black transition-transform hover:scale-105"
+              >
+                <Volume2 className="size-4" aria-hidden />
+                Activer le son
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowSoundBanner(false)}
+                aria-label="Fermer la bannière"
+                className="flex items-center justify-center rounded-lg border border-amber-500/30 px-2.5 py-2 text-amber-300 transition-colors hover:bg-amber-900/50"
+              >
+                <span className="text-lg leading-none" aria-hidden>×</span>
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* ---------- ALERTES ACTIVES ---------- */}
         {topAlerts.length > 0 && (
