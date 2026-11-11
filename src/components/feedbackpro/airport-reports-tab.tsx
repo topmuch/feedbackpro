@@ -21,15 +21,23 @@ import {
   Clock,
   Hand,
   Loader2,
+  Mail,
   MapPin,
+  MessageCircle,
   Phone,
   Plane,
   RefreshCw,
   Search,
+  Send,
+  Sparkles,
+  Download,
+  UserCog,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import {
   Select,
@@ -38,6 +46,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
 
 // ---------------------------------------------------------------
@@ -61,6 +77,8 @@ type Report = {
   whatsappPhone: string | null
   statut: string
   whatsappPayload: string | null
+  // Feature 2 — destinataire d'affectation (numéro WhatsApp, email ou token push)
+  assignedTo?: string | null
   createdAt: string
   resolvedAt: string | null
 }
@@ -134,6 +152,57 @@ function teamMeta(t: string | null): { emoji: string; label: string; cls: string
   return TEAM_META[t] ?? { emoji: '❓', label: t, cls: TEAM_META.other.cls }
 }
 
+// ---------------------------------------------------------------
+// VLM photoAnalysis parsing
+// ---------------------------------------------------------------
+
+type PhotoAnalysis = {
+  description?: string
+  urgency?: 'faible' | 'moyenne' | 'elevee' | 'critique' | string
+  objects_detected?: string[]
+  confidence?: number
+  category?: string
+  team?: string
+}
+
+const URGENCY_META: Record<string, { label: string; cls: string }> = {
+  faible: {
+    label: 'Faible',
+    cls: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700',
+  },
+  moyenne: {
+    label: 'Moyenne',
+    cls: 'border-amber-500/30 bg-amber-500/10 text-amber-700',
+  },
+  elevee: {
+    label: 'Élevée',
+    cls: 'border-orange-500/30 bg-orange-500/10 text-orange-700',
+  },
+  critique: {
+    label: 'Critique',
+    cls: 'border-rose-500/30 bg-rose-500/10 text-rose-700',
+  },
+}
+
+function urgencyMeta(u: string | undefined): { label: string; cls: string } | null {
+  if (!u) return null
+  return URGENCY_META[u] ?? {
+    label: u,
+    cls: 'border-border/40 bg-muted/30 text-muted-foreground',
+  }
+}
+
+function parsePhotoAnalysis(raw: string | null): PhotoAnalysis | null {
+  if (!raw) return null
+  try {
+    const parsed = JSON.parse(raw) as PhotoAnalysis
+    if (typeof parsed !== 'object' || parsed === null) return null
+    return parsed
+  } catch {
+    return null
+  }
+}
+
 function relativeTime(iso: string | null): string {
   if (!iso) return '—'
   const diff = Date.now() - new Date(iso).getTime()
@@ -182,6 +251,29 @@ async function resolveReport(reportId: string): Promise<void> {
 }
 
 // ---------------------------------------------------------------
+// CSV export
+// ---------------------------------------------------------------
+async function downloadExportCsv(zone: string, statut: string): Promise<void> {
+  const params = new URLSearchParams()
+  if (zone && zone !== 'all') params.set('zone', zone)
+  if (statut && statut !== 'all') params.set('statut', statut)
+  const res = await fetch(`/api/airport/reports/export?${params.toString()}`, {
+    cache: 'no-store',
+  })
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  const blob = await res.blob()
+  const url = URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  const stamp = new Date().toISOString().slice(0, 10)
+  a.download = `signalements-airport_${stamp}.csv`
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  setTimeout(() => URL.revokeObjectURL(url), 1000)
+}
+
+// ---------------------------------------------------------------
 // Composant principal
 // ---------------------------------------------------------------
 
@@ -200,6 +292,7 @@ export default function AirportReportsTab() {
   const [error, setError] = useState<string | null>(null)
   const [lastFetch, setLastFetch] = useState<Date | null>(null)
   const [resolvingId, setResolvingId] = useState<string | null>(null)
+  const [exporting, setExporting] = useState<boolean>(false)
 
   // Ref pour éviter un poll en cours
   const pollingRef = useRef<boolean>(false)
@@ -298,6 +391,27 @@ export default function AirportReportsTab() {
     [toast],
   )
 
+  // --- Export CSV handler ---
+  const handleExport = useCallback(async () => {
+    setExporting(true)
+    try {
+      await downloadExportCsv(zoneFilter, statutFilter)
+      toast({
+        title: 'Export CSV généré',
+        description: 'Le fichier des signalements a été téléchargé.',
+      })
+    } catch (e) {
+      toast({
+        title: 'Erreur export CSV',
+        description: e instanceof Error ? e.message : 'Erreur inconnue',
+        variant: 'destructive',
+      })
+    } finally {
+      setExporting(false)
+    }
+  }, [zoneFilter, statutFilter, toast])
+
+
   return (
     <div className="flex h-[calc(100vh-128px)] flex-col">
       {/* ---------- DEMANDES D'AIDE EN ATTENTE ---------- */}
@@ -363,6 +477,24 @@ export default function AirportReportsTab() {
               <RefreshCw className="h-3.5 w-3.5" />
             )}
             <span className="ml-1.5 hidden sm:inline">Rafraîchir</span>
+          </Button>
+
+          {/* Export CSV */}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => void handleExport()}
+            disabled={exporting}
+            className="h-8 border-border bg-muted/40 px-2.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+            title="Exporter les signalements filtrés en CSV"
+          >
+            {exporting ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <Download className="h-3.5 w-3.5" />
+            )}
+            <span className="ml-1.5 hidden sm:inline">Exporter CSV</span>
           </Button>
 
           {/* Compteur + last fetch */}
@@ -441,6 +573,12 @@ function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
   const s = statutMeta(report.statut)
   const team = teamMeta(report.routedTeam)
   const isResolved = report.statut === 'RESOLU'
+  const analysis = useMemo(() => parsePhotoAnalysis(report.photoAnalysis), [report.photoAnalysis])
+  const urgency = urgencyMeta(analysis?.urgency)
+  const confidencePct =
+    typeof analysis?.confidence === 'number'
+      ? Math.round(Math.max(0, Math.min(1, analysis.confidence)) * 100)
+      : null
 
   return (
     <div className="px-4 py-3 transition hover:bg-card/40 sm:px-6">
@@ -448,20 +586,10 @@ function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
         {/* Photo thumbnail (si présente) */}
         <div className="shrink-0 sm:order-1">
           {report.photoUrl ? (
-            <a
-              href={report.photoUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="block h-16 w-16 overflow-hidden rounded-md border border-border bg-muted"
-              title="Voir la photo"
-            >
-              <img
-                src={report.photoUrl}
-                alt={`Photo jointe au signalement ${shortId(report.id)}`}
-                className="h-full w-full object-cover"
-                loading="lazy"
-              />
-            </a>
+            <PhotoLightbox
+              src={report.photoUrl}
+              alt={`Photo jointe au signalement ${shortId(report.id)}`}
+            />
           ) : (
             <div className="flex h-16 w-16 items-center justify-center rounded-md border border-dashed border-border bg-card/40 text-muted-foreground">
               <Camera className="h-5 w-5" />
@@ -522,6 +650,15 @@ function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
                 💬 notifié
               </span>
             )}
+            {report.assignedTo && (
+              <span
+                className="inline-flex items-center gap-1 rounded border border-violet-500/30 bg-violet-500/10 px-1.5 py-0.5 font-medium text-violet-700"
+                title={`Affecté à ${report.assignedTo}`}
+              >
+                <UserCog className="h-3 w-3" />
+                Affecté
+              </span>
+            )}
           </div>
 
           {report.commentaire && (
@@ -548,34 +685,421 @@ function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
 
         {/* Actions */}
         <div className="shrink-0 sm:order-3">
-          {!isResolved && (
-            <Button
-              type="button"
-              size="sm"
-              onClick={() => onResolve(report.id)}
-              disabled={resolving}
-              className="bg-emerald-600 text-white hover:bg-emerald-500 disabled:bg-muted"
-            >
-              {resolving ? (
-                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
-              )}
-              Résoudre
-            </Button>
-          )}
-          {isResolved && (
-            <Badge
-              variant="outline"
-              className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
-            >
-              <CheckCircle2 className="mr-1 h-3 w-3" />
-              Traité
-            </Badge>
-          )}
+          <div className="flex flex-col items-stretch gap-1.5 sm:items-end">
+            {/* Feature 2 — boutons d'affectation (WhatsApp / Email) */}
+            {!isResolved && (
+              <AssignButtons report={report} />
+            )}
+            {!isResolved && (
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => onResolve(report.id)}
+                disabled={resolving}
+                className="bg-emerald-600 text-white hover:bg-emerald-500 disabled:bg-muted"
+              >
+                {resolving ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+                )}
+                Résoudre
+              </Button>
+            )}
+            {isResolved && (
+              <Badge
+                variant="outline"
+                className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
+              >
+                <CheckCircle2 className="mr-1 h-3 w-3" />
+                Traité
+              </Badge>
+            )}
+          </div>
         </div>
       </div>
+
+      {/* VLM photo analysis (dépliable) */}
+      {analysis && (
+        <details className="mt-2 rounded-md border border-fuchsia-500/20 bg-fuchsia-500/5 px-3 py-2 text-xs open:bg-fuchsia-500/10">
+          <summary className="flex cursor-pointer items-center gap-1.5 text-[11px] font-semibold text-fuchsia-700 marker:content-none">
+            <Sparkles className="h-3.5 w-3.5" />
+            Analyse VLM de la photo
+            {urgency && (
+              <span
+                className={cn(
+                  'ml-1 inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-bold uppercase',
+                  urgency.cls,
+                )}
+              >
+                Urgence : {urgency.label}
+              </span>
+            )}
+            {confidencePct !== null && (
+              <span className="ml-auto inline-flex items-center gap-1 rounded-md border border-border/40 bg-muted/30 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
+                Confiance : {confidencePct}%
+              </span>
+            )}
+          </summary>
+          <div className="mt-2 space-y-2 text-foreground">
+            {analysis.description && (
+              <p className="text-xs text-foreground/90">
+                <span className="font-semibold">Description :</span>{' '}
+                {analysis.description}
+              </p>
+            )}
+            {Array.isArray(analysis.objects_detected) &&
+              analysis.objects_detected.length > 0 && (
+                <div className="flex flex-wrap items-center gap-1">
+                  <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                    Objets détectés :
+                  </span>
+                  {analysis.objects_detected.map((obj, i) => (
+                    <span
+                      key={`${obj}-${i}`}
+                      className="inline-flex items-center rounded border border-border/50 bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-foreground/80"
+                    >
+                      {obj}
+                    </span>
+                  ))}
+                </div>
+              )}
+            {!analysis.description &&
+              (!Array.isArray(analysis.objects_detected) ||
+                analysis.objects_detected.length === 0) && (
+                <p className="text-[11px] italic text-muted-foreground">
+                  Analyse présente mais sans détails exploitables.
+                </p>
+              )}
+          </div>
+        </details>
+      )}
     </div>
+  )
+}
+
+// ============================================================
+// Feature 2 — <AssignButtons /> : affecter un signalement
+// ------------------------------------------------------------
+// Deux petits boutons (WhatsApp vert, Email bleu) qui ouvrent un
+// dialog permettant de saisir le destinataire (téléphone ou email)
+// et de pré-visualiser le message pré-rempli avec les détails du
+// signalement. À la validation :
+//   - WhatsApp : POST /api/airport/assign → renvoie un deep link
+//     wa.me qu'on ouvre dans un nouvel onglet.
+//   - Email    : POST /api/airport/assign → envoie un email via
+//     Resend (mode démo si pas de clé API).
+//
+// Le champ `assignedTo` du signalement est mis à jour côté serveur.
+// ============================================================
+
+type AssignMethod = 'whatsapp' | 'email'
+
+type AssignApiResponse = {
+  method: string
+  phone?: string
+  email?: string
+  link?: string
+  sent?: boolean
+  message: string
+}
+
+function buildPrefilledMessage(report: Report): string {
+  const lignes: string[] = [
+    'AFFECTATION SIGNALEMENT AÉROPORT',
+    '',
+    `Zone : ${report.zone?.emoji ?? '📍'} ${report.zone?.nom ?? 'Zone inconnue'}`,
+    `Problème : ${report.problemType}`,
+    `Emplacement : ${report.tagScanne}`,
+    `Réf : #${shortId(report.id)}`,
+  ]
+  if (report.flightNumber) lignes.push(`Vol : ${report.flightNumber}`)
+  if (report.commentaire && report.commentaire.trim()) {
+    lignes.push(`Précision voyageur : ${report.commentaire.trim()}`)
+  }
+  lignes.push(
+    '',
+    'Action : Merci de prendre en charge ce signalement sur place.',
+  )
+  return lignes.join('\n')
+}
+
+function AssignButtons({ report }: { report: Report }) {
+  const { toast } = useToast()
+  const [open, setOpen] = useState(false)
+  const [method, setMethod] = useState<AssignMethod>('whatsapp')
+  const [destinataire, setDestinataire] = useState('')
+  const [note, setNote] = useState('')
+  const [sending, setSending] = useState(false)
+  const message = useMemo(() => buildPrefilledMessage(report), [report])
+
+  const openDialog = useCallback((m: AssignMethod) => {
+    setMethod(m)
+    setDestinataire('')
+    setNote('')
+    setOpen(true)
+  }, [])
+
+  async function envoyer(e: React.FormEvent) {
+    e.preventDefault()
+    if (sending) return
+    const dest = destinataire.trim()
+    if (!dest) {
+      toast({
+        title: method === 'whatsapp' ? 'Numéro requis' : 'Email requis',
+        variant: 'destructive',
+      })
+      return
+    }
+    setSending(true)
+    try {
+      const body: {
+        reportId: string
+        method: AssignMethod
+        phone?: string
+        email?: string
+        message?: string
+      } = { reportId: report.id, method }
+      if (method === 'whatsapp') body.phone = dest
+      else body.email = dest
+      const n = note.trim()
+      if (n) body.message = n
+
+      const res = await fetch('/api/airport/assign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const json = (await res.json()) as { ok: boolean; data?: AssignApiResponse; error?: string }
+      if (!json.ok || !json.data) {
+        throw new Error(json.error ?? 'Affectation impossible')
+      }
+      const data = json.data
+      if (method === 'whatsapp' && data.link) {
+        // Ouvre WhatsApp dans un nouvel onglet avec le message pré-rempli
+        try {
+          window.open(data.link, '_blank', 'noopener,noreferrer')
+        } catch {
+          /* ignore — le manager peut copier le lien depuis le toast */
+        }
+        toast({
+          title: 'Lien WhatsApp généré ✓',
+          description: `WhatsApp ouvert pour ${data.phone ?? dest}. Le signalement est affecté.`,
+        })
+      } else if (method === 'email') {
+        if (data.sent) {
+          toast({
+            title: 'Email envoyé ✓',
+            description: `Affectation envoyée à ${data.email ?? dest}.`,
+          })
+        } else {
+          toast({
+            title: 'Email non envoyé',
+            description: "L'envoi a échoué (vérifiez la configuration Resend).",
+            variant: 'destructive',
+          })
+        }
+      }
+      setOpen(false)
+    } catch (e) {
+      toast({
+        title: 'Erreur',
+        description: e instanceof Error ? e.message : 'Affectation impossible',
+        variant: 'destructive',
+      })
+    } finally {
+      setSending(false)
+    }
+  }
+
+  return (
+    <>
+      <div className="flex items-center gap-1.5">
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => openDialog('whatsapp')}
+          className="h-7 bg-emerald-600 px-2 text-[11px] text-white hover:bg-emerald-500"
+          title="Affecter via WhatsApp"
+        >
+          <MessageCircle className="mr-1 h-3 w-3" aria-hidden />
+          WhatsApp
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          onClick={() => openDialog('email')}
+          className="h-7 bg-sky-600 px-2 text-[11px] text-white hover:bg-sky-500"
+          title="Affecter via Email"
+        >
+          <Mail className="mr-1 h-3 w-3" aria-hidden />
+          Email
+        </Button>
+      </div>
+
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              {method === 'whatsapp' ? (
+                <>
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-700">
+                    <MessageCircle className="h-4 w-4" aria-hidden />
+                  </span>
+                  Affecter via WhatsApp
+                </>
+              ) : (
+                <>
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-500/15 text-sky-700">
+                    <Mail className="h-4 w-4" aria-hidden />
+                  </span>
+                  Affecter via Email
+                </>
+              )}
+            </DialogTitle>
+            <DialogDescription>
+              Le signalement #{shortId(report.id)} ({report.zone?.nom ?? 'Zone'}) sera affecté à cet
+              employé. Le destinataire recevra les détails ci-dessous.
+            </DialogDescription>
+          </DialogHeader>
+
+          <form onSubmit={envoyer} className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="assign-dest" className="text-xs font-semibold">
+                {method === 'whatsapp'
+                  ? 'Numéro WhatsApp (international sans +)'
+                  : 'Email destinataire'}
+              </Label>
+              <Input
+                id="assign-dest"
+                type={method === 'whatsapp' ? 'tel' : 'email'}
+                inputMode={method === 'whatsapp' ? 'tel' : 'email'}
+                value={destinataire}
+                onChange={(e) => setDestinataire(e.target.value)}
+                placeholder={
+                  method === 'whatsapp' ? 'Ex : 33612345678' : 'employe@aeroport.fr'
+                }
+                required
+                autoFocus
+                className="text-sm"
+              />
+              <p className="text-[11px] text-muted-foreground">
+                {method === 'whatsapp'
+                  ? 'Format international sans + ni espaces. Un deep link wa.me sera ouvert.'
+                  : "L'email sera envoyé via le service transactionnel configuré."}
+              </p>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="assign-note" className="text-xs font-semibold">
+                Note manager <span className="font-normal text-muted-foreground">(optionnel)</span>
+              </Label>
+              <Input
+                id="assign-note"
+                value={note}
+                onChange={(e) => setNote(e.target.value.slice(0, 200))}
+                maxLength={200}
+                placeholder="Ex : intervention prioritaire — passager en transit"
+                className="text-sm"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Message pré-rempli</Label>
+              <Textarea
+                value={message}
+                readOnly
+                rows={7}
+                className="resize-none bg-muted/40 font-mono text-[11px] leading-relaxed text-foreground/80"
+                aria-label="Message pré-rempli envoyé au destinataire"
+              />
+            </div>
+
+            <DialogFooter className="gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setOpen(false)}
+                disabled={sending}
+              >
+                Annuler
+              </Button>
+              <Button
+                type="submit"
+                size="sm"
+                disabled={sending}
+                className={
+                  method === 'whatsapp'
+                    ? 'bg-emerald-600 text-white hover:bg-emerald-500'
+                    : 'bg-sky-600 text-white hover:bg-sky-500'
+                }
+              >
+                {sending ? (
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" aria-hidden />
+                ) : method === 'whatsapp' ? (
+                  <MessageCircle className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                ) : (
+                  <Send className="mr-1.5 h-3.5 w-3.5" aria-hidden />
+                )}
+                {method === 'whatsapp' ? 'Générer le lien' : 'Envoyer'}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+// ---------------------------------------------------------------
+// Sous-composant : <PhotoLightbox />
+// ---------------------------------------------------------------
+// Bouton-thumbnail qui ouvre un Dialog affichant la photo en grand.
+// Remplace le <a target="_blank"> précédent (F11) pour offrir une
+// expérience lightbox in-app cohérente avec le reste de l'UI.
+// ---------------------------------------------------------------
+
+type PhotoLightboxProps = {
+  src: string
+  alt: string
+}
+
+function PhotoLightbox({ src, alt }: PhotoLightboxProps) {
+  const [open, setOpen] = useState<boolean>(false)
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="block h-16 w-16 cursor-zoom-in overflow-hidden rounded-md border border-border bg-muted transition hover:border-fuchsia-500/40 hover:ring-2 hover:ring-fuchsia-500/30"
+        title="Agrandir la photo"
+        aria-label={`Agrandir la photo : ${alt}`}
+      >
+        <img
+          src={src}
+          alt={alt}
+          className="h-full w-full object-cover"
+          loading="lazy"
+        />
+      </button>
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogContent
+          className="max-w-3xl border-border bg-background p-2 sm:p-3"
+          showCloseButton
+        >
+          <DialogTitle className="sr-only">Photo agrandie</DialogTitle>
+          <DialogDescription className="sr-only">
+            {alt}
+          </DialogDescription>
+          <img
+            src={src}
+            alt={alt}
+            className="max-h-[80vh] w-full rounded-md object-contain"
+          />
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 

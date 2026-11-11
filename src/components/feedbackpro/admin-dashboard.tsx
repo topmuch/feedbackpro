@@ -47,6 +47,7 @@ import {
   Save,
   Palette,
   Puzzle,
+  ExternalLink,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -3284,6 +3285,9 @@ function ParametresTab() {
         </CardContent>
       </Card>
 
+      {/* Feature 1 — Publicités aéroport (PWA confirmation screen) */}
+      <AirportAdsCard />
+
       <div className="flex justify-end">
         <Button type="submit" disabled={enregistrement}>
           {enregistrement && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
@@ -3291,6 +3295,338 @@ function ParametresTab() {
         </Button>
       </div>
     </form>
+  )
+}
+
+// ============================================================
+// Feature 1 — Carte « Publicités Aéroport » (model AirportAd)
+// ------------------------------------------------------------
+// Section intégrée au sous-onglet Paramètres (pas de tab dédié).
+// Permet au superadmin de :
+//   - voir la liste des pubs (titre, active, impressions, clicks)
+//   - créer une nouvelle pub (titre, sous-titre, image, lien, CTA)
+//   - toggle active/inactive (PATCH /api/airport/ads/[id])
+//   - supprimer une pub (DELETE /api/airport/ads/[id])
+//
+// APIs :
+//   GET    /api/airport/ads           → liste complète avec stats
+//   POST   /api/airport/ads           → création
+//   PATCH  /api/airport/ads/[id]      → toggle active
+//   DELETE /api/airport/ads/[id]      → suppression
+// ============================================================
+
+type AirportAdLigne = {
+  id: string
+  title: string
+  subtitle: string | null
+  imageUrl: string | null
+  linkUrl: string | null
+  ctaText: string
+  active: boolean
+  clicks: number
+  impressions: number
+  createdAt: string
+  updatedAt: string
+}
+
+function AirportAdsCard() {
+  const { toast } = useToast()
+  const [ads, setAds] = useState<AirportAdLigne[]>([])
+  const [chargement, setChargement] = useState(true)
+  const [actionId, setActionId] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [showForm, setShowForm] = useState(false)
+
+  // Champs du formulaire de création
+  const [fTitle, setFTitle] = useState("")
+  const [FSubtitle, setFSubtitle] = useState("")
+  const [fImageUrl, setFImageUrl] = useState("")
+  const [fLinkUrl, setFLinkUrl] = useState("")
+  const [fCtaText, setFCtaText] = useState("En savoir plus")
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch("/api/airport/ads", { cache: "no-store" })
+      const json = (await res.json()) as { ok: boolean; data?: { ads: AirportAdLigne[] }; error?: string }
+      if (json.ok && json.data) {
+        setAds(json.data.ads)
+      } else {
+        toast({ title: "Erreur", description: json.error ?? "Chargement impossible", variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Chargement impossible", variant: "destructive" })
+    } finally {
+      setChargement(false)
+    }
+  }, [toast])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  async function creerAd(e: React.FormEvent) {
+    e.preventDefault()
+    if (creating) return
+    const titre = fTitle.trim()
+    if (!titre) {
+      toast({ title: "Titre requis", variant: "destructive" })
+      return
+    }
+    setCreating(true)
+    try {
+      const res = await fetch("/api/airport/ads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: titre,
+          subtitle: FSubtitle.trim() || null,
+          imageUrl: fImageUrl.trim() || null,
+          linkUrl: fLinkUrl.trim() || null,
+          ctaText: fCtaText.trim() || "En savoir plus",
+          active: true,
+        }),
+      })
+      const json = (await res.json()) as { ok: boolean; error?: string }
+      if (json.ok) {
+        toast({ title: "Publicité créée ✓" })
+        setFTitle("")
+        setFSubtitle("")
+        setFImageUrl("")
+        setFLinkUrl("")
+        setFCtaText("En savoir plus")
+        setShowForm(false)
+        await load()
+      } else {
+        toast({ title: "Erreur", description: json.error ?? "Création impossible", variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Création impossible", variant: "destructive" })
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  async function toggleActive(ad: AirportAdLigne) {
+    setActionId(ad.id)
+    try {
+      const res = await fetch(`/api/airport/ads/${encodeURIComponent(ad.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: !ad.active }),
+      })
+      const json = (await res.json()) as { ok: boolean; error?: string }
+      if (json.ok) {
+        setAds((prev) => prev.map((a) => (a.id === ad.id ? { ...a, active: !ad.active } : a)))
+        toast({ title: ad.active ? "Publicité désactivée" : "Publicité activée ✓" })
+      } else {
+        toast({ title: "Erreur", description: json.error ?? "Action impossible", variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Action impossible", variant: "destructive" })
+    } finally {
+      setActionId(null)
+    }
+  }
+
+  async function supprimer(ad: AirportAdLigne) {
+    if (!window.confirm(`Supprimer la publicité « ${ad.title} » ?`)) return
+    setActionId(ad.id)
+    try {
+      const res = await fetch(`/api/airport/ads/${encodeURIComponent(ad.id)}`, {
+        method: "DELETE",
+      })
+      const json = (await res.json()) as { ok: boolean; error?: string }
+      if (json.ok) {
+        setAds((prev) => prev.filter((a) => a.id !== ad.id))
+        toast({ title: "Publicité supprimée ✓" })
+      } else {
+        toast({ title: "Erreur", description: json.error ?? "Suppression impossible", variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Suppression impossible", variant: "destructive" })
+    } finally {
+      setActionId(null)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between gap-2">
+          <div>
+            <CardTitle className="text-base sm:text-lg">Publicités Aéroport</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Affichées en plein écran sur l&apos;écran de confirmation de la PWA voyageur, juste avant la sortie.
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => setShowForm((v) => !v)}
+            className="shrink-0"
+          >
+            <Plus className="mr-1 h-4 w-4" aria-hidden />
+            {showForm ? "Annuler" : "Nouvelle pub"}
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="pt-2">
+        {showForm && (
+          <form onSubmit={creerAd} className="mb-4 space-y-3 rounded-xl border border-border bg-muted/30 p-4">
+            <div className="space-y-1.5">
+              <Label htmlFor="ad-title">Titre *</Label>
+              <Input
+                id="ad-title"
+                value={fTitle}
+                onChange={(e) => setFTitle(e.target.value)}
+                maxLength={120}
+                required
+                placeholder="Ex: -20% sur le Wi-Fi Premium"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ad-subtitle">Sous-titre</Label>
+              <Input
+                id="ad-subtitle"
+                value={FSubtitle}
+                onChange={(e) => setFSubtitle(e.target.value)}
+                maxLength={200}
+                placeholder="Ex: Profitez du code AERO20 à la boutique T2"
+              />
+            </div>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <Label htmlFor="ad-image">URL Image</Label>
+                <Input
+                  id="ad-image"
+                  type="url"
+                  value={fImageUrl}
+                  onChange={(e) => setFImageUrl(e.target.value)}
+                  placeholder="https://…/promo.jpg"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="ad-link">URL Lien CTA</Label>
+                <Input
+                  id="ad-link"
+                  type="url"
+                  value={fLinkUrl}
+                  onChange={(e) => setFLinkUrl(e.target.value)}
+                  placeholder="https://…"
+                />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ad-cta">Texte du bouton CTA</Label>
+              <Input
+                id="ad-cta"
+                value={fCtaText}
+                onChange={(e) => setFCtaText(e.target.value)}
+                maxLength={40}
+                placeholder="En savoir plus"
+              />
+            </div>
+            <div className="flex justify-end">
+              <Button type="submit" disabled={creating} size="sm">
+                {creating && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
+                Créer la publicité
+              </Button>
+            </div>
+          </form>
+        )}
+
+        {chargement ? (
+          <div className="flex items-center gap-2 py-6 text-sm text-muted-foreground">
+            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            Chargement…
+          </div>
+        ) : ads.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 py-6 text-center text-muted-foreground">
+            <span className="text-2xl" aria-hidden>
+              📺
+            </span>
+            <p className="text-sm">Aucune publicité pour le moment.</p>
+            <p className="text-xs text-muted-foreground/70">
+              Cliquez sur « Nouvelle pub » pour créer votre première publicité aéroport.
+            </p>
+          </div>
+        ) : (
+          <ul className="divide-y divide-border">
+            {ads.map((ad) => (
+              <li key={ad.id} className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    {ad.imageUrl && (
+                      <img
+                        src={ad.imageUrl}
+                        alt=""
+                        className="h-10 w-10 rounded-md border border-border object-cover"
+                        loading="lazy"
+                      />
+                    )}
+                    <span className="truncate text-sm font-semibold text-foreground">{ad.title}</span>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "shrink-0 text-[10px]",
+                        ad.active
+                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
+                          : "border-muted-foreground/30 bg-muted/40 text-muted-foreground",
+                      )}
+                    >
+                      {ad.active ? "Active" : "Inactive"}
+                    </Badge>
+                  </div>
+                  {ad.subtitle && (
+                    <p className="mt-0.5 truncate text-xs text-muted-foreground">{ad.subtitle}</p>
+                  )}
+                  <div className="mt-1 flex flex-wrap items-center gap-3 text-[11px] text-muted-foreground/80">
+                    <span>👁 {ad.impressions} impressions</span>
+                    <span>👆 {ad.clicks} clics</span>
+                    {ad.linkUrl && (
+                      <a
+                        href={ad.linkUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-0.5 text-primary underline-offset-2 hover:underline"
+                      >
+                        Lien <ExternalLink className="h-3 w-3" aria-hidden />
+                      </a>
+                    )}
+                    <span className="font-mono text-muted-foreground/60">#{ad.id.slice(-8)}</span>
+                  </div>
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <div className="flex items-center gap-1.5">
+                    <Switch
+                      checked={ad.active}
+                      onCheckedChange={() => void toggleActive(ad)}
+                      disabled={actionId === ad.id}
+                      aria-label={ad.active ? "Désactiver" : "Activer"}
+                    />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void supprimer(ad)}
+                      disabled={actionId === ad.id}
+                      className="h-8 border-rose-500/30 text-rose-600 hover:bg-rose-500/10 hover:text-rose-700"
+                    >
+                      {actionId === ad.id ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                      ) : (
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                      )}
+                      <span className="ml-1 hidden sm:inline">Supprimer</span>
+                    </Button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
   )
 }
 

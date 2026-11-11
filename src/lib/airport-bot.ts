@@ -77,6 +77,7 @@ Commandes disponibles :
 • _/priorites_ — top 3 zones à traiter (24h)
 • _/zone <code>_ — état d'une zone (ex: /zone bagages)
 • _/signalement <id>_ — détail d'un signalement
+• _/encours <id>_ — prendre en charge un signalement (passe EN_COURS)
 • _/resoudre <id>_ — marquer un signalement résolu
 • _/stats_ — statistiques 24h
 • _/liste_ — 5 signalements en attente
@@ -279,6 +280,90 @@ Résolu à ${formatDateFr(now)}${notifVoyageur}`,
   }
 }
 
+// ----------------------------------------------------------------
+// /encours <id> — marquer un signalement comme EN_COURS
+// Délègue la mise à jour à POST /api/airport/ops/take-charge.
+// ----------------------------------------------------------------
+
+/**
+ * Construit l'URL absolue d'une route API interne.
+ * Le bot tourne dans le même process Next.js (port 3000),
+ * on utilise donc http://localhost:3000 par défaut. La variable
+ * NEXT_PUBLIC_APP_URL peut surcharger cela en production.
+ */
+function internalApiUrl(path: string): string {
+  const base = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'
+  return `${base}${path.startsWith('/') ? path : `/${path}`}`
+}
+
+async function cmdEnCours(idOrShort: string, phone: string): Promise<BotResponse> {
+  const report = await findReportByIdOrShort(idOrShort)
+  if (!report) {
+    return {
+      reply: `⚠️ Signalement introuvable : *${idOrShort}*
+
+Astuce : tapez /liste pour voir les ID récents.`,
+    }
+  }
+  if ('ambiguous' in report) {
+    return {
+      reply: `⚠️ Plusieurs signalements correspondent à *${idOrShort}*. Précisez l'ID complet.`,
+    }
+  }
+  if (report.statut === 'RESOLU') {
+    return {
+      reply: `ℹ️ Signalement ${shortId(report.id)} déjà résolu (le ${formatDateFr(report.resolvedAt ?? report.updatedAt)}). Impossible de repasser en cours.`,
+    }
+  }
+  if (report.statut === 'EN_COURS') {
+    return {
+      reply: `ℹ️ Signalement ${shortId(report.id)} déjà en cours de traitement.`,
+    }
+  }
+
+  // Appel interne à POST /api/airport/ops/take-charge
+  let apiOk = false
+  let apiError = ''
+  try {
+    const res = await fetch(internalApiUrl('/api/airport/ops/take-charge'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ reportId: report.id, phone }),
+      cache: 'no-store',
+    })
+    const json = (await res.json()) as { ok?: boolean; error?: string }
+    apiOk = Boolean(json?.ok)
+    if (!apiOk) {
+      apiError = typeof json?.error === 'string' ? json.error : `HTTP ${res.status}`
+    }
+  } catch (err) {
+    apiError = err instanceof Error ? err.message : 'Erreur réseau'
+  }
+
+  if (!apiOk) {
+    console.warn(
+      `[airport-bot] /encours ${report.id} — échec API take-charge: ${apiError}`,
+    )
+    return {
+      reply: `⚠️ Impossible de prendre en charge le signalement ${shortId(report.id)} (${apiError || 'erreur inconnue'}). Réessayez.`,
+    }
+  }
+
+  console.log(
+    `[airport-bot] /encours ${report.id} par ${phone} — zone ${report.zone.code}`,
+  )
+  return {
+    reply: `🔵 *Pris en charge*
+
+Signalement ${shortId(report.id)}
+${report.zone.emoji} ${report.zone.nom}
+${report.problemType}
+Statut : EN COURS
+
+→ /resoudre ${shortId(report.id)} quand c'est terminé`,
+  }
+}
+
 async function cmdStats(): Promise<BotResponse> {
   const since = new Date(Date.now() - 24 * 3600 * 1000)
   const [total, enAttente, enCours, resolus] = await Promise.all([
@@ -398,6 +483,15 @@ Codes : ${AIRPORT_ZONES.map((z) => z.code).join(', ')}` }
       const id = parts.slice(1).join(' ').trim()
       if (!id) return { reply: '⚠️ Usage : /resoudre <id>' }
       return await cmdResoudre(id, fromPhone)
+    }
+
+    // /encours <id> — prendre en charge (statut → EN_COURS)
+    if (cmd === '/encours' || cmd === '/encour' || cmd === '/en_cours') {
+      const id = parts.slice(1).join(' ').trim()
+      if (!id) {
+        return { reply: '⚠️ Usage : /encours <id>\n\nAstuce : tapez /liste pour voir les ID récents.' }
+      }
+      return await cmdEnCours(id, fromPhone)
     }
 
     // /stats

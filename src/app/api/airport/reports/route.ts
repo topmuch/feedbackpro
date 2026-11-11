@@ -4,6 +4,9 @@
 // Liste les signalements aéroport (vue ops/management).
 // Filtres optionnels : ?zone=bagages&statut=EN_ATTENTE&limit=50
 //
+// Validation : si `statut` est fourni mais ne fait pas partie de
+// {EN_ATTENTE, EN_COURS, RESOLU}, renvoie 400.
+//
 // Public pour l'instant (démo). En production, protéger par
 // un cookie de session ops-aéroport (requireAirportOps).
 // ============================================================
@@ -15,11 +18,21 @@ import { ok, fail } from '@/lib/session'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+const VALID_STATUTS = new Set(['EN_ATTENTE', 'EN_COURS', 'RESOLU'])
+
 export async function GET(req: NextRequest) {
   const url = new URL(req.url)
   const zoneCode = url.searchParams.get('zone')
   const statut = url.searchParams.get('statut')
   const limit = Math.min(parseInt(url.searchParams.get('limit') ?? '50', 10) || 50, 200)
+
+  // B10 : validation stricte du filtre statut
+  if (statut && !VALID_STATUTS.has(statut)) {
+    return fail(
+      `Statut invalide : "${statut}". Valeurs acceptées : EN_ATTENTE, EN_COURS, RESOLU.`,
+      400,
+    )
+  }
 
   const where: { zoneId?: string; statut?: string } = {}
   if (zoneCode) {
@@ -52,6 +65,8 @@ export async function GET(req: NextRequest) {
       whatsappPhone: r.whatsappPhone,
       statut: r.statut,
       whatsappPayload: r.whatsappPayload,
+      // Feature 2 — destinataire de l'affectation (whatsapp/email/push)
+      assignedTo: r.assignedTo,
       createdAt: r.createdAt,
       resolvedAt: r.resolvedAt,
     })),

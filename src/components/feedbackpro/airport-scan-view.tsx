@@ -39,6 +39,7 @@ import {
   Camera,
   CheckCircle2,
   ChevronLeft,
+  ExternalLink,
   LifeBuoy,
   Loader2,
   MapPin,
@@ -108,9 +109,22 @@ type WhatsappOptinResult = {
   whatsappPhone: string
 }
 
+// ---------- Publicité (affichée sur l'écran de confirmation avant sortie) ----------
+// Contrat : GET /api/airport/ads → { ad: AirportAd | null }
+// (incrémente les impressions serveur-side à chaque tirage)
+type AirportAd = {
+  id: string
+  title: string
+  subtitle: string | null
+  imageUrl: string | null
+  linkUrl: string | null
+  ctaText: string
+}
+
 // ---------- Logo aéroport (affiché dans les headers) ----------
 function AirportLogo({ zoneData, size = "sm" }: { zoneData: ZoneData | null; size?: "sm" | "md" }) {
-  const sz = size === "md" ? "size-10" : "size-8"
+  // Feature 3 — logo agrandi : sm 8 → 12, md 10 → 14, fallback Plane 4/5 → 6/7
+  const sz = size === "md" ? "size-14" : "size-12"
   if (zoneData?.airportLogo) {
     return (
       <img
@@ -122,7 +136,7 @@ function AirportLogo({ zoneData, size = "sm" }: { zoneData: ZoneData | null; siz
   }
   return (
     <div className={cn("flex items-center justify-center rounded-lg bg-white/20 backdrop-blur-sm", sz)}>
-      <Plane className={cn(size === "md" ? "size-5" : "size-4", "text-white")} aria-hidden />
+      <Plane className={cn(size === "md" ? "size-7" : "size-6", "text-white")} aria-hidden />
     </div>
   )
 }
@@ -236,6 +250,11 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
   const [helpPhone, setHelpPhone] = useState("")
   const [helpSubmitting, setHelpSubmitting] = useState(false)
   const [helpError, setHelpError] = useState<string | null>(null)
+
+  // --- Publicité sur écran de confirmation (Feature 1) ---
+  // affichée quand le voyageur clique « Quitter ». Si null/absente → onExit direct.
+  const [exitAd, setExitAd] = useState<AirportAd | null>(null)
+  const [exitAdLoading, setExitAdLoading] = useState(false)
   const [helpSuccess, setHelpSuccess] = useState<string | null>(null)
 
   // ---------- Effet : fetch de la zone au montage + quand le tag change ----------
@@ -435,6 +454,8 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
     setHelpPhone("")
     setHelpError(null)
     setHelpSuccess(null)
+    // Feature 1 — reset pub éventuelle (si l'on revient signaler autre chose)
+    setExitAd(null)
     setPhase("zone_detectee")
     try {
       window.scrollTo({ top: 0, behavior: "smooth" })
@@ -442,6 +463,58 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
       /* ignore */
     }
   }, [])
+
+  // ---------- "Quitter" avec publicité (Feature 1) ----------
+  // Au lieu d'appeler onExit() immédiatement, on tente de tirer une
+  // publicité active au hasard via GET /api/airport/ads. Si une pub
+  // est renvoyée, on l'affiche en overlay plein écran. Le voyageur
+  // la ferme (bouton « Fermer ») → on appelle alors onExit().
+  // Si aucune pub active n'est disponible, on appelle onExit() direct.
+  const quitterAvecPub = useCallback(async () => {
+    if (exitAdLoading) return
+    setExitAdLoading(true)
+    let ad: AirportAd | null = null
+    try {
+      ad = await apiGet<{ ad: AirportAd | null }>("/api/airport/ads").then(
+        (r) => r.ad ?? null,
+      )
+    } catch {
+      // Erreur réseau / serveur → on ne bloque pas la sortie
+      ad = null
+    }
+    setExitAdLoading(false)
+    if (ad) {
+      setExitAd(ad)
+    } else {
+      onExit()
+    }
+  }, [exitAdLoading, onExit])
+
+  // Clic sur le CTA de la pub → incrémente le compteur serveur (best-effort)
+  // puis ouvre le lien externe dans un nouvel onglet. On ne ferme PAS
+  // l'overlay : c'est le bouton « Fermer » qui déclenche la sortie.
+  const onAdCtaClick = useCallback(() => {
+    if (!exitAd) return
+    // Incrémentation best-effort (POST /api/airport/ads/[id]/click)
+    void fetch(`/api/airport/ads/${encodeURIComponent(exitAd.id)}/click`, {
+      method: "POST",
+    }).catch(() => {
+      /* ignore */
+    })
+    if (exitAd.linkUrl) {
+      try {
+        window.open(exitAd.linkUrl, "_blank", "noopener,noreferrer")
+      } catch {
+        /* ignore */
+      }
+    }
+  }, [exitAd])
+
+  // Ferme l'overlay pub → appelle onExit() pour réellement quitter l'app
+  const fermerPubEtQuitter = useCallback(() => {
+    setExitAd(null)
+    onExit()
+  }, [onExit])
 
   // ============================================================
   // Rendu par phase
@@ -860,7 +933,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
               <img
                 src={zoneData.airportLogo}
                 alt={zoneData.airportName ?? "Aéroport"}
-                className="mb-4 h-12 w-auto rounded-lg object-contain bg-white/80 p-1 shadow-md backdrop-blur-md"
+                className="mb-4 h-16 w-auto rounded-lg object-contain bg-white/80 p-1 shadow-md backdrop-blur-md"
               />
             )}
             <div className="relative">
@@ -1136,16 +1209,101 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
             </button>
             <button
               type="button"
-              onClick={onExit}
-              className="text-center text-xs font-medium text-slate-400 underline-offset-4 hover:text-slate-600 hover:underline"
+              onClick={quitterAvecPub}
+              disabled={exitAdLoading}
+              className="inline-flex items-center gap-1.5 text-center text-xs font-medium text-slate-400 underline-offset-4 hover:text-slate-600 hover:underline disabled:opacity-60"
             >
-              Quitter
+              {exitAdLoading ? (
+                <>
+                  <Loader2 className="size-3 animate-spin" aria-hidden />
+                  Fermeture…
+                </>
+              ) : (
+                "Quitter"
+              )}
             </button>
             <p className="mt-2 text-center text-xs text-slate-300">
               ✈️ Aéroport — Service voyageur
             </p>
           </div>
         </main>
+
+        {/* ---------- Feature 1 : overlay publicitaire plein écran ---------- */}
+        {/* Affiché quand le voyageur clique « Quitter » ET qu'une publicité
+            active a été tirée au sort côté serveur. Glassmorphism + gradient
+            vibrant pour matcher le style créatif de la PWA. */}
+        {exitAd && (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={exitAd.title}
+            className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6"
+          >
+            {/* Voile gradient sombre avec blobs colorés */}
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-950/95 via-purple-950/90 to-fuchsia-950/95 backdrop-blur-md" />
+            <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-fuchsia-500/20 blur-3xl" />
+            <div className="pointer-events-none absolute bottom-0 -left-20 h-64 w-64 rounded-full bg-violet-500/20 blur-3xl" />
+
+            {/* Carte publicité — glassmorphism */}
+            <div className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl bg-white/10 shadow-2xl ring-1 ring-white/30 backdrop-blur-xl">
+              {/* Bande gradient en haut */}
+              <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-amber-400" />
+
+              {/* Image large si présente */}
+              {exitAd.imageUrl && (
+                <div className="relative aspect-[4/3] w-full overflow-hidden">
+                  <img
+                    src={exitAd.imageUrl}
+                    alt={exitAd.title}
+                    className="h-full w-full object-cover"
+                    loading="eager"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/10 to-transparent" />
+                  <span className="absolute left-3 top-3 rounded-full bg-black/40 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white/90 backdrop-blur-sm">
+                    Publicité
+                  </span>
+                </div>
+              )}
+
+              {/* Contenu texte */}
+              <div className="px-5 pb-5 pt-4 text-center">
+                {!exitAd.imageUrl && (
+                  <span className="mb-3 inline-block rounded-full bg-white/15 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-white/80 backdrop-blur-sm">
+                    Publicité
+                  </span>
+                )}
+                <h2 className="text-2xl font-black leading-tight text-white drop-shadow-md">
+                  {exitAd.title}
+                </h2>
+                {exitAd.subtitle && (
+                  <p className="mt-2 text-sm font-semibold leading-relaxed text-white/90">
+                    {exitAd.subtitle}
+                  </p>
+                )}
+
+                {/* CTA — gradient vibrant, incrémente clicks puis ouvre le lien */}
+                <button
+                  type="button"
+                  onClick={onAdCtaClick}
+                  className="group relative mt-5 flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-violet-500 via-fuchsia-500 to-amber-400 py-4 text-base font-black text-white shadow-xl shadow-fuchsia-500/30 transition-all hover:shadow-2xl active:scale-[0.99]"
+                >
+                  <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                  <span>{exitAd.ctaText || "En savoir plus"}</span>
+                  <ExternalLink className="size-4" aria-hidden />
+                </button>
+
+                {/* Bouton « Fermer » discret en bas → déclenche la sortie */}
+                <button
+                  type="button"
+                  onClick={fermerPubEtQuitter}
+                  className="mt-3 text-xs font-medium text-white/60 underline-offset-4 transition-colors hover:text-white/90 hover:underline"
+                >
+                  Fermer et quitter
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     )
   }

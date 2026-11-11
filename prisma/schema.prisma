@@ -425,6 +425,10 @@ model AirportReport {
   id          String   @id @default(cuid())
   zoneId      String
   zone        AirportZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  // --- Feature affectation à un employé (WhatsApp/email/push) ---
+  // Identifiant du destinataire de l'affectation (numéro WhatsApp, email ou
+  // token push selon la `method`). Renseigné par POST /api/airport/assign.
+  assignedTo  String?
   // Tag URL scanné (ex: "tapis_bagages_1") — gardé pour tracer l'emplacement physique précis
   tagScanne   String
   // Problématique sélectionnée par le voyageur (libellé exact du bouton cliqué)
@@ -585,4 +589,29 @@ model AirportShift {
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// ============================================================
+// Fonctionnalité Aéroport — Publicités sur l'écran de confirmation
+// ------------------------------------------------------------
+// Quand un voyageur clique « Quitter » sur l'écran de confirmation
+// de la PWA, une publicité full-screen est affichée avant la sortie.
+// Le superadmin gère les publicités (création, activation, suppression)
+// depuis l'onglet Paramètres du dashboard admin.
+//
+//   impressions — incrémenté à chaque affichage (GET /api/airport/ads)
+//   clicks      — incrémenté quand le voyageur clique sur le CTA
+// ============================================================
+model AirportAd {
+  id        String   @id @default(cuid())
+  title     String
+  subtitle  String?
+  imageUrl  String?
+  linkUrl   String?
+  ctaText   String   @default("En savoir plus")
+  active    Boolean  @default(true)
+  clicks    Int      @default(0)
+  impressions Int    @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

@@ -5,24 +5,31 @@
 // interroge AirportReport sur les fenêtres temporelles
 // pertinentes, et renvoie la liste des alertes déclenchées.
 //
-// Anti-spam : si threshold.lastTriggeredAt est dans les 30
-// dernières minutes, l'alerte est TOUJOURS renvoyée (pour que
-// le wallboard l'affiche) MAIS lastTriggeredAt n'est pas
-// rafraîchi. Sinon on met à jour lastTriggeredAt = now().
+// Détections gérées :
+//   1. Par AirportAlertThreshold (config manager) :
+//      - SPIKE_15MIN/30MIN/1H : compte des AirportReport créés
+//        dans les N dernières minutes, groupés par zoneCode.
+//      - PENDING_COUNT : compte des reports statut="EN_ATTENTE".
+//      - NO_RESOLUTION_HOURS : âge en heures du plus ancien report
+//        "EN_ATTENTE" (par zone si zoneCode != "ALL", sinon global).
+//   2. SLA_BREACH (F9) : pour chaque zone avec un AirportSla
+//      configuré et actif, compte des reports EN_ATTENTE plus
+//      anciens que `targetMinutes`. Si count > 0, alerte avec
+//      sévérité basée sur le nombre de breaches.
 //
-// Sévérité :
+// Anti-spam (seuils manuels uniquement) : si
+// threshold.lastTriggeredAt est dans les 30 dernières minutes,
+// l'alerte est TOUJOURS renvoyée (pour que le wallboard l'affiche)
+// MAIS lastTriggeredAt n'est pas rafraîchi. Sinon on met à jour
+// lastTriggeredAt = now().
+//
+// Sévérité (seuils manuels) :
 //   - "critical" si currentValue >= threshold * 2
 //   - "warning" sinon
 //
-// Logique par type :
-//   SPIKE_15MIN/30MIN/1H : compte des AirportReport créés dans
-//     les N dernières minutes, groupés par zoneCode. Si zoneCode
-//     threshold = "ALL", on déclenche pour TOUTE zone dont le
-//     count >= threshold.
-//   PENDING_COUNT : compte des reports statut="EN_ATTENTE". Si
-//     zoneCode="ALL", on compte sur toutes les zones.
-//   NO_RESOLUTION_HOURS : âge en heures du plus ancien report
-//     "EN_ATTENTE" (par zone si zoneCode != "ALL", sinon global).
+// Sévérité SLA_BREACH :
+//   - "critical" si count >= 3
+//   - "warning" sinon (count = 1 ou 2)
 //
 // Réponse :
 //   { ok: true, data: { alerts: [...], lastCheckedAt: ISO } }
@@ -43,6 +50,7 @@ type ThresholdType =
   | 'SPIKE_1H'
   | 'PENDING_COUNT'
   | 'NO_RESOLUTION_HOURS'
+  | 'SLA_BREACH'
 
 type Severity = 'warning' | 'critical'
 
@@ -94,12 +102,26 @@ function buildMessage(
   if (type === 'NO_RESOLUTION_HOURS') {
     return `Sans résolution sur ${zoneLabel(zoneCode)} : ${current} h depuis le plus ancien signalement en attente (seuil : ${threshold} h)`
   }
+  if (type === 'SLA_BREACH') {
+    return `SLA dépassé sur ${zoneLabel(zoneCode)} : ${current} signalement(s) en attente plus vieux que l'objectif de ${threshold} min`
+  }
   const label = SPIKE_LABEL[type] ?? type
   return `Pic détecté sur ${zoneLabel(zoneCode)} : ${current} signalements en ${label} (seuil : ${threshold})`
 }
 
 function severity(current: number, threshold: number): Severity {
   return current >= threshold * 2 ? 'critical' : 'warning'
+}
+
+/**
+ * Sévérité dédiée aux breaches SLA : on n'a pas de threshold "compteur"
+ * (le targetMinutes est un objectif temporel, pas un seuil de déclenchement).
+ * On se base donc sur le nombre de signalements en breach :
+ *   count >= 3 → critical (saturation manifeste de la zone)
+ *   count 1-2  → warning
+ */
+function slaSeverity(breachCount: number): Severity {
+  return breachCount >= 3 ? 'critical' : 'warning'
 }
 
 // ---------------------------------------------------------------
@@ -249,6 +271,60 @@ function makeAlert(
 }
 
 // ---------------------------------------------------------------
+// F9 — Détection des breaches SLA
+// ---------------------------------------------------------------
+// Pour chaque AirportSla actif, compte les reports EN_ATTENTE de
+// la zone dont l'âge dépasse targetMinutes. Pas d'anti-spam (les
+// AirportSla n'ont pas de lastTriggeredAt). Les alertes générées
+// ont toujours `suppressed = false`.
+// ---------------------------------------------------------------
+
+async function detectSlaBreaches(now: Date): Promise<TriggeredAlert[]> {
+  const slas = await db.airportSla.findMany({
+    where: { active: true },
+    orderBy: { zoneCode: 'asc' },
+  })
+  if (slas.length === 0) return []
+
+  const out: TriggeredAlert[] = []
+  for (const sla of slas) {
+    if (sla.targetMinutes <= 0) continue
+    // Résolution zoneCode → zoneId (les reports sont liés par zoneId)
+    const zone = await db.airportZone.findUnique({
+      where: { code: sla.zoneCode },
+      select: { id: true },
+    })
+    if (!zone) continue // zone non initialisée en BDD → ignore
+
+    const cutoff = new Date(now.getTime() - sla.targetMinutes * 60 * 1000)
+    const count = await db.airportReport.count({
+      where: {
+        zoneId: zone.id,
+        statut: 'EN_ATTENTE',
+        createdAt: { lt: cutoff },
+      },
+    })
+    if (count <= 0) continue
+
+    const type: ThresholdType = 'SLA_BREACH'
+    out.push({
+      // thresholdId synthétique (pas rattaché à AirportAlertThreshold)
+      thresholdId: `sla:${sla.zoneCode}`,
+      type,
+      zoneCode: sla.zoneCode,
+      currentValue: count,
+      threshold: sla.targetMinutes,
+      severity: slaSeverity(count),
+      message: buildMessage(type, sla.zoneCode, count, sla.targetMinutes),
+      triggeredAt: now.toISOString(),
+      // Pas d'anti-spam sur les SLA : toujours renvoyé tel quel
+      suppressed: false,
+    })
+  }
+  return out
+}
+
+// ---------------------------------------------------------------
 // GET — détection principale
 // ---------------------------------------------------------------
 export async function GET(_req: NextRequest) {
@@ -273,12 +349,18 @@ export async function GET(_req: NextRequest) {
     alerts.push(...triggered)
   }
 
+  // F9 — Détection SLA breach (tourne en parallèle des seuils manuels)
+  const slaAlerts = await detectSlaBreaches(now)
+  alerts.push(...slaAlerts)
+
   // --- Anti-spam : on met à jour lastTriggeredAt uniquement
-  // pour les alertes NON supprimées (hors fenêtre 30 min).
-  // Les alertes supprimées sont quand même retournées (le
-  // wallboard les affiche toujours) pour ne pas faire clignoter
-  // la bannière toutes les 30s.
-  const toUpdate = alerts.filter((a) => !a.suppressed)
+  // pour les alertes NON supprimées (hors fenêtre 30 min) ET dont
+  // le thresholdId correspond à un AirportAlertThreshold réel.
+  // Les alertes SLA (thresholdId "sla:<code>") ne sont jamais
+  // updatées ici — AirportSla n'a pas de lastTriggeredAt.
+  const toUpdate = alerts.filter(
+    (a) => !a.suppressed && !a.thresholdId.startsWith('sla:'),
+  )
   if (toUpdate.length > 0) {
     const uniqueThresholdIds = Array.from(
       new Set(toUpdate.map((a) => a.thresholdId)),
@@ -296,12 +378,13 @@ export async function GET(_req: NextRequest) {
   // --- Log WhatsApp (mode démo) ---
   // En production : envoyer un WhatsApp aux ops actifs pour
   // chaque nouvelle alerte (non supprimée).
-  if (toUpdate.length > 0) {
+  const toNotify = alerts.filter((a) => !a.suppressed)
+  if (toNotify.length > 0) {
     const shiftResult = await getActiveShiftPhones()
     const opsPhones = shiftResult.phones.length > 0
       ? shiftResult.phones
       : (await getAllActiveOpsPhones()).phones
-    for (const a of toUpdate) {
+    for (const a of toNotify) {
       console.log(
         `[airport-alerts] 🚨 ${a.severity.toUpperCase()} — ${a.message} (ops: ${opsPhones.length} actif(s))`,
       )
@@ -319,6 +402,8 @@ export async function GET(_req: NextRequest) {
     lastCheckedAt: now.toISOString(),
     stats: {
       totalActive: thresholds.length,
+      // Compte distinct des alertes "fresh" (non supprimées) pour
+      // éviter de gonfler les stats avec les alertes anti-spam.
       triggered: alerts.length,
       critical: alerts.filter((a) => a.severity === 'critical').length,
       warning: alerts.filter((a) => a.severity === 'warning').length,
