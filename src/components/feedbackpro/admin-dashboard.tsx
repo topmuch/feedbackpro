@@ -8,7 +8,7 @@
 // /api/admin/commandes (PATCH), /api/admin/revenus, /api/admin/settings
 // ============================================================
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 import QRCode from "qrcode"
 import {
@@ -48,6 +48,8 @@ import {
   Palette,
   Puzzle,
   ExternalLink,
+  Megaphone,
+  ImagePlus,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -133,6 +135,7 @@ type OngletAdmin =
   | "secteurs"
   | "retention"
   | "modules"
+  | "publicites"
 
 const ONGLETS: { id: OngletAdmin; labelKey: string; icone: React.ComponentType<{ className?: string }> }[] = [
   { id: "globale", labelKey: "nav.overview", icone: LayoutDashboard },
@@ -146,6 +149,7 @@ const ONGLETS: { id: OngletAdmin; labelKey: string; icone: React.ComponentType<{
   { id: "messages", labelKey: "nav.messages", icone: Mail },
   { id: "email", labelKey: "nav.email", icone: Send },
   { id: "parametres", labelKey: "nav.parametres", icone: Settings },
+  { id: "publicites", labelKey: "nav.publicites", icone: Megaphone },
 ]
 
 // Alias de slugs historiques (rétrocompatibilité des anciennes URLs)
@@ -286,7 +290,7 @@ function enArray<T>(v: T[] | null | undefined): T[] {
 // ============================================================
 
 export function AdminDashboard() {
-  const t = (key: string) => { const map: Record<string, string> = {"nav.overview": "Vue d'ensemble", "nav.commercants": "Commercants", "nav.utilisateurs": "Utilisateurs", "nav.commandes": "Commandes", "nav.revenus": "Revenus", "nav.retention": "Retention", "nav.secteurs": "Config. secteurs", "nav.modules": "Modules", "nav.messages": "Messages", "nav.email": "Email", "nav.parametres": "Parametres", "nav.superadmin": "Superadmin", "nav.gestion": "Gestion", "common.navigationAdmin": "Sections administration", "common.ouvrirMenu": "Ouvrir le menu", "common.deconnexion": "Deconnexion", "common.connecteSuperadmin": "Connecte en superadmin", "dashboard.titreAdmin": "Administration FeedbackPro"}; return map[key] || key }
+  const t = (key: string) => { const map: Record<string, string> = {"nav.overview": "Vue d'ensemble", "nav.commercants": "Commercants", "nav.utilisateurs": "Utilisateurs", "nav.commandes": "Commandes", "nav.revenus": "Revenus", "nav.retention": "Retention", "nav.secteurs": "Config. secteurs", "nav.modules": "Modules", "nav.messages": "Messages", "nav.email": "Email", "nav.parametres": "Parametres", "nav.publicites": "Publicités", "nav.superadmin": "Superadmin", "nav.gestion": "Gestion", "common.navigationAdmin": "Sections administration", "common.ouvrirMenu": "Ouvrir le menu", "common.deconnexion": "Deconnexion", "common.connecteSuperadmin": "Connecte en superadmin", "dashboard.titreAdmin": "Administration FeedbackPro"}; return map[key] || key }
   const [onglet, setOnglet] = useState<OngletAdmin>(() => ongletDepuisUrl())
   const [overview, setOverview] = useState<OverviewApi | null>(null)
   const [menuOuvert, setMenuOuvert] = useState(false)
@@ -436,6 +440,7 @@ export function AdminDashboard() {
         {onglet === "messages" && <MessagesTab onApresAction={loadMessagesNonLus} />}
         {onglet === "email" && <EmailTab />}
         {onglet === "parametres" && <ParametresTab />}
+        {onglet === "publicites" && <PublicitesTab />}
       </main>
     </div>
   )
@@ -458,7 +463,7 @@ function ContenuSidebarAdmin({
   onLogout: () => void
   messagesNonLus?: number
 }) {
-  const t = (key: string) => { const map: Record<string, string> = {"nav.overview": "Vue d'ensemble", "nav.commercants": "Commercants", "nav.utilisateurs": "Utilisateurs", "nav.commandes": "Commandes", "nav.revenus": "Revenus", "nav.retention": "Retention", "nav.secteurs": "Config. secteurs", "nav.modules": "Modules", "nav.messages": "Messages", "nav.email": "Email", "nav.parametres": "Parametres", "nav.superadmin": "Superadmin", "nav.gestion": "Gestion", "common.navigationAdmin": "Sections administration", "common.ouvrirMenu": "Ouvrir le menu", "common.deconnexion": "Deconnexion", "common.connecteSuperadmin": "Connecte en superadmin", "dashboard.titreAdmin": "Administration FeedbackPro"}; return map[key] || key }
+  const t = (key: string) => { const map: Record<string, string> = {"nav.overview": "Vue d'ensemble", "nav.commercants": "Commercants", "nav.utilisateurs": "Utilisateurs", "nav.commandes": "Commandes", "nav.revenus": "Revenus", "nav.retention": "Retention", "nav.secteurs": "Config. secteurs", "nav.modules": "Modules", "nav.messages": "Messages", "nav.email": "Email", "nav.parametres": "Parametres", "nav.publicites": "Publicités", "nav.superadmin": "Superadmin", "nav.gestion": "Gestion", "common.navigationAdmin": "Sections administration", "common.ouvrirMenu": "Ouvrir le menu", "common.deconnexion": "Deconnexion", "common.connecteSuperadmin": "Connecte en superadmin", "dashboard.titreAdmin": "Administration FeedbackPro"}; return map[key] || key }
   return (
     <div className="flex h-full flex-col">
       {/* Logo */}
@@ -3285,9 +3290,6 @@ function ParametresTab() {
         </CardContent>
       </Card>
 
-      {/* Feature 1 — Publicités aéroport (PWA confirmation screen) */}
-      <AirportAdsCard />
-
       <div className="flex justify-end">
         <Button type="submit" disabled={enregistrement}>
           {enregistrement && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
@@ -3627,6 +3629,352 @@ function AirportAdsCard() {
         )}
       </CardContent>
     </Card>
+  )
+}
+
+// ============================================================
+// Onglet dédié « Publicités » (model AirportAd)
+// ------------------------------------------------------------
+// Onglet complet du dashboard admin pour gérer les publicités
+// affichées sur l'écran de confirmation de la PWA aéroport.
+//
+// Features :
+//   - Liste des pubs avec preview image (format 9:16 téléphone)
+//   - Création avec upload d'image (POST /api/public/upload) OU URL
+//   - Toggle active/inactive
+//   - Suppression
+//   - Stats impressions/clics
+//   - Preview téléphone 9:16 en direct pendant la création
+// ============================================================
+
+function PublicitesTab() {
+  const { toast } = useToast()
+  const [ads, setAds] = useState<AirportAdLigne[]>([])
+  const [chargement, setChargement] = useState(true)
+  const [actionId, setActionId] = useState<string | null>(null)
+  const [creating, setCreating] = useState(false)
+  const [showForm, setShowForm] = useState(false)
+
+  // Champs du formulaire de création
+  const [fTitle, setFTitle] = useState("")
+  const [FSubtitle, setFSubtitle] = useState("")
+  const [fImageUrl, setFImageUrl] = useState("")
+  const [fLinkUrl, setFLinkUrl] = useState("")
+  const [fCtaText, setFCtaText] = useState("En savoir plus")
+  const [uploading, setUploading] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch("/api/airport/ads?all=true", { cache: "no-store" })
+      const json = (await res.json()) as { ok: boolean; data?: { ads: AirportAdLigne[] }; error?: string }
+      if (json.ok && json.data) {
+        setAds(json.data.ads ?? [])
+      }
+    } catch {
+      /* silencieux */
+    } finally {
+      setChargement(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    load()
+  }, [load])
+
+  // Upload d'image (format téléphone 9:16) via /api/public/upload
+  async function onImageChoisie(e: React.ChangeEvent<HTMLInputElement>) {
+    const fichier = e.target.files?.[0]
+    e.target.value = ""
+    if (!fichier) return
+    if (fichier.size > 5 * 1024 * 1024) {
+      toast({ title: "Image trop volumineuse", description: "5 Mo maximum", variant: "destructive" })
+      return
+    }
+    if (!fichier.type.startsWith("image/")) {
+      toast({ title: "Format non supporté", description: "PNG, JPEG ou WebP", variant: "destructive" })
+      return
+    }
+    setUploading(true)
+    try {
+      const fd = new FormData()
+      fd.append("photo", fichier)
+      const res = await fetch("/api/public/upload", { method: "POST", body: fd })
+      const json = await res.json().catch(() => null)
+      if (res.ok && json?.ok && json.data?.url) {
+        setFImageUrl(json.data.url)
+        toast({ title: "Image uploadée ✓" })
+      } else {
+        throw new Error(json?.error ?? "Upload impossible")
+      }
+    } catch (err) {
+      toast({ title: "Upload impossible", description: err instanceof Error ? err.message : "Erreur", variant: "destructive" })
+    } finally {
+      setUploading(false)
+    }
+  }
+
+  async function creerAd(e: React.FormEvent) {
+    e.preventDefault()
+    if (creating) return
+    const titre = fTitle.trim()
+    if (!titre) {
+      toast({ title: "Titre requis", variant: "destructive" })
+      return
+    }
+    setCreating(true)
+    try {
+      const res = await fetch("/api/airport/ads", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: titre,
+          subtitle: FSubtitle.trim() || null,
+          imageUrl: fImageUrl.trim() || null,
+          linkUrl: fLinkUrl.trim() || null,
+          ctaText: fCtaText.trim() || "En savoir plus",
+          active: true,
+        }),
+      })
+      const json = (await res.json()) as { ok: boolean; error?: string }
+      if (json.ok) {
+        toast({ title: "Publicité créée ✓" })
+        setFTitle("")
+        setFSubtitle("")
+        setFImageUrl("")
+        setFLinkUrl("")
+        setFCtaText("En savoir plus")
+        setShowForm(false)
+        await load()
+      } else {
+        toast({ title: "Erreur", description: json.error ?? "Création impossible", variant: "destructive" })
+      }
+    } catch {
+      toast({ title: "Erreur", description: "Création impossible", variant: "destructive" })
+    } finally {
+      setCreating(false)
+    }
+  }
+
+  async function toggleActive(ad: AirportAdLigne) {
+    setActionId(ad.id)
+    try {
+      const res = await fetch(`/api/airport/ads/${encodeURIComponent(ad.id)}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ active: !ad.active }),
+      })
+      const json = (await res.json()) as { ok: boolean; error?: string }
+      if (json.ok) {
+        setAds((prev) => prev.map((a) => (a.id === ad.id ? { ...a, active: !ad.active } : a)))
+        toast({ title: ad.active ? "Publicité désactivée" : "Publicité activée ✓" })
+      }
+    } catch {
+      toast({ title: "Erreur", variant: "destructive" })
+    } finally {
+      setActionId(null)
+    }
+  }
+
+  async function supprimer(ad: AirportAdLigne) {
+    if (!window.confirm(`Supprimer la publicité « ${ad.title} » ?`)) return
+    setActionId(ad.id)
+    try {
+      const res = await fetch(`/api/airport/ads/${encodeURIComponent(ad.id)}`, { method: "DELETE" })
+      const json = (await res.json()) as { ok: boolean }
+      if (json.ok) {
+        setAds((prev) => prev.filter((a) => a.id !== ad.id))
+        toast({ title: "Publicité supprimée ✓" })
+      }
+    } catch {
+      toast({ title: "Erreur", variant: "destructive" })
+    } finally {
+      setActionId(null)
+    }
+  }
+
+  return (
+    <div className="space-y-5 max-w-4xl">
+      {/* Header */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Publicités Aéroport</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Affichées en plein écran sur l'écran de confirmation de la PWA voyageur, juste avant la sortie.
+          </p>
+        </div>
+        <Button onClick={() => setShowForm((v) => !v)} className="shrink-0">
+          <Plus className="mr-1.5 h-4 w-4" aria-hidden />
+          {showForm ? "Annuler" : "Nouvelle publicité"}
+        </Button>
+      </div>
+
+      {/* Formulaire de création avec preview téléphone 9:16 */}
+      {showForm && (
+        <Card className="overflow-hidden">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Créer une publicité</CardTitle>
+            <p className="text-sm text-muted-foreground">L'image sera affichée au format téléphone (9:16 vertical).</p>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={creerAd} className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_auto]">
+              {/* Champs à gauche */}
+              <div className="space-y-4">
+                <div className="space-y-1.5">
+                  <Label htmlFor="ad-title">Titre *</Label>
+                  <Input id="ad-title" value={fTitle} onChange={(e) => setFTitle(e.target.value)} maxLength={120} required placeholder="Ex: -20% sur le Wi-Fi Premium" />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="ad-subtitle">Sous-titre</Label>
+                  <Input id="ad-subtitle" value={FSubtitle} onChange={(e) => setFSubtitle(e.target.value)} maxLength={200} placeholder="Ex: Code AERO20 à la boutique T2" />
+                </div>
+
+                {/* Upload image OU URL */}
+                <div className="space-y-2">
+                  <Label>Image (format téléphone 9:16)</Label>
+                  <input ref={fileInputRef} type="file" accept="image/*" onChange={onImageChoisie} className="sr-only" />
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="outline" size="sm" onClick={() => fileInputRef.current?.click()} disabled={uploading}>
+                      {uploading ? <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden /> : <ImagePlus className="mr-1.5 h-4 w-4" aria-hidden />}
+                      {uploading ? "Upload…" : "Télécharger une image"}
+                    </Button>
+                  </div>
+                  {fImageUrl && (
+                    <div className="flex items-center gap-2">
+                      <Input value={fImageUrl} onChange={(e) => setFImageUrl(e.target.value)} placeholder="URL ou chemin de l'image" className="text-xs" />
+                      <Button type="button" size="sm" variant="ghost" onClick={() => setFImageUrl("")} className="shrink-0 text-muted-foreground">
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ad-link">URL Lien CTA</Label>
+                    <Input id="ad-link" type="url" value={fLinkUrl} onChange={(e) => setFLinkUrl(e.target.value)} placeholder="https://…" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label htmlFor="ad-cta">Texte du bouton</Label>
+                    <Input id="ad-cta" value={fCtaText} onChange={(e) => setFCtaText(e.target.value)} maxLength={40} placeholder="En savoir plus" />
+                  </div>
+                </div>
+
+                <Button type="submit" disabled={creating}>
+                  {creating && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
+                  Créer la publicité
+                </Button>
+              </div>
+
+              {/* Preview téléphone 9:16 à droite */}
+              <div className="flex flex-col items-center gap-2">
+                <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Aperçu</span>
+                {/* Mockup téléphone 9:16 */}
+                <div className="relative h-[360px] w-[202px] overflow-hidden rounded-[1.75rem] border-[3px] border-slate-800 bg-slate-900 shadow-xl">
+                  {/* Notch */}
+                  <div className="absolute left-1/2 top-0 z-10 h-5 w-20 -translate-x-1/2 rounded-b-xl bg-slate-800" />
+                  {/* Écran */}
+                  <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-violet-600 via-purple-600 to-fuchsia-600 p-4 pt-8 text-center">
+                    {fImageUrl ? (
+                      <img src={fImageUrl} alt="Preview" className="absolute inset-0 h-full w-full object-cover" />
+                    ) : (
+                      <div className="flex flex-1 items-center justify-center">
+                        <ImagePlus className="size-10 text-white/30" aria-hidden />
+                      </div>
+                    )}
+                    {/* Overlay texte en bas */}
+                    <div className="absolute inset-x-0 bottom-0 space-y-2 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 pt-12">
+                      {fTitle && <p className="text-sm font-black text-white">{fTitle}</p>}
+                      {FSubtitle && <p className="text-[10px] text-white/80">{FSubtitle}</p>}
+                      {fCtaText && (
+                        <div className="inline-block rounded-lg bg-white px-3 py-1.5 text-[10px] font-bold text-slate-900">
+                          {fCtaText}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+                <span className="text-[10px] text-muted-foreground">Format 9:16 (202×360px)</span>
+              </div>
+            </form>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Liste des pubs */}
+      {chargement ? (
+        <div className="flex items-center gap-2 py-8 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+          Chargement…
+        </div>
+      ) : ads.length === 0 ? (
+        <Card>
+          <CardContent className="flex flex-col items-center gap-3 py-12 text-center">
+            <Megaphone className="size-12 text-muted-foreground/40" aria-hidden />
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Aucune publicité pour le moment</p>
+              <p className="mt-1 text-xs text-muted-foreground/70">
+                Cliquez sur « Nouvelle publicité » pour créer votre première pub aéroport.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {ads.map((ad) => (
+            <Card key={ad.id} className="overflow-hidden">
+              {/* Preview image 9:16 */}
+              <div className="relative aspect-[9/16] max-h-[280px] overflow-hidden bg-slate-100 dark:bg-slate-800">
+                {ad.imageUrl ? (
+                  <img src={ad.imageUrl} alt={ad.title} className="h-full w-full object-cover" loading="lazy" />
+                ) : (
+                  <div className="flex h-full items-center justify-center">
+                    <Megaphone className="size-10 text-muted-foreground/30" aria-hidden />
+                  </div>
+                )}
+                {/* Badge active/inactive */}
+                <div className="absolute top-2 right-2">
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      "text-[10px]",
+                      ad.active
+                        ? "border-emerald-500/30 bg-emerald-500/90 text-white"
+                        : "border-muted-foreground/30 bg-black/60 text-white/70",
+                    )}
+                  >
+                    {ad.active ? "● Active" : "○ Inactive"}
+                  </Badge>
+                </div>
+                {/* Overlay titre */}
+                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent p-3 pt-8">
+                  <p className="text-sm font-bold text-white line-clamp-2">{ad.title}</p>
+                  {ad.subtitle && <p className="mt-0.5 text-[10px] text-white/70 line-clamp-1">{ad.subtitle}</p>}
+                </div>
+              </div>
+              {/* Stats + actions */}
+              <CardContent className="space-y-3 p-3">
+                <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                  <span>👁 {ad.impressions}</span>
+                  <span>👆 {ad.clicks}</span>
+                  {ad.linkUrl && (
+                    <a href={ad.linkUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-0.5 text-primary underline-offset-2 hover:underline">
+                      Lien <ExternalLink className="h-3 w-3" aria-hidden />
+                    </a>
+                  )}
+                </div>
+                <div className="flex items-center justify-between">
+                  <Switch checked={ad.active} onCheckedChange={() => void toggleActive(ad)} disabled={actionId === ad.id} aria-label={ad.active ? "Désactiver" : "Activer"} />
+                  <Button type="button" size="sm" variant="outline" onClick={() => void supprimer(ad)} disabled={actionId === ad.id} className="h-8 border-rose-500/30 text-rose-600 hover:bg-rose-500/10">
+                    {actionId === ad.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <Trash2 className="h-3.5 w-3.5" aria-hidden />}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
   )
 }
 
