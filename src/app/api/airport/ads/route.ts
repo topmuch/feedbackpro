@@ -149,16 +149,21 @@ export async function POST(req: NextRequest) {
       : 'En savoir plus'
   const active = typeof body.active === 'boolean' ? body.active : true
 
-  // Validation basique des URL
+  // Validation des URL — accepte les chemins relatifs (/api/uploads/...)
+  // ET les URL complètes (https://...) ET les data: URLs
   for (const [champ, url] of [
     ['imageUrl', imageUrl],
     ['linkUrl', linkUrl],
   ] as const) {
     if (url) {
-      try {
-        new URL(url)
-      } catch {
-        return fail(`${champ} n'est pas une URL valide`, 400)
+      const isRelative = url.startsWith('/')
+      const isData = url.startsWith('data:')
+      if (!isRelative && !isData) {
+        try {
+          new URL(url)
+        } catch {
+          return fail(`${champ} n'est pas une URL valide`, 400)
+        }
       }
     }
   }
