@@ -35,12 +35,14 @@ import {
   Clock,
   Download,
   FileText,
+  GripVertical,
   Loader2,
   Plus,
   QrCode,
   RotateCcw,
   Save,
   Search,
+  Smartphone,
   Target,
   Tag,
   Trash2,
@@ -580,13 +582,13 @@ export default function AirportZonesTab() {
   return (
     <div className="flex h-[calc(100vh-128px)] flex-col lg:flex-row">
       {/* ---------- SIDEBAR ---------- */}
-      <aside className="w-full shrink-0 overflow-x-auto border-b border-border bg-card/40 lg:w-64 lg:border-b-0 lg:border-r lg:overflow-y-auto">
-        <div className="flex gap-2 p-3 lg:flex-col lg:gap-1">
-          <div className="mb-2 hidden items-center justify-between lg:flex">
-            <h2 className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+      <aside className="w-full shrink-0 overflow-x-auto border-b border-border bg-gradient-to-b from-card to-muted/20 lg:w-72 lg:border-b-0 lg:border-r lg:overflow-y-auto">
+        <div className="flex gap-2 p-3 lg:flex-col lg:gap-2">
+          <div className="mb-3 hidden items-center justify-between lg:flex">
+            <h2 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80">
               Zones aéroport
             </h2>
-            <Badge variant="outline" className="border-border text-[10px] text-muted-foreground">
+            <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/5 text-[10px] font-semibold text-emerald-700">
               {zones.length}
             </Badge>
           </div>
@@ -598,26 +600,29 @@ export default function AirportZonesTab() {
                 type="button"
                 onClick={() => selectZone(z.code)}
                 className={cn(
-                  'flex w-full shrink-0 items-center gap-2 rounded-md border px-3 py-2 text-left text-sm transition',
+                  'group relative flex w-full shrink-0 items-center gap-3 overflow-hidden rounded-xl border px-3 py-3 text-left transition-all duration-200',
                   active
-                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700'
-                    : 'border-transparent text-muted-foreground hover:border-border hover:bg-muted/40 hover:text-foreground',
+                    ? 'border-emerald-500/50 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 shadow-sm ring-1 ring-emerald-500/20'
+                    : 'border-border/60 bg-card/50 text-muted-foreground hover:border-emerald-500/30 hover:bg-muted/40 hover:shadow-sm',
                 )}
               >
-                <span className="text-lg leading-none" aria-hidden>
+                {active && (
+                  <span className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-emerald-500 to-emerald-600" aria-hidden />
+                )}
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-muted/60 to-muted/30 text-2xl leading-none shadow-inner" aria-hidden>
                   {z.emoji}
                 </span>
                 <div className="min-w-0 flex-1">
-                  <div className="truncate font-medium">{z.nom}</div>
+                  <div className={cn('truncate text-sm', active ? 'font-bold text-emerald-800' : 'font-semibold text-foreground')}>{z.nom}</div>
                   <div className="truncate text-[11px] text-muted-foreground/70">
                     <code className="font-mono">{z.code}</code>
                   </div>
                 </div>
                 <span
                   className={cn(
-                    'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold tabular-nums',
+                    'shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold tabular-nums',
                     z.reportsCount > 0
-                      ? 'bg-amber-500/20 text-amber-700'
+                      ? 'bg-amber-500/20 text-amber-700 ring-1 ring-amber-500/30'
                       : 'bg-muted/60 text-muted-foreground',
                   )}
                   title={`${z.reportsCount} signalement(s)`}
@@ -734,15 +739,15 @@ function ZoneEditForm({
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6">
-      {/* Header du formulaire */}
-      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-border bg-card text-2xl">
+      {/* Header du formulaire — premium gradient card */}
+      <div className="mb-6 flex flex-col gap-4 overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-card via-card to-emerald-500/5 p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-4">
+          <div className="flex size-16 shrink-0 items-center justify-center rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-white to-muted/40 text-4xl shadow-md ring-1 ring-emerald-500/10">
             {form.emoji || '📍'}
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <h2 className="truncate text-lg font-semibold text-foreground">
+            <div className="flex flex-wrap items-center gap-2">
+              <h2 className="truncate text-2xl font-bold tracking-tight text-foreground">
                 {form.nom || 'Sans nom'}
               </h2>
               {dirty && (
@@ -751,8 +756,8 @@ function ZoneEditForm({
                 </Badge>
               )}
             </div>
-            <p className="text-xs text-muted-foreground/70">
-              Code zone : <code className="font-mono text-muted-foreground">{code}</code>
+            <p className="mt-1 text-xs text-muted-foreground/70">
+              Code zone : <code className="rounded bg-muted/60 px-1.5 py-0.5 font-mono text-muted-foreground">{code}</code>
               {saved && (
                 <span className="ml-2">
                   · {saved.tags.length} tag(s) · {saved.problemes.length} problématique(s)
@@ -769,7 +774,7 @@ function ZoneEditForm({
             size="sm"
             onClick={onReset}
             disabled={!dirty || saving}
-            className="border-border bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
+            className="border-border bg-card/60 text-muted-foreground hover:bg-muted hover:text-foreground"
           >
             <RotateCcw className="mr-1.5 h-3.5 w-3.5" />
             Réinitialiser
@@ -779,7 +784,7 @@ function ZoneEditForm({
             size="sm"
             onClick={onSave}
             disabled={!dirty || saving}
-            className="bg-emerald-600 text-white hover:bg-emerald-500 disabled:bg-muted disabled:text-muted-foreground"
+            className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-sm hover:from-emerald-500 hover:to-emerald-400 disabled:from-muted disabled:to-muted disabled:text-muted-foreground"
           >
             {saving ? (
               <>
@@ -862,27 +867,34 @@ function ZoneEditForm({
 
             <div className="flex flex-col gap-2">
               {form.tags.length === 0 && (
-                <p className="rounded-md border border-dashed border-border bg-card/40 px-3 py-2 text-xs text-muted-foreground/70">
+                <p className="rounded-lg border border-dashed border-border bg-muted/20 px-3 py-3 text-center text-xs text-muted-foreground/70">
                   Aucun tag. Ajoutez-en un ci-dessous.
                 </p>
               )}
               {form.tags.map((t, i) => {
                 const err = validateTag(t)
                 return (
-                  <div key={`tag-${i}`} className="flex items-center gap-2">
-                    <div className="relative flex-1">
-                      <Input
-                        value={t}
-                        onChange={(e) => updateTag(i, e.target.value)}
-                        className={cn(
-                          'bg-card font-mono text-sm',
-                          err && 'border-rose-500/50 focus-visible:ring-rose-500/20',
-                        )}
-                        placeholder="tapis_bagages_1"
-                      />
-                    </div>
+                  <div
+                    key={`tag-${i}`}
+                    className={cn(
+                      'group flex items-center gap-1.5 overflow-hidden rounded-lg border bg-gradient-to-r from-card to-muted/30 px-1 py-1 transition-all hover:shadow-sm',
+                      err ? 'border-rose-500/50' : 'border-border hover:border-emerald-500/30',
+                    )}
+                  >
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-600" aria-hidden>
+                      <Tag className="h-3 w-3" />
+                    </span>
+                    <Input
+                      value={t}
+                      onChange={(e) => updateTag(i, e.target.value)}
+                      className={cn(
+                        'h-7 flex-1 border-0 bg-transparent px-1 font-mono text-sm shadow-none focus-visible:ring-0',
+                        err && 'text-rose-600',
+                      )}
+                      placeholder="tapis_bagages_1"
+                    />
                     {err && (
-                      <span className="shrink-0 text-[10px] text-rose-600" title={err}>
+                      <span className="shrink-0 pr-1 text-[10px] text-rose-600" title={err}>
                         <AlertCircle className="h-3.5 w-3.5" />
                       </span>
                     )}
@@ -890,11 +902,11 @@ function ZoneEditForm({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 shrink-0 text-muted-foreground/70 hover:bg-rose-500/10 hover:text-rose-600"
+                      className="size-7 shrink-0 text-muted-foreground/60 hover:bg-rose-500/10 hover:text-rose-600"
                       onClick={() => removeTag(i)}
                       aria-label="Supprimer ce tag"
                     >
-                      <Trash2 className="h-3.5 w-3.5" />
+                      <X className="h-3.5 w-3.5" />
                     </Button>
                   </div>
                 )
@@ -904,7 +916,7 @@ function ZoneEditForm({
             {/* Ajout d'un nouveau tag */}
             <div className="flex items-center gap-2">
               <div className="relative flex-1">
-                <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/70" />
+                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/70" />
                 <Input
                   value={newTag}
                   onChange={(e) => setNewTag(e.target.value)}
@@ -915,7 +927,7 @@ function ZoneEditForm({
                     }
                   }}
                   placeholder="nouveau_tag"
-                  className="bg-card pl-8 font-mono text-sm"
+                  className="border-border bg-card pl-9 font-mono text-sm shadow-sm focus-visible:ring-emerald-500/20"
                   disabled={form.tags.length >= 10}
                 />
               </div>
@@ -925,9 +937,10 @@ function ZoneEditForm({
                 variant="outline"
                 onClick={submitNewTag}
                 disabled={!!newTagErr || !newTag.trim() || form.tags.length >= 10}
-                className="border-emerald-500/40 bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 hover:text-emerald-700"
+                className="border-emerald-500/40 bg-gradient-to-b from-emerald-500/15 to-emerald-500/5 text-emerald-700 shadow-sm hover:from-emerald-500/25 hover:to-emerald-500/10 hover:text-emerald-800"
               >
                 <Plus className="h-3.5 w-3.5" />
+                Ajouter
               </Button>
             </div>
 
@@ -938,7 +951,7 @@ function ZoneEditForm({
             {/* Suggestions */}
             {unusedSuggestions.length > 0 && form.tags.length < 10 && (
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                   Suggestions :
                 </span>
                 {unusedSuggestions.slice(0, 5).map((s) => (
@@ -946,7 +959,7 @@ function ZoneEditForm({
                     key={s}
                     type="button"
                     onClick={() => addTag(s)}
-                    className="rounded-md border border-border bg-muted/50 px-2 py-0.5 font-mono text-[11px] text-muted-foreground transition hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-600"
+                    className="rounded-full border border-border bg-card px-2.5 py-1 font-mono text-[11px] text-muted-foreground shadow-sm transition hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-600"
                   >
                     + {s}
                   </button>
@@ -973,13 +986,25 @@ function ZoneEditForm({
               {form.problemes.map((p, i) => {
                 const err = validateProbleme(p)
                 return (
-                  <div key={`pb-${i}`} className="flex items-center gap-2">
+                  <div
+                    key={`pb-${i}`}
+                    className={cn(
+                      'group flex items-center gap-2 overflow-hidden rounded-xl border bg-gradient-to-r from-card to-muted/20 px-2 py-1.5 transition-all hover:shadow-sm',
+                      err ? 'border-rose-500/50' : 'border-border hover:border-amber-500/30',
+                    )}
+                  >
+                    <span className="flex size-7 shrink-0 cursor-grab items-center justify-center rounded-md bg-muted/60 text-muted-foreground/60" aria-hidden title="Glisser pour réordonner">
+                      <GripVertical className="h-3.5 w-3.5" />
+                    </span>
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-amber-500/10 text-[11px] font-bold text-amber-700" aria-hidden>
+                      {i + 1}
+                    </span>
                     <Input
                       value={p}
                       onChange={(e) => updateProbleme(i, e.target.value.slice(0, 100))}
                       className={cn(
-                        'bg-card text-sm',
-                        err && 'border-rose-500/50 focus-visible:ring-rose-500/20',
+                        'h-8 flex-1 border-0 bg-transparent px-1 text-sm shadow-none focus-visible:ring-0',
+                        err && 'text-rose-600',
                       )}
                       placeholder="Ex : Tapis arrêté ou bloqué"
                       maxLength={100}
@@ -988,7 +1013,7 @@ function ZoneEditForm({
                       type="button"
                       variant="ghost"
                       size="icon"
-                      className="h-8 w-8 shrink-0 text-muted-foreground/70 hover:bg-rose-500/10 hover:text-rose-600"
+                      className="size-7 shrink-0 text-muted-foreground/60 hover:bg-rose-500/10 hover:text-rose-600"
                       onClick={() => removeProbleme(i)}
                       disabled={form.problemes.length <= 1}
                       aria-label="Supprimer cette problématique"
@@ -1006,7 +1031,7 @@ function ZoneEditForm({
                 variant="outline"
                 size="sm"
                 onClick={addProbleme}
-                className="self-start border-border bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
+                className="self-start border-amber-500/40 bg-gradient-to-b from-amber-500/10 to-amber-500/5 text-amber-700 shadow-sm hover:from-amber-500/20 hover:to-amber-500/10 hover:text-amber-800"
               >
                 <Plus className="mr-1.5 h-3.5 w-3.5" />
                 Ajouter une problématique
@@ -1018,44 +1043,52 @@ function ZoneEditForm({
             </p>
           </div>
 
-          {/* Preview PWA */}
+          {/* Preview PWA — mini phone mockup */}
           <div className="flex flex-col gap-2">
-            <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+            <Label className="flex items-center gap-1.5 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <Smartphone className="h-3.5 w-3.5" />
               Aperçu PWA voyageur
             </Label>
-            <div className="rounded-lg border border-border bg-card/60 p-3">
-              <div className="mb-2 flex items-center gap-2 border-b border-border pb-2">
-                <span className="text-xl">{form.emoji || '📍'}</span>
-                <div className="min-w-0">
-                  <div className="truncate text-sm font-semibold text-foreground">
-                    {form.nom || 'Sans nom'}
-                  </div>
-                  {form.description && (
-                    <div className="truncate text-[11px] text-muted-foreground">
-                      {form.description}
+            <div className="mx-auto w-full max-w-[240px]">
+              <div className="overflow-hidden rounded-[2rem] border-[3px] border-slate-300 bg-slate-900 p-1.5 shadow-lg dark:border-slate-700">
+                <div className="relative overflow-hidden rounded-[1.5rem] border border-slate-800 bg-white">
+                  <div className="absolute left-1/2 top-1.5 h-1 w-12 -translate-x-1/2 rounded-full bg-slate-900" aria-hidden />
+                  <div className="px-3 pb-3 pt-5">
+                    <div className="mb-2 flex items-center gap-2 border-b border-slate-100 pb-2">
+                      <span className="text-xl">{form.emoji || '📍'}</span>
+                      <div className="min-w-0">
+                        <div className="truncate text-sm font-bold text-slate-900">
+                          {form.nom || 'Sans nom'}
+                        </div>
+                        {form.description && (
+                          <div className="truncate text-[11px] text-slate-500">
+                            {form.description}
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  )}
+                    <div className="grid grid-cols-2 gap-2">
+                      {form.problemes
+                        .filter((p) => p.trim().length > 0)
+                        .map((p, i) => (
+                          <div
+                            key={`prev-${i}`}
+                            className="flex min-h-[56px] items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-amber-500 p-2 text-center text-xs font-semibold text-white shadow-sm"
+                          >
+                            {p}
+                          </div>
+                        ))}
+                      {form.problemes.filter((p) => p.trim().length > 0).length === 0 && (
+                        <div className="col-span-2 rounded-lg border border-dashed border-slate-200 p-3 text-center text-[11px] text-slate-400">
+                          Aucune problématique à afficher
+                        </div>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-2">
-                {form.problemes
-                  .filter((p) => p.trim().length > 0)
-                  .map((p, i) => (
-                    <div
-                      key={`prev-${i}`}
-                      className="flex min-h-[60px] items-center justify-center rounded-md border border-amber-500/30 bg-amber-500/5 p-2 text-center text-xs font-medium text-amber-700"
-                    >
-                      {p}
-                    </div>
-                  ))}
-                {form.problemes.filter((p) => p.trim().length > 0).length === 0 && (
-                  <div className="col-span-2 rounded-md border border-dashed border-border p-3 text-center text-[11px] text-muted-foreground/70">
-                    Aucune problématique à afficher
-                  </div>
-                )}
-              </div>
             </div>
-            <p className="text-[10px] text-muted-foreground/70">
+            <p className="text-center text-[10px] text-muted-foreground/70">
               Voici comment les boutons apparaîtront sur l'écran du voyageur après scan du QR code.
             </p>
           </div>
@@ -1534,56 +1567,62 @@ function AlertThresholdsSection({ zoneCode }: AlertThresholdsSectionProps) {
 
   return (
     <div className="mt-6 flex flex-col gap-3">
-      <div className="flex items-center gap-1.5">
-        <Bell className="h-3.5 w-3.5 text-muted-foreground" />
-        <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-          Alertes &amp; Seuils
-        </Label>
-        <span className="ml-auto text-[10px] tabular-nums text-muted-foreground/70">
-          {loading ? '…' : `${visible.length} seuil(s) applicable(s)`}
+      <div className="flex items-center gap-2 rounded-xl border border-border bg-gradient-to-r from-card to-muted/30 px-4 py-3 shadow-sm">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-500/5 text-amber-600">
+          <Bell className="h-4 w-4" />
+        </span>
+        <div className="flex-1">
+          <Label className="text-xs font-bold uppercase tracking-wider text-foreground">
+            Alertes &amp; Seuils
+          </Label>
+          <p className="text-[11px] leading-snug text-muted-foreground/70">
+            Détection automatique de pics de signalements et d'alertes de file d'attente.
+            Les seuils "ALL" s'appliquent à toutes les zones.
+          </p>
+        </div>
+        <span className="shrink-0 rounded-full bg-amber-500/10 px-3 py-1 text-[10px] font-bold tabular-nums text-amber-700">
+          {loading ? '…' : `${visible.length} seuil(s)`}
         </span>
       </div>
-      <p className="-mt-1 text-[11px] text-muted-foreground/70">
-        Détection automatique de pics de signalements et d'alertes de file d'attente.
-        Les seuils "ALL" s'appliquent à toutes les zones.
-      </p>
 
       {loading ? (
-        <div className="flex items-center gap-2 rounded-md border border-border bg-card/40 p-4 text-xs text-muted-foreground">
-          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        <div className="flex items-center gap-2 rounded-xl border border-border bg-card/60 p-5 text-sm text-muted-foreground shadow-sm">
+          <Loader2 className="h-4 w-4 animate-spin" />
           Chargement des seuils…
         </div>
       ) : visible.length === 0 ? (
-        <div className="rounded-md border border-dashed border-border bg-card/40 px-3 py-4 text-center text-xs text-muted-foreground/70">
+        <div className="rounded-xl border-2 border-dashed border-border bg-muted/20 px-3 py-6 text-center text-xs text-muted-foreground/70">
           Aucun seuil configuré pour cette zone. Cliquez sur "Ajouter un seuil" pour
           activer la détection de pics.
         </div>
       ) : (
-        <div className="overflow-x-auto rounded-md border border-border">
-          <table className="w-full text-sm">
-            <thead className="bg-muted/40 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-              <tr>
-                <th className="px-3 py-2 text-left">Zone</th>
-                <th className="px-3 py-2 text-left">Type</th>
-                <th className="px-3 py-2 text-left">Seuil</th>
-                <th className="px-3 py-2 text-center">Actif</th>
-                <th className="px-3 py-2 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border bg-card/40">
-              {visible.map((t) => (
-                <ThresholdRow
-                  key={t.id}
-                  threshold={t}
-                  saving={!!savingId[t.id]}
-                  deleting={deletingId === t.id}
-                  onChange={(patch) => updateField(t.id, patch)}
-                  onBlur={() => flushSave(t.id)}
-                  onDelete={() => void handleDelete(t.id)}
-                />
-              ))}
-            </tbody>
-          </table>
+        <div className="overflow-hidden rounded-xl border border-border shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gradient-to-r from-muted/60 to-muted/30 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-2.5 text-left">Zone</th>
+                  <th className="px-4 py-2.5 text-left">Type</th>
+                  <th className="px-4 py-2.5 text-left">Seuil</th>
+                  <th className="px-4 py-2.5 text-center">Actif</th>
+                  <th className="px-4 py-2.5 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border bg-card/40">
+                {visible.map((t) => (
+                  <ThresholdRow
+                    key={t.id}
+                    threshold={t}
+                    saving={!!savingId[t.id]}
+                    deleting={deletingId === t.id}
+                    onChange={(patch) => updateField(t.id, patch)}
+                    onBlur={() => flushSave(t.id)}
+                    onDelete={() => void handleDelete(t.id)}
+                  />
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 
@@ -1593,7 +1632,7 @@ function AlertThresholdsSection({ zoneCode }: AlertThresholdsSectionProps) {
         variant="outline"
         onClick={() => void handleAdd()}
         disabled={creating}
-        className="self-start border-border bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
+        className="self-start border-amber-500/40 bg-gradient-to-b from-amber-500/10 to-amber-500/5 text-amber-700 shadow-sm hover:from-amber-500/20 hover:to-amber-500/10 hover:text-amber-800"
       >
         {creating ? (
           <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
@@ -1628,7 +1667,7 @@ function ThresholdRow({
   onDelete,
 }: ThresholdRowProps) {
   return (
-    <tr className="align-middle">
+    <tr className="group align-middle transition-colors hover:bg-muted/30">
       {/* Zone */}
       <td className="px-3 py-2">
         <Select
@@ -1919,16 +1958,18 @@ function SlaConfigSection({ zoneCode }: { zoneCode: string }) {
   }
 
   return (
-    <div className="mt-6 flex flex-col gap-3 rounded-lg border border-border bg-card/40 p-4">
-      <div className="flex items-center gap-1.5">
-        <Target className="h-3.5 w-3.5 text-emerald-600" />
-        <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
+    <div className="mt-6 overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-card via-card to-emerald-500/5 shadow-sm">
+      <div className="flex items-center gap-2 border-b border-border/60 bg-gradient-to-r from-emerald-500/5 to-transparent px-5 py-3">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 text-emerald-600">
+          <Target className="h-4 w-4" />
+        </span>
+        <Label className="text-xs font-bold uppercase tracking-wider text-foreground">
           SLA Temps de résolution
         </Label>
         <Badge
           variant="outline"
           className={cn(
-            'ml-auto text-[10px]',
+            'ml-auto text-[10px] font-bold',
             savedTarget !== null
               ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700'
               : 'border-border text-muted-foreground',
@@ -1938,46 +1979,54 @@ function SlaConfigSection({ zoneCode }: { zoneCode: string }) {
         </Badge>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-[200px_1fr]">
-        {/* Input objectif */}
-        <div className="flex flex-col gap-1.5">
+      <div className="grid grid-cols-1 gap-5 p-5 sm:grid-cols-[220px_1fr]">
+        {/* Input objectif — grand nombre centré */}
+        <div className="flex flex-col gap-2">
           <Label
             htmlFor="sla-target"
-            className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground"
+            className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
           >
             Objectif de résolution (minutes)
           </Label>
-          <div className="flex items-center gap-2">
-            <Input
-              id="sla-target"
-              type="number"
-              min={1}
-              max={1440}
-              step={1}
-              value={target}
-              onChange={(e) => setTarget(e.target.value)}
-              onBlur={() => {
-                if (dirty) void handleSave()
-              }}
-              placeholder="ex : 15"
-              className="bg-card tabular-nums"
-              disabled={saving || !loaded}
-            />
-            <span className="shrink-0 text-xs text-muted-foreground/70">min</span>
+          <div className="flex flex-col items-center gap-1 rounded-xl border border-border bg-gradient-to-br from-emerald-500/5 to-transparent p-4 text-center">
+            <div className="flex items-baseline gap-1">
+              <Input
+                id="sla-target"
+                type="number"
+                min={1}
+                max={1440}
+                step={1}
+                value={target}
+                onChange={(e) => setTarget(e.target.value)}
+                onBlur={() => {
+                  if (dirty) void handleSave()
+                }}
+                placeholder="ex : 15"
+                className="h-12 w-24 border-0 bg-transparent p-0 text-center text-4xl font-bold tabular-nums text-emerald-700 shadow-none focus-visible:ring-0"
+                disabled={saving || !loaded}
+              />
+              <span className="shrink-0 text-sm font-semibold text-muted-foreground/70">min</span>
+            </div>
             <Button
               type="button"
               size="sm"
               onClick={() => void handleSave()}
               disabled={!dirty || saving || !loaded}
               className={cn(
-                'shrink-0 border-emerald-500/40 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 hover:text-emerald-800',
+                'mt-1 w-full border-emerald-500/40 bg-gradient-to-b from-emerald-500/15 to-emerald-500/5 text-emerald-700 shadow-sm hover:from-emerald-500/25 hover:to-emerald-500/10 hover:text-emerald-800',
                 !dirty && 'opacity-50',
               )}
             >
               {saving ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                <>
+                  <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                  Sauvegarde…
+                </>
               ) : (
-                <Save className="h-3.5 w-3.5" />
+                <>
+                  <Save className="mr-1.5 h-3.5 w-3.5" />
+                  Enregistrer
+                </>
               )}
             </Button>
           </div>
@@ -1987,11 +2036,11 @@ function SlaConfigSection({ zoneCode }: { zoneCode: string }) {
           </p>
         </div>
 
-        {/* Aperçu live */}
-        <div className="flex flex-col gap-2 rounded-md border border-border bg-background/60 p-3">
+        {/* Aperçu live — stat cards premium */}
+        <div className="flex flex-col gap-3">
           <div className="flex items-center gap-1.5">
             <Clock className="h-3 w-3 text-muted-foreground/70" />
-            <span className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground/70">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
               Sur les 24 dernières heures
             </span>
             {statsLoading && (
@@ -1999,35 +2048,35 @@ function SlaConfigSection({ zoneCode }: { zoneCode: string }) {
             )}
           </div>
           {stats ? (
-            <div className="grid grid-cols-3 gap-2">
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">
+            <div className="grid grid-cols-3 gap-3">
+              <div className="flex flex-col gap-1 rounded-xl border border-border bg-gradient-to-br from-card to-muted/20 p-3 text-center shadow-sm">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                   Résolus
                 </span>
-                <span className="font-mono text-lg font-bold tabular-nums text-foreground">
+                <span className="font-mono text-2xl font-bold tabular-nums text-foreground">
                   {stats.resolvedCount}
                 </span>
               </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">
+              <div className="flex flex-col gap-1 rounded-xl border border-border bg-gradient-to-br from-card to-muted/20 p-3 text-center shadow-sm">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                   Moyenne
                 </span>
                 <span
                   className={cn(
-                    'font-mono text-lg font-bold tabular-nums',
+                    'font-mono text-2xl font-bold tabular-nums',
                     avgColor(stats.avgResolutionMinutes, stats.targetMinutes),
                   )}
                 >
                   {stats.avgResolutionMinutes !== null ? `${stats.avgResolutionMinutes} min` : '—'}
                 </span>
               </div>
-              <div className="flex flex-col gap-0.5">
-                <span className="text-[10px] uppercase tracking-wider text-muted-foreground/70">
+              <div className="flex flex-col gap-1 rounded-xl border border-border bg-gradient-to-br from-card to-muted/20 p-3 text-center shadow-sm">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
                   Dans les délais
                 </span>
                 <span
                   className={cn(
-                    'font-mono text-lg font-bold tabular-nums',
+                    'font-mono text-2xl font-bold tabular-nums',
                     complianceColor(stats.slaCompliancePercent),
                   )}
                 >
@@ -2036,13 +2085,13 @@ function SlaConfigSection({ zoneCode }: { zoneCode: string }) {
               </div>
             </div>
           ) : (
-            <div className="text-[11px] text-muted-foreground/70">
+            <div className="rounded-xl border border-dashed border-border bg-muted/20 p-4 text-center text-[11px] text-muted-foreground/70">
               {statsLoading ? 'Chargement…' : 'Aucune donnée disponible.'}
             </div>
           )}
           {stats && stats.pendingBreaches > 0 && (
-            <div className="mt-1 flex items-center gap-1.5 rounded-md border border-rose-500/30 bg-rose-500/5 px-2 py-1 text-[11px] text-rose-700">
-              <AlertCircle className="h-3 w-3" />
+            <div className="flex items-center gap-1.5 rounded-lg border border-rose-500/30 bg-rose-500/5 px-3 py-2 text-[11px] text-rose-700">
+              <AlertCircle className="h-3 w-3 shrink-0" />
               <span>
                 {stats.pendingBreaches} signalement{stats.pendingBreaches > 1 ? 's' : ''} en attente
                 dépasse{stats.pendingBreaches > 1 ? 'nt' : ''} le SLA
@@ -2051,8 +2100,8 @@ function SlaConfigSection({ zoneCode }: { zoneCode: string }) {
             </div>
           )}
           {stats && stats.pendingBreaches === 0 && stats.targetMinutes !== null && (
-            <div className="mt-1 flex items-center gap-1.5 rounded-md border border-emerald-500/30 bg-emerald-500/5 px-2 py-1 text-[11px] text-emerald-700">
-              <Check className="h-3 w-3" />
+            <div className="flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-[11px] text-emerald-700">
+              <Check className="h-3 w-3 shrink-0" />
               <span>Aucun signalement en retard sur le SLA.</span>
             </div>
           )}

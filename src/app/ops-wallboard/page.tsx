@@ -494,6 +494,7 @@ function MiniRowSkeleton() {
 
 const SOUND_NORMAL = '/sounds/ding.wav'
 const SOUND_CRITICAL = '/sounds/ding-critical.wav'
+const SOUND_RESOLVED = '/sounds/resolved.wav'
 
 /** Joue un fichier son si l'audio est activé */
 function playSound(src: string, audioRef: React.RefObject<HTMLAudioElement | null>) {
@@ -533,6 +534,9 @@ export default function OpsWallboardPage() {
   const [freshIds, setFreshIds] = useState<Set<string>>(new Set())
   const seenIdsRef = useRef<Set<string>>(new Set())
   const firstLoadRef = useRef<boolean>(true)
+  // Track des statuts précédents pour détecter les résolutions
+  // (quand un signalement passe de EN_ATTENTE/EN_COURS → RESOLU)
+  const previousStatusRef = useRef<Map<string, string>>(new Map())
 
   // --- État son (ding + TTS) ---
   // soundOn : false au démarrage (autoplay bloqué). L'utilisateur
@@ -591,6 +595,27 @@ export default function OpsWallboardPage() {
           }
         }
       }
+
+      // --- Détection des résolutions (son "résolu") ---
+      // Compare les statuts actuels avec les précédents. Si un
+      // signalement passe à RESOLU, joue un son de succès + TTS.
+      if (soundOn && !firstLoadRef.current) {
+        for (const r of d.recent_reports) {
+          const prevStatut = previousStatusRef.current.get(r.id)
+          if (prevStatut && prevStatut !== 'RESOLU' && r.statut === 'RESOLU') {
+            // Résolution détectée !
+            playSound(SOUND_RESOLVED, audioRef)
+            const zoneNom = r.zone?.nom ?? r.tagScanne
+            setTimeout(() => speak(`Signalement résolu. ${zoneNom}. ${r.problemType}.`, soundOn), 400)
+            break // une seule annonce par poll
+          }
+        }
+      }
+      // Met à jour les statuts précédents pour le prochain poll
+      for (const r of d.recent_reports) {
+        previousStatusRef.current.set(r.id, r.statut)
+      }
+
       setData(d)
       setError(null)
     } catch (e) {

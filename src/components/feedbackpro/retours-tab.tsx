@@ -1477,6 +1477,36 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
   const pro = session?.pro ?? null
   const proWhatsapp = pro?.whatsapp ?? null
   const proNom = pro?.nomEtablissement ?? "Établissement"
+  const isAirport = pro?.typeEtablissement === "Aéroport"
+
+  // Airport signalements stats (pour les Pros aéroport — affiché en
+  // haut de la liste retours pour intégrer les signalements aéroport
+  // dans le rapport global)
+  const [airportStats, setAirportStats] = useState<{
+    total_24h: number
+    en_attente: number
+    en_cours: number
+    resolus_24h: number
+  } | null>(null)
+
+  useEffect(() => {
+    if (!isAirport) return
+    let cancelled = false
+    async function fetchAirport() {
+      try {
+        const res = await fetch("/api/airport/wallboard", { cache: "no-store" })
+        const json = await res.json()
+        if (!cancelled && json.ok) {
+          setAirportStats(json.data.stats)
+        }
+      } catch {
+        /* silencieux */
+      }
+    }
+    fetchAirport()
+    const interval = setInterval(fetchAirport, 30000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [isAirport])
 
   const { toast } = useToast()
 
@@ -3018,6 +3048,49 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
           </Button>
         </div>
       </div>
+
+      {/* ---------- Carte résumé signalements aéroport (uniquement secteur Aéroport) ---------- */}
+      {isAirport && airportStats && (
+        <div className="overflow-hidden rounded-2xl border border-amber-200/60 bg-gradient-to-br from-amber-50 via-card to-emerald-50/30 shadow-sm dark:border-amber-900/40 dark:from-amber-950/20 dark:to-emerald-950/10">
+          <div className="flex items-center gap-3 border-b border-amber-200/40 bg-gradient-to-r from-amber-100/50 to-emerald-100/30 px-5 py-3 dark:from-amber-950/30 dark:to-emerald-950/20">
+            <span className="text-xl">✈️</span>
+            <div className="flex-1">
+              <h2 className="text-sm font-bold tracking-tight text-foreground">Signalements aéroport (24h)</h2>
+              <p className="text-[11px] text-muted-foreground">Problèmes signalés par les voyageurs via QR codes</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                if (typeof window !== "undefined") {
+                  window.history.pushState({}, "", "/dashboard/aeroport-signalements")
+                  window.dispatchEvent(new PopStateEvent("popstate"))
+                }
+              }}
+              className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-amber-600"
+            >
+              Voir les signalements →
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-3 p-4 sm:grid-cols-4">
+            <div className="rounded-xl bg-card p-3 text-center shadow-sm">
+              <p className="text-2xl font-bold tabular-nums text-foreground">{airportStats.total_24h}</p>
+              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Total 24h</p>
+            </div>
+            <div className="rounded-xl bg-amber-50 p-3 text-center dark:bg-amber-950/20">
+              <p className="text-2xl font-bold tabular-nums text-amber-600 dark:text-amber-400">{airportStats.en_attente}</p>
+              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">En attente</p>
+            </div>
+            <div className="rounded-xl bg-sky-50 p-3 text-center dark:bg-sky-950/20">
+              <p className="text-2xl font-bold tabular-nums text-sky-600 dark:text-sky-400">{airportStats.en_cours}</p>
+              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">En cours</p>
+            </div>
+            <div className="rounded-xl bg-emerald-50 p-3 text-center dark:bg-emerald-950/20">
+              <p className="text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{airportStats.resolus_24h}</p>
+              <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Résolus</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ---------- 1. Résumé IA Coach (en haut, avant les filtres) ---------- */}
       {resumeIA.length > 0 && !loading && (
