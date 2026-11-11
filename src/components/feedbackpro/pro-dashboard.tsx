@@ -663,7 +663,7 @@ function ContenuSidebar({
       </div>
 
       {/* Navigation verticale : principaux, séparateur « Gestion », secondaires */}
-      <nav aria-label={t("common.navigationDashboard")} className="flex flex-col gap-1 overflow-y-auto py-2 custom-scrollbar">
+      <nav aria-label={t("common.navigationDashboard")} className="flex flex-col gap-1 py-2">
         {ONGLETS_PRINCIPAUX.map((o) => (
           <BoutonOnglet key={o.id} entree={{ ...o, badge: o.id === "retours" ? retoursNonLus : undefined }} actif={ongletActif === o.id} onNaviguer={onNaviguer} />
         ))}

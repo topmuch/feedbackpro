@@ -554,9 +554,9 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
 
   return (
     <header
-      className={`fixed top-0 z-50 w-full transition-all duration-300 ${
+      className={`fixed top-0 z-50 w-full transition-all duration-500 ${
         scrolled
-          ? "border-b border-gray-200 bg-white/80 backdrop-blur-xl"
+          ? "border-b border-slate-200/70 bg-white/70 shadow-[0_8px_30px_rgb(15,23,42,0.06)] backdrop-blur-xl"
           : "border-b border-transparent bg-transparent"
       }`}
     >
@@ -568,7 +568,7 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
             e.preventDefault()
             window.scrollTo({ top: 0, behavior: "smooth" })
           }}
-          className="flex items-center gap-2 font-bold"
+          className="flex items-center gap-2 font-bold transition-opacity hover:opacity-80"
           aria-label="Accueil FeedbackPro"
         >
           <img src="/logo-feedbackpro.png" alt="FeedbackPro" className="h-12 w-auto" />
@@ -580,7 +580,7 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
             <a
               key={lien.href}
               href={lien.href}
-              className="rounded-md px-3 py-2 text-sm font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-all duration-200 hover:bg-slate-100/80 hover:text-slate-900"
             >
               {lien.label}
             </a>
@@ -593,14 +593,14 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
             variant="ghost"
             size="sm"
             onClick={onLogin}
-            className="text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+            className="text-slate-600 hover:bg-slate-100 hover:text-slate-900"
           >
             Se connecter
           </Button>
           <Button
             size="sm"
             onClick={onSignup}
-            className="fp-bg-gradient fp-pulse-glow border-0 text-white hover:opacity-90"
+            className="fp-bg-gradient fp-pulse-glow h-9 border-0 text-white shadow-lg shadow-[#002e85]/25 transition-all duration-300 hover:opacity-90 hover:shadow-xl hover:shadow-[#002e85]/30"
           >
             Essayer gratuitement
             <ArrowRight className="h-4 w-4" />
@@ -613,7 +613,7 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden text-gray-900 hover:bg-gray-100"
+              className="md:hidden text-slate-900 hover:bg-slate-100"
               aria-label="Ouvrir le menu"
             >
               <Menu className="h-5 w-5" />
@@ -621,10 +621,10 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
           </SheetTrigger>
           <SheetContent
             side="right"
-            className="w-[88%] max-w-sm border-l border-gray-200 bg-white text-gray-900"
+            className="w-[88%] max-w-sm border-l border-slate-200 bg-white/95 text-slate-900 backdrop-blur-xl"
           >
             <SheetHeader>
-              <SheetTitle className="flex items-center gap-2 text-gray-900">
+              <SheetTitle className="flex items-center gap-2 text-slate-900">
                 <img src="/logo-feedbackpro.png" alt="FeedbackPro" className="h-10 w-auto" />
               </SheetTitle>
             </SheetHeader>
@@ -633,16 +633,16 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
                 <a
                   key={lien.href}
                   href={lien.href}
-                  className="flex items-center justify-between rounded-lg px-3 py-3 text-left text-base font-medium text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-900"
+                  className="flex items-center justify-between rounded-xl px-3 py-3 text-left text-base font-medium text-slate-700 transition-all duration-200 hover:bg-slate-100 hover:text-slate-900"
                 >
                   {lien.label}
-                  <ChevronRight className="h-4 w-4 text-gray-400" />
+                  <ChevronRight className="h-4 w-4 text-slate-400" />
                 </a>
               ))}
             </nav>
             <div className="mt-auto flex flex-col gap-2 p-4">
               <Button
-                className="fp-bg-gradient w-full border-0 text-white"
+                className="fp-bg-gradient w-full border-0 text-white shadow-lg shadow-[#002e85]/25"
                 onClick={() => {
                   setOpen(false)
                   onSignup()
@@ -653,7 +653,7 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
               </Button>
               <Button
                 variant="outline"
-                className="w-full border-gray-300 bg-white text-gray-900 hover:bg-gray-100 hover:text-gray-900"
+                className="w-full border-slate-300 bg-white text-slate-900 hover:bg-slate-100 hover:text-slate-900"
                 onClick={() => {
                   setOpen(false)
                   onLogin()
@@ -664,7 +664,7 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
               <SheetClose asChild>
                 <Button
                   variant="ghost"
-                  className="w-full text-gray-600 hover:bg-gray-100 hover:text-gray-900"
+                  className="w-full text-slate-600 hover:bg-slate-100 hover:text-slate-900"
                   onClick={() => allerVers("solution")}
                 >
                   ▶ Voir la démo
@@ -687,11 +687,16 @@ function Hero({ onSignup }: { onSignup: () => void }) {
 
   return (
     <section
-      className="relative flex min-h-screen items-center overflow-hidden pt-24 pb-16"
+      className="relative flex min-h-screen items-center overflow-hidden pt-28 pb-20"
       aria-labelledby="hero-title"
     >
       {/* Fond mesh animé */}
-      <div className="fp-mesh-bg pointer-events-none absolute inset-0 -z-20" aria-hidden />
+      <div className="fp-mesh-bg pointer-events-none absolute inset-0 -z-20 opacity-70" aria-hidden />
+
+      {/* Halo radial premium */}
+      <div className="pointer-events-none absolute inset-0 -z-10" aria-hidden>
+        <div className="absolute left-1/2 top-1/3 h-[44rem] w-[44rem] -translate-x-1/2 rounded-full bg-gradient-radial from-[#002e85]/[0.08] via-emerald-100/30 to-transparent blur-3xl" />
+      </div>
 
       {/* Particules flottantes */}
       <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden>
@@ -712,11 +717,12 @@ function Hero({ onSignup }: { onSignup: () => void }) {
         ))}
       </div>
 
-      <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 px-4 sm:px-6 md:py-24 lg:grid-cols-5 lg:gap-8 lg:px-8">
+      <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-16 px-4 sm:px-6 md:py-24 lg:grid-cols-5 lg:gap-8 lg:px-8">
         {/* Colonne gauche (60%) */}
         <div className="lg:col-span-3">
           <Reveal>
-            <div className="fp-pulse-glow inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-1.5 text-xs font-medium text-gray-900 shadow-sm">
+            <div className="fp-pulse-glow inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/70 px-4 py-1.5 text-xs font-medium text-slate-900 shadow-[0_4px_20px_rgb(15,23,42,0.06)] backdrop-blur-md">
+              <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
               <Sparkles className="h-3.5 w-3.5 text-[#002e85]" aria-hidden />
               Nouveau — Client Mystère 2.0 par IA
             </div>
@@ -725,16 +731,16 @@ function Hero({ onSignup }: { onSignup: () => void }) {
           <Reveal delay={80}>
             <h1
               id="hero-title"
-              className="mt-6 text-5xl font-extrabold leading-[1.05] tracking-tight text-gray-900 sm:text-6xl lg:text-7xl"
-              style={{ letterSpacing: "-0.03em" }}
+              className="mt-6 text-5xl font-extrabold leading-[1.05] tracking-tight text-slate-900 sm:text-6xl lg:text-[4.5rem]"
+              style={{ letterSpacing: "-0.035em" }}
             >
               Transformez vos clients en{" "}
-              <span className="fp-text-gradient">auditeurs qualité</span>
+              <span className="fp-text-gradient block bg-clip-text sm:inline">auditeurs qualité</span>
             </h1>
           </Reveal>
 
           <Reveal delay={160}>
-            <p className="mt-6 max-w-xl text-lg text-gray-600">
+            <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-600 sm:text-xl">
               FeedbackPro collecte les retours de vos clients en temps réel via QR code, les
               analyse par IA et vous livre chaque matin un rapport d'audit avec vos 3 priorités
               du jour.
@@ -742,11 +748,11 @@ function Hero({ onSignup }: { onSignup: () => void }) {
           </Reveal>
 
           <Reveal delay={240}>
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Button
                 size="lg"
                 onClick={onSignup}
-                className="fp-bg-gradient fp-pulse-glow h-12 border-0 px-6 text-base text-white hover:opacity-90"
+                className="fp-bg-gradient fp-pulse-glow h-14 border-0 px-7 text-base text-white shadow-xl shadow-[#002e85]/25 transition-all duration-300 hover:opacity-90 hover:shadow-2xl hover:shadow-[#002e85]/35"
               >
                 Commencer gratuitement
                 <ArrowRight className="h-4 w-4" />
@@ -754,7 +760,7 @@ function Hero({ onSignup }: { onSignup: () => void }) {
               <Button
                 size="lg"
                 onClick={() => allerVers("solution")}
-                className="h-12 border border-gray-200 bg-white px-6 text-base text-gray-900 shadow-sm hover:bg-gray-50"
+                className="h-14 border border-slate-200 bg-white/80 px-7 text-base text-slate-900 shadow-md backdrop-blur-md transition-all duration-300 hover:border-slate-300 hover:bg-white hover:shadow-lg"
               >
                 <Play className="h-4 w-4" />
                 Voir la démo
@@ -763,16 +769,16 @@ function Hero({ onSignup }: { onSignup: () => void }) {
           </Reveal>
 
           <Reveal delay={320}>
-            <div className="mt-8 flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-6">
+            <div className="mt-10 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-6">
               <div className="flex items-center gap-2">
                 <Etoiles note={5} />
-                <span className="text-sm font-semibold text-gray-900">4,9/5</span>
+                <span className="text-sm font-semibold text-slate-900">4,9/5</span>
               </div>
-              <div className="hidden h-5 w-px bg-gray-200 sm:block" aria-hidden />
-              <div className="flex items-center gap-2 text-sm text-gray-600">
+              <div className="hidden h-5 w-px bg-slate-200 sm:block" aria-hidden />
+              <div className="flex items-center gap-2 text-sm text-slate-600">
                 <Users className="h-4 w-4 text-[#002e85]" aria-hidden />
                 <span>
-                  <strong className="text-gray-900">127+</strong> établissements conquis
+                  <strong className="text-slate-900">127+</strong> établissements conquis
                 </span>
               </div>
             </div>
@@ -783,27 +789,27 @@ function Hero({ onSignup }: { onSignup: () => void }) {
         <div className="lg:col-span-2">
           <Reveal delay={200}>
             <div className="relative mx-auto max-w-md" style={{ perspective: "1200px" }}>
-              {/* Halo bleu derrière */}
+              {/* Halo premium derrière */}
               <div
-                className="pointer-events-none absolute -inset-8 -z-10 rounded-[3rem] bg-gradient-to-br from-[#002e85]/30 via-[#0047c7]/20 to-[#002e85]/20 blur-3xl"
+                className="pointer-events-none absolute -inset-10 -z-10 rounded-[3rem] bg-gradient-to-br from-[#002e85]/25 via-emerald-300/20 to-amber-200/20 blur-3xl"
                 aria-hidden
               />
 
               {/* Carte rapport 3D */}
-              <div className="fp-float-mockup rounded-3xl border border-gray-200 bg-white p-6 shadow-2xl shadow-[#002e85]/20">
+              <div className="fp-float-mockup relative rounded-3xl border border-white/60 bg-white/80 p-6 shadow-2xl shadow-[#002e85]/15 backdrop-blur-xl">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-gray-900">
+                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
                     <BarChart3 className="h-4 w-4 text-[#002e85]" />
                     Rapport du jour
                   </div>
                   <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-600">
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
                     Live
                   </span>
                 </div>
 
                 {/* Score global */}
-                <div className="fp-bg-gradient mt-5 rounded-2xl p-5 text-white shadow-lg">
+                <div className="fp-bg-gradient mt-5 rounded-2xl p-5 text-white shadow-lg shadow-[#002e85]/25">
                   <p className="text-xs uppercase tracking-widest opacity-80">Score qualité global</p>
                   <div className="mt-1 flex items-end gap-2">
                     <span className="text-5xl font-extrabold leading-none">82</span>
@@ -828,29 +834,29 @@ function Hero({ onSignup }: { onSignup: () => void }) {
 
                 {/* Priorités du jour */}
                 <div className="mt-5">
-                  <p className="text-xs font-semibold uppercase tracking-widest text-gray-500">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
                     Priorités du jour
                   </p>
                   <ul className="mt-3 space-y-2.5">
-                    <li className="flex items-start gap-3 rounded-xl bg-gray-50 p-3">
+                    <li className="flex items-start gap-3 rounded-xl bg-slate-50/80 p-3 transition-colors hover:bg-slate-100">
                       <span className="text-lg leading-none">⏳</span>
                       <div>
-                        <p className="text-sm font-medium text-gray-900">Attente salle &gt; 12 min</p>
-                        <p className="text-xs text-gray-600">Pic 12h-13h — renforcer 1 serveur</p>
+                        <p className="text-sm font-medium text-slate-900">Attente salle &gt; 12 min</p>
+                        <p className="text-xs text-slate-600">Pic 12h-13h — renforcer 1 serveur</p>
                       </div>
                     </li>
-                    <li className="flex items-start gap-3 rounded-xl bg-gray-50 p-3">
+                    <li className="flex items-start gap-3 rounded-xl bg-slate-50/80 p-3 transition-colors hover:bg-slate-100">
                       <span className="text-lg leading-none">💬</span>
                       <div>
-                        <p className="text-sm font-medium text-gray-900">Personnel distrait en bar</p>
-                        <p className="text-xs text-gray-600">3 signalements — brief équipe</p>
+                        <p className="text-sm font-medium text-slate-900">Personnel distrait en bar</p>
+                        <p className="text-xs text-slate-600">3 signalements — brief équipe</p>
                       </div>
                     </li>
-                    <li className="flex items-start gap-3 rounded-xl bg-gray-50 p-3">
+                    <li className="flex items-start gap-3 rounded-xl bg-slate-50/80 p-3 transition-colors hover:bg-slate-100">
                       <span className="text-lg leading-none">🧹</span>
                       <div>
-                        <p className="text-sm font-medium text-gray-900">Toilettes à surveiller</p>
-                        <p className="text-xs text-gray-600">2 signalements — passage 14h</p>
+                        <p className="text-sm font-medium text-slate-900">Toilettes à surveiller</p>
+                        <p className="text-xs text-slate-600">2 signalements — passage 14h</p>
                       </div>
                     </li>
                   </ul>
@@ -858,29 +864,29 @@ function Hero({ onSignup }: { onSignup: () => void }) {
               </div>
 
               {/* Badges flottants autour du mockup */}
-              <div className="absolute -right-3 -top-3 rounded-2xl border border-gray-200 bg-white px-3 py-2 shadow-lg" style={{ animation: "fp-float-slow 7s ease-in-out infinite" }}>
+              <div className="absolute -right-3 -top-3 rounded-2xl border border-white/60 bg-white/90 px-3 py-2 shadow-xl backdrop-blur-md" style={{ animation: "fp-float-slow 7s ease-in-out infinite" }}>
                 <div className="flex items-center gap-2">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/30">
                     <BellRing className="h-3.5 w-3.5" />
                   </span>
                   <div>
-                    <p className="text-[10px] uppercase tracking-widest text-gray-500">Alerte</p>
-                    <p className="text-xs font-semibold text-gray-900">Nouveau signalement</p>
+                    <p className="text-[10px] uppercase tracking-widest text-slate-500">Alerte</p>
+                    <p className="text-xs font-semibold text-slate-900">Nouveau signalement</p>
                   </div>
                 </div>
               </div>
 
               <div
-                className="absolute -bottom-4 -left-3 rounded-2xl border border-gray-200 bg-white px-3 py-2 shadow-lg"
+                className="absolute -bottom-4 -left-3 rounded-2xl border border-white/60 bg-white/90 px-3 py-2 shadow-xl backdrop-blur-md"
                 style={{ animation: "fp-float-slow 7s ease-in-out infinite", animationDelay: "-3s" }}
               >
                 <div className="flex items-center gap-2">
-                  <span className="fp-bg-gradient flex h-7 w-7 items-center justify-center rounded-full text-white">
+                  <span className="fp-bg-gradient flex h-7 w-7 items-center justify-center rounded-full text-white shadow-lg shadow-[#002e85]/30">
                     <Trophy className="h-3.5 w-3.5" />
                   </span>
                   <div>
-                    <p className="text-[10px] uppercase tracking-widest text-gray-500">Top employé</p>
-                    <p className="text-xs font-semibold text-gray-900">Léa — 4,9 ★</p>
+                    <p className="text-[10px] uppercase tracking-widest text-slate-500">Top employé</p>
+                    <p className="text-xs font-semibold text-slate-900">Léa — 4,9 ★</p>
                   </div>
                 </div>
               </div>
@@ -900,30 +906,30 @@ function TrustBar() {
   const logos = [...TRUST_LOGOS, ...TRUST_LOGOS] // duplique pour scroll seamless
   return (
     <section
-      className="border-y border-gray-200 bg-gray-50 py-12"
+      className="relative border-y border-slate-200/70 bg-gradient-to-b from-white to-slate-50/50 py-14"
       aria-label="Ils nous font confiance"
     >
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <Reveal>
-          <p className="text-center text-xs font-medium uppercase tracking-[0.3em] text-gray-500">
+          <p className="text-center text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">
             Ils nous font confiance
           </p>
         </Reveal>
         <Reveal delay={120}>
           <div className="fp-marquee-pause relative mt-8 overflow-hidden">
             {/* Dégradés masqués en bordures */}
-            <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-20 bg-gradient-to-r from-gray-50 to-transparent" aria-hidden />
-            <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-20 bg-gradient-to-l from-gray-50 to-transparent" aria-hidden />
+            <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-slate-50 to-transparent" aria-hidden />
+            <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-gradient-to-l from-slate-50 to-transparent" aria-hidden />
             <div className="fp-marquee flex w-max items-center gap-12">
               {logos.map((nom, i) => (
                 <div
                   key={`${nom}-${i}`}
-                  className="flex shrink-0 items-center gap-2 opacity-70 transition-opacity hover:opacity-100"
+                  className="flex shrink-0 items-center gap-2 opacity-60 transition-all duration-300 hover:opacity-100"
                 >
-                  <span className="fp-bg-gradient flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold text-white">
+                  <span className="fp-bg-gradient flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold text-white shadow-md shadow-[#002e85]/20">
                     {nom.charAt(0)}
                   </span>
-                  <span className="whitespace-nowrap text-lg font-semibold tracking-tight text-gray-400">
+                  <span className="whitespace-nowrap text-lg font-semibold tracking-tight text-slate-500">
                     {nom}
                   </span>
                 </div>
@@ -942,35 +948,37 @@ function TrustBar() {
 
 function ProblemSection() {
   return (
-    <section id="probleme" className="scroll-mt-24" aria-labelledby="probleme-title">
+    <section id="probleme" className="relative scroll-mt-24" aria-labelledby="probleme-title">
       <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-rose-600 shadow-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-rose-200/70 bg-rose-50/50 px-3 py-1 text-xs font-medium text-rose-600 shadow-sm backdrop-blur-sm">
             Vous reconnaissez-vous ?
           </span>
           <h2
             id="probleme-title"
-            className="mt-4 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl"
-            style={{ letterSpacing: "-0.03em" }}
+            className="mt-5 text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl"
+            style={{ letterSpacing: "-0.035em" }}
           >
             Le client insatisfait ne dit rien.{" "}
             <span className="fp-text-gradient">Il part.</span>
           </h2>
-          <p className="mt-4 text-lg text-gray-600">
+          <p className="mt-5 text-lg leading-relaxed text-slate-600">
             Sans retour en temps réel, vous pilotez à l'aveugle. Voici ce que vivent chaque jour
             les commerces sans FeedbackPro.
           </p>
         </Reveal>
 
-        <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-3">
+        <div className="mt-16 grid grid-cols-1 gap-6 md:grid-cols-3">
           {PROBLEM_CARDS.map((c, i) => (
             <Reveal key={c.titre} delay={i * 100}>
-              <article className="fp-lift group h-full rounded-3xl border border-gray-200 bg-white p-6 shadow-sm hover:border-rose-300 hover:shadow-xl">
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-50 text-3xl shadow-inner">
+              <article className="group relative h-full overflow-hidden rounded-3xl border border-slate-200/80 bg-white/70 p-7 shadow-[0_4px_30px_rgb(15,23,42,0.04)] backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-rose-300/70 hover:bg-white hover:shadow-xl hover:shadow-rose-500/10">
+                {/* Gradient border top accent */}
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-rose-400/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" aria-hidden />
+                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100 text-3xl shadow-inner ring-1 ring-slate-200/50">
                   {c.emoji}
                 </div>
-                <h3 className="mt-5 text-lg font-semibold text-gray-900">{c.titre}</h3>
-                <p className="mt-3 text-sm leading-relaxed text-gray-600">{c.texte}</p>
+                <h3 className="mt-5 text-lg font-semibold text-slate-900">{c.titre}</h3>
+                <p className="mt-3 text-sm leading-relaxed text-slate-600">{c.texte}</p>
               </article>
             </Reveal>
           ))}
@@ -988,65 +996,66 @@ function SolutionSection() {
   return (
     <section
       id="solution"
-      className="scroll-mt-24 border-y border-gray-200 bg-gray-50"
+      className="relative scroll-mt-24 border-y border-slate-200/70 bg-gradient-to-b from-slate-50/60 via-white/40 to-slate-50/60"
       aria-labelledby="solution-title"
     >
       <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#002e85] shadow-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-[#002e85]/15 bg-[#002e85]/5 px-3 py-1 text-xs font-medium text-[#002e85] shadow-sm backdrop-blur-sm">
             <Sparkles className="h-3.5 w-3.5" />
             La solution
           </span>
           <h2
             id="solution-title"
-            className="mt-4 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl"
-            style={{ letterSpacing: "-0.03em" }}
+            className="mt-5 text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl"
+            style={{ letterSpacing: "-0.035em" }}
           >
             <span className="fp-text-gradient">Le Client Mystère 2.0</span>
           </h2>
-          <p className="mt-4 text-lg text-gray-600">
+          <p className="mt-5 text-lg leading-relaxed text-slate-600">
             4 étapes pour transformer chaque client en auditeur qualité — et chaque matin en plan
             d'action concret.
           </p>
         </Reveal>
 
-        <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-4 md:gap-4">
+        <div className="mt-16 grid grid-cols-1 gap-6 md:grid-cols-4 md:gap-4">
           {STEPS.map((s, i) => (
             <Reveal key={s.titre} delay={i * 120}>
-              <div className="fp-lift group relative flex h-full flex-col items-start overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm hover:border-[#0047c7] hover:shadow-xl">
+              <div className="group relative flex h-full flex-col items-start overflow-hidden rounded-3xl border border-slate-200/80 bg-white/80 shadow-[0_4px_30px_rgb(15,23,42,0.05)] backdrop-blur-md transition-all duration-300 hover:-translate-y-1.5 hover:border-[#002e85]/30 hover:bg-white hover:shadow-xl hover:shadow-[#002e85]/10">
                 {/* Numéro 01-04 en arrière-plan */}
                 <span
-                  className="pointer-events-none absolute -right-2 -top-4 text-[7rem] font-extrabold leading-none text-gray-100"
+                  className="pointer-events-none absolute -right-2 -top-4 text-[7rem] font-extrabold leading-none text-slate-100/80"
                   aria-hidden
                 >
                   {String(i + 1).padStart(2, "0")}
                 </span>
 
-                {/* Image illustrative (remplace l'emoji/icône) */}
-                <div className="relative w-full overflow-hidden rounded-t-3xl bg-gray-50">
+                {/* Image illustrative */}
+                <div className="relative w-full overflow-hidden rounded-t-3xl bg-slate-50">
                   <img
                     src={s.image}
                     alt={s.titre}
-                    className="h-40 w-full object-cover transition-transform duration-500 group-hover:scale-105 sm:h-44"
+                    className="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 sm:h-44"
                     loading="lazy"
                     width={400}
                     height={180}
                   />
+                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-900/20 via-transparent to-transparent" aria-hidden />
                   {/* Numéro flottant sur l'image */}
-                  <span className="fp-bg-gradient absolute left-3 top-3 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white shadow-md">
+                  <span className="fp-bg-gradient absolute left-3 top-3 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white shadow-md shadow-[#002e85]/30">
                     {i + 1}
                   </span>
                 </div>
 
                 <div className="relative w-full p-6">
-                  <h3 className="text-base font-semibold text-gray-900">{s.titre}</h3>
-                  <p className="mt-2 text-sm text-gray-600">{s.texte}</p>
+                  <h3 className="text-base font-semibold text-slate-900">{s.titre}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-slate-600">{s.texte}</p>
                 </div>
 
                 {/* Flèche entre cartes (desktop) */}
                 {i < STEPS.length - 1 && (
                   <div
-                    className="absolute -right-4 top-1/2 z-20 hidden h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-gray-200 bg-white shadow-lg md:flex"
+                    className="absolute -right-4 top-1/2 z-20 hidden h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white shadow-lg transition-transform duration-300 group-hover:scale-110 md:flex"
                     aria-hidden
                   >
                     <ArrowRight className="h-4 w-4 text-[#002e85]" />
@@ -1059,7 +1068,7 @@ function SolutionSection() {
 
         {/* Flèche explicite entre cartes (mobile) */}
         <div className="mt-6 flex justify-center md:hidden">
-          <ArrowDown className="h-5 w-5 text-gray-400" aria-hidden />
+          <ArrowDown className="h-5 w-5 text-slate-400" aria-hidden />
         </div>
       </div>
     </section>
@@ -1072,37 +1081,37 @@ function SolutionSection() {
 
 function ComparisonSection() {
   return (
-    <section id="comparaison" className="scroll-mt-24" aria-labelledby="comparaison-title">
+    <section id="comparaison" className="relative scroll-mt-24" aria-labelledby="comparaison-title">
       <div className="mx-auto max-w-5xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-blue-600 shadow-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-amber-200/70 bg-amber-50/50 px-3 py-1 text-xs font-medium text-amber-700 shadow-sm backdrop-blur-sm">
             Comparatif
           </span>
           <h2
             id="comparaison-title"
-            className="mt-4 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl"
-            style={{ letterSpacing: "-0.03em" }}
+            className="mt-5 text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl"
+            style={{ letterSpacing: "-0.035em" }}
           >
-            Traditionnel <span className="text-gray-400">vs</span>{" "}
+            Traditionnel <span className="text-slate-400">vs</span>{" "}
             <span className="fp-text-gradient">FeedbackPro</span>
           </h2>
-          <p className="mt-4 text-lg text-gray-600">
+          <p className="mt-5 text-lg leading-relaxed text-slate-600">
             Même objectif (mesurer votre qualité), mais 10× moins cher, 30× plus rapide et 100×
             plus actionnable.
           </p>
         </Reveal>
 
         <Reveal delay={120}>
-          <div className="mt-12 overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
+          <div className="mt-12 overflow-hidden rounded-3xl border border-slate-200/80 bg-white/80 shadow-[0_8px_40px_rgb(15,23,42,0.08)] backdrop-blur-md">
             {/* En-tête tableau */}
-            <div className="grid grid-cols-3 border-b border-gray-200">
-              <div className="px-4 py-5 text-xs font-semibold uppercase tracking-widest text-gray-500 sm:px-6">
+            <div className="grid grid-cols-3 border-b border-slate-200/80">
+              <div className="px-4 py-5 text-xs font-semibold uppercase tracking-widest text-slate-500 sm:px-6">
                 Critère
               </div>
-              <div className="px-4 py-5 text-sm font-semibold text-gray-700 sm:px-6">
+              <div className="px-4 py-5 text-sm font-semibold text-slate-600 sm:px-6">
                 Client Mystère <span className="hidden sm:inline">traditionnel</span>
               </div>
-              <div className="relative border-l border-[#002e85]/30 bg-[#002e85]/10 px-4 py-5 text-sm font-semibold text-gray-900 sm:px-6">
+              <div className="relative border-l border-[#002e85]/30 bg-gradient-to-b from-[#002e85]/[0.08] to-[#002e85]/[0.04] px-4 py-5 text-sm font-semibold text-slate-900 sm:px-6">
                 <span className="flex flex-wrap items-center gap-2">
                   <span className="fp-text-gradient">FeedbackPro</span>
                   <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
@@ -1116,18 +1125,18 @@ function ComparisonSection() {
             {COMPARISON_ROWS.map((row, i) => (
               <div
                 key={row.critere}
-                className={`grid grid-cols-3 items-center ${i % 2 === 1 ? "bg-gray-50/60" : ""}`}
+                className={`grid grid-cols-3 items-center transition-colors hover:bg-slate-50/60 ${i % 2 === 1 ? "bg-slate-50/40" : ""}`}
               >
-                <div className="px-4 py-4 text-sm font-medium text-gray-900 sm:px-6">
+                <div className="px-4 py-4 text-sm font-medium text-slate-900 sm:px-6">
                   {row.critere}
                 </div>
-                <div className="flex items-center gap-2 px-4 py-4 text-sm text-gray-600 sm:px-6">
+                <div className="flex items-center gap-2 px-4 py-4 text-sm text-slate-600 sm:px-6">
                   <X className="h-4 w-4 shrink-0 text-rose-500" aria-hidden />
                   <span>{row.traditionnel}</span>
                 </div>
-                <div className="flex items-center gap-2 border-l border-[#002e85]/30 bg-[#002e85]/5 px-4 py-4 text-sm font-medium sm:px-6">
+                <div className="flex items-center gap-2 border-l border-[#002e85]/20 bg-[#002e85]/[0.03] px-4 py-4 text-sm font-medium sm:px-6">
                   <Check className="h-4 w-4 shrink-0 text-emerald-500" aria-hidden />
-                  <span className="text-gray-900">{row.feedbackpro}</span>
+                  <span className="text-slate-900">{row.feedbackpro}</span>
                 </div>
               </div>
             ))}
@@ -1146,52 +1155,54 @@ function FeaturesSection() {
   return (
     <section
       id="fonctionnalites"
-      className="scroll-mt-24 border-y border-gray-200 bg-gray-50"
+      className="relative scroll-mt-24 border-y border-slate-200/70 bg-gradient-to-b from-slate-50/60 via-white/40 to-slate-50/60"
       aria-labelledby="features-title"
     >
       <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#002e85] shadow-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-[#002e85]/15 bg-[#002e85]/5 px-3 py-1 text-xs font-medium text-[#002e85] shadow-sm backdrop-blur-sm">
             Fonctionnalités
           </span>
           <h2
             id="features-title"
-            className="mt-4 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl"
-            style={{ letterSpacing: "-0.03em" }}
+            className="mt-5 text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl"
+            style={{ letterSpacing: "-0.035em" }}
           >
             Tout pour piloter votre qualité,{" "}
             <span className="fp-text-gradient">sans effort</span>
           </h2>
-          <p className="mt-4 text-lg text-gray-600">
+          <p className="mt-5 text-lg leading-relaxed text-slate-600">
             6 modules qui couvrent l'ensemble du cycle : collecte, analyse, alerte, pilotage,
             formation, déploiement terrain.
           </p>
         </Reveal>
 
-        <div className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-6 lg:auto-rows-[minmax(0,1fr)]">
+        <div className="mt-16 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-6 lg:auto-rows-[minmax(0,1fr)]">
           {FEATURES.map((f, i) => (
             <Reveal
               key={f.titre}
               delay={(i % 3) * 100}
               className={f.grand ? "lg:col-span-4 lg:row-span-2" : "lg:col-span-2"}
             >
-              <article className="fp-lift group flex h-full flex-col rounded-3xl border border-gray-200 bg-white p-6 shadow-sm hover:-translate-y-1 hover:border-[#002e85]/30 hover:shadow-xl sm:p-7">
+              <article className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-white/80 p-6 shadow-[0_4px_30px_rgb(15,23,42,0.05)] backdrop-blur-md transition-all duration-300 hover:-translate-y-1.5 hover:border-[#002e85]/30 hover:bg-white hover:shadow-xl hover:shadow-[#002e85]/10 sm:p-7">
+                {/* Gradient top accent on hover */}
+                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#002e85] to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" aria-hidden />
                 <div className="flex items-center justify-between">
-                  <span className="fp-bg-gradient flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-[0_0_20px_rgba(0,46,133,0.4)]">
+                  <span className="fp-bg-gradient flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-[0_4px_20px_rgba(0,46,133,0.35)] transition-transform duration-300 group-hover:scale-110">
                     <f.icone className="h-6 w-6" />
                   </span>
                   <span className="text-2xl opacity-70 transition-transform duration-300 group-hover:scale-110">
                     {f.emoji}
                   </span>
                 </div>
-                <h3 className="mt-5 text-lg font-semibold text-gray-900">{f.titre}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-gray-600">{f.texte}</p>
+                <h3 className="mt-5 text-lg font-semibold text-slate-900">{f.titre}</h3>
+                <p className="mt-2 text-sm leading-relaxed text-slate-600">{f.texte}</p>
 
                 {/* Mini-illustration dans la grande card */}
                 {f.grand && (
                   <div className="mt-auto pt-6">
-                    <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
-                      <div className="flex items-center justify-between text-xs text-gray-500">
+                    <div className="rounded-2xl border border-slate-200/70 bg-slate-50/80 p-4">
+                      <div className="flex items-center justify-between text-xs text-slate-500">
                         <span>Évolution du score — 14 jours</span>
                         <span className="flex items-center gap-1 font-medium text-emerald-600">
                           <TrendingUp className="h-3.5 w-3.5" /> +18 %
@@ -1203,7 +1214,7 @@ function FeaturesSection() {
                         ].map((h, idx) => (
                           <div
                             key={idx}
-                            className="fp-bg-gradient flex-1 rounded-t"
+                            className="fp-bg-gradient flex-1 rounded-t shadow-sm shadow-[#002e85]/20"
                             style={{ height: `${h}%`, opacity: 0.4 + (idx / 14) * 0.6 }}
                             aria-hidden
                           />
@@ -1227,20 +1238,20 @@ function FeaturesSection() {
 
 function UseCasesSection() {
   return (
-    <section id="cas-usage" className="scroll-mt-24" aria-labelledby="cas-usage-title">
+    <section id="cas-usage" className="relative scroll-mt-24" aria-labelledby="cas-usage-title">
       <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#002e85] shadow-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-[#002e85]/15 bg-[#002e85]/5 px-3 py-1 text-xs font-medium text-[#002e85] shadow-sm backdrop-blur-sm">
             Cas d'usage
           </span>
           <h2
             id="cas-usage-title"
-            className="mt-4 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl"
-            style={{ letterSpacing: "-0.03em" }}
+            className="mt-5 text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl"
+            style={{ letterSpacing: "-0.035em" }}
           >
             Pensé pour <span className="fp-text-gradient">votre secteur</span>
           </h2>
-          <p className="mt-4 text-lg text-gray-600">
+          <p className="mt-5 text-lg leading-relaxed text-slate-600">
             Tags contextuels et zones pré-configurées pour chaque métier. Déployez en quelques
             minutes.
           </p>
@@ -1249,14 +1260,14 @@ function UseCasesSection() {
         <Reveal delay={120}>
           <Tabs defaultValue="hotellerie" className="mt-10">
             <TabsList
-              className="flex h-auto w-full flex-nowrap gap-1 overflow-x-auto rounded-2xl border border-gray-200 bg-gray-100 p-1.5 no-scrollbar"
+              className="flex h-auto w-full flex-nowrap gap-1 overflow-x-auto rounded-2xl border border-slate-200/80 bg-white/70 p-1.5 shadow-[0_4px_20px_rgb(15,23,42,0.04)] backdrop-blur-md no-scrollbar"
               aria-label="Secteurs d'activité"
             >
               {USE_CASES.map((uc) => (
                 <TabsTrigger
                   key={uc.id}
                   value={uc.id}
-                  className="flex-1 shrink-0 rounded-xl border border-transparent px-4 py-2 text-sm font-medium text-gray-600 transition-all hover:bg-gray-200 data-[state=active]:fp-bg-gradient data-[state=active]:border-transparent data-[state=active]:text-white data-[state=active]:shadow-[0_0_20px_rgba(0,46,133,0.4)]"
+                  className="flex-1 shrink-0 rounded-xl border border-transparent px-4 py-2.5 text-sm font-medium text-slate-600 transition-all duration-300 hover:bg-slate-100/80 data-[state=active]:fp-bg-gradient data-[state=active]:border-transparent data-[state=active]:text-white data-[state=active]:shadow-[0_4px_20px_rgba(0,46,133,0.35)]"
                 >
                   <span className="mr-1.5">{uc.emoji}</span>
                   <span className="hidden sm:inline">{uc.label}</span>
@@ -1266,16 +1277,16 @@ function UseCasesSection() {
 
             {USE_CASES.map((uc) => (
               <TabsContent key={uc.id} value={uc.id} className="mt-6">
-                <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+                <div className="rounded-3xl border border-slate-200/80 bg-white/80 p-6 shadow-[0_8px_30px_rgb(15,23,42,0.05)] backdrop-blur-md sm:p-8">
                   <div className="flex items-center gap-3">
-                    <span className="fp-bg-gradient flex h-12 w-12 items-center justify-center rounded-2xl text-white">
+                    <span className="fp-bg-gradient flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-lg shadow-[#002e85]/25">
                       <uc.icone className="h-6 w-6" />
                     </span>
                     <div>
-                      <h3 className="text-xl font-semibold text-gray-900">
+                      <h3 className="text-xl font-semibold text-slate-900">
                         {uc.emoji} {uc.label}
                       </h3>
-                      <p className="text-sm text-gray-600">
+                      <p className="text-sm text-slate-600">
                         4 points clés couverts par FeedbackPro
                       </p>
                     </div>
@@ -1285,12 +1296,12 @@ function UseCasesSection() {
                     {uc.points.map((pt) => (
                       <div
                         key={pt.titre}
-                        className="flex items-start gap-3 rounded-2xl bg-gray-50 p-4"
+                        className="flex items-start gap-3 rounded-2xl border border-slate-200/60 bg-slate-50/80 p-4 transition-all duration-300 hover:border-[#002e85]/20 hover:bg-white hover:shadow-md"
                       >
                         <Check className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" aria-hidden />
                         <div>
-                          <p className="text-sm font-semibold text-gray-900">{pt.titre}</p>
-                          <p className="mt-0.5 text-sm text-gray-600">{pt.texte}</p>
+                          <p className="text-sm font-semibold text-slate-900">{pt.titre}</p>
+                          <p className="mt-0.5 text-sm leading-relaxed text-slate-600">{pt.texte}</p>
                         </div>
                       </div>
                     ))}
@@ -1313,48 +1324,50 @@ function TestimonialsSection() {
   return (
     <section
       id="temoignages"
-      className="scroll-mt-24 border-y border-gray-200 bg-gray-50"
+      className="relative scroll-mt-24 border-y border-slate-200/70 bg-gradient-to-b from-slate-50/60 via-white/40 to-slate-50/60"
       aria-labelledby="temoignages-title"
     >
       <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-amber-600 shadow-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-amber-200/70 bg-amber-50/50 px-3 py-1 text-xs font-medium text-amber-700 shadow-sm backdrop-blur-sm">
             Témoignages
           </span>
           <h2
             id="temoignages-title"
-            className="mt-4 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl"
-            style={{ letterSpacing: "-0.03em" }}
+            className="mt-5 text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl"
+            style={{ letterSpacing: "-0.035em" }}
           >
             Ils ont <span className="fp-text-gradient">transformé leur qualité</span>
           </h2>
-          <p className="mt-4 text-lg text-gray-600">
+          <p className="mt-5 text-lg leading-relaxed text-slate-600">
             127+ établissements utilisent FeedbackPro au quotidien. Voici ce qu'ils en disent.
           </p>
         </Reveal>
 
-        <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-3">
+        <div className="mt-16 grid grid-cols-1 gap-6 md:grid-cols-3">
           {TESTIMONIALS.map((t, i) => (
             <Reveal key={t.nom} delay={i * 100}>
-              <article className="fp-lift flex h-full flex-col rounded-3xl border border-gray-200 bg-white p-6 shadow-sm hover:border-[#0047c7] hover:shadow-xl">
-                <div className="flex items-center justify-between">
+              <article className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-white/80 p-7 shadow-[0_4px_30px_rgb(15,23,42,0.05)] backdrop-blur-md transition-all duration-300 hover:-translate-y-1.5 hover:border-[#002e85]/20 hover:bg-white hover:shadow-xl hover:shadow-[#002e85]/10">
+                {/* Decorative gradient blob */}
+                <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-gradient-to-br from-[#002e85]/5 to-emerald-200/10 blur-2xl" aria-hidden />
+                <div className="relative flex items-center justify-between">
                   <Etoiles note={t.note} />
-                  <Quote className="h-6 w-6 text-[#002e85]/30" aria-hidden />
+                  <Quote className="h-7 w-7 text-[#002e85]/20 transition-colors duration-300 group-hover:text-[#002e85]/30" aria-hidden />
                 </div>
-                <blockquote className="mt-4 flex-1">
-                  <p className="text-sm italic leading-relaxed text-gray-700">
+                <blockquote className="relative mt-4 flex-1">
+                  <p className="text-sm italic leading-relaxed text-slate-700">
                     « {t.citation} »
                   </p>
                 </blockquote>
-                <div className="mt-5 flex items-center gap-3 border-t border-gray-200 pt-4">
+                <div className="relative mt-5 flex items-center gap-3 border-t border-slate-200/70 pt-5">
                   <span
-                    className={`flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br ${t.couleur} text-sm font-bold text-white`}
+                    className={`flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br ${t.couleur} text-sm font-bold text-white shadow-md ring-2 ring-white`}
                   >
                     {t.initiales}
                   </span>
                   <div>
-                    <p className="text-sm font-semibold text-gray-900">{t.nom}</p>
-                    <p className="text-xs text-gray-600">
+                    <p className="text-sm font-semibold text-slate-900">{t.nom}</p>
+                    <p className="text-xs text-slate-600">
                       {t.poste} — {t.etablissement}
                     </p>
                   </div>
@@ -1377,20 +1390,20 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
   const rabais = 0.2
 
   return (
-    <section id="tarifs" className="scroll-mt-24" aria-labelledby="tarifs-title">
+    <section id="tarifs" className="relative scroll-mt-24" aria-labelledby="tarifs-title">
       <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#002e85] shadow-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-[#002e85]/15 bg-[#002e85]/5 px-3 py-1 text-xs font-medium text-[#002e85] shadow-sm backdrop-blur-sm">
             Tarifs
           </span>
           <h2
             id="tarifs-title"
-            className="mt-4 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl"
-            style={{ letterSpacing: "-0.03em" }}
+            className="mt-5 text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl"
+            style={{ letterSpacing: "-0.035em" }}
           >
             Un prix adapté à <span className="fp-text-gradient">chaque établissement</span>
           </h2>
-          <p className="mt-4 text-lg text-gray-600">
+          <p className="mt-5 text-lg leading-relaxed text-slate-600">
             Sans engagement. Annulation en 1 clic. 14 jours d'essai gratuit, sans carte bancaire.
           </p>
         </Reveal>
@@ -1400,7 +1413,7 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
           <div className="mt-8 flex items-center justify-center gap-3">
             <span
               className={`text-sm font-medium ${
-                !annuel ? "text-gray-900" : "text-gray-500"
+                !annuel ? "text-slate-900" : "text-slate-500"
               }`}
             >
               Mensuel
@@ -1411,19 +1424,19 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
               aria-checked={annuel}
               aria-label="Basculer en facturation annuelle"
               onClick={() => setAnnuel((v) => !v)}
-              className={`relative h-7 w-12 rounded-full transition-colors ${
-                annuel ? "fp-bg-gradient" : "bg-gray-300"
+              className={`relative h-7 w-12 rounded-full transition-colors duration-300 ${
+                annuel ? "fp-bg-gradient shadow-md shadow-[#002e85]/25" : "bg-slate-300"
               }`}
             >
               <span
-                className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${
+                className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform duration-300 ${
                   annuel ? "translate-x-5" : "translate-x-0.5"
                 }`}
               />
             </button>
             <span
               className={`text-sm font-medium ${
-                annuel ? "text-gray-900" : "text-gray-500"
+                annuel ? "text-slate-900" : "text-slate-500"
               }`}
             >
               Annuel
@@ -1443,37 +1456,41 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
             return (
               <Reveal key={plan.id} delay={i * 120}>
                 <article
-                  className={`fp-lift relative flex h-full flex-col rounded-3xl p-6 sm:p-8 ${
+                  className={`group relative flex h-full flex-col overflow-hidden rounded-3xl p-6 sm:p-8 ${
                     plan.populaire
-                      ? "border-2 border-[#002e85] bg-white shadow-lg shadow-[#002e85]/20 lg:scale-105"
-                      : "border border-gray-200 bg-white shadow-sm"
+                      ? "border-2 border-[#002e85]/80 bg-white/90 shadow-2xl shadow-[#002e85]/20 backdrop-blur-md lg:scale-105 lg:hover:-translate-y-1"
+                      : "border border-slate-200/80 bg-white/80 shadow-[0_4px_30px_rgb(15,23,42,0.05)] backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl"
                   }`}
                 >
                   {plan.populaire && (
-                    <span className="fp-bg-gradient absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold text-white shadow-lg">
-                      <Trophy className="h-3.5 w-3.5" />
-                      Recommandé
-                    </span>
+                    <>
+                      {/* Glow halo for popular plan */}
+                      <div className="pointer-events-none absolute -inset-px -z-10 rounded-3xl bg-gradient-to-br from-[#002e85]/10 via-transparent to-emerald-300/10 blur-xl" aria-hidden />
+                      <span className="fp-bg-gradient absolute -top-3.5 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full px-4 py-1.5 text-xs font-semibold text-white shadow-lg shadow-[#002e85]/30">
+                        <Trophy className="h-3.5 w-3.5" />
+                        Recommandé
+                      </span>
+                    </>
                   )}
 
-                  <h3 className="text-lg font-bold text-gray-900">{plan.nom}</h3>
-                  <p className="mt-1 text-sm text-gray-600">{plan.tagline}</p>
+                  <h3 className="text-lg font-bold text-slate-900">{plan.nom}</h3>
+                  <p className="mt-1 text-sm text-slate-600">{plan.tagline}</p>
 
                   <div className="mt-5 flex items-end gap-1">
-                    <span className="text-5xl font-extrabold tracking-tight text-gray-900">
+                    <span className="text-5xl font-extrabold tracking-tight text-slate-900">
                       {prix} €
                     </span>
-                    <span className="mb-1.5 text-sm text-gray-600">/ mois HT</span>
+                    <span className="mb-1.5 text-sm text-slate-600">/ mois HT</span>
                   </div>
-                  <p className="mt-1 text-xs text-gray-500">
+                  <p className="mt-1 text-xs text-slate-500">
                     {annuel ? `Facturé ${prix * 12} € / an` : "Facturé mensuellement"}
                   </p>
 
                   <Button
-                    className={`mt-6 w-full border-0 ${
+                    className={`mt-6 w-full border-0 transition-all duration-300 ${
                       plan.populaire
-                        ? "fp-bg-gradient text-white hover:opacity-90"
-                        : "bg-gray-100 text-gray-900 hover:bg-gray-200"
+                        ? "fp-bg-gradient text-white shadow-lg shadow-[#002e85]/25 hover:opacity-90 hover:shadow-xl hover:shadow-[#002e85]/30"
+                        : "bg-slate-100 text-slate-900 hover:bg-slate-200"
                     }`}
                     onClick={onSignup}
                   >
@@ -1481,16 +1498,16 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
                     <ArrowRight className="h-4 w-4" />
                   </Button>
 
-                  <ul className="mt-6 space-y-3 border-t border-gray-200 pt-6">
+                  <ul className="mt-6 space-y-3 border-t border-slate-200/70 pt-6">
                     {plan.features.map((f) => (
                       <li key={f.texte} className="flex items-start gap-2.5 text-sm">
                         {f.inclus ? (
                           <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" aria-hidden />
                         ) : (
-                          <X className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" aria-hidden />
+                          <X className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden />
                         )}
                         <span
-                          className={f.inclus ? "text-gray-700" : "text-gray-400 line-through"}
+                          className={f.inclus ? "text-slate-700" : "text-slate-400 line-through"}
                         >
                           {f.texte}
                         </span>
@@ -1504,11 +1521,11 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
         </div>
 
         <Reveal delay={120}>
-          <p className="mt-8 text-center text-sm text-gray-600">
+          <p className="mt-8 text-center text-sm text-slate-600">
             Besoin d'une solution sur-mesure pour un grand groupe ?{" "}
             <button
               onClick={onSignup}
-              className="font-medium text-[#002e85] underline-offset-4 hover:underline"
+              className="font-medium text-[#002e85] underline-offset-4 transition-colors hover:text-[#0047c7] hover:underline"
             >
               Parlons-en →
             </button>
@@ -1527,22 +1544,22 @@ function FAQSection() {
   return (
     <section
       id="faq"
-      className="scroll-mt-24 border-y border-gray-200 bg-gray-50"
+      className="relative scroll-mt-24 border-y border-slate-200/70 bg-gradient-to-b from-slate-50/60 via-white/40 to-slate-50/60"
       aria-labelledby="faq-title"
     >
       <div className="mx-auto max-w-3xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
         <Reveal className="text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-blue-600 shadow-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-amber-200/70 bg-amber-50/50 px-3 py-1 text-xs font-medium text-amber-700 shadow-sm backdrop-blur-sm">
             FAQ
           </span>
           <h2
             id="faq-title"
-            className="mt-4 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl"
-            style={{ letterSpacing: "-0.03em" }}
+            className="mt-5 text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl"
+            style={{ letterSpacing: "-0.035em" }}
           >
             Questions <span className="fp-text-gradient">fréquentes</span>
           </h2>
-          <p className="mt-4 text-lg text-gray-600">
+          <p className="mt-5 text-lg leading-relaxed text-slate-600">
             Tout ce que vous devez savoir avant de vous lancer.
           </p>
         </Reveal>
@@ -1553,12 +1570,12 @@ function FAQSection() {
               <AccordionItem
                 key={i}
                 value={`item-${i}`}
-                className="mb-3 rounded-2xl border border-gray-200 bg-white px-5 shadow-sm [&:not(:last-child)]:mb-3"
+                className="mb-3 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/80 px-5 shadow-[0_2px_20px_rgb(15,23,42,0.03)] backdrop-blur-md transition-all duration-300 hover:border-slate-300 hover:shadow-md [&[data-state=open]]:border-[#002e85]/30 [&[data-state=open]]:shadow-lg [&:not(:last-child)]:mb-3"
               >
-                <AccordionTrigger className="text-left text-base font-semibold text-gray-900 hover:no-underline">
+                <AccordionTrigger className="text-left text-base font-semibold text-slate-900 transition-colors hover:text-[#002e85] hover:no-underline">
                   {item.q}
                 </AccordionTrigger>
-                <AccordionContent className="text-sm leading-relaxed text-gray-600">
+                <AccordionContent className="text-sm leading-relaxed text-slate-600">
                   {item.r}
                 </AccordionContent>
               </AccordionItem>
@@ -1576,9 +1593,16 @@ function FAQSection() {
 
 function FinalCTA({ onSignup }: { onSignup: () => void }) {
   return (
-    <section className="px-4 py-24 sm:px-6 lg:px-8 lg:py-32" aria-labelledby="cta-title">
+    <section className="relative px-4 py-24 sm:px-6 lg:px-8 lg:py-32" aria-labelledby="cta-title">
       <Reveal>
-        <div className="relative mx-auto max-w-6xl overflow-hidden rounded-3xl border border-[#002e85]/30 bg-gradient-to-br from-[#002e85] to-[#0047c7] px-6 py-16 text-center shadow-2xl shadow-[#002e85]/30 sm:px-12 sm:py-20">
+        <div className="relative mx-auto max-w-6xl overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-[#002e85] via-[#003bb0] to-[#0047c7] px-6 py-20 text-center shadow-2xl shadow-[#002e85]/40 sm:px-12 sm:py-24">
+          {/* Mesh overlay premium */}
+          <div className="pointer-events-none absolute inset-0" aria-hidden>
+            <div className="absolute -left-20 top-0 h-80 w-80 rounded-full bg-emerald-400/20 blur-3xl" />
+            <div className="absolute right-0 top-1/4 h-72 w-72 rounded-full bg-amber-300/15 blur-3xl" />
+            <div className="absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
+          </div>
+
           {/* Particules décoratives */}
           <div className="pointer-events-none absolute inset-0" aria-hidden>
             <div
@@ -1599,24 +1623,39 @@ function FinalCTA({ onSignup }: { onSignup: () => void }) {
             />
           </div>
 
+          {/* Subtle grid pattern */}
+          <div
+            className="pointer-events-none absolute inset-0 opacity-[0.04]"
+            style={{
+              backgroundImage:
+                "linear-gradient(to right, white 1px, transparent 1px), linear-gradient(to bottom, white 1px, transparent 1px)",
+              backgroundSize: "60px 60px",
+            }}
+            aria-hidden
+          />
+
           <div className="relative">
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-medium text-white backdrop-blur-md">
+              <Sparkles className="h-3.5 w-3.5" />
+              Démarrez dès aujourd'hui
+            </span>
             <h2
               id="cta-title"
-              className="text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl"
-              style={{ letterSpacing: "-0.03em" }}
+              className="mt-6 text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl"
+              style={{ letterSpacing: "-0.035em" }}
             >
               Prêt à transformer <span className="text-white">votre qualité</span> ?
             </h2>
-            <p className="mx-auto mt-4 max-w-xl text-base text-white/90 sm:text-lg">
+            <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-white/90 sm:text-lg">
               Rejoignez les 127+ établissements qui pilotent leur qualité en temps réel. Premier
               rapport dès demain matin.
             </p>
 
-            <div className="mt-8 flex flex-col items-center gap-4">
+            <div className="mt-10 flex flex-col items-center gap-5">
               <Button
                 size="lg"
                 onClick={onSignup}
-                className="h-12 border-0 bg-white px-8 text-base text-[#002e85] shadow-lg hover:bg-gray-50"
+                className="h-14 border-0 bg-white px-8 text-base text-[#002e85] shadow-2xl transition-all duration-300 hover:bg-slate-50 hover:shadow-[0_20px_50px_rgba(0,0,0,0.25)]"
               >
                 Commencer gratuitement
                 <ArrowRight className="h-4 w-4" />
@@ -1647,8 +1686,11 @@ function FinalCTA({ onSignup }: { onSignup: () => void }) {
 function SiteFooter({ onLogin }: { onLogin: () => void }) {
   const annee = new Date().getFullYear()
   return (
-    <footer className="border-t border-gray-800 bg-gray-900 text-white">
-      <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+    <footer className="relative border-t border-slate-800 bg-slate-950 text-white">
+      {/* Subtle ambient glow */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#002e85]/60 to-transparent" aria-hidden />
+      <div className="pointer-events-none absolute -top-32 left-1/2 h-64 w-[40rem] -translate-x-1/2 rounded-full bg-[#002e85]/10 blur-3xl" aria-hidden />
+      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           {/* Colonne 1 : FeedbackPro */}
           <div className="col-span-2 md:col-span-1">
@@ -1658,18 +1700,18 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
                 e.preventDefault()
                 window.scrollTo({ top: 0, behavior: "smooth" })
               }}
-              className="flex items-center gap-2 font-bold"
+              className="flex items-center gap-2 font-bold transition-opacity hover:opacity-80"
               aria-label="Accueil FeedbackPro"
             >
               <img src="/logo-feedbackpro.png" alt="FeedbackPro" className="h-10 w-auto brightness-0 invert" />
             </a>
-            <p className="mt-3 max-w-xs text-sm text-gray-400">
+            <p className="mt-3 max-w-xs text-sm leading-relaxed text-slate-400">
               Le Client Mystère 2.0 : chaque client devient auditeur qualité, chaque matin devient
               plan d'action.
             </p>
             <button
               onClick={onLogin}
-              className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-[#5b8def] hover:underline"
+              className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-[#5b8def] transition-colors hover:text-[#7da8ff] hover:underline"
             >
               Se connecter
               <ArrowRight className="h-3.5 w-3.5" />
@@ -1678,14 +1720,14 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
 
           {/* Colonne 2 : Produit */}
           <nav aria-label="Produit">
-            <h3 className="text-xs font-semibold uppercase tracking-widest text-gray-500">
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500">
               Produit
             </h3>
             <ul className="mt-4 space-y-2.5">
               <li>
                 <a
                   href="/fonctionnalites"
-                  className="text-sm text-gray-400 transition-colors hover:text-white"
+                  className="text-sm text-slate-400 transition-colors duration-200 hover:text-white"
                 >
                   Fonctionnalités
                 </a>
@@ -1693,7 +1735,7 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
               <li>
                 <a
                   href="/demo"
-                  className="text-sm text-gray-400 transition-colors hover:text-white"
+                  className="text-sm text-slate-400 transition-colors duration-200 hover:text-white"
                 >
                   Comment ça marche
                 </a>
@@ -1701,7 +1743,7 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
               <li>
                 <a
                   href="/cas-usage"
-                  className="text-sm text-gray-400 transition-colors hover:text-white"
+                  className="text-sm text-slate-400 transition-colors duration-200 hover:text-white"
                 >
                   Cas d'usage
                 </a>
@@ -1709,7 +1751,7 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
               <li>
                 <a
                   href="/tarifs"
-                  className="text-sm text-gray-400 transition-colors hover:text-white"
+                  className="text-sm text-slate-400 transition-colors duration-200 hover:text-white"
                 >
                   Tarifs
                 </a>
@@ -1717,7 +1759,7 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
               <li>
                 <a
                   href="/comparaison"
-                  className="text-sm text-gray-400 transition-colors hover:text-white"
+                  className="text-sm text-slate-400 transition-colors duration-200 hover:text-white"
                 >
                   Comparatif
                 </a>
@@ -1727,14 +1769,14 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
 
           {/* Colonne 3 : Ressources */}
           <nav aria-label="Ressources">
-            <h3 className="text-xs font-semibold uppercase tracking-widest text-gray-500">
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500">
               Ressources
             </h3>
             <ul className="mt-4 space-y-2.5">
               <li>
                 <a
                   href="/faq"
-                  className="text-sm text-gray-400 transition-colors hover:text-white"
+                  className="text-sm text-slate-400 transition-colors duration-200 hover:text-white"
                 >
                   FAQ
                 </a>
@@ -1742,7 +1784,7 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
               <li>
                 <a
                   href="/temoignages"
-                  className="text-sm text-gray-400 transition-colors hover:text-white"
+                  className="text-sm text-slate-400 transition-colors duration-200 hover:text-white"
                 >
                   Témoignages
                 </a>
@@ -1750,7 +1792,7 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
               <li>
                 <a
                   href="/a-propos"
-                  className="text-sm text-gray-400 transition-colors hover:text-white"
+                  className="text-sm text-slate-400 transition-colors duration-200 hover:text-white"
                 >
                   À propos
                 </a>
@@ -1758,7 +1800,7 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
               <li>
                 <a
                   href="/contact"
-                  className="text-sm text-gray-400 transition-colors hover:text-white"
+                  className="text-sm text-slate-400 transition-colors duration-200 hover:text-white"
                 >
                   Contact
                 </a>
@@ -1768,14 +1810,14 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
 
           {/* Colonne 4 : Légal */}
           <nav aria-label="Légal">
-            <h3 className="text-xs font-semibold uppercase tracking-widest text-gray-500">
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500">
               Légal
             </h3>
             <ul className="mt-4 space-y-2.5">
               <li>
                 <a
                   href="/mentions-legales"
-                  className="text-sm text-gray-400 transition-colors hover:text-white"
+                  className="text-sm text-slate-400 transition-colors duration-200 hover:text-white"
                 >
                   Mentions légales
                 </a>
@@ -1783,7 +1825,7 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
               <li>
                 <a
                   href="/cgu"
-                  className="text-sm text-gray-400 transition-colors hover:text-white"
+                  className="text-sm text-slate-400 transition-colors duration-200 hover:text-white"
                 >
                   Conditions générales
                 </a>
@@ -1791,7 +1833,7 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
               <li>
                 <a
                   href="/confidentialite"
-                  className="text-sm text-gray-400 transition-colors hover:text-white"
+                  className="text-sm text-slate-400 transition-colors duration-200 hover:text-white"
                 >
                   Confidentialité
                 </a>
@@ -1799,7 +1841,7 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
               <li>
                 <a
                   href="/cookies"
-                  className="text-sm text-gray-400 transition-colors hover:text-white"
+                  className="text-sm text-slate-400 transition-colors duration-200 hover:text-white"
                 >
                   Cookies
                 </a>
@@ -1808,11 +1850,11 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
           </nav>
         </div>
 
-        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-gray-800 pt-6 sm:flex-row">
-          <p className="text-xs text-gray-500">
+        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-slate-800 pt-6 sm:flex-row">
+          <p className="text-xs text-slate-500">
             © {annee} FeedbackPro. Fait avec ❤️ en France.
           </p>
-          <div className="flex items-center gap-2 text-xs text-gray-500">
+          <div className="flex items-center gap-2 text-xs text-slate-500">
             <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
             Hébergement européen · Conforme RGPD
           </div>
@@ -1828,7 +1870,13 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
 
 export function LandingView({ onLogin, onSignup }: { onLogin: () => void; onSignup: () => void }) {
   return (
-    <div className="relative min-h-screen bg-white text-gray-900">
+    <div className="relative min-h-screen overflow-x-hidden bg-gradient-to-b from-white via-slate-50/40 to-white text-slate-900">
+      {/* Ambient premium background glows */}
+      <div className="pointer-events-none fixed inset-0 -z-30" aria-hidden>
+        <div className="absolute -left-40 top-0 h-[40rem] w-[40rem] rounded-full bg-[#002e85]/[0.06] blur-[120px]" />
+        <div className="absolute right-0 top-1/3 h-[36rem] w-[36rem] rounded-full bg-emerald-400/[0.05] blur-[120px]" />
+        <div className="absolute bottom-0 left-1/3 h-[32rem] w-[32rem] rounded-full bg-amber-400/[0.04] blur-[120px]" />
+      </div>
       <SiteHeader onLogin={onLogin} onSignup={onSignup} />
       <div className="flex-1">
         <Hero onSignup={onSignup} />
