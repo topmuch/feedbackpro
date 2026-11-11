@@ -2641,8 +2641,8 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                         className={cn(
                           "inline-flex items-center gap-1.5 rounded-full border px-4 h-12 text-sm font-medium transition-all",
                           selected
-                            ? "border-[#002e85] bg-[#002e85] text-white shadow-md hover:bg-[#002e85]/90"
-                            : "border-border bg-background text-foreground hover:bg-muted hover:border-[#002e85]/40"
+                            ? "border-[#5257C9] bg-[#5257C9] text-white shadow-md hover:bg-[#5257C9]/90"
+                            : "border-border bg-background text-foreground hover:bg-muted hover:border-[#5257C9]/40"
                         )}
                       >
                         <span aria-hidden>{selected ? "✅" : "⬜"}</span>
@@ -2721,7 +2721,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                 </div>
               )}
               <Button
-                className="w-full h-14 gap-1.5 text-base font-bold bg-[#002e85] hover:bg-[#002e85]/90 shadow-lg shadow-[#002e85]/30 transition-all hover:shadow-xl hover:shadow-[#002e85]/40"
+                className="w-full h-14 gap-1.5 text-base font-bold bg-[#5257C9] hover:bg-[#5257C9]/90 shadow-lg shadow-[#5257C9]/30 transition-all hover:shadow-xl hover:shadow-[#5257C9]/40"
                 onClick={enregistrerAction}
                 disabled={envoiAction || (actionTagsSelectionnes.size === 0 && !texteAction.trim())}
               >
@@ -3248,7 +3248,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
                 fRapide === "urgent"
-                  ? "bg-[#002e85] text-white dark:bg-primary"
+                  ? "bg-[#5257C9] text-white dark:bg-primary"
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
               )}
             >
@@ -3266,7 +3266,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
                 fRapide === "inprogress"
-                  ? "bg-[#002e85] text-white dark:bg-primary"
+                  ? "bg-[#5257C9] text-white dark:bg-primary"
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
               )}
             >
@@ -3284,7 +3284,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
                 fRapide === "resolved"
-                  ? "bg-[#002e85] text-white dark:bg-primary"
+                  ? "bg-[#5257C9] text-white dark:bg-primary"
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
               )}
             >
@@ -3313,7 +3313,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                 className={cn(
                   "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
                   fTemporel === opt.id
-                    ? "bg-[#002e85] text-white dark:bg-primary"
+                    ? "bg-[#5257C9] text-white dark:bg-primary"
                     : "bg-muted text-muted-foreground hover:bg-muted/80"
                 )}
               >

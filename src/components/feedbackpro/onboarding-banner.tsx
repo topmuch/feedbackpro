@@ -89,15 +89,15 @@ export function OnboardingBanner() {
   }
 
   return (
-    <div className="rounded-3xl border border-[#002e85]/20 bg-gradient-to-br from-[#002e85]/5 to-[#0047c7]/5 p-4 sm:p-5">
+    <div className="rounded-2xl border border-[#5257C9]/20 bg-gradient-to-br from-[#5257C9]/5 to-[#0047c7]/5 p-4 sm:p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-[#002e85]" aria-hidden />
+          <Sparkles className="h-5 w-5 text-[#5257C9]" aria-hidden />
           <div>
-            <p className="text-sm font-bold text-[#002e85]">
+            <p className="text-sm font-bold text-[#1E1E2E]">
               Bienvenue sur FeedbackPro — votre première semaine
             </p>
-            <p className="text-xs text-muted-foreground">
+            <p className="text-xs text-[#9A9AAE]">
               4 étapes pour activer votre Coach IA qualité — progression {progression}%
             </p>
           </div>
@@ -115,7 +115,7 @@ export function OnboardingBanner() {
       {/* Barre de progression */}
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
         <div
-          className="h-full rounded-full bg-[#002e85] transition-all duration-500"
+          className="h-full rounded-full bg-[#5257C9] transition-all duration-500"
           style={{ width: `${progression}%` }}
         />
       </div>
@@ -134,7 +134,7 @@ export function OnboardingBanner() {
                 faite
                   ? "border-green-300 bg-green-50"
                   : active
-                    ? "border-[#002e85] bg-white shadow-sm ring-2 ring-[#002e85]/10"
+                    ? "border-[#5257C9] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] ring-2 ring-[#5257C9]/10"
                     : "border-border bg-muted/30 opacity-60"
               )}
             >
@@ -142,7 +142,7 @@ export function OnboardingBanner() {
                 <span
                   className={cn(
                     "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
-                    faite ? "bg-green-500 text-white" : active ? "bg-[#002e85] text-white" : "bg-muted-foreground/30 text-muted-foreground"
+                    faite ? "bg-green-500 text-white" : active ? "bg-[#5257C9] text-white" : "bg-muted-foreground/30 text-muted-foreground"
                   )}
                 >
                   {faite ? <Check className="h-3 w-3" /> : etape.n}
@@ -151,7 +151,7 @@ export function OnboardingBanner() {
               </div>
               <p className="text-[11px] leading-snug text-muted-foreground">{etape.description}</p>
               {active && etape.tips && (
-                <p className="text-[10px] italic text-[#002e85]">💡 {etape.tips}</p>
+                <p className="text-[10px] italic text-[#5257C9]">💡 {etape.tips}</p>
               )}
             </a>
           )
@@ -165,7 +165,7 @@ export function OnboardingBanner() {
             size="sm"
             onClick={validerEtape}
             disabled={enCours}
-            className="bg-[#002e85] text-white hover:bg-[#002e85]/90"
+            className="bg-[#5257C9] text-white hover:bg-[#5257C9]/90"
           >
             {enCours ? (
               <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />

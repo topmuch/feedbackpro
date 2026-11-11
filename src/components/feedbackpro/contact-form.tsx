@@ -137,7 +137,7 @@ export function ContactForm() {
       <Button
         type="submit"
         disabled={envoi}
-        className="w-full bg-gradient-to-br from-[#002e85] to-[#0047c7] text-white hover:opacity-90"
+        className="w-full bg-gradient-to-br from-[#5257C9] to-[#0047c7] text-white hover:opacity-90"
       >
         {envoi ? (
           <>

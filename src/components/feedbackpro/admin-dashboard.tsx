@@ -270,10 +270,10 @@ type SettingsForm = {
 const COULEURS_PLANS: Record<string, string> = {
   STARTER: "#94a3b8",
   PRO: "#0047c7",
-  ENTERPRISE: "#002e85",
+  ENTERPRISE: "#5257C9",
   FRANCHISE: "#d97706", // ambre — distinct des autres plans
 }
-const COULEURS_SUPPORTS = ["#002e85", "#0047c7", "#1e3a8a"]
+const COULEURS_SUPPORTS = ["#5257C9", "#0047c7", "#1e3a8a"]
 
 /** Libellé d'un plan depuis son id (STARTER → Starter) */
 function nomPlan(plan: string | undefined): string {
@@ -367,9 +367,14 @@ export function AdminDashboard() {
   const emailAdmin = session?.user?.email ?? ""
 
   return (
-    <div className="flex min-h-screen flex-col bg-muted/30 lg:pl-80 lg:pr-3">
+    <div className="relative flex min-h-screen flex-col bg-[#E9E9EF] lg:pl-72 lg:pr-3">
+      {/* ---------- Pastilles décoratives floues (vert + indigo) ---------- */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+        <div className="absolute -left-32 -top-24 h-[28rem] w-[28rem] rounded-full bg-[#4CC96B]/15 blur-3xl" />
+        <div className="absolute -right-24 -top-16 h-[24rem] w-[24rem] rounded-full bg-[#5257C9]/10 blur-3xl" />
+      </div>
       {/* ---------- Sidebar détachée (desktop lg+) ---------- */}
-      <aside className="fixed inset-y-3 left-3 z-40 hidden w-72 flex-col rounded-3xl bg-[#002e85] text-white shadow-xl lg:flex">
+      <aside className="fixed inset-y-4 left-4 z-40 hidden w-64 flex-col rounded-3xl bg-[#5257C9] text-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] lg:flex">
         <ContenuSidebarAdmin
           ongletActif={onglet}
           onNaviguer={naviguer}
@@ -380,11 +385,11 @@ export function AdminDashboard() {
       </aside>
 
       {/* ---------- Top bar discrète (card blanc arrondie) ---------- */}
-      <header className="sticky top-3 z-30 mx-3 mt-3 lg:mx-0">
-        <div className="flex h-14 items-center justify-between gap-3 rounded-3xl bg-card px-4 shadow-sm sm:h-16 sm:px-5">
+      <header className="sticky top-4 z-30 mx-3 mt-4 lg:mx-0">
+        <div className="flex h-14 items-center justify-between gap-3 rounded-2xl bg-card px-4 shadow-[0_10px_30px_rgba(0,0,0,0.06)] sm:h-16 sm:px-5">
           <div className="flex min-w-0 items-center gap-2.5">
             <Sheet open={menuOuvert} onOpenChange={setMenuOuvert}>
-              <SheetContent side="left" className="w-72 border-0 bg-[#002e85] p-0 text-white" aria-describedby={undefined}>
+              <SheetContent side="left" className="w-72 border-0 bg-[#5257C9] p-0 text-white" aria-describedby={undefined}>
                 <SheetTitle className="sr-only">{t("common.navigationAdmin")}</SheetTitle>
                 <ContenuSidebarAdmin
                   ongletActif={onglet}
@@ -405,8 +410,8 @@ export function AdminDashboard() {
               <Menu className="h-5 w-5" aria-hidden />
             </Button>
             <div className="min-w-0">
-              <p className="truncate font-semibold text-foreground">{titreOnglet}</p>
-              <p className="hidden truncate text-xs text-muted-foreground sm:block">{t("dashboard.titreAdmin")}</p>
+              <p className="truncate font-semibold text-[#1E1E2E]">{titreOnglet}</p>
+              <p className="hidden truncate text-xs text-[#9A9AAE] sm:block">{t("dashboard.titreAdmin")}</p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
@@ -414,7 +419,7 @@ export function AdminDashboard() {
             <LanguageSelector tone="light" />
             <NotificationsBell tone="light" />
             <ThemeToggle />
-            <span className="hidden text-sm text-muted-foreground md:block max-w-48 truncate">{emailAdmin}</span>
+            <span className="hidden text-sm text-[#9A9AAE] md:block max-w-48 truncate">{emailAdmin}</span>
             <Button
               variant="ghost"
               size="icon"
@@ -494,10 +499,10 @@ function ContenuSidebarAdmin({
               type="button"
               onClick={() => onNaviguer(o.id)}
               aria-current={actif ? "page" : undefined}
-              className={`flex h-11 shrink-0 items-center gap-3 rounded-2xl px-3.5 text-sm transition-colors ${
+              className={`flex h-11 shrink-0 items-center gap-3 rounded-2xl px-3.5 text-[11px] font-semibold uppercase tracking-wide transition-colors ${
                 actif
-                  ? "bg-white/15 font-semibold text-white"
-                  : "text-white/75 hover:bg-white/10 hover:text-white"
+                  ? "-mr-2 bg-white text-[#1E1E2E] shadow-[0_6px_18px_rgba(0,0,0,0.08)]"
+                  : "text-white/80 hover:bg-white/10 hover:text-white"
               }`}
             >
               <Icone className="h-[18px] w-[18px] shrink-0" aria-hidden />
@@ -689,8 +694,8 @@ function GlobaleTab({ overview }: { overview: OverviewApi | null }) {
               <AreaChart data={croissance} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
                 <defs>
                   <linearGradient id="gradPros" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#002e85" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="#002e85" stopOpacity={0.02} />
+                    <stop offset="0%" stopColor="#5257C9" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="#5257C9" stopOpacity={0.02} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
@@ -701,7 +706,7 @@ function GlobaleTab({ overview }: { overview: OverviewApi | null }) {
                   labelStyle={{ color: "#1c1917", fontWeight: 600 }}
                   contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 13 }}
                 />
-                <Area type="monotone" dataKey="nouveaux" stroke="#002e85" strokeWidth={2.5} fill="url(#gradPros)" />
+                <Area type="monotone" dataKey="nouveaux" stroke="#5257C9" strokeWidth={2.5} fill="url(#gradPros)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -730,7 +735,7 @@ function GlobaleTab({ overview }: { overview: OverviewApi | null }) {
                     labelStyle={{ color: "#1c1917", fontWeight: 600 }}
                     contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 13 }}
                   />
-                  <Bar dataKey="retours" fill="#002e85" radius={[0, 6, 6, 0]} barSize={18} />
+                  <Bar dataKey="retours" fill="#5257C9" radius={[0, 6, 6, 0]} barSize={18} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -832,7 +837,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
   const [wlForm, setWlForm] = useState({
     whiteLabel: false,
     brandName: "",
-    brandColor: "#002e85",
+    brandColor: "#5257C9",
     brandLogoUrl: "",
   })
   const [envoiWl, setEnvoiWl] = useState(false)
@@ -1046,7 +1051,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
     setWlForm({
       whiteLabel: pro.whiteLabel ?? false,
       brandName: pro.brandName ?? "",
-      brandColor: pro.brandColor || "#002e85",
+      brandColor: pro.brandColor || "#5257C9",
       brandLogoUrl: pro.brandLogoUrl ?? "",
     })
   }
@@ -3028,7 +3033,7 @@ function RevenusTab() {
                 <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
                 <Tooltip formatter={(v, nom) => [`${v} €`, String(nom)]} labelStyle={{ color: "#1c1917" }} />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: 13 }} />
-                <Bar dataKey="abonnements" name="Abonnements (MRR)" fill="#002e85" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="abonnements" name="Abonnements (MRR)" fill="#5257C9" radius={[4, 4, 0, 0]} />
                 <Bar dataKey="supports" name="Supports" fill="#0047c7" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -4628,7 +4633,7 @@ type RetentionData = {
   periode: { debut: string; fin: string; nbMois: number }
 }
 
-const COULEURS_REPARTITION = ["#002e85", "#0047c7", "#94a3b8", "#1e3a8a", "#64748b"]
+const COULEURS_REPARTITION = ["#5257C9", "#0047c7", "#94a3b8", "#1e3a8a", "#64748b"]
 
 function RetentionTab() {
   const [data, setData] = useState<RetentionData | null>(null)

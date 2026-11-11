@@ -10,17 +10,14 @@ import {
   Star,
   MessageSquare,
   TrendingUp,
-  TrendingDown,
   BellRing,
-  RefreshCw,
   Check,
   AlertTriangle,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
-import { StatCard, Stars, formatRelative } from "@/components/feedbackpro/shared"
+import { Stars, formatRelative } from "@/components/feedbackpro/shared"
 import { useToast } from "@/hooks/use-toast"
 import { STATUT_RETOUR_LABEL, tagLabel } from "@/lib/constants"
 import {
@@ -112,45 +109,86 @@ export function OverviewTab() {
     <div className="space-y-6">
       {/* En-tête */}
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Tableau de bord</h1>
-        <p className="text-sm text-muted-foreground">Vue d&apos;ensemble de votre qualité de service</p>
+        <h1 className="text-2xl font-bold tracking-tight text-[#1E1E2E]">Tableau de bord</h1>
+        <p className="text-sm text-[#9A9AAE]">Vue d&apos;ensemble de votre qualité de service</p>
       </div>
 
-      {/* KPI cards */}
+      {/* KPI cards — palette FeedbackPro : vert (note), indigo (retours),
+          blanc avec accent (taux), rose (alertes). Chaque carte colorée
+          a un fond uni avec texte blanc ; la carte blanche garde les
+          accents colorés (icône + chiffres). */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          icon={Star}
-          label="Score qualité (30j)"
-          value={`${score}/100`}
-          hint={evolution != null ? `${evolution > 0 ? "+" : ""}${evolution}% vs mois précédent` : "Premier mois"}
-          hintTone={evolution != null ? (evolution >= 0 ? "up" : "down") : "neutral"}
-        />
-        <StatCard
-          icon={MessageSquare}
-          label="Retours ce mois"
-          value={data.retoursMois}
-          hint="Retours collectés"
-        />
-        <StatCard
-          icon={Check}
-          label="Taux d'interception"
-          value={`${data.tauxInterception}%`}
-          hint="Réclamations interceptées"
-          hintTone="up"
-        />
-        <StatCard
-          icon={BellRing}
-          label="Alertes non lues"
-          value={data.alertesNonLues}
-          hint={data.alertesNonLues > 0 ? "À traiter" : "Tout est à jour"}
-          hintTone={data.alertesNonLues > 0 ? "down" : "up"}
-        />
+        {/* Note moyenne — vert #4CC96B */}
+        <div className="relative overflow-hidden rounded-2xl bg-[#4CC96B] p-5 text-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] sm:p-6">
+          <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/10" aria-hidden />
+          <div className="relative flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm text-white/85 truncate">Score qualité (30j)</p>
+              <p className="text-2xl sm:text-3xl font-bold tracking-tight mt-1.5">{score}/100</p>
+              <p className={`flex items-center gap-1 text-xs mt-2 ${evolution != null ? (evolution >= 0 ? "text-white/90" : "text-white/90") : "text-white/80"}`}>
+                {evolution != null
+                  ? `${evolution > 0 ? "+" : ""}${evolution}% vs mois précédent`
+                  : "Premier mois"}
+              </p>
+            </div>
+            <div className="shrink-0 rounded-2xl bg-white/20 p-2.5" aria-hidden>
+              <Star className="h-5 w-5 text-white" />
+            </div>
+          </div>
+        </div>
+
+        {/* Retours — indigo #5257C9 */}
+        <div className="relative overflow-hidden rounded-2xl bg-[#5257C9] p-5 text-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] sm:p-6">
+          <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/10" aria-hidden />
+          <div className="relative flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm text-white/85 truncate">Retours ce mois</p>
+              <p className="text-2xl sm:text-3xl font-bold tracking-tight mt-1.5">{data.retoursMois}</p>
+              <p className="text-xs text-white/80 mt-2">Retours collectés</p>
+            </div>
+            <div className="shrink-0 rounded-2xl bg-white/20 p-2.5" aria-hidden>
+              <MessageSquare className="h-5 w-5 text-white" />
+            </div>
+          </div>
+        </div>
+
+        {/* Taux d'interception — carte blanche avec accents colorés (vert) */}
+        <div className="relative overflow-hidden rounded-2xl bg-white p-5 text-[#1E1E2E] shadow-[0_10px_30px_rgba(0,0,0,0.06)] sm:p-6">
+          <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-[#4CC96B]/10" aria-hidden />
+          <div className="relative flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm text-[#9A9AAE] truncate">Taux d'interception</p>
+              <p className="text-2xl sm:text-3xl font-bold tracking-tight mt-1.5">{data.tauxInterception}%</p>
+              <p className="flex items-center gap-1 text-xs mt-2 text-[#4CC96B]">
+                <TrendingUp size={13} aria-hidden /> Réclamations interceptées
+              </p>
+            </div>
+            <div className="shrink-0 rounded-2xl bg-[#4CC96B]/10 p-2.5" aria-hidden>
+              <Check className="h-5 w-5 text-[#4CC96B]" />
+            </div>
+          </div>
+        </div>
+
+        {/* Alertes non lues — rose #E0447E */}
+        <div className="relative overflow-hidden rounded-2xl bg-[#E0447E] p-5 text-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] sm:p-6">
+          <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/10" aria-hidden />
+          <div className="relative flex items-start justify-between gap-3">
+            <div className="min-w-0">
+              <p className="text-xs sm:text-sm text-white/85 truncate">Alertes non lues</p>
+              <p className="text-2xl sm:text-3xl font-bold tracking-tight mt-1.5">{data.alertesNonLues}</p>
+              <p className="text-xs text-white/80 mt-2">{data.alertesNonLues > 0 ? "À traiter" : "Tout est à jour"}</p>
+            </div>
+            <div className="shrink-0 rounded-2xl bg-white/20 p-2.5" aria-hidden>
+              <BellRing className="h-5 w-5 text-white" />
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Graphique d'évolution 30 jours */}
-      <Card className="rounded-3xl border-none shadow-sm">
+      <Card className="rounded-2xl border-none shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base sm:text-lg">Évolution du score (30 derniers jours)</CardTitle>
+          <CardTitle className="text-base sm:text-lg text-[#1E1E2E]">Évolution du score (30 derniers jours)</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-64 w-full">
@@ -184,9 +222,9 @@ export function OverviewTab() {
       </Card>
 
       {/* Derniers retours */}
-      <Card className="rounded-3xl border-none shadow-sm">
+      <Card className="rounded-2xl border-none shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base sm:text-lg">Derniers retours clients</CardTitle>
+          <CardTitle className="text-base sm:text-lg text-[#1E1E2E]">Derniers retours clients</CardTitle>
         </CardHeader>
         <CardContent>
           {data.derniersRetours && data.derniersRetours.length > 0 ? (
@@ -252,7 +290,7 @@ export function OverviewTab() {
 
       {/* Alerte si alertes non lues */}
       {data.alertesNonLues > 0 && (
-        <Card className="rounded-3xl border-amber-300 bg-amber-50">
+        <Card className="rounded-2xl border-amber-300 bg-amber-50">
           <CardContent className="flex items-center gap-3 p-4">
             <AlertTriangle className="h-5 w-5 shrink-0 text-amber-600" aria-hidden />
             <div className="min-w-0">

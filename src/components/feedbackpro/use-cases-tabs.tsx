@@ -36,7 +36,7 @@ export function UseCasesTabs() {
           <TabsTrigger
             key={uc.id}
             value={uc.id}
-            className="flex-1 shrink-0 rounded-xl border border-transparent px-4 py-2 text-sm font-medium text-gray-600 transition-all hover:bg-gray-200 data-[state=active]:border-transparent data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#002e85] data-[state=active]:to-[#0047c7] data-[state=active]:text-white data-[state=active]:shadow-[0_0_20px_rgba(0,46,133,0.4)]"
+            className="flex-1 shrink-0 rounded-xl border border-transparent px-4 py-2 text-sm font-medium text-gray-600 transition-all hover:bg-gray-200 data-[state=active]:border-transparent data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#5257C9] data-[state=active]:to-[#0047c7] data-[state=active]:text-white data-[state=active]:shadow-[0_0_20px_rgba(82,87,201,0.4)]"
           >
             <span className="mr-1.5">{uc.emoji}</span>
             <span className="hidden sm:inline">{uc.label}</span>
@@ -50,7 +50,7 @@ export function UseCasesTabs() {
           <TabsContent key={uc.id} value={uc.id} className="mt-6">
             <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
               <div className="flex items-center gap-3">
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#002e85] to-[#0047c7] text-white">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#5257C9] to-[#0047c7] text-white">
                   <Icone className="h-6 w-6" />
                 </span>
                 <div>

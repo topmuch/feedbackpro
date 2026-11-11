@@ -375,8 +375,13 @@ export function ProDashboard() {
   // ---------- Coquille squelette pendant le chargement de la session ----------
   if (!session) {
     return (
-      <div className="flex min-h-screen flex-col bg-muted/30 lg:pl-80 lg:pr-3">
-        <aside className="fixed inset-y-3 left-3 z-40 hidden w-72 flex-col rounded-3xl bg-[#002e85] text-white shadow-xl lg:flex">
+      <div className="relative flex min-h-screen flex-col bg-[#E9E9EF] lg:pl-72 lg:pr-3">
+        {/* Pastilles décoratives floues (vert + indigo) derrière tout */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+          <div className="absolute -left-32 -top-24 h-[28rem] w-[28rem] rounded-full bg-[#4CC96B]/15 blur-3xl" />
+          <div className="absolute -right-24 -top-16 h-[24rem] w-[24rem] rounded-full bg-[#5257C9]/10 blur-3xl" />
+        </div>
+        <aside className="fixed inset-y-4 left-4 z-40 hidden w-64 flex-col rounded-3xl bg-[#5257C9] text-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] lg:flex">
           <div className="flex items-center gap-2.5 px-5 py-5">
             <Skeleton className="h-10 w-10 rounded-xl bg-white/20" />
             <div className="flex-1 space-y-2">
@@ -390,8 +395,8 @@ export function ProDashboard() {
             ))}
           </div>
         </aside>
-        <header className="sticky top-3 z-30 mx-3 mt-3 lg:mx-0">
-          <div className="flex h-14 items-center justify-between gap-3 rounded-3xl bg-card px-4 shadow-sm sm:h-16 sm:px-5">
+        <header className="sticky top-4 z-30 mx-3 mt-4 lg:mx-0">
+          <div className="flex h-14 items-center justify-between gap-3 rounded-2xl bg-card px-4 shadow-[0_10px_30px_rgba(0,0,0,0.06)] sm:h-16 sm:px-5">
             <Skeleton className="h-8 w-8 rounded-lg lg:hidden" />
             <Skeleton className="h-5 w-40" />
             <div className="flex-1" />
@@ -414,17 +419,22 @@ export function ProDashboard() {
 
   return (
     <div className={cn(
-      "flex min-h-screen flex-col bg-muted/30 lg:pl-80",
+      "relative flex min-h-screen flex-col bg-[#E9E9EF] lg:pl-72",
       onglet !== "airport-wallboard" && "lg:pr-3"
     )}>
+      {/* ---------- Pastilles décoratives floues (vert + indigo) ---------- */}
+      <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+        <div className="absolute -left-32 -top-24 h-[28rem] w-[28rem] rounded-full bg-[#4CC96B]/15 blur-3xl" />
+        <div className="absolute -right-24 -top-16 h-[24rem] w-[24rem] rounded-full bg-[#5257C9]/10 blur-3xl" />
+      </div>
       {/* ---------- Sidebar détachée (desktop lg+) ---------- */}
-      <aside className="fixed inset-y-3 left-3 z-40 hidden w-72 flex-col rounded-3xl bg-[#002e85] text-white shadow-xl lg:flex">
+      <aside className="fixed inset-y-4 left-4 z-40 hidden w-64 flex-col rounded-3xl bg-[#5257C9] text-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] lg:flex">
         <ContenuSidebar ongletActif={onglet} onNaviguer={naviguer} retoursNonLus={retoursNonLus} estAeroport={typeEtablissement === "Aéroport"} airportEnAttente={airportEnAttente} />
       </aside>
 
       {/* ---------- Top bar discrète (card blanc arrondie) ---------- */}
-      <header className="sticky top-3 z-30 mx-3 mt-3 lg:mx-0">
-        <div className="flex h-14 items-center justify-between gap-3 rounded-3xl bg-card px-4 shadow-sm sm:h-16 sm:px-5">
+      <header className="sticky top-4 z-30 mx-3 mt-4 lg:mx-0">
+        <div className="flex h-14 items-center justify-between gap-3 rounded-2xl bg-card px-4 shadow-[0_10px_30px_rgba(0,0,0,0.06)] sm:h-16 sm:px-5">
           {/* Gauche : burger (mobile) + nom de l'établissement + secteur */}
           <div className="flex min-w-0 items-center gap-2.5">
             <Sheet open={menuOuvert} onOpenChange={setMenuOuvert}>
@@ -439,7 +449,7 @@ export function ProDashboard() {
                   <Menu className="h-5 w-5" aria-hidden />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-72 border-0 bg-[#002e85] p-0 text-white" aria-describedby={undefined}>
+              <SheetContent side="left" className="w-72 border-0 bg-[#5257C9] p-0 text-white" aria-describedby={undefined}>
                 <SheetTitle className="sr-only">{t("common.navigationDashboard")}</SheetTitle>
                 <ContenuSidebar
                   ongletActif={onglet}
@@ -502,8 +512,8 @@ export function ProDashboard() {
               </DropdownMenu>
             ) : (
               <div className="min-w-0">
-                <p className="truncate font-semibold text-foreground">{nomEtablissement}</p>
-                <p className="hidden truncate text-xs text-muted-foreground sm:block">{t("common.tableauBordFeedback")}</p>
+                <p className="truncate font-semibold text-[#1E1E2E]">{nomEtablissement}</p>
+                <p className="hidden truncate text-xs text-[#9A9AAE] sm:block">{t("common.tableauBordFeedback")}</p>
               </div>
             )}
             {/* Task M4 — Badge Secteur : emoji + nom du secteur (masqué sur
@@ -617,9 +627,9 @@ function BoutonOnglet({
       onClick={() => onNaviguer(entree.id)}
       aria-current={actif ? "page" : undefined}
       className={cn(
-        "relative mx-3 flex h-11 shrink-0 items-center gap-3 rounded-2xl px-3.5 text-sm transition-colors",
+        "relative mx-3 flex h-11 shrink-0 items-center gap-3 rounded-2xl px-3.5 text-[11px] font-semibold uppercase tracking-wide transition-colors",
         actif
-          ? "bg-white/15 font-semibold text-white"
+          ? "-mr-2 bg-white text-[#1E1E2E] shadow-[0_6px_18px_rgba(0,0,0,0.08)]"
           : "text-white/80 hover:bg-white/10 hover:text-white"
       )}
     >
@@ -674,7 +684,7 @@ function ContenuSidebar({
         {estAeroport && (
           <>
             <p
-              className="px-6 pt-4 pb-1 text-[11px] font-medium uppercase tracking-wider text-emerald-300/80"
+              className="px-6 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-[#E8B54D]"
               role="presentation"
             >
               ✈️ {t("nav.aeroport")}

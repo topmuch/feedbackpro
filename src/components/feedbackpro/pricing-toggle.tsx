@@ -41,7 +41,7 @@ export function PricingToggle({ plans }: { plans: Plan[] }) {
           aria-label="Basculer en facturation annuelle"
           onClick={() => setAnnuel((v) => !v)}
           className={`relative h-7 w-12 rounded-full transition-colors ${
-            annuel ? "bg-gradient-to-br from-[#002e85] to-[#0047c7]" : "bg-gray-300"
+            annuel ? "bg-gradient-to-br from-[#5257C9] to-[#0047c7]" : "bg-gray-300"
           }`}
         >
           <span
@@ -71,12 +71,12 @@ export function PricingToggle({ plans }: { plans: Plan[] }) {
               key={plan.id}
               className={`relative flex h-full flex-col rounded-3xl p-6 sm:p-8 ${
                 plan.populaire
-                  ? "border-2 border-[#002e85] bg-white shadow-lg shadow-[#002e85]/20 lg:scale-105"
+                  ? "border-2 border-[#5257C9] bg-white shadow-lg shadow-[#5257C9]/20 lg:scale-105"
                   : "border border-gray-200 bg-white shadow-sm"
               }`}
             >
               {plan.populaire && (
-                <span className="absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-gradient-to-br from-[#002e85] to-[#0047c7] px-3 py-1 text-xs font-semibold text-white shadow-lg">
+                <span className="absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-gradient-to-br from-[#5257C9] to-[#0047c7] px-3 py-1 text-xs font-semibold text-white shadow-lg">
                   <Trophy className="h-3.5 w-3.5" />
                   Recommandé
                 </span>
@@ -99,7 +99,7 @@ export function PricingToggle({ plans }: { plans: Plan[] }) {
                 asChild
                 className={`mt-6 w-full border-0 ${
                   plan.populaire
-                    ? "bg-gradient-to-br from-[#002e85] to-[#0047c7] text-white hover:opacity-90"
+                    ? "bg-gradient-to-br from-[#5257C9] to-[#0047c7] text-white hover:opacity-90"
                     : "bg-gray-100 text-gray-900 hover:bg-gray-200"
                 }`}
               >
