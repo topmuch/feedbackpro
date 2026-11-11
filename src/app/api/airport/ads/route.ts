@@ -46,11 +46,36 @@ function serializeAd(a: {
   }
 }
 
-// ---------- GET : une publicité active au hasard ----------
-export async function GET() {
-  // Compte les pubs actives puis en sélectionne une au hasard via
-  // SKIP aléatoire (SQLite ne supporte pas nativement RANDOM() dans
-  // Prisma). On récupère les ids actifs, on tire un index, on fetch.
+// ---------- GET : une publicité active au hasard (PWA) OU liste complète (admin) ----------
+// Sans query param : renvoie UNE pub active au hasard (pour la PWA).
+// ?all=true : renvoie TOUTES les pubs (pour le dashboard admin).
+export async function GET(req: NextRequest) {
+  const url = new URL(req.url)
+  const all = url.searchParams.get('all') === 'true'
+
+  // Mode admin : liste complète avec stats
+  if (all) {
+    const ads = await db.airportAd.findMany({
+      orderBy: { createdAt: 'desc' },
+    })
+    return ok({
+      ads: ads.map((a) => ({
+        id: a.id,
+        title: a.title,
+        subtitle: a.subtitle,
+        imageUrl: a.imageUrl,
+        linkUrl: a.linkUrl,
+        ctaText: a.ctaText,
+        active: a.active,
+        clicks: a.clicks,
+        impressions: a.impressions,
+        createdAt: a.createdAt,
+        updatedAt: a.updatedAt,
+      })),
+    })
+  }
+
+  // Mode PWA : une pub active au hasard
   const actifs = await db.airportAd.findMany({
     where: { active: true },
     select: { id: true },
@@ -66,7 +91,6 @@ export async function GET() {
   })
 
   if (!picked) {
-    // Cas très rare (suppression concurrente) : on dégrade gracieusement
     return ok({ ad: null })
   }
 
@@ -77,7 +101,7 @@ export async function GET() {
       data: { impressions: { increment: 1 } },
     })
   } catch {
-    /* non bloquant — on renvoie quand même la pub */
+    /* non bloquant */
   }
 
   return ok({ ad: serializeAd(picked) })

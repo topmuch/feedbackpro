@@ -3346,7 +3346,7 @@ function AirportAdsCard() {
 
   const load = useCallback(async () => {
     try {
-      const res = await fetch("/api/airport/ads", { cache: "no-store" })
+      const res = await fetch("/api/airport/ads?all=true", { cache: "no-store" })
       const json = (await res.json()) as { ok: boolean; data?: { ads: AirportAdLigne[] }; error?: string }
       if (json.ok && json.data) {
         setAds(json.data.ads)
