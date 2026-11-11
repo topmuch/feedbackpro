@@ -481,14 +481,31 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
 
   // ---------- Phase : zone_detectee ----------
   if (phase === "zone_detectee" && zoneData) {
+    // Couleurs vibrantes qui tournent pour chaque bouton de problème
+    const BUTTON_COLORS = [
+      { bg: 'from-violet-500 to-purple-600', ring: 'ring-violet-300', selBg: 'bg-violet-50', selBorder: 'border-violet-400', selText: 'text-violet-900', selRing: 'ring-violet-200', glow: 'shadow-violet-300/50' },
+      { bg: 'from-emerald-500 to-teal-600', ring: 'ring-emerald-300', selBg: 'bg-emerald-50', selBorder: 'border-emerald-400', selText: 'text-emerald-900', selRing: 'ring-emerald-200', glow: 'shadow-emerald-300/50' },
+      { bg: 'from-rose-500 to-pink-600', ring: 'ring-rose-300', selBg: 'bg-rose-50', selBorder: 'border-rose-400', selText: 'text-rose-900', selRing: 'ring-rose-200', glow: 'shadow-rose-300/50' },
+      { bg: 'from-sky-500 to-blue-600', ring: 'ring-sky-300', selBg: 'bg-sky-50', selBorder: 'border-sky-400', selText: 'text-sky-900', selRing: 'ring-sky-200', glow: 'shadow-sky-300/50' },
+      { bg: 'from-amber-500 to-orange-600', ring: 'ring-amber-300', selBg: 'bg-amber-50', selBorder: 'border-amber-400', selText: 'text-amber-900', selRing: 'ring-amber-200', glow: 'shadow-amber-300/50' },
+      { bg: 'from-fuchsia-500 to-pink-600', ring: 'ring-fuchsia-300', selBg: 'bg-fuchsia-50', selBorder: 'border-fuchsia-400', selText: 'text-fuchsia-900', selRing: 'ring-fuchsia-200', glow: 'shadow-fuchsia-300/50' },
+    ]
+
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        {/* Bandeau sombre aéroport */}
-        <header className="bg-slate-900 text-white">
+      <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-violet-50/30 to-sky-50/40">
+        {/* Décoration : blobs flottants colorés en arrière-plan */}
+        <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-violet-300/20 blur-3xl" />
+        <div className="pointer-events-none absolute top-1/3 -left-20 h-64 w-64 rounded-full bg-emerald-300/15 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 right-1/4 h-56 w-56 rounded-full bg-sky-300/15 blur-3xl" />
+
+        {/* Header — gradient vibrant avec glassmorphism */}
+        <header className="relative z-10 bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 text-white shadow-lg shadow-purple-500/20">
           <div className="mx-auto flex max-w-md items-center justify-between px-4 py-3">
             <div className="flex items-center gap-2">
-              <Plane className="size-4 text-amber-300" aria-hidden />
-              <span className="text-xs font-bold uppercase tracking-wider text-slate-200">
+              <div className="flex size-8 items-center justify-center rounded-lg bg-white/20 backdrop-blur-sm">
+                <Plane className="size-4 text-white" aria-hidden />
+              </div>
+              <span className="text-xs font-bold uppercase tracking-widest text-white/90">
                 Aéroport
               </span>
             </div>
@@ -496,40 +513,51 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
               type="button"
               onClick={onExit}
               aria-label="Quitter le signalement"
-              className="flex size-11 items-center justify-center rounded-lg text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
+              className="flex size-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur-sm text-white transition-all hover:bg-white/25 hover:scale-105"
             >
               <X className="size-5" aria-hidden />
             </button>
           </div>
         </header>
 
-        {/* Hero zone */}
-        <section className="mx-auto w-full max-w-md px-4 pt-6">
+        {/* Hero zone — immersif avec emoji flottant */}
+        <section className="relative z-10 mx-auto w-full max-w-md px-4 pt-8 pb-2">
           <div className="flex flex-col items-center text-center">
-            <div className="text-6xl leading-none" aria-hidden>
-              {zoneData.emoji}
+            {/* Emoji dans un cercle glassmorphism avec halo */}
+            <div className="relative">
+              <div className="absolute inset-0 -m-4 rounded-full bg-gradient-to-br from-violet-400/30 to-fuchsia-400/30 blur-2xl" />
+              <div className="relative flex size-24 items-center justify-center rounded-3xl bg-white/70 shadow-xl backdrop-blur-md ring-1 ring-white/60">
+                <span className="text-5xl leading-none" style={{ animation: 'gentleFloat 3s ease-in-out infinite' }} aria-hidden>
+                  {zoneData.emoji}
+                </span>
+              </div>
             </div>
-            <h1 className="mt-3 text-3xl font-black tracking-tight text-slate-900">
+            <h1 className="mt-4 text-3xl font-black tracking-tight bg-gradient-to-r from-slate-900 via-violet-900 to-slate-900 bg-clip-text text-transparent">
               {zoneData.nom}
             </h1>
             {zoneData.description ? (
-              <p className="mt-1 text-sm text-muted-foreground">{zoneData.description}</p>
+              <p className="mt-1.5 text-sm text-slate-500">{zoneData.description}</p>
             ) : null}
-            <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-slate-900 px-3 py-1.5 text-xs font-medium text-white">
-              <MapPin className="size-3.5 text-amber-300" aria-hidden />
-              <span className="font-mono">{zoneData.tagScanne}</span>
-              <span className="text-slate-400">· Vous êtes ici</span>
+            {/* Badge localisation — glassmorphism */}
+            <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-white/70 px-4 py-2 shadow-md backdrop-blur-md ring-1 ring-white/60">
+              <MapPin className="size-3.5 text-violet-600" aria-hidden />
+              <span className="font-mono text-xs font-bold text-slate-700">{zoneData.tagScanne}</span>
+              <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Vous êtes ici</span>
             </div>
           </div>
         </section>
 
-        {/* Section : Quel est le problème ? — grille premium avec émojis */}
-        <section className="mx-auto w-full max-w-md px-4 py-6">
-          <h2 className="mb-4 text-lg font-bold text-slate-900">Quel est le problème ?</h2>
+        {/* Section : Quel est le problème ? — grille colorée vibrante */}
+        <section className="relative z-10 mx-auto w-full max-w-md px-4 py-6">
+          <div className="mb-4 flex items-center gap-2">
+            <div className="h-1 w-8 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500" />
+            <h2 className="text-lg font-bold text-slate-900">Quel est le problème ?</h2>
+          </div>
           <div className="grid grid-cols-2 gap-3">
             {zoneData.problemes.map((probleme, idx) => {
               const isSelected = highlightedProblem === probleme
               const emoji = getProblemEmoji(probleme)
+              const colors = BUTTON_COLORS[idx % BUTTON_COLORS.length]
               return (
                 <button
                   key={`${idx}-${probleme}`}
@@ -537,30 +565,46 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                   onClick={() => choisirProbleme(probleme)}
                   aria-label={`Signaler : ${probleme}`}
                   className={cn(
-                    "group relative flex flex-col items-center gap-2 rounded-2xl border-2 p-4 text-center transition-all duration-200 min-h-[120px]",
-                    "hover:-translate-y-0.5 hover:shadow-lg",
+                    "group relative flex flex-col items-center gap-2.5 overflow-hidden rounded-2xl p-4 text-center transition-all duration-300 min-h-[130px]",
+                    "hover:-translate-y-1",
                     isSelected
-                      ? "border-amber-500 bg-amber-50 ring-2 ring-amber-200 shadow-md"
-                      : "border-slate-200 bg-white hover:border-amber-300"
+                      ? cn("border-2 ring-2 shadow-lg", colors.selBorder, colors.selBg, colors.selRing, colors.glow)
+                      : "border-2 border-white bg-white/70 backdrop-blur-md shadow-md hover:shadow-xl ring-1 ring-white/60"
                   )}
                 >
-                  {/* Émoji grand format */}
-                  <span className="text-4xl leading-none transition-transform duration-200 group-hover:scale-110" aria-hidden>
-                    {emoji}
-                  </span>
+                  {/* Décor gradient en haut de carte (visible au hover) */}
+                  <div className={cn(
+                    "absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r transition-opacity duration-300",
+                    colors.bg,
+                    isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                  )} />
+
+                  {/* Émoji dans un cercle coloré */}
+                  <div className={cn(
+                    "flex size-14 items-center justify-center rounded-2xl transition-all duration-300 group-hover:scale-110 group-hover:rotate-3",
+                    isSelected
+                      ? cn("bg-gradient-to-br text-white shadow-lg", colors.bg)
+                      : "bg-gradient-to-br from-slate-100 to-slate-200 group-hover:" + colors.bg.replace('from-', 'from-').replace('to-', 'to-')
+                  )}>
+                    <span className="text-2xl leading-none" aria-hidden>
+                      {emoji}
+                    </span>
+                  </div>
+
                   {/* Texte du problème */}
                   <span
                     className={cn(
-                      "text-xs font-semibold leading-snug sm:text-sm",
-                      isSelected ? "text-amber-900" : "text-slate-700"
+                      "text-xs font-bold leading-snug sm:text-[13px]",
+                      isSelected ? colors.selText : "text-slate-700"
                     )}
                   >
                     {probleme}
                   </span>
+
                   {/* Indicateur de sélection */}
                   {isSelected ? (
-                    <div className="absolute top-2 right-2 flex size-5 items-center justify-center rounded-full bg-amber-500 text-white">
-                      <CheckCircle2 className="size-3.5" aria-hidden />
+                    <div className="absolute top-2.5 right-2.5 flex size-6 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-md">
+                      <CheckCircle2 className="size-4" aria-hidden />
                     </div>
                   ) : null}
                 </button>
@@ -568,6 +612,14 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
             })}
           </div>
         </section>
+
+        {/* Style inline pour l'animation float */}
+        <style>{`
+          @keyframes gentleFloat {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-6px); }
+          }
+        `}</style>
       </div>
     )
   }
