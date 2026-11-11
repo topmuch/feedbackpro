@@ -76,6 +76,8 @@ type ZoneData = {
   tags: string[]
   problemes: string[]
   tagScanne: string
+  airportLogo?: string | null
+  airportName?: string | null
 }
 
 type ReportResult = {
@@ -104,6 +106,25 @@ type WhatsappOptinResult = {
   reportId: string
   whatsappOptin: boolean
   whatsappPhone: string
+}
+
+// ---------- Logo aéroport (affiché dans les headers) ----------
+function AirportLogo({ zoneData, size = "sm" }: { zoneData: ZoneData | null; size?: "sm" | "md" }) {
+  const sz = size === "md" ? "size-10" : "size-8"
+  if (zoneData?.airportLogo) {
+    return (
+      <img
+        src={zoneData.airportLogo}
+        alt={zoneData.airportName ?? "Aéroport"}
+        className={cn(sz, "rounded-lg object-cover bg-white/90 p-0.5 shadow-sm")}
+      />
+    )
+  }
+  return (
+    <div className={cn("flex items-center justify-center rounded-lg bg-white/20 backdrop-blur-sm", sz)}>
+      <Plane className={cn(size === "md" ? "size-5" : "size-4", "text-white")} aria-hidden />
+    </div>
+  )
 }
 
 // ---------- Helpers fetch (enveloppe { ok, data | error }) ----------
@@ -502,11 +523,9 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
         <header className="relative z-10 bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 text-white shadow-lg shadow-purple-500/20">
           <div className="mx-auto flex max-w-md items-center justify-between px-4 py-3">
             <div className="flex items-center gap-2">
-              <div className="flex size-8 items-center justify-center rounded-lg bg-white/20 backdrop-blur-sm">
-                <Plane className="size-4 text-white" aria-hidden />
-              </div>
+              <AirportLogo zoneData={zoneData} />
               <span className="text-xs font-bold uppercase tracking-widest text-white/90">
-                Aéroport
+                {zoneData.airportName ?? "Aéroport"}
               </span>
             </div>
             <button
@@ -650,6 +669,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
               <span className="text-xs font-bold">Changer</span>
             </button>
             <div className="flex min-w-0 items-center gap-2">
+              <AirportLogo zoneData={zoneData} />
               <span className="text-xl" aria-hidden>{zoneData.emoji}</span>
               <span className="truncate text-sm font-bold">{zoneData.nom}</span>
             </div>
@@ -834,8 +854,15 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
         <div className="pointer-events-none absolute bottom-0 right-1/4 h-56 w-56 rounded-full bg-sky-300/15 blur-3xl" />
 
         <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col px-4 py-8">
-          {/* Coche succès — cercle glassmorphism avec halo emerald */}
+          {/* Logo aéroport + coche succès */}
           <div className="flex flex-col items-center text-center">
+            {zoneData?.airportLogo && (
+              <img
+                src={zoneData.airportLogo}
+                alt={zoneData.airportName ?? "Aéroport"}
+                className="mb-4 h-12 w-auto rounded-lg object-contain bg-white/80 p-1 shadow-md backdrop-blur-md"
+              />
+            )}
             <div className="relative">
               <div className="absolute inset-0 -m-6 rounded-full bg-gradient-to-br from-emerald-300/40 to-teal-300/30 blur-2xl" />
               <div className="relative flex size-24 animate-in fade-in zoom-in-50 items-center justify-center rounded-3xl bg-white/70 shadow-xl backdrop-blur-md ring-1 ring-white/60 duration-500">

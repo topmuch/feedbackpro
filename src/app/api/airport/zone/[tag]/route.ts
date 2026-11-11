@@ -41,6 +41,12 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ tag: strin
   // été seedée, sinon on dégrade gracieusement avec les données statiques).
   const zone = await db.airportZone.findUnique({ where: { code: config.code } })
 
+  // 2b. Récupère le logo + nom de l'aéroport (le premier Pro "Aéroport")
+  const airportPro = await db.pro.findFirst({
+    where: { typeEtablissement: 'Aéroport', suspendu: false },
+    select: { logoUrl: true, nomEtablissement: true },
+  })
+
   const data = {
     code: config.code,
     nom: zone?.nom ?? config.nom,
@@ -49,6 +55,8 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ tag: strin
     tags: safeParse<string[]>(zone?.tags ?? null, config.tags),
     problemes: safeParse<string[]>(zone?.problemes ?? null, [...config.problemes]),
     tagScanne: tag,
+    airportLogo: airportPro?.logoUrl ?? null,
+    airportName: airportPro?.nomEtablissement ?? null,
   }
 
   return ok({ zone: data })
