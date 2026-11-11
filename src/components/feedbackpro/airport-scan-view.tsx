@@ -626,10 +626,15 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
 
   // ---------- Phase : probleme_choisi ----------
   if (phase === "probleme_choisi" && zoneData && selectedProblem) {
+    const problemEmoji = getProblemEmoji(selectedProblem)
     return (
-      <div className="flex min-h-screen flex-col bg-background">
-        {/* Bandeau sombre aéroport avec retour + zone sticky */}
-        <header className="sticky top-0 z-10 bg-slate-900 text-white shadow-md">
+      <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-violet-50/30 to-sky-50/40">
+        {/* Blobs flottants */}
+        <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-violet-300/20 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 -left-20 h-64 w-64 rounded-full bg-emerald-300/15 blur-3xl" />
+
+        {/* Header gradient vibrant */}
+        <header className="sticky top-0 z-10 bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 text-white shadow-lg shadow-purple-500/20">
           <div className="mx-auto flex max-w-md items-center justify-between gap-2 px-4 py-3">
             <button
               type="button"
@@ -639,45 +644,52 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                 setPhase("zone_detectee")
               }}
               aria-label="Revenir au choix du problème"
-              className="flex items-center gap-1 rounded-lg px-2 py-2 text-slate-200 transition-colors hover:bg-white/10 hover:text-white"
+              className="flex items-center gap-1 rounded-xl bg-white/15 backdrop-blur-sm px-3 py-2 text-white transition-all hover:bg-white/25 hover:scale-105"
             >
-              <ChevronLeft className="size-5" aria-hidden />
-              <span className="text-xs font-semibold">Changer</span>
+              <ChevronLeft className="size-4" aria-hidden />
+              <span className="text-xs font-bold">Changer</span>
             </button>
             <div className="flex min-w-0 items-center gap-2">
-              <span className="text-xl" aria-hidden>
-                {zoneData.emoji}
-              </span>
+              <span className="text-xl" aria-hidden>{zoneData.emoji}</span>
               <span className="truncate text-sm font-bold">{zoneData.nom}</span>
             </div>
             <button
               type="button"
               onClick={onExit}
               aria-label="Quitter"
-              className="flex size-11 items-center justify-center rounded-lg text-slate-300 transition-colors hover:bg-white/10 hover:text-white"
+              className="flex size-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur-sm text-white transition-all hover:bg-white/25 hover:scale-105"
             >
               <X className="size-5" aria-hidden />
             </button>
           </div>
         </header>
 
-        <main className="mx-auto flex w-full max-w-md flex-1 flex-col px-4 py-5">
-          {/* Problème sélectionné (carte amber) */}
-          <div className="flex items-start gap-3 rounded-xl border border-amber-500 bg-amber-50 p-4">
-            <CheckCircle2 className="mt-0.5 size-6 shrink-0 text-amber-600" aria-hidden />
-            <div className="min-w-0">
-              <p className="text-xs font-medium uppercase tracking-wide text-amber-700">
-                Problème signalé
-              </p>
-              <p className="mt-0.5 text-sm font-semibold leading-snug text-amber-900">
-                {selectedProblem}
-              </p>
+        <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col px-4 py-5">
+          {/* Problème sélectionné — carte glassmorphism avec emoji coloré */}
+          <div className="relative overflow-hidden rounded-2xl bg-white/70 p-4 shadow-lg backdrop-blur-md ring-1 ring-white/60">
+            <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-emerald-500" />
+            <div className="flex items-center gap-3">
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white shadow-md">
+                <span className="text-2xl" aria-hidden>{problemEmoji}</span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-violet-600">
+                  Problème signalé
+                </p>
+                <p className="mt-0.5 text-sm font-bold leading-snug text-slate-800">
+                  {selectedProblem}
+                </p>
+              </div>
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-md">
+                <CheckCircle2 className="size-4" aria-hidden />
+              </div>
             </div>
           </div>
 
-          {/* Commentaire optionnel */}
+          {/* Commentaire optionnel — glassmorphism */}
           <div className="mt-5 space-y-2">
-            <Label htmlFor="airport-commentaire" className="text-sm font-semibold text-slate-800">
+            <Label htmlFor="airport-commentaire" className="flex items-center gap-1.5 text-sm font-bold text-slate-700">
+              <span className="inline-block h-1 w-4 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500" />
               Précisez le problème si besoin
             </Label>
             <Textarea
@@ -686,17 +698,16 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
               onChange={(e) => setCommentaire(e.target.value)}
               maxLength={1000}
               placeholder="Ex: Le tapis est arrêté depuis 10 minutes, environ 30 personnes attendent..."
-              className="min-h-24 resize-none bg-white text-sm"
+              className="min-h-24 resize-none rounded-2xl border-2 border-white bg-white/70 backdrop-blur-md text-sm shadow-sm ring-1 ring-white/60 focus:border-violet-400 focus:ring-violet-200"
             />
-            <p className="text-right text-xs text-muted-foreground">
-              {commentaire.length}/1000
-            </p>
+            <p className="text-right text-xs text-slate-400">{commentaire.length}/1000</p>
           </div>
 
-          {/* Photo optionnelle */}
+          {/* Photo optionnelle — glassmorphism avec gradient border */}
           <div className="mt-2 space-y-2">
-            <Label htmlFor="airport-photo-input" className="text-sm font-semibold text-slate-800">
-              Photo (optionnel)
+            <Label htmlFor="airport-photo-input" className="flex items-center gap-1.5 text-sm font-bold text-slate-700">
+              <span className="inline-block h-1 w-4 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500" />
+              Photo <span className="font-normal text-slate-400">(optionnel)</span>
             </Label>
             <input
               ref={fileInputRef}
@@ -712,32 +723,30 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={photoUploading}
-                className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-white px-4 py-5 text-sm font-medium text-slate-600 transition-colors hover:border-amber-400 hover:text-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-violet-200 bg-white/60 backdrop-blur-md px-4 py-6 text-sm font-bold text-slate-600 shadow-sm transition-all hover:border-violet-400 hover:bg-white/80 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {photoUploading ? (
                   <>
-                    <Loader2 className="size-5 animate-spin text-amber-600" aria-hidden />
+                    <Loader2 className="size-5 animate-spin text-violet-600" aria-hidden />
                     <span>Envoi de la photo…</span>
                   </>
                 ) : (
                   <>
-                    <Camera className="size-5 text-amber-600" aria-hidden />
+                    <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white shadow-md">
+                      <Camera className="size-5" aria-hidden />
+                    </div>
                     <span>Ajouter une photo</span>
                   </>
                 )}
               </button>
             ) : (
-              <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white">
-                <img
-                  src={photoUrl}
-                  alt="Photo jointe au signalement"
-                  className="h-40 w-full object-cover"
-                />
+              <div className="relative overflow-hidden rounded-2xl border-2 border-white bg-white/70 shadow-lg ring-1 ring-white/60">
+                <img src={photoUrl} alt="Photo jointe au signalement" className="h-40 w-full object-cover" />
                 <button
                   type="button"
                   onClick={() => setPhotoUrl(null)}
                   aria-label="Retirer la photo"
-                  className="absolute end-2 top-2 flex size-9 items-center justify-center rounded-full bg-slate-900/80 text-white backdrop-blur transition-colors hover:bg-slate-900"
+                  className="absolute end-2 top-2 flex size-9 items-center justify-center rounded-xl bg-slate-900/80 text-white backdrop-blur transition-all hover:bg-rose-600 hover:scale-105"
                 >
                   <X className="size-4" aria-hidden />
                 </button>
@@ -751,46 +760,51 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
             ) : null}
           </div>
 
-          {/* Numéro de vol optionnel (rattachement signalement → vol) */}
+          {/* Numéro de vol — glassmorphism */}
           <div className="mt-2 space-y-2">
-            <Label htmlFor="airport-flight" className="text-sm font-semibold text-slate-800">
-              Numéro de vol <span className="font-normal text-slate-500">(optionnel)</span>
+            <Label htmlFor="airport-flight" className="flex items-center gap-1.5 text-sm font-bold text-slate-700">
+              <span className="inline-block h-1 w-4 rounded-full bg-gradient-to-r from-sky-500 to-blue-500" />
+              Numéro de vol <span className="font-normal text-slate-400">(optionnel)</span>
             </Label>
-            <div className="flex items-center gap-2">
-              <Plane className="size-4 shrink-0 text-slate-400" aria-hidden />
+            <div className="flex items-center gap-2 rounded-2xl border-2 border-white bg-white/70 backdrop-blur-md px-3 py-1 shadow-sm ring-1 ring-white/60">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-sm">
+                <Plane className="size-4" aria-hidden />
+              </div>
               <Input
                 id="airport-flight"
                 type="text"
                 value={flightNumber}
                 onChange={(e) => setFlightNumber(e.target.value.toUpperCase().slice(0, 8))}
                 placeholder="Ex : AF123, DL6049…"
-                className="bg-white font-mono text-sm uppercase tracking-wider"
+                className="border-0 bg-transparent font-mono text-sm uppercase tracking-wider shadow-none focus-visible:ring-0"
                 autoComplete="off"
                 inputMode="text"
               />
             </div>
-            <p className="text-xs text-slate-500">
-              Pour escalade compagnie en cas de problème critique sur ce vol.
-            </p>
+            <p className="text-xs text-slate-400">Pour escalade compagnie en cas de problème critique sur ce vol.</p>
           </div>
 
           {/* Erreur de soumission */}
           {submitError ? (
-            <Alert variant="destructive" className="mt-5">
-              <AlertTriangle className="size-4" aria-hidden />
-              <AlertTitle>Envoi impossible</AlertTitle>
-              <AlertDescription>{submitError}</AlertDescription>
-            </Alert>
+            <div className="mt-5 flex items-center gap-2 rounded-2xl border-2 border-rose-200 bg-rose-50/80 backdrop-blur-md p-4 shadow-sm">
+              <AlertTriangle className="size-5 shrink-0 text-rose-500" aria-hidden />
+              <div>
+                <p className="text-sm font-bold text-rose-700">Envoi impossible</p>
+                <p className="text-xs text-rose-600">{submitError}</p>
+              </div>
+            </div>
           ) : null}
 
-          {/* Bouton d'envoi (poussé en bas via mt-auto) */}
+          {/* Bouton d'envoi — gradient vibrant */}
           <div className="mt-auto pt-6">
             <button
               type="button"
               onClick={envoyerSignalement}
               disabled={submitting}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-rose-600 py-5 text-lg font-bold text-white shadow-lg shadow-rose-600/20 transition-all hover:bg-rose-700 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
+              className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 py-5 text-lg font-bold text-white shadow-xl shadow-purple-500/30 transition-all hover:shadow-2xl hover:shadow-purple-500/40 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
             >
+              {/* Effet shine au hover */}
+              <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
               {submitting ? (
                 <>
                   <Loader2 className="size-5 animate-spin" aria-hidden />
