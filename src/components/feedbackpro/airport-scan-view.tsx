@@ -50,6 +50,7 @@ import {
   X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { getProblemEmoji } from "@/lib/airport-config"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -522,48 +523,50 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
           </div>
         </section>
 
-        {/* Section : Quel est le problème ? */}
+        {/* Section : Quel est le problème ? — grille premium avec émojis */}
         <section className="mx-auto w-full max-w-md px-4 py-6">
-          <h2 className="mb-3 text-lg font-bold text-slate-900">Quel est le problème ?</h2>
-          <ul className="flex flex-col gap-3">
+          <h2 className="mb-4 text-lg font-bold text-slate-900">Quel est le problème ?</h2>
+          <div className="grid grid-cols-2 gap-3">
             {zoneData.problemes.map((probleme, idx) => {
               const isSelected = highlightedProblem === probleme
+              const emoji = getProblemEmoji(probleme)
               return (
-                <li key={`${idx}-${probleme}`}>
-                  <button
-                    type="button"
-                    onClick={() => choisirProbleme(probleme)}
-                    aria-label={`Signaler : ${probleme}`}
+                <button
+                  key={`${idx}-${probleme}`}
+                  type="button"
+                  onClick={() => choisirProbleme(probleme)}
+                  aria-label={`Signaler : ${probleme}`}
+                  className={cn(
+                    "group relative flex flex-col items-center gap-2 rounded-2xl border-2 p-4 text-center transition-all duration-200 min-h-[120px]",
+                    "hover:-translate-y-0.5 hover:shadow-lg",
+                    isSelected
+                      ? "border-amber-500 bg-amber-50 ring-2 ring-amber-200 shadow-md"
+                      : "border-slate-200 bg-white hover:border-amber-300"
+                  )}
+                >
+                  {/* Émoji grand format */}
+                  <span className="text-4xl leading-none transition-transform duration-200 group-hover:scale-110" aria-hidden>
+                    {emoji}
+                  </span>
+                  {/* Texte du problème */}
+                  <span
                     className={cn(
-                      "group flex w-full items-center justify-between gap-3 rounded-xl border bg-white py-5 pe-4 ps-5 text-left shadow-sm transition-all duration-200",
-                      "min-h-[60px] hover:-translate-y-0.5 hover:shadow-md",
-                      "border-l-4",
-                      isSelected
-                        ? "border-amber-500 bg-amber-50 ring-2 ring-amber-200"
-                        : "border-l-slate-200 hover:border-l-amber-400"
+                      "text-xs font-semibold leading-snug sm:text-sm",
+                      isSelected ? "text-amber-900" : "text-slate-700"
                     )}
                   >
-                    <span
-                      className={cn(
-                        "text-sm font-semibold leading-snug sm:text-base",
-                        isSelected ? "text-amber-900" : "text-slate-800"
-                      )}
-                    >
-                      {probleme}
-                    </span>
-                    {isSelected ? (
-                      <CheckCircle2 className="size-5 shrink-0 text-amber-600" aria-hidden />
-                    ) : (
-                      <span
-                        className="size-5 shrink-0 rounded-full border-2 border-slate-200 transition-colors group-hover:border-amber-400"
-                        aria-hidden
-                      />
-                    )}
-                  </button>
-                </li>
+                    {probleme}
+                  </span>
+                  {/* Indicateur de sélection */}
+                  {isSelected ? (
+                    <div className="absolute top-2 right-2 flex size-5 items-center justify-center rounded-full bg-amber-500 text-white">
+                      <CheckCircle2 className="size-3.5" aria-hidden />
+                    </div>
+                  ) : null}
+                </button>
               )
             })}
-          </ul>
+          </div>
         </section>
       </div>
     )

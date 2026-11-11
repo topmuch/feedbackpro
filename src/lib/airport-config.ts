@@ -97,6 +97,43 @@ export const AIRPORT_ZONES: AirportZoneConfig[] = [
 ]
 
 /**
+ * Mapping émoji par problématique (pour l'affichage PWA voyageur).
+ * Si un problème n'est pas dans la map, un émoji générique est utilisé.
+ */
+export const PROBLEM_EMOJIS: Record<string, string> = {
+  // Bagages
+  'Tapis arrêté ou bloqué': '🛑',
+  'Attente trop longue (> 30 min)': '⏳',
+  'Chariots indisponibles': '🛒',
+  'Bagage endommagé sur le tapis': '🧳',
+  // Sanitaires
+  'Manque de consommables (Papier/Savon)': '🧻',
+  'Problème de propreté (Sol/Cuvette)': '🧹',
+  "Dysfonctionnement technique (Chasse d'eau/Robinet)": '🔧',
+  'Poubelle qui déborde': '🗑️',
+  // Files d'attente
+  'Nombre de guichets ouverts insuffisant': '🚫',
+  "Temps d'attente anormalement long": '⏳',
+  'Absence de file Prioritaire/Famille active': '👨\u200d👩\u200d👧',
+  'Manque de bacs en plastique (Sécurité)': '🧺',
+  // Embarquement
+  'Bornes de recharge / Ports USB HS': '🔌',
+  'Wi-Fi inaccessible ou trop lent': '📶',
+  'Problème de température (Trop chaud / Trop froid)': '🌡️',
+  'Sièges cassés ou sol sale': '🪑',
+  // Restauration
+  'Tables non débarrassées': '🍽️',
+  'Distributeur automatique en panne': '🤖',
+  'Prix non affichés': '💰',
+  'Personnel indisponible ou fermé': '🔒',
+}
+
+/** Retourne l'émoji associé à une problématique, ou un émoji générique */
+export function getProblemEmoji(problem: string): string {
+  return PROBLEM_EMOJIS[problem] ?? '⚠️'
+}
+
+/**
  * Résout un tag URL scanné vers la zone aéroport correspondante.
  * Retourne null si le tag n'est reconnu par aucune zone.
  */
