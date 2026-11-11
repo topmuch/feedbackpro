@@ -1076,46 +1076,63 @@ function ZoneEditForm({
         </div>
       </div>
 
-      {/* ---------- QR CODES (pleine largeur, sous la grille 2 col) ---------- */}
-      <div className="mt-6 flex flex-col gap-3">
-        <div className="flex items-center gap-1.5">
-          <QrCode className="h-3.5 w-3.5 text-muted-foreground" />
-          <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
-            QR Codes
-          </Label>
-          <span className="ml-auto text-[10px] tabular-nums text-muted-foreground/70">
-            {form.tags.length} tag(s)
-          </span>
+      {/* ---------- QR CODES — Design premium ---------- */}
+      <div className="mt-8 overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-card via-card to-muted/30 shadow-sm">
+        {/* Header premium */}
+        <div className="flex items-center gap-3 border-b border-border/60 bg-gradient-to-r from-slate-50 to-muted/40 px-5 py-4 dark:from-slate-900/40 dark:to-slate-900/20">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 shadow-md">
+            <QrCode className="size-5 text-amber-400" strokeWidth={2.5} />
+          </div>
+          <div className="flex-1">
+            <h3 className="text-sm font-bold tracking-tight text-foreground">
+              QR Codes d'affichage
+            </h3>
+            <p className="text-[11px] leading-snug text-muted-foreground">
+              Imprimez et affichez ces QR codes dans l'aéroport. Les voyageurs les scanneront pour signaler un problème en 2 clics.
+            </p>
+          </div>
+          <div className="shrink-0 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700 dark:bg-amber-950/50 dark:text-amber-400">
+            {form.tags.length} tag{form.tags.length > 1 ? 's' : ''}
+          </div>
         </div>
-        <p className="-mt-1 text-[11px] text-muted-foreground/70">
-          Téléchargez et imprimez les QR codes pour chaque tag URL. Les voyageurs les scanneront
-          pour signaler un problème.
-        </p>
 
-        {form.tags.length === 0 ? (
-          <div className="rounded-md border border-dashed border-border bg-card/40 px-3 py-4 text-center text-xs text-muted-foreground/70">
-            Ajoutez au moins un tag URL ci-dessus pour générer les QR codes.
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {form.tags.map((tag) => {
-              const entry = qrCache[tag]
-              const tagErr = validateTag(tag)
-              return (
-                <QrCard
-                  key={`qr-${tag}`}
-                  tag={tag}
-                  entry={entry}
-                  tagErr={tagErr}
-                  pdfLoading={!!pdfLoading[tag]}
-                  onDownloadPng={() => onDownloadPng(tag)}
-                  onDownloadPdf={() => void onDownloadPdf(tag)}
-                  onRetry={() => onRefetchQr(tag)}
-                />
-              )
-            })}
-          </div>
-        )}
+        {/* Grille de cartes QR */}
+        <div className="p-5">
+          {form.tags.length === 0 ? (
+            <div className="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-border/60 bg-muted/20 px-6 py-10 text-center">
+              <div className="flex size-12 items-center justify-center rounded-xl bg-muted/40">
+                <QrCode className="size-6 text-muted-foreground/50" />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Aucun QR code généré</p>
+                <p className="mt-0.5 text-xs text-muted-foreground/70">
+                  Ajoutez au moins un tag URL ci-dessus pour générer les QR codes d'affichage.
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {form.tags.map((tag) => {
+                const entry = qrCache[tag]
+                const tagErr = validateTag(tag)
+                return (
+                  <QrCard
+                    key={`qr-${tag}`}
+                    tag={tag}
+                    zoneEmoji={form.emoji}
+                    zoneNom={form.nom}
+                    entry={entry}
+                    tagErr={tagErr}
+                    pdfLoading={!!pdfLoading[tag]}
+                    onDownloadPng={() => onDownloadPng(tag)}
+                    onDownloadPdf={() => void onDownloadPdf(tag)}
+                    onRetry={() => onRefetchQr(tag)}
+                  />
+                )
+              })}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ---------- ALERTES & SEUILS (pleine largeur, sous les QR codes) ---------- */}
@@ -1129,6 +1146,8 @@ function ZoneEditForm({
 
 type QrCardProps = {
   tag: string
+  zoneEmoji: string
+  zoneNom: string
   entry: QrCacheEntry | undefined
   tagErr: string | null
   pdfLoading: boolean
@@ -1139,6 +1158,8 @@ type QrCardProps = {
 
 function QrCard({
   tag,
+  zoneEmoji,
+  zoneNom,
   entry,
   tagErr,
   pdfLoading,
@@ -1158,79 +1179,95 @@ function QrCard({
   }
 
   return (
-    <div className="flex flex-col items-center gap-2 rounded-xl border border-border bg-card p-4">
-      {/* Aperçu QR (120×120) */}
-      <div className="flex size-28 items-center justify-center rounded-lg border border-border bg-white p-1">
-        {tagErr ? (
-          <div className="flex flex-col items-center gap-1 text-center">
-            <AlertCircle className="h-5 w-5 text-rose-500" />
-            <span className="text-[9px] text-rose-600">tag invalide</span>
-          </div>
-        ) : entry?.loading ? (
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        ) : entry?.error ? (
-          <div className="flex flex-col items-center gap-1.5 text-center">
-            <span className="text-[10px] font-medium text-rose-600">QR indisponible</span>
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              className="h-6 px-2 text-[10px] text-muted-foreground hover:bg-muted"
-              onClick={onRetry}
-            >
-              Réessayer
-            </Button>
-          </div>
-        ) : entry?.pngDataUrl ? (
-          <img
-            src={entry.pngDataUrl}
-            alt={`QR code ${tag}`}
-            className="h-full w-full object-contain"
-          />
-        ) : null}
+    <div className="group relative flex flex-col overflow-hidden rounded-xl border border-border bg-card transition-all duration-200 hover:border-slate-300 hover:shadow-lg dark:hover:border-slate-700">
+      {/* Bandeau supérieur avec emoji zone + nom zone */}
+      <div className="flex items-center gap-2 border-b border-border/60 bg-gradient-to-r from-slate-50 to-muted/30 px-3 py-2 dark:from-slate-900/40 dark:to-slate-900/10">
+        <span className="text-base" aria-hidden>{zoneEmoji}</span>
+        <span className="truncate text-[11px] font-semibold text-muted-foreground">{zoneNom}</span>
       </div>
 
-      {/* Nom du tag (monospace) */}
-      <code className="break-all text-center font-mono text-xs text-muted-foreground">
-        {tag}
-      </code>
+      {/* Aperçu QR — grand, centré, avec ombre douce */}
+      <div className="flex flex-col items-center gap-3 px-4 py-5">
+        <div className="relative">
+          {/* Halo derrière le QR (effet premium) */}
+          <div className="absolute inset-0 -m-2 rounded-2xl bg-gradient-to-br from-amber-200/30 to-slate-200/20 blur-md transition-opacity duration-200 group-hover:opacity-100 dark:from-amber-500/10 dark:to-slate-500/10" />
+          {/* Conteneur QR */}
+          <div className="relative flex size-32 items-center justify-center rounded-xl border border-slate-200 bg-white p-1.5 shadow-md transition-transform duration-200 group-hover:scale-105 dark:border-slate-700">
+            {tagErr ? (
+              <div className="flex flex-col items-center gap-1.5 text-center">
+                <AlertCircle className="size-6 text-rose-500" />
+                <span className="text-[9px] font-medium text-rose-600">tag invalide</span>
+              </div>
+            ) : entry?.loading ? (
+              <Loader2 className="size-8 animate-spin text-muted-foreground" />
+            ) : entry?.error ? (
+              <div className="flex flex-col items-center gap-2 text-center">
+                <span className="text-[10px] font-medium text-rose-600">QR indisponible</span>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  className="h-6 px-2 text-[10px] text-muted-foreground hover:bg-muted"
+                  onClick={onRetry}
+                >
+                  Réessayer
+                </Button>
+              </div>
+            ) : entry?.pngDataUrl ? (
+              <img
+                src={entry.pngDataUrl}
+                alt={`QR code ${tag}`}
+                className="h-full w-full object-contain"
+              />
+            ) : null}
+          </div>
+        </div>
 
-      {/* URL publique scannée par le QR */}
-      <span
-        className="block max-w-full truncate text-[10px] text-muted-foreground/70"
-        title={rawUrl}
-      >
-        {urlDisplay}
-      </span>
+        {/* Tag name — badge stylé */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground/60">Tag</span>
+          <code className="rounded-md bg-slate-100 px-2 py-0.5 font-mono text-[11px] font-semibold text-slate-700 dark:bg-slate-800 dark:text-slate-300">
+            {tag}
+          </code>
+        </div>
 
-      {/* Boutons de téléchargement */}
-      <div className="mt-1 flex w-full gap-1.5">
-        <Button
+        {/* URL — discret mais copiable au clic */}
+        <button
           type="button"
-          size="sm"
-          variant="outline"
+          onClick={() => {
+            try { navigator.clipboard?.writeText(rawUrl) } catch { /* ignore */ }
+          }}
+          className="flex max-w-full items-center gap-1 truncate rounded-md px-1.5 py-0.5 text-[10px] text-muted-foreground/60 transition-colors hover:bg-muted/40 hover:text-muted-foreground"
+          title="Cliquez pour copier l'URL"
+        >
+          <span className="truncate">{urlDisplay}</span>
+        </button>
+      </div>
+
+      {/* Boutons de téléchargement — premium gradient */}
+      <div className="flex gap-2 border-t border-border/60 px-3 py-3">
+        <button
+          type="button"
           onClick={onDownloadPng}
           disabled={!entry?.pngDataUrl || entry?.loading}
-          className="flex-1 border-border bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-gradient-to-b from-white to-slate-50 px-3 py-2 text-xs font-semibold text-slate-700 shadow-sm transition-all hover:border-slate-300 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-700 dark:from-slate-800 dark:to-slate-900 dark:text-slate-200 dark:hover:border-slate-600"
         >
-          <Download className="h-3.5 w-3.5" />
+          <Download className="size-3.5" />
           PNG
-        </Button>
-        <Button
+        </button>
+        <button
           type="button"
-          size="sm"
-          variant="outline"
           onClick={onDownloadPdf}
           disabled={pdfLoading || !!tagErr}
-          className="flex-1 border-border bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-b from-slate-800 to-slate-900 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:from-slate-700 hover:to-slate-800 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
         >
           {pdfLoading ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            <Loader2 className="size-3.5 animate-spin" />
           ) : (
-            <FileText className="h-3.5 w-3.5" />
+            <FileText className="size-3.5" />
           )}
-          PDF
-        </Button>
+          PDF A4
+        </button>
       </div>
     </div>
   )
