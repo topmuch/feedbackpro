@@ -254,6 +254,8 @@ export function ProDashboard() {
 
   // Badge retours non lus sur la sidebar
   const [retoursNonLus, setRetoursNonLus] = useState(0)
+  // Badge signalements aéroport en attente (pour onglets Wallboard + Signalements)
+  const [airportEnAttente, setAirportEnAttente] = useState(0)
   useEffect(() => {
     if (!session) return
     let cancelled = false
@@ -273,6 +275,27 @@ export function ProDashboard() {
     const interval = setInterval(fetchNonLus, 30000)
     return () => { cancelled = true; clearInterval(interval) }
   }, [session])
+
+  // Fetch signalements aéroport EN_ATTENTE pour le badge (uniquement secteur Aéroport)
+  useEffect(() => {
+    if (!session || typeEtablissement !== "Aéroport") return
+    let cancelled = false
+    async function fetchAirportReports() {
+      try {
+        const res = await fetch("/api/airport/reports?statut=EN_ATTENTE&limit=1", { cache: "no-store" })
+        const json = await res.json()
+        if (!cancelled && json.ok) {
+          setAirportEnAttente(json.data?.count ?? 0)
+        }
+      } catch {
+        /* silencieux */
+      }
+    }
+    fetchAirportReports()
+    // Poll toutes les 15s (plus fréquent que retours car ops = temps réel)
+    const interval = setInterval(fetchAirportReports, 15000)
+    return () => { cancelled = true; clearInterval(interval) }
+  }, [session, typeEtablissement])
   useEffect(() => {
     if (!session) return
     let annule = false
@@ -396,7 +419,7 @@ export function ProDashboard() {
     )}>
       {/* ---------- Sidebar détachée (desktop lg+) ---------- */}
       <aside className="fixed inset-y-3 left-3 z-40 hidden w-72 flex-col rounded-3xl bg-[#002e85] text-white shadow-xl lg:flex">
-        <ContenuSidebar ongletActif={onglet} onNaviguer={naviguer} retoursNonLus={retoursNonLus} estAeroport={typeEtablissement === "Aéroport"} />
+        <ContenuSidebar ongletActif={onglet} onNaviguer={naviguer} retoursNonLus={retoursNonLus} estAeroport={typeEtablissement === "Aéroport"} airportEnAttente={airportEnAttente} />
       </aside>
 
       {/* ---------- Top bar discrète (card blanc arrondie) ---------- */}
@@ -426,6 +449,7 @@ export function ProDashboard() {
                   }}
                   retoursNonLus={retoursNonLus}
                   estAeroport={typeEtablissement === "Aéroport"}
+                  airportEnAttente={airportEnAttente}
                 />
               </SheetContent>
             </Sheet>
@@ -617,11 +641,13 @@ function ContenuSidebar({
   onNaviguer,
   retoursNonLus = 0,
   estAeroport = false,
+  airportEnAttente = 0,
 }: {
   ongletActif: Onglet
   onNaviguer: (o: Onglet) => void
   retoursNonLus?: number
   estAeroport?: boolean
+  airportEnAttente?: number
 }) {
   const t = (key: string) => { const map: Record<string, string> = {"nav.dashboard": "Tableau de bord", "nav.coach": "Coach IA", "nav.auditMatin": "Audit Matin", "nav.zones": "Zones", "nav.retours": "Retours", "nav.team": "Equipe", "nav.stats": "Statistiques", "nav.qrcode": "QR Codes", "nav.settings": "Parametres", "nav.commander": "Commander", "nav.rapports": "Rapports IA", "nav.recompenses": "Recompenses", "nav.actions": "Actions", "nav.billing": "Facturation", "nav.airportWallboard": "Wallboard", "nav.airportZones": "Zones aéroport", "nav.airportReports": "Signalements", "nav.airportBot": "Bot WhatsApp", "nav.aeroport": "Aéroport", "nav.gestion": "Gestion", "common.ouvrirMenu": "Ouvrir le menu", "common.navigationDashboard": "Navigation du dashboard", "common.deconnexion": "Deconnexion", "common.tableauBordFeedback": "Tableau de bord FeedbackPro", "common.promesseCoach": "Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorites concretes."}; return map[key] || key }
   return (
@@ -654,7 +680,17 @@ function ContenuSidebar({
               ✈️ {t("nav.aeroport")}
             </p>
             {ONGLETS_AEROPORT.map((o) => (
-              <BoutonOnglet key={o.id} entree={o} actif={ongletActif === o.id} onNaviguer={onNaviguer} />
+              <BoutonOnglet
+                key={o.id}
+                entree={{
+                  ...o,
+                  badge: o.id === "airport-reports" || o.id === "airport-wallboard"
+                    ? (airportEnAttente > 0 ? airportEnAttente : undefined)
+                    : undefined,
+                }}
+                actif={ongletActif === o.id}
+                onNaviguer={onNaviguer}
+              />
             ))}
           </>
         )}
