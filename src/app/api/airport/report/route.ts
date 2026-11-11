@@ -104,9 +104,24 @@ export async function POST(req: NextRequest) {
     return fail(`Tag inconnu : ${b.tag}`, 404)
   }
 
-  const zone = await db.airportZone.findUnique({ where: { code: config.code } })
+  // Auto-création de la zone en BDD si elle n'existe pas encore.
+  // Sur un déploiement frais (sans seed), les zones aéroport n'existent
+  // pas en base — on les crée à la volée depuis la config statique
+  // (src/lib/airport-config.ts) pour que la PWA fonctionne immédiatement
+  // sans intervention manuelle.
+  let zone = await db.airportZone.findUnique({ where: { code: config.code } })
   if (!zone) {
-    return fail('Zone non configurée en base. Lancez `bun prisma/seed-airport.ts`.', 500)
+    console.log(`[airport-report] Auto-création zone ${config.code} depuis config statique`)
+    zone = await db.airportZone.create({
+      data: {
+        code: config.code,
+        nom: config.nom,
+        emoji: config.emoji,
+        description: config.description ?? null,
+        tags: JSON.stringify(config.tags),
+        problemes: JSON.stringify([...config.problemes]),
+      },
+    })
   }
 
   // Valider que problemType fait bien partie des 4 problématiques de la zone
