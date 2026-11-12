@@ -235,15 +235,15 @@ export function AirportStaffQrTab() {
       {/* ---------- Header ---------- */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-start gap-3">
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10">
-            <QrCode className="size-5 text-amber-400" aria-hidden />
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 dark:bg-amber-500/15">
+            <QrCode className="size-5 text-amber-600 dark:text-amber-400" aria-hidden />
           </div>
           <div>
-            <h1 className="font-mono text-xl font-bold tracking-tight text-slate-100 sm:text-2xl">
+            <h1 className="font-mono text-xl font-bold tracking-tight text-foreground sm:text-2xl">
               STAFF QR{' '}
-              <span className="text-amber-400">— Générateur</span>
+              <span className="text-amber-600 dark:text-amber-400">— Générateur</span>
             </h1>
-            <p className="mt-1 flex items-center gap-1.5 text-xs text-slate-400">
+            <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
               <Users className="size-3" aria-hidden />
               Générez et téléchargez les QR codes que les employés scannent
               pour prendre en charge / résoudre un signalement.
@@ -254,15 +254,15 @@ export function AirportStaffQrTab() {
 
       <div className="grid gap-5 lg:grid-cols-[1fr_minmax(320px,420px)]">
         {/* ---------- Formulaire + presets ---------- */}
-        <Card className="border-slate-800 bg-slate-900/60">
-          <CardHeader className="border-b border-slate-800 px-4 py-3">
-            <CardTitle className="font-mono text-sm font-semibold text-slate-300">
+        <Card className="border-border bg-card">
+          <CardHeader className="border-b border-border px-4 py-3">
+            <CardTitle className="font-mono text-sm font-semibold text-foreground">
               1. Tag staff
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4 p-4">
             <div className="space-y-1.5">
-              <Label htmlFor="staff-tag" className="text-xs text-slate-400">
+              <Label htmlFor="staff-tag" className="text-xs text-muted-foreground">
                 Tag staff
               </Label>
               <Input
@@ -270,7 +270,7 @@ export function AirportStaffQrTab() {
                 value={tag}
                 onChange={(e) => setTag(e.target.value)}
                 placeholder="staff_nettoyage_T2"
-                className="border-slate-700 bg-slate-950 font-mono text-sm text-slate-100 placeholder:text-slate-600 focus-visible:border-amber-500/40"
+                className="border-border bg-background font-mono text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-amber-500/40"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault()
@@ -278,9 +278,9 @@ export function AirportStaffQrTab() {
                   }
                 }}
               />
-              <p className="text-[11px] text-slate-500">
+              <p className="text-[11px] text-muted-foreground">
                 Préfixe{' '}
-                <code className="rounded bg-slate-800 px-1 py-0.5 text-slate-300">
+                <code className="rounded bg-muted px-1 py-0.5 text-foreground">
                   staff_
                 </code>{' '}
                 recommandé. Évitez espaces et accents.
@@ -289,7 +289,7 @@ export function AirportStaffQrTab() {
 
             {/* Presets */}
             <div className="space-y-2">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                 Tags fréquents
               </span>
               <div className="flex flex-wrap gap-2">
@@ -303,8 +303,8 @@ export function AirportStaffQrTab() {
                       className={cn(
                         'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition',
                         active
-                          ? 'border-amber-500/60 bg-amber-500/15 text-amber-300'
-                          : 'border-slate-700 bg-slate-950 text-slate-300 hover:border-slate-600 hover:bg-slate-800 hover:text-white',
+                          ? 'border-amber-500/60 bg-amber-500/10 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                          : 'border-border bg-background text-muted-foreground hover:border-muted-foreground hover:bg-muted hover:text-foreground',
                       )}
                     >
                       <span aria-hidden>{p.emoji}</span>
@@ -317,11 +317,11 @@ export function AirportStaffQrTab() {
 
             {/* URL encodée */}
             <div className="space-y-1.5">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                 URL encodée
               </span>
-              <div className="rounded-md border border-slate-800 bg-slate-950 p-2.5">
-                <code className="break-all font-mono text-[11px] text-emerald-300">
+              <div className="rounded-md border border-border bg-background p-2.5">
+                <code className="break-all font-mono text-[11px] text-emerald-600 dark:text-emerald-400">
                   {tag.trim() ? encodedPreview : '—'}
                 </code>
               </div>
@@ -347,9 +347,9 @@ export function AirportStaffQrTab() {
         </Card>
 
         {/* ---------- Aperçu + downloads ---------- */}
-        <Card className="border-slate-800 bg-slate-900/60">
-          <CardHeader className="border-b border-slate-800 px-4 py-3">
-            <CardTitle className="font-mono text-sm font-semibold text-slate-300">
+        <Card className="border-border bg-card">
+          <CardHeader className="border-b border-border px-4 py-3">
+            <CardTitle className="font-mono text-sm font-semibold text-foreground">
               2. Aperçu & téléchargement
             </CardTitle>
           </CardHeader>
@@ -357,7 +357,7 @@ export function AirportStaffQrTab() {
             {pngDataUrl ? (
               <div className="space-y-3">
                 {/* Preview card */}
-                <div className="overflow-hidden rounded-xl border border-slate-800 bg-white">
+                <div className="overflow-hidden rounded-xl border border-border bg-white">
                   <div className="flex items-center justify-between border-b border-slate-200 bg-slate-50 px-3 py-2">
                     <div className="flex items-center gap-2">
                       <span className="text-lg" aria-hidden>
@@ -392,7 +392,7 @@ export function AirportStaffQrTab() {
                     variant="outline"
                     onClick={downloadPng}
                     disabled={downloadingPng}
-                    className="border-slate-700 bg-slate-950 text-slate-200 hover:border-amber-500/50 hover:bg-slate-800 hover:text-amber-300"
+                    className="border-border bg-background text-foreground hover:border-amber-500/50 hover:bg-muted hover:text-amber-600 dark:hover:text-amber-300"
                   >
                     {downloadingPng ? (
                       <Loader2 className="size-4 animate-spin" />
@@ -407,7 +407,7 @@ export function AirportStaffQrTab() {
                     variant="outline"
                     onClick={downloadPdf}
                     disabled={downloadingPdf}
-                    className="border-slate-700 bg-slate-950 text-slate-200 hover:border-amber-500/50 hover:bg-slate-800 hover:text-amber-300"
+                    className="border-border bg-background text-foreground hover:border-amber-500/50 hover:bg-muted hover:text-amber-600 dark:hover:text-amber-300"
                   >
                     {downloadingPdf ? (
                       <Loader2 className="size-4 animate-spin" />
@@ -421,13 +421,13 @@ export function AirportStaffQrTab() {
               </div>
             ) : (
               <div className="flex flex-col items-center gap-3 py-10 text-center">
-                <div className="flex size-12 items-center justify-center rounded-full bg-slate-800/60">
-                  <QrCode className="size-6 text-slate-600" aria-hidden />
+                <div className="flex size-12 items-center justify-center rounded-full bg-muted">
+                  <QrCode className="size-6 text-muted-foreground" aria-hidden />
                 </div>
-                <p className="text-sm font-medium text-slate-300">
+                <p className="text-sm font-medium text-foreground">
                   Aucun QR généré
                 </p>
-                <p className="max-w-xs text-xs text-slate-500">
+                <p className="max-w-xs text-xs text-muted-foreground">
                   Saisissez un tag staff (ou choisissez un preset), puis
                   cliquez sur « Générer le QR code ».
                 </p>

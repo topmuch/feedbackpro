@@ -398,23 +398,23 @@ export function ProDashboard() {
   // ---------- Coquille squelette pendant le chargement de la session ----------
   if (!session) {
     return (
-      <div className="relative flex min-h-screen flex-col bg-[#E9E9EF] lg:pl-72 lg:pr-3">
+      <div className="relative flex min-h-screen flex-col bg-background lg:pl-72 lg:pr-3">
         {/* Pastilles décoratives floues (vert + indigo) derrière tout */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-          <div className="absolute -left-32 -top-24 h-[28rem] w-[28rem] rounded-full bg-[#4CC96B]/15 blur-3xl" />
-          <div className="absolute -right-24 -top-16 h-[24rem] w-[24rem] rounded-full bg-[#5257C9]/10 blur-3xl" />
+          <div className="absolute -left-32 -top-24 h-[28rem] w-[28rem] rounded-full bg-emerald-500/15 blur-3xl" />
+          <div className="absolute -right-24 -top-16 h-[24rem] w-[24rem] rounded-full bg-primary/10 blur-3xl" />
         </div>
-        <aside className="fixed inset-y-4 left-4 z-40 hidden w-64 flex-col rounded-3xl bg-[#5257C9] text-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] lg:flex">
+        <aside className="fixed inset-y-4 left-4 z-40 hidden w-64 flex-col rounded-3xl bg-sidebar text-sidebar-foreground shadow-[0_10px_30px_rgba(0,0,0,0.06)] lg:flex">
           <div className="flex items-center gap-2.5 px-5 py-5">
-            <Skeleton className="h-10 w-10 rounded-xl bg-white/20" />
+            <Skeleton className="h-10 w-10 rounded-xl bg-sidebar-foreground/20" />
             <div className="flex-1 space-y-2">
-              <Skeleton className="h-3.5 w-24 bg-white/20" />
-              <Skeleton className="h-2.5 w-16 bg-white/20" />
+              <Skeleton className="h-3.5 w-24 bg-sidebar-foreground/20" />
+              <Skeleton className="h-2.5 w-16 bg-sidebar-foreground/20" />
             </div>
           </div>
           <div className="space-y-2 px-3 py-2">
             {ONGLETS.map((o) => (
-              <Skeleton key={o.id} className="mx-0 h-10 rounded-xl bg-white/15" />
+              <Skeleton key={o.id} className="mx-0 h-10 rounded-xl bg-sidebar-foreground/15" />
             ))}
           </div>
         </aside>
@@ -442,16 +442,16 @@ export function ProDashboard() {
 
   return (
     <div className={cn(
-      "relative flex min-h-screen flex-col bg-[#E9E9EF] lg:pl-72",
+      "relative flex min-h-screen flex-col bg-background lg:pl-72",
       onglet !== "airport-wallboard" && "lg:pr-3"
     )}>
       {/* ---------- Pastilles décoratives floues (vert + indigo) ---------- */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-        <div className="absolute -left-32 -top-24 h-[28rem] w-[28rem] rounded-full bg-[#4CC96B]/15 blur-3xl" />
-        <div className="absolute -right-24 -top-16 h-[24rem] w-[24rem] rounded-full bg-[#5257C9]/10 blur-3xl" />
+        <div className="absolute -left-32 -top-24 h-[28rem] w-[28rem] rounded-full bg-emerald-500/15 blur-3xl" />
+        <div className="absolute -right-24 -top-16 h-[24rem] w-[24rem] rounded-full bg-primary/10 blur-3xl" />
       </div>
       {/* ---------- Sidebar détachée (desktop lg+) ---------- */}
-      <aside className="fixed inset-y-4 left-4 z-40 hidden w-64 flex-col rounded-3xl bg-[#5257C9] text-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] lg:flex">
+      <aside className="fixed inset-y-4 left-4 z-40 hidden w-64 flex-col rounded-3xl bg-sidebar text-sidebar-foreground shadow-[0_10px_30px_rgba(0,0,0,0.06)] lg:flex">
         <ContenuSidebar ongletActif={onglet} onNaviguer={naviguer} retoursNonLus={retoursNonLus} estAeroport={typeEtablissement === "Aéroport"} airportEnAttente={airportEnAttente} />
       </aside>
 
@@ -472,7 +472,7 @@ export function ProDashboard() {
                   <Menu className="h-5 w-5" aria-hidden />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-72 border-0 bg-[#5257C9] p-0 text-white" aria-describedby={undefined}>
+              <SheetContent side="left" className="w-72 border-0 bg-sidebar p-0 text-sidebar-foreground" aria-describedby={undefined}>
                 <SheetTitle className="sr-only">{t("common.navigationDashboard")}</SheetTitle>
                 <ContenuSidebar
                   ongletActif={onglet}
@@ -535,8 +535,8 @@ export function ProDashboard() {
               </DropdownMenu>
             ) : (
               <div className="min-w-0">
-                <p className="truncate font-semibold text-[#1E1E2E]">{nomEtablissement}</p>
-                <p className="hidden truncate text-xs text-[#9A9AAE] sm:block">{t("common.tableauBordFeedback")}</p>
+                <p className="truncate font-semibold text-foreground">{nomEtablissement}</p>
+                <p className="hidden truncate text-xs text-muted-foreground sm:block">{t("common.tableauBordFeedback")}</p>
               </div>
             )}
             {/* Task M4 — Badge Secteur : emoji + nom du secteur (masqué sur
@@ -656,8 +656,8 @@ function BoutonOnglet({
       className={cn(
         "relative mx-3 flex h-11 shrink-0 items-center gap-3 rounded-2xl px-3.5 text-[11px] font-semibold uppercase tracking-wide transition-colors",
         actif
-          ? "-mr-2 bg-white text-[#1E1E2E] shadow-[0_6px_18px_rgba(0,0,0,0.08)]"
-          : "text-white/80 hover:bg-white/10 hover:text-white"
+          ? "-mr-2 bg-background text-foreground shadow-[0_6px_18px_rgba(0,0,0,0.08)]"
+          : "text-sidebar-foreground/80 hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground"
       )}
     >
       <Icon className="h-[18px] w-[18px] shrink-0" aria-hidden />
@@ -696,7 +696,7 @@ function ContenuSidebar({
           alt="FeedbackPro"
           className="h-10 w-auto brightness-0 invert"
         />
-        <span className="text-xs text-white/70">Coach qualité continu</span>
+        <span className="text-xs text-sidebar-foreground/70">Coach qualité continu</span>
       </div>
 
       {/* Navigation verticale : principaux, séparateur « Gestion », secondaires */}
@@ -705,36 +705,34 @@ function ContenuSidebar({
           <BoutonOnglet key={o.id} entree={{ ...o, badge: o.id === "retours" ? retoursNonLus : undefined }} actif={ongletActif === o.id} onNaviguer={onNaviguer} />
         ))}
 
-        {/* Task 2-4 — Section « ✈️ Aéroport » (uniquement pour le secteur Aéroport).
+        {/* Task 2-4 — Section « ✈️ Aéroport » — TOUJOURS visible (dashboard complet).
             Placée APRÈS les onglets principaux et AVANT le séparateur « Gestion »
             pour rester près des onglets opérationnels (Zones, Retours). */}
-        {estAeroport && (
-          <>
-            <p
-              className="px-6 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-[#E8B54D]"
-              role="presentation"
-            >
-              ✈️ {t("nav.aeroport")}
-            </p>
-            {ONGLETS_AEROPORT.map((o) => (
-              <BoutonOnglet
-                key={o.id}
-                entree={{
-                  ...o,
-                  badge: o.id === "airport-reports" || o.id === "airport-wallboard"
-                    ? (airportEnAttente > 0 ? airportEnAttente : undefined)
-                    : undefined,
-                }}
-                actif={ongletActif === o.id}
-                onNaviguer={onNaviguer}
-              />
-            ))}
-          </>
-        )}
+        <>
+          <p
+            className="px-6 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-[#E8B54D]"
+            role="presentation"
+          >
+            ✈️ {t("nav.aeroport")}
+          </p>
+          {ONGLETS_AEROPORT.map((o) => (
+            <BoutonOnglet
+              key={o.id}
+              entree={{
+                ...o,
+                badge: o.id === "airport-reports" || o.id === "airport-wallboard"
+                  ? (airportEnAttente > 0 ? airportEnAttente : undefined)
+                  : undefined,
+              }}
+              actif={ongletActif === o.id}
+              onNaviguer={onNaviguer}
+            />
+          ))}
+        </>
 
         {/* Séparateur visuel : label « Gestion » en majuscules */}
         <p
-          className="px-6 pt-4 pb-1 text-[11px] font-medium uppercase tracking-wider text-white/50"
+          className="px-6 pt-4 pb-1 text-[11px] font-medium uppercase tracking-wider text-sidebar-foreground/50"
           role="presentation"
         >
           {t("nav.gestion")}
@@ -746,8 +744,8 @@ function ContenuSidebar({
       </nav>
 
       {/* Bas de sidebar : rappel de la promesse produit */}
-      <div className="mt-auto border-t border-white/10 p-4">
-        <p className="text-[11px] leading-relaxed text-white/60">
+      <div className="mt-auto border-t border-sidebar-border p-4">
+        <p className="text-[11px] leading-relaxed text-sidebar-foreground/60">
           {t("common.promesseCoach")}
         </p>
       </div>

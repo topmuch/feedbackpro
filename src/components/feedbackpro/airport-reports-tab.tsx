@@ -1479,8 +1479,8 @@ function StaffPhotoCard({
     ? 'border-amber-500/40 bg-amber-500/15 text-amber-700'
     : 'border-emerald-500/40 bg-emerald-500/15 text-emerald-600'
   return (
-    <div className="overflow-hidden rounded-lg border border-slate-700 bg-slate-900/50">
-      <div className="flex items-center justify-between gap-2 border-b border-slate-700 px-3 py-2">
+    <div className="overflow-hidden rounded-lg border border-border bg-card">
+      <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
         <span
           className={cn(
             'inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide',
@@ -1516,7 +1516,7 @@ function StaffPhotoCard({
           />
         </a>
       ) : (
-        <div className="flex h-48 w-full items-center justify-center bg-slate-900/70 text-muted-foreground">
+        <div className="flex h-48 w-full items-center justify-center bg-muted text-muted-foreground">
           <span className="flex flex-col items-center gap-1 text-[11px]">
             <Camera className="h-6 w-6 opacity-50" />
             Photo manquante

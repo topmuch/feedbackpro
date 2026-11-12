@@ -1113,8 +1113,8 @@ function ZoneEditForm({
       <div className="mt-8 overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-card via-card to-muted/30 shadow-sm">
         {/* Header premium */}
         <div className="flex items-center gap-3 border-b border-border/60 bg-gradient-to-r from-slate-50 to-muted/40 px-5 py-4 dark:from-slate-900/40 dark:to-slate-900/20">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-slate-800 to-slate-900 shadow-md">
-            <QrCode className="size-5 text-amber-400" strokeWidth={2.5} />
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-500/5 shadow-md dark:from-amber-500/25 dark:to-amber-500/10">
+            <QrCode className="size-5 text-amber-600 dark:text-amber-400" strokeWidth={2.5} />
           </div>
           <div className="flex-1">
             <h3 className="text-sm font-bold tracking-tight text-foreground">
@@ -1292,7 +1292,7 @@ function QrCard({
           type="button"
           onClick={onDownloadPdf}
           disabled={pdfLoading || !!tagErr}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-gradient-to-b from-slate-800 to-slate-900 px-3 py-2 text-xs font-semibold text-white shadow-sm transition-all hover:from-slate-700 hover:to-slate-800 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-primary px-3 py-2 text-xs font-semibold text-primary-foreground shadow-sm transition-all hover:bg-primary/90 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-50"
         >
           {pdfLoading ? (
             <Loader2 className="size-3.5 animate-spin" />

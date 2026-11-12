@@ -115,25 +115,25 @@ const STATUS_BADGE: Record<
   BOARDING: {
     label: 'Embarquement',
     className:
-      'border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
+      'border-emerald-500/40 bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
     icon: Plane,
   },
   DEPARTED: {
     label: 'Décollé',
     className:
-      'border-slate-400/40 bg-slate-400/15 text-slate-600 dark:text-slate-300',
+      'border-slate-400/40 bg-slate-500/10 dark:bg-slate-500/15 text-slate-600 dark:text-slate-400',
     icon: CheckCircle2,
   },
   DELAYED: {
     label: 'Retardé',
     className:
-      'border-amber-500/40 bg-amber-500/15 text-amber-700 dark:text-amber-400',
+      'border-amber-500/40 bg-amber-500/10 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400',
     icon: AlertTriangle,
   },
   CANCELLED: {
     label: 'Annulé',
     className:
-      'border-rose-500/40 bg-rose-500/15 text-rose-700 dark:text-rose-400',
+      'border-rose-500/40 bg-rose-500/10 dark:bg-rose-500/15 text-rose-600 dark:text-rose-400',
     icon: XCircle,
   },
 }
@@ -368,14 +368,14 @@ export function AirportFlightGatesTab() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/15 text-amber-600 dark:text-amber-400">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400">
             <Plane className="size-5" />
           </div>
           <div>
-            <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-slate-50 sm:text-2xl">
+            <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
               QR Dynamique Vol — Assignations porte ↔ vol
             </h1>
-            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            <p className="mt-1 text-sm text-muted-foreground">
               Le QR collé sur une porte porte automatiquement le vol à quai.
               Le voyageur n'a plus à saisir son numéro de vol.
             </p>
@@ -387,7 +387,7 @@ export function AirportFlightGatesTab() {
             size="sm"
             onClick={() => load()}
             disabled={refreshing}
-            className="border-slate-200 bg-white text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800"
+            className="border-border bg-background text-foreground hover:bg-muted"
           >
             {refreshing ? (
               <Loader2 className="mr-2 size-4 animate-spin" />
@@ -408,32 +408,32 @@ export function AirportFlightGatesTab() {
       </div>
 
       {/* Content */}
-      <Card className="overflow-hidden border-slate-200 bg-white shadow-sm dark:border-slate-800 dark:bg-slate-950">
-        <CardHeader className="border-b border-slate-200 bg-slate-50/60 px-4 py-3 dark:border-slate-800 dark:bg-slate-900/40">
-          <CardTitle className="flex items-center gap-2 text-sm font-semibold text-slate-700 dark:text-slate-200">
-            <Plane className="size-4 text-amber-500" />
+      <Card className="overflow-hidden border-border bg-card shadow-sm">
+        <CardHeader className="border-b border-border bg-muted/60 px-4 py-3">
+          <CardTitle className="flex items-center gap-2 text-sm font-semibold text-foreground">
+            <Plane className="size-4 text-amber-600 dark:text-amber-400" />
             Portes assignées ({gates.length})
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
-            <div className="flex items-center justify-center gap-2 py-16 text-slate-500">
+            <div className="flex items-center justify-center gap-2 py-16 text-muted-foreground">
               <Loader2 className="size-5 animate-spin" />
               <span className="text-sm">Chargement…</span>
             </div>
           ) : gates.length === 0 ? (
             <div className="flex flex-col items-center gap-3 px-4 py-16 text-center">
-              <div className="flex size-12 items-center justify-center rounded-full bg-slate-100 text-slate-400 dark:bg-slate-900 dark:text-slate-600">
+              <div className="flex size-12 items-center justify-center rounded-full bg-muted text-muted-foreground">
                 <Plane className="size-6" />
               </div>
-              <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
+              <p className="text-sm font-medium text-muted-foreground">
                 Aucune assignation active — les portes sont libres
               </p>
               <Button
                 size="sm"
                 variant="outline"
                 onClick={() => setDialogOpen(true)}
-                className="border-amber-500/40 text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/30"
+                className="border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 dark:hover:bg-amber-500/15"
               >
                 <Plus className="mr-2 size-4" />
                 Assigner un premier vol
@@ -443,7 +443,7 @@ export function AirportFlightGatesTab() {
             <div className="max-h-[70vh] overflow-y-auto">
               {/* Desktop table */}
               <table className="hidden w-full table-fixed md:table">
-                <thead className="sticky top-0 z-10 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:bg-slate-900 dark:text-slate-400">
+                <thead className="sticky top-0 z-10 bg-muted text-xs uppercase tracking-wide text-muted-foreground">
                   <tr>
                     <th className="px-4 py-2 text-left font-semibold">Porte</th>
                     <th className="px-4 py-2 text-left font-semibold">Vol</th>
@@ -454,7 +454,7 @@ export function AirportFlightGatesTab() {
                     <th className="px-4 py-2 text-right font-semibold">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                <tbody className="divide-y divide-border">
                   {gates.map((gate) => {
                     const status = (gate.status as FlightStatus) ?? 'BOARDING'
                     const badge = STATUS_BADGE[status]
@@ -466,35 +466,35 @@ export function AirportFlightGatesTab() {
                         className={cn(
                           'text-sm transition-colors',
                           gate.active
-                            ? 'bg-white hover:bg-amber-50/40 dark:bg-slate-950 dark:hover:bg-slate-900/60'
-                            : 'bg-slate-50/40 text-slate-400 dark:bg-slate-900/20',
+                            ? 'bg-card hover:bg-amber-500/10 dark:hover:bg-amber-500/15'
+                            : 'bg-muted/40 text-muted-foreground',
                         )}
                       >
                         <td className="px-4 py-3 align-middle">
-                          <span className="font-mono text-xs font-semibold text-slate-700 dark:text-slate-200">
+                          <span className="font-mono text-xs font-semibold text-foreground">
                             {gate.gateTag}
                           </span>
                         </td>
                         <td className="px-4 py-3 align-middle">
-                          <span className="inline-flex items-center gap-1.5 font-bold text-slate-900 dark:text-slate-50">
-                            <Plane className="size-3.5 text-amber-500" />
+                          <span className="inline-flex items-center gap-1.5 font-bold text-foreground">
+                            <Plane className="size-3.5 text-amber-600 dark:text-amber-400" />
                             {gate.flightNumber}
                           </span>
                         </td>
-                        <td className="px-4 py-3 align-middle text-slate-600 dark:text-slate-300">
+                        <td className="px-4 py-3 align-middle text-muted-foreground">
                           {gate.airline ?? '—'}
                         </td>
-                        <td className="px-4 py-3 align-middle text-slate-600 dark:text-slate-300">
+                        <td className="px-4 py-3 align-middle text-muted-foreground">
                           {gate.destination ?? '—'}
                         </td>
                         <td className="px-4 py-3 align-middle">
                           {gate.scheduledDeparture ? (
-                            <span className="inline-flex items-center gap-1 text-slate-600 dark:text-slate-300">
-                              <Clock className="size-3.5 text-slate-400" />
+                            <span className="inline-flex items-center gap-1 text-muted-foreground">
+                              <Clock className="size-3.5 text-muted-foreground" />
                               {gate.scheduledDeparture}
                             </span>
                           ) : (
-                            <span className="text-slate-400">—</span>
+                            <span className="text-muted-foreground">—</span>
                           )}
                         </td>
                         <td className="px-4 py-3 align-middle">
@@ -518,7 +518,7 @@ export function AirportFlightGatesTab() {
                                   active: false,
                                 })
                               }
-                              className="h-8 px-2 text-xs text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800"
+                              className="h-8 px-2 text-xs text-muted-foreground hover:bg-muted"
                               title="Marquer décollé (libère la porte)"
                             >
                               {isBusy ? (
@@ -535,7 +535,7 @@ export function AirportFlightGatesTab() {
                               onClick={() =>
                                 handlePatch(gate, { status: 'DELAYED' })
                               }
-                              className="h-8 px-2 text-xs text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-950/30"
+                              className="h-8 px-2 text-xs text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 dark:hover:bg-amber-500/15"
                               title="Retarder"
                             >
                               <AlertTriangle className="size-3.5" />
@@ -551,7 +551,7 @@ export function AirportFlightGatesTab() {
                                   active: false,
                                 })
                               }
-                              className="h-8 px-2 text-xs text-rose-700 hover:bg-rose-50 dark:text-rose-400 dark:hover:bg-rose-950/30"
+                              className="h-8 px-2 text-xs text-rose-600 dark:text-rose-400 hover:bg-rose-500/10 dark:hover:bg-rose-500/15"
                               title="Annuler (libère la porte)"
                             >
                               <XCircle className="size-3.5" />
@@ -562,7 +562,7 @@ export function AirportFlightGatesTab() {
                               variant="ghost"
                               disabled={isBusy}
                               onClick={() => handleDelete(gate)}
-                              className="h-8 px-2 text-xs text-slate-500 hover:bg-slate-100 hover:text-rose-600 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-rose-400"
+                              className="h-8 px-2 text-xs text-muted-foreground hover:bg-muted hover:text-rose-600 dark:hover:text-rose-400"
                               title="Supprimer l'assignation"
                             >
                               <Trash2 className="size-3.5" />
@@ -576,7 +576,7 @@ export function AirportFlightGatesTab() {
               </table>
 
               {/* Mobile cards */}
-              <div className="divide-y divide-slate-100 md:hidden dark:divide-slate-800">
+              <div className="divide-y divide-border md:hidden">
                 {gates.map((gate) => {
                   const status = (gate.status as FlightStatus) ?? 'BOARDING'
                   const badge = STATUS_BADGE[status]
@@ -587,13 +587,13 @@ export function AirportFlightGatesTab() {
                       key={gate.id}
                       className={cn(
                         'p-4',
-                        gate.active ? 'bg-white dark:bg-slate-950' : 'bg-slate-50/40 dark:bg-slate-900/20',
+                        gate.active ? 'bg-card' : 'bg-muted/40',
                       )}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0 flex-1">
                           <div className="flex items-center gap-2">
-                            <span className="font-mono text-xs font-semibold text-slate-500 dark:text-slate-400">
+                            <span className="font-mono text-xs font-semibold text-muted-foreground">
                               {gate.gateTag}
                             </span>
                             <Badge
@@ -605,19 +605,19 @@ export function AirportFlightGatesTab() {
                             </Badge>
                           </div>
                           <div className="mt-1 flex items-center gap-1.5">
-                            <Plane className="size-4 text-amber-500" />
-                            <span className="text-base font-bold text-slate-900 dark:text-slate-50">
+                            <Plane className="size-4 text-amber-600 dark:text-amber-400" />
+                            <span className="text-base font-bold text-foreground">
                               {gate.flightNumber}
                             </span>
                           </div>
-                          <div className="mt-1 text-xs text-slate-600 dark:text-slate-300">
+                          <div className="mt-1 text-xs text-muted-foreground">
                             {gate.airline ?? '—'} · {gate.destination ?? '—'}
                             {gate.scheduledDeparture
                               ? ` · ${gate.scheduledDeparture}`
                               : ''}
                           </div>
                           {gate.notes ? (
-                            <div className="mt-1 text-xs italic text-slate-400">
+                            <div className="mt-1 text-xs italic text-muted-foreground">
                               {gate.notes}
                             </div>
                           ) : null}
@@ -634,7 +634,7 @@ export function AirportFlightGatesTab() {
                               active: false,
                             })
                           }
-                          className="h-8 border-slate-200 px-2 text-xs text-slate-600 dark:border-slate-700 dark:text-slate-300"
+                          className="h-8 border-border px-2 text-xs text-muted-foreground"
                         >
                           {isBusy ? (
                             <Loader2 className="size-3.5 animate-spin" />
@@ -650,7 +650,7 @@ export function AirportFlightGatesTab() {
                           onClick={() =>
                             handlePatch(gate, { status: 'DELAYED' })
                           }
-                          className="h-8 border-amber-500/40 px-2 text-xs text-amber-700 dark:text-amber-400"
+                          className="h-8 border-amber-500/40 px-2 text-xs text-amber-600 dark:text-amber-400"
                         >
                           <AlertTriangle className="size-3.5" />
                           <span className="ml-1">Retarder</span>
@@ -665,7 +665,7 @@ export function AirportFlightGatesTab() {
                               active: false,
                             })
                           }
-                          className="h-8 border-rose-500/40 px-2 text-xs text-rose-700 dark:text-rose-400"
+                          className="h-8 border-rose-500/40 px-2 text-xs text-rose-600 dark:text-rose-400"
                         >
                           <XCircle className="size-3.5" />
                           <span className="ml-1">Annuler</span>
@@ -675,7 +675,7 @@ export function AirportFlightGatesTab() {
                           variant="ghost"
                           disabled={isBusy}
                           onClick={() => handleDelete(gate)}
-                          className="ml-auto h-8 px-2 text-xs text-slate-500 hover:text-rose-600 dark:text-slate-400"
+                          className="ml-auto h-8 px-2 text-xs text-muted-foreground hover:text-rose-600 dark:hover:text-rose-400"
                         >
                           <Trash2 className="size-3.5" />
                         </Button>
@@ -691,13 +691,13 @@ export function AirportFlightGatesTab() {
 
       {/* Dialog nouvelle assignation */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent className="max-w-lg border-slate-200 bg-white p-0 dark:border-slate-800 dark:bg-slate-950">
-          <DialogHeader className="border-b border-slate-200 px-5 py-4 dark:border-slate-800">
-            <DialogTitle className="flex items-center gap-2 text-base font-semibold text-slate-900 dark:text-slate-50">
-              <Plane className="size-4 text-amber-500" />
+        <DialogContent className="max-w-lg border-border bg-background p-0">
+          <DialogHeader className="border-b border-border px-5 py-4">
+            <DialogTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
+              <Plane className="size-4 text-amber-600 dark:text-amber-400" />
               Nouvelle assignation porte ↔ vol
             </DialogTitle>
-            <DialogDescription className="text-sm text-slate-500 dark:text-slate-400">
+            <DialogDescription className="text-sm text-muted-foreground">
               Le vol sera immédiatement actif à quai. Le QR de la porte se met
               à jour automatiquement pour les prochains scans.
             </DialogDescription>
@@ -706,7 +706,7 @@ export function AirportFlightGatesTab() {
           <div className="max-h-[60vh] space-y-4 overflow-y-auto px-5 py-4">
             {/* Porte */}
             <div className="space-y-1.5">
-              <Label htmlFor="fg-gateTag" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+              <Label htmlFor="fg-gateTag" className="text-xs font-semibold text-muted-foreground">
                 Porte d'embarquement
               </Label>
               <Select
@@ -717,7 +717,7 @@ export function AirportFlightGatesTab() {
               >
                 <SelectTrigger
                   id="fg-gateTag"
-                  className="bg-white text-sm dark:bg-slate-900"
+                  className="bg-background text-sm"
                 >
                   <SelectValue placeholder="Sélectionnez une porte" />
                 </SelectTrigger>
@@ -733,7 +733,7 @@ export function AirportFlightGatesTab() {
 
             {/* Numéro de vol */}
             <div className="space-y-1.5">
-              <Label htmlFor="fg-flightNumber" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+              <Label htmlFor="fg-flightNumber" className="text-xs font-semibold text-muted-foreground">
                 Numéro de vol
               </Label>
               <Input
@@ -750,7 +750,7 @@ export function AirportFlightGatesTab() {
                 className="font-mono uppercase tracking-wide text-sm"
                 maxLength={10}
               />
-              <p className="text-[11px] text-slate-400">
+              <p className="text-[11px] text-muted-foreground">
                 2 lettres + 1-4 chiffres (ex : AF123, DL6049).
               </p>
             </div>
@@ -758,7 +758,7 @@ export function AirportFlightGatesTab() {
             {/* Compagnie + Destination */}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <Label htmlFor="fg-airline" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                <Label htmlFor="fg-airline" className="text-xs font-semibold text-muted-foreground">
                   Compagnie
                 </Label>
                 <Input
@@ -772,7 +772,7 @@ export function AirportFlightGatesTab() {
                 />
               </div>
               <div className="space-y-1.5">
-                <Label htmlFor="fg-destination" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+                <Label htmlFor="fg-destination" className="text-xs font-semibold text-muted-foreground">
                   Destination
                 </Label>
                 <Input
@@ -789,7 +789,7 @@ export function AirportFlightGatesTab() {
 
             {/* Départ prévu */}
             <div className="space-y-1.5">
-              <Label htmlFor="fg-departure" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+              <Label htmlFor="fg-departure" className="text-xs font-semibold text-muted-foreground">
                 Heure de départ prévue (HH:MM)
               </Label>
               <Input
@@ -808,7 +808,7 @@ export function AirportFlightGatesTab() {
 
             {/* Notes */}
             <div className="space-y-1.5">
-              <Label htmlFor="fg-notes" className="text-xs font-semibold text-slate-600 dark:text-slate-300">
+              <Label htmlFor="fg-notes" className="text-xs font-semibold text-muted-foreground">
                 Notes (optionnel)
               </Label>
               <Textarea
@@ -824,7 +824,7 @@ export function AirportFlightGatesTab() {
             </div>
           </div>
 
-          <DialogFooter className="border-t border-slate-200 px-5 py-3 dark:border-slate-800">
+          <DialogFooter className="border-t border-border px-5 py-3">
             <Button
               variant="outline"
               onClick={() => {
@@ -832,7 +832,7 @@ export function AirportFlightGatesTab() {
                 resetForm()
               }}
               disabled={submitting}
-              className="border-slate-200 text-slate-600 dark:border-slate-700 dark:text-slate-300"
+              className="border-border text-muted-foreground"
             >
               Annuler
             </Button>
