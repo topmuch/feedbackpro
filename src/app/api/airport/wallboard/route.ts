@@ -316,5 +316,23 @@ export async function GET() {
         tagScanne: r.tagScanne,
         resolvedAt: r.resolvedAt,
       })),
+    // Photos Avant/Après pour les signalements résolus dans les dernières 24h
+    // (pour affichage dans le wallboard)
+    staff_scans: await (async () => {
+      const scans = await db.airportStaffScan.findMany({
+        where: { createdAt: { gte: since24 } },
+        orderBy: { createdAt: 'desc' },
+        take: 20,
+      })
+      return scans.map((s) => ({
+        id: s.id,
+        action: s.action,
+        reportId: s.reportId,
+        photoUrl: s.photoUrl,
+        message: s.message,
+        staffName: s.staffName,
+        createdAt: s.createdAt.toISOString(),
+      }))
+    })(),
   })
 }
