@@ -69,13 +69,16 @@
   --chart-3: oklch(0.554 0.046 257.417);
   --chart-4: oklch(0.809 0.105 251.813);
   --chart-5: oklch(0.623 0.214 259.815);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.546 0.245 262.881);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
+  /* Sidebar bleu indigo FeedbackPro (#5257C9) en mode clair.
+     Le sidebar est volontairement bleu foncé (pas blanc comme shadcn par défaut)
+     — c'est la signature visuelle FeedbackPro. Le texte dessus est blanc. */
+  --sidebar: oklch(0.48 0.17 264);
+  --sidebar-foreground: oklch(0.985 0 0);
+  --sidebar-primary: oklch(0.985 0 0);
+  --sidebar-primary-foreground: oklch(0.20 0.03 264);
+  --sidebar-accent: oklch(0.38 0.14 264);
+  --sidebar-accent-foreground: oklch(0.985 0 0);
+  --sidebar-border: oklch(1 0 0 / 12%);
   --sidebar-ring: oklch(0.708 0 0);
 }
 
