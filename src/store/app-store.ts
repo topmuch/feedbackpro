@@ -9,7 +9,7 @@
 
 import { create } from "zustand"
 
-export type View = "loading" | "landing" | "auth" | "dashboard" | "admin" | "scan" | "airport" | "airport-ops"
+export type View = "loading" | "landing" | "auth" | "dashboard" | "admin" | "scan" | "airport" | "airport-staff" | "airport-ops"
 
 /** Établissement (Pro) tel que renvoyé par /api/auth/me et les routes de session */
 export type ProData = {
@@ -51,6 +51,8 @@ type AppState = {
   scanToken: string | null
   /** Tag URL aéroport scanné (ex: "tapis_bagages_1") */
   airportTag: string | null
+  /** Tag URL staff scanné (ex: "staff_nettoyage_T2") — QR Staff Only */
+  staffTag: string | null
   session: SessionData | null
   booted: boolean
   /** Pré-remplissage du formulaire de connexion (comptes de démo) */
@@ -65,16 +67,20 @@ type AppState = {
   /** Ouvre la PWA aéroport avec un tag URL scanné (/aeroport/<tag> ou ?airport=<tag>) */
   openAirport: (tag: string) => void
   closeAirport: () => void
+  /** Ouvre la PWA Staff Only (QR employé scanné : ?staff=<tag>) */
+  openStaff: (tag: string) => void
+  closeStaff: () => void
   setSession: (s: SessionData | null) => void
   refreshSession: () => Promise<void>
   logout: () => Promise<void>
   updatePro: (pro: ProData) => void
 }
 
-/** Détermine la vue à partir de la session (et du scan / airport actif) */
-function deriveView(scanToken: string | null, airportTag: string | null, session: SessionData | null): View {
+/** Détermine la vue à partir de la session (et du scan / airport / staff actif) */
+function deriveView(scanToken: string | null, airportTag: string | null, staffTag: string | null, session: SessionData | null): View {
   if (scanToken) return "scan"
   if (airportTag) return "airport"
+  if (staffTag) return "airport-staff"
   if (!session) return "landing"
   if (session.user.role === "SUPERADMIN") return "admin"
   // Tous les Pro (y compris Aéroport) vont sur le dashboard Pro classique.
@@ -124,6 +130,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   authMode: "login",
   scanToken: null,
   airportTag: null,
+  staffTag: null,
   session: null,
   booted: false,
   prefillLogin: null,
@@ -173,7 +180,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch {
       /* ignore */
     }
-    set({ view: deriveView(null, get().airportTag, get().session) })
+    set({ view: deriveView(null, get().airportTag, get().staffTag, get().session) })
   },
 
   // Ouvre la PWA aéroport (depuis /aeroport/<tag> ou ?airport=<tag>)
@@ -205,11 +212,35 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch {
       /* ignore */
     }
-    set({ view: deriveView(get().scanToken, null, get().session) })
+    set({ view: deriveView(get().scanToken, null, get().staffTag, get().session) })
+  },
+
+  // Ouvre la PWA Staff Only (QR employé scanné : ?staff=<tag>)
+  openStaff: (tag) => {
+    set({ staffTag: tag, view: "airport-staff" })
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.set("staff", tag)
+      window.history.pushState({}, "", url.toString())
+    } catch {
+      /* ignore */
+    }
+  },
+
+  closeStaff: () => {
+    set({ staffTag: null })
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.delete("staff")
+      window.history.replaceState({}, "", url.toString())
+    } catch {
+      /* ignore */
+    }
+    set({ view: deriveView(get().scanToken, get().airportTag, null, get().session) })
   },
 
   setSession: (s) => {
-    set({ session: s, view: deriveView(get().scanToken, get().airportTag, s), booted: true })
+    set({ session: s, view: deriveView(get().scanToken, get().airportTag, get().staffTag, s), booted: true })
   },
 
   // Charge la session courante depuis le serveur
@@ -221,7 +252,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch {
       set({ session: null })
     }
-    set({ booted: true, view: deriveView(get().scanToken, get().airportTag, get().session) })
+    set({ booted: true, view: deriveView(get().scanToken, get().airportTag, get().staffTag, get().session) })
   },
 
   logout: async () => {
@@ -237,6 +268,6 @@ export const useAppStore = create<AppState>((set, get) => ({
     const s = get().session
     if (!s) return
     const session = { ...s, pro }
-    set({ session, view: deriveView(get().scanToken, get().airportTag, session) })
+    set({ session, view: deriveView(get().scanToken, get().airportTag, get().staffTag, session) })
   },
 }))

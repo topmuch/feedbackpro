@@ -55,6 +55,7 @@ export default function Home() {
   const refreshSession = useAppStore((s) => s.refreshSession)
   const openScan = useAppStore((s) => s.openScan)
   const openAirport = useAppStore((s) => s.openAirport)
+  const openStaff = useAppStore((s) => s.openStaff)
   const setAuthMode = useAppStore((s) => s.setAuthMode)
   const setView = useAppStore((s) => s.setView)
 
@@ -103,7 +104,7 @@ export default function Home() {
     if (airportTagInit) openAirport(airportTagInit)
     // QR Staff Only : ?staff=<tag>
     const staffTag = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("staff") : null
-    if (staffTag) setView("airport-staff" as typeof view)
+    if (staffTag) openStaff(staffTag)
     refreshSession().then(() => {
       try {
         const chemin = window.location.pathname
@@ -116,19 +117,21 @@ export default function Home() {
         /* ignore */
       }
     })
-  }, [openScan, openAirport, refreshSession, setAuthMode])
+  }, [openScan, openAirport, openStaff, refreshSession, setAuthMode])
 
-  // Bouton retour navigateur : resynchronise le token de scan ou le tag aéroport
+  // Bouton retour navigateur : resynchronise le token de scan ou le tag aéroport/staff
   useEffect(() => {
     function onPop() {
       const token = tokenDepuisUrl()
       if (token && token !== scanToken) openScan(token)
       const atag = airportTagDepuisUrl()
       if (atag && atag !== airportTag) openAirport(atag)
+      const stag = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("staff") : null
+      if (stag) openStaff(stag)
     }
     window.addEventListener("popstate", onPop)
     return () => window.removeEventListener("popstate", onPop)
-  }, [openScan, openAirport, scanToken, airportTag])
+  }, [openScan, openAirport, openStaff, scanToken, airportTag])
 
   // ---------- Écran de chargement initial ----------
   if (!booted || view === "loading") {
@@ -161,11 +164,11 @@ export default function Home() {
   }
 
   // ---------- PWA Staff Only (employé, sans footer) ----------
-  if (view === ("airport-staff" as typeof view)) {
-    const staffTag = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("staff") ?? "staff" : "staff"
+  if (view === "airport-staff") {
+    const staffTag = useAppStore.getState().staffTag ?? (typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("staff") ?? "staff" : "staff")
     return (
       <main className="min-h-screen bg-background">
-        <AirportStaffView staffTag={staffTag} onExit={() => { setView("landing"); if (typeof window !== "undefined") window.history.replaceState({}, "", "/") }} />
+        <AirportStaffView staffTag={staffTag} onExit={() => useAppStore.getState().closeStaff()} />
       </main>
     )
   }
