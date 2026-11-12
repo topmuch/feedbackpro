@@ -38,6 +38,8 @@ import {
   Plane,
   MessageCircle,
   Trophy,
+  ShieldCheck,
+  Lock,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -81,6 +83,9 @@ import AirportReportsTab from "@/components/feedbackpro/airport-reports-tab"
 import AirportBotTab from "@/components/feedbackpro/airport-bot-tab"
 import { AirportWallboardTab } from "@/components/feedbackpro/airport-wallboard-tab"
 import { AirportLeaderboardTab } from "@/components/feedbackpro/airport-leaderboard-tab"
+import { AirportBlackboxTab } from "@/components/feedbackpro/airport-blackbox-tab"
+import { AirportStaffQrTab } from "@/components/feedbackpro/airport-staffqr-tab"
+import { AirportFlightGatesTab } from "@/components/feedbackpro/airport-flightgates-tab"
 
 type Onglet =
   | "dashboard"
@@ -104,6 +109,9 @@ type Onglet =
   | "airport-reports"
   | "airport-bot"
   | "airport-leaderboard"
+  | "airport-blackbox"
+  | "airport-staff-qr"
+  | "airport-vols"
 
 /** Slug URL → onglet interne (ex. /dashboard/qr-codes → "qrcode") */
 const SLUG_TO_TAB: Record<string, Onglet> = {
@@ -133,6 +141,9 @@ const SLUG_TO_TAB: Record<string, Onglet> = {
   "aeroport-signalements": "airport-reports",
   "aeroport-bot": "airport-bot",
   "aeroport-classement": "airport-leaderboard",
+  "aeroport-blackbox": "airport-blackbox",
+  "aeroport-qr-staff": "airport-staff-qr",
+  "aeroport-vols": "airport-vols",
 }
 
 /** Onglet interne → slug URL (ex. "qrcode" → /dashboard/qr-codes) */
@@ -157,6 +168,9 @@ const TAB_TO_SLUG: Record<Onglet, string> = {
   "airport-reports": "aeroport-signalements",
   "airport-bot": "aeroport-bot",
   "airport-leaderboard": "aeroport-classement",
+  "airport-blackbox": "aeroport-blackbox",
+  "airport-staff-qr": "aeroport-qr-staff",
+  "airport-vols": "aeroport-vols",
 }
 
 // ---------- Navigation (Session 4) : 7 onglets principaux + groupe « Gestion » ----------
@@ -197,6 +211,9 @@ const ONGLETS_AEROPORT: EntreeNav[] = [
   { id: "airport-zones", labelKey: "nav.airportZones", icon: Plane },
   { id: "airport-reports", labelKey: "nav.airportReports", icon: Inbox },
   { id: "airport-leaderboard", labelKey: "nav.airportLeaderboard", icon: Trophy },
+  { id: "airport-blackbox", labelKey: "nav.airportBlackBox", icon: Lock },
+  { id: "airport-staff-qr", labelKey: "nav.airportStaffQr", icon: QrCode },
+  { id: "airport-vols", labelKey: "nav.airportVols", icon: ShieldCheck },
   { id: "airport-bot", labelKey: "nav.airportBot", icon: MessageCircle },
 ]
 
@@ -230,7 +247,7 @@ function ongletDepuisUrl(): Onglet {
 }
 
 export function ProDashboard() {
-  const t = (key: string) => { const map: Record<string, string> = {"nav.dashboard": "Tableau de bord", "nav.coach": "Coach IA", "nav.auditMatin": "Audit Matin", "nav.zones": "Zones", "nav.retours": "Retours", "nav.team": "Equipe", "nav.stats": "Statistiques", "nav.qrcode": "QR Codes", "nav.settings": "Parametres", "nav.commander": "Commander", "nav.rapports": "Rapports IA", "nav.recompenses": "Recompenses", "nav.actions": "Actions", "nav.billing": "Facturation", "nav.airportWallboard": "Wallboard", "nav.airportZones": "Zones aéroport", "nav.airportReports": "Signalements", "nav.airportLeaderboard": "Classement", "nav.airportBot": "Bot WhatsApp", "nav.aeroport": "Aéroport", "nav.gestion": "Gestion", "common.ouvrirMenu": "Ouvrir le menu", "common.navigationDashboard": "Navigation du dashboard", "common.deconnexion": "Deconnexion", "common.tableauBordFeedback": "Tableau de bord FeedbackPro", "common.promesseCoach": "Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorites concretes."}; return map[key] || key }
+  const t = (key: string) => { const map: Record<string, string> = {"nav.dashboard": "Tableau de bord", "nav.coach": "Coach IA", "nav.auditMatin": "Audit Matin", "nav.zones": "Zones", "nav.retours": "Retours", "nav.team": "Equipe", "nav.stats": "Statistiques", "nav.qrcode": "QR Codes", "nav.settings": "Parametres", "nav.commander": "Commander", "nav.rapports": "Rapports IA", "nav.recompenses": "Recompenses", "nav.actions": "Actions", "nav.billing": "Facturation", "nav.airportWallboard": "Wallboard", "nav.airportZones": "Zones aéroport", "nav.airportReports": "Signalements", "nav.airportLeaderboard": "Classement", "nav.airportBot": "Bot WhatsApp", "nav.airportBlackBox": "Black Box", "nav.airportStaffQr": "QR Staff", "nav.airportVols": "Vols & Portes", "nav.aeroport": "Aéroport", "nav.gestion": "Gestion", "common.ouvrirMenu": "Ouvrir le menu", "common.navigationDashboard": "Navigation du dashboard", "common.deconnexion": "Deconnexion", "common.tableauBordFeedback": "Tableau de bord FeedbackPro", "common.promesseCoach": "Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorites concretes."}; return map[key] || key }
   const [onglet, setOnglet] = useState<Onglet>(() => ongletDepuisUrl())
   const [menuOuvert, setMenuOuvert] = useState(false)
   /** Zone présélectionnée dans l'onglet QR (arrivée depuis l'onglet Zones) */
@@ -609,6 +626,9 @@ export function ProDashboard() {
         {onglet === "airport-zones" && <AirportZonesTab />}
         {onglet === "airport-reports" && <AirportReportsTab />}
         {onglet === "airport-leaderboard" && <AirportLeaderboardTab />}
+        {onglet === "airport-blackbox" && <AirportBlackboxTab />}
+        {onglet === "airport-staff-qr" && <AirportStaffQrTab />}
+        {onglet === "airport-vols" && <AirportFlightGatesTab />}
         {onglet === "airport-bot" && <AirportBotTab />}
       </main>
     </div>
@@ -626,7 +646,7 @@ function BoutonOnglet({
   actif: boolean
   onNaviguer: (o: Onglet) => void
 }) {
-  const t = (key: string) => { const map: Record<string, string> = {"nav.dashboard": "Tableau de bord", "nav.coach": "Coach IA", "nav.auditMatin": "Audit Matin", "nav.zones": "Zones", "nav.retours": "Retours", "nav.team": "Equipe", "nav.stats": "Statistiques", "nav.qrcode": "QR Codes", "nav.settings": "Parametres", "nav.commander": "Commander", "nav.rapports": "Rapports IA", "nav.recompenses": "Recompenses", "nav.actions": "Actions", "nav.billing": "Facturation", "nav.airportWallboard": "Wallboard", "nav.airportZones": "Zones aéroport", "nav.airportReports": "Signalements", "nav.airportLeaderboard": "Classement", "nav.airportBot": "Bot WhatsApp", "nav.aeroport": "Aéroport", "nav.gestion": "Gestion", "common.ouvrirMenu": "Ouvrir le menu", "common.navigationDashboard": "Navigation du dashboard", "common.deconnexion": "Deconnexion", "common.tableauBordFeedback": "Tableau de bord FeedbackPro", "common.promesseCoach": "Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorites concretes."}; return map[key] || key }
+  const t = (key: string) => { const map: Record<string, string> = {"nav.dashboard": "Tableau de bord", "nav.coach": "Coach IA", "nav.auditMatin": "Audit Matin", "nav.zones": "Zones", "nav.retours": "Retours", "nav.team": "Equipe", "nav.stats": "Statistiques", "nav.qrcode": "QR Codes", "nav.settings": "Parametres", "nav.commander": "Commander", "nav.rapports": "Rapports IA", "nav.recompenses": "Recompenses", "nav.actions": "Actions", "nav.billing": "Facturation", "nav.airportWallboard": "Wallboard", "nav.airportZones": "Zones aéroport", "nav.airportReports": "Signalements", "nav.airportLeaderboard": "Classement", "nav.airportBot": "Bot WhatsApp", "nav.airportBlackBox": "Black Box", "nav.airportStaffQr": "QR Staff", "nav.airportVols": "Vols & Portes", "nav.aeroport": "Aéroport", "nav.gestion": "Gestion", "common.ouvrirMenu": "Ouvrir le menu", "common.navigationDashboard": "Navigation du dashboard", "common.deconnexion": "Deconnexion", "common.tableauBordFeedback": "Tableau de bord FeedbackPro", "common.promesseCoach": "Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorites concretes."}; return map[key] || key }
   const Icon = entree.icon
   return (
     <button
@@ -666,7 +686,7 @@ function ContenuSidebar({
   estAeroport?: boolean
   airportEnAttente?: number
 }) {
-  const t = (key: string) => { const map: Record<string, string> = {"nav.dashboard": "Tableau de bord", "nav.coach": "Coach IA", "nav.auditMatin": "Audit Matin", "nav.zones": "Zones", "nav.retours": "Retours", "nav.team": "Equipe", "nav.stats": "Statistiques", "nav.qrcode": "QR Codes", "nav.settings": "Parametres", "nav.commander": "Commander", "nav.rapports": "Rapports IA", "nav.recompenses": "Recompenses", "nav.actions": "Actions", "nav.billing": "Facturation", "nav.airportWallboard": "Wallboard", "nav.airportZones": "Zones aéroport", "nav.airportReports": "Signalements", "nav.airportLeaderboard": "Classement", "nav.airportBot": "Bot WhatsApp", "nav.aeroport": "Aéroport", "nav.gestion": "Gestion", "common.ouvrirMenu": "Ouvrir le menu", "common.navigationDashboard": "Navigation du dashboard", "common.deconnexion": "Deconnexion", "common.tableauBordFeedback": "Tableau de bord FeedbackPro", "common.promesseCoach": "Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorites concretes."}; return map[key] || key }
+  const t = (key: string) => { const map: Record<string, string> = {"nav.dashboard": "Tableau de bord", "nav.coach": "Coach IA", "nav.auditMatin": "Audit Matin", "nav.zones": "Zones", "nav.retours": "Retours", "nav.team": "Equipe", "nav.stats": "Statistiques", "nav.qrcode": "QR Codes", "nav.settings": "Parametres", "nav.commander": "Commander", "nav.rapports": "Rapports IA", "nav.recompenses": "Recompenses", "nav.actions": "Actions", "nav.billing": "Facturation", "nav.airportWallboard": "Wallboard", "nav.airportZones": "Zones aéroport", "nav.airportReports": "Signalements", "nav.airportLeaderboard": "Classement", "nav.airportBot": "Bot WhatsApp", "nav.airportBlackBox": "Black Box", "nav.airportStaffQr": "QR Staff", "nav.airportVols": "Vols & Portes", "nav.aeroport": "Aéroport", "nav.gestion": "Gestion", "common.ouvrirMenu": "Ouvrir le menu", "common.navigationDashboard": "Navigation du dashboard", "common.deconnexion": "Deconnexion", "common.tableauBordFeedback": "Tableau de bord FeedbackPro", "common.promesseCoach": "Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorites concretes."}; return map[key] || key }
   return (
     <div className="flex h-full flex-col">
       {/* Logo */}

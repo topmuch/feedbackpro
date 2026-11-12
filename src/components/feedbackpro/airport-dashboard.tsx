@@ -31,10 +31,6 @@ import { useAppStore } from '@/store/app-store'
 import AirportZonesTab from '@/components/feedbackpro/airport-zones-tab'
 import AirportReportsTab from '@/components/feedbackpro/airport-reports-tab'
 import AirportBotTab from '@/components/feedbackpro/airport-bot-tab'
-import { AirportLeaderboardTab } from '@/components/feedbackpro/airport-leaderboard-tab'
-import { AirportBlackboxTab } from '@/components/feedbackpro/airport-blackbox-tab'
-import { AirportStaffQrTab } from '@/components/feedbackpro/airport-staffqr-tab'
-import { AirportFlightGatesTab } from '@/components/feedbackpro/airport-flightgates-tab'
 
 // ---------------------------------------------------------------
 // Types
@@ -44,10 +40,6 @@ type TabSlug =
   | 'wallboard'
   | 'zones'
   | 'signalements'
-  | 'leaderboard'
-  | 'black-box'
-  | 'staff-qr'
-  | 'vols'
   | 'bot'
 
 type TabDef = {
@@ -60,10 +52,6 @@ const TABS: readonly TabDef[] = [
   { slug: 'wallboard', label: 'Wallboard', emoji: '📺' },
   { slug: 'zones', label: 'Zones', emoji: '🛠️' },
   { slug: 'signalements', label: 'Signalements', emoji: '📋' },
-  { slug: 'leaderboard', label: 'Leaderboard', emoji: '🏆' },
-  { slug: 'black-box', label: 'Black Box', emoji: '🔒' },
-  { slug: 'staff-qr', label: 'Staff QR', emoji: '🧑‍✈️' },
-  { slug: 'vols', label: 'Vols & Portes', emoji: '✈️' },
   { slug: 'bot', label: 'Bot WhatsApp', emoji: '🤖' },
 ] as const
 
@@ -299,10 +287,6 @@ export default function AirportDashboard() {
         {tab === 'wallboard' && <WallboardTab />}
         {tab === 'zones' && <AirportZonesTab />}
         {tab === 'signalements' && <AirportReportsTab />}
-        {tab === 'leaderboard' && <AirportLeaderboardTab />}
-        {tab === 'black-box' && <AirportBlackboxTab />}
-        {tab === 'staff-qr' && <AirportStaffQrTab />}
-        {tab === 'vols' && <AirportFlightGatesTab />}
         {tab === 'bot' && <AirportBotTab />}
       </main>
 
