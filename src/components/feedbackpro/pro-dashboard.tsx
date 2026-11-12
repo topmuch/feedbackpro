@@ -404,7 +404,7 @@ export function ProDashboard() {
             <Skeleton className="h-9 w-9 rounded-lg" />
           </div>
         </header>
-        <main className="mx-auto w-full max-w-7xl flex-1 space-y-4 px-3 py-5 sm:px-5 lg:px-6">
+        <main className="w-full flex-1 space-y-4 px-4 py-5 sm:px-6 lg:px-8">
           <Skeleton className="h-10 w-72" />
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {[...Array(4)].map((_, i) => (
@@ -581,7 +581,7 @@ export function ProDashboard() {
         className={cn(
           onglet === "airport-wallboard"
             ? "flex min-h-0 flex-1 flex-col"
-            : "mx-auto w-full max-w-7xl flex-1 px-3 py-5 sm:px-5 sm:py-7 lg:px-6"
+            : "w-full flex-1 px-4 py-5 sm:px-6 sm:py-7 lg:px-8"
         )}
       >
         {onglet === "dashboard" && <OverviewTab />}

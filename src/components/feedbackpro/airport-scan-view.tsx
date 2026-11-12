@@ -1249,13 +1249,13 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
               {/* Bande gradient en haut */}
               <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-amber-400" />
 
-              {/* Image large si présente */}
+              {/* Image plein écran format téléphone (9:16) si présente */}
               {exitAd.imageUrl && (
-                <div className="relative aspect-[4/3] w-full overflow-hidden">
+                <div className="relative w-full overflow-hidden" style={{ aspectRatio: '9 / 16', maxHeight: '70vh' }}>
                   <img
                     src={exitAd.imageUrl}
                     alt={exitAd.title}
-                    className="h-full w-full object-cover"
+                    className="h-full w-full object-contain"
                     loading="eager"
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/10 to-transparent" />
