@@ -597,13 +597,26 @@ export default function OpsWallboardPage() {
           if (soundOn && newReports.length > 0) {
             const latest = newReports[0]
             playSound(SOUND_NORMAL, audioRef)
-            // TTS : "Sanitaires. Poubelle qui déborde. Vol AF 456."
+            // --- DENISE COMMANDE : ordre impératif, pas juste une alerte ---
+            // Format : "Urgence. [Zone]. [Problème]. [Équipe], intervenez immédiatement."
+            // + vol si présent + tag emplacement
             const zoneNom = latest.zone?.nom ?? latest.tagScanne
-            const parts: string[] = [zoneNom]
+            const teamMap: Record<string, string> = {
+              nettoyage: 'Équipe nettoyage',
+              maintenance: 'Équipe maintenance',
+              securite: 'Équipe sécurité',
+              accueil: 'Équipe accueil',
+              logistique: 'Équipe logistique bagages',
+              autre: 'Équipe ops',
+            }
+            const teamLabel = latest.routedTeam ? (teamMap[latest.routedTeam] ?? 'Équipe ops') : 'Équipe ops'
+            const parts: string[] = ['Urgence']
+            parts.push(zoneNom)
             parts.push(latest.problemType)
+            parts.push(`${teamLabel}, intervenez immédiatement`)
             if (latest.flightNumber) parts.push(`Vol ${latest.flightNumber}`)
-            // Petit délai (400ms) pour que le ding finisse avant la voix
-            setTimeout(() => speak(parts.join('. '), soundOn), 400)
+            parts.push(latest.tagScanne)
+            setTimeout(() => speak(parts.join('. ') + '.', soundOn), 400)
           }
         }
       }
@@ -618,7 +631,8 @@ export default function OpsWallboardPage() {
             announcedResolvedRef.current.add(r.id)
             playSound(SOUND_RESOLVED, audioRef)
             const zoneNom = r.zone?.nom ?? r.tagScanne
-            setTimeout(() => speak(`Signalement résolu. ${zoneNom}. ${r.problemType}.`, soundOn), 400)
+            // Denise annonce la résolution comme un ordre accompli
+            setTimeout(() => speak(`Signalement résolu. ${zoneNom}. ${r.problemType}. Bien fait.`, soundOn), 400)
             break // une seule annonce par poll
           }
         }

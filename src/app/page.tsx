@@ -13,6 +13,7 @@ import { LandingView } from "@/components/feedbackpro/landing-view"
 import { AuthView } from "@/components/feedbackpro/auth-view"
 import { ScanView } from "@/components/feedbackpro/scan-view"
 import { AirportScanView } from "@/components/feedbackpro/airport-scan-view"
+import { AirportStaffView } from "@/components/feedbackpro/airport-staff-view"
 import { ProDashboard } from "@/components/feedbackpro/pro-dashboard"
 import { AdminDashboard } from "@/components/feedbackpro/admin-dashboard"
 import { AppFooter } from "@/components/feedbackpro/shared"
@@ -100,6 +101,9 @@ export default function Home() {
     if (token) openScan(token)
     const airportTagInit = airportTagDepuisUrl()
     if (airportTagInit) openAirport(airportTagInit)
+    // QR Staff Only : ?staff=<tag>
+    const staffTag = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("staff") : null
+    if (staffTag) setView("airport-staff" as typeof view)
     refreshSession().then(() => {
       try {
         const chemin = window.location.pathname
@@ -152,6 +156,16 @@ export default function Home() {
     return (
       <main className="min-h-screen bg-background">
         <AirportScanView tag={airportTag} onExit={() => useAppStore.getState().closeAirport()} />
+      </main>
+    )
+  }
+
+  // ---------- PWA Staff Only (employé, sans footer) ----------
+  if (view === ("airport-staff" as typeof view)) {
+    const staffTag = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("staff") ?? "staff" : "staff"
+    return (
+      <main className="min-h-screen bg-background">
+        <AirportStaffView staffTag={staffTag} onExit={() => { setView("landing"); if (typeof window !== "undefined") window.history.replaceState({}, "", "/") }} />
       </main>
     )
   }

@@ -615,3 +615,35 @@ model AirportAd {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+// ============================================================
+// QR Staff Only — Employés aéroport
+// ------------------------------------------------------------
+// Les employés scannent un QR "Staff Only" pour :
+// 1. Prendre en charge un signalement (photo AVANT)
+// 2. Marquer résolu (photo APRÈS) → déclenche voix wallboard
+// 3. Signaler un problème interne (manque papier, clim en panne)
+//    → déclenche voix wallboard
+// ============================================================
+model AirportStaffScan {
+  id          String   @id @default(cuid())
+  // Tag du QR staff scanné (ex: "staff_nettoyage_T2", "staff_maintenance")
+  staffTag    String
+  // Type d'action : "TAKE_CHARGE" | "RESOLVE" | "REPORT_ISSUE"
+  action      String
+  // ID du signalement lié (pour TAKE_CHARGE et RESOLVE)
+  reportId    String?
+  // Photo AVANT (pour TAKE_CHARGE) ou APRÈS (pour RESOLVE)
+  photoUrl    String?
+  // Message de l'employé (pour REPORT_ISSUE : "Manque de papier")
+  message     String?
+  // Numéro de l'employé qui a scanné (pour le score)
+  staffPhone  String?
+  staffName   String?
+  // Zone détectée depuis le staffTag
+  zoneCode    String?
+  createdAt   DateTime @default(now())
+
+  @@index([staffTag, createdAt])
+  @@index([reportId])
+}
