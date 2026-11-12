@@ -13,6 +13,7 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { ok, fail } from '@/lib/session'
 import { sendEmail } from '@/lib/email'
+import { updateAgentScore, logAuditEntry } from '@/lib/airport-gamification'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -81,9 +82,19 @@ export async function POST(req: NextRequest) {
   // --- Traitement selon l'action ---
   if (b.action === 'TAKE_CHARGE' && b.reportId) {
     // Marquer le signalement EN_COURS
-    await db.airportReport.update({
+    const report = await db.airportReport.update({
       where: { id: b.reportId },
       data: { statut: 'EN_COURS' },
+    })
+    // Black Box : enregistrer la prise en charge
+    await logAuditEntry({
+      reportId: b.reportId,
+      action: 'TAKE_CHARGE',
+      actor: b.staffName ?? 'staff',
+      fromStatut: report.statut === 'EN_COURS' ? 'EN_ATTENTE' : report.statut,
+      toStatut: 'EN_COURS',
+      photoUrl: b.photoUrl ?? null,
+      note: 'Photo avant intervention',
     })
     console.log(`[staff-scan] TAKE_CHARGE — report ${b.reportId} → EN_COURS par ${b.staffName ?? 'staff'}`)
   }
@@ -95,7 +106,30 @@ export async function POST(req: NextRequest) {
       where: { id: b.reportId },
       data: { statut: 'RESOLU', resolvedAt: now },
     })
-    console.log(`[staff-scan] RESOLVE — report ${b.reportId} résolu par ${b.staffName ?? 'staff'}`)
+
+    // Calculer le temps de résolution
+    const elapsedMin = Math.round((now.getTime() - report.createdAt.getTime()) / 60000)
+
+    // Score Agent : attribuer des points
+    const scoreResult = await updateAgentScore(
+      b.staffName ?? 'Employé',
+      b.staffPhone ?? null,
+      elapsedMin,
+      now,
+    )
+
+    // Black Box : enregistrer la résolution
+    await logAuditEntry({
+      reportId: b.reportId,
+      action: 'RESOLVED',
+      actor: b.staffName ?? 'staff',
+      fromStatut: 'EN_COURS',
+      toStatut: 'RESOLU',
+      photoUrl: b.photoUrl ?? null,
+      note: `Résolu en ${elapsedMin}min — +${scoreResult.points}pts (${b.staffName ?? 'staff'}: ${scoreResult.total}pts total)`,
+    })
+
+    console.log(`[staff-scan] RESOLVE — report ${b.reportId} résolu par ${b.staffName ?? 'staff'} en ${elapsedMin}min (+${scoreResult.points}pts)`)
 
     // Le wallboard détectera la résolution via recently_resolved (poll 5s)
     // → son résolu + TTS "Signalement résolu. [zone]. [problème]. Bien fait."

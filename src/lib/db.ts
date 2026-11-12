@@ -50,7 +50,7 @@ if (process.env.NODE_ENV !== 'production' && dynamicRequire.cache) {
 const PrismaClientCtor: typeof import('@prisma/client').PrismaClient =
   dynamicRequire('@prisma/client').PrismaClient
 
-const PRISMA_CACHE_KEY = 'prisma_v15_staff_scan'
+const PRISMA_CACHE_KEY = 'prisma_v16_score_blackbox'
 
 const globalForPrisma = globalThis as unknown as {
   [key: string]: import('@prisma/client').PrismaClient | undefined

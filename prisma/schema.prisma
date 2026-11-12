@@ -647,3 +647,62 @@ model AirportStaffScan {
   @@index([staffTag, createdAt])
   @@index([reportId])
 }
+
+// ============================================================
+// Score Agent — Gamification
+// ------------------------------------------------------------
+// Points attribués aux employés pour chaque résolution rapide.
+// < 5min = +20pts, < 10min = +10pts, < 20min = +5pts.
+// Classement mensuel pour les bonus.
+// ============================================================
+model AirportAgentScore {
+  id           String   @id @default(cuid())
+  staffName    String
+  staffPhone   String?
+  // Points accumulés
+  points       Int      @default(0)
+  // Nombre de résolutions
+  resolutions  Int      @default(0)
+  // Temps moyen de résolution en minutes
+  avgMinutes   Int      @default(0)
+  // Somme des temps pour calculer la moyenne
+  totalMinutes Int      @default(0)
+  // Mois de référence (format "2026-11")
+  month        String
+  // Dernier signalement résolu (pour le calcul)
+  lastResolvedAt DateTime?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([staffName, month])
+  @@index([month, points])
+}
+
+// ============================================================
+// Black Box — Audit trail immuable
+// ------------------------------------------------------------
+// Chaque transition de statut d'un AirportReport est enregistrée
+// ici. Impossible à effacer, impossible de tricher.
+// ============================================================
+model AirportAuditTrail {
+  id          String   @id @default(cuid())
+  reportId    String
+  // Action effectuée : "CREATED" | "TAKE_CHARGE" | "RESOLVED" | "ASSIGNED"
+  action      String
+  // Qui a fait l'action (nom employé, "system", "bot", etc.)
+  actor       String
+  // Ancien statut
+  fromStatut  String?
+  // Nouveau statut
+  toStatut    String
+  // Temps écoulé depuis la création (en minutes)
+  elapsedMin  Int?
+  // Photo jointe (avant/après)
+  photoUrl    String?
+  // Note supplémentaire
+  note        String?
+  createdAt   DateTime @default(now())
+
+  @@index([reportId, createdAt])
+  @@index([action, createdAt])
+}
