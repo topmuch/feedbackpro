@@ -1,21 +1,22 @@
 "use client"
 
 // ============================================================
-// FeedbackPro — Landing SaaS Premium "Linear / Stripe / Vercel"
+// FeedbackPro — Landing SaaS Premium (refonte palette dashboard)
 // ------------------------------------------------------------
-// 13 sections. Version claire (fond blanc), cartes sur bg-white
-// avec bordures gray-200 + shadows douces. Gradients colorés
-// (bleu profond FeedbackPro #002e85) conservés sur titres, boutons et accents.
-// Aucun fetch, aucune route : toutes les actions passent par
-// onLogin / onSignup (routage Zustand préservé). Animations CSS
-// pur (keyframes globals.css) + IntersectionObserver via le hook
-// useReveal (pas de framer). Le wrapper n'impose plus la classe
-// "dark" : la landing est claire par défaut.
+// 13 sections. Palette alignée sur les dashboards :
+//   • Indigo   #5257C9 (primary, boutons, accents)
+//   • Green    #4CC96B (positif, succès)
+//   • Yellow   #E8B54D (highlights, étoiles)
+//   • Pink     #E0447E (alertes, problèmes)
+//   • Page bg  #E9E9EF + cards #FFFFFF rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.06)]
+//   • Titres   #1E1E2E · Secondaire #9A9AAE
+// Toutes les actions passent par onLogin / onSignup (routage Zustand
+// préservé). Animations CSS pur (keyframes globals.css) + hook
+// useReveal (IntersectionObserver, pas de framer).
 // ============================================================
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react"
 import { Button } from "@/components/ui/button"
-import { Badge } from "@/components/ui/badge"
 import {
   Accordion,
   AccordionContent,
@@ -57,7 +58,6 @@ import {
   TrendingUp,
   UtensilsCrossed,
   Users,
-  Zap,
   X,
   type LucideIcon,
 } from "lucide-react"
@@ -124,7 +124,7 @@ function Reveal({
 }
 
 // ============================================================
-// Données statiques (textes 100 % français)
+// Données statiques (textes 100 % français — conservés à l'identique)
 // ============================================================
 
 const NAV_LINKS = [
@@ -145,24 +145,32 @@ const TRUST_LOGOS = [
   "Boulangerie Paul",
 ] as const
 
-const PROBLEM_CARDS: { emoji: string; titre: string; texte: string }[] = [
+const PROBLEM_CARDS: {
+  emoji: string
+  titre: string
+  texte: string
+  couleur: "pink" | "indigo" | "yellow"
+}[] = [
   {
     emoji: "🤐",
     titre: "Vos clients mécontents partent sans rien dire",
     texte:
       "96 % des clients insatisfaits ne se plaignent jamais. Ils disparaissent et vous ne le savez que sur un avis Google public, des semaines plus tard.",
+    couleur: "pink",
   },
   {
     emoji: "💥",
     titre: "Un seul avis négatif détruit votre réputation",
     texte:
       "Sur Google, une note de 2 étoiles affichée pendant 3 mois coûte en moyenne 30 % de réservations. Et vous ne pouvez rien corriger a posteriori.",
+    couleur: "indigo",
   },
   {
     emoji: "🎲",
     titre: "Vous décidez à l'instinct, pas aux données",
     texte:
       "Pas de retour client en temps réel = impossible de savoir quel employé former, quel créneau renforcer, quel plat revoir. Vous pilotez à l'aveugle.",
+    couleur: "yellow",
   },
 ]
 
@@ -210,11 +218,13 @@ const COMPARISON_ROWS: { critere: string; traditionnel: string; feedbackpro: str
   { critere: "ROI", traditionnel: "6 à 12 mois", feedbackpro: "Moins de 1 mois" },
 ]
 
+// Palette cyclée pour les 6 features (indigo / green / yellow / pink / indigo / green)
 const FEATURES: {
   icone: LucideIcon
   emoji: string
   titre: string
   texte: string
+  couleur: "indigo" | "green" | "yellow" | "pink"
   grand?: boolean
 }[] = [
   {
@@ -223,6 +233,7 @@ const FEATURES: {
     titre: "Coach IA quotidien",
     texte:
       "Chaque matin, l'IA analyse les retours de la veille et vous livre un rapport d'audit complet avec des recommandations concrètes et vos 3 priorités actionnables du jour.",
+    couleur: "indigo",
     grand: true,
   },
   {
@@ -231,6 +242,7 @@ const FEATURES: {
     titre: "QR Zones intelligentes",
     texte:
       "Une zone par point de contact (accueil, salle, terrasse, toilettes…) avec son QR dédié et des tags contextuels.",
+    couleur: "green",
   },
   {
     icone: Trophy,
@@ -238,6 +250,7 @@ const FEATURES: {
     titre: "Leaderboard équipe",
     texte:
       "Classez vos employés, valorisez les meilleurs et repérez objectivement les besoins de formation.",
+    couleur: "yellow",
   },
   {
     icone: BellRing,
@@ -245,6 +258,7 @@ const FEATURES: {
     titre: "Alertes temps réel",
     texte:
       "Un client signale un problème ? Vous êtes alerté sur WhatsApp en quelques secondes pour corriger avant qu'il parte.",
+    couleur: "pink",
   },
   {
     icone: BarChart3,
@@ -252,6 +266,7 @@ const FEATURES: {
     titre: "Statistiques avancées",
     texte:
       "Suivez vos scores par zone, par jour et par heure. Heatmap, tendances, exports CSV / PDF.",
+    couleur: "indigo",
   },
   {
     icone: Package,
@@ -259,6 +274,7 @@ const FEATURES: {
     titre: "Supports physiques livrés",
     texte:
       "Autocollants, chevalets et affiches haute qualité commandés en 1 clic, livrés prêts à poser sur le terrain.",
+    couleur: "green",
   },
 ]
 
@@ -338,7 +354,7 @@ const TESTIMONIALS: {
   citation: string
   note: number
   initiales: string
-  couleur: string
+  couleur: "indigo" | "green" | "pink"
 }[] = [
   {
     nom: "Sophie Marchand",
@@ -348,7 +364,7 @@ const TESTIMONIALS: {
       "En 3 semaines, on a corrigé un problème d'attente au déjeuner qu'on traînait depuis 2 ans. Le rapport du matin m'a permis de cibler exactement qui former.",
     note: 5,
     initiales: "SM",
-    couleur: "from-[#5257C9] to-[#0047c7]",
+    couleur: "indigo",
   },
   {
     nom: "Karim Benali",
@@ -358,7 +374,7 @@ const TESTIMONIALS: {
       "On a divisé par 4 les avis négatifs Google en 2 mois. Les alertes WhatsApp m'ont sauvé 3 clients qui allaient partir. ROI atteint en 3 semaines.",
     note: 5,
     initiales: "KB",
-    couleur: "from-emerald-500 to-teal-500",
+    couleur: "green",
   },
   {
     nom: "Émilie Faure",
@@ -368,7 +384,7 @@ const TESTIMONIALS: {
       "On pilotait 8 boutiques à l'instinct. Aujourd'hui chaque manager reçoit son rapport matinal. Le leaderboard a complètement changé la dynamique d'équipe.",
     note: 5,
     initiales: "EF",
-    couleur: "from-[#5257C9] to-[#0047c7]",
+    couleur: "pink",
   },
 ]
 
@@ -473,6 +489,37 @@ const PRICING: {
   },
 ]
 
+// Map couleur → classes Tailwind (icône + halo)
+const COULEUR_CLASSES: Record<
+  "indigo" | "green" | "yellow" | "pink",
+  { bg: string; text: string; halo: string; ring: string }
+> = {
+  indigo: {
+    bg: "bg-[#5257C9]",
+    text: "text-[#5257C9]",
+    halo: "bg-[#5257C9]/10",
+    ring: "ring-[#5257C9]/20",
+  },
+  green: {
+    bg: "bg-[#4CC96B]",
+    text: "text-[#4CC96B]",
+    halo: "bg-[#4CC96B]/10",
+    ring: "ring-[#4CC96B]/20",
+  },
+  yellow: {
+    bg: "bg-[#E8B54D]",
+    text: "text-[#E8B54D]",
+    halo: "bg-[#E8B54D]/15",
+    ring: "ring-[#E8B54D]/25",
+  },
+  pink: {
+    bg: "bg-[#E0447E]",
+    text: "text-[#E0447E]",
+    halo: "bg-[#E0447E]/10",
+    ring: "ring-[#E0447E]/20",
+  },
+}
+
 // ============================================================
 // Helpers
 // ============================================================
@@ -489,7 +536,7 @@ function Etoiles({ note, className = "" }: { note: number; className?: string })
       {Array.from({ length: 5 }).map((_, i) => (
         <Star
           key={i}
-          className={`h-4 w-4 ${i < note ? "fill-amber-400 text-amber-400" : "fill-gray-200 text-gray-300"}`}
+          className={`h-4 w-4 ${i < note ? "fill-[#E8B54D] text-[#E8B54D]" : "fill-gray-200 text-gray-300"}`}
           aria-hidden
         />
       ))}
@@ -510,12 +557,12 @@ type Particle = {
   color: string
 }
 
-// Particules bleu profond en opacité réduite (visibles sur fond blanc)
+// Particules claires/blanches (visibles sur fond indigo→vert)
 const PARTICULES_COULEURS = [
-  "rgba(0, 46, 133, 0.3)", // bleu profond
-  "rgba(0, 71, 199, 0.3)", // bleu clair
-  "rgba(0, 46, 133, 0.25)", // bleu profond
-  "rgba(0, 71, 199, 0.2)", // bleu clair
+  "rgba(255, 255, 255, 0.5)",
+  "rgba(232, 181, 77, 0.45)", // jaune
+  "rgba(255, 255, 255, 0.35)",
+  "rgba(76, 201, 107, 0.4)", // vert
 ]
 
 function useParticules(count = 40): Particle[] {
@@ -530,7 +577,7 @@ function useParticules(count = 40): Particle[] {
         left: Math.random() * 100,
         size: 2 + Math.random() * 4, // 2px → 6px
         duration: duree,
-        delay: -Math.random() * duree, // démarrage réparti sur toute la durée
+        delay: -Math.random() * duree,
         color: PARTICULES_COULEURS[i % PARTICULES_COULEURS.length],
       }
     })
@@ -556,7 +603,7 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
     <header
       className={`fixed top-0 z-50 w-full transition-all duration-500 ${
         scrolled
-          ? "border-b border-slate-200/70 bg-white/70 shadow-[0_8px_30px_rgb(15,23,42,0.06)] backdrop-blur-xl"
+          ? "border-b border-[#E9E9EF] bg-white/80 backdrop-blur-xl shadow-[0_8px_30px_rgba(0,0,0,0.05)]"
           : "border-b border-transparent bg-transparent"
       }`}
     >
@@ -580,7 +627,7 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
             <a
               key={lien.href}
               href={lien.href}
-              className="rounded-lg px-3 py-2 text-sm font-medium text-slate-600 transition-all duration-200 hover:bg-slate-100/80 hover:text-slate-900"
+              className="rounded-lg px-3 py-2 text-sm font-medium text-[#9A9AAE] transition-all duration-200 hover:bg-[#E9E9EF] hover:text-[#1E1E2E]"
             >
               {lien.label}
             </a>
@@ -593,14 +640,14 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
             variant="ghost"
             size="sm"
             onClick={onLogin}
-            className="text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+            className="text-[#9A9AAE] hover:bg-[#E9E9EF] hover:text-[#1E1E2E]"
           >
             Se connecter
           </Button>
           <Button
             size="sm"
             onClick={onSignup}
-            className="fp-bg-gradient fp-pulse-glow h-9 border-0 text-white shadow-lg shadow-[#5257C9]/25 transition-all duration-300 hover:opacity-90 hover:shadow-xl hover:shadow-[#5257C9]/30"
+            className="relative h-9 overflow-hidden border-0 bg-[#5257C9] text-white shadow-lg shadow-[#5257C9]/25 transition-all duration-300 hover:bg-[#4549b8] hover:shadow-xl hover:shadow-[#5257C9]/30 before:absolute before:inset-0 before:-translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/30 before:to-transparent before:transition-transform before:duration-700 before:content-[''] hover:before:translate-x-full"
           >
             Essayer gratuitement
             <ArrowRight className="h-4 w-4" />
@@ -613,7 +660,7 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
             <Button
               variant="ghost"
               size="icon"
-              className="md:hidden text-slate-900 hover:bg-slate-100"
+              className="md:hidden text-[#1E1E2E] hover:bg-[#E9E9EF]"
               aria-label="Ouvrir le menu"
             >
               <Menu className="h-5 w-5" />
@@ -621,10 +668,10 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
           </SheetTrigger>
           <SheetContent
             side="right"
-            className="w-[88%] max-w-sm border-l border-slate-200 bg-white/95 text-slate-900 backdrop-blur-xl"
+            className="w-[88%] max-w-sm border-l border-[#E9E9EF] bg-white/95 text-[#1E1E2E] backdrop-blur-xl"
           >
             <SheetHeader>
-              <SheetTitle className="flex items-center gap-2 text-slate-900">
+              <SheetTitle className="flex items-center gap-2 text-[#1E1E2E]">
                 <img src="/logo-feedbackpro.png" alt="FeedbackPro" className="h-10 w-auto" />
               </SheetTitle>
             </SheetHeader>
@@ -633,16 +680,16 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
                 <a
                   key={lien.href}
                   href={lien.href}
-                  className="flex items-center justify-between rounded-xl px-3 py-3 text-left text-base font-medium text-slate-700 transition-all duration-200 hover:bg-slate-100 hover:text-slate-900"
+                  className="flex items-center justify-between rounded-xl px-3 py-3 text-left text-base font-medium text-[#1E1E2E] transition-all duration-200 hover:bg-[#E9E9EF]"
                 >
                   {lien.label}
-                  <ChevronRight className="h-4 w-4 text-slate-400" />
+                  <ChevronRight className="h-4 w-4 text-[#9A9AAE]" />
                 </a>
               ))}
             </nav>
             <div className="mt-auto flex flex-col gap-2 p-4">
               <Button
-                className="fp-bg-gradient w-full border-0 text-white shadow-lg shadow-[#5257C9]/25"
+                className="w-full border-0 bg-[#5257C9] text-white shadow-lg shadow-[#5257C9]/25 hover:bg-[#4549b8]"
                 onClick={() => {
                   setOpen(false)
                   onSignup()
@@ -653,7 +700,7 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
               </Button>
               <Button
                 variant="outline"
-                className="w-full border-slate-300 bg-white text-slate-900 hover:bg-slate-100 hover:text-slate-900"
+                className="w-full border-[#E9E9EF] bg-white text-[#1E1E2E] hover:bg-[#E9E9EF] hover:text-[#1E1E2E]"
                 onClick={() => {
                   setOpen(false)
                   onLogin()
@@ -664,10 +711,11 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
               <SheetClose asChild>
                 <Button
                   variant="ghost"
-                  className="w-full text-slate-600 hover:bg-slate-100 hover:text-slate-900"
+                  className="w-full text-[#9A9AAE] hover:bg-[#E9E9EF] hover:text-[#1E1E2E]"
                   onClick={() => allerVers("solution")}
                 >
-                  ▶ Voir la démo
+                  <Play className="h-4 w-4" />
+                  Voir la démo
                 </Button>
               </SheetClose>
             </div>
@@ -679,7 +727,7 @@ function SiteHeader({ onLogin, onSignup }: { onLogin: () => void; onSignup: () =
 }
 
 // ============================================================
-// 2. Hero (pleine hauteur, mesh animé + particules + mockup 3D)
+// 2. Hero (pleine hauteur, gradient indigo → vert + mockup glass)
 // ============================================================
 
 function Hero({ onSignup }: { onSignup: () => void }) {
@@ -690,12 +738,30 @@ function Hero({ onSignup }: { onSignup: () => void }) {
       className="relative flex min-h-screen items-center overflow-hidden pt-28 pb-20"
       aria-labelledby="hero-title"
     >
-      {/* Fond mesh animé */}
-      <div className="fp-mesh-bg pointer-events-none absolute inset-0 -z-20 opacity-70" aria-hidden />
+      {/* Fond gradient indigo → vert */}
+      <div
+        className="pointer-events-none absolute inset-0 -z-20 bg-gradient-to-br from-[#3A3F9E] via-[#5257C9] to-[#4CC96B]"
+        aria-hidden
+      />
 
-      {/* Halo radial premium */}
-      <div className="pointer-events-none absolute inset-0 -z-10" aria-hidden>
-        <div className="absolute left-1/2 top-1/3 h-[44rem] w-[44rem] -translate-x-1/2 rounded-full bg-gradient-radial from-[#5257C9]/[0.08] via-emerald-100/30 to-transparent blur-3xl" />
+      {/* Blobs décoratifs animés (pink / yellow / indigo clair) */}
+      <div className="pointer-events-none absolute inset-0 -z-10 overflow-hidden" aria-hidden>
+        <div
+          className="fp-blob absolute -left-20 top-10 h-72 w-72 rounded-full bg-[#E0447E]/30 blur-3xl"
+          style={{ animationDelay: "-2s" }}
+        />
+        <div
+          className="fp-blob absolute right-0 top-1/4 h-96 w-96 rounded-full bg-[#E8B54D]/25 blur-3xl"
+          style={{ animationDelay: "-6s" }}
+        />
+        <div
+          className="fp-blob absolute bottom-0 left-1/3 h-80 w-80 rounded-full bg-[#4CC96B]/30 blur-3xl"
+          style={{ animationDelay: "-10s" }}
+        />
+        <div
+          className="fp-blob absolute right-1/4 bottom-10 h-72 w-72 rounded-full bg-white/15 blur-3xl"
+          style={{ animationDelay: "-4s" }}
+        />
       </div>
 
       {/* Particules flottantes */}
@@ -709,7 +775,7 @@ function Hero({ onSignup }: { onSignup: () => void }) {
               width: `${p.size}px`,
               height: `${p.size}px`,
               backgroundColor: p.color,
-              boxShadow: `0 0 ${p.size * 2}px ${p.color}`,
+              boxShadow: `0 0 ${p.size * 2.5}px ${p.color}`,
               ["--fp-particle-duration" as string]: `${p.duration}s`,
               animationDelay: `${p.delay}s`,
             }}
@@ -717,13 +783,24 @@ function Hero({ onSignup }: { onSignup: () => void }) {
         ))}
       </div>
 
-      <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-16 px-4 sm:px-6 md:py-24 lg:grid-cols-5 lg:gap-8 lg:px-8">
+      {/* Subtle grid pattern overlay */}
+      <div
+        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.06]"
+        style={{
+          backgroundImage:
+            "linear-gradient(to right, white 1px, transparent 1px), linear-gradient(to bottom, white 1px, transparent 1px)",
+          backgroundSize: "60px 60px",
+        }}
+        aria-hidden
+      />
+
+      <div className="mx-auto grid max-w-7xl grid-cols-1 items-center gap-12 px-4 sm:px-6 md:py-24 lg:grid-cols-5 lg:gap-8 lg:px-8">
         {/* Colonne gauche (60%) */}
         <div className="lg:col-span-3">
           <Reveal>
-            <div className="fp-pulse-glow inline-flex items-center gap-2 rounded-full border border-slate-200/80 bg-white/70 px-4 py-1.5 text-xs font-medium text-slate-900 shadow-[0_4px_20px_rgb(15,23,42,0.06)] backdrop-blur-md">
-              <span className="flex h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
-              <Sparkles className="h-3.5 w-3.5 text-[#1E1E2E]" aria-hidden />
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-1.5 text-xs font-medium text-white backdrop-blur-md">
+              <span className="flex h-1.5 w-1.5 rounded-full bg-[#4CC96B] shadow-[0_0_8px_rgba(76,201,107,0.9)]" />
+              <Sparkles className="h-3.5 w-3.5 text-[#E8B54D]" aria-hidden />
               Nouveau — Client Mystère 2.0 par IA
             </div>
           </Reveal>
@@ -731,16 +808,18 @@ function Hero({ onSignup }: { onSignup: () => void }) {
           <Reveal delay={80}>
             <h1
               id="hero-title"
-              className="mt-6 text-5xl font-extrabold leading-[1.05] tracking-tight text-slate-900 sm:text-6xl lg:text-[4.5rem]"
+              className="mt-6 text-4xl font-extrabold leading-[1.05] tracking-tight text-white sm:text-5xl lg:text-[4.25rem]"
               style={{ letterSpacing: "-0.035em" }}
             >
               Transformez vos clients en{" "}
-              <span className="fp-text-gradient block bg-clip-text sm:inline">auditeurs qualité</span>
+              <span className="block bg-gradient-to-r from-[#E8B54D] via-[#FCD78A] to-[#E8B54D] bg-clip-text text-transparent sm:inline">
+                auditeurs qualité
+              </span>
             </h1>
           </Reveal>
 
           <Reveal delay={160}>
-            <p className="mt-6 max-w-xl text-lg leading-relaxed text-slate-600 sm:text-xl">
+            <p className="mt-6 max-w-xl text-base leading-relaxed text-white/85 sm:text-lg">
               FeedbackPro collecte les retours de vos clients en temps réel via QR code, les
               analyse par IA et vous livre chaque matin un rapport d'audit avec vos 3 priorités
               du jour.
@@ -748,11 +827,11 @@ function Hero({ onSignup }: { onSignup: () => void }) {
           </Reveal>
 
           <Reveal delay={240}>
-            <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:items-center">
               <Button
                 size="lg"
                 onClick={onSignup}
-                className="fp-bg-gradient fp-pulse-glow h-14 border-0 px-7 text-base text-white shadow-xl shadow-[#5257C9]/25 transition-all duration-300 hover:opacity-90 hover:shadow-2xl hover:shadow-[#5257C9]/35"
+                className="relative h-14 overflow-hidden border-0 bg-gradient-to-r from-[#5257C9] to-[#4549b8] px-7 text-base text-white shadow-xl shadow-black/30 ring-1 ring-white/30 transition-all duration-300 hover:shadow-2xl hover:shadow-black/40 before:absolute before:inset-0 before:-translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/40 before:to-transparent before:transition-transform before:duration-700 before:content-[''] hover:before:translate-x-full"
               >
                 Commencer gratuitement
                 <ArrowRight className="h-4 w-4" />
@@ -760,7 +839,7 @@ function Hero({ onSignup }: { onSignup: () => void }) {
               <Button
                 size="lg"
                 onClick={() => allerVers("solution")}
-                className="h-14 border border-slate-200 bg-white/80 px-7 text-base text-slate-900 shadow-md backdrop-blur-md transition-all duration-300 hover:border-slate-300 hover:bg-white hover:shadow-lg"
+                className="h-14 border border-white/30 bg-white/10 px-7 text-base text-white shadow-md backdrop-blur-md transition-all duration-300 hover:border-white/50 hover:bg-white/20"
               >
                 <Play className="h-4 w-4" />
                 Voir la démo
@@ -769,47 +848,47 @@ function Hero({ onSignup }: { onSignup: () => void }) {
           </Reveal>
 
           <Reveal delay={320}>
-            <div className="mt-10 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-6">
+            <div className="mt-9 flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:gap-6">
               <div className="flex items-center gap-2">
                 <Etoiles note={5} />
-                <span className="text-sm font-semibold text-slate-900">4,9/5</span>
+                <span className="text-sm font-semibold text-white">4,9/5</span>
               </div>
-              <div className="hidden h-5 w-px bg-slate-200 sm:block" aria-hidden />
-              <div className="flex items-center gap-2 text-sm text-slate-600">
-                <Users className="h-4 w-4 text-[#1E1E2E]" aria-hidden />
+              <div className="hidden h-5 w-px bg-white/30 sm:block" aria-hidden />
+              <div className="flex items-center gap-2 text-sm text-white/85">
+                <Users className="h-4 w-4 text-[#E8B54D]" aria-hidden />
                 <span>
-                  <strong className="text-slate-900">127+</strong> établissements conquis
+                  <strong className="text-white">127+</strong> établissements conquis
                 </span>
               </div>
             </div>
           </Reveal>
         </div>
 
-        {/* Colonne droite (40%) — mockup 3D flottant */}
+        {/* Colonne droite (40%) — mockup glassmorphism flottant */}
         <div className="lg:col-span-2">
           <Reveal delay={200}>
             <div className="relative mx-auto max-w-md" style={{ perspective: "1200px" }}>
-              {/* Halo premium derrière */}
+              {/* Halo derrière */}
               <div
-                className="pointer-events-none absolute -inset-10 -z-10 rounded-[3rem] bg-gradient-to-br from-[#5257C9]/25 via-emerald-300/20 to-amber-200/20 blur-3xl"
+                className="pointer-events-none absolute -inset-10 -z-10 rounded-[3rem] bg-gradient-to-br from-[#E8B54D]/30 via-white/15 to-[#4CC96B]/25 blur-3xl"
                 aria-hidden
               />
 
-              {/* Carte rapport 3D */}
-              <div className="fp-float-mockup relative rounded-3xl border border-white/60 bg-white/80 p-6 shadow-2xl shadow-[#5257C9]/15 backdrop-blur-xl">
+              {/* Carte rapport — glassmorphism */}
+              <div className="fp-float-mockup relative rounded-3xl border border-white/40 bg-white/15 p-6 shadow-2xl shadow-black/30 backdrop-blur-xl">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                    <BarChart3 className="h-4 w-4 text-[#1E1E2E]" />
+                  <div className="flex items-center gap-2 text-sm font-semibold text-white">
+                    <BarChart3 className="h-4 w-4 text-[#E8B54D]" />
                     Rapport du jour
                   </div>
-                  <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-600">
-                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]" />
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-[#4CC96B]/20 px-2.5 py-1 text-xs font-medium text-[#4CC96B]">
+                    <span className="inline-block h-1.5 w-1.5 rounded-full bg-[#4CC96B] shadow-[0_0_8px_rgba(76,201,107,0.9)]" />
                     Live
                   </span>
                 </div>
 
                 {/* Score global */}
-                <div className="fp-bg-gradient mt-5 rounded-2xl p-5 text-white shadow-lg shadow-[#5257C9]/25">
+                <div className="mt-5 rounded-2xl bg-gradient-to-br from-[#5257C9] to-[#4549b8] p-5 text-white shadow-lg shadow-[#5257C9]/40">
                   <p className="text-xs uppercase tracking-widest opacity-80">Score qualité global</p>
                   <div className="mt-1 flex items-end gap-2">
                     <span className="text-5xl font-extrabold leading-none">82</span>
@@ -827,36 +906,36 @@ function Hero({ onSignup }: { onSignup: () => void }) {
                     ))}
                   </div>
                   <div className="mt-3 flex items-center gap-1.5 text-xs">
-                    <TrendingUp className="h-3.5 w-3.5" />
+                    <TrendingUp className="h-3.5 w-3.5 text-[#4CC96B]" />
                     +6 points vs hier
                   </div>
                 </div>
 
                 {/* Priorités du jour */}
                 <div className="mt-5">
-                  <p className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+                  <p className="text-xs font-semibold uppercase tracking-widest text-white/70">
                     Priorités du jour
                   </p>
                   <ul className="mt-3 space-y-2.5">
-                    <li className="flex items-start gap-3 rounded-xl bg-slate-50/80 p-3 transition-colors hover:bg-slate-100">
+                    <li className="flex items-start gap-3 rounded-xl bg-white/10 p-3 transition-colors hover:bg-white/15">
                       <span className="text-lg leading-none">⏳</span>
                       <div>
-                        <p className="text-sm font-medium text-slate-900">Attente salle &gt; 12 min</p>
-                        <p className="text-xs text-slate-600">Pic 12h-13h — renforcer 1 serveur</p>
+                        <p className="text-sm font-medium text-white">Attente salle &gt; 12 min</p>
+                        <p className="text-xs text-white/70">Pic 12h-13h — renforcer 1 serveur</p>
                       </div>
                     </li>
-                    <li className="flex items-start gap-3 rounded-xl bg-slate-50/80 p-3 transition-colors hover:bg-slate-100">
+                    <li className="flex items-start gap-3 rounded-xl bg-white/10 p-3 transition-colors hover:bg-white/15">
                       <span className="text-lg leading-none">💬</span>
                       <div>
-                        <p className="text-sm font-medium text-slate-900">Personnel distrait en bar</p>
-                        <p className="text-xs text-slate-600">3 signalements — brief équipe</p>
+                        <p className="text-sm font-medium text-white">Personnel distrait en bar</p>
+                        <p className="text-xs text-white/70">3 signalements — brief équipe</p>
                       </div>
                     </li>
-                    <li className="flex items-start gap-3 rounded-xl bg-slate-50/80 p-3 transition-colors hover:bg-slate-100">
+                    <li className="flex items-start gap-3 rounded-xl bg-white/10 p-3 transition-colors hover:bg-white/15">
                       <span className="text-lg leading-none">🧹</span>
                       <div>
-                        <p className="text-sm font-medium text-slate-900">Toilettes à surveiller</p>
-                        <p className="text-xs text-slate-600">2 signalements — passage 14h</p>
+                        <p className="text-sm font-medium text-white">Toilettes à surveiller</p>
+                        <p className="text-xs text-white/70">2 signalements — passage 14h</p>
                       </div>
                     </li>
                   </ul>
@@ -864,29 +943,32 @@ function Hero({ onSignup }: { onSignup: () => void }) {
               </div>
 
               {/* Badges flottants autour du mockup */}
-              <div className="absolute -right-3 -top-3 rounded-2xl border border-white/60 bg-white/90 px-3 py-2 shadow-xl backdrop-blur-md" style={{ animation: "fp-float-slow 7s ease-in-out infinite" }}>
+              <div
+                className="absolute -right-3 -top-3 rounded-2xl border border-white/40 bg-white/90 px-3 py-2 shadow-xl backdrop-blur-md"
+                style={{ animation: "fp-float-slow 7s ease-in-out infinite" }}
+              >
                 <div className="flex items-center gap-2">
-                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500 text-white shadow-lg shadow-emerald-500/30">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#E0447E] text-white shadow-lg shadow-[#E0447E]/30">
                     <BellRing className="h-3.5 w-3.5" />
                   </span>
                   <div>
-                    <p className="text-[10px] uppercase tracking-widest text-slate-500">Alerte</p>
-                    <p className="text-xs font-semibold text-slate-900">Nouveau signalement</p>
+                    <p className="text-[10px] uppercase tracking-widest text-[#9A9AAE]">Alerte</p>
+                    <p className="text-xs font-semibold text-[#1E1E2E]">Nouveau signalement</p>
                   </div>
                 </div>
               </div>
 
               <div
-                className="absolute -bottom-4 -left-3 rounded-2xl border border-white/60 bg-white/90 px-3 py-2 shadow-xl backdrop-blur-md"
+                className="absolute -bottom-4 -left-3 rounded-2xl border border-white/40 bg-white/90 px-3 py-2 shadow-xl backdrop-blur-md"
                 style={{ animation: "fp-float-slow 7s ease-in-out infinite", animationDelay: "-3s" }}
               >
                 <div className="flex items-center gap-2">
-                  <span className="fp-bg-gradient flex h-7 w-7 items-center justify-center rounded-full text-white shadow-lg shadow-[#5257C9]/30">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-full bg-gradient-to-br from-[#5257C9] to-[#4549b8] text-white shadow-lg shadow-[#5257C9]/30">
                     <Trophy className="h-3.5 w-3.5" />
                   </span>
                   <div>
-                    <p className="text-[10px] uppercase tracking-widest text-slate-500">Top employé</p>
-                    <p className="text-xs font-semibold text-slate-900">Léa — 4,9 ★</p>
+                    <p className="text-[10px] uppercase tracking-widest text-[#9A9AAE]">Top employé</p>
+                    <p className="text-xs font-semibold text-[#1E1E2E]">Léa — 4,9 ★</p>
                   </div>
                 </div>
               </div>
@@ -905,31 +987,27 @@ function Hero({ onSignup }: { onSignup: () => void }) {
 function TrustBar() {
   const logos = [...TRUST_LOGOS, ...TRUST_LOGOS] // duplique pour scroll seamless
   return (
-    <section
-      className="relative border-y border-slate-200/70 bg-gradient-to-b from-white to-slate-50/50 py-14"
-      aria-label="Ils nous font confiance"
-    >
+    <section className="relative border-b border-[#E9E9EF] bg-white py-12" aria-label="Ils nous font confiance">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <Reveal>
-          <p className="text-center text-xs font-semibold uppercase tracking-[0.3em] text-slate-400">
+          <p className="text-center text-xs font-semibold uppercase tracking-[0.3em] text-[#9A9AAE]">
             Ils nous font confiance
           </p>
         </Reveal>
         <Reveal delay={120}>
           <div className="fp-marquee-pause relative mt-8 overflow-hidden">
-            {/* Dégradés masqués en bordures */}
-            <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-slate-50 to-transparent" aria-hidden />
-            <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-gradient-to-l from-slate-50 to-transparent" aria-hidden />
+            <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-24 bg-gradient-to-r from-white to-transparent" aria-hidden />
+            <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-24 bg-gradient-to-l from-white to-transparent" aria-hidden />
             <div className="fp-marquee flex w-max items-center gap-12">
               {logos.map((nom, i) => (
                 <div
                   key={`${nom}-${i}`}
-                  className="flex shrink-0 items-center gap-2 opacity-60 transition-all duration-300 hover:opacity-100"
+                  className="flex shrink-0 items-center gap-2 opacity-70 transition-all duration-300 hover:opacity-100"
                 >
-                  <span className="fp-bg-gradient flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold text-white shadow-md shadow-[#5257C9]/20">
+                  <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#5257C9] text-sm font-bold text-white shadow-md shadow-[#5257C9]/20">
                     {nom.charAt(0)}
                   </span>
-                  <span className="whitespace-nowrap text-lg font-semibold tracking-tight text-slate-500">
+                  <span className="whitespace-nowrap text-lg font-semibold tracking-tight text-[#9A9AAE]">
                     {nom}
                   </span>
                 </div>
@@ -943,45 +1021,50 @@ function TrustBar() {
 }
 
 // ============================================================
-// 4. Section problème (3 cards glassmorphism)
+// 4. Section problème (3 cards, icon circles colorés)
 // ============================================================
 
 function ProblemSection() {
   return (
-    <section id="probleme" className="relative scroll-mt-24" aria-labelledby="probleme-title">
-      <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
+    <section id="probleme" className="relative scroll-mt-24 bg-[#E9E9EF]" aria-labelledby="probleme-title">
+      <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-rose-200/70 bg-rose-50/50 px-3 py-1 text-xs font-medium text-rose-600 shadow-sm backdrop-blur-sm">
+          <span className="inline-flex items-center gap-2 rounded-full bg-[#E0447E]/10 px-3 py-1 text-xs font-medium text-[#E0447E]">
             Vous reconnaissez-vous ?
           </span>
           <h2
             id="probleme-title"
-            className="mt-5 text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl"
+            className="mt-5 text-3xl font-extrabold tracking-tight text-[#1E1E2E] sm:text-4xl lg:text-5xl"
             style={{ letterSpacing: "-0.035em" }}
           >
             Le client insatisfait ne dit rien.{" "}
-            <span className="fp-text-gradient">Il part.</span>
+            <span className="bg-gradient-to-r from-[#E0447E] to-[#5257C9] bg-clip-text text-transparent">
+              Il part.
+            </span>
           </h2>
-          <p className="mt-5 text-lg leading-relaxed text-slate-600">
+          <p className="mt-5 text-base leading-relaxed text-[#9A9AAE] sm:text-lg">
             Sans retour en temps réel, vous pilotez à l'aveugle. Voici ce que vivent chaque jour
             les commerces sans FeedbackPro.
           </p>
         </Reveal>
 
-        <div className="mt-16 grid grid-cols-1 gap-6 md:grid-cols-3">
-          {PROBLEM_CARDS.map((c, i) => (
-            <Reveal key={c.titre} delay={i * 100}>
-              <article className="group relative h-full overflow-hidden rounded-3xl border border-slate-200/80 bg-white/70 p-7 shadow-[0_4px_30px_rgb(15,23,42,0.04)] backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-rose-300/70 hover:bg-white hover:shadow-xl hover:shadow-rose-500/10">
-                {/* Gradient border top accent */}
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-rose-400/60 to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" aria-hidden />
-                <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-slate-50 to-slate-100 text-3xl shadow-inner ring-1 ring-slate-200/50">
-                  {c.emoji}
-                </div>
-                <h3 className="mt-5 text-lg font-semibold text-slate-900">{c.titre}</h3>
-                <p className="mt-3 text-sm leading-relaxed text-slate-600">{c.texte}</p>
-              </article>
-            </Reveal>
-          ))}
+        <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-3">
+          {PROBLEM_CARDS.map((c, i) => {
+            const col = COULEUR_CLASSES[c.couleur]
+            return (
+              <Reveal key={c.titre} delay={i * 100}>
+                <article className="group h-full rounded-2xl bg-white p-7 shadow-[0_10px_30px_rgba(0,0,0,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(0,0,0,0.1)]">
+                  <div
+                    className={`flex h-14 w-14 items-center justify-center rounded-2xl ${col.halo} text-3xl ring-1 ${col.ring}`}
+                  >
+                    {c.emoji}
+                  </div>
+                  <h3 className="mt-5 text-lg font-semibold text-[#1E1E2E]">{c.titre}</h3>
+                  <p className="mt-3 text-sm leading-relaxed text-[#9A9AAE]">{c.texte}</p>
+                </article>
+              </Reveal>
+            )
+          })}
         </div>
       </div>
     </section>
@@ -989,76 +1072,85 @@ function ProblemSection() {
 }
 
 // ============================================================
-// 5. Section solution (4 étapes avec numéros 01-04 + flèches)
+// 5. Section solution (4 étapes — ligne + numéros + images)
 // ============================================================
 
 function SolutionSection() {
   return (
     <section
       id="solution"
-      className="relative scroll-mt-24 border-y border-slate-200/70 bg-gradient-to-b from-slate-50/60 via-white/40 to-slate-50/60"
+      className="relative scroll-mt-24 bg-white"
       aria-labelledby="solution-title"
     >
-      <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
+      <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-[#5257C9]/15 bg-[#5257C9]/5 px-3 py-1 text-xs font-medium text-[#1E1E2E] shadow-sm backdrop-blur-sm">
+          <span className="inline-flex items-center gap-2 rounded-full bg-[#5257C9]/10 px-3 py-1 text-xs font-medium text-[#5257C9]">
             <Sparkles className="h-3.5 w-3.5" />
             La solution
           </span>
           <h2
             id="solution-title"
-            className="mt-5 text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl"
+            className="mt-5 text-3xl font-extrabold tracking-tight text-[#1E1E2E] sm:text-4xl lg:text-5xl"
             style={{ letterSpacing: "-0.035em" }}
           >
-            <span className="fp-text-gradient">Le Client Mystère 2.0</span>
+            <span className="bg-gradient-to-r from-[#5257C9] to-[#4CC96B] bg-clip-text text-transparent">
+              Le Client Mystère 2.0
+            </span>
           </h2>
-          <p className="mt-5 text-lg leading-relaxed text-slate-600">
+          <p className="mt-5 text-base leading-relaxed text-[#9A9AAE] sm:text-lg">
             4 étapes pour transformer chaque client en auditeur qualité — et chaque matin en plan
             d'action concret.
           </p>
         </Reveal>
 
-        <div className="mt-16 grid grid-cols-1 gap-6 md:grid-cols-4 md:gap-4">
+        {/* Grille avec ligne de connexion horizontale (desktop) */}
+        <div className="relative mt-16 grid grid-cols-1 gap-6 md:grid-cols-4 md:gap-4">
+          {/* Ligne de connexion */}
+          <div
+            className="pointer-events-none absolute left-0 right-0 top-[7.5rem] hidden h-0.5 bg-gradient-to-r from-[#5257C9] via-[#E8B54D] to-[#4CC96B] md:block"
+            aria-hidden
+          />
+
           {STEPS.map((s, i) => (
             <Reveal key={s.titre} delay={i * 120}>
-              <div className="group relative flex h-full flex-col items-start overflow-hidden rounded-3xl border border-slate-200/80 bg-white/80 shadow-[0_4px_30px_rgb(15,23,42,0.05)] backdrop-blur-md transition-all duration-300 hover:-translate-y-1.5 hover:border-[#5257C9]/30 hover:bg-white hover:shadow-xl hover:shadow-[#5257C9]/10">
-                {/* Numéro 01-04 en arrière-plan */}
-                <span
-                  className="pointer-events-none absolute -right-2 -top-4 text-[7rem] font-extrabold leading-none text-slate-100/80"
-                  aria-hidden
-                >
-                  {String(i + 1).padStart(2, "0")}
-                </span>
-
+              <div className="group relative flex h-full flex-col items-start overflow-hidden rounded-2xl bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_18px_45px_rgba(0,0,0,0.1)]">
                 {/* Image illustrative */}
-                <div className="relative w-full overflow-hidden rounded-t-3xl bg-slate-50">
+                <div className="relative w-full overflow-hidden rounded-t-2xl bg-[#E9E9EF]">
                   <img
                     src={s.image}
                     alt={s.titre}
-                    className="h-40 w-full object-cover transition-transform duration-700 group-hover:scale-105 sm:h-44"
+                    className="h-36 w-full object-cover transition-transform duration-700 group-hover:scale-105 sm:h-40"
                     loading="lazy"
                     width={400}
                     height={180}
                   />
-                  <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-slate-900/20 via-transparent to-transparent" aria-hidden />
+                  <div
+                    className="pointer-events-none absolute inset-0 bg-gradient-to-t from-[#1E1E2E]/30 via-transparent to-transparent"
+                    aria-hidden
+                  />
                   {/* Numéro flottant sur l'image */}
-                  <span className="fp-bg-gradient absolute left-3 top-3 flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold text-white shadow-md shadow-[#5257C9]/30">
+                  <span className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#5257C9] to-[#4549b8] text-sm font-bold text-white shadow-lg shadow-[#5257C9]/40 ring-4 ring-white/90">
                     {i + 1}
                   </span>
                 </div>
 
-                <div className="relative w-full p-6">
-                  <h3 className="text-base font-semibold text-slate-900">{s.titre}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-slate-600">{s.texte}</p>
+                <div className="relative w-full p-5">
+                  <div className="flex items-center gap-2">
+                    <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[#5257C9]/10 text-[#5257C9]">
+                      <s.icone className="h-4 w-4" />
+                    </span>
+                    <h3 className="text-base font-semibold text-[#1E1E2E]">{s.titre}</h3>
+                  </div>
+                  <p className="mt-3 text-sm leading-relaxed text-[#9A9AAE]">{s.texte}</p>
                 </div>
 
                 {/* Flèche entre cartes (desktop) */}
                 {i < STEPS.length - 1 && (
                   <div
-                    className="absolute -right-4 top-1/2 z-20 hidden h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-slate-200 bg-white shadow-lg transition-transform duration-300 group-hover:scale-110 md:flex"
+                    className="absolute -right-4 top-[7.5rem] z-20 hidden h-8 w-8 -translate-y-1/2 items-center justify-center rounded-full border border-[#E9E9EF] bg-white shadow-lg transition-transform duration-300 group-hover:scale-110 md:flex"
                     aria-hidden
                   >
-                    <ArrowRight className="h-4 w-4 text-[#1E1E2E]" />
+                    <ArrowRight className="h-4 w-4 text-[#5257C9]" />
                   </div>
                 )}
               </div>
@@ -1068,7 +1160,7 @@ function SolutionSection() {
 
         {/* Flèche explicite entre cartes (mobile) */}
         <div className="mt-6 flex justify-center md:hidden">
-          <ArrowDown className="h-5 w-5 text-slate-400" aria-hidden />
+          <ArrowDown className="h-5 w-5 text-[#9A9AAE]" aria-hidden />
         </div>
       </div>
     </section>
@@ -1076,67 +1168,71 @@ function SolutionSection() {
 }
 
 // ============================================================
-// 6. Section comparaison (tableau glassmorphism)
+// 6. Section comparaison (tableau en-tête indigo, lignes alternées)
 // ============================================================
 
 function ComparisonSection() {
   return (
-    <section id="comparaison" className="relative scroll-mt-24" aria-labelledby="comparaison-title">
-      <div className="mx-auto max-w-5xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
+    <section id="comparaison" className="relative scroll-mt-24 bg-[#E9E9EF]" aria-labelledby="comparaison-title">
+      <div className="mx-auto max-w-5xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-amber-200/70 bg-amber-50/50 px-3 py-1 text-xs font-medium text-amber-700 shadow-sm backdrop-blur-sm">
+          <span className="inline-flex items-center gap-2 rounded-full bg-[#E8B54D]/15 px-3 py-1 text-xs font-medium text-[#B5841E]">
             Comparatif
           </span>
           <h2
             id="comparaison-title"
-            className="mt-5 text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl"
+            className="mt-5 text-3xl font-extrabold tracking-tight text-[#1E1E2E] sm:text-4xl lg:text-5xl"
             style={{ letterSpacing: "-0.035em" }}
           >
-            Traditionnel <span className="text-slate-400">vs</span>{" "}
-            <span className="fp-text-gradient">FeedbackPro</span>
+            Traditionnel <span className="text-[#9A9AAE]">vs</span>{" "}
+            <span className="bg-gradient-to-r from-[#5257C9] to-[#4CC96B] bg-clip-text text-transparent">
+              FeedbackPro
+            </span>
           </h2>
-          <p className="mt-5 text-lg leading-relaxed text-slate-600">
+          <p className="mt-5 text-base leading-relaxed text-[#9A9AAE] sm:text-lg">
             Même objectif (mesurer votre qualité), mais 10× moins cher, 30× plus rapide et 100×
             plus actionnable.
           </p>
         </Reveal>
 
         <Reveal delay={120}>
-          <div className="mt-12 overflow-hidden rounded-3xl border border-slate-200/80 bg-white/80 shadow-[0_8px_40px_rgb(15,23,42,0.08)] backdrop-blur-md">
-            {/* En-tête tableau */}
-            <div className="grid grid-cols-3 border-b border-slate-200/80">
-              <div className="px-4 py-5 text-xs font-semibold uppercase tracking-widest text-slate-500 sm:px-6">
+          <div className="mt-12 overflow-hidden rounded-2xl bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+            {/* En-tête tableau — indigo */}
+            <div className="grid grid-cols-3 bg-gradient-to-r from-[#5257C9] to-[#4549b8]">
+              <div className="px-4 py-5 text-xs font-semibold uppercase tracking-widest text-white/80 sm:px-6">
                 Critère
               </div>
-              <div className="px-4 py-5 text-sm font-semibold text-slate-600 sm:px-6">
+              <div className="px-4 py-5 text-sm font-semibold text-white/90 sm:px-6">
                 Client Mystère <span className="hidden sm:inline">traditionnel</span>
               </div>
-              <div className="relative border-l border-[#5257C9]/30 bg-gradient-to-b from-[#5257C9]/[0.08] to-[#5257C9]/[0.04] px-4 py-5 text-sm font-semibold text-slate-900 sm:px-6">
+              <div className="border-l border-white/20 px-4 py-5 text-sm font-semibold text-white sm:px-6">
                 <span className="flex flex-wrap items-center gap-2">
-                  <span className="fp-text-gradient">FeedbackPro</span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                    ✅ 10× moins cher
+                  FeedbackPro
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[#4CC96B]/30 px-2 py-0.5 text-xs font-medium text-[#4CC96B]">
+                    10× moins cher
                   </span>
                 </span>
               </div>
             </div>
 
-            {/* Lignes */}
+            {/* Lignes alternées */}
             {COMPARISON_ROWS.map((row, i) => (
               <div
                 key={row.critere}
-                className={`grid grid-cols-3 items-center transition-colors hover:bg-slate-50/60 ${i % 2 === 1 ? "bg-slate-50/40" : ""}`}
+                className={`grid grid-cols-3 items-center transition-colors hover:bg-[#E9E9EF]/50 ${
+                  i % 2 === 1 ? "bg-[#E9E9EF]/30" : "bg-white"
+                }`}
               >
-                <div className="px-4 py-4 text-sm font-medium text-slate-900 sm:px-6">
+                <div className="px-4 py-4 text-sm font-medium text-[#1E1E2E] sm:px-6">
                   {row.critere}
                 </div>
-                <div className="flex items-center gap-2 px-4 py-4 text-sm text-slate-600 sm:px-6">
-                  <X className="h-4 w-4 shrink-0 text-rose-500" aria-hidden />
+                <div className="flex items-center gap-2 px-4 py-4 text-sm text-[#9A9AAE] sm:px-6">
+                  <X className="h-4 w-4 shrink-0 text-[#E0447E]" aria-hidden />
                   <span>{row.traditionnel}</span>
                 </div>
-                <div className="flex items-center gap-2 border-l border-[#5257C9]/20 bg-[#5257C9]/[0.03] px-4 py-4 text-sm font-medium sm:px-6">
-                  <Check className="h-4 w-4 shrink-0 text-emerald-500" aria-hidden />
-                  <span className="text-slate-900">{row.feedbackpro}</span>
+                <div className="flex items-center gap-2 border-l border-[#5257C9]/15 bg-[#5257C9]/[0.03] px-4 py-4 text-sm font-medium sm:px-6">
+                  <Check className="h-4 w-4 shrink-0 text-[#4CC96B]" aria-hidden />
+                  <span className="text-[#1E1E2E]">{row.feedbackpro}</span>
                 </div>
               </div>
             ))}
@@ -1148,84 +1244,88 @@ function ComparisonSection() {
 }
 
 // ============================================================
-// 7. Fonctionnalités (Bento grid asymétrique)
+// 7. Fonctionnalités (6 cards, icônes colorées cyclées)
 // ============================================================
 
 function FeaturesSection() {
   return (
     <section
       id="fonctionnalites"
-      className="relative scroll-mt-24 border-y border-slate-200/70 bg-gradient-to-b from-slate-50/60 via-white/40 to-slate-50/60"
+      className="relative scroll-mt-24 bg-white"
       aria-labelledby="features-title"
     >
-      <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
+      <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-[#5257C9]/15 bg-[#5257C9]/5 px-3 py-1 text-xs font-medium text-[#1E1E2E] shadow-sm backdrop-blur-sm">
+          <span className="inline-flex items-center gap-2 rounded-full bg-[#5257C9]/10 px-3 py-1 text-xs font-medium text-[#5257C9]">
             Fonctionnalités
           </span>
           <h2
             id="features-title"
-            className="mt-5 text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl"
+            className="mt-5 text-3xl font-extrabold tracking-tight text-[#1E1E2E] sm:text-4xl lg:text-5xl"
             style={{ letterSpacing: "-0.035em" }}
           >
             Tout pour piloter votre qualité,{" "}
-            <span className="fp-text-gradient">sans effort</span>
+            <span className="bg-gradient-to-r from-[#5257C9] to-[#4CC96B] bg-clip-text text-transparent">
+              sans effort
+            </span>
           </h2>
-          <p className="mt-5 text-lg leading-relaxed text-slate-600">
+          <p className="mt-5 text-base leading-relaxed text-[#9A9AAE] sm:text-lg">
             6 modules qui couvrent l'ensemble du cycle : collecte, analyse, alerte, pilotage,
             formation, déploiement terrain.
           </p>
         </Reveal>
 
-        <div className="mt-16 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-6 lg:auto-rows-[minmax(0,1fr)]">
-          {FEATURES.map((f, i) => (
-            <Reveal
-              key={f.titre}
-              delay={(i % 3) * 100}
-              className={f.grand ? "lg:col-span-4 lg:row-span-2" : "lg:col-span-2"}
-            >
-              <article className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-white/80 p-6 shadow-[0_4px_30px_rgb(15,23,42,0.05)] backdrop-blur-md transition-all duration-300 hover:-translate-y-1.5 hover:border-[#5257C9]/30 hover:bg-white hover:shadow-xl hover:shadow-[#5257C9]/10 sm:p-7">
-                {/* Gradient top accent on hover */}
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#5257C9] to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100" aria-hidden />
-                <div className="flex items-center justify-between">
-                  <span className="fp-bg-gradient flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-[0_4px_20px_rgba(82,87,201,0.35)] transition-transform duration-300 group-hover:scale-110">
-                    <f.icone className="h-6 w-6" />
-                  </span>
-                  <span className="text-2xl opacity-70 transition-transform duration-300 group-hover:scale-110">
-                    {f.emoji}
-                  </span>
-                </div>
-                <h3 className="mt-5 text-lg font-semibold text-slate-900">{f.titre}</h3>
-                <p className="mt-2 text-sm leading-relaxed text-slate-600">{f.texte}</p>
+        <div className="mt-14 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-6 lg:auto-rows-[minmax(0,1fr)]">
+          {FEATURES.map((f, i) => {
+            const col = COULEUR_CLASSES[f.couleur]
+            return (
+              <Reveal
+                key={f.titre}
+                delay={(i % 3) * 100}
+                className={f.grand ? "lg:col-span-4 lg:row-span-2" : "lg:col-span-2"}
+              >
+                <article className="group flex h-full flex-col overflow-hidden rounded-2xl bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.06)] transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_18px_45px_rgba(0,0,0,0.1)] sm:p-7">
+                  <div className="flex items-center justify-between">
+                    <span
+                      className={`flex h-12 w-12 items-center justify-center rounded-xl ${col.bg} text-white shadow-lg transition-transform duration-300 group-hover:scale-110`}
+                      style={{ boxShadow: `0 6px 20px rgba(0,0,0,0.12)` }}
+                    >
+                      <f.icone className="h-6 w-6" />
+                    </span>
+                    <span className="text-2xl opacity-70 transition-transform duration-300 group-hover:scale-110">
+                      {f.emoji}
+                    </span>
+                  </div>
+                  <h3 className="mt-5 text-lg font-semibold text-[#1E1E2E]">{f.titre}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-[#9A9AAE]">{f.texte}</p>
 
-                {/* Mini-illustration dans la grande card */}
-                {f.grand && (
-                  <div className="mt-auto pt-6">
-                    <div className="rounded-2xl border border-slate-200/70 bg-slate-50/80 p-4">
-                      <div className="flex items-center justify-between text-xs text-slate-500">
-                        <span>Évolution du score — 14 jours</span>
-                        <span className="flex items-center gap-1 font-medium text-emerald-600">
-                          <TrendingUp className="h-3.5 w-3.5" /> +18 %
-                        </span>
-                      </div>
-                      <div className="mt-3 flex h-20 items-end gap-1.5">
-                        {[
-                          45, 52, 48, 60, 58, 68, 72, 65, 78, 82, 79, 85, 88, 91,
-                        ].map((h, idx) => (
-                          <div
-                            key={idx}
-                            className="fp-bg-gradient flex-1 rounded-t shadow-sm shadow-[#5257C9]/20"
-                            style={{ height: `${h}%`, opacity: 0.4 + (idx / 14) * 0.6 }}
-                            aria-hidden
-                          />
-                        ))}
+                  {/* Mini-illustration dans la grande card */}
+                  {f.grand && (
+                    <div className="mt-auto pt-6">
+                      <div className="rounded-2xl border border-[#E9E9EF] bg-[#E9E9EF]/50 p-4">
+                        <div className="flex items-center justify-between text-xs text-[#9A9AAE]">
+                          <span>Évolution du score — 14 jours</span>
+                          <span className="flex items-center gap-1 font-medium text-[#4CC96B]">
+                            <TrendingUp className="h-3.5 w-3.5" /> +18 %
+                          </span>
+                        </div>
+                        <div className="mt-3 flex h-20 items-end gap-1.5">
+                          {[45, 52, 48, 60, 58, 68, 72, 65, 78, 82, 79, 85, 88, 91].map((h, idx) => (
+                            <div
+                              key={idx}
+                              className="flex-1 rounded-t bg-gradient-to-t from-[#5257C9] to-[#4CC96B]"
+                              style={{ height: `${h}%`, opacity: 0.45 + (idx / 14) * 0.55 }}
+                              aria-hidden
+                            />
+                          ))}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
-              </article>
-            </Reveal>
-          ))}
+                  )}
+                </article>
+              </Reveal>
+            )
+          })}
         </div>
       </div>
     </section>
@@ -1233,25 +1333,28 @@ function FeaturesSection() {
 }
 
 // ============================================================
-// 8. Cas d'usage (5 tabs glassmorphism)
+// 8. Cas d'usage (5 tabs)
 // ============================================================
 
 function UseCasesSection() {
   return (
-    <section id="cas-usage" className="relative scroll-mt-24" aria-labelledby="cas-usage-title">
-      <div className="mx-auto max-w-6xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
+    <section id="cas-usage" className="relative scroll-mt-24 bg-[#E9E9EF]" aria-labelledby="cas-usage-title">
+      <div className="mx-auto max-w-6xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-[#5257C9]/15 bg-[#5257C9]/5 px-3 py-1 text-xs font-medium text-[#1E1E2E] shadow-sm backdrop-blur-sm">
+          <span className="inline-flex items-center gap-2 rounded-full bg-[#4CC96B]/15 px-3 py-1 text-xs font-medium text-[#3AA652]">
             Cas d'usage
           </span>
           <h2
             id="cas-usage-title"
-            className="mt-5 text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl"
+            className="mt-5 text-3xl font-extrabold tracking-tight text-[#1E1E2E] sm:text-4xl lg:text-5xl"
             style={{ letterSpacing: "-0.035em" }}
           >
-            Pensé pour <span className="fp-text-gradient">votre secteur</span>
+            Pensé pour{" "}
+            <span className="bg-gradient-to-r from-[#5257C9] to-[#4CC96B] bg-clip-text text-transparent">
+              votre secteur
+            </span>
           </h2>
-          <p className="mt-5 text-lg leading-relaxed text-slate-600">
+          <p className="mt-5 text-base leading-relaxed text-[#9A9AAE] sm:text-lg">
             Tags contextuels et zones pré-configurées pour chaque métier. Déployez en quelques
             minutes.
           </p>
@@ -1260,14 +1363,14 @@ function UseCasesSection() {
         <Reveal delay={120}>
           <Tabs defaultValue="hotellerie" className="mt-10">
             <TabsList
-              className="flex h-auto w-full flex-nowrap gap-1 overflow-x-auto rounded-2xl border border-slate-200/80 bg-white/70 p-1.5 shadow-[0_4px_20px_rgb(15,23,42,0.04)] backdrop-blur-md no-scrollbar"
+              className="flex h-auto w-full flex-nowrap gap-1 overflow-x-auto rounded-2xl border border-[#E9E9EF] bg-white p-1.5 shadow-[0_8px_25px_rgba(0,0,0,0.04)] no-scrollbar"
               aria-label="Secteurs d'activité"
             >
               {USE_CASES.map((uc) => (
                 <TabsTrigger
                   key={uc.id}
                   value={uc.id}
-                  className="flex-1 shrink-0 rounded-xl border border-transparent px-4 py-2.5 text-sm font-medium text-slate-600 transition-all duration-300 hover:bg-slate-100/80 data-[state=active]:fp-bg-gradient data-[state=active]:border-transparent data-[state=active]:text-white data-[state=active]:shadow-[0_4px_20px_rgba(82,87,201,0.35)]"
+                  className="flex-1 shrink-0 rounded-xl border border-transparent px-4 py-2.5 text-sm font-medium text-[#9A9AAE] transition-all duration-300 hover:bg-[#E9E9EF] hover:text-[#1E1E2E] data-[state=active]:border-transparent data-[state=active]:bg-[#5257C9] data-[state=active]:text-white data-[state=active]:shadow-md data-[state=active]:shadow-[#5257C9]/30"
                 >
                   <span className="mr-1.5">{uc.emoji}</span>
                   <span className="hidden sm:inline">{uc.label}</span>
@@ -1277,16 +1380,16 @@ function UseCasesSection() {
 
             {USE_CASES.map((uc) => (
               <TabsContent key={uc.id} value={uc.id} className="mt-6">
-                <div className="rounded-3xl border border-slate-200/80 bg-white/80 p-6 shadow-[0_8px_30px_rgb(15,23,42,0.05)] backdrop-blur-md sm:p-8">
+                <div className="rounded-2xl bg-white p-6 shadow-[0_10px_30px_rgba(0,0,0,0.06)] sm:p-8">
                   <div className="flex items-center gap-3">
-                    <span className="fp-bg-gradient flex h-12 w-12 items-center justify-center rounded-2xl text-white shadow-lg shadow-[#5257C9]/25">
+                    <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-[#5257C9] to-[#4549b8] text-white shadow-lg shadow-[#5257C9]/25">
                       <uc.icone className="h-6 w-6" />
                     </span>
                     <div>
-                      <h3 className="text-xl font-semibold text-slate-900">
+                      <h3 className="text-xl font-semibold text-[#1E1E2E]">
                         {uc.emoji} {uc.label}
                       </h3>
-                      <p className="text-sm text-slate-600">
+                      <p className="text-sm text-[#9A9AAE]">
                         4 points clés couverts par FeedbackPro
                       </p>
                     </div>
@@ -1296,12 +1399,14 @@ function UseCasesSection() {
                     {uc.points.map((pt) => (
                       <div
                         key={pt.titre}
-                        className="flex items-start gap-3 rounded-2xl border border-slate-200/60 bg-slate-50/80 p-4 transition-all duration-300 hover:border-[#5257C9]/20 hover:bg-white hover:shadow-md"
+                        className="flex items-start gap-3 rounded-xl border border-[#E9E9EF] bg-[#E9E9EF]/40 p-4 transition-all duration-300 hover:border-[#5257C9]/20 hover:bg-white hover:shadow-md"
                       >
-                        <Check className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" aria-hidden />
+                        <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[#4CC96B]/15">
+                          <Check className="h-3.5 w-3.5 text-[#4CC96B]" aria-hidden />
+                        </span>
                         <div>
-                          <p className="text-sm font-semibold text-slate-900">{pt.titre}</p>
-                          <p className="mt-0.5 text-sm leading-relaxed text-slate-600">{pt.texte}</p>
+                          <p className="text-sm font-semibold text-[#1E1E2E]">{pt.titre}</p>
+                          <p className="mt-0.5 text-sm leading-relaxed text-[#9A9AAE]">{pt.texte}</p>
                         </div>
                       </div>
                     ))}
@@ -1317,64 +1422,79 @@ function UseCasesSection() {
 }
 
 // ============================================================
-// 9. Témoignages (3 cards glassmorphism)
+// 9. Témoignages (3 cards, avatar + citation + étoiles)
 // ============================================================
 
 function TestimonialsSection() {
   return (
     <section
       id="temoignages"
-      className="relative scroll-mt-24 border-y border-slate-200/70 bg-gradient-to-b from-slate-50/60 via-white/40 to-slate-50/60"
+      className="relative scroll-mt-24 bg-white"
       aria-labelledby="temoignages-title"
     >
-      <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
+      <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-amber-200/70 bg-amber-50/50 px-3 py-1 text-xs font-medium text-amber-700 shadow-sm backdrop-blur-sm">
+          <span className="inline-flex items-center gap-2 rounded-full bg-[#E8B54D]/15 px-3 py-1 text-xs font-medium text-[#B5841E]">
             Témoignages
           </span>
           <h2
             id="temoignages-title"
-            className="mt-5 text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl"
+            className="mt-5 text-3xl font-extrabold tracking-tight text-[#1E1E2E] sm:text-4xl lg:text-5xl"
             style={{ letterSpacing: "-0.035em" }}
           >
-            Ils ont <span className="fp-text-gradient">transformé leur qualité</span>
+            Ils ont{" "}
+            <span className="bg-gradient-to-r from-[#5257C9] to-[#4CC96B] bg-clip-text text-transparent">
+              transformé leur qualité
+            </span>
           </h2>
-          <p className="mt-5 text-lg leading-relaxed text-slate-600">
+          <p className="mt-5 text-base leading-relaxed text-[#9A9AAE] sm:text-lg">
             127+ établissements utilisent FeedbackPro au quotidien. Voici ce qu'ils en disent.
           </p>
         </Reveal>
 
-        <div className="mt-16 grid grid-cols-1 gap-6 md:grid-cols-3">
-          {TESTIMONIALS.map((t, i) => (
-            <Reveal key={t.nom} delay={i * 100}>
-              <article className="group relative flex h-full flex-col overflow-hidden rounded-3xl border border-slate-200/80 bg-white/80 p-7 shadow-[0_4px_30px_rgb(15,23,42,0.05)] backdrop-blur-md transition-all duration-300 hover:-translate-y-1.5 hover:border-[#5257C9]/20 hover:bg-white hover:shadow-xl hover:shadow-[#5257C9]/10">
-                {/* Decorative gradient blob */}
-                <div className="pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full bg-gradient-to-br from-[#5257C9]/5 to-emerald-200/10 blur-2xl" aria-hidden />
-                <div className="relative flex items-center justify-between">
-                  <Etoiles note={t.note} />
-                  <Quote className="h-7 w-7 text-[#5257C9]/20 transition-colors duration-300 group-hover:text-[#5257C9]/30" aria-hidden />
-                </div>
-                <blockquote className="relative mt-4 flex-1">
-                  <p className="text-sm italic leading-relaxed text-slate-700">
-                    « {t.citation} »
-                  </p>
-                </blockquote>
-                <div className="relative mt-5 flex items-center gap-3 border-t border-slate-200/70 pt-5">
-                  <span
-                    className={`flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br ${t.couleur} text-sm font-bold text-white shadow-md ring-2 ring-white`}
-                  >
-                    {t.initiales}
-                  </span>
-                  <div>
-                    <p className="text-sm font-semibold text-slate-900">{t.nom}</p>
-                    <p className="text-xs text-slate-600">
-                      {t.poste} — {t.etablissement}
-                    </p>
+        <div className="mt-14 grid grid-cols-1 gap-6 md:grid-cols-3">
+          {TESTIMONIALS.map((t, i) => {
+            const col = COULEUR_CLASSES[t.couleur]
+            return (
+              <Reveal key={t.nom} delay={i * 100}>
+                <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl bg-white p-7 shadow-[0_10px_30px_rgba(0,0,0,0.06)] transition-all duration-300 hover:-translate-y-1.5 hover:shadow-[0_18px_45px_rgba(0,0,0,0.1)]">
+                  {/* Blob décoratif coin */}
+                  <div
+                    className={`pointer-events-none absolute -right-12 -top-12 h-32 w-32 rounded-full ${col.halo} blur-2xl`}
+                    aria-hidden
+                  />
+                  <div className="relative flex items-center justify-between">
+                    <Etoiles note={t.note} />
+                    <Quote className={`h-7 w-7 ${col.text} opacity-30`} aria-hidden />
                   </div>
-                </div>
-              </article>
-            </Reveal>
-          ))}
+                  <blockquote className="relative mt-4 flex-1">
+                    <p className="text-sm italic leading-relaxed text-[#1E1E2E]">
+                      « {t.citation} »
+                    </p>
+                  </blockquote>
+                  <div className="relative mt-5 flex items-center gap-3 border-t border-[#E9E9EF] pt-5">
+                    <span
+                      className={`flex h-11 w-11 items-center justify-center rounded-full bg-gradient-to-br ${
+                        t.couleur === "indigo"
+                          ? "from-[#5257C9] to-[#4549b8]"
+                          : t.couleur === "green"
+                            ? "from-[#4CC96B] to-[#3AA652]"
+                            : "from-[#E0447E] to-[#B83264]"
+                      } text-sm font-bold text-white shadow-md ring-2 ring-white`}
+                    >
+                      {t.initiales}
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-[#1E1E2E]">{t.nom}</p>
+                      <p className="text-xs text-[#9A9AAE]">
+                        {t.poste} — {t.etablissement}
+                      </p>
+                    </div>
+                  </div>
+                </article>
+              </Reveal>
+            )
+          })}
         </div>
       </div>
     </section>
@@ -1382,7 +1502,7 @@ function TestimonialsSection() {
 }
 
 // ============================================================
-// 10. Tarifs (3 plans premium + toggle mensuel/annuel)
+// 10. Tarifs (3 plans + toggle mensuel/annuel, plan milieu mis en avant)
 // ============================================================
 
 function PricingSection({ onSignup }: { onSignup: () => void }) {
@@ -1390,20 +1510,23 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
   const rabais = 0.2
 
   return (
-    <section id="tarifs" className="relative scroll-mt-24" aria-labelledby="tarifs-title">
-      <div className="mx-auto max-w-7xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
+    <section id="tarifs" className="relative scroll-mt-24 bg-[#E9E9EF]" aria-labelledby="tarifs-title">
+      <div className="mx-auto max-w-7xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
         <Reveal className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-[#5257C9]/15 bg-[#5257C9]/5 px-3 py-1 text-xs font-medium text-[#1E1E2E] shadow-sm backdrop-blur-sm">
+          <span className="inline-flex items-center gap-2 rounded-full bg-[#5257C9]/10 px-3 py-1 text-xs font-medium text-[#5257C9]">
             Tarifs
           </span>
           <h2
             id="tarifs-title"
-            className="mt-5 text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl"
+            className="mt-5 text-3xl font-extrabold tracking-tight text-[#1E1E2E] sm:text-4xl lg:text-5xl"
             style={{ letterSpacing: "-0.035em" }}
           >
-            Un prix adapté à <span className="fp-text-gradient">chaque établissement</span>
+            Un prix adapté à{" "}
+            <span className="bg-gradient-to-r from-[#5257C9] to-[#4CC96B] bg-clip-text text-transparent">
+              chaque établissement
+            </span>
           </h2>
-          <p className="mt-5 text-lg leading-relaxed text-slate-600">
+          <p className="mt-5 text-base leading-relaxed text-[#9A9AAE] sm:text-lg">
             Sans engagement. Annulation en 1 clic. 14 jours d'essai gratuit, sans carte bancaire.
           </p>
         </Reveal>
@@ -1413,7 +1536,7 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
           <div className="mt-8 flex items-center justify-center gap-3">
             <span
               className={`text-sm font-medium ${
-                !annuel ? "text-slate-900" : "text-slate-500"
+                !annuel ? "text-[#1E1E2E]" : "text-[#9A9AAE]"
               }`}
             >
               Mensuel
@@ -1425,7 +1548,7 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
               aria-label="Basculer en facturation annuelle"
               onClick={() => setAnnuel((v) => !v)}
               className={`relative h-7 w-12 rounded-full transition-colors duration-300 ${
-                annuel ? "fp-bg-gradient shadow-md shadow-[#5257C9]/25" : "bg-slate-300"
+                annuel ? "bg-[#5257C9] shadow-md shadow-[#5257C9]/30" : "bg-[#9A9AAE]/40"
               }`}
             >
               <span
@@ -1436,12 +1559,12 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
             </button>
             <span
               className={`text-sm font-medium ${
-                annuel ? "text-slate-900" : "text-slate-500"
+                annuel ? "text-[#1E1E2E]" : "text-[#9A9AAE]"
               }`}
             >
               Annuel
             </span>
-            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+            <span className="inline-flex items-center gap-1 rounded-full bg-[#4CC96B]/15 px-2 py-0.5 text-xs font-medium text-[#3AA652]">
               -20 %
             </span>
           </div>
@@ -1456,41 +1579,44 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
             return (
               <Reveal key={plan.id} delay={i * 120}>
                 <article
-                  className={`group relative flex h-full flex-col overflow-hidden rounded-3xl p-6 sm:p-8 ${
+                  className={`group relative flex h-full flex-col overflow-hidden rounded-2xl bg-white p-6 sm:p-8 ${
                     plan.populaire
-                      ? "border-2 border-[#5257C9]/80 bg-white/90 shadow-2xl shadow-[#5257C9]/20 backdrop-blur-md lg:scale-105 lg:hover:-translate-y-1"
-                      : "border border-slate-200/80 bg-white/80 shadow-[0_4px_30px_rgb(15,23,42,0.05)] backdrop-blur-md transition-all duration-300 hover:-translate-y-1 hover:border-slate-300 hover:shadow-xl"
+                      ? "border-2 border-[#5257C9] shadow-[0_20px_50px_rgba(82,87,201,0.25)] lg:scale-105 lg:hover:-translate-y-1"
+                      : "border border-[#E9E9EF] shadow-[0_10px_30px_rgba(0,0,0,0.06)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_18px_45px_rgba(0,0,0,0.1)]"
                   }`}
                 >
                   {plan.populaire && (
                     <>
-                      {/* Glow halo for popular plan */}
-                      <div className="pointer-events-none absolute -inset-px -z-10 rounded-3xl bg-gradient-to-br from-[#5257C9]/10 via-transparent to-emerald-300/10 blur-xl" aria-hidden />
-                      <span className="fp-bg-gradient absolute -top-3.5 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full px-4 py-1.5 text-xs font-semibold text-white shadow-lg shadow-[#5257C9]/30">
-                        <Trophy className="h-3.5 w-3.5" />
+                      {/* Glow halo pour le plan populaire */}
+                      <div
+                        className="pointer-events-none absolute -inset-px -z-10 rounded-2xl bg-gradient-to-br from-[#5257C9]/15 via-transparent to-[#4CC96B]/15 blur-xl"
+                        aria-hidden
+                      />
+                      <span className="absolute -top-3.5 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-gradient-to-r from-[#5257C9] to-[#4549b8] px-4 py-1.5 text-xs font-semibold text-white shadow-lg shadow-[#5257C9]/40">
+                        <Trophy className="h-3.5 w-3.5 text-[#E8B54D]" />
                         Recommandé
                       </span>
                     </>
                   )}
 
-                  <h3 className="text-lg font-bold text-slate-900">{plan.nom}</h3>
-                  <p className="mt-1 text-sm text-slate-600">{plan.tagline}</p>
+                  <h3 className="text-lg font-bold text-[#1E1E2E]">{plan.nom}</h3>
+                  <p className="mt-1 text-sm text-[#9A9AAE]">{plan.tagline}</p>
 
                   <div className="mt-5 flex items-end gap-1">
-                    <span className="text-5xl font-extrabold tracking-tight text-slate-900">
+                    <span className="text-5xl font-extrabold tracking-tight text-[#1E1E2E]">
                       {prix} €
                     </span>
-                    <span className="mb-1.5 text-sm text-slate-600">/ mois HT</span>
+                    <span className="mb-1.5 text-sm text-[#9A9AAE]">/ mois HT</span>
                   </div>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-[#9A9AAE]">
                     {annuel ? `Facturé ${prix * 12} € / an` : "Facturé mensuellement"}
                   </p>
 
                   <Button
                     className={`mt-6 w-full border-0 transition-all duration-300 ${
                       plan.populaire
-                        ? "fp-bg-gradient text-white shadow-lg shadow-[#5257C9]/25 hover:opacity-90 hover:shadow-xl hover:shadow-[#5257C9]/30"
-                        : "bg-slate-100 text-slate-900 hover:bg-slate-200"
+                        ? "bg-[#5257C9] text-white shadow-lg shadow-[#5257C9]/25 hover:bg-[#4549b8] hover:shadow-xl hover:shadow-[#5257C9]/30"
+                        : "bg-[#E9E9EF] text-[#1E1E2E] hover:bg-[#DCDCE5]"
                     }`}
                     onClick={onSignup}
                   >
@@ -1498,16 +1624,16 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
                     <ArrowRight className="h-4 w-4" />
                   </Button>
 
-                  <ul className="mt-6 space-y-3 border-t border-slate-200/70 pt-6">
+                  <ul className="mt-6 space-y-3 border-t border-[#E9E9EF] pt-6">
                     {plan.features.map((f) => (
                       <li key={f.texte} className="flex items-start gap-2.5 text-sm">
                         {f.inclus ? (
-                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" aria-hidden />
+                          <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#4CC96B]" aria-hidden />
                         ) : (
-                          <X className="mt-0.5 h-4 w-4 shrink-0 text-slate-400" aria-hidden />
+                          <X className="mt-0.5 h-4 w-4 shrink-0 text-[#9A9AAE]/60" aria-hidden />
                         )}
                         <span
-                          className={f.inclus ? "text-slate-700" : "text-slate-400 line-through"}
+                          className={f.inclus ? "text-[#1E1E2E]" : "text-[#9A9AAE]/70 line-through"}
                         >
                           {f.texte}
                         </span>
@@ -1521,11 +1647,11 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
         </div>
 
         <Reveal delay={120}>
-          <p className="mt-8 text-center text-sm text-slate-600">
+          <p className="mt-8 text-center text-sm text-[#9A9AAE]">
             Besoin d'une solution sur-mesure pour un grand groupe ?{" "}
             <button
               onClick={onSignup}
-              className="font-medium text-[#1E1E2E] underline-offset-4 transition-colors hover:text-[#0047c7] hover:underline"
+              className="font-medium text-[#5257C9] underline-offset-4 transition-colors hover:text-[#4549b8] hover:underline"
             >
               Parlons-en →
             </button>
@@ -1537,29 +1663,32 @@ function PricingSection({ onSignup }: { onSignup: () => void }) {
 }
 
 // ============================================================
-// 11. FAQ (accordion glassmorphism)
+// 11. FAQ (accordion avec transitions douces)
 // ============================================================
 
 function FAQSection() {
   return (
     <section
       id="faq"
-      className="relative scroll-mt-24 border-y border-slate-200/70 bg-gradient-to-b from-slate-50/60 via-white/40 to-slate-50/60"
+      className="relative scroll-mt-24 bg-white"
       aria-labelledby="faq-title"
     >
-      <div className="mx-auto max-w-3xl px-4 py-24 sm:px-6 lg:px-8 lg:py-32">
+      <div className="mx-auto max-w-3xl px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
         <Reveal className="text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-amber-200/70 bg-amber-50/50 px-3 py-1 text-xs font-medium text-amber-700 shadow-sm backdrop-blur-sm">
+          <span className="inline-flex items-center gap-2 rounded-full bg-[#E8B54D]/15 px-3 py-1 text-xs font-medium text-[#B5841E]">
             FAQ
           </span>
           <h2
             id="faq-title"
-            className="mt-5 text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl"
+            className="mt-5 text-3xl font-extrabold tracking-tight text-[#1E1E2E] sm:text-4xl lg:text-5xl"
             style={{ letterSpacing: "-0.035em" }}
           >
-            Questions <span className="fp-text-gradient">fréquentes</span>
+            Questions{" "}
+            <span className="bg-gradient-to-r from-[#5257C9] to-[#4CC96B] bg-clip-text text-transparent">
+              fréquentes
+            </span>
           </h2>
-          <p className="mt-5 text-lg leading-relaxed text-slate-600">
+          <p className="mt-5 text-base leading-relaxed text-[#9A9AAE] sm:text-lg">
             Tout ce que vous devez savoir avant de vous lancer.
           </p>
         </Reveal>
@@ -1570,12 +1699,12 @@ function FAQSection() {
               <AccordionItem
                 key={i}
                 value={`item-${i}`}
-                className="mb-3 overflow-hidden rounded-2xl border border-slate-200/80 bg-white/80 px-5 shadow-[0_2px_20px_rgb(15,23,42,0.03)] backdrop-blur-md transition-all duration-300 hover:border-slate-300 hover:shadow-md [&[data-state=open]]:border-[#5257C9]/30 [&[data-state=open]]:shadow-lg [&:not(:last-child)]:mb-3"
+                className="mb-3 overflow-hidden rounded-2xl border border-[#E9E9EF] bg-white px-5 shadow-[0_4px_20px_rgba(0,0,0,0.03)] transition-all duration-300 hover:border-[#5257C9]/20 hover:shadow-md [&[data-state=open]]:border-[#5257C9]/40 [&[data-state=open]]:shadow-[0_10px_30px_rgba(82,87,201,0.08)]"
               >
-                <AccordionTrigger className="text-left text-base font-semibold text-slate-900 transition-colors hover:text-[#1E1E2E] hover:no-underline">
+                <AccordionTrigger className="text-left text-base font-semibold text-[#1E1E2E] transition-colors hover:text-[#5257C9] hover:no-underline">
                   {item.q}
                 </AccordionTrigger>
-                <AccordionContent className="text-sm leading-relaxed text-slate-600">
+                <AccordionContent className="text-sm leading-relaxed text-[#9A9AAE]">
                   {item.r}
                 </AccordionContent>
               </AccordionItem>
@@ -1588,33 +1717,42 @@ function FAQSection() {
 }
 
 // ============================================================
-// 12. CTA final (fond mesh animé)
+// 12. CTA final (section pleine largeur, gradient indigo → vert)
 // ============================================================
 
 function FinalCTA({ onSignup }: { onSignup: () => void }) {
   return (
-    <section className="relative px-4 py-24 sm:px-6 lg:px-8 lg:py-32" aria-labelledby="cta-title">
+    <section className="relative px-4 py-20 sm:px-6 lg:px-8 lg:py-28" aria-labelledby="cta-title">
       <Reveal>
-        <div className="relative mx-auto max-w-6xl overflow-hidden rounded-[2rem] border border-white/10 bg-gradient-to-br from-[#5257C9] via-[#003bb0] to-[#0047c7] px-6 py-20 text-center shadow-2xl shadow-[#5257C9]/40 sm:px-12 sm:py-24">
-          {/* Mesh overlay premium */}
-          <div className="pointer-events-none absolute inset-0" aria-hidden>
-            <div className="absolute -left-20 top-0 h-80 w-80 rounded-full bg-emerald-400/20 blur-3xl" />
-            <div className="absolute right-0 top-1/4 h-72 w-72 rounded-full bg-amber-300/15 blur-3xl" />
-            <div className="absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-white/10 blur-3xl" />
-          </div>
-
-          {/* Particules décoratives */}
+        <div className="relative mx-auto max-w-6xl overflow-hidden rounded-[2rem] bg-gradient-to-br from-[#5257C9] via-[#4549b8] to-[#4CC96B] px-6 py-20 text-center shadow-2xl shadow-[#5257C9]/30 sm:px-12 sm:py-24">
+          {/* Blobs décoratifs */}
           <div className="pointer-events-none absolute inset-0" aria-hidden>
             <div
-              className="absolute left-[15%] top-[20%] h-2 w-2 rounded-full bg-white/50"
+              className="fp-blob absolute -left-20 top-0 h-80 w-80 rounded-full bg-[#E0447E]/25 blur-3xl"
+              style={{ animationDelay: "-2s" }}
+            />
+            <div
+              className="fp-blob absolute right-0 top-1/4 h-72 w-72 rounded-full bg-[#E8B54D]/25 blur-3xl"
+              style={{ animationDelay: "-6s" }}
+            />
+            <div
+              className="fp-blob absolute bottom-0 left-1/3 h-72 w-72 rounded-full bg-white/15 blur-3xl"
+              style={{ animationDelay: "-10s" }}
+            />
+          </div>
+
+          {/* Particules décoratives flottantes */}
+          <div className="pointer-events-none absolute inset-0" aria-hidden>
+            <div
+              className="absolute left-[15%] top-[20%] h-2 w-2 rounded-full bg-white/60"
               style={{ animation: "fp-float-slow 6s ease-in-out infinite" }}
             />
             <div
-              className="absolute right-[20%] top-[30%] h-2 w-2 rounded-full bg-white/70"
+              className="absolute right-[20%] top-[30%] h-2 w-2 rounded-full bg-[#E8B54D]/80"
               style={{ animation: "fp-float-slow 7s ease-in-out infinite", animationDelay: "-2s" }}
             />
             <div
-              className="absolute left-[30%] bottom-[15%] h-1.5 w-1.5 rounded-full bg-white/40"
+              className="absolute left-[30%] bottom-[15%] h-1.5 w-1.5 rounded-full bg-white/50"
               style={{ animation: "fp-float-slow 5s ease-in-out infinite", animationDelay: "-1s" }}
             />
             <div
@@ -1625,7 +1763,7 @@ function FinalCTA({ onSignup }: { onSignup: () => void }) {
 
           {/* Subtle grid pattern */}
           <div
-            className="pointer-events-none absolute inset-0 opacity-[0.04]"
+            className="pointer-events-none absolute inset-0 opacity-[0.05]"
             style={{
               backgroundImage:
                 "linear-gradient(to right, white 1px, transparent 1px), linear-gradient(to bottom, white 1px, transparent 1px)",
@@ -1635,16 +1773,16 @@ function FinalCTA({ onSignup }: { onSignup: () => void }) {
           />
 
           <div className="relative">
-            <span className="inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-1.5 text-xs font-medium text-white backdrop-blur-md">
-              <Sparkles className="h-3.5 w-3.5" />
+            <span className="inline-flex items-center gap-2 rounded-full border border-white/30 bg-white/10 px-4 py-1.5 text-xs font-medium text-white backdrop-blur-md">
+              <Sparkles className="h-3.5 w-3.5 text-[#E8B54D]" />
               Démarrez dès aujourd'hui
             </span>
             <h2
               id="cta-title"
-              className="mt-6 text-4xl font-extrabold tracking-tight text-white sm:text-5xl lg:text-6xl"
+              className="mt-6 text-3xl font-extrabold tracking-tight text-white sm:text-4xl lg:text-5xl"
               style={{ letterSpacing: "-0.035em" }}
             >
-              Prêt à transformer <span className="text-white">votre qualité</span> ?
+              Prêt à transformer <span className="text-[#E8B54D]">votre qualité</span> ?
             </h2>
             <p className="mx-auto mt-5 max-w-xl text-base leading-relaxed text-white/90 sm:text-lg">
               Rejoignez les 127+ établissements qui pilotent leur qualité en temps réel. Premier
@@ -1655,20 +1793,20 @@ function FinalCTA({ onSignup }: { onSignup: () => void }) {
               <Button
                 size="lg"
                 onClick={onSignup}
-                className="h-14 border-0 bg-white px-8 text-base text-[#1E1E2E] shadow-2xl transition-all duration-300 hover:bg-slate-50 hover:shadow-[0_20px_50px_rgba(0,0,0,0.25)]"
+                className="relative h-14 overflow-hidden border-0 bg-white px-8 text-base text-[#5257C9] shadow-2xl transition-all duration-300 hover:bg-[#E9E9EF] hover:shadow-[0_20px_50px_rgba(0,0,0,0.25)] before:absolute before:inset-0 before:-translate-x-full before:bg-gradient-to-r before:from-transparent before:via-[#5257C9]/15 before:to-transparent before:transition-transform before:duration-700 before:content-[''] hover:before:translate-x-full"
               >
                 Commencer gratuitement
                 <ArrowRight className="h-4 w-4" />
               </Button>
               <div className="flex flex-col items-center gap-2 text-sm text-white/90 sm:flex-row sm:gap-6">
                 <span className="flex items-center gap-1.5">
-                  <Check className="h-4 w-4 text-emerald-300" /> 14 jours d'essai
+                  <Check className="h-4 w-4 text-[#4CC96B]" /> 14 jours d'essai
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <Check className="h-4 w-4 text-emerald-300" /> Sans CB
+                  <Check className="h-4 w-4 text-[#4CC96B]" /> Sans CB
                 </span>
                 <span className="flex items-center gap-1.5">
-                  <Check className="h-4 w-4 text-emerald-300" /> Annulation en 1 clic
+                  <Check className="h-4 w-4 text-[#4CC96B]" /> Annulation en 1 clic
                 </span>
               </div>
             </div>
@@ -1680,16 +1818,23 @@ function FinalCTA({ onSignup }: { onSignup: () => void }) {
 }
 
 // ============================================================
-// 13. Footer (4 colonnes, fond sombre pour contraste final)
+// 13. Footer (4 colonnes, fond sombre #1E1E2E)
 // ============================================================
 
 function SiteFooter({ onLogin }: { onLogin: () => void }) {
   const annee = new Date().getFullYear()
   return (
-    <footer className="relative border-t border-slate-800 bg-slate-950 text-white">
-      {/* Subtle ambient glow */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#5257C9]/60 to-transparent" aria-hidden />
-      <div className="pointer-events-none absolute -top-32 left-1/2 h-64 w-[40rem] -translate-x-1/2 rounded-full bg-[#5257C9]/10 blur-3xl" aria-hidden />
+    <footer className="relative bg-[#1E1E2E] text-white">
+      {/* Liseré arc-en-ciel en haut (palette dashboard) */}
+      <div
+        className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#5257C9] via-[#E8B54D] to-[#4CC96B]"
+        aria-hidden
+      />
+      {/* Halo indigo */}
+      <div
+        className="pointer-events-none absolute -top-32 left-1/2 h-64 w-[40rem] -translate-x-1/2 rounded-full bg-[#5257C9]/15 blur-3xl"
+        aria-hidden
+      />
       <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="grid grid-cols-2 gap-8 md:grid-cols-4">
           {/* Colonne 1 : FeedbackPro */}
@@ -1703,15 +1848,19 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
               className="flex items-center gap-2 font-bold transition-opacity hover:opacity-80"
               aria-label="Accueil FeedbackPro"
             >
-              <img src="/logo-feedbackpro.png" alt="FeedbackPro" className="h-10 w-auto brightness-0 invert" />
+              <img
+                src="/logo-feedbackpro.png"
+                alt="FeedbackPro"
+                className="h-10 w-auto brightness-0 invert"
+              />
             </a>
-            <p className="mt-3 max-w-xs text-sm leading-relaxed text-slate-400">
+            <p className="mt-3 max-w-xs text-sm leading-relaxed text-[#9A9AAE]">
               Le Client Mystère 2.0 : chaque client devient auditeur qualité, chaque matin devient
               plan d'action.
             </p>
             <button
               onClick={onLogin}
-              className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-[#5b8def] transition-colors hover:text-[#7da8ff] hover:underline"
+              className="mt-4 inline-flex items-center gap-1 text-sm font-medium text-[#E8B54D] transition-colors hover:text-[#FCD78A] hover:underline"
             >
               Se connecter
               <ArrowRight className="h-3.5 w-3.5" />
@@ -1720,14 +1869,14 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
 
           {/* Colonne 2 : Produit */}
           <nav aria-label="Produit">
-            <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-[#9A9AAE]">
               Produit
             </h3>
             <ul className="mt-4 space-y-2.5">
               <li>
                 <a
                   href="/fonctionnalites"
-                  className="text-sm text-slate-400 transition-colors duration-200 hover:text-white"
+                  className="text-sm text-[#9A9AAE] transition-colors duration-200 hover:text-white"
                 >
                   Fonctionnalités
                 </a>
@@ -1735,7 +1884,7 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
               <li>
                 <a
                   href="/demo"
-                  className="text-sm text-slate-400 transition-colors duration-200 hover:text-white"
+                  className="text-sm text-[#9A9AAE] transition-colors duration-200 hover:text-white"
                 >
                   Comment ça marche
                 </a>
@@ -1743,7 +1892,7 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
               <li>
                 <a
                   href="/cas-usage"
-                  className="text-sm text-slate-400 transition-colors duration-200 hover:text-white"
+                  className="text-sm text-[#9A9AAE] transition-colors duration-200 hover:text-white"
                 >
                   Cas d'usage
                 </a>
@@ -1751,7 +1900,7 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
               <li>
                 <a
                   href="/tarifs"
-                  className="text-sm text-slate-400 transition-colors duration-200 hover:text-white"
+                  className="text-sm text-[#9A9AAE] transition-colors duration-200 hover:text-white"
                 >
                   Tarifs
                 </a>
@@ -1759,7 +1908,7 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
               <li>
                 <a
                   href="/comparaison"
-                  className="text-sm text-slate-400 transition-colors duration-200 hover:text-white"
+                  className="text-sm text-[#9A9AAE] transition-colors duration-200 hover:text-white"
                 >
                   Comparatif
                 </a>
@@ -1769,14 +1918,14 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
 
           {/* Colonne 3 : Ressources */}
           <nav aria-label="Ressources">
-            <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-[#9A9AAE]">
               Ressources
             </h3>
             <ul className="mt-4 space-y-2.5">
               <li>
                 <a
                   href="/faq"
-                  className="text-sm text-slate-400 transition-colors duration-200 hover:text-white"
+                  className="text-sm text-[#9A9AAE] transition-colors duration-200 hover:text-white"
                 >
                   FAQ
                 </a>
@@ -1784,7 +1933,7 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
               <li>
                 <a
                   href="/temoignages"
-                  className="text-sm text-slate-400 transition-colors duration-200 hover:text-white"
+                  className="text-sm text-[#9A9AAE] transition-colors duration-200 hover:text-white"
                 >
                   Témoignages
                 </a>
@@ -1792,7 +1941,7 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
               <li>
                 <a
                   href="/a-propos"
-                  className="text-sm text-slate-400 transition-colors duration-200 hover:text-white"
+                  className="text-sm text-[#9A9AAE] transition-colors duration-200 hover:text-white"
                 >
                   À propos
                 </a>
@@ -1800,7 +1949,7 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
               <li>
                 <a
                   href="/contact"
-                  className="text-sm text-slate-400 transition-colors duration-200 hover:text-white"
+                  className="text-sm text-[#9A9AAE] transition-colors duration-200 hover:text-white"
                 >
                   Contact
                 </a>
@@ -1810,14 +1959,14 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
 
           {/* Colonne 4 : Légal */}
           <nav aria-label="Légal">
-            <h3 className="text-xs font-semibold uppercase tracking-widest text-slate-500">
+            <h3 className="text-xs font-semibold uppercase tracking-widest text-[#9A9AAE]">
               Légal
             </h3>
             <ul className="mt-4 space-y-2.5">
               <li>
                 <a
                   href="/mentions-legales"
-                  className="text-sm text-slate-400 transition-colors duration-200 hover:text-white"
+                  className="text-sm text-[#9A9AAE] transition-colors duration-200 hover:text-white"
                 >
                   Mentions légales
                 </a>
@@ -1825,7 +1974,7 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
               <li>
                 <a
                   href="/cgu"
-                  className="text-sm text-slate-400 transition-colors duration-200 hover:text-white"
+                  className="text-sm text-[#9A9AAE] transition-colors duration-200 hover:text-white"
                 >
                   Conditions générales
                 </a>
@@ -1833,7 +1982,7 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
               <li>
                 <a
                   href="/confidentialite"
-                  className="text-sm text-slate-400 transition-colors duration-200 hover:text-white"
+                  className="text-sm text-[#9A9AAE] transition-colors duration-200 hover:text-white"
                 >
                   Confidentialité
                 </a>
@@ -1841,7 +1990,7 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
               <li>
                 <a
                   href="/cookies"
-                  className="text-sm text-slate-400 transition-colors duration-200 hover:text-white"
+                  className="text-sm text-[#9A9AAE] transition-colors duration-200 hover:text-white"
                 >
                   Cookies
                 </a>
@@ -1850,12 +1999,12 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
           </nav>
         </div>
 
-        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-slate-800 pt-6 sm:flex-row">
-          <p className="text-xs text-slate-500">
+        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 sm:flex-row">
+          <p className="text-xs text-[#9A9AAE]">
             © {annee} FeedbackPro. Fait avec ❤️ en France.
           </p>
-          <div className="flex items-center gap-2 text-xs text-slate-500">
-            <ShieldCheck className="h-3.5 w-3.5 text-emerald-400" />
+          <div className="flex items-center gap-2 text-xs text-[#9A9AAE]">
+            <ShieldCheck className="h-3.5 w-3.5 text-[#4CC96B]" />
             Hébergement européen · Conforme RGPD
           </div>
         </div>
@@ -1870,12 +2019,13 @@ function SiteFooter({ onLogin }: { onLogin: () => void }) {
 
 export function LandingView({ onLogin, onSignup }: { onLogin: () => void; onSignup: () => void }) {
   return (
-    <div className="relative min-h-screen overflow-x-hidden bg-gradient-to-b from-white via-slate-50/40 to-white text-slate-900">
-      {/* Ambient premium background glows */}
+    <div className="relative min-h-screen overflow-x-hidden bg-[#E9E9EF] text-[#1E1E2E]">
+      {/* Halos décoratifs ambiants (indigo / green / yellow / pink) */}
       <div className="pointer-events-none fixed inset-0 -z-30" aria-hidden>
-        <div className="absolute -left-40 top-0 h-[40rem] w-[40rem] rounded-full bg-[#5257C9]/[0.06] blur-[120px]" />
-        <div className="absolute right-0 top-1/3 h-[36rem] w-[36rem] rounded-full bg-emerald-400/[0.05] blur-[120px]" />
-        <div className="absolute bottom-0 left-1/3 h-[32rem] w-[32rem] rounded-full bg-amber-400/[0.04] blur-[120px]" />
+        <div className="absolute -left-40 top-1/4 h-[34rem] w-[34rem] rounded-full bg-[#5257C9]/[0.05] blur-[120px]" />
+        <div className="absolute right-0 top-1/3 h-[30rem] w-[30rem] rounded-full bg-[#4CC96B]/[0.05] blur-[120px]" />
+        <div className="absolute bottom-1/4 left-1/3 h-[26rem] w-[26rem] rounded-full bg-[#E8B54D]/[0.04] blur-[120px]" />
+        <div className="absolute bottom-0 right-1/4 h-[24rem] w-[24rem] rounded-full bg-[#E0447E]/[0.03] blur-[120px]" />
       </div>
       <SiteHeader onLogin={onLogin} onSignup={onSignup} />
       <div className="flex-1">
