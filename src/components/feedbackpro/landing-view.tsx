@@ -111,13 +111,10 @@ function Reveal({
   className?: string
   delay?: number
 }) {
-  const setRef = useRevealCallback()
+  // Pas d'animation au scroll — tout est visible immédiatement.
+  // (L'IntersectionObserver causait des sections vides sur certains navigateurs)
   return (
-    <div
-      ref={setRef}
-      className={`fp-reveal ${className}`}
-      style={delay ? { transitionDelay: `${delay}ms` } : undefined}
-    >
+    <div className={className} style={delay ? { transitionDelay: `${delay}ms` } : undefined}>
       {children}
     </div>
   )
