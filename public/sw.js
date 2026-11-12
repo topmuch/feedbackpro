@@ -1,28 +1,27 @@
 // ============================================================
-// FeedbackPro - Service Worker avancé (Task M3 — Mode Offline)
+// FeedbackPro - Service Worker (Phase 2 — Mode Offline étendu)
 // ------------------------------------------------------------
 // Stratégies de cache hybrides :
-//   1. Network-first pour la page de scan /r/[qrToken] (avec repli cache) :
-//      on veut la dernière version si possible, mais on garde le cache
-//      offline pour qu'un client sans connexion puisse quand même
-//      remplir le formulaire.
-//   2. Stale-while-revalidate pour les assets CSS/JS critiques : on
-//      sert immédiatement depuis le cache, puis on met à jour en
-//      arrière-plan pour la prochaine visite.
-//   3. Cache-first (expiration 1h) pour /api/zone/[qrToken] : ces
-//      configs de zones changent rarement (emoji, tags proposés…) ;
-//      on évite une requête réseau systématique au client.
-//   4. Background Sync API : si POST /api/public/retour échoue
-//      (offline), on stocke le payload dans IndexedDB et on rejoue
-//      la requête à la reconnexion (event 'sync').
+//   1. POST /api/public/retour (offline) → IndexedDB + Background Sync
+//   1b. POST /api/airport/report (offline) → IndexedDB + Background Sync
+//   2. Cache-first (TTL 1h) pour /api/zone/[qrToken] (configs restaurant)
+//   2b. Network-first (repli cache) pour /api/airport/zone/* (configs aéroport)
+//   3. Network-first pour la page de scan /r/[qrToken]
+//   4. Stale-while-revalidate pour les assets same-origin
 //
-// NOTE : un service worker DOIT être servi avec le MIME
-// application/javascript et une URL stable à la racine — placé dans
-// public/ il est servi tel quel par Next.js.
+// Fichier PLAIN JAVASCRIPT (aucune annotation TypeScript — un SW est
+// servi tel quel par Next.js sans compilation).
 // ============================================================
 
-const CACHE_NAME = "feedbackpro-v2"
+// CACHE_NAME bumpé v2 → v3 (feedbackpro-airport-v3) pour forcer le
+// refresh du shell suite à l'ajout des routes aéroport offline (Task 3 Phase 2).
+const CACHE_NAME = "feedbackpro-airport-v3"
 const CACHE_API = "feedbackpro-api-v2"
+// Cache dédié aux réponses GET /api/airport/zone/* (network-first, pas de
+// TTL : on veut toujours la version réseau si disponible, le cache n'est
+// qu'un repli offline). Séparé de CACHE_API pour ne pas mélanger avec les
+// réponses TTL-marquées de /api/zone/[qrToken].
+const CACHE_AIRPORT_API = "feedbackpro-airport-api-v3"
 const PRECACHE_URLS = [
   "/",
   "/manifest.webmanifest",
@@ -49,7 +48,7 @@ self.addEventListener("activate", (event) => {
       .then((keys) =>
         Promise.all(
           keys
-            .filter((k) => k !== CACHE_NAME && k !== CACHE_API)
+            .filter((k) => k !== CACHE_NAME && k !== CACHE_API && k !== CACHE_AIRPORT_API)
             .map((k) => caches.delete(k))
         )
       )
@@ -59,7 +58,8 @@ self.addEventListener("activate", (event) => {
 
 // ---------- Helper : expiration du cache API (1h) ----------
 const API_CACHE_TTL_MS = 60 * 60 * 1000 // 1 heure
-async function apiCacheValide(cle: Request): Promise<Response | null> {
+
+async function apiCacheValide(cle) {
   const cache = await caches.open(CACHE_API)
   const cached = await cache.match(cle)
   if (!cached) return null
@@ -72,7 +72,7 @@ async function apiCacheValide(cle: Request): Promise<Response | null> {
   return cached
 }
 
-async function mettreEnCacheApi(cle: Request, res: Response) {
+async function mettreEnCacheApi(cle, res) {
   try {
     const cache = await caches.open(CACHE_API)
     // Cloner la réponse et injecter le timestamp de mise en cache
@@ -88,6 +88,18 @@ async function mettreEnCacheApi(cle: Request, res: Response) {
   } catch {
     /* silencieux : le cache est best-effort */
   }
+}
+
+// ---------- Helper : enregistre un tag Background Sync si l'API est dispo ----------
+function registerSyncTag(tag) {
+  try {
+    if ("serviceWorker" in self && "sync" in self.registration) {
+      return self.registration.sync.register(tag).catch(() => undefined)
+    }
+  } catch {
+    /* sync non supporté : le client tentera forceSync() au retour réseau */
+  }
+  return Promise.resolve()
 }
 
 // ---------- Fetch : stratégies réseau/cache ----------
@@ -111,13 +123,7 @@ self.addEventListener("fetch", (event) => {
           try {
             const corps = await req.clone().text()
             await stockerRetourOffline(corps)
-            if ("sync" in self && "register" in (self as unknown as { sync: { register: (t: string) => Promise<void> } }).sync) {
-              try {
-                await (self as unknown as { sync: { register: (t: string) => Promise<void> } }).sync.register("fp-retour-sync")
-              } catch {
-                /* sync non supporté : on tentera au prochain fetch */
-              }
-            }
+            await registerSyncTag("fp-retour-sync")
             // Réponse simulée pour que le client affiche l'écran "hors ligne"
             return new Response(
               JSON.stringify({
@@ -133,6 +139,51 @@ self.addEventListener("fetch", (event) => {
           } catch (e) {
             return new Response(
               JSON.stringify({ ok: false, error: "Impossible d'enregistrer le retour hors ligne" }),
+              { status: 500, headers: { "Content-Type": "application/json" } }
+            )
+          }
+        }
+      })()
+    )
+    return
+  }
+
+  // 1b) POST /api/airport/report — Background Sync API (signalements aéroport)
+  // Même mécanisme que /api/public/retour mais pour les signalements aéroport :
+  // on intercepte UNIQUEMENT les échecs réseau (throw) ou 5xx serveur. Les
+  // 4xx (payload invalide) ne sont PAS mis en file — un retry ne résoudra rien.
+  // Sur échec, on stocke le corps dans IndexedDB (store airport-pending-reports)
+  // et on enregistre un sync 'sync-airport-report' pour rejouer à la reconnexion.
+  if (req.method === "POST" && url.pathname === "/api/airport/report") {
+    event.respondWith(
+      (async () => {
+        try {
+          const reponse = await fetch(req.clone())
+          // 5xx → on le traite comme un échec retryable (throw → catch)
+          if (!reponse.ok && reponse.status >= 500) {
+            throw new Error(`HTTP ${reponse.status}`)
+          }
+          return reponse
+        } catch (_e) {
+          try {
+            const corps = await req.clone().text()
+            await stockerRapportAirportOffline(corps)
+            await registerSyncTag("sync-airport-report")
+            // Réponse simulée pour que la PWA affiche l'écran « hors ligne »
+            return new Response(
+              JSON.stringify({
+                ok: true,
+                offline: true,
+                message: "Signalement en file d'attente — sera envoyé au retour du réseau",
+              }),
+              {
+                status: 200,
+                headers: { "Content-Type": "application/json" },
+              }
+            )
+          } catch (e) {
+            return new Response(
+              JSON.stringify({ ok: false, error: "Impossible d'enregistrer le signalement hors ligne" }),
               { status: 500, headers: { "Content-Type": "application/json" } }
             )
           }
@@ -160,6 +211,33 @@ self.addEventListener("fetch", (event) => {
         } catch {
           // Fallback : sert la version cache même expirée si pas de réseau
           const cache = await caches.open(CACHE_API)
+          const fallback = await cache.match(req)
+          return (
+            fallback ??
+            new Response("Offline", { status: 503, statusText: "Offline" })
+          )
+        }
+      })()
+    )
+    return
+  }
+
+  // 2b) Network-first (repli cache offline) pour /api/airport/zone/*
+  // La PWA aéroport doit pouvoir s'ouvrir sans réseau : on tente le réseau
+  // d'abord, on met en cache la réponse 200, et on sert le cache si le réseau
+  // est injoignable. Pas de TTL : on préfère toujours la version réseau.
+  if (url.pathname.startsWith("/api/airport/zone/")) {
+    event.respondWith(
+      (async () => {
+        try {
+          const res = await fetch(req)
+          if (res && res.status === 200) {
+            const copie = res.clone()
+            ;(await caches.open(CACHE_AIRPORT_API)).put(req, copie).catch(() => undefined)
+          }
+          return res
+        } catch {
+          const cache = await caches.open(CACHE_AIRPORT_API)
           const fallback = await cache.match(req)
           return (
             fallback ??
@@ -213,13 +291,13 @@ self.addEventListener("fetch", (event) => {
 })
 
 // ============================================================
-// IndexedDB — Stockage de la queue des retours offline
+// IndexedDB — Stockage de la queue des retours offline (restaurant)
 // ============================================================
 const DB_NAME = "fp-offline"
 const DB_STORE = "retours"
 const DB_VERSION = 1
 
-function ouvrirDb(): Promise<IDBDatabase> {
+function ouvrirDb() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, DB_VERSION)
     req.onupgradeneeded = () => {
@@ -233,7 +311,7 @@ function ouvrirDb(): Promise<IDBDatabase> {
   })
 }
 
-async function stockerRetourOffline(corps: string): Promise<void> {
+async function stockerRetourOffline(corps) {
   const db = await ouvrirDb()
   return new Promise((resolve, reject) => {
     const tx = db.transaction(DB_STORE, "readwrite")
@@ -244,18 +322,18 @@ async function stockerRetourOffline(corps: string): Promise<void> {
   })
 }
 
-async function lireRetoursOffline(): Promise<Array<{ id: number; corps: string; ts: number }>> {
+async function lireRetoursOffline() {
   const db = await ouvrirDb()
   return new Promise((resolve, reject) => {
     const tx = db.transaction(DB_STORE, "readonly")
     const store = tx.objectStore(DB_STORE)
     const req = store.getAll()
-    req.onsuccess = () => resolve(req.result as Array<{ id: number; corps: string; ts: number }>)
+    req.onsuccess = () => resolve(req.result)
     req.onerror = () => reject(req.error)
   })
 }
 
-async function supprimerRetourOffline(id: number): Promise<void> {
+async function supprimerRetourOffline(id) {
   const db = await ouvrirDb()
   return new Promise((resolve, reject) => {
     const tx = db.transaction(DB_STORE, "readwrite")
@@ -270,10 +348,12 @@ async function supprimerRetourOffline(id: number): Promise<void> {
 self.addEventListener("sync", (event) => {
   if (event.tag === "fp-retour-sync") {
     event.waitUntil(rejouerRetoursOffline())
+  } else if (event.tag === "sync-airport-report") {
+    event.waitUntil(rejouerRapportsAirportOffline())
   }
 })
 
-async function rejouerRetoursOffline(): Promise<void> {
+async function rejouerRetoursOffline() {
   const retours = await lireRetoursOffline()
   for (const r of retours) {
     try {
@@ -292,9 +372,109 @@ async function rejouerRetoursOffline(): Promise<void> {
   }
 }
 
-// ---------- Au démarrage du SW : rejoue aussi (au cas où sync n'est pas supporté) ----------
+// ---------- Message du client : rejoue aussi (fallback si Background Sync indispo) ----------
 self.addEventListener("message", (event) => {
   if (event.data === "fp-replay-offline") {
     event.waitUntil(rejouerRetoursOffline())
+  } else if (event.data === "airport-replay-offline") {
+    event.waitUntil(rejouerRapportsAirportOffline())
   }
 })
+
+// ============================================================
+// AIRPORT — IndexedDB pour la queue des signalements offline
+// (Task 3 Phase 2 — PWA aéroport hors ligne)
+// ============================================================
+// DB dédiée (feedbackpro-airport) séparée de la DB restaurant (fp-offline).
+// Store : airport-pending-reports, keyPath 'id', autoIncrement.
+// Lue/écrite à la fois par le SW (replay background sync) ET par le hook
+// client useAirportOffline (compteur pour le banner + forceSync fallback).
+const AIRPORT_DB_NAME = "feedbackpro-airport"
+const AIRPORT_DB_STORE = "airport-pending-reports"
+const AIRPORT_DB_VERSION = 1
+
+function ouvrirDbAirport() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(AIRPORT_DB_NAME, AIRPORT_DB_VERSION)
+    req.onupgradeneeded = () => {
+      const db = req.result
+      if (!db.objectStoreNames.contains(AIRPORT_DB_STORE)) {
+        db.createObjectStore(AIRPORT_DB_STORE, { keyPath: "id", autoIncrement: true })
+      }
+    }
+    req.onsuccess = () => resolve(req.result)
+    req.onerror = () => reject(req.error)
+  })
+}
+
+async function stockerRapportAirportOffline(corps) {
+  const db = await ouvrirDbAirport()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(AIRPORT_DB_STORE, "readwrite")
+    const store = tx.objectStore(AIRPORT_DB_STORE)
+    store.add({ corps, ts: Date.now() })
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
+}
+
+async function lireRapportsAirportOffline() {
+  const db = await ouvrirDbAirport()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(AIRPORT_DB_STORE, "readonly")
+    const store = tx.objectStore(AIRPORT_DB_STORE)
+    const req = store.getAll()
+    req.onsuccess = () => resolve(req.result)
+    req.onerror = () => reject(req.error)
+  })
+}
+
+async function supprimerRapportAirportOffline(id) {
+  const db = await ouvrirDbAirport()
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(AIRPORT_DB_STORE, "readwrite")
+    const store = tx.objectStore(AIRPORT_DB_STORE)
+    store.delete(id)
+    tx.oncomplete = () => resolve()
+    tx.onerror = () => reject(tx.error)
+  })
+}
+
+async function rejouerRapportsAirportOffline() {
+  const rapports = await lireRapportsAirportOffline()
+  for (const r of rapports) {
+    try {
+      const res = await fetch("/api/airport/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: r.corps,
+      })
+      if (res.ok) {
+        await supprimerRapportAirportOffline(r.id)
+      } else if (res.status >= 400 && res.status < 500) {
+        // 4xx : payload invalide (tag inconnu, problématique non reconnue…).
+        // Un retry ne résoudra rien — on supprime pour éviter une file bloquante.
+        await supprimerRapportAirportOffline(r.id)
+      }
+      // 5xx : on garde en file, on réessaiera au prochain sync.
+    } catch {
+      // Toujours offline : on garde en file, on réessaiera au prochain sync.
+      break
+    }
+  }
+  // Notifie les clients que la file a changé (rafraîchit le banner offline).
+  await notifieClientsAirportPendingChanged()
+}
+
+// Notifie tous les clients contrôlés que la file d'attente aéroport a changé
+// (pour rafraîchir le compteur du banner useAirportOffline).
+async function notifieClientsAirportPendingChanged() {
+  try {
+    const clients = await self.clients.matchAll({ includeUncontrolled: true, type: "window" })
+    for (const c of clients) {
+      c.postMessage({ type: "airport-pending-changed" })
+    }
+  } catch {
+    /* silencieux */
+  }
+}

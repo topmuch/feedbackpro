@@ -706,3 +706,38 @@ model AirportAuditTrail {
   @@index([reportId, createdAt])
   @@index([action, createdAt])
 }
+
+// ============================================================
+// QR Dynamique Vol — Task D Phase 3
+// ------------------------------------------------------------
+// Associe un tag de porte (ex: "porte_A12") au vol actuellement
+// à quai. Quand un voyageur scanne le QR de la porte, la PWA
+// reçoit automatiquement le numéro de vol — pas de saisie manuelle.
+// Le manager assigne / libère les portes depuis le dashboard.
+// ============================================================
+model AirportFlightGate {
+  id           String    @id @default(cuid())
+  // Tag de la porte (ex: "porte_A12", "porte_B07") — correspond à un
+  // tag accepté par la zone "embarquement" dans airport-config.ts
+  gateTag      String    @unique
+  // Numéro de vol (ex: "AF123", "DL6049")
+  flightNumber String
+  // Compagnie (ex: "Air France", "Delta") — affichée sur la PWA
+  airline      String?
+  // Destination (ex: "Paris CDG", "New York JFK")
+  destination  String?
+  // Heure de départ prévue (format "HH:MM" 24h local)
+  scheduledDeparture String?
+  // Statut du vol : "BOARDING" | "DEPARTED" | "CANCELLED" | "DELAYED"
+  status       String    @default("BOARDING")
+  // Actif = true tant que le vol est à quai. Passé à false quand le
+  // vol décolle (ou est annulé) — libère la porte pour le prochain vol.
+  active       Boolean   @default(true)
+  // Notes libres (ex: "Retarde 15min", "Vol groupé AF1180/AF1181")
+  notes        String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([active, status])
+  @@index([flightNumber])
+}

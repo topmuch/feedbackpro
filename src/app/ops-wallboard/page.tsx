@@ -25,6 +25,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Plane, TriangleAlert, OctagonAlert, Volume2, VolumeX } from 'lucide-react'
+import { AirportPredictionRadar } from '@/components/feedbackpro/airport-prediction-radar'
 
 // ---------------------------------------------------------------
 // Types — match exact du contrat /api/airport/wallboard
@@ -1000,6 +1001,18 @@ export default function OpsWallboardPage() {
             )}
           </div>
         </main>
+
+        {/* ---------- PREDICTION RADAR (Phase 2 — "Ça va péter dans 20 min") ---------- */}
+        <section
+          aria-label="Radar prédiction des pics de plaintes"
+          className="flex shrink-0 flex-col gap-1.5 bg-black p-2"
+        >
+          <h2 className="flex items-center gap-2 px-1 font-mono text-[11px] font-bold uppercase tracking-wider text-amber-400">
+            <span aria-hidden>🔮</span>
+            Radar Prédiction — Ça va péter dans 20 min ?
+          </h2>
+          <AirportPredictionRadar className="w-full rounded-md border border-amber-500/20 bg-neutral-900/80" />
+        </section>
 
         {/* ---------- BOTTOM STRIP (SLA + charge par zone) ---------- */}
         <footer

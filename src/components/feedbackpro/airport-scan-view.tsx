@@ -44,10 +44,14 @@ import {
   Loader2,
   MapPin,
   MessageSquare,
+  Mic,
+  MicOff,
   Phone,
   Plane,
   Send,
   ShieldCheck,
+  Square,
+  Star,
   X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
@@ -64,6 +68,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import { AirportOfflineBanner } from "@/components/feedbackpro/airport-offline-banner"
+import { useAirportOffline } from "@/hooks/use-airport-offline"
 
 // ---------- Types locaux (contrat API) ----------
 
@@ -79,6 +85,24 @@ type ZoneData = {
   tagScanne: string
   airportLogo?: string | null
   airportName?: string | null
+  // D8 — URL d'avis Google Reviews de l'aéroport (renvoyée par
+  // GET /api/airport/zone/[tag] depuis le champ Pro.googleReviewUrl).
+  // Null si aucun Pro "Aéroport" rattaché ou si l'URL n'est pas configurée.
+  // Utilisée par la carte de notation de l'écran de confirmation :
+  // note 4-5★ → propose un avis Google public, note 1-3★ → retour interne.
+  airportGoogleReviewUrl?: string | null
+  // Task D Phase 3 — Vol actuellement à quai sur ce tag (porte d'embarquement).
+  // Renvoyé par GET /api/airport/zone/[tag] si un AirportFlightGate actif
+  // existe pour ce tag. Null pour les tags non-portes (tapis bagages, etc.).
+  // Quand non-null, le champ "Numéro de vol" du formulaire est pré-rempli +
+  // verrouillé (read-only) — le voyageur n'a pas à le saisir manuellement.
+  currentFlight?: {
+    flightNumber: string
+    airline: string | null
+    destination: string | null
+    scheduledDeparture: string | null
+    status: string
+  } | null
 }
 
 type ReportResult = {
@@ -257,6 +281,33 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
   const [exitAdLoading, setExitAdLoading] = useState(false)
   const [helpSuccess, setHelpSuccess] = useState<string | null>(null)
 
+  // --- D8 — Carte de notation (écran de confirmation) ---
+  // Le voyageur note son expérience aéroport (1-5★) juste avant la sortie.
+  //  - 4-5★ (positif) + airportGoogleReviewUrl défini : on propose un CTA
+  //    « Laisser un avis Google » qui ouvre la page d'avis dans un nouvel onglet.
+  //  - 4-5★ (positif) sans URL configurée : message de remerciement, pas de CTA.
+  //  - 1-3★ (négatif) : message d'excuse + saisie email optionnelle + bouton
+  //    « Envoyer mon retour interne » qui POST /api/airport/help avec la note
+  //    et l'email (réutilise le endpoint existant, champ travelerPhone).
+  const [rating, setRating] = useState<number | null>(null)
+  const [ratingSubmitted, setRatingSubmitted] = useState(false)
+  const [ratingEmail, setRatingEmail] = useState("")
+  const [ratingSubmitting, setRatingSubmitting] = useState(false)
+
+  // --- Voice (Phase 2 — Wolof / Français / Anglais) ---
+  // MediaRecorder + ASR + traduction LLM → remplit le commentaire.
+  // États : idle (bouton micro violet), recording (pulsant rouge), transcribing (spinner)
+  const [voiceState, setVoiceState] = useState<"idle" | "recording" | "transcribing">("idle")
+  const [voiceError, setVoiceError] = useState<string | null>(null)
+  const [voiceLang, setVoiceLang] = useState<"auto" | "wolof" | "fr" | "en">("auto")
+  const [voicePreview, setVoicePreview] = useState<string | null>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const audioChunksRef = useRef<Blob[]>([])
+  const voiceStreamRef = useRef<MediaStream | null>(null)
+
+  // --- Offline PWA (Phase 2 — fonctionne sans 4G) ---
+  const offline = useAirportOffline()
+
   // ---------- Effet : fetch de la zone au montage + quand le tag change ----------
   useEffect(() => {
     let cancelled = false
@@ -266,6 +317,12 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
       .then((res) => {
         if (cancelled) return
         setZoneData(res.zone)
+        // Task D Phase 3 — si la porte a un vol à quai, on pré-remplit le
+        // champ flightNumber (verrouillé en read-only dans l'UI). Le
+        // voyageur n'a pas à saisir le numéro manuellement.
+        if (res.zone.currentFlight?.flightNumber) {
+          setFlightNumber(res.zone.currentFlight.flightNumber)
+        }
         setPhase("zone_detectee")
       })
       .catch(() => {
@@ -327,7 +384,140 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
     []
   )
 
+  // ---------- Voice (Phase 2) : démarrer / arrêter l'enregistrement ----------
+  // Démarrage : demande l'accès micro, instancie MediaRecorder, accumule les chunks.
+  // Arrêt : stoppe le recorder → onstop() construit le Blob webm/opus → transcribeVoice().
+  const demarrerEnregistrement = useCallback(async () => {
+    setVoiceError(null)
+    setVoicePreview(null)
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
+      setVoiceError("Micro non supporté sur cet appareil.")
+      return
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      voiceStreamRef.current = stream
+      // webm/opus est le format natif de MediaRecorder (Chrome/Firefox).
+      // Safari produit mp4 — on laisse le navigateur choisir le mime.
+      const mr = new MediaRecorder(stream)
+      mediaRecorderRef.current = mr
+      audioChunksRef.current = []
+      mr.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) audioChunksRef.current.push(e.data)
+      }
+      mr.onstop = () => {
+        // Stoppe toutes les pistes du stream (libère le micro).
+        voiceStreamRef.current?.getTracks().forEach((t) => t.stop())
+        voiceStreamRef.current = null
+        const blob = new Blob(audioChunksRef.current, {
+          type: mr.mimeType || "audio/webm",
+        })
+        audioChunksRef.current = []
+        if (blob.size < 500) {
+          // Enregistrement vide (< 0.5 s) → on abandonne sans erreur.
+          setVoiceState("idle")
+          return
+        }
+        void transcrireEtTraduire(blob)
+      }
+      mr.start()
+      setVoiceState("recording")
+    } catch (err) {
+      setVoiceState("idle")
+      voiceStreamRef.current?.getTracks().forEach((t) => t.stop())
+      voiceStreamRef.current = null
+      const msg = err instanceof Error ? err.message : "Accès micro refusé"
+      setVoiceError(
+        /denied|permission|notallowed/i.test(msg)
+          ? "Autorisation micro refusée. Activez-le dans les réglages du navigateur."
+          : `Micro indisponible : ${msg}`,
+      )
+    }
+  }, [])
+
+  // Arrêt propre du recorder → déclenche onstop() ci-dessus.
+  const arreterEnregistrement = useCallback(() => {
+    const mr = mediaRecorderRef.current
+    if (mr && mr.state !== "inactive") {
+      setVoiceState("transcribing")
+      try {
+        mr.stop()
+      } catch {
+        setVoiceState("idle")
+      }
+    } else {
+      setVoiceState("idle")
+    }
+  }, [])
+
+  // ---------- Voice (Phase 2) : appel backend /api/airport/voice/transcribe + translate ----------
+  // Pipeline : Blob → POST multipart /transcribe → texte source → POST JSON /translate
+  //   → texte français → setCommentaire() + setVoicePreview() pour afficher le compte-rendu.
+  // En cas d'erreur, on restore l'état idle et on affiche un message clair.
+  const transcrireEtTraduire = useCallback(
+    async (audio: Blob) => {
+      setVoiceState("transcribing")
+      setVoiceError(null)
+      try {
+        // 1. Transcription ASR (z-ai-web-dev-sdk côté serveur)
+        const fd = new FormData()
+        fd.append("audio", audio, "voice.webm")
+        const resT = await fetch("/api/airport/voice/transcribe", {
+          method: "POST",
+          body: fd,
+        })
+        const jsonT = (await resT.json().catch(() => null)) as
+          | { ok: boolean; data?: { text: string }; error?: string }
+          | null
+        if (!resT.ok || !jsonT?.ok || !jsonT.data) {
+          throw new Error(jsonT?.error || `Transcription échouée (${resT.status})`)
+        }
+        const original = (jsonT.data.text || "").trim()
+        if (!original) {
+          throw new Error("Aucune parole détectée dans l'enregistrement.")
+        }
+
+        // 2. Traduction LLM vers le français (Wolof/FR/EN → FR)
+        const resTr = await fetch("/api/airport/voice/translate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: original, source: voiceLang }),
+        })
+        const jsonTr = (await resTr.json().catch(() => null)) as
+          | {
+              ok: boolean
+              data?: { translated: string; detectedSource?: string }
+              error?: string
+            }
+          | null
+        if (!resTr.ok || !jsonTr?.ok || !jsonTr.data) {
+          throw new Error(jsonTr?.error || "Traduction échouée")
+        }
+        const translated = (jsonTr.data.translated || "").trim()
+        // 3. On remplit le commentaire (en préservant un éventuel texte déjà tapé).
+        setCommentaire((prev) => {
+          const base = prev.trim()
+          return base ? `${base}\n${translated}` : translated
+        })
+        setVoicePreview(
+          jsonTr.data.detectedSource && jsonTr.data.detectedSource !== "fr"
+            ? `Détecté : ${jsonTr.data.detectedSource} → traduit en français`
+            : "Transcrit et traduit en français",
+        )
+      } catch (err) {
+        setVoiceError(err instanceof Error ? err.message : "Voix indisponible")
+      } finally {
+        setVoiceState("idle")
+      }
+    },
+    [voiceLang],
+  )
+
   // ---------- Soumission du signalement (POST /api/airport/report) ----------
+  // Si le réseau est offline OU que l'API renvoie une erreur réseau/5xx,
+  // on enfile le rapport dans IndexedDB (Background Sync le rejouera au
+  // retour du réseau). Le voyageur voit l'écran de confirmation comme si
+  // tout s'était bien passé — son signalement n'est pas perdu.
   const envoyerSignalement = useCallback(async () => {
     if (!zoneData || !selectedProblem || submitting) return
     setSubmitting(true)
@@ -348,20 +538,70 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
       if (photoUrl) body.photoUrl = photoUrl
       const fn = flightNumber.trim()
       if (fn) body.flightNumber = fn
-      const result = await apiPost<ReportResult>("/api/airport/report", body)
-      setReportResult(result)
-      setPhase("confirmation")
+
+      // Tentative online. Si elle échoue (offline / 5xx), on enfile localement.
       try {
-        window.scrollTo({ top: 0, behavior: "smooth" })
-      } catch {
-        /* ignore */
+        const result = await apiPost<ReportResult>("/api/airport/report", body)
+        setReportResult(result)
+        setPhase("confirmation")
+        try {
+          window.scrollTo({ top: 0, behavior: "smooth" })
+        } catch {
+          /* ignore */
+        }
+        return
+      } catch (netErr) {
+        // Si on est offline OU que l'erreur ressemble à un problème réseau,
+        // on enfile le rapport pour sync différée. Sinon on propage.
+        const offlineNow =
+          (typeof navigator !== "undefined" && navigator.onLine === false) ||
+          /fetch|network|failed/i.test(netErr instanceof Error ? netErr.message : "")
+        if (!offlineNow) throw netErr
+
+        await offline.enqueueReport({
+          tag: body.tag,
+          problemType: body.problemType,
+          commentaire: body.commentaire,
+          photoUrl: body.photoUrl,
+          flightNumber: body.flightNumber,
+        })
+        // On génère un pseudo-reportResult local pour l'écran de confirmation
+        // (le vrai ID sera assigné au moment de la sync par le backend).
+        const localId = `pending-${Date.now()}`
+        setReportResult({
+          report: {
+            id: localId,
+            statut: "EN_ATTENTE",
+            problemType: body.problemType,
+            tagScanne: body.tag,
+            flightNumber: body.flightNumber ?? null,
+            createdAt: new Date().toISOString(),
+          },
+          whatsapp: {
+            message:
+              "Votre signalement a été mis en file d'attente. Il sera envoyé automatiquement dès le retour du réseau.",
+            link: "",
+          },
+          zone: {
+            code: zoneData.tagScanne,
+            nom: zoneData.nom,
+            emoji: zoneData.emoji,
+          },
+          vlmPending: false,
+        })
+        setPhase("confirmation")
+        try {
+          window.scrollTo({ top: 0, behavior: "smooth" })
+        } catch {
+          /* ignore */
+        }
       }
     } catch (err) {
       setSubmitError(err instanceof Error ? err.message : "Envoi impossible")
     } finally {
       setSubmitting(false)
     }
-  }, [zoneData, selectedProblem, submitting, commentaire, photoUrl, flightNumber])
+  }, [zoneData, selectedProblem, submitting, commentaire, photoUrl, flightNumber, offline])
 
   // ---------- Opt-in WhatsApp (POST /api/airport/whatsapp-optin) ----------
   const activerWhatsapp = useCallback(async () => {
@@ -435,6 +675,65 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
     }
   }, [zoneData, helpSubmitting, helpMessage, helpPhone, reportResult])
 
+  // ---------- D8 — Ouvrir la page d'avis Google (note 4-5★) ----------
+  // Ouvre l'URL d'avis Google Reviews de l'aéroport dans un nouvel onglet,
+  // puis masque la carte de notation (le voyageur a fait son action).
+  // Si l'URL est absente, le bouton n'est pas rendu — pas besoin de guard ici.
+  const ouvrirAvisGoogle = useCallback(() => {
+    if (!zoneData?.airportGoogleReviewUrl) return
+    try {
+      window.open(zoneData.airportGoogleReviewUrl, "_blank", "noopener")
+    } catch {
+      /* ignore — échec non bloquant */
+    }
+    setRatingSubmitted(true)
+  }, [zoneData])
+
+  // ---------- D8 — Envoyer le retour interne (note 1-3★) ----------
+  // Réutilise POST /api/airport/help avec :
+  //   - message : "Note: X/5" + commentaire éventuel saisi plus tôt
+  //   - travelerPhone : email saisi (champ polymorphe côté backend — tout
+  //     identifiant de contact libre est accepté, on transmet l'email brut)
+  //   - tag : tag scanné de la zone
+  //   - reportId : ID du signalement lié
+  // Sur succès : masque la carte + affiche un message de confirmation inline.
+  const envoyerRetourInterne = useCallback(async () => {
+    if (!zoneData || rating === null || ratingSubmitting) return
+    setRatingSubmitting(true)
+    try {
+      const c = commentaire.trim()
+      const message = c
+        ? `Note: ${rating}/5 — ${c}`
+        : `Note: ${rating}/5`
+      const body: {
+        tag: string
+        message: string
+        travelerPhone?: string
+        reportId?: string
+      } = {
+        tag: zoneData.tagScanne,
+        message,
+      }
+      const email = ratingEmail.trim()
+      if (email) body.travelerPhone = email
+      if (reportResult?.report.id) body.reportId = reportResult.report.id
+      // apiPost lève sur !ok — pas besoin de tester la réponse.
+      await apiPost<{ helpRequestId: string; statut: string; message: string }>(
+        "/api/airport/help",
+        body,
+      )
+      setRatingSubmitted(true)
+    } catch {
+      // On ne bloque pas le voyageur — on marque quand même comme soumis
+      // pour qu'il puisse quitter sans saisir à nouveau. Le retour interne
+      // est best-effort : si le réseau flanche, l'écran de confirmation
+      // reste utilisable.
+      setRatingSubmitted(true)
+    } finally {
+      setRatingSubmitting(false)
+    }
+  }, [zoneData, rating, ratingSubmitting, ratingEmail, commentaire, reportResult])
+
   // ---------- "Signaler un autre problème" : reset vers zone_detectee ----------
   // On conserve le tag/zone (zoneData) — seul le signalement courant est réinitialisé.
   const signalerAutre = useCallback(() => {
@@ -456,6 +755,11 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
     setHelpSuccess(null)
     // Feature 1 — reset pub éventuelle (si l'on revient signaler autre chose)
     setExitAd(null)
+    // D8 — reset carte de notation (note + retour interne / avis Google)
+    setRating(null)
+    setRatingSubmitted(false)
+    setRatingEmail("")
+    setRatingSubmitting(false)
     setPhase("zone_detectee")
     try {
       window.scrollTo({ top: 0, behavior: "smooth" })
@@ -587,6 +891,9 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
 
     return (
       <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-violet-50/30 to-sky-50/40">
+        {/* --- Bandeau offline (Phase 2) : sticky en haut --- */}
+        <AirportOfflineBanner />
+
         {/* Décoration : blobs flottants colorés en arrière-plan */}
         <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-violet-300/20 blur-3xl" />
         <div className="pointer-events-none absolute top-1/3 -left-20 h-64 w-64 rounded-full bg-emerald-300/15 blur-3xl" />
@@ -721,6 +1028,9 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
     const problemEmoji = getProblemEmoji(selectedProblem)
     return (
       <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-violet-50/30 to-sky-50/40">
+        {/* --- Bandeau offline (Phase 2) : sticky en haut, au-dessus du header --- */}
+        <AirportOfflineBanner />
+
         {/* Blobs flottants */}
         <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-violet-300/20 blur-3xl" />
         <div className="pointer-events-none absolute bottom-0 -left-20 h-64 w-64 rounded-full bg-emerald-300/15 blur-3xl" />
@@ -779,12 +1089,39 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
             </div>
           </div>
 
-          {/* Commentaire optionnel — glassmorphism */}
+          {/* Commentaire optionnel + saisie vocale (Phase 2 — Wolof/FR/EN) */}
           <div className="mt-5 space-y-2">
-            <Label htmlFor="airport-commentaire" className="flex items-center gap-1.5 text-sm font-bold text-slate-700">
-              <span className="inline-block h-1 w-4 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500" />
-              Précisez le problème si besoin
-            </Label>
+            <div className="flex items-center justify-between gap-2">
+              <Label htmlFor="airport-commentaire" className="flex items-center gap-1.5 text-sm font-bold text-slate-700">
+                <span className="inline-block h-1 w-4 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500" />
+                Précisez le problème si besoin
+              </Label>
+              {/* Sélecteur de langue (auto par défaut) */}
+              <div className="flex items-center gap-1 rounded-full bg-white/70 p-0.5 ring-1 ring-white/60 backdrop-blur-md">
+                {([
+                  { k: "auto", l: "Auto" },
+                  { k: "wolof", l: "Wolof" },
+                  { k: "fr", l: "FR" },
+                  { k: "en", l: "EN" },
+                ] as const).map((opt) => (
+                  <button
+                    key={opt.k}
+                    type="button"
+                    onClick={() => setVoiceLang(opt.k)}
+                    className={cn(
+                      "rounded-full px-2.5 py-1 text-[11px] font-bold transition-all",
+                      voiceLang === opt.k
+                        ? "bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white shadow-sm"
+                        : "text-slate-500 hover:text-slate-800",
+                    )}
+                    aria-pressed={voiceLang === opt.k}
+                    title={`Langue parlée : ${opt.l}`}
+                  >
+                    {opt.l}
+                  </button>
+                ))}
+              </div>
+            </div>
             <Textarea
               id="airport-commentaire"
               value={commentaire}
@@ -793,7 +1130,56 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
               placeholder="Ex: Le tapis est arrêté depuis 10 minutes, environ 30 personnes attendent..."
               className="min-h-24 resize-none rounded-2xl border-2 border-white bg-white/70 backdrop-blur-md text-sm shadow-sm ring-1 ring-white/60 focus:border-violet-400 focus:ring-violet-200"
             />
-            <p className="text-right text-xs text-slate-400">{commentaire.length}/1000</p>
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-right text-xs text-slate-400">{commentaire.length}/1000</p>
+              {/* Bouton micro (Phase 2) : enregistre, transcrit (ASR), traduit en FR (LLM) */}
+              {voiceState === "recording" ? (
+                <button
+                  type="button"
+                  onClick={arreterEnregistrement}
+                  className="flex items-center gap-2 rounded-full bg-gradient-to-r from-rose-500 to-red-600 px-4 py-2 text-xs font-bold text-white shadow-md ring-2 ring-rose-300 transition-all hover:scale-105 animate-pulse"
+                  aria-label="Arrêter l'enregistrement"
+                >
+                  <Square className="size-3.5 fill-current" aria-hidden />
+                  <span>Arrêter & transcrire</span>
+                </button>
+              ) : voiceState === "transcribing" ? (
+                <button
+                  type="button"
+                  disabled
+                  className="flex items-center gap-2 rounded-full bg-slate-200 px-4 py-2 text-xs font-bold text-slate-500"
+                  aria-label="Transcription en cours"
+                >
+                  <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                  <span>Transcription…</span>
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  onClick={demarrerEnregistrement}
+                  className="group flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-600 px-4 py-2 text-xs font-bold text-white shadow-md transition-all hover:scale-105 hover:shadow-lg"
+                  aria-label="Parler votre commentaire (Wolof, Français ou Anglais)"
+                  title="Parlez en Wolof, Français ou Anglais — votre voix sera transcrite et traduite en français automatiquement."
+                >
+                  <Mic className="size-3.5" aria-hidden />
+                  <span>Parler</span>
+                </button>
+              )}
+            </div>
+            {/* Aperçu voix : langue détectée + traduite */}
+            {voicePreview && voiceState === "idle" && !voiceError && (
+              <p className="flex items-center gap-1.5 rounded-lg bg-emerald-50/80 px-3 py-1.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200">
+                <CheckCircle2 className="size-3.5" aria-hidden />
+                {voicePreview}
+              </p>
+            )}
+            {/* Erreur voix */}
+            {voiceError && (
+              <p className="flex items-center gap-1.5 rounded-lg bg-rose-50/80 px-3 py-1.5 text-xs font-medium text-rose-700 ring-1 ring-rose-200">
+                <MicOff className="size-3.5" aria-hidden />
+                {voiceError}
+              </p>
+            )}
           </div>
 
           {/* Photo optionnelle — glassmorphism avec gradient border */}
@@ -857,7 +1243,12 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
           <div className="mt-2 space-y-2">
             <Label htmlFor="airport-flight" className="flex items-center gap-1.5 text-sm font-bold text-slate-700">
               <span className="inline-block h-1 w-4 rounded-full bg-gradient-to-r from-sky-500 to-blue-500" />
-              Numéro de vol <span className="font-normal text-slate-400">(optionnel)</span>
+              Numéro de vol{" "}
+              {zoneData?.currentFlight ? (
+                <span className="font-normal text-emerald-600">(détecté automatiquement depuis la porte)</span>
+              ) : (
+                <span className="font-normal text-slate-400">(optionnel)</span>
+              )}
             </Label>
             <div className="flex items-center gap-2 rounded-2xl border-2 border-white bg-white/70 backdrop-blur-md px-3 py-1 shadow-sm ring-1 ring-white/60">
               <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-sm">
@@ -872,9 +1263,35 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                 className="border-0 bg-transparent font-mono text-sm uppercase tracking-wider shadow-none focus-visible:ring-0"
                 autoComplete="off"
                 inputMode="text"
+                readOnly={!!zoneData?.currentFlight}
+                aria-readonly={!!zoneData?.currentFlight}
               />
+              {zoneData?.currentFlight && (
+                <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700 ring-1 ring-emerald-500/30">
+                  Auto
+                </span>
+              )}
             </div>
-            <p className="text-xs text-slate-400">Pour escalade compagnie en cas de problème critique sur ce vol.</p>
+            {zoneData?.currentFlight ? (
+              <div className="flex flex-wrap items-center gap-2 rounded-lg bg-emerald-50/80 px-3 py-1.5 text-xs text-emerald-800 ring-1 ring-emerald-200">
+                <Plane className="size-3.5" aria-hidden />
+                <span className="font-semibold">{zoneData.currentFlight.flightNumber}</span>
+                {zoneData.currentFlight.airline && (
+                  <span className="text-emerald-700">· {zoneData.currentFlight.airline}</span>
+                )}
+                {zoneData.currentFlight.destination && (
+                  <span className="text-emerald-700">→ {zoneData.currentFlight.destination}</span>
+                )}
+                {zoneData.currentFlight.scheduledDeparture && (
+                  <span className="text-emerald-700">· décollage {zoneData.currentFlight.scheduledDeparture}</span>
+                )}
+                <span className="ml-auto rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+                  {zoneData.currentFlight.status}
+                </span>
+              </div>
+            ) : (
+              <p className="text-xs text-slate-400">Pour escalade compagnie en cas de problème critique sur ce vol.</p>
+            )}
           </div>
 
           {/* Erreur de soumission */}
@@ -921,6 +1338,9 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
     const dateFormatee = formaterDate(reportResult.report.createdAt)
     return (
       <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-emerald-50/30 to-violet-50/40">
+        {/* --- Bandeau offline (Phase 2) : sticky en haut --- */}
+        <AirportOfflineBanner />
+
         {/* Blobs flottants — ambiance célébration */}
         <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-emerald-300/20 blur-3xl" />
         <div className="pointer-events-none absolute top-1/3 -left-20 h-64 w-64 rounded-full bg-violet-300/15 blur-3xl" />
@@ -1196,6 +1616,162 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
               {reportResult.whatsapp.message}
             </pre>
           </details>
+
+          {/* ---------- D8 — Carte de notation (avis Google / retour interne) ----------
+              Affichée uniquement si le signalement a été réellement soumis
+              (pas un pending offline — l'enjeu du voyageur hors-ligne est
+              d'abord de savoir si son rapport est en sécurité). Une fois la
+              note saisie, on adapte le CTA :
+              - 4-5★ + airportGoogleReviewUrl → bouton ouvrant la page d'avis
+              - 4-5★ sans URL → message de remerciement (l'aéroport n'a pas
+                configuré sa page Google Reviews)
+              - 1-3★ → message d'excuse + email optionnel + retour interne
+                POST /api/airport/help */}
+          {!ratingSubmitted &&
+            !reportResult.report.id.startsWith("pending-") && (
+              <section
+                aria-label="Noter votre expérience à l'aéroport"
+                className="mt-4 relative overflow-hidden rounded-2xl bg-white/70 p-5 shadow-lg backdrop-blur-md ring-1 ring-white/60"
+              >
+                <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-amber-400 via-orange-400 to-fuchsia-400" />
+                <div className="flex items-start gap-2">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-md">
+                    <Star className="size-4" aria-hidden />
+                  </div>
+                  <div className="min-w-0">
+                    <h2 className="text-sm font-bold text-slate-800">
+                      Comment évaluez-vous votre expérience à l&apos;aéroport ?
+                    </h2>
+                    <p className="mt-0.5 text-xs text-slate-500">
+                      Votre avis nous aide à améliorer le quotidien des voyageurs.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Sélecteur d&apos;étoiles (1-5) */}
+                <div
+                  className="mt-4 flex items-center justify-center gap-2"
+                  role="radiogroup"
+                  aria-label="Note de 1 à 5 étoiles"
+                >
+                  {[1, 2, 3, 4, 5].map((n) => {
+                    const isFilled = rating !== null && n <= rating
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        role="radio"
+                        aria-checked={rating === n}
+                        aria-label={`${n} étoile${n > 1 ? "s" : ""}`}
+                        onClick={() => setRating(n)}
+                        className="size-10 rounded-xl transition-transform hover:scale-110 active:scale-95"
+                      >
+                        <Star
+                          className={cn(
+                            "size-10 transition-colors",
+                            isFilled
+                              ? "fill-amber-400 text-amber-400"
+                              : "text-slate-300",
+                          )}
+                          aria-hidden
+                        />
+                      </button>
+                    )
+                  })}
+                </div>
+
+                {/* CTA adapté à la note sélectionnée */}
+                {rating !== null && (
+                  <div className="mt-4">
+                    {rating >= 4 ? (
+                      // --- Positif (4-5★) ---
+                      <>
+                        <p className="text-center text-sm leading-relaxed text-slate-700">
+                          Merci ! Votre avis positif nous aide beaucoup. Souhaitez-vous
+                          le partager sur Google Reviews ?
+                        </p>
+                        {zoneData?.airportGoogleReviewUrl ? (
+                          <button
+                            type="button"
+                            onClick={ouvrirAvisGoogle}
+                            className="group relative mt-3 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-sm font-bold text-white shadow-lg shadow-orange-500/30 transition-all hover:shadow-xl active:scale-[0.99]"
+                          >
+                            <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                            <ExternalLink className="size-4" aria-hidden />
+                            Laisser un avis Google ★
+                          </button>
+                        ) : (
+                          <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-center text-xs font-medium text-amber-800">
+                            L&apos;aéroport n&apos;a pas encore configuré sa page Google
+                            Reviews — merci pour votre note !
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      // --- Négatif (1-3★) ---
+                      <>
+                        <p className="text-center text-sm leading-relaxed text-slate-700">
+                          Nous sommes désolés pour cette expérience. Votre retour interne
+                          nous aide à nous améliorer.
+                        </p>
+                        <div className="mt-3 space-y-2">
+                          <Label
+                            htmlFor="rating-email"
+                            className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500"
+                          >
+                            <span className="inline-block h-1 w-3 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500" />
+                            Votre email (optionnel, pour être contacté par l&apos;équipe ops)
+                          </Label>
+                          <Input
+                            id="rating-email"
+                            type="email"
+                            inputMode="email"
+                            value={ratingEmail}
+                            onChange={(e) => setRatingEmail(e.target.value.slice(0, 120))}
+                            placeholder="vous@exemple.com"
+                            className="h-11 rounded-xl border-2 border-white bg-white/60 backdrop-blur-md text-base ring-1 ring-white/40 focus:border-violet-400 focus:ring-violet-200"
+                            autoComplete="email"
+                          />
+                        </div>
+                        <button
+                          type="button"
+                          onClick={envoyerRetourInterne}
+                          disabled={ratingSubmitting}
+                          className="group relative mt-3 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 text-sm font-bold text-white shadow-lg shadow-purple-500/30 transition-all hover:shadow-xl active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
+                        >
+                          <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                          {ratingSubmitting ? (
+                            <>
+                              <Loader2 className="size-4 animate-spin" aria-hidden />
+                              Envoi en cours…
+                            </>
+                          ) : (
+                            <>
+                              <Send className="size-4" aria-hidden />
+                              Envoyer mon retour interne
+                            </>
+                          )}
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )}
+              </section>
+            )}
+
+          {/* Confirmation discrète affichée après soumission du retour interne
+              (note 1-3★). La carte de notation est masquée (ratingSubmitted=true),
+              on montre juste un mini-accusé de réception pour que le voyageur
+              sache que son retour est bien parti. */}
+          {ratingSubmitted && rating !== null && rating <= 3 && (
+            <div
+              role="status"
+              className="mt-4 flex items-center gap-2 rounded-2xl border border-violet-200 bg-violet-50/80 p-3 backdrop-blur-md text-sm font-medium text-violet-900"
+            >
+              <ShieldCheck className="size-4 shrink-0 text-violet-600" aria-hidden />
+              Merci — votre retour a été transmis à l&apos;équipe ops.
+            </div>
+          )}
 
           {/* Actions collées en bas */}
           <div className="mt-auto flex flex-col gap-3 pt-6">

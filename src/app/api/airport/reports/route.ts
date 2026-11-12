@@ -49,6 +49,40 @@ export async function GET(req: NextRequest) {
     include: { zone: { select: { code: true, nom: true, emoji: true } } },
   })
 
+  // ---------------------------------------------------------------
+  // Batch fetch des staffScans (TAKE_CHARGE + RESOLVE uniquement)
+  // pour éviter un N+1. On ne remonte pas REPORT_ISSUE car non lié.
+  // Tri ASC createdAt → TAKE_CHARGE avant RESOLVE dans l'UI.
+  // ---------------------------------------------------------------
+  const reportIds = reports.map((r) => r.id)
+  const staffScans =
+    reportIds.length > 0
+      ? await db.airportStaffScan.findMany({
+          where: {
+            reportId: { in: reportIds },
+            action: { in: ['TAKE_CHARGE', 'RESOLVE'] },
+          },
+          select: {
+            id: true,
+            action: true,
+            photoUrl: true,
+            staffName: true,
+            createdAt: true,
+            reportId: true,
+          },
+          orderBy: { createdAt: 'asc' },
+        })
+      : []
+
+  // Index by reportId pour un attachage O(1)
+  const scansByReport = new Map<string, typeof staffScans>()
+  for (const s of staffScans) {
+    if (!s.reportId) continue
+    const list = scansByReport.get(s.reportId) ?? []
+    list.push(s)
+    scansByReport.set(s.reportId, list)
+  }
+
   return ok({
     reports: reports.map((r) => ({
       id: r.id,
@@ -69,6 +103,14 @@ export async function GET(req: NextRequest) {
       assignedTo: r.assignedTo,
       createdAt: r.createdAt,
       resolvedAt: r.resolvedAt,
+      // Task B (Phase 3) — photos AVANT/APRÈS prises par le staff
+      staffScans: (scansByReport.get(r.id) ?? []).map((s) => ({
+        id: s.id,
+        action: s.action,
+        photoUrl: s.photoUrl,
+        staffName: s.staffName,
+        createdAt: s.createdAt,
+      })),
     })),
     count: reports.length,
   })

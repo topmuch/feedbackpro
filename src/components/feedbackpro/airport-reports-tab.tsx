@@ -16,8 +16,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertCircle,
+  ArrowRight,
   Camera,
+  CameraOff,
   CheckCircle2,
+  ChevronRight,
   Clock,
   Hand,
   Loader2,
@@ -31,6 +34,7 @@ import {
   Send,
   Sparkles,
   Download,
+  User,
   UserCog,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -62,6 +66,14 @@ import { useToast } from '@/hooks/use-toast'
 
 type Statut = 'EN_ATTENTE' | 'EN_COURS' | 'RESOLU'
 
+type StaffScanLite = {
+  id: string
+  action: string // "TAKE_CHARGE" | "RESOLVE"
+  photoUrl: string | null
+  staffName: string | null
+  createdAt: string
+}
+
 type Report = {
   id: string
   zone: { code: string; nom: string; emoji: string } | null
@@ -81,6 +93,8 @@ type Report = {
   assignedTo?: string | null
   createdAt: string
   resolvedAt: string | null
+  // Task B (Phase 3) — scans staff liés (TAKE_CHARGE avant / RESOLVE après)
+  staffScans?: StaffScanLite[]
 }
 
 type HelpStatut = 'EN_ATTENTE' | 'PRIS_EN_CHARGE' | 'RESOLU'
@@ -220,6 +234,43 @@ function relativeTime(iso: string | null): string {
 
 function shortId(id: string): string {
   return id.length > 8 ? id.slice(-8) : id
+}
+
+// ---------------------------------------------------------------
+// Task B (Phase 3) — helpers pour les photos staff AVANT / APRÈS
+// ---------------------------------------------------------------
+
+type StaffPhotos = {
+  before: StaffScanLite | null
+  after: StaffScanLite | null
+  count: number // 0, 1 ou 2
+}
+
+// Extrait le premier scan TAKE_CHARGE (= avant) et RESOLVE (= après).
+// L'API les renvoie déjà triés ASC par createdAt, donc le "premier"
+// trouvé correspond à la prise en charge / résolution initiale.
+function getStaffPhotos(report: Report): StaffPhotos {
+  const scans = report.staffScans ?? []
+  const before = scans.find((s) => s.action === 'TAKE_CHARGE') ?? null
+  const after = scans.find((s) => s.action === 'RESOLVE') ?? null
+  const count = (before ? 1 : 0) + (after ? 1 : 0)
+  return { before, after, count }
+}
+
+// Formate une date ISO en horodatage lisible FR (date + heure courte).
+function formatTimestamp(iso: string | null): string {
+  if (!iso) return '—'
+  try {
+    return new Date(iso).toLocaleString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      year: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return '—'
+  }
 }
 
 async function fetchReports(
@@ -580,6 +631,10 @@ function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
       ? Math.round(Math.max(0, Math.min(1, analysis.confidence)) * 100)
       : null
 
+  // Task B (Phase 3) — photos staff avant/après pour badge + dialog
+  const staffPhotos = useMemo(() => getStaffPhotos(report), [report])
+  const [detailsOpen, setDetailsOpen] = useState<boolean>(false)
+
   return (
     <div className="px-4 py-3 transition hover:bg-card/40 sm:px-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
@@ -659,6 +714,38 @@ function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
                 Affecté
               </span>
             )}
+            {/* Task B (Phase 3) — badge photos staff avant/après */}
+            {staffPhotos.count === 2 && (
+              <span
+                className="inline-flex items-center gap-1 rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 font-medium text-emerald-600"
+                title="Photo AVANT et APRÈS jointes par le staff"
+              >
+                <Camera className="h-3 w-3" />
+                2 photos
+              </span>
+            )}
+            {staffPhotos.count === 1 && (
+              <span
+                className="inline-flex items-center gap-1 rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 font-medium text-amber-700"
+                title={
+                  staffPhotos.before
+                    ? 'Photo AVANT jointe — résolution en cours'
+                    : 'Photo APRÈS jointe (avant manquant)'
+                }
+              >
+                <Camera className="h-3 w-3" />
+                1 photo
+              </span>
+            )}
+            {staffPhotos.count === 0 && report.photoUrl === null && (
+              <span
+                className="inline-flex items-center gap-1 rounded border border-border/40 bg-muted/20 px-1.5 py-0.5 font-medium text-muted-foreground/60"
+                title="Aucune photo staff jointe — prise en charge non tracée"
+                aria-hidden
+              >
+                <CameraOff className="h-3 w-3" />
+              </span>
+            )}
           </div>
 
           {report.commentaire && (
@@ -715,9 +802,33 @@ function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
                 Traité
               </Badge>
             )}
+            {/* Task B (Phase 3) — bouton d'ouverture du dialog détails
+                (incluant la section Photos Avant/Après) */}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setDetailsOpen(true)}
+              className="h-7 border-border bg-muted/40 px-2 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
+            >
+              <ChevronRight className="mr-1 h-3 w-3" />
+              Détails
+              {(staffPhotos.count > 0 || report.photoUrl) && (
+                <Camera className="ml-1.5 h-3 w-3 text-fuchsia-600" />
+              )}
+            </Button>
           </div>
         </div>
       </div>
+
+      {/* Task B (Phase 3) — dialog de détails avec photos Avant/Après */}
+      <ReportDetailsDialog
+        report={report}
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+        onResolve={onResolve}
+        resolving={resolving}
+      />
 
       {/* VLM photo analysis (dépliable) */}
       {analysis && (
@@ -1100,6 +1211,376 @@ function PhotoLightbox({ src, alt }: PhotoLightboxProps) {
         </DialogContent>
       </Dialog>
     </>
+  )
+}
+
+// ============================================================
+// Task B (Phase 3) — <ReportDetailsDialog />
+// ------------------------------------------------------------
+// Dialog de détails complet d'un signalement, ouvert via le bouton
+// "Détails" de chaque ligne (<ReportRow>). Inclut :
+//   • Récap info (zone, problème, tag, vol, statut, dates, commentaire)
+//   • Photo voyageur (si présente) via <PhotoLightbox>
+//   • Analyse VLM (si présente)
+//   • Section "Photos Avant / Après" issue des <AirportStaffScan>
+//     (action TAKE_CHARGE → avant, RESOLVE → après), affichées
+//     côte à côte avec une flèche entre les deux.
+// ============================================================
+
+type ReportDetailsDialogProps = {
+  report: Report
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onResolve: (id: string) => void
+  resolving: boolean
+}
+
+function ReportDetailsDialog({
+  report,
+  open,
+  onOpenChange,
+  onResolve,
+  resolving,
+}: ReportDetailsDialogProps) {
+  const s = statutMeta(report.statut)
+  const team = teamMeta(report.routedTeam)
+  const isResolved = report.statut === 'RESOLU'
+  const analysis = useMemo(() => parsePhotoAnalysis(report.photoAnalysis), [report.photoAnalysis])
+  const urgency = urgencyMeta(analysis?.urgency)
+  const confidencePct =
+    typeof analysis?.confidence === 'number'
+      ? Math.round(Math.max(0, Math.min(1, analysis.confidence)) * 100)
+      : null
+  const staffPhotos = useMemo(() => getStaffPhotos(report), [report])
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90vh] overflow-y-auto border-border bg-background sm:max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="flex flex-wrap items-center gap-2 text-base">
+            <span className="text-lg" aria-hidden>
+              {report.zone?.emoji ?? '📍'}
+            </span>
+            <span>{report.zone?.nom ?? 'Zone inconnue'}</span>
+            <code className="rounded bg-muted/60 px-1.5 py-0.5 font-mono text-[10px] text-muted-foreground">
+              {report.zone?.code ?? '—'}
+            </code>
+            <span
+              className={cn(
+                'inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-semibold',
+                s.cls,
+              )}
+            >
+              <span className={cn('h-1.5 w-1.5 rounded-full', s.dot)} />
+              {s.label}
+            </span>
+            <span className="ml-auto font-mono text-[10px] text-muted-foreground/70">
+              #{shortId(report.id)}
+            </span>
+          </DialogTitle>
+          <DialogDescription className="text-xs">
+            Détails du signalement et preuves visuelles de la prise en charge staff.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          {/* ---------- Infos essentielles ---------- */}
+          <section className="rounded-lg border border-border bg-card/40 p-3">
+            <div className="text-sm font-semibold text-foreground">
+              {report.problemType}
+            </div>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground/80">
+              <span className="inline-flex items-center gap-1 rounded border border-border/50 bg-muted/30 px-1.5 py-0.5 font-mono">
+                <MapPin className="h-3 w-3" />
+                {report.tagScanne}
+              </span>
+              {report.flightNumber && (
+                <span className="inline-flex items-center gap-1 rounded border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 font-medium text-sky-700">
+                  <Plane className="h-3 w-3" />
+                  {report.flightNumber}
+                </span>
+              )}
+              {team && (
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1 rounded border px-1.5 py-0.5 font-medium',
+                    team.cls,
+                  )}
+                >
+                  {team.emoji} {team.label}
+                </span>
+              )}
+              {report.photoCategory && (
+                <span className="inline-flex items-center gap-1 rounded border border-fuchsia-500/30 bg-fuchsia-500/10 px-1.5 py-0.5 font-medium text-fuchsia-700">
+                  📷 {report.photoCategory}
+                </span>
+              )}
+            </div>
+            {report.commentaire && (
+              <p className="mt-2 rounded-md bg-muted/30 px-2 py-1.5 text-xs italic text-foreground/80">
+                « {report.commentaire} »
+              </p>
+            )}
+            <div className="mt-2 flex flex-wrap items-center gap-3 text-[10px] text-muted-foreground/70">
+              <span className="inline-flex items-center gap-1 tabular-nums" title={new Date(report.createdAt).toLocaleString('fr-FR')}>
+                <Clock className="h-3 w-3" />
+                Créé {relativeTime(report.createdAt)}
+              </span>
+              {report.resolvedAt && (
+                <span
+                  className="inline-flex items-center gap-1 tabular-nums text-emerald-500/80"
+                  title={new Date(report.resolvedAt).toLocaleString('fr-FR')}
+                >
+                  <CheckCircle2 className="h-3 w-3" />
+                  Résolu {relativeTime(report.resolvedAt)}
+                </span>
+              )}
+            </div>
+          </section>
+
+          {/* ---------- Photo voyageur ---------- */}
+          {report.photoUrl && (
+            <section className="rounded-lg border border-border bg-card/40 p-3">
+              <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                <Camera className="h-3.5 w-3.5" />
+                Photo voyageur
+              </h3>
+              <div className="flex justify-center">
+                <PhotoLightbox
+                  src={report.photoUrl}
+                  alt={`Photo jointe au signalement ${shortId(report.id)}`}
+                />
+              </div>
+            </section>
+          )}
+
+          {/* ---------- Photos Avant / Après (Task B Phase 3) ---------- */}
+          <section className="rounded-lg border border-border bg-card/40 p-3">
+            <h3 className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <Camera className="h-3.5 w-3.5" />
+              Photos Avant / Après
+              <span className="ml-auto inline-flex items-center gap-1 rounded-md border border-border/40 bg-muted/30 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
+                {staffPhotos.count} / 2
+              </span>
+            </h3>
+
+            <BeforeAfterPhotos before={staffPhotos.before} after={staffPhotos.after} />
+          </section>
+
+          {/* ---------- Analyse VLM ---------- */}
+          {analysis && (
+            <section className="rounded-lg border border-fuchsia-500/20 bg-fuchsia-500/5 p-3">
+              <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-fuchsia-700">
+                <Sparkles className="h-3.5 w-3.5" />
+                Analyse VLM
+                {urgency && (
+                  <span
+                    className={cn(
+                      'ml-1 inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-bold uppercase',
+                      urgency.cls,
+                    )}
+                  >
+                    Urgence : {urgency.label}
+                  </span>
+                )}
+                {confidencePct !== null && (
+                  <span className="ml-auto inline-flex items-center gap-1 rounded-md border border-border/40 bg-muted/30 px-1.5 py-0.5 text-[10px] font-medium tabular-nums text-muted-foreground">
+                    Confiance : {confidencePct}%
+                  </span>
+                )}
+              </h3>
+              {analysis.description && (
+                <p className="text-xs text-foreground/90">
+                  <span className="font-semibold">Description :</span>{' '}
+                  {analysis.description}
+                </p>
+              )}
+              {Array.isArray(analysis.objects_detected) &&
+                analysis.objects_detected.length > 0 && (
+                  <div className="mt-2 flex flex-wrap items-center gap-1">
+                    <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Objets :
+                    </span>
+                    {analysis.objects_detected.map((obj, i) => (
+                      <span
+                        key={`${obj}-${i}`}
+                        className="inline-flex items-center rounded border border-border/50 bg-muted/40 px-1.5 py-0.5 font-mono text-[10px] text-foreground/80"
+                      >
+                        {obj}
+                      </span>
+                    ))}
+                  </div>
+                )}
+            </section>
+          )}
+        </div>
+
+        <DialogFooter className="gap-2">
+          {!isResolved && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => {
+                onResolve(report.id)
+              }}
+              disabled={resolving}
+              className="bg-emerald-600 text-white hover:bg-emerald-500 disabled:bg-muted"
+            >
+              {resolving ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <CheckCircle2 className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              Marquer résolu
+            </Button>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={() => onOpenChange(false)}
+          >
+            Fermer
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+// ---------------------------------------------------------------
+// Sous-composant : <BeforeAfterPhotos />
+// ---------------------------------------------------------------
+// Affiche les photos staff AVANT (TAKE_CHARGE) et APRÈS (RESOLVE)
+// côte à côte avec une flèche. 4 états gérés :
+//   • both  → 2 cartes + flèche
+//   • before only → 1 carte "AVANT (en cours de résolution)"
+//   • after only  → 1 carte "APRÈS" (cas rare : avant manquant)
+//   • none   → hint muted
+// ---------------------------------------------------------------
+
+type BeforeAfterPhotosProps = {
+  before: StaffScanLite | null
+  after: StaffScanLite | null
+}
+
+function StaffPhotoCard({
+  scan,
+  variant,
+  hint,
+}: {
+  scan: StaffScanLite
+  variant: 'before' | 'after'
+  hint?: string
+}) {
+  const isBefore = variant === 'before'
+  const label = isBefore ? 'AVANT' : 'APRÈS'
+  const badgeCls = isBefore
+    ? 'border-amber-500/40 bg-amber-500/15 text-amber-700'
+    : 'border-emerald-500/40 bg-emerald-500/15 text-emerald-600'
+  return (
+    <div className="overflow-hidden rounded-lg border border-slate-700 bg-slate-900/50">
+      <div className="flex items-center justify-between gap-2 border-b border-slate-700 px-3 py-2">
+        <span
+          className={cn(
+            'inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide',
+            badgeCls,
+          )}
+        >
+          {isBefore ? <Camera className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
+          {label}
+          {hint && (
+            <span className="ml-1 font-normal normal-case text-muted-foreground">
+              {hint}
+            </span>
+          )}
+        </span>
+        <span className="inline-flex items-center gap-1 text-[10px] text-muted-foreground">
+          <User className="h-3 w-3" />
+          {scan.staffName ?? 'Staff inconnu'}
+        </span>
+      </div>
+      {scan.photoUrl ? (
+        <a
+          href={scan.photoUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block cursor-zoom-in"
+          title="Ouvrir la photo en plein écran"
+        >
+          <img
+            src={scan.photoUrl}
+            alt={`Photo ${label} prise par ${scan.staffName ?? 'un membre du staff'}`}
+            className="h-48 w-full object-cover transition hover:opacity-90"
+            loading="lazy"
+          />
+        </a>
+      ) : (
+        <div className="flex h-48 w-full items-center justify-center bg-slate-900/70 text-muted-foreground">
+          <span className="flex flex-col items-center gap-1 text-[11px]">
+            <Camera className="h-6 w-6 opacity-50" />
+            Photo manquante
+          </span>
+        </div>
+      )}
+      <div className="flex items-center gap-1 px-3 py-2 text-[10px] text-muted-foreground">
+        <Clock className="h-3 w-3" />
+        <span className="tabular-nums" title={scan.createdAt}>
+          {formatTimestamp(scan.createdAt)}
+        </span>
+      </div>
+    </div>
+  )
+}
+
+function BeforeAfterPhotos({ before, after }: BeforeAfterPhotosProps) {
+  // Cas 1 : aucune photo staff
+  if (!before && !after) {
+    return (
+      <p className="rounded-md border border-dashed border-border/50 bg-muted/20 px-3 py-3 text-center text-xs italic text-muted-foreground">
+        Aucune photo staff jointe — prise en charge non tracée.
+      </p>
+    )
+  }
+
+  // Cas 2 : les deux → grille 2 colonnes avec flèche entre
+  if (before && after) {
+    return (
+      <div className="flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
+        <div className="min-w-0 flex-1">
+          <StaffPhotoCard scan={before} variant="before" />
+        </div>
+        <div className="flex shrink-0 items-center justify-center self-stretch text-muted-foreground">
+          <ArrowRight className="h-5 w-5 rotate-90 sm:rotate-0" aria-hidden />
+        </div>
+        <div className="min-w-0 flex-1">
+          <StaffPhotoCard scan={after} variant="after" />
+        </div>
+      </div>
+    )
+  }
+
+  // Cas 3 : seulement avant (résolution en cours)
+  if (before && !after) {
+    return (
+      <div className="max-w-sm">
+        <StaffPhotoCard
+          scan={before}
+          variant="before"
+          hint="(en cours de résolution)"
+        />
+      </div>
+    )
+  }
+
+  // Cas 4 : seulement après (avant manquant — rare)
+  return (
+    <div className="max-w-sm">
+      <StaffPhotoCard scan={after as StaffScanLite} variant="after" />
+      <p className="mt-2 text-[10px] italic text-muted-foreground/70">
+        Photo AVANT non jointe — prise en charge non tracée avant résolution.
+      </p>
+    </div>
   )
 }
 
