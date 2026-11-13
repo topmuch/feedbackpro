@@ -391,20 +391,25 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
     if (staffName) void fetchStats()
   }, [staffName, fetchStats])
 
-  // ---------- Polling nouveaux incidents (alerte vibrer + ding + TTS) ----------
+  // ---------- Polling nouveaux incidents (alerte vibrer + ding + TTS + AUTO-AFFICHAGE) ----------
   //
   // Toutes les 10 s, on récupère TOUS les signalements EN_ATTENTE (pas
   // seulement ceux du service du staff — l'utilisateur a confirmé
   // "annonce tous les incidents"). Pour chaque report dont l'ID n'est
   // pas encore dans seenReportIdsRef, on déclenche la chaîne d'alerte :
   //
-  //   vibrer()   → vibration téléphone (ding-ding-ding)
-  //   jouerDing() → son court 880Hz+988Hz (Web Audio)
-  //   parler()   → voix Denise décrit l'incident
+  //   vibrer()      → vibration téléphone (ding-ding-ding)
+  //   jouerDing()   → son court 880Hz+988Hz (Web Audio)
+  //   parler()      → voix Denise décrit l'incident
+  //   setActiveReport + go('incident-new') → AFFICHE l'incident à l'écran
   //
   // Au premier poll, on seede juste le set sans alerter (sinon tous les
   // incidents déjà en attente à l'ouverture de l'app déclencheraient une
   // salve). Le polling ne tourne que si le staff s'est identifié.
+  //
+  // IMPORTANT : si le staff est déjà sur un écran d'incident (incident-new,
+  // incident-ongoing, resolve-confirm), on n'interrompt pas — on garde
+  // l'incident courant. Le nouvel incident sera affiché au retour home.
   const pollPendingReports = useCallback(async () => {
     try {
       const res = await fetch('/api/airport/reports?statut=EN_ATTENTE&limit=200')
@@ -415,13 +420,19 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
         // Premier poll : on seede le set sans alerter.
         for (const r of pending) seenReportIdsRef.current.add(r.id)
         firstPollDoneRef.current = true
+        // MAIS si il y a déjà des incidents en attente au premier poll,
+        // on affiche le plus récent sur l'écran home (sans alerter).
+        if (pending.length > 0 && screen === 'home') {
+          const plusRecent = pending[0] // l'API trie par createdAt DESC
+          setActiveReport(plusRecent)
+          // Pas de go('incident-new') au premier poll — on laisse le staff
+          // sur l'écran home avec les stats, mais l'incident est "actif"
+          // et s'affichera s'il clique dessus.
+        }
         return
       }
 
       // Polls suivants : alerter sur chaque NOUVEL incident.
-      // On parcourt du plus ancien au plus récent pour que l'annonce
-      // finale (qui cancel() la précédente) porte sur l'incident le
-      // plus récent — comme le wallboard.
       const fresh = pending.filter((r) => !seenReportIdsRef.current.has(r.id))
       if (fresh.length === 0) return
 
@@ -440,10 +451,21 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
           `Nouvel incident signalé. Zone ${zoneNom}. Type: ${r.problemType}.${equipe} Veuillez prendre en charge.`,
         )
       }
+
+      // AUTO-AFFICHAGE : si le staff est sur l'écran home (pas en train de
+      // traiter un incident), on bascule automatiquement vers l'écran
+      // incident-new avec l'incident le plus récent. C'est le cœur du
+      // besoin utilisateur : l'incident s'affiche tout seul + la voix
+      // Denise l'annonce en même temps.
+      if (screen === 'home' || screen === 'dashboard') {
+        const plusRecent = fresh[0] // fresh est trié par createdAt DESC
+        setActiveReport(plusRecent)
+        go('incident-new', 1)
+      }
     } catch {
       // réseau down — on réessaiera au prochain poll
     }
-  }, [])
+  }, [screen])
 
   useEffect(() => {
     if (!staffName) return
@@ -451,6 +473,76 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
     const id = window.setInterval(() => void pollPendingReports(), 10000)
     return () => window.clearInterval(id)
   }, [staffName, pollPendingReports])
+
+  // ---------- Polling de l'incident actif (mise à jour temps réel) ----------
+  //
+  // Quand le staff est sur un écran d'incident (incident-new ou incident-ongoing),
+  // on vérifie toutes les 5 s si le statut de l'activeReport a changé :
+  //   - Si il passe EN_COURS par un autre staff → on notifie "pris par un autre"
+  //   - Si il passe RESOLU → on notifie "résolu par un autre" + retour home
+  //   - Si il est toujours EN_ATTENTE/EN_COURS → on met à jour les données
+  //     (elapsed time, staffScans, etc.)
+  useEffect(() => {
+    if (!activeReport) return
+    if (screen !== 'incident-new' && screen !== 'incident-ongoing') return
+
+    const pollActive = async () => {
+      try {
+        const res = await fetch(`/api/airport/reports?statut=EN_ATTENTE&limit=200`)
+        const ongRes = await fetch(`/api/airport/reports?statut=EN_COURS&limit=200`)
+        const pendJson = await res.json().catch(() => null)
+        const ongJson = await ongRes.json().catch(() => null)
+        const all: ReportShape[] = [
+          ...(pendJson?.data?.reports ?? []),
+          ...(ongJson?.data?.reports ?? []),
+        ]
+        const updated = all.find((r) => r.id === activeReport.id)
+        if (!updated) {
+          // L'incident n'est plus ni EN_ATTENTE ni EN_COURS → il a été résolu
+          // par quelqu'un d'autre. On notifie et on retourne à l'accueil.
+          if (screen === 'incident-new' || screen === 'incident-ongoing') {
+            parler('Incident résolu par un autre agent. Retour à l\'accueil.')
+            setActiveReport(null)
+            go('home', -1)
+            void fetchStats()
+          }
+          return
+        }
+        // Mettre à jour les données de l'incident (elapsed, staffScans, etc.)
+        // sans changer d'écran si le staff est déjà sur le bon.
+        if (updated.statut !== activeReport.statut) {
+          // Le statut a changé (ex: EN_ATTENTE → EN_COURS par un autre staff)
+          if (updated.statut === 'EN_COURS') {
+            const isMine =
+              updated.assignedTo === staffName ||
+              updated.staffScans.some(
+                (s) => s.action === 'TAKE_CHARGE' && s.staffName === staffName,
+              )
+            if (isMine) {
+              // C'est moi qui ai pris en charge → écran ongoing
+              setActiveReport(updated)
+              if (screen !== 'incident-ongoing') go('incident-ongoing', 1)
+            } else {
+              // Pris par un autre → notifier + retour home
+              parler('Incident pris en charge par un autre agent.')
+              setActiveReport(null)
+              go('home', -1)
+              void fetchStats()
+            }
+          }
+        } else {
+          // Même statut → juste mettre à jour les données (elapsed time, etc.)
+          setActiveReport(updated)
+        }
+      } catch {
+        // réseau down — on réessaiera
+      }
+    }
+
+    void pollActive()
+    const id = window.setInterval(() => void pollActive(), 5000)
+    return () => window.clearInterval(id)
+  }, [activeReport?.id, screen, staffName])
 
   // ---------- Sauvegarde nom staff ----------
 
