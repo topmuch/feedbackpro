@@ -75,7 +75,7 @@ import { parler } from "@/lib/staff-tts"
 
 // ---------- Types locaux (contrat API) ----------
 
-type Phase = "loading" | "error" | "zone_detectee" | "probleme_choisi" | "confirmation"
+type Phase = "loading" | "error" | "zone_detectee" | "aide_sos" | "probleme_choisi" | "confirmation"
 
 type ZoneData = {
   code: string
@@ -282,6 +282,10 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
   const [exitAd, setExitAd] = useState<AirportAd | null>(null)
   const [exitAdLoading, setExitAdLoading] = useState(false)
   const [helpSuccess, setHelpSuccess] = useState<string | null>(null)
+
+  // --- Bouton "Demander de l'aide" autonome (écran zone_detectee → aide_sos) ---
+  // Tags SOS spécifiques (différents des problématiques de zone)
+  const [sosTag, setSosTag] = useState<string | null>(null)
 
   // --- D8 — Carte de notation (écran de confirmation) ---
   // Le voyageur note son expérience aéroport (1-5★) juste avant la sortie.
@@ -680,6 +684,73 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
     }
   }, [zoneData, helpSubmitting, helpMessage, helpPhone, reportResult])
 
+  // ---------- Bouton SOS autonome (POST /api/airport/help avec tag SOS) ----------
+  // Le voyageur sélectionne un tag d'urgence (Bagage perdu, Personne énervée,
+  // Affaires volées, Personne en détresse) → on envoie la demande d'aide
+  // avec le tag comme message principal + message optionnel + téléphone.
+  const envoyerSOS = useCallback(async () => {
+    if (!zoneData || !sosTag || helpSubmitting) return
+    setHelpError(null)
+    const body: {
+      tag: string
+      message: string
+      travelerPhone?: string
+    } = {
+      tag: zoneData.tagScanne,
+      message: `[URGENCE] ${sosTag}${helpMessage.trim() ? ' — ' + helpMessage.trim() : ''}`,
+    }
+    if (helpPhone.trim()) {
+      const phone = helpPhone.replace(/[^\d]/g, "")
+      if (phone && /^\d{8,15}$/.test(phone)) {
+        body.travelerPhone = phone
+      } else if (phone) {
+        setHelpError("Numéro invalide (format attendu : +33 6 12 34 56 78)")
+        return
+      }
+    }
+    setHelpSubmitting(true)
+    try {
+      await apiPost<{
+        helpRequestId: string
+        statut: string
+        message: string
+      }>("/api/airport/help", body)
+      // Denise confirme vocalement
+      parler(`Demande d'aide envoyée. ${sosTag}. Un agent ops arrive sur place.`)
+      // Reset + aller à la confirmation
+      setSosTag(null)
+      setHelpMessage("")
+      setHelpPhone("")
+      setHelpError(null)
+      // Générer un pseudo-reportResult pour l'écran de confirmation
+      setReportResult({
+        report: {
+          id: `sos-${Date.now()}`,
+          statut: "EN_ATTENTE",
+          problemType: sosTag,
+          tagScanne: zoneData.tagScanne,
+          flightNumber: null,
+          createdAt: new Date().toISOString(),
+        },
+        whatsapp: {
+          message: `Demande d'aide : ${sosTag}`,
+          link: "",
+        },
+        zone: {
+          code: zoneData.tagScanne,
+          nom: zoneData.nom,
+          emoji: zoneData.emoji,
+        },
+        vlmPending: false,
+      })
+      setPhase("confirmation")
+    } catch (err) {
+      setHelpError(err instanceof Error ? err.message : "Envoi impossible")
+    } finally {
+      setHelpSubmitting(false)
+    }
+  }, [zoneData, sosTag, helpSubmitting, helpMessage, helpPhone])
+
   // ---------- D8 — Ouvrir la page d'avis Google (note 4-5★) ----------
   // Ouvre l'URL d'avis Google Reviews de l'aéroport dans un nouvel onglet,
   // puis masque la carte de notation (le voyageur a fait son action).
@@ -1040,6 +1111,30 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
           </div>
         </section>
 
+        {/* ---------- Bouton "Demander de l'aide" autonome ---------- */}
+        {/* Bouton distinct des problématiques de zone — SOS avec ses propres tags */}
+        <section className="relative z-10 mx-auto w-full max-w-md px-4 pb-6">
+          <button
+            type="button"
+            onClick={() => {
+              setSosTag(null)
+              setHelpMessage("")
+              setHelpPhone("")
+              setHelpError(null)
+              setPhase("aide_sos")
+            }}
+            className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-rose-500 via-pink-500 to-rose-600 py-4 text-base font-bold text-white shadow-xl shadow-rose-500/30 transition-all hover:shadow-2xl hover:shadow-rose-500/40 active:scale-[0.99]"
+            aria-label="Demander de l'aide immédiatement"
+          >
+            <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+            <LifeBuoy className="size-5" aria-hidden />
+            <span>Demander de l&apos;aide</span>
+          </button>
+          <p className="mt-1.5 text-center text-xs text-slate-500">
+            Un agent ops vient vous aider sur place
+          </p>
+        </section>
+
         {/* Style inline pour l'animation float */}
         <style>{`
           @keyframes gentleFloat {
@@ -1361,6 +1456,177 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
     )
   }
 
+  // ---------- Phase : aide_sos (bouton "Demander de l'aide" autonome) ----------
+  if (phase === "aide_sos" && zoneData) {
+    const SOS_TAGS = [
+      { label: "Bagage perdu", icon: "🧳", color: "from-amber-500 to-orange-600" },
+      { label: "Personne énervée", icon: "😤", color: "from-rose-500 to-red-600" },
+      { label: "Affaires volées", icon: "🚨", color: "from-red-500 to-rose-700" },
+      { label: "Personne en détresse", icon: "🆘", color: "from-rose-600 to-pink-700" },
+    ]
+    return (
+      <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-rose-50/30 to-pink-50/40">
+        <AirportOfflineBanner />
+        {/* Blobs flottants */}
+        <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-rose-300/20 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 -left-20 h-64 w-64 rounded-full bg-amber-300/15 blur-3xl" />
+
+        {/* Header gradient */}
+        <header className="sticky top-0 z-10 bg-gradient-to-r from-rose-600 via-pink-600 to-rose-700 text-white shadow-lg shadow-rose-500/20">
+          <div className="mx-auto flex max-w-md items-center justify-between gap-2 px-4 py-3">
+            <button
+              type="button"
+              onClick={() => {
+                setSosTag(null)
+                setHelpError(null)
+                setPhase("zone_detectee")
+              }}
+              aria-label="Revenir au choix du problème"
+              className="flex items-center gap-1 rounded-xl bg-white/15 backdrop-blur-sm px-3 py-2 text-white transition-all hover:bg-white/25 hover:scale-105"
+            >
+              <ChevronLeft className="size-4" aria-hidden />
+              <span className="text-xs font-bold">Retour</span>
+            </button>
+            <div className="flex min-w-0 items-center gap-2">
+              <span className="text-xl" aria-hidden>{zoneData.emoji}</span>
+              <span className="truncate text-sm font-bold">{zoneData.nom}</span>
+            </div>
+            <button
+              type="button"
+              onClick={onExit}
+              aria-label="Quitter"
+              className="flex size-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur-sm text-white transition-all hover:bg-white/25 hover:scale-105"
+            >
+              <X className="size-5" aria-hidden />
+            </button>
+          </div>
+        </header>
+
+        <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col px-4 py-5">
+          {/* Titre */}
+          <div className="mb-5 text-center">
+            <div className="mx-auto flex size-16 items-center justify-center rounded-3xl bg-gradient-to-br from-rose-500 to-pink-600 text-white shadow-xl shadow-rose-500/30">
+              <LifeBuoy className="size-8" strokeWidth={2.5} aria-hidden />
+            </div>
+            <h1 className="mt-4 text-2xl font-black tracking-tight text-slate-900">
+              Demander de l&apos;aide
+            </h1>
+            <p className="mt-1.5 text-sm text-slate-500">
+              Sélectionnez votre situation. Un agent ops est notifié immédiatement.
+            </p>
+          </div>
+
+          {/* Tags SOS — grille 2 colonnes */}
+          <div className="grid grid-cols-2 gap-3">
+            {SOS_TAGS.map((tag) => {
+              const isSelected = sosTag === tag.label
+              return (
+                <button
+                  key={tag.label}
+                  type="button"
+                  onClick={() => setSosTag(tag.label)}
+                  className={cn(
+                    "group relative flex flex-col items-center gap-3 overflow-hidden rounded-2xl p-5 text-center transition-all duration-300 min-h-[130px]",
+                    isSelected
+                      ? cn("border-2 ring-2 shadow-lg", "border-rose-400 bg-rose-50 ring-rose-200 shadow-rose-300/50")
+                      : "border-2 border-white bg-white/70 backdrop-blur-md shadow-md hover:shadow-xl ring-1 ring-white/60",
+                  )}
+                >
+                  <div className={cn(
+                    "flex size-14 items-center justify-center rounded-2xl transition-all duration-300 group-hover:scale-110",
+                    isSelected
+                      ? cn("bg-gradient-to-br text-white shadow-lg", tag.color)
+                      : "bg-gradient-to-br from-slate-100 to-slate-200",
+                  )}>
+                    <span className="text-2xl leading-none" aria-hidden>{tag.icon}</span>
+                  </div>
+                  <span className={cn(
+                    "text-xs font-bold leading-snug sm:text-[13px]",
+                    isSelected ? "text-rose-900" : "text-slate-700",
+                  )}>
+                    {tag.label}
+                  </span>
+                  {isSelected ? (
+                    <div className="absolute top-2.5 right-2.5 flex size-6 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-md">
+                      <CheckCircle2 className="size-4" aria-hidden />
+                    </div>
+                  ) : null}
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Champ message optionnel (affiché après sélection du tag) */}
+          {sosTag && (
+            <div className="mt-5 space-y-3">
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5 text-sm font-bold text-slate-700">
+                  <span className="inline-block h-1 w-4 rounded-full bg-gradient-to-r from-rose-500 to-pink-500" />
+                  Précisez votre situation <span className="font-normal text-slate-400">(optionnel)</span>
+                </Label>
+                <Textarea
+                  value={helpMessage}
+                  onChange={(e) => setHelpMessage(e.target.value.slice(0, 500))}
+                  maxLength={500}
+                  rows={3}
+                  placeholder="Ex: mon bagage est resté sur le tapis, j'ai besoin d'aide..."
+                  className="min-h-20 resize-none rounded-2xl border-2 border-white bg-white/70 backdrop-blur-md text-sm shadow-sm ring-1 ring-white/60 focus:border-rose-400 focus:ring-rose-200"
+                />
+                <p className="text-right text-xs text-slate-400">{helpMessage.length}/500</p>
+              </div>
+              <div className="space-y-2">
+                <Label className="flex items-center gap-1.5 text-sm font-bold text-slate-700">
+                  <span className="inline-block h-1 w-4 rounded-full bg-gradient-to-r from-sky-500 to-blue-500" />
+                  Pour que l&apos;agent vous contacte <span className="font-normal text-slate-400">(optionnel)</span>
+                </Label>
+                <Input
+                  type="tel"
+                  inputMode="tel"
+                  value={helpPhone}
+                  onChange={(e) => setHelpPhone(e.target.value)}
+                  placeholder="+33 6 12 34 56 78"
+                  className="h-11 rounded-xl border-2 border-white bg-white/70 backdrop-blur-md text-base ring-1 ring-white/60 focus:border-sky-400 focus:ring-sky-200"
+                />
+              </div>
+              {helpError ? (
+                <p className="flex items-center gap-1.5 text-xs text-rose-600">
+                  <AlertTriangle className="size-3.5" aria-hidden />
+                  {helpError}
+                </p>
+              ) : null}
+              <button
+                type="button"
+                onClick={envoyerSOS}
+                disabled={helpSubmitting}
+                className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-rose-600 via-pink-600 to-rose-700 py-5 text-lg font-bold text-white shadow-xl shadow-rose-500/30 transition-all hover:shadow-2xl hover:shadow-rose-500/40 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
+              >
+                <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                {helpSubmitting ? (
+                  <>
+                    <Loader2 className="size-5 animate-spin" aria-hidden />
+                    <span>Envoi en cours…</span>
+                  </>
+                ) : (
+                  <>
+                    <Send className="size-5" aria-hidden />
+                    <span>Envoyer la demande d&apos;aide</span>
+                  </>
+                )}
+              </button>
+            </div>
+          )}
+
+          {/* Message d'aide en bas */}
+          <div className="mt-auto pt-6">
+            <p className="text-center text-xs text-slate-400">
+              Un agent ops est notifié immédiatement et vient vous aider sur place.
+            </p>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
   // ---------- Phase : confirmation ----------
   if (phase === "confirmation" && reportResult) {
     const dateFormatee = formaterDate(reportResult.report.createdAt)
@@ -1496,127 +1762,6 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
               <span className="font-mono text-xs text-slate-400">#{reportResult.report.id.slice(0, 8)} · {dateFormatee}</span>
             </div>
           </div>
-
-          {/* ---------- Bouton SOS — gradient rose vibrant ---------- */}
-          <section className="mt-4">
-            <button
-              type="button"
-              onClick={ouvrirAide}
-              className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-rose-500 via-pink-500 to-rose-600 py-4 text-base font-bold text-white shadow-xl shadow-rose-500/30 transition-all hover:shadow-2xl hover:shadow-rose-500/40 active:scale-[0.99]"
-              aria-label="Demander de l'aide immédiatement"
-            >
-              <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-              <LifeBuoy className="size-5" aria-hidden />
-              🆘 Demander de l'aide immédiatement
-            </button>
-            <p className="mt-1.5 text-center text-xs text-slate-400">
-              Un agent ops vient vous aider sur place
-            </p>
-          </section>
-
-          {/* ---------- Dialog "Demande d'aide" ---------- */}
-          <Dialog open={helpOpen} onOpenChange={setHelpOpen}>
-            <DialogContent className="sm:max-w-md rounded-2xl border-2 border-white bg-white/90 backdrop-blur-xl">
-              {helpSuccess ? (
-                <div className="flex flex-col items-center gap-4 py-4 text-center">
-                  <div className="relative">
-                    <div className="absolute inset-0 -m-4 rounded-full bg-emerald-300/30 blur-xl" />
-                    <div className="relative flex size-16 animate-in fade-in zoom-in-50 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-lg duration-300">
-                      <CheckCircle2 className="size-9" aria-hidden />
-                    </div>
-                  </div>
-                  <div>
-                    <h2 className="text-xl font-black text-slate-900">✅ Demande envoyée</h2>
-                    <p className="mt-2 text-sm leading-relaxed text-slate-500">{helpSuccess}</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setHelpOpen(false)}
-                    className="flex h-11 w-full items-center justify-center rounded-xl bg-gradient-to-r from-violet-600 to-fuchsia-600 text-sm font-bold text-white shadow-md transition-all hover:shadow-lg active:scale-[0.99]"
-                  >
-                    Fermer
-                  </button>
-                </div>
-              ) : (
-                <>
-                  <DialogHeader>
-                    <DialogTitle className="flex items-center gap-2 text-rose-700">
-                      <div className="flex size-7 items-center justify-center rounded-lg bg-gradient-to-br from-rose-500 to-pink-600 text-white">
-                        <LifeBuoy className="size-4" aria-hidden />
-                      </div>
-                      Demander de l'aide
-                    </DialogTitle>
-                    <DialogDescription>
-                      Un agent ops est notifié et vient vous aider sur place.
-                      Position détectée : {zoneData?.tagScanne ?? "—"}
-                    </DialogDescription>
-                  </DialogHeader>
-
-                  <div className="space-y-3">
-                    <div className="space-y-1.5">
-                      <Label htmlFor="help-message" className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                        <span className="inline-block h-1 w-3 rounded-full bg-gradient-to-r from-rose-500 to-pink-500" />
-                        Précisez votre besoin (optionnel)
-                      </Label>
-                      <Textarea
-                        id="help-message"
-                        value={helpMessage}
-                        onChange={(e) => setHelpMessage(e.target.value.slice(0, 500))}
-                        maxLength={500}
-                        rows={3}
-                        placeholder="Ex : mon bagage est bloqué, j'ai besoin d'aide pour le récupérer…"
-                        className="resize-none rounded-xl border-2 border-white bg-white/60 backdrop-blur-md text-sm ring-1 ring-white/40 focus:border-rose-400 focus:ring-rose-200"
-                      />
-                      <p className="text-right text-[10px] text-slate-400">{helpMessage.length}/500</p>
-                    </div>
-
-                    <div className="space-y-1.5">
-                      <Label htmlFor="help-phone" className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500">
-                        <span className="inline-block h-1 w-3 rounded-full bg-gradient-to-r from-sky-500 to-blue-500" />
-                        Pour que l'agent vous contacte (optionnel)
-                      </Label>
-                      <Input
-                        id="help-phone"
-                        type="tel"
-                        inputMode="tel"
-                        value={helpPhone}
-                        onChange={(e) => setHelpPhone(e.target.value)}
-                        placeholder="+33 6 12 34 56 78"
-                        className="h-11 rounded-xl border-2 border-white bg-white/60 backdrop-blur-md text-base ring-1 ring-white/40 focus:border-sky-400 focus:ring-sky-200"
-                      />
-                    </div>
-
-                    {helpError ? (
-                      <div className="flex items-center gap-2 rounded-xl border-2 border-rose-200 bg-rose-50/80 backdrop-blur-md p-3">
-                        <AlertTriangle className="size-4 shrink-0 text-rose-500" aria-hidden />
-                        <p className="text-xs text-rose-600">{helpError}</p>
-                      </div>
-                    ) : null}
-
-                    <button
-                      type="button"
-                      onClick={envoyerDemandeAide}
-                      disabled={helpSubmitting}
-                      className="group relative flex h-11 w-full items-center justify-center gap-2 overflow-hidden rounded-xl bg-gradient-to-r from-rose-500 to-pink-600 text-sm font-bold text-white shadow-md transition-all hover:shadow-lg active:scale-[0.99] disabled:opacity-70"
-                    >
-                      <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-                      {helpSubmitting ? (
-                        <>
-                          <Loader2 className="size-4 animate-spin" aria-hidden />
-                          Envoi en cours…
-                        </>
-                      ) : (
-                        <>
-                          <Send className="size-4" aria-hidden />
-                          Envoyer la demande
-                        </>
-                      )}
-                    </button>
-                  </div>
-                </>
-              )}
-            </DialogContent>
-          </Dialog>
 
           {/* ---------- D8 — Carte de notation (avis Google / retour interne) ----------
               Affichée uniquement si le signalement a été réellement soumis
