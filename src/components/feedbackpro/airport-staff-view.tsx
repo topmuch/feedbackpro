@@ -39,11 +39,13 @@ import {
   Camera,
   CheckCircle2,
   Clock,
+  Download,
   Loader2,
   LogOut,
   MessageSquare,
   QrCode,
   RefreshCw,
+  Share,
   Smartphone,
   TrendingUp,
   TriangleAlert,
@@ -66,6 +68,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { parler } from '@/lib/staff-tts'
+import { jouerDing, vibrer } from '@/lib/staff-alert'
+import { routerVersService, serviceLabel } from '@/lib/airport-routing'
 
 // ---------- Types ----------
 
@@ -143,6 +148,14 @@ const URGENT_KEYWORDS = [
   'malaise',
   'bless',
 ]
+
+// ---------- Type PWA install ----------
+
+/** Événement `beforeinstallprompt` (Chrome/Edge Android). Non standard TS. */
+interface BeforeInstallPromptEvent extends Event {
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>
+}
 
 // ---------- Helpers ----------
 
@@ -227,7 +240,25 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
   // Toast inline minimal
   const [toast, setToast] = useState<string | null>(null)
 
+  // Feature W1 — PWA install (Add to Home Screen)
+  // deferredPrompt : événement beforeinstallprompt capturé (Chrome/Edge Android).
+  //   null si le navigateur ne supporte pas l'install OU si déjà installé.
+  // isIOS : détection iOS Safari (pas de beforeinstallprompt → instructions manuelles).
+  // isInstalled : true si la PWA tourne déjà en mode standalone.
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
+  const [isIOS, setIsIOS] = useState(false)
+  const [isInstalled, setIsInstalled] = useState(false)
+  const [showIOSHint, setShowIOSHint] = useState(false)
+
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // --- Alerte nouvel incident ---
+  // seenReportIdsRef : mémorise les IDs de signalements EN_ATTENTE déjà
+  // vus par le polling, pour n'alerter que sur les NOUVEAUX.
+  // firstPollDoneRef : évite de déclencher une salve d'alertes au premier
+  // poll (on seede juste le set sans alerter).
+  const seenReportIdsRef = useRef<Set<string>>(new Set())
+  const firstPollDoneRef = useRef(false)
 
   // ---------- Lifecycle ----------
 
@@ -249,6 +280,59 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
     const t = setTimeout(() => setToast(null), 3200)
     return () => clearTimeout(t)
   }, [toast])
+
+  // Feature W1 — PWA install : écoute beforeinstallprompt + appinstalled
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    // Détecte si déjà lancé en mode standalone (PWA installée)
+    const standalone =
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as unknown as { standalone?: boolean }).standalone === true
+    if (standalone) {
+      setIsInstalled(true)
+      return
+    }
+    // Détecte iOS Safari (pas de beforeinstallprompt sur iOS)
+    const ua = window.navigator.userAgent
+    const ios = /iPad|iPhone|iPod/.test(ua) && !(window as unknown as { MSStream?: unknown }).MSStream
+    setIsIOS(ios)
+
+    const onBeforeInstall = (e: Event) => {
+      e.preventDefault() // empêche le prompt automatique du navigateur
+      setDeferredPrompt(e as BeforeInstallPromptEvent)
+    }
+    const onInstalled = () => {
+      setDeferredPrompt(null)
+      setIsInstalled(true)
+      setToast('Application installée.')
+    }
+    window.addEventListener('beforeinstallprompt', onBeforeInstall)
+    window.addEventListener('appinstalled', onInstalled)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBeforeInstall)
+      window.removeEventListener('appinstalled', onInstalled)
+    }
+  }, [])
+
+  // Feature W1 — déclenche le prompt d'install natif (Chrome/Edge Android)
+  const handleInstallClick = useCallback(async () => {
+    // iOS Safari : pas de beforeinstallprompt → on affiche les instructions
+    if (isIOS) {
+      setShowIOSHint(true)
+      return
+    }
+    if (!deferredPrompt) return
+    try {
+      await deferredPrompt.prompt()
+      const choice = await deferredPrompt.userChoice
+      if (choice.outcome === 'accepted') {
+        setDeferredPrompt(null)
+        setIsInstalled(true)
+      }
+    } catch {
+      // ignore
+    }
+  }, [deferredPrompt, isIOS])
 
   // Navigation avec direction (pour animations)
   const go = useCallback((next: StaffScreen, dir: 1 | -1 = 1) => {
@@ -306,6 +390,67 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
   useEffect(() => {
     if (staffName) void fetchStats()
   }, [staffName, fetchStats])
+
+  // ---------- Polling nouveaux incidents (alerte vibrer + ding + TTS) ----------
+  //
+  // Toutes les 10 s, on récupère TOUS les signalements EN_ATTENTE (pas
+  // seulement ceux du service du staff — l'utilisateur a confirmé
+  // "annonce tous les incidents"). Pour chaque report dont l'ID n'est
+  // pas encore dans seenReportIdsRef, on déclenche la chaîne d'alerte :
+  //
+  //   vibrer()   → vibration téléphone (ding-ding-ding)
+  //   jouerDing() → son court 880Hz+988Hz (Web Audio)
+  //   parler()   → voix Denise décrit l'incident
+  //
+  // Au premier poll, on seede juste le set sans alerter (sinon tous les
+  // incidents déjà en attente à l'ouverture de l'app déclencheraient une
+  // salve). Le polling ne tourne que si le staff s'est identifié.
+  const pollPendingReports = useCallback(async () => {
+    try {
+      const res = await fetch('/api/airport/reports?statut=EN_ATTENTE&limit=200')
+      const json = await res.json().catch(() => null)
+      const pending: ReportShape[] = json?.data?.reports ?? []
+
+      if (!firstPollDoneRef.current) {
+        // Premier poll : on seede le set sans alerter.
+        for (const r of pending) seenReportIdsRef.current.add(r.id)
+        firstPollDoneRef.current = true
+        return
+      }
+
+      // Polls suivants : alerter sur chaque NOUVEL incident.
+      // On parcourt du plus ancien au plus récent pour que l'annonce
+      // finale (qui cancel() la précédente) porte sur l'incident le
+      // plus récent — comme le wallboard.
+      const fresh = pending.filter((r) => !seenReportIdsRef.current.has(r.id))
+      if (fresh.length === 0) return
+
+      for (const r of fresh) {
+        seenReportIdsRef.current.add(r.id)
+      }
+      // vibrer + ding une seule fois pour la salve (pas N fois)
+      vibrer()
+      jouerDing()
+      // Annoncer chaque nouvel incident ; le dernier gagnera (cancel).
+      for (const r of fresh) {
+        const zoneNom = r.zone?.nom ?? r.tagScanne ?? 'zone inconnue'
+        const team = routerVersService(r.problemType)
+        const equipe = team === 'other' ? '' : ` Équipe ${serviceLabel(team)}.`
+        parler(
+          `Nouvel incident signalé. Zone ${zoneNom}. Type: ${r.problemType}.${equipe} Veuillez prendre en charge.`,
+        )
+      }
+    } catch {
+      // réseau down — on réessaiera au prochain poll
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!staffName) return
+    void pollPendingReports()
+    const id = window.setInterval(() => void pollPendingReports(), 10000)
+    return () => window.clearInterval(id)
+  }, [staffName, pollPendingReports])
 
   // ---------- Sauvegarde nom staff ----------
 
@@ -463,6 +608,16 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
       const json = await res.json().catch(() => null)
       if (json?.ok) {
         setToast('Incident résolu. Bien fait !')
+        // Voix Denise : confirme la résolution + temps écoulé.
+        // (le wallboard fait sa propre annonce "Signalement résolu…
+        //  Bien fait." côté ops ; ici c'est la confirmation au staff
+        //  lui-même, sur son téléphone.)
+        const minutes = activeReport
+          ? Math.round(
+              (Date.now() - new Date(activeReport.createdAt).getTime()) / 60000,
+            )
+          : 0
+        parler(`Incident résolu. Temps écoulé: ${minutes} minutes. Merci.`)
         // Reset
         setResolveComment('')
         setResolvePhotoUrl(null)
@@ -574,6 +729,12 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
                 onEditName={editStaffName}
                 onScan={openScanner}
                 onDashboard={() => go('dashboard', 1)}
+                installAvailable={!!deferredPrompt}
+                isIOS={isIOS}
+                isInstalled={isInstalled}
+                showIOSHint={showIOSHint}
+                onInstall={handleInstallClick}
+                onDismissIOSHint={() => setShowIOSHint(false)}
               />
             )}
 
@@ -680,18 +841,18 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
             )}
           </div>
 
-          <DialogFooter className="gap-2">
+          <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-end">
             <Button
               variant="outline"
               onClick={() => setScanDialogOpen(false)}
-              className="rounded-xl"
+              className="w-full rounded-xl sm:w-auto"
             >
               Annuler
             </Button>
             <Button
               onClick={() => void confirmScan()}
               disabled={scanning}
-              className="rounded-xl bg-gradient-to-r from-[#5257C9] to-[#4549b8] px-6 text-white"
+              className="w-full rounded-xl bg-gradient-to-r from-[#5257C9] to-[#4549b8] px-6 text-white sm:w-auto"
             >
               {scanning ? (
                 <Loader2 className="size-4 animate-spin" />
@@ -735,6 +896,13 @@ interface HomeScreenProps {
   onEditName: () => void
   onScan: () => void
   onDashboard: () => void
+  // Feature W1 — PWA install
+  installAvailable: boolean
+  isIOS: boolean
+  isInstalled: boolean
+  showIOSHint: boolean
+  onInstall: () => void
+  onDismissIOSHint: () => void
 }
 
 function HomeScreen({
@@ -749,6 +917,12 @@ function HomeScreen({
   onEditName,
   onScan,
   onDashboard,
+  installAvailable,
+  isIOS,
+  isInstalled,
+  showIOSHint,
+  onInstall,
+  onDismissIOSHint,
 }: HomeScreenProps) {
   return (
     <div className="space-y-5">
@@ -759,7 +933,9 @@ function HomeScreen({
         </div>
         {nameSaved && staffName ? (
           <div className="mt-3">
-            <h1 className="text-2xl font-black text-[#1E1E2E]">Bonjour, {staffName}</h1>
+            <h1 className="break-words text-xl font-black text-[#1E1E2E] sm:text-2xl">
+              Bonjour, {staffName}
+            </h1>
             <button
               onClick={onEditName}
               className="mt-1 text-xs font-semibold text-slate-400 underline-offset-2 hover:text-[#5257C9] hover:underline"
@@ -769,7 +945,9 @@ function HomeScreen({
           </div>
         ) : (
           <div className="mt-3 space-y-2 text-left">
-            <h1 className="text-center text-xl font-black text-[#1E1E2E]">Identifiez-vous</h1>
+            <h1 className="text-center text-xl font-black text-[#1E1E2E] sm:text-2xl">
+              Identifiez-vous
+            </h1>
             <div className="space-y-1.5">
               <Label className="text-xs font-bold uppercase tracking-wide text-slate-500">
                 Votre nom
@@ -813,8 +991,10 @@ function HomeScreen({
         <div className="relative flex size-16 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm">
           <QrCode className="size-9 text-white" strokeWidth={2.2} />
         </div>
-        <div className="relative text-center">
-          <p className="text-lg font-black uppercase tracking-wide">Scanner QR Code</p>
+        <div className="relative px-4 text-center">
+          <p className="text-base font-black uppercase tracking-wide sm:text-lg">
+            Scanner QR Code
+          </p>
           <p className="mt-0.5 text-xs font-medium text-white/80">
             Scannez le QR du lieu à traiter
           </p>
@@ -828,9 +1008,9 @@ function HomeScreen({
 
       {/* Stats du jour */}
       <Card className="overflow-hidden rounded-2xl border-0 bg-white/80 p-0 shadow-md ring-1 ring-slate-200 backdrop-blur">
-        <div className="flex items-center gap-2 border-b border-slate-100 px-5 py-3">
+        <div className="flex items-center gap-2 border-b border-slate-100 px-4 py-3 sm:px-5">
           <BarChart3 className="size-4 text-slate-400" />
-          <h2 className="text-sm font-bold uppercase tracking-wide text-slate-500">
+          <h2 className="text-xs font-bold uppercase tracking-wide text-slate-500 sm:text-sm">
             Mes stats — Aujourd&apos;hui
           </h2>
         </div>
@@ -862,6 +1042,45 @@ function HomeScreen({
         <BarChart3 className="size-4" />
         Voir Dashboard Complet
       </Button>
+
+      {/* Feature W1 — Installer l'app (PWA Add to Home Screen)
+          Affiché seulement si l'app n'est pas déjà installée ET que le
+          navigateur supporte l'install (beforeinstallprompt) ou est iOS
+          (instructions manuelles). */}
+      {!isInstalled && (installAvailable || isIOS) && (
+        <div className="space-y-2">
+          <button
+            onClick={onInstall}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-slate-200 bg-white py-4 text-base font-bold text-[#1E1E2E] transition hover:border-[#5257C9] hover:text-[#5257C9]"
+          >
+            <Download className="size-4" />
+            Installer l&apos;app
+          </button>
+          {/* iOS Safari : pas de beforeinstallprompt → instructions manuelles */}
+          {showIOSHint && isIOS && (
+            <div
+              role="alert"
+              className="space-y-2 rounded-xl bg-amber-50 p-4 text-sm text-amber-900 ring-1 ring-amber-200"
+            >
+              <div className="flex items-center gap-2">
+                <Share className="size-4 shrink-0 text-amber-600" />
+                <p className="font-bold">Installer sur iPhone / iPad</p>
+              </div>
+              <p className="leading-relaxed">
+                Appuyez sur le bouton <strong>Partager</strong> (icône carré avec
+                flèche vers le haut) dans Safari, puis choisissez
+                <strong> « Sur l&apos;écran d&apos;accueil »</strong>.
+              </p>
+              <button
+                onClick={onDismissIOSHint}
+                className="text-xs font-bold text-amber-700 underline-offset-2 hover:underline"
+              >
+                Fermer
+              </button>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -1243,7 +1462,7 @@ function DashboardScreen({
       </div>
 
       {/* Contenu scrollable */}
-      <div className="max-h-[calc(100vh-260px)] space-y-4 overflow-y-auto rounded-2xl bg-slate-50/60 p-1">
+      <div className="max-h-[calc(100vh-220px)] space-y-4 overflow-y-auto rounded-2xl bg-slate-50/60 p-1 sm:max-h-[calc(100vh-260px)]">
         {/* AUJOURD'HUI */}
         <SectionTitle>Aujourd&apos;hui</SectionTitle>
         <Card className="rounded-2xl border-0 bg-white/90 p-0 shadow-md ring-1 ring-slate-200">
@@ -1323,7 +1542,7 @@ function DashboardScreen({
                 return (
                   <div
                     key={r.id}
-                    className="flex items-center justify-between gap-2 px-5 py-3"
+                    className="flex items-center justify-between gap-2 px-4 py-3 sm:px-5"
                   >
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-bold text-[#1E1E2E]">
@@ -1331,14 +1550,16 @@ function DashboardScreen({
                       </p>
                       <p className="truncate text-xs text-slate-500">{r.problemType}</p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                       <Badge
                         variant="secondary"
                         className="rounded-full bg-emerald-50 font-bold text-emerald-700"
                       >
                         {dur} min
                       </Badge>
-                      <span className="text-xs text-slate-400">{relTime(r.resolvedAt ?? r.createdAt)}</span>
+                      <span className="text-[11px] text-slate-400 sm:text-xs">
+                        {relTime(r.resolvedAt ?? r.createdAt)}
+                      </span>
                     </div>
                   </div>
                 )

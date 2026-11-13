@@ -50,7 +50,11 @@ if (process.env.NODE_ENV !== 'production' && dynamicRequire.cache) {
 const PrismaClientCtor: typeof import('@prisma/client').PrismaClient =
   dynamicRequire('@prisma/client').PrismaClient
 
-const PRISMA_CACHE_KEY = 'prisma_v16_score_blackbox'
+// Version bumpé à v17 (Task Z1) : le schéma Prisma a évolué (nouveau
+// modèle AirportStaffQr). Incrémenter la version force la création
+// d'une nouvelle instance PrismaClient qui connaît ce modèle — sans
+// redémarrage manuel du serveur de dev.
+const PRISMA_CACHE_KEY = 'prisma_v17_staffqr'
 
 const globalForPrisma = globalThis as unknown as {
   [key: string]: import('@prisma/client').PrismaClient | undefined

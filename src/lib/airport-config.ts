@@ -24,8 +24,9 @@ export type AirportZoneConfig = {
   description?: string
   /** Tags URL acceptés pour cette zone (lus depuis l'URL ?airport=<tag>) */
   tags: string[]
-  /** Les 4 problématiques prédéfinies (boutons rapides) */
-  problemes: [string, string, string, string]
+  /** Les problématiques prédéfinies (boutons rapides) — tableau flexible
+   * (4 minimum, plus possible pour les zones qui nécessitent plus d'options) */
+  problemes: string[]
 }
 
 export const AIRPORT_ZONES: AirportZoneConfig[] = [
@@ -40,6 +41,8 @@ export const AIRPORT_ZONES: AirportZoneConfig[] = [
       'Attente trop longue (> 30 min)',
       'Chariots indisponibles',
       'Bagage endommagé sur le tapis',
+      'Mon bagage n\'est pas sur le tapis',
+      'Bagage perdu',
     ],
   },
   {

@@ -292,10 +292,27 @@ function StatTile({
   )
 }
 
-/** Ligne de la grille principale (un signalement) */
+/** Ligne de la grille principale (un signalement).
+ *  Feature W1 — rappel 15 min : si le signalement est EN_ATTENTE/EN_COURS
+ *  depuis plus de 15 min, la ligne prend une teinte rouge (bg-red-950/30),
+ *  un badge pulsant "EN RETARD" s'affiche, et la colonne "Il y a" passe
+ *  en rouge gras. */
 function BoardRow({ r, fresh }: { r: RecentReport; fresh: boolean }) {
   const s = statutMeta(r.statut)
   const team = teamMeta(r.routedTeam)
+  // Temps écoulé en minutes depuis la création du signalement
+  const elapsedMin = Math.floor(
+    (Date.now() - new Date(r.createdAt).getTime()) / 60000,
+  )
+  const isLate = elapsedMin > 15 && r.statut !== 'RESOLU'
+  // Fond teinté rouge pour toutes les cellules quand en retard
+  const cellBg = isLate ? 'bg-red-950/30' : 'bg-[#1a1a1a]'
+  const lateBadge = (
+    <span className="inline-flex animate-pulse items-center gap-1 rounded border border-red-500 bg-red-500/20 px-1.5 py-0.5 font-mono text-[10px] font-bold uppercase tracking-wider text-red-400">
+      <OctagonAlert className="size-2.5" aria-hidden />
+      EN RETARD
+    </span>
+  )
   return (
     <div
       role="row"
@@ -306,7 +323,7 @@ function BoardRow({ r, fresh }: { r: RecentReport; fresh: boolean }) {
       {/* ZONE — toujours visible (mobile + desktop) */}
       <div
         role="cell"
-        className="flex min-w-0 items-center gap-2 rounded-md bg-[#1a1a1a] px-3 py-2"
+        className={`flex min-w-0 items-center gap-2 rounded-md ${cellBg} px-3 py-2`}
       >
         <span className="text-base leading-none" aria-hidden>
           {r.zone?.emoji ?? '📍'}
@@ -319,27 +336,35 @@ function BoardRow({ r, fresh }: { r: RecentReport; fresh: boolean }) {
       {/* PROBLÈME — toujours visible (mobile + desktop) */}
       <div
         role="cell"
-        className="flex min-w-0 items-center rounded-md bg-[#1a1a1a] px-3 py-2"
+        className={`flex min-w-0 items-center gap-2 rounded-md ${cellBg} px-3 py-2`}
       >
         <span className="truncate font-mono text-sm text-white" title={r.problemType}>
           {r.problemType}
         </span>
+        {/* Badge EN RETARD visible sur mobile (la colonne statut est masquée) */}
+        {isLate && (
+          <span className="ml-auto shrink-0 sm:hidden">{lateBadge}</span>
+        )}
       </div>
 
       {/* STATUT — masqué sur mobile (trop étroit pour le badge) */}
-      <div role="cell" className="hidden items-center rounded-md bg-[#1a1a1a] px-3 py-2 sm:flex">
+      <div
+        role="cell"
+        className={`hidden items-center gap-1.5 rounded-md ${cellBg} px-3 py-2 sm:flex`}
+      >
         <span
           className={`inline-flex items-center gap-1.5 rounded border px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-wider ${s.badge}`}
         >
           <span className={`size-1.5 rounded-full ${s.dot}`} aria-hidden />
           {s.label}
         </span>
+        {isLate && lateBadge}
       </div>
 
       {/* ÉQUIPE — masqué sur mobile */}
       <div
         role="cell"
-        className="hidden min-w-0 items-center gap-1.5 rounded-md bg-[#1a1a1a] px-3 py-2 sm:flex"
+        className={`hidden min-w-0 items-center gap-1.5 rounded-md ${cellBg} px-3 py-2 sm:flex`}
       >
         {team ? (
           <>
@@ -353,12 +378,16 @@ function BoardRow({ r, fresh }: { r: RecentReport; fresh: boolean }) {
         )}
       </div>
 
-      {/* IL Y A — masqué sur mobile */}
+      {/* IL Y A — masqué sur mobile. Rouge + gras quand en retard (> 15 min) */}
       <div
         role="cell"
-        className="hidden items-center justify-end rounded-md bg-[#1a1a1a] px-3 py-2 sm:flex"
+        className={`hidden items-center justify-end rounded-md ${cellBg} px-3 py-2 sm:flex`}
       >
-        <span className="font-mono text-sm tabular-nums text-white">
+        <span
+          className={`font-mono text-sm tabular-nums ${
+            isLate ? 'font-bold text-red-400' : 'text-white'
+          }`}
+        >
           {relativeTime(r.createdAt)}
         </span>
       </div>
@@ -537,6 +566,42 @@ function speak(text: string, enabled: boolean) {
   }
 }
 
+/** Triple-ding d'escalade — généré via Web Audio API (660/880/990 Hz).
+ *  Utilisé pour le rappel 15 min : quand un signalement EN_ATTENTE/EN_COURS
+ *  franchit un seuil (15, 20, 25, 30… min), on joue ce triple-ding pour
+ *  forcer l'attention du superviseur ops. Aucun fichier audio nécessaire. */
+function playEscalationDing() {
+  if (typeof window === 'undefined') return
+  try {
+    const AudioCtx =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext?: typeof AudioContext })
+        .webkitAudioContext
+    if (!AudioCtx) return
+    const ctx = new AudioCtx()
+    if (ctx.state === 'suspended') void ctx.resume().catch(() => {})
+    const tones = [660, 880, 990]
+    tones.forEach((freq, i) => {
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.type = 'sine'
+      osc.frequency.value = freq
+      const startTime = ctx.currentTime + i * 0.18
+      gain.gain.setValueAtTime(0, startTime)
+      gain.gain.linearRampToValueAtTime(0.25, startTime + 0.02)
+      gain.gain.exponentialRampToValueAtTime(0.001, startTime + 0.16)
+      osc.connect(gain)
+      gain.connect(ctx.destination)
+      osc.start(startTime)
+      osc.stop(startTime + 0.17)
+    })
+    // Ferme le contexte après la fin des 3 tons (~0.7s)
+    setTimeout(() => ctx.close().catch(() => {}), 900)
+  } catch {
+    // Web Audio indisponible — silencieux
+  }
+}
+
 // ---------------------------------------------------------------
 // Page principale
 // ---------------------------------------------------------------
@@ -553,6 +618,18 @@ export default function OpsWallboardPage() {
   // Track des IDs déjà annoncés comme résolus (anti-spam — évite de
   // re-annoncer la même résolution à chaque poll pendant 30s)
   const announcedResolvedRef = useRef<Set<string>>(new Set())
+
+  // Feature W1 — rappel 15 min :
+  // alertedLateRef : track des seuils d'escalade déjà alertés par signalement.
+  //   Clé = `${reportId}-${threshold}min` (ex: "abc-15min", "abc-20min").
+  //   Évite de rejouer le son d'escalade toutes les 5s de polling pour le
+  //   même seuil franchi.
+  const alertedLateRef = useRef<Set<string>>(new Set())
+  // Indique si la première passe d'escalade a eu lieu. Au premier check
+  // (chargement initial), on marque les seuils déjà franchis SANS sonner
+  // (sinon le wallboard spammerait au démarrage pour tous les signalements
+  // déjà en retard).
+  const escalationStartedRef = useRef<boolean>(false)
 
   // --- État son (ding + TTS) ---
   // soundOn : false au démarrage (autoplay bloqué). L'utilisateur
@@ -711,6 +788,63 @@ export default function OpsWallboardPage() {
       clearInterval(api)
     }
   }, [pollAlerts])
+
+  // --- Feature W1 — Rappel 15 min : escalade sonore ---
+  // Déclenché par `now` (1s) + `data` (5s) + `soundOn`.
+  // Pour chaque signalement EN_ATTENTE/EN_COURS :
+  //   - calcule elapsedMin depuis createdAt
+  //   - si elapsedMin >= 15, détermine les seuils franchis (15, 20, 25, 30…)
+  //   - pour chaque seuil NON déjà alerté : joue le triple-ding + TTS
+  //     "Signalement en retard…" et marque le seuil dans alertedLateRef.
+  // Nettoie les seuils des signalements résolus/disparus pour pouvoir
+  // re-alerter si l'incident revient plus tard.
+  useEffect(() => {
+    if (!data) return
+    const isFirstCheck = !escalationStartedRef.current
+    escalationStartedRef.current = true
+    const nowMs = Date.now()
+    const activePendingIds = new Set<string>()
+    for (const r of data.recent_reports) {
+      if (r.statut === 'RESOLU') continue
+      activePendingIds.add(r.id)
+      const elapsedMin = Math.floor(
+        (nowMs - new Date(r.createdAt).getTime()) / 60000,
+      )
+      if (elapsedMin < 15) continue
+      // Seuils : 15, 20, 25, 30, 35… (tous les 5 min à partir de 15)
+      let t = 15
+      while (t <= elapsedMin) {
+        const key = `${r.id}-${t}min`
+        if (!alertedLateRef.current.has(key)) {
+          alertedLateRef.current.add(key)
+          // Au premier check (chargement initial), on marque sans sonner
+          // (les signalements étaient déjà en retard avant qu'on regarde).
+          if (soundOn && !isFirstCheck) {
+            playEscalationDing()
+            const zoneNom = r.zone?.nom ?? r.tagScanne
+            setTimeout(
+              () =>
+                speak(
+                  `Signalement en retard. ${elapsedMin} minutes écoulées. ${zoneNom}. ${r.problemType}. Intervention requise.`,
+                  soundOn,
+                ),
+              300,
+            )
+            break // une seule annonce par signalement par cycle (anti-cacophonie)
+          }
+        }
+        t += 5
+      }
+    }
+    // Nettoie les seuils alertés des signalements résolus ou disparus
+    // (pour pouvoir re-alerter si le même ID revient en retard plus tard)
+    for (const key of [...alertedLateRef.current]) {
+      const reportId = key.replace(/-\d+min$/, '')
+      if (!activePendingIds.has(reportId)) {
+        alertedLateRef.current.delete(key)
+      }
+    }
+  }, [now, data, soundOn])
 
   // --- Horloge toutes les 1s ---
   useEffect(() => {

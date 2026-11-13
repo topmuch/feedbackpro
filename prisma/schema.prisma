@@ -741,3 +741,28 @@ model AirportFlightGate {
   @@index([active, status])
   @@index([flightNumber])
 }
+
+// ============================================================
+// AirportStaffQr — QR codes "Staff Only" persistés (Task Z1)
+// ------------------------------------------------------------
+// Garde une trace des QR codes générés pour les employés afin
+// qu'ils survivent à une fermeture / réouverture du dashboard.
+// Le QR lui-même est régénéré à la volée depuis le `tag` via
+// /api/airport/staff-qrcode?tag=<tag>&format=png — la ligne DB
+// ne stocke que les métadonnées (tag, label, zone rattachée).
+// ============================================================
+model AirportStaffQr {
+  id        String   @id @default(cuid())
+  // Tag staff encodé dans l'URL (ex: "staff_nettoyage_T2"). Unique :
+  // un même tag ne peut être sauvegardé qu'une fois (upsert côté API).
+  tag       String   @unique
+  // Libellé lisible affiché dans le dashboard (ex: "Nettoyage T2")
+  label     String
+  // Code zone optionnel (ex: "sanitaires") pour rattacher le QR staff
+  // à une zone aéroport. Permet le filtrage / le badge visuel.
+  zoneCode  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([zoneCode])
+}

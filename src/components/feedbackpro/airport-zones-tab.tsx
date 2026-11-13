@@ -30,6 +30,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AlertCircle,
+  AlertTriangle,
   Bell,
   Check,
   Clock,
@@ -37,6 +38,7 @@ import {
   FileText,
   GripVertical,
   Loader2,
+  Pencil,
   Plus,
   QrCode,
   RotateCcw,
@@ -55,6 +57,14 @@ import { Textarea } from '@/components/ui/textarea'
 import { Label } from '@/components/ui/label'
 import { Badge } from '@/components/ui/badge'
 import { Switch } from '@/components/ui/switch'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import {
   Select,
   SelectContent,
@@ -77,6 +87,8 @@ type Zone = {
   problemes: string[]
   reportsCount: number
   id: string | null
+  /** true si la zone a été créée depuis le dashboard (pas dans la config statique) */
+  custom?: boolean
 }
 
 type ZonesResponse = {
@@ -184,6 +196,73 @@ async function putZone(
 }
 
 // ---------------------------------------------------------------
+// Helpers CRUD (Task Z1) — POST / PATCH / DELETE pour le dialog
+// ---------------------------------------------------------------
+
+type ZoneMutationResponse = {
+  ok: true
+  data: {
+    zone: {
+      code: string
+      nom: string
+      emoji: string
+      description: string | null
+      tags: string[]
+      problemes: string[]
+      id?: string | null
+      custom?: boolean
+      reportsCount?: number
+    }
+  }
+}
+
+async function postZone(payload: {
+  code: string
+  nom: string
+  emoji: string
+  description?: string | null
+  tags: string[]
+  problemes: string[]
+}): Promise<ZoneMutationResponse['data']['zone']> {
+  const res = await fetch('/api/airport/zones', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  const json = (await res.json()) as ZoneMutationResponse | ErrorResponse
+  if (!json.ok) throw new Error(json.error)
+  return json.data.zone
+}
+
+async function patchZone(
+  code: string,
+  payload: {
+    nom?: string
+    emoji?: string
+    description?: string | null
+    tags?: string[]
+    problemes?: string[]
+  },
+): Promise<ZoneMutationResponse['data']['zone']> {
+  const res = await fetch(`/api/airport/zones/${encodeURIComponent(code)}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  const json = (await res.json()) as ZoneMutationResponse | ErrorResponse
+  if (!json.ok) throw new Error(json.error)
+  return json.data.zone
+}
+
+async function deleteZone(code: string): Promise<void> {
+  const res = await fetch(`/api/airport/zones/${encodeURIComponent(code)}`, {
+    method: 'DELETE',
+  })
+  const json = (await res.json()) as { ok: boolean; error?: string }
+  if (!json.ok) throw new Error(json.error ?? 'Erreur suppression')
+}
+
+// ---------------------------------------------------------------
 // Form state shape
 // ---------------------------------------------------------------
 
@@ -277,6 +356,16 @@ export default function AirportZonesTab() {
   const [form, setForm] = useState<FormState | null>(null)
   const [saved, setSaved] = useState<FormState | null>(null)
   const [saving, setSaving] = useState<boolean>(false)
+
+  // --- Dialog CRUD (Task Z1) ---
+  // `dialogState` pilote le Dialog Add/Modify : null = fermé,
+  // { mode: 'create' } = ajout, { mode: 'edit', zone } = modification.
+  const [dialogState, setDialogState] = useState<
+    | { mode: 'create' }
+    | { mode: 'edit'; zone: Zone }
+    | null
+  >(null)
+  const [deletingCode, setDeletingCode] = useState<string | null>(null)
 
   // --- Fetch initial ---
   const load = useCallback(async () => {
@@ -442,6 +531,98 @@ export default function AirportZonesTab() {
     setForm({ ...saved, tags: [...saved.tags], problemes: [...saved.problemes] })
   }, [saved])
 
+  // --- CRUD Dialog handlers (Task Z1) ---
+
+  // Soumission du Dialog : dispatch vers POST (create) ou PATCH (edit)
+  const handleDialogSubmit = useCallback(
+    async (payload: {
+      code: string
+      nom: string
+      emoji: string
+      description: string
+      tags: string[]
+      problemes: string[]
+    }) => {
+      const mode = dialogState?.mode
+      if (!mode) return
+      try {
+        if (mode === 'create') {
+          const created = await postZone({
+            code: payload.code,
+            nom: payload.nom,
+            emoji: payload.emoji,
+            description: payload.description.trim() || null,
+            tags: payload.tags,
+            problemes: payload.problemes,
+          })
+          // Rafraîchir la liste puis sélectionner la nouvelle zone
+          await load()
+          setSelectedCode(created.code)
+          setDialogState(null)
+          toast({
+            title: 'Zone créée',
+            description: `${created.emoji} ${created.nom} (${created.code}).`,
+          })
+        } else {
+          const zone = dialogState.zone
+          const updated = await patchZone(zone.code, {
+            nom: payload.nom,
+            emoji: payload.emoji,
+            description: payload.description.trim() || null,
+            tags: payload.tags,
+            problemes: payload.problemes,
+          })
+          await load()
+          setSelectedCode(updated.code)
+          setDialogState(null)
+          toast({
+            title: 'Zone mise à jour',
+            description: `${updated.emoji} ${updated.nom} (${updated.code}).`,
+          })
+        }
+      } catch (e) {
+        toast({
+          title: 'Erreur',
+          description: e instanceof Error ? e.message : 'Erreur inconnue',
+          variant: 'destructive',
+        })
+      }
+    },
+    [dialogState, load, toast],
+  )
+
+  const handleDeleteZone = useCallback(
+    async (zone: Zone) => {
+      const msg = zone.reportsCount > 0
+        ? `Supprimer la zone « ${zone.nom} » ? ${zone.reportsCount} signalement(s) lié(s) seront aussi supprimés (cascade).`
+        : `Supprimer la zone « ${zone.nom} » ?`
+      if (!window.confirm(msg)) return
+      setDeletingCode(zone.code)
+      try {
+        await deleteZone(zone.code)
+        // Si la zone supprimée était sélectionnée, on bascule sur la première
+        if (selectedCode === zone.code) {
+          const remaining = zones.filter((z) => z.code !== zone.code)
+          setSelectedCode(remaining[0]?.code ?? '')
+        }
+        await load()
+        toast({
+          title: 'Zone supprimée',
+          description: `« ${zone.nom} » et ses signalements ont été supprimés.`,
+        })
+      } catch (e) {
+        toast({
+          title: 'Erreur suppression',
+          description: e instanceof Error ? e.message : 'Erreur inconnue',
+          variant: 'destructive',
+        })
+      } finally {
+        setDeletingCode(null)
+      }
+    },
+    [load, selectedCode, toast, zones],
+  )
+
   // ---------------------------------------------------------------
   // QR codes — cache persistant (survit aux changements de zone)
   // ---------------------------------------------------------------
@@ -592,13 +773,24 @@ export default function AirportZonesTab() {
               {zones.length}
             </Badge>
           </div>
+
+          {/* Bouton "Ajouter une zone" (Task Z1) */}
+          <Button
+            type="button"
+            size="sm"
+            onClick={() => setDialogState({ mode: 'create' })}
+            className="mb-1 w-full shrink-0 border-emerald-500/40 bg-gradient-to-b from-emerald-500/15 to-emerald-500/5 text-emerald-700 shadow-sm hover:from-emerald-500/25 hover:to-emerald-500/10 hover:text-emerald-800 lg:mb-2"
+          >
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            Ajouter une zone
+          </Button>
+
           {zones.map((z) => {
             const active = z.code === selectedCode
+            const isDeleting = deletingCode === z.code
             return (
-              <button
+              <div
                 key={z.code}
-                type="button"
-                onClick={() => selectZone(z.code)}
                 className={cn(
                   'group relative flex w-full shrink-0 items-center gap-3 overflow-hidden rounded-xl border px-3 py-3 text-left transition-all duration-200',
                   active
@@ -606,30 +798,80 @@ export default function AirportZonesTab() {
                     : 'border-border/60 bg-card/50 text-muted-foreground hover:border-emerald-500/30 hover:bg-muted/40 hover:shadow-sm',
                 )}
               >
-                {active && (
-                  <span className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-emerald-500 to-emerald-600" aria-hidden />
-                )}
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-muted/60 to-muted/30 text-2xl leading-none shadow-inner" aria-hidden>
-                  {z.emoji}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className={cn('truncate text-sm', active ? 'font-bold text-emerald-800' : 'font-semibold text-foreground')}>{z.nom}</div>
-                  <div className="truncate text-[11px] text-muted-foreground/70">
-                    <code className="font-mono">{z.code}</code>
-                  </div>
-                </div>
-                <span
-                  className={cn(
-                    'shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold tabular-nums',
-                    z.reportsCount > 0
-                      ? 'bg-amber-500/20 text-amber-700 ring-1 ring-amber-500/30'
-                      : 'bg-muted/60 text-muted-foreground',
-                  )}
-                  title={`${z.reportsCount} signalement(s)`}
+                <button
+                  type="button"
+                  onClick={() => selectZone(z.code)}
+                  className="flex flex-1 items-center gap-3 overflow-hidden text-left"
+                  aria-label={`Sélectionner la zone ${z.nom}`}
                 >
-                  {z.reportsCount}
-                </span>
-              </button>
+                  {active && (
+                    <span className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-emerald-500 to-emerald-600" aria-hidden />
+                  )}
+                  <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-muted/60 to-muted/30 text-2xl leading-none shadow-inner" aria-hidden>
+                    {z.emoji}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className={cn('truncate text-sm', active ? 'font-bold text-emerald-800' : 'font-semibold text-foreground')}>
+                      {z.nom}
+                      {z.custom && (
+                        <span
+                          className="ml-1.5 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-500/15 align-middle text-[8px] font-bold text-emerald-700"
+                          title="Zone personnalisée (ajoutée depuis le dashboard)"
+                        >
+                          +
+                        </span>
+                      )}
+                    </div>
+                    <div className="truncate text-[11px] text-muted-foreground/70">
+                      <code className="font-mono">{z.code}</code>
+                    </div>
+                  </div>
+                  <span
+                    className={cn(
+                      'shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold tabular-nums',
+                      z.reportsCount > 0
+                        ? 'bg-amber-500/20 text-amber-700 ring-1 ring-amber-500/30'
+                        : 'bg-muted/60 text-muted-foreground',
+                    )}
+                    title={`${z.reportsCount} signalement(s)`}
+                  >
+                    {z.reportsCount}
+                  </span>
+                </button>
+
+                {/* Actions CRUD — révélées au survol (desktop) / toujours visibles (mobile) */}
+                <div className="absolute right-2 top-2 hidden items-center gap-1 rounded-md border border-border bg-card/95 p-0.5 shadow-sm backdrop-blur group-hover:flex">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      setDialogState({ mode: 'edit', zone: z })
+                    }}
+                    className="flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-emerald-500/15 hover:text-emerald-700"
+                    aria-label={`Modifier la zone ${z.nom}`}
+                    title="Modifier"
+                  >
+                    <Pencil className="size-3" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      void handleDeleteZone(z)
+                    }}
+                    disabled={isDeleting}
+                    className="flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-rose-500/15 hover:text-rose-600 disabled:opacity-50"
+                    aria-label={`Supprimer la zone ${z.nom}`}
+                    title="Supprimer"
+                  >
+                    {isDeleting ? (
+                      <Loader2 className="size-3 animate-spin" />
+                    ) : (
+                      <Trash2 className="size-3" />
+                    )}
+                  </button>
+                </div>
+              </div>
             )
           })}
         </div>
@@ -654,7 +896,444 @@ export default function AirportZonesTab() {
           onRefetchQr={fetchQr}
         />
       </section>
+
+      {/* ---------- DIALOG CRUD (Task Z1) ---------- */}
+      <ZoneCrudDialog
+        state={dialogState}
+        onClose={() => setDialogState(null)}
+        onSubmit={(payload) => void handleDialogSubmit(payload)}
+      />
     </div>
+  )
+}
+
+// ============================================================
+// Sous-composant : ZoneCrudDialog (Task Z1)
+// ------------------------------------------------------------
+// Dialog Add/Modify pour créer ou éditer une zone aéroport.
+//
+// Mode "create" : champs vides, code éditable (unique, lowercase).
+// Mode "edit"   : pré-rempli depuis la zone, code en lecture seule.
+//
+// Champs du formulaire :
+//   - Code        (lowercase, no spaces, [a-z0-9_]{2,40})
+//   - Nom         (libre, 2-60 caractères)
+//   - Emoji       (text input, 1-8 caractères)
+//   - Description (textarea optionnelle, max 200)
+//   - Tags        (input comma-separated → string[])
+//   - Problématiques (dynamic list, add/remove, min 4)
+// ============================================================
+
+type ZoneCrudDialogProps = {
+  state:
+    | { mode: 'create' }
+    | { mode: 'edit'; zone: Zone }
+    | null
+  onClose: () => void
+  onSubmit: (payload: {
+    code: string
+    nom: string
+    emoji: string
+    description: string
+    tags: string[]
+    problemes: string[]
+  }) => void
+}
+
+type DialogFormState = {
+  code: string
+  nom: string
+  emoji: string
+  description: string
+  tags: string // comma-separated input
+  problemes: string[] // dynamic list
+}
+
+const CODE_DIALOG_REGEX = /^[a-z0-9_]{2,40}$/
+
+function emptyDialogForm(): DialogFormState {
+  return {
+    code: '',
+    nom: '',
+    emoji: '📍',
+    description: '',
+    tags: '',
+    problemes: ['', '', '', ''],
+  }
+}
+
+function zoneToDialogForm(z: Zone): DialogFormState {
+  return {
+    code: z.code,
+    nom: z.nom,
+    emoji: z.emoji,
+    description: z.description ?? '',
+    tags: z.tags.join(', '),
+    problemes: z.problemes.length >= 4 ? [...z.problemes] : [...z.problemes, ...Array(4 - z.problemes.length).fill('')],
+  }
+}
+
+function parseTagsCsv(csv: string): string[] {
+  return csv
+    .split(',')
+    .map((t) => t.trim().toLowerCase().replace(/\s+/g, '_'))
+    .filter((t) => t.length > 0)
+}
+
+function ZoneCrudDialog({ state, onClose, onSubmit }: ZoneCrudDialogProps) {
+  const { toast } = useToast()
+  const open = state !== null
+  const [form, setForm] = useState<DialogFormState>(emptyDialogForm)
+  const [submitting, setSubmitting] = useState<boolean>(false)
+
+  // (Re)init du form quand le dialog s'ouvre ou change de mode
+  useEffect(() => {
+    if (!state) return
+    if (state.mode === 'create') {
+      setForm(emptyDialogForm())
+    } else {
+      setForm(zoneToDialogForm(state.zone))
+    }
+  }, [state])
+
+  const isEdit = state?.mode === 'edit'
+
+  // --- mutations locales problématiques ---
+  const updateProbleme = (idx: number, value: string) => {
+    setForm((f) => {
+      const next = [...f.problemes]
+      next[idx] = value
+      return { ...f, problemes: next }
+    })
+  }
+  const addProbleme = () => {
+    setForm((f) =>
+      f.problemes.length >= 12
+        ? f
+        : { ...f, problemes: [...f.problemes, ''] },
+    )
+  }
+  const removeProbleme = (idx: number) => {
+    setForm((f) => {
+      if (f.problemes.length <= 1) return f
+      return { ...f, problemes: f.problemes.filter((_, i) => i !== idx) }
+    })
+  }
+
+  // --- validation avant submit ---
+  const handleSave = useCallback(async () => {
+    if (!state) return
+
+    // Code (only required for create)
+    if (!isEdit) {
+      const code = form.code.trim().toLowerCase()
+      if (!code) {
+        toast({ title: 'Code manquant', variant: 'destructive' })
+        return
+      }
+      if (!CODE_DIALOG_REGEX.test(code)) {
+        toast({
+          title: 'Code invalide',
+          description: 'Lettres minuscules, chiffres ou _ uniquement (2-40 caractères).',
+          variant: 'destructive',
+        })
+        return
+      }
+    }
+
+    // Nom
+    const nom = form.nom.trim()
+    if (nom.length < 2) {
+      toast({ title: 'Nom trop court', description: 'Au moins 2 caractères.', variant: 'destructive' })
+      return
+    }
+
+    // Emoji
+    if (form.emoji.length === 0 || form.emoji.length > 8) {
+      toast({ title: 'Emoji invalide', description: '1 à 8 caractères.', variant: 'destructive' })
+      return
+    }
+
+    // Description
+    if (form.description.length > 200) {
+      toast({ title: 'Description trop longue', description: 'Maximum 200 caractères.', variant: 'destructive' })
+      return
+    }
+
+    // Tags
+    const tags = parseTagsCsv(form.tags)
+    if (tags.length > 10) {
+      toast({ title: 'Trop de tags', description: 'Maximum 10.', variant: 'destructive' })
+      return
+    }
+    const invalidTag = tags.find((t) => !/^[a-z0-9_-]{2,40}$/.test(t))
+    if (invalidTag) {
+      toast({
+        title: `Tag invalide : ${invalidTag}`,
+        description: 'Lettres/chiffres/-/_ (2-40 caractères).',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    // Problématiques — min 4 non vides
+    const problemes = form.problemes.map((p) => p.trim()).filter((p) => p.length > 0)
+    if (problemes.length < 4) {
+      toast({
+        title: 'Pas assez de problématiques',
+        description: `Au moins 4 requises (${problemes.length} saisies).`,
+        variant: 'destructive',
+      })
+      return
+    }
+    if (problemes.length > 12) {
+      toast({ title: 'Trop de problématiques', description: 'Maximum 12.', variant: 'destructive' })
+      return
+    }
+    const invalidPb = problemes.find((p) => p.length < 3 || p.length > 100)
+    if (invalidPb) {
+      toast({
+        title: 'Problématique invalide',
+        description: `${invalidPb} — 3 à 100 caractères.`,
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setSubmitting(true)
+    try {
+      onSubmit({
+        code: form.code.trim().toLowerCase(),
+        nom,
+        emoji: form.emoji,
+        description: form.description,
+        tags,
+        problemes,
+      })
+    } finally {
+      setSubmitting(false)
+    }
+  }, [form, isEdit, onSubmit, state, toast])
+
+  const codeErr = isEdit
+    ? null
+    : form.code && !CODE_DIALOG_REGEX.test(form.code.trim().toLowerCase())
+      ? 'Lettres minuscules, chiffres ou _ (2-40)'
+      : null
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose() }}>
+      <DialogContent className="max-w-2xl border-border bg-background p-0">
+        <DialogHeader className="border-b border-border px-5 py-4">
+          <DialogTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
+            {isEdit ? (
+              <>
+                <Pencil className="size-4 text-emerald-600" />
+                Modifier la zone
+              </>
+            ) : (
+              <>
+                <Plus className="size-4 text-emerald-600" />
+                Ajouter une zone
+              </>
+            )}
+          </DialogTitle>
+          <DialogDescription className="text-sm text-muted-foreground">
+            {isEdit
+              ? 'Modifiez les informations de la zone. Le code est verrouillé (clé d\'identification).'
+              : 'Créez une nouvelle zone aéroport. Le code doit être unique, en minuscules, sans espaces (ex : "parking", "douane").'}
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="max-h-[60vh] space-y-4 overflow-y-auto px-5 py-4">
+          {/* Code + Emoji + Nom sur une ligne (desktop) */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-[80px_1fr]">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="zd-emoji" className="text-xs font-semibold text-muted-foreground">
+                Emoji
+              </Label>
+              <Input
+                id="zd-emoji"
+                value={form.emoji}
+                onChange={(e) => setForm((f) => ({ ...f, emoji: e.target.value.slice(0, 8) }))}
+                maxLength={8}
+                className="bg-background text-center text-2xl"
+                placeholder="🚻"
+              />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="zd-nom" className="text-xs font-semibold text-muted-foreground">
+                Nom de la zone
+              </Label>
+              <Input
+                id="zd-nom"
+                value={form.nom}
+                onChange={(e) => setForm((f) => ({ ...f, nom: e.target.value.slice(0, 60) }))}
+                maxLength={60}
+                className="bg-background"
+                placeholder="Ex : Parking, Douane, Salon VIP"
+              />
+              <p className="text-[10px] text-muted-foreground">{form.nom.length}/60 caractères</p>
+            </div>
+          </div>
+
+          {/* Code — verrouillé en édition */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="zd-code" className="text-xs font-semibold text-muted-foreground">
+              Code (unique, minuscules, sans espaces)
+            </Label>
+            <Input
+              id="zd-code"
+              value={form.code}
+              onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toLowerCase() }))}
+              disabled={isEdit}
+              className={cn(
+                'bg-background font-mono text-sm',
+                isEdit && 'opacity-70',
+              )}
+              placeholder="parking, douane, salon_vip"
+            />
+            {codeErr && (
+              <p className="text-[10px] text-rose-600">{codeErr}</p>
+            )}
+            <p className="text-[10px] text-muted-foreground">
+              Sert de clé en BDD et dans les URL QR codes. Exemples valides : <code>parking</code>, <code>douane</code>, <code>salon_vip</code>.
+            </p>
+          </div>
+
+          {/* Description */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="zd-desc" className="text-xs font-semibold text-muted-foreground">
+              Description (optionnel)
+            </Label>
+            <Textarea
+              id="zd-desc"
+              value={form.description}
+              onChange={(e) => setForm((f) => ({ ...f, description: e.target.value.slice(0, 200) }))}
+              maxLength={200}
+              rows={2}
+              className="bg-background resize-none"
+              placeholder="Sous-titre affiché sur l'écran du voyageur"
+            />
+            <p className="text-[10px] text-muted-foreground">{form.description.length}/200 caractères</p>
+          </div>
+
+          {/* Tags — comma-separated */}
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="zd-tags" className="text-xs font-semibold text-muted-foreground">
+              Tags URL (séparés par des virgules)
+            </Label>
+            <Input
+              id="zd-tags"
+              value={form.tags}
+              onChange={(e) => setForm((f) => ({ ...f, tags: e.target.value }))}
+              className="bg-background font-mono text-sm"
+              placeholder="porte_A12, porte_B07, lounge_central"
+            />
+            <p className="text-[10px] text-muted-foreground">
+              Chaque tag génère un QR code distinct pointant vers cette zone. Max 10.
+            </p>
+          </div>
+
+          {/* Problématiques — dynamic list */}
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center justify-between">
+              <Label className="text-xs font-semibold text-muted-foreground">
+                Problématiques (boutons rapides PWA)
+              </Label>
+              <span className={cn(
+                'text-[10px] tabular-nums',
+                form.problemes.filter((p) => p.trim().length >= 3).length < 4
+                  ? 'text-amber-600'
+                  : 'text-muted-foreground',
+              )}>
+                {form.problemes.filter((p) => p.trim().length >= 3).length}/4 min
+              </span>
+            </div>
+            <div className="flex flex-col gap-2">
+              {form.problemes.map((p, i) => {
+                const err = p && (p.trim().length < 3 || p.trim().length > 100)
+                return (
+                  <div
+                    key={`zd-pb-${i}`}
+                    className={cn(
+                      'group flex items-center gap-2 overflow-hidden rounded-lg border bg-background px-2 py-1.5 transition-all',
+                      err ? 'border-rose-500/50' : 'border-border hover:border-emerald-500/30',
+                    )}
+                  >
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-amber-500/10 text-[11px] font-bold text-amber-700" aria-hidden>
+                      {i + 1}
+                    </span>
+                    <Input
+                      value={p}
+                      onChange={(e) => updateProbleme(i, e.target.value.slice(0, 100))}
+                      className="h-8 flex-1 border-0 bg-transparent px-1 text-sm shadow-none focus-visible:ring-0"
+                      placeholder="Ex : Tapis arrêté ou bloqué"
+                      maxLength={100}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="size-7 shrink-0 text-muted-foreground/60 hover:bg-rose-500/10 hover:text-rose-600"
+                      onClick={() => removeProbleme(i)}
+                      disabled={form.problemes.length <= 1}
+                      aria-label="Supprimer cette problématique"
+                    >
+                      <X className="size-3.5" />
+                    </Button>
+                  </div>
+                )
+              })}
+            </div>
+            {form.problemes.length < 12 && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={addProbleme}
+                className="self-start border-amber-500/40 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 hover:text-amber-800"
+              >
+                <Plus className="mr-1.5 size-3.5" />
+                Ajouter une problématique
+              </Button>
+            )}
+            <div className="flex items-start gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[11px] text-amber-700">
+              <AlertTriangle className="mt-0.5 size-3 shrink-0" />
+              <span>
+                Minimum <strong>4</strong> problématiques valides (3-100 caractères chacune).
+                Ce sont les boutons rapides affichés sur la PWA voyageur après scan du QR.
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter className="border-t border-border px-5 py-3">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            disabled={submitting}
+          >
+            Annuler
+          </Button>
+          <Button
+            type="button"
+            onClick={() => void handleSave()}
+            disabled={submitting}
+            className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-sm hover:from-emerald-500 hover:to-emerald-400"
+          >
+            {submitting ? (
+              <Loader2 className="mr-1.5 size-3.5 animate-spin" />
+            ) : isEdit ? (
+              <Save className="mr-1.5 size-3.5" />
+            ) : (
+              <Plus className="mr-1.5 size-3.5" />
+            )}
+            {isEdit ? 'Enregistrer' : 'Créer la zone'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }
 
