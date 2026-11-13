@@ -534,7 +534,7 @@ function MiniRowSkeleton() {
 // le TTS et le ding sont silencieux (mais l'animation visuelle
 // continue de fonctionner).
 
-const SOUND_NORMAL = '/sounds/ding.wav'
+const SOUND_NORMAL = '/sounds/ding-dong.mp3'
 const SOUND_CRITICAL = '/sounds/ding-critical.wav'
 const SOUND_RESOLVED = '/sounds/resolved.wav'
 
