@@ -70,6 +70,7 @@ import {
 } from "@/components/ui/dialog"
 import { AirportOfflineBanner } from "@/components/feedbackpro/airport-offline-banner"
 import { useAirportOffline } from "@/hooks/use-airport-offline"
+import { routerVersService, serviceLabel } from "@/lib/airport-routing"
 
 // ---------- Types locaux (contrat API) ----------
 
@@ -1346,6 +1347,14 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
         <div className="pointer-events-none absolute top-1/3 -left-20 h-64 w-64 rounded-full bg-violet-300/15 blur-3xl" />
         <div className="pointer-events-none absolute bottom-0 right-1/4 h-56 w-56 rounded-full bg-sky-300/15 blur-3xl" />
 
+        {/* CSS keyframe pour l'onde sonore Denise */}
+        <style>{`
+          @keyframes fbp-denise-wave {
+            0%, 100% { height: 5px; }
+            50% { height: 20px; }
+          }
+        `}</style>
+
         <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col px-4 py-8">
           {/* Logo aéroport + coche succès */}
           <div className="flex flex-col items-center text-center">
@@ -1366,14 +1375,51 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
               Merci !
             </h1>
             <p className="mt-2 text-sm leading-relaxed text-slate-500">
-              Votre signalement a bien été reçu. L'équipe technique de l'aéroport a été notifiée
-              et intervient sur place.
+              Votre signalement a bien été reçu.
             </p>
+
+            {/* ---------- Bloc Denise : confirmation vocale animée ---------- */}
+            <div className="mt-5 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-violet-500/10 to-indigo-500/10 px-4 py-3 ring-1 ring-violet-300/30 backdrop-blur-md">
+              {/* Onde sonore animée */}
+              <div className="flex items-center gap-[3px] h-5" aria-hidden>
+                {[0, 0.1, 0.2, 0.3, 0.15].map((delay, i) => (
+                  <span
+                    key={i}
+                    className="w-[3px] rounded-full bg-violet-500"
+                    style={{
+                      animation: `fbp-denise-wave 1s ${delay}s infinite ease-in-out`,
+                      height: '8px',
+                    }}
+                  />
+                ))}
+              </div>
+              <p className="text-left text-xs font-medium leading-snug text-violet-800">
+                <span className="font-bold">Denise confirme :</span> L&apos;équipe{' '}
+                <span className="font-bold">
+                  {serviceLabel(routerVersService(reportResult.report.problemType))}
+                </span>{' '}
+                a été alertée vocalement à{' '}
+                <span className="font-mono font-bold">
+                  {new Date(reportResult.report.createdAt).toLocaleTimeString('fr-FR', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </span>
+                .
+              </p>
+            </div>
           </div>
 
           {/* Carte récapitulatif — glassmorphism */}
           <div className="mt-6 relative overflow-hidden rounded-2xl bg-white/70 p-4 shadow-lg backdrop-blur-md ring-1 ring-white/60">
             <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-emerald-500" />
+            {/* Badge statut clignotant */}
+            <div className="mb-3 flex justify-end">
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-700 ring-1 ring-amber-400/30 animate-pulse">
+                <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
+                En cours de traitement
+              </span>
+            </div>
             <div className="flex items-center gap-3">
               <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white shadow-md">
                 <span className="text-xl" aria-hidden>{reportResult.zone.emoji}</span>
@@ -1414,74 +1460,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
             </div>
           </div>
 
-          {/* Section opt-in WhatsApp — glassmorphism emerald */}
-          <section className="mt-6 relative overflow-hidden rounded-2xl bg-white/70 p-4 shadow-lg backdrop-blur-md ring-1 ring-white/60">
-            <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-emerald-500 to-teal-500" />
-            <div className="flex items-start gap-2">
-              <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md">
-                <MessageSquare className="size-4" aria-hidden />
-              </div>
-              <div className="min-w-0">
-                <h2 className="text-sm font-bold text-slate-800">
-                  Recevoir un WhatsApp lorsque le problème est résolu
-                </h2>
-                <p className="mt-0.5 text-xs text-slate-500">
-                  On vous prévient dès qu'une équipe intervient. Aucun usage commercial.
-                </p>
-              </div>
-            </div>
-
-            {whatsappSubmitted ? (
-              <div className="mt-3 flex items-start gap-2 rounded-xl bg-emerald-50/80 backdrop-blur-sm p-3 text-sm text-emerald-900 ring-1 ring-emerald-100">
-                <div className="flex size-5 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white">
-                  <ShieldCheck className="size-3" aria-hidden />
-                </div>
-                <p>
-                  ✅ Vous serez notifié au{" "}
-                  <strong>{masquerTelephone(whatsappSubmitted.whatsappPhone)}</strong> dès que le
-                  problème sera résolu.
-                </p>
-              </div>
-            ) : (
-              <div className="mt-3 space-y-2">
-                <Input
-                  type="tel"
-                  inputMode="tel"
-                  value={whatsappPhone}
-                  onChange={(e) => setWhatsappPhone(e.target.value)}
-                  placeholder="+33 6 12 34 56 78"
-                  className="h-11 rounded-xl border-2 border-white bg-white/60 backdrop-blur-md text-base ring-1 ring-white/40 focus:border-emerald-400 focus:ring-emerald-200"
-                  aria-label="Numéro WhatsApp"
-                />
-                {whatsappError ? (
-                  <p className="flex items-center gap-1.5 text-xs text-rose-600">
-                    <AlertTriangle className="size-3.5" aria-hidden />
-                    {whatsappError}
-                  </p>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={activerWhatsapp}
-                  disabled={whatsappSubmitting}
-                  className="flex h-11 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-emerald-500 to-teal-600 text-sm font-bold text-white shadow-md transition-all hover:shadow-lg active:scale-[0.99] disabled:opacity-70"
-                >
-                  {whatsappSubmitting ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" aria-hidden />
-                      Activation…
-                    </>
-                  ) : (
-                    <>
-                      <MessageSquare className="size-4" aria-hidden />
-                      Activer la notification
-                    </>
-                  )}
-                </button>
-              </div>
-            )}
-          </section>
-
-          {/* ---------- Bouton "Aide" — gradient rose vibrant ---------- */}
+          {/* ---------- Bouton SOS — gradient rose vibrant ---------- */}
           <section className="mt-4">
             <button
               type="button"
@@ -1601,21 +1580,6 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
               )}
             </DialogContent>
           </Dialog>
-
-          {/* Tertiaire : voir le message — glassmorphism */}
-          <details className="mt-4 group rounded-2xl border-2 border-white bg-white/60 backdrop-blur-md p-3 ring-1 ring-white/40">
-            <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-bold text-slate-600 transition-colors group-hover:text-slate-900">
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block h-1 w-3 rounded-full bg-gradient-to-r from-slate-400 to-slate-500" />
-                Voir le message envoyé aux équipes
-              </span>
-              <span className="text-xs text-slate-400 group-open:hidden">afficher</span>
-              <span className="hidden text-xs text-slate-400 group-open:inline">masquer</span>
-            </summary>
-            <pre className="mt-3 overflow-x-auto rounded-xl bg-slate-900 p-3 font-mono text-xs leading-relaxed text-slate-100 whitespace-pre-wrap">
-              {reportResult.whatsapp.message}
-            </pre>
-          </details>
 
           {/* ---------- D8 — Carte de notation (avis Google / retour interne) ----------
               Affichée uniquement si le signalement a été réellement soumis
