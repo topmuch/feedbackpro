@@ -1,21 +1,30 @@
 // ============================================================
 // FeedbackPro — Configuration statique des zones aéroport
 // ------------------------------------------------------------
-// Source de vérité pour les 5 zones aéroport et leurs 4
+// Source de vérité pour les 25 zones aéroport et leurs
 // problématiques prédéfinies (boutons rapides). Le seed
-// prisma/seed-airport.ts lit cette config et l'injecte en BDD.
+// prisma/seed-zones-v2.ts lit cette config et l'injecte en BDD.
 //
 // Un tag URL (ex: "tapis_bagages_1") est scanné via QR code,
 // résolu en AirportZone via la propriété `tags`. Plusieurs tags
 // physiques peuvent pointer vers la même zone logique.
 //
-// Le cahier des charges impose exactement 4 problématiques par
-// zone — c'est respecté ici (et validé par le type TypeScript).
+// Le `code` est désormais un `string` libre (union retirée) car
+// le catalogue aéroport couvre 25 zones réparties en 7 familles :
+//   - EXTÉRIEUR  (parkings, dépose-minute, taxis, transports)
+//   - SÛRETÉ     (filtrage, file prioritaire, PAF)
+//   - TERMINAL   (portes, bagages, check-in, sanitaires, PMR)
+//   - COMMERCIAL (restauration, duty-free, lounges)
+//   - SERVICE    (enfants, prière, infirmerie)
+//   - URGENCE    (point SOS — bouton unique APPELER SECOURS)
+//   + les 5 zones historiques (bagages, sanitaires, files_attente,
+//     embarquement, restauration) conservées pour rétro-compat.
 // ============================================================
 
 export type AirportZoneConfig = {
-  /** Code métier lisible, clé unique en BDD */
-  code: 'bagages' | 'sanitaires' | 'files_attente' | 'embarquement' | 'restauration'
+  /** Code métier lisible, clé unique en BDD.
+   *  Type libre (string) : le catalogue aéroport couvre 25+ zones. */
+  code: string
   /** Nom affiché en gros en haut de l'écran du voyageur */
   nom: string
   /** Emoji illustrant la zone (affiché en gros à côté du nom) */
@@ -25,11 +34,14 @@ export type AirportZoneConfig = {
   /** Tags URL acceptés pour cette zone (lus depuis l'URL ?airport=<tag>) */
   tags: string[]
   /** Les problématiques prédéfinies (boutons rapides) — tableau flexible
-   * (4 minimum, plus possible pour les zones qui nécessitent plus d'options) */
+   * (1 minimum pour la zone SOS, 4+ pour les autres). */
   problemes: string[]
 }
 
 export const AIRPORT_ZONES: AirportZoneConfig[] = [
+  // ===========================================================
+  // ZONES HISTORIQUES (5) — conservées pour rétro-compat
+  // ===========================================================
   {
     code: 'bagages',
     nom: 'Livraison des Bagages',
@@ -97,6 +109,50 @@ export const AIRPORT_ZONES: AirportZoneConfig[] = [
       'Personnel indisponible ou fermé',
     ],
   },
+
+  // ===========================================================
+  // EXTÉRIEUR (5 zones)
+  // ===========================================================
+  { code: 'ext_park_p1', nom: 'Parking P1 (Courte Durée)', emoji: '🅿️', description: 'Parking courte durée', tags: ['ext_park_p1_zone_a', 'ext_park_p1_zone_b', 'ext_park_p1_entree', 'ext_park_p1_sortie'], problemes: ['Barrière bloquée', 'Place introuvable', 'Tarif illisible', 'Insécurité'] },
+  { code: 'ext_park_p2', nom: 'Parking P2 (Longue Durée)', emoji: '🅿️', description: 'Parking longue durée', tags: ['ext_park_p2_zone_a', 'ext_park_p2_zone_b', 'ext_park_p2_navette', 'ext_park_p2_entree'], problemes: ['Navette absente', 'Véhicule sale ou endommagé', 'Éclairage HS', 'Insécurité'] },
+  { code: 'ext_depose_min', nom: 'Dépose-Minute / Kiss & Fly', emoji: '🚗', description: 'Zone dépose-minute', tags: ['ext_depose_min_1', 'ext_depose_min_2', 'ext_kiss_fly_1'], problemes: ['Congestion totale', 'Pas de place disponible', 'Agent verbalise injustement', 'Attente excessive'] },
+  { code: 'ext_taxi_off', nom: 'Station Taxis Officiels', emoji: '🚕', description: 'Station de taxis officiels', tags: ['ext_taxi_off_1', 'ext_taxi_off_2', 'ext_taxi_rank_1'], problemes: ['Chauffeur refuse compteur', 'Attente > 15 min', 'Comportement agressif', 'Tarif abusif'] },
+  { code: 'ext_transport_pub', nom: 'Arrêt Bus / VTC / Navette', emoji: '🚌', description: 'Transport public et navettes', tags: ['ext_bus_stop_1', 'ext_vtc_pickup_1', 'ext_navette_1', 'ext_transport_pub_1'], problemes: ['Retard navette', 'Information absente', 'Surcharge véhicule', 'Arrêt non accessible PMR'] },
+
+  // ===========================================================
+  // SÛRETÉ (3 zones)
+  // ===========================================================
+  { code: 'sec_filt_std', nom: 'Filtrage de Sûreté (Standard)', emoji: '🛡️', description: 'Filtrage sûreté standard', tags: ['sec_filt_std_1', 'sec_filt_std_2', 'sec_filt_std_a', 'sec_filt_std_b'], problemes: ['File trop lente (> 20 min)', 'Agent désagréable', 'Consignes floues', 'Bacs en plastique manquants'] },
+  { code: 'sec_filt_fast', nom: 'File Prioritaire / RAPIDE', emoji: '⚡', description: 'File prioritaire sûreté', tags: ['sec_filt_fast_1', 'sec_filt_fast_2', 'sec_priority_1'], problemes: ['Accès refusé injustifié', 'File aussi lente que standard', 'Pas de file prioritaire active', 'Information absente'] },
+  { code: 'sec_paf', nom: 'Police aux Frontières (PAF)', emoji: '🛂', description: 'Contrôle aux frontières PAF', tags: ['sec_paf_1', 'sec_paf_2', 'sec_paf_t1', 'sec_paf_t2'], problemes: ['Guichets fermés', 'Attente excessive', 'Contrôle brutal', 'Information absente'] },
+
+  // ===========================================================
+  // TERMINAL (5 zones)
+  // ===========================================================
+  { code: 'term_embarq', nom: 'Salles d\'Embarquement (Gates)', emoji: '✈️', description: 'Portes d\'embarquement', tags: ['term_embarq_a12', 'term_embarq_b07', 'term_embarq_c03', 'term_gate_1'], problemes: ['Porte changée sans info', 'Retard non annoncé', 'Clim/Chauffage HS', 'Sièges cassés ou sales'] },
+  { code: 'term_bagages', nom: 'Livraison des Bagages', emoji: '🧳', description: 'Tapis bagages et récupération', tags: ['term_bagages_1', 'term_bagages_2', 'term_bagages_tapis_a', 'term_bagages_tapis_b'], problemes: ['Tapis arrêté', 'Valise abîmée', 'Attente > 30 min', 'Chariot HS'] },
+  { code: 'term_checkin', nom: 'Files d\'Attente (Check-in)', emoji: '📋', description: 'Comptoirs d\'enregistrement', tags: ['term_checkin_1', 'term_checkin_2', 'term_checkin_a', 'term_checkin_b'], problemes: ['Comptoir fermé', 'Hôtesse absente', 'Système en panne', 'Attente excessive'] },
+  { code: 'term_sanitaires', nom: 'Sanitaires Publics', emoji: '🚻', description: 'Toilettes publiques', tags: ['term_sanitaires_1', 'term_sanitaires_2', 'term_wc_hall_1', 'term_wc_t1_1'], problemes: ['Papier manquant', 'Sol mouillé ou sale', 'Chasse d\'eau HS', 'Odeur'] },
+  { code: 'term_san_pmr', nom: 'Toilettes PMR / Famille', emoji: '♿', description: 'Sanitaires accessibles PMR', tags: ['term_san_pmr_1', 'term_san_pmr_2', 'term_wc_pmr_1'], problemes: ['Occupé en permanence', 'Équipement bébé HS', 'Accès bloqué', 'Propreté insuffisante'] },
+
+  // ===========================================================
+  // COMMERCIAL (3 zones)
+  // ===========================================================
+  { code: 'com_resto', nom: 'Restauration (Landside/Airside)', emoji: '🍽️', description: 'Restaurants et cafés', tags: ['com_resto_1', 'com_resto_2', 'com_resto_food_court', 'com_resto_cafe_1'], problemes: ['Service lent (> 15 min)', 'Plat froid ou frit', 'Table sale', 'Prix abusif'] },
+  { code: 'com_dutyfree', nom: 'Boutiques Duty-Free', emoji: '🛍️', description: 'Boutiques hors taxes', tags: ['com_dutyfree_1', 'com_dutyfree_2', 'com_dutyfree_a', 'com_dutyfree_b'], problemes: ['Produit indisponible', 'Prix non affiché', 'Staff ignoré', 'File excessive'] },
+  { code: 'com_lounge', nom: 'Salon VIP / Lounge', emoji: '🥂', description: 'Salons VIP et lounges', tags: ['com_lounge_1', 'com_lounge_2', 'com_lounge_t1', 'com_lounge_t2'], problemes: ['Accès refusé (bug système)', 'Surpeuplé', 'Nourriture froide', 'Wi-Fi inaccessible'] },
+
+  // ===========================================================
+  // SERVICE (3 zones)
+  // ===========================================================
+  { code: 'srv_enfants', nom: 'Espace Enfants / Aire de Jeux', emoji: '🧸', description: 'Aire de jeux enfants', tags: ['srv_enfants_1', 'srv_enfants_2', 'srv_aire_jeux_1'], problemes: ['Jeu cassé ou dangereux', 'Propreté insuffisante', 'Non surveillé', 'Équipement HS'] },
+  { code: 'srv_priere', nom: 'Espace Prière / Confessionnal', emoji: '🕌', description: 'Espace de prière', tags: ['srv_priere_1', 'srv_priere_2', 'srv_mosque_1'], problemes: ['Tapis sale', 'Horaires non respectés', 'Manque d\'intimité', 'Propreté insuffisante'] },
+  { code: 'srv_medical', nom: 'Infirmerie / Secours', emoji: '🚑', description: 'Infirmerie et secours', tags: ['srv_medical_1', 'srv_medical_2', 'srv_infirmerie_1'], problemes: ['Personnel absent', 'Délai intervention long', 'Matériel manquant', 'Accès fermé'] },
+
+  // ===========================================================
+  // URGENCE (1 zone) — Bouton unique APPELER SECOURS
+  // ===========================================================
+  { code: 'urg_sos', nom: 'Point d\'Urgence / SOS', emoji: '🚨', description: 'Point d\'urgence — bouton unique APPELER SECOURS', tags: ['urg_sos_1', 'urg_sos_2', 'urg_sos_colonne_1', 'urg_sos_borne_1'], problemes: ['APPELER SECOURS'] },
 ]
 
 /**
@@ -104,31 +160,107 @@ export const AIRPORT_ZONES: AirportZoneConfig[] = [
  * Si un problème n'est pas dans la map, un émoji générique est utilisé.
  */
 export const PROBLEM_EMOJIS: Record<string, string> = {
-  // Bagages
+  // Bagages (historique)
   'Tapis arrêté ou bloqué': '🛑',
   'Attente trop longue (> 30 min)': '⏳',
   'Chariots indisponibles': '🛒',
   'Bagage endommagé sur le tapis': '🧳',
-  // Sanitaires
+  "Mon bagage n'est pas sur le tapis": '❓',
+  'Bagage perdu': '🧳',
+  // Sanitaires (historique)
   'Manque de consommables (Papier/Savon)': '🧻',
   'Problème de propreté (Sol/Cuvette)': '🧹',
   "Dysfonctionnement technique (Chasse d'eau/Robinet)": '🔧',
   'Poubelle qui déborde': '🗑️',
-  // Files d'attente
+  // Files d'attente (historique)
   'Nombre de guichets ouverts insuffisant': '🚫',
   "Temps d'attente anormalement long": '⏳',
   'Absence de file Prioritaire/Famille active': '👨\u200d👩\u200d👧',
   'Manque de bacs en plastique (Sécurité)': '🧺',
-  // Embarquement
+  // Embarquement (historique)
   'Bornes de recharge / Ports USB HS': '🔌',
   'Wi-Fi inaccessible ou trop lent': '📶',
   'Problème de température (Trop chaud / Trop froid)': '🌡️',
   'Sièges cassés ou sol sale': '🪑',
-  // Restauration
+  // Restauration (historique)
   'Tables non débarrassées': '🍽️',
   'Distributeur automatique en panne': '🤖',
   'Prix non affichés': '💰',
   'Personnel indisponible ou fermé': '🔒',
+  // --- EXTÉRIEUR ---
+  'Barrière bloquée': '🚧',
+  'Place introuvable': '🔍',
+  'Tarif illisible': '🏷️',
+  'Insécurité': '🚨',
+  'Navette absente': '🚌',
+  'Véhicule sale ou endommagé': '🚙',
+  'Éclairage HS': '💡',
+  'Congestion totale': '🚦',
+  'Pas de place disponible': '🅿️',
+  'Agent verbalise injustement': '👮',
+  'Attente excessive': '⏳',
+  'Chauffeur refuse compteur': '🚕',
+  'Attente > 15 min': '⏳',
+  'Comportement agressif': '😠',
+  'Tarif abusif': '💸',
+  'Retard navette': '🚌',
+  'Information absente': 'ℹ️',
+  'Surcharge véhicule': '👥',
+  'Arrêt non accessible PMR': '♿',
+  // --- SÛRETÉ ---
+  'File trop lente (> 20 min)': '🐌',
+  'Agent désagréable': '😠',
+  'Consignes floues': '❓',
+  'Bacs en plastique manquants': '🧺',
+  'Accès refusé injustifié': '🚫',
+  'File aussi lente que standard': '🐌',
+  'Pas de file prioritaire active': '🚷',
+  'Guichets fermés': '🔒',
+  'Contrôle brutal': '🛂',
+  // --- TERMINAL ---
+  'Porte changée sans info': '🔄',
+  'Retard non annoncé': '⏰',
+  'Clim/Chauffage HS': '🌡️',
+  'Sièges cassés ou sales': '🪑',
+  'Tapis arrêté': '🛑',
+  'Valise abîmée': '🧳',
+  'Attente > 30 min': '⏳',
+  'Chariot HS': '🛒',
+  'Comptoir fermé': '🔒',
+  'Hôtesse absente': '🙍',
+  'Système en panne': '💻',
+  'Papier manquant': '🧻',
+  'Sol mouillé ou sale': '🧹',
+  "Chasse d'eau HS": '🔧',
+  'Odeur': '🤢',
+  'Occupé en permanence': '🚷',
+  'Équipement bébé HS': '🍼',
+  'Accès bloqué': '🚫',
+  'Propreté insuffisante': '🧹',
+  // --- COMMERCIAL ---
+  'Service lent (> 15 min)': '🐌',
+  'Plat froid ou frit': '🍽️',
+  'Table sale': '🍽️',
+  'Prix abusif': '💸',
+  'Produit indisponible': '📦',
+  'Staff ignoré': '🙍',
+  'File excessive': '👥',
+  'Accès refusé (bug système)': '🔒',
+  'Surpeuplé': '👥',
+  'Nourriture froide': '🍽️',
+  // --- SERVICE ---
+  'Jeu cassé ou dangereux': '🧸',
+  'Non surveillé': '👁️',
+  'Équipement HS': '🔧',
+  'Tapis sale': '🧹',
+  'Horaires non respectés': '⏰',
+  "Manque d'intimité": '🤫',
+  'Personnel absent': '🙅',
+  'Délai intervention long': '⏳',
+  'Matériel manquant': '🩹',
+  'Accès fermé': '🔒',
+  // --- URGENCE ---
+  'APPELER SECOURS': '🆘',
 }
 
 /** Retourne l'émoji associé à une problématique, ou un émoji générique */
@@ -154,6 +286,17 @@ export function resoudreZoneParTag(tag: string): AirportZoneConfig | null {
  */
 export function getZoneParCode(code: string): AirportZoneConfig | null {
   return AIRPORT_ZONES.find((z) => z.code === code) ?? null
+}
+
+/**
+ * Détecte si une zone est un point d'urgence SOS (1 seul problème
+ * "APPELER SECOURS"). Utilisé par la PWA pour afficher le bouton
+ * d'urgence stylisé différemment de la grille de problèmes standard.
+ */
+export function isSosZone(zone: { problemes?: string[] } | null | undefined): boolean {
+  if (!zone || !Array.isArray(zone.problemes)) return false
+  if (zone.problemes.length !== 1) return false
+  return zone.problemes[0] === 'APPELER SECOURS'
 }
 
 // ============================================================

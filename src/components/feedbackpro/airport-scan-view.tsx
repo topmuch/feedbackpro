@@ -43,6 +43,7 @@ import {
   LifeBuoy,
   Loader2,
   MapPin,
+  Siren,
   MessageSquare,
   Mic,
   MicOff,
@@ -55,7 +56,7 @@ import {
   X,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { getProblemEmoji } from "@/lib/airport-config"
+import { getProblemEmoji, isSosZone } from "@/lib/airport-config"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -1045,103 +1046,221 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
           </div>
         </section>
 
-        {/* Section : Quel est le problème ? — grille colorée vibrante */}
-        <section className="relative z-10 mx-auto w-full max-w-md px-4 py-6">
-          <div className="mb-4 flex items-center gap-2">
-            <div className="h-1 w-8 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500" />
-            <h2 className="text-lg font-bold text-slate-900">Quel est le problème ?</h2>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            {zoneData.problemes.map((probleme, idx) => {
-              const isSelected = highlightedProblem === probleme
-              const emoji = getProblemEmoji(probleme)
-              const colors = BUTTON_COLORS[idx % BUTTON_COLORS.length]
-              return (
-                <button
-                  key={`${idx}-${probleme}`}
-                  type="button"
-                  onClick={() => choisirProbleme(probleme)}
-                  aria-label={`Signaler : ${probleme}`}
-                  className={cn(
-                    "group relative flex flex-col items-center gap-2.5 overflow-hidden rounded-2xl p-4 text-center transition-all duration-300 min-h-[130px]",
-                    "hover:-translate-y-1",
-                    isSelected
-                      ? cn("border-2 ring-2 shadow-lg", colors.selBorder, colors.selBg, colors.selRing, colors.glow)
-                      : "border-2 border-white bg-white/70 backdrop-blur-md shadow-md hover:shadow-xl ring-1 ring-white/60"
-                  )}
-                >
-                  {/* Décor gradient en haut de carte (visible au hover) */}
-                  <div className={cn(
-                    "absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r transition-opacity duration-300",
-                    colors.bg,
-                    isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
-                  )} />
+        {isSosZone(zoneData) ? (
+          // ============================================================
+          // POINT D'URGENCE SOS (zone urg_sos)
+          // ------------------------------------------------------------
+          // Un seul bouton géant "APPELER SECOURS" qui remplace la grille
+          // de problèmes standard. Style urgency : rouge pulsant, plein
+          // écran, py-8, texte XL, halo de pulsation.
+          // Au clic → même flow choisirProbleme('APPELER SECOURS')
+          //          → phase probleme_choisi → confirmation WhatsApp ops.
+          // Le bouton "Demander de l'aide" autonome est masqué
+          // (redondant avec le bouton unique SOS).
+          // ============================================================
+          <>
+            <section className="relative z-10 mx-auto w-full max-w-md px-4 py-6">
+              <div className="mb-4 flex items-center gap-2">
+                <div className="h-1 w-8 rounded-full bg-gradient-to-r from-red-500 to-rose-600" />
+                <h2 className="text-lg font-black uppercase tracking-tight text-red-700">
+                  Urgence
+                </h2>
+              </div>
 
-                  {/* Émoji dans un cercle coloré */}
-                  <div className={cn(
-                    "flex size-14 items-center justify-center rounded-2xl transition-all duration-300 group-hover:scale-110 group-hover:rotate-3",
-                    isSelected
-                      ? cn("bg-gradient-to-br text-white shadow-lg", colors.bg)
-                      : "bg-gradient-to-br from-slate-100 to-slate-200 group-hover:" + colors.bg.replace('from-', 'from-').replace('to-', 'to-')
-                  )}>
-                    <span className="text-2xl leading-none" aria-hidden>
-                      {emoji}
-                    </span>
+              {/* Bandeau d'avertissement pré-bouton */}
+              <div className="mb-4 flex items-start gap-3 rounded-2xl border-2 border-red-200 bg-red-50/80 p-4 backdrop-blur-sm">
+                <AlertTriangle className="mt-0.5 size-5 shrink-0 text-red-600" aria-hidden />
+                <p className="text-sm font-medium leading-snug text-red-900">
+                  Appuyez sur le bouton ci-dessous uniquement en cas
+                  d&apos;urgence vitale. Un agent sécurité sera dépêché
+                  immédiatement sur place.
+                </p>
+              </div>
+
+              {/* --- Bouton unique APPELER SECOURS --- */}
+              <button
+                type="button"
+                onClick={() => choisirProbleme("APPELER SECOURS")}
+                aria-label="Appeler les secours immédiatement"
+                className={cn(
+                  "group relative flex w-full flex-col items-center justify-center gap-3 overflow-hidden rounded-3xl border-2 py-8 text-center transition-all duration-300",
+                  highlightedProblem === "APPELER SECOURS"
+                    ? "border-red-900 ring-4 ring-red-300 shadow-2xl shadow-red-600/40"
+                    : "border-red-700 shadow-2xl shadow-red-600/30 hover:scale-[1.02] active:scale-[0.99]",
+                  "sos-emergency-btn",
+                )}
+              >
+                {/* Fond dégradé rouge vibrant */}
+                <div className="absolute inset-0 bg-gradient-to-br from-red-500 via-rose-600 to-red-700" />
+
+                {/* Halo de pulsation (anneau extérieur) */}
+                <div
+                  className="pointer-events-none absolute inset-0 rounded-3xl ring-4 ring-red-300/70"
+                  style={{ animation: "sosPulse 1.4s ease-out infinite" }}
+                  aria-hidden
+                />
+
+                {/* Reflet glassmorphism animé (effet "lumière qui balaie") */}
+                <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+
+                {/* Icône Siren dans un cercle blanc */}
+                <div className="relative flex size-20 items-center justify-center rounded-full bg-white/95 shadow-2xl shadow-red-900/30 ring-4 ring-white/40">
+                  <Siren
+                    className="size-10 text-red-600"
+                    aria-hidden
+                    style={{ animation: "sosShake 0.6s ease-in-out infinite" }}
+                  />
+                </div>
+
+                {/* Texte principal */}
+                <span className="relative text-2xl font-black uppercase tracking-wide text-white drop-shadow-lg sm:text-3xl">
+                  Appeler les Secours
+                </span>
+
+                {/* Sous-texte */}
+                <span className="relative text-sm font-semibold uppercase tracking-widest text-white/90">
+                  Appuyez ici
+                </span>
+
+                {/* Indicateur de clic */}
+                {highlightedProblem === "APPELER SECOURS" ? (
+                  <div className="absolute top-3 right-3 flex size-7 items-center justify-center rounded-full bg-white text-red-600 shadow-lg">
+                    <CheckCircle2 className="size-5" aria-hidden />
                   </div>
+                ) : null}
+              </button>
 
-                  {/* Texte du problème */}
-                  <span
-                    className={cn(
-                      "text-xs font-bold leading-snug sm:text-[13px]",
-                      isSelected ? colors.selText : "text-slate-700"
-                    )}
-                  >
-                    {probleme}
-                  </span>
+              {/* Mention légale sous le bouton */}
+              <p className="mt-3 text-center text-xs font-medium text-slate-500">
+                Signalement transmis en temps réel au SOC aéroport.
+              </p>
+            </section>
 
-                  {/* Indicateur de sélection */}
-                  {isSelected ? (
-                    <div className="absolute top-2.5 right-2.5 flex size-6 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-md">
-                      <CheckCircle2 className="size-4" aria-hidden />
-                    </div>
-                  ) : null}
-                </button>
-              )
-            })}
-          </div>
-        </section>
+            {/* Style inline : animations SOS (pulse, shake, float) */}
+            <style>{`
+              @keyframes sosPulse {
+                0%   { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0.55); opacity: 1; }
+                70%  { box-shadow: 0 0 0 22px rgba(244, 63, 94, 0); opacity: 0.4; }
+                100% { box-shadow: 0 0 0 0 rgba(244, 63, 94, 0); opacity: 0; }
+              }
+              @keyframes sosShake {
+                0%, 100% { transform: rotate(0deg); }
+                25%      { transform: rotate(-8deg); }
+                75%      { transform: rotate(8deg); }
+              }
+              @keyframes gentleFloat {
+                0%, 100% { transform: translateY(0); }
+                50%      { transform: translateY(-6px); }
+              }
+            `}</style>
+          </>
+        ) : (
+          // ============================================================
+          // CAS STANDARD (toutes les zones sauf urg_sos)
+          // ------------------------------------------------------------
+          // Grille 2 colonnes de boutons colorés vibrants + bouton
+          // autonome "Demander de l'aide" en bas.
+          // ============================================================
+          <>
+            {/* Section : Quel est le problème ? — grille colorée vibrante */}
+            <section className="relative z-10 mx-auto w-full max-w-md px-4 py-6">
+              <div className="mb-4 flex items-center gap-2">
+                <div className="h-1 w-8 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500" />
+                <h2 className="text-lg font-bold text-slate-900">Quel est le problème ?</h2>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {zoneData.problemes.map((probleme, idx) => {
+                  const isSelected = highlightedProblem === probleme
+                  const emoji = getProblemEmoji(probleme)
+                  const colors = BUTTON_COLORS[idx % BUTTON_COLORS.length]
+                  return (
+                    <button
+                      key={`${idx}-${probleme}`}
+                      type="button"
+                      onClick={() => choisirProbleme(probleme)}
+                      aria-label={`Signaler : ${probleme}`}
+                      className={cn(
+                        "group relative flex flex-col items-center gap-2.5 overflow-hidden rounded-2xl p-4 text-center transition-all duration-300 min-h-[130px]",
+                        "hover:-translate-y-1",
+                        isSelected
+                          ? cn("border-2 ring-2 shadow-lg", colors.selBorder, colors.selBg, colors.selRing, colors.glow)
+                          : "border-2 border-white bg-white/70 backdrop-blur-md shadow-md hover:shadow-xl ring-1 ring-white/60"
+                      )}
+                    >
+                      {/* Décor gradient en haut de carte (visible au hover) */}
+                      <div className={cn(
+                        "absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r transition-opacity duration-300",
+                        colors.bg,
+                        isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+                      )} />
 
-        {/* ---------- Bouton "Demander de l'aide" autonome ---------- */}
-        {/* Bouton distinct des problématiques de zone — SOS avec ses propres tags */}
-        <section className="relative z-10 mx-auto w-full max-w-md px-4 pb-6">
-          <button
-            type="button"
-            onClick={() => {
-              setSosTag(null)
-              setHelpMessage("")
-              setHelpPhone("")
-              setHelpError(null)
-              setPhase("aide_sos")
-            }}
-            className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-rose-500 via-pink-500 to-rose-600 py-4 text-base font-bold text-white shadow-xl shadow-rose-500/30 transition-all hover:shadow-2xl hover:shadow-rose-500/40 active:scale-[0.99]"
-            aria-label="Demander de l'aide immédiatement"
-          >
-            <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
-            <LifeBuoy className="size-5" aria-hidden />
-            <span>Demander de l&apos;aide</span>
-          </button>
-          <p className="mt-1.5 text-center text-xs text-slate-500">
-            Un agent ops vient vous aider sur place
-          </p>
-        </section>
+                      {/* Émoji dans un cercle coloré */}
+                      <div className={cn(
+                        "flex size-14 items-center justify-center rounded-2xl transition-all duration-300 group-hover:scale-110 group-hover:rotate-3",
+                        isSelected
+                          ? cn("bg-gradient-to-br text-white shadow-lg", colors.bg)
+                          : "bg-gradient-to-br from-slate-100 to-slate-200 group-hover:" + colors.bg.replace('from-', 'from-').replace('to-', 'to-')
+                      )}>
+                        <span className="text-2xl leading-none" aria-hidden>
+                          {emoji}
+                        </span>
+                      </div>
 
-        {/* Style inline pour l'animation float */}
-        <style>{`
-          @keyframes gentleFloat {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-6px); }
-          }
-        `}</style>
+                      {/* Texte du problème */}
+                      <span
+                        className={cn(
+                          "text-xs font-bold leading-snug sm:text-[13px]",
+                          isSelected ? colors.selText : "text-slate-700"
+                        )}
+                      >
+                        {probleme}
+                      </span>
+
+                      {/* Indicateur de sélection */}
+                      {isSelected ? (
+                        <div className="absolute top-2.5 right-2.5 flex size-6 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-md">
+                          <CheckCircle2 className="size-4" aria-hidden />
+                        </div>
+                      ) : null}
+                    </button>
+                  )
+                })}
+              </div>
+            </section>
+
+            {/* ---------- Bouton "Demander de l'aide" autonome ---------- */}
+            {/* Bouton distinct des problématiques de zone — SOS avec ses propres tags */}
+            <section className="relative z-10 mx-auto w-full max-w-md px-4 pb-6">
+              <button
+                type="button"
+                onClick={() => {
+                  setSosTag(null)
+                  setHelpMessage("")
+                  setHelpPhone("")
+                  setHelpError(null)
+                  setPhase("aide_sos")
+                }}
+                className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-rose-500 via-pink-500 to-rose-600 py-4 text-base font-bold text-white shadow-xl shadow-rose-500/30 transition-all hover:shadow-2xl hover:shadow-rose-500/40 active:scale-[0.99]"
+                aria-label="Demander de l'aide immédiatement"
+              >
+                <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+                <LifeBuoy className="size-5" aria-hidden />
+                <span>Demander de l&apos;aide</span>
+              </button>
+              <p className="mt-1.5 text-center text-xs text-slate-500">
+                Un agent ops vient vous aider sur place
+              </p>
+            </section>
+
+            {/* Style inline pour l'animation float */}
+            <style>{`
+              @keyframes gentleFloat {
+                0%, 100% { transform: translateY(0); }
+                50% { transform: translateY(-6px); }
+              }
+            `}</style>
+          </>
+        )}
       </div>
     )
   }
