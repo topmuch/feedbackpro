@@ -892,3 +892,89 @@ model SystemHealthLog {
   @@index([serviceName, detectedAt])
   @@index([status, detectedAt])
 }
+
+// ============================================================
+// Task VDE — Voice Decision Engine (Denise's Brain)
+// ------------------------------------------------------------
+// Denise = la voix de la plateforme. Elle ne parle pas pour
+// chaque événement : elle décide si elle doit parler, dans quel
+// ton, à quel volume, et si elle doit agréger plusieurs signaux
+// proches pour éviter la cacophonie.
+//
+// 3 modèles :
+//   VoiceDecisionRule   — matrice (secteur × eventType) → comportement
+//   VoiceAnnouncementLog — historique des annonces (pour audit + dédup)
+//   VoiceTimeMode        — mode horaire par secteur (night/service/quiet…)
+//
+// Pipeline 5 étapes (lib/voice-decision-engine.ts) :
+//   1. Fetch rule (sector + eventType)
+//   2. Time context (night/service_lunch/dinner → filtres)
+//   3. Aggregation (compter dans la fenêtre, désup si seuil atteint)
+//   4. Deduplication (dernier 120s même zoneRef + eventType)
+//   5. Build message + log + return decision JSON
+// ============================================================
+
+model VoiceDecisionRule {
+  id                         String   @id @default(cuid())
+  // Secteur : "aeroport" | "restaurant"
+  sector                     String
+  // Type d'événement : "security_sanitary" | "incident_service" | "new_scan" |
+  // "product_missing" | "incident_resolved" | "feedback_positive" |
+  // "staff_connect" | "plate_error" | "service_slow" | "negative_feedback" |
+  // "product_out_of_stock" | "reservation_cancelled" | "rush_hour"
+  eventType                  String
+  // shouldSpeak : true = Denise parle, false = silence (notification visuelle seule)
+  shouldSpeak                Boolean  @default(true)
+  // Priorité : "critical" | "important" | "info" | "silent"
+  priority                   String   @default("info")
+  // Ton : "urgent" | "firm" | "soft" | "calm"
+  tone                       String   @default("firm")
+  // Ajustement de volume : "+20%" | "0%" | "-10%"
+  volumeAdjustment           String   @default("0%")
+  // Template TTS avec variables {ZONE}, {TYPE}, {TEMPS}, {TABLE}, {PRODUIT}, {DETAIL}, {STAFF_NOM}
+  template                   String
+  // Agrégation : fenêtre en secondes (ex: 180 = 3min). 0 = jamais agréger
+  aggregationWindowSec       Int      @default(0)
+  // Max annonces par fenêtre (ex: 1 = max 1 annonce / 5min par zone)
+  maxAnnouncementsPerWindow  Int      @default(1)
+  // Actif
+  active                     Boolean  @default(true)
+  createdAt                  DateTime @default(now())
+  updatedAt                  DateTime @updatedAt
+
+  @@unique([sector, eventType])
+  @@index([sector, active])
+}
+
+model VoiceAnnouncementLog {
+  id          String   @id @default(cuid())
+  // Événement qui a déclenché l'annonce
+  eventType   String
+  sector      String
+  // Message prononcé
+  message     String
+  // Priorité
+  priority    String
+  // Zone/table concernée (pour déduplication)
+  zoneRef     String?
+  // ReportId lié si applicable
+  reportId    String?
+  // Si shouldSpeak=false, message non prononcé (silence)
+  spoken      Boolean  @default(true)
+  // Raison de la décision (pour audit)
+  reason      String?
+  createdAt   DateTime @default(now())
+
+  @@index([sector, zoneRef, createdAt])
+  @@index([eventType, createdAt])
+}
+
+model VoiceTimeMode {
+  id          String   @id @default(cuid())
+  sector      String   @unique
+  // JSON : { "06-10": "opening", "10-14": "service_lunch", "14-18": "quiet", "18-22": "service_dinner", "22-06": "night" }
+  // En mode "night" : uniquement security/sanitary. En "service_lunch/dinner" : uniquement critical+important.
+  modes       String   @default("{\"06-10\":\"opening\",\"10-14\":\"service_lunch\",\"14-18\":\"quiet\",\"18-22\":\"service_dinner\",\"22-06\":\"night\"}")
+  active      Boolean  @default(true)
+  updatedAt   DateTime @updatedAt
+}

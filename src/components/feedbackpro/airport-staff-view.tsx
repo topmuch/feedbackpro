@@ -127,7 +127,6 @@ import {
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { parler } from '@/lib/staff-tts'
 import { jouerDing, vibrer } from '@/lib/staff-alert'
-import { routerVersService, serviceLabel } from '@/lib/airport-routing'
 import {
   areNotificationsSupported,
   getExistingSubscription,
@@ -224,6 +223,67 @@ const URGENT_KEYWORDS = [
   'malaise',
   'bless',
 ]
+
+// ============================================================
+// Voice Decision Engine — Denise "réfléchit" avant de parler
+// ------------------------------------------------------------
+// Au lieu d'appeler parler() directement pour chaque nouvel incident,
+// on interroge le moteur /api/voice/decide. Il applique :
+//   1. La règle configurée pour (aeroport, eventType)
+//   2. Le mode horaire (night / service_lunch / etc.)
+//   3. L'agrégation (max 1 annonce / X min par zone)
+//   4. La déduplication (anti-double-scan)
+//
+// Si shouldSpeak=true → parler(decision.message).
+// Sinon → silence (notification visuelle seule, mais l'incident reste
+// dans la liste "Nouveaux" pour prise en charge).
+// ============================================================
+type VoiceEvent = {
+  sector: 'aeroport' | 'restaurant'
+  eventType: string
+  zone?: string
+  type?: string
+  temps?: string
+  table?: string
+  produit?: string
+  detail?: string
+  reportId?: string
+  staffName?: string
+}
+type VoiceDecision = {
+  shouldSpeak: boolean
+  priority: string
+  tone: string
+  volumeAdjustment: string
+  message: string
+  targetAudience: string[]
+  aggregateId: string | null
+  suppressUntil: string | null
+  reason: string
+}
+
+async function decideAndParler(event: VoiceEvent): Promise<VoiceDecision | null> {
+  try {
+    const res = await fetch('/api/voice/decide', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event }),
+    })
+    if (!res.ok) return null
+    const json = (await res.json()) as { decision?: VoiceDecision }
+    const decision = json.decision
+    if (!decision) return null
+    if (decision.shouldSpeak && decision.message) {
+      // parler() ne prend que le texte ; le volume/tone est géré côté
+      // moteur (decision.volumeAdjustment / decision.tone). On garde
+      // l'appel simple pour ne pas modifier l'API existante de staff-tts.
+      parler(decision.message)
+    }
+    return decision
+  } catch {
+    return null
+  }
+}
 
 // ---------- Type PWA install ----------
 
@@ -708,15 +768,27 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
       // S2 — Chaîne d'alerte : vibrer + ding + Denise
       vibrer()
       jouerDing()
+      // VDE — Voice Decision Engine :
+      // Pour chaque nouvel incident, on interroge le moteur côté serveur
+      // (/api/voice/decide) qui applique la matrice de règles (sector +
+      // eventType), le mode horaire, l'agrégation et la déduplication.
+      // Le moteur renvoie une décision : si shouldSpeak=true, decideAndParler
+      // appelle parler(message) avec le template rendu. Sinon, Denise se
+      // tait (notification visuelle seule — l'incident reste dans la liste
+      // "Nouveaux" pour prise en charge manuelle).
       for (const r of fresh) {
         const zoneNom = r.zone?.nom ?? r.tagScanne ?? 'zone inconnue'
         const terminal = extractTerminal(r.tagScanne + ' ' + r.zone?.nom)
-        const team = routerVersService(r.problemType)
-        const equipe = team === 'other' ? '' : ` Équipe ${serviceLabel(team)}.`
-        // Denise : "Nouvel incident Terminal 2, Porte B12. Type: Propreté."
-        parler(
-          `Nouvel incident ${terminal}, ${zoneNom}. Type: ${r.problemType}.${equipe} Veuillez prendre en charge.`,
-        )
+        const elapsedMs = Date.now() - new Date(r.createdAt).getTime()
+        const tempsMin = Math.max(1, Math.floor(elapsedMs / 60000))
+        void decideAndParler({
+          sector: 'aeroport',
+          eventType: 'new_scan',
+          zone: `${terminal}, ${zoneNom}`.trim(),
+          type: r.problemType,
+          temps: `${tempsMin} min`,
+          reportId: r.id,
+        })
       }
 
       // S2 — Auto-navigation vers l'écran incident-new si sur home/dashboard.

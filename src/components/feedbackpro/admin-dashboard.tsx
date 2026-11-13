@@ -51,6 +51,7 @@ import {
   Megaphone,
   ImagePlus,
   Bell,
+  Mic,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -94,6 +95,7 @@ import { useToast } from "@/hooks/use-toast"
 import { NotificationsBell } from "@/components/feedbackpro/notifications-bell"
 import { AdminOperationsTab } from "@/components/feedbackpro/admin-operations-tab"
 import { AdminNotificationsTab } from "@/components/feedbackpro/admin-notifications-tab"
+import { AdminVoiceTab } from "@/components/feedbackpro/admin-voice-tab"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { LanguageSelector } from "@/components/feedbackpro/language-selector"
 import { exportToCsv } from "@/lib/export-csv"
@@ -141,6 +143,7 @@ type OngletAdmin =
   | "publicites"
   | "notifications"
   | "operations"
+  | "voix"
 
 const ONGLETS: { id: OngletAdmin; labelKey: string; icone: React.ComponentType<{ className?: string }> }[] = [
   { id: "globale", labelKey: "nav.overview", icone: LayoutDashboard },
@@ -155,6 +158,7 @@ const ONGLETS: { id: OngletAdmin; labelKey: string; icone: React.ComponentType<{
   { id: "messages", labelKey: "nav.messages", icone: Mail },
   { id: "email", labelKey: "nav.email", icone: Send },
   { id: "notifications", labelKey: "nav.notifications", icone: Bell },
+  { id: "voix", labelKey: "nav.voix", icone: Mic },
   { id: "parametres", labelKey: "nav.parametres", icone: Settings },
   { id: "publicites", labelKey: "nav.publicites", icone: Megaphone },
 ]
@@ -297,7 +301,7 @@ function enArray<T>(v: T[] | null | undefined): T[] {
 // ============================================================
 
 export function AdminDashboard() {
-  const t = (key: string) => { const map: Record<string, string> = {"nav.overview": "Vue d'ensemble", "nav.commercants": "Commercants", "nav.utilisateurs": "Utilisateurs", "nav.commandes": "Commandes", "nav.revenus": "Revenus", "nav.retention": "Retention", "nav.secteurs": "Config. secteurs", "nav.modules": "Modules", "nav.messages": "Messages", "nav.email": "Email", "nav.parametres": "Parametres", "nav.publicites": "Publicités", "nav.operations": "Centre Opérationnel", "nav.notifications": "Notifications", "nav.superadmin": "Superadmin", "nav.gestion": "Gestion", "common.navigationAdmin": "Sections administration", "common.ouvrirMenu": "Ouvrir le menu", "common.deconnexion": "Deconnexion", "common.connecteSuperadmin": "Connecte en superadmin", "dashboard.titreAdmin": "Administration FeedbackPro"}; return map[key] || key }
+  const t = (key: string) => { const map: Record<string, string> = {"nav.overview": "Vue d'ensemble", "nav.commercants": "Commercants", "nav.utilisateurs": "Utilisateurs", "nav.commandes": "Commandes", "nav.revenus": "Revenus", "nav.retention": "Retention", "nav.secteurs": "Config. secteurs", "nav.modules": "Modules", "nav.messages": "Messages", "nav.email": "Email", "nav.parametres": "Parametres", "nav.publicites": "Publicités", "nav.operations": "Centre Opérationnel", "nav.notifications": "Notifications", "nav.voix": "Voix Denise", "nav.superadmin": "Superadmin", "nav.gestion": "Gestion", "common.navigationAdmin": "Sections administration", "common.ouvrirMenu": "Ouvrir le menu", "common.deconnexion": "Deconnexion", "common.connecteSuperadmin": "Connecte en superadmin", "dashboard.titreAdmin": "Administration FeedbackPro"}; return map[key] || key }
   const [onglet, setOnglet] = useState<OngletAdmin>(() => ongletDepuisUrl())
   const [overview, setOverview] = useState<OverviewApi | null>(null)
   const [menuOuvert, setMenuOuvert] = useState(false)
@@ -453,6 +457,7 @@ export function AdminDashboard() {
         {onglet === "messages" && <MessagesTab onApresAction={loadMessagesNonLus} />}
         {onglet === "email" && <EmailTab />}
         {onglet === "notifications" && <AdminNotificationsTab />}
+        {onglet === "voix" && <AdminVoiceTab />}
         {onglet === "parametres" && <ParametresTab />}
         {onglet === "publicites" && <PublicitesTab />}
       </main>
@@ -477,7 +482,7 @@ function ContenuSidebarAdmin({
   onLogout: () => void
   messagesNonLus?: number
 }) {
-  const t = (key: string) => { const map: Record<string, string> = {"nav.overview": "Vue d'ensemble", "nav.commercants": "Commercants", "nav.utilisateurs": "Utilisateurs", "nav.commandes": "Commandes", "nav.revenus": "Revenus", "nav.retention": "Retention", "nav.secteurs": "Config. secteurs", "nav.modules": "Modules", "nav.messages": "Messages", "nav.email": "Email", "nav.parametres": "Parametres", "nav.publicites": "Publicités", "nav.operations": "Centre Opérationnel", "nav.notifications": "Notifications", "nav.superadmin": "Superadmin", "nav.gestion": "Gestion", "common.navigationAdmin": "Sections administration", "common.ouvrirMenu": "Ouvrir le menu", "common.deconnexion": "Deconnexion", "common.connecteSuperadmin": "Connecte en superadmin", "dashboard.titreAdmin": "Administration FeedbackPro"}; return map[key] || key }
+  const t = (key: string) => { const map: Record<string, string> = {"nav.overview": "Vue d'ensemble", "nav.commercants": "Commercants", "nav.utilisateurs": "Utilisateurs", "nav.commandes": "Commandes", "nav.revenus": "Revenus", "nav.retention": "Retention", "nav.secteurs": "Config. secteurs", "nav.modules": "Modules", "nav.messages": "Messages", "nav.email": "Email", "nav.parametres": "Parametres", "nav.publicites": "Publicités", "nav.operations": "Centre Opérationnel", "nav.notifications": "Notifications", "nav.voix": "Voix Denise", "nav.superadmin": "Superadmin", "nav.gestion": "Gestion", "common.navigationAdmin": "Sections administration", "common.ouvrirMenu": "Ouvrir le menu", "common.deconnexion": "Deconnexion", "common.connecteSuperadmin": "Connecte en superadmin", "dashboard.titreAdmin": "Administration FeedbackPro"}; return map[key] || key }
   return (
     <div className="flex h-full flex-col">
       {/* Logo */}

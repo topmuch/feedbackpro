@@ -566,6 +566,65 @@ function speak(text: string, enabled: boolean) {
   }
 }
 
+// ============================================================
+// Voice Decision Engine — Denise "réfléchit" avant de parler
+// ------------------------------------------------------------
+// Au lieu d'appeler speak() directement pour chaque nouveau signalement,
+// on interroge POST /api/voice/decide. Le moteur applique :
+//   1. La règle configurée pour (aeroport, eventType)
+//   2. Le mode horaire (night / service_lunch / etc.)
+//   3. L'agrégation (max N annonces / fenêtre par zone)
+//   4. La déduplication (anti-double-scan < 60s, anti-doublon < 120s)
+//
+// Si shouldSpeak=true → speak(decision.message, true).
+// Sinon → silence (le wallboard affiche visuellement le signalement
+// mais n'émet pas de TTS — Denise décide qu'il n'est pas pertinent
+// de parler pour cet événement à cette heure / pour cette zone).
+// ============================================================
+type VoiceEvent = {
+  sector: 'aeroport' | 'restaurant'
+  eventType: string
+  zone?: string
+  type?: string
+  temps?: string
+  table?: string
+  produit?: string
+  detail?: string
+  reportId?: string
+  staffName?: string
+}
+type VoiceDecision = {
+  shouldSpeak: boolean
+  priority: string
+  tone: string
+  volumeAdjustment: string
+  message: string
+  targetAudience: string[]
+  aggregateId: string | null
+  suppressUntil: string | null
+  reason: string
+}
+
+async function decideAndSpeakForWallboard(event: VoiceEvent): Promise<VoiceDecision | null> {
+  try {
+    const res = await fetch('/api/voice/decide', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ event }),
+    })
+    if (!res.ok) return null
+    const json = (await res.json()) as { decision?: VoiceDecision }
+    const decision = json.decision
+    if (!decision) return null
+    if (decision.shouldSpeak && decision.message) {
+      speak(decision.message, true)
+    }
+    return decision
+  } catch {
+    return null
+  }
+}
+
 /** Triple-ding d'escalade — généré via Web Audio API (660/880/990 Hz).
  *  Utilisé pour le rappel 15 min : quand un signalement EN_ATTENTE/EN_COURS
  *  franchit un seuil (15, 20, 25, 30… min), on joue ce triple-ding pour
@@ -678,26 +737,25 @@ export default function OpsWallboardPage() {
           if (soundOn && newReports.length > 0) {
             const latest = newReports[0]
             playSound(SOUND_NORMAL, audioRef)
-            // --- DENISE COMMANDE : ordre impératif, pas juste une alerte ---
-            // Format : "Urgence. [Zone]. [Problème]. [Équipe], intervenez immédiatement."
-            // + vol si présent + tag emplacement
+            // VDE — Voice Decision Engine :
+            // Au lieu de forcer un TTS "Urgence. [Zone]…", on interroge le
+            // moteur /api/voice/decide qui renvoie :
+            //   - shouldSpeak=false → Denise se tait (mode nuit, doublon,
+            //     agrégation saturée…). Le ding a déjà sonné pour attirer
+            //     l'attention visuelle.
+            //   - shouldSpeak=true → speak(decision.message) avec le
+            //     template rendu côté serveur.
             const zoneNom = latest.zone?.nom ?? latest.tagScanne
-            const teamMap: Record<string, string> = {
-              nettoyage: 'Équipe nettoyage',
-              maintenance: 'Équipe maintenance',
-              securite: 'Équipe sécurité',
-              accueil: 'Équipe accueil',
-              logistique: 'Équipe logistique bagages',
-              autre: 'Équipe ops',
-            }
-            const teamLabel = latest.routedTeam ? (teamMap[latest.routedTeam] ?? 'Équipe ops') : 'Équipe ops'
-            const parts: string[] = ['Urgence']
-            parts.push(zoneNom)
-            parts.push(latest.problemType)
-            parts.push(`${teamLabel}, intervenez immédiatement`)
-            if (latest.flightNumber) parts.push(`Vol ${latest.flightNumber}`)
-            parts.push(latest.tagScanne)
-            setTimeout(() => speak(parts.join('. ') + '.', soundOn), 400)
+            const elapsedMs = Date.now() - new Date(latest.createdAt).getTime()
+            const tempsMin = Math.max(1, Math.floor(elapsedMs / 60000))
+            void decideAndSpeakForWallboard({
+              sector: 'aeroport',
+              eventType: 'new_scan',
+              zone: zoneNom,
+              type: latest.problemType,
+              temps: `${tempsMin} min`,
+              reportId: latest.id,
+            })
           }
         }
       }
