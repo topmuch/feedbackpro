@@ -262,7 +262,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch {
       /* ignore */
     }
-    set({ session: null, view: "landing" })
+    // Nettoie l'URL : retire /dashboard/<tab> ou tout autre path
+    // pour revenir à la racine / (page de connexion)
+    try {
+      if (typeof window !== "undefined") {
+        window.history.replaceState({}, "", "/")
+      }
+    } catch {
+      /* ignore */
+    }
+    // Affiche la page de connexion (pas la landing)
+    set({ session: null, view: "auth", authMode: "login" })
   },
 
   updatePro: (pro) => {
