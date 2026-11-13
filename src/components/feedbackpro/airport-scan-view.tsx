@@ -71,6 +71,7 @@ import {
 import { AirportOfflineBanner } from "@/components/feedbackpro/airport-offline-banner"
 import { useAirportOffline } from "@/hooks/use-airport-offline"
 import { routerVersService, serviceLabel } from "@/lib/airport-routing"
+import { parler } from "@/lib/staff-tts"
 
 // ---------- Types locaux (contrat API) ----------
 
@@ -305,6 +306,9 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
   const voiceStreamRef = useRef<MediaStream | null>(null)
+  // Ref pour s'assurer que Denise ne parle qu'une seule fois par signalement
+  // sur l'écran de confirmation (pas à chaque re-render).
+  const deniseConfirmSpokenRef = useRef<string | null>(null)
 
   // --- Offline PWA (Phase 2 — fonctionne sans 4G) ---
   const offline = useAirportOffline()
@@ -737,6 +741,27 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
 
   // ---------- "Signaler un autre problème" : reset vers zone_detectee ----------
   // On conserve le tag/zone (zoneData) — seul le signalement courant est réinitialisé.
+  // ---------- Denise annonce la confirmation au voyageur ----------
+  // Quand le voyageur arrive sur l'écran de confirmation (phase = "confirmation"
+  // + reportResult set), Denise parle UNE SEULE FOIS pour confirmer que le
+  // signalement est bien pris en compte. Le ref deniseConfirmSpokenRef stocke
+  // l'ID du report déjà annoncé → pas de re-annonce au re-render.
+  useEffect(() => {
+    if (phase !== "confirmation" || !reportResult) return
+    const reportId = reportResult.report.id
+    if (deniseConfirmSpokenRef.current === reportId) return
+    deniseConfirmSpokenRef.current = reportId
+
+    // Calculer le nom du service concerné pour l'annonce
+    const team = routerVersService(reportResult.report.problemType)
+    const equipeLabel = team === 'other' ? "l'équipe technique" : `l'équipe ${serviceLabel(team)}`
+
+    // Message de confirmation — voix Denise (fr-FR, pitch grave, débit rapide)
+    parler(
+      `Votre signalement a bien été reçu. ${equipeLabel} a été alertée et intervient sur place. Merci pour votre contribution.`
+    )
+  }, [phase, reportResult])
+
   const signalerAutre = useCallback(() => {
     setSelectedProblem(null)
     setHighlightedProblem(null)
@@ -746,6 +771,8 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
     setFlightNumber("")
     setSubmitError(null)
     setReportResult(null)
+    // Reset Denise pour qu'elle parle au prochain signalement
+    deniseConfirmSpokenRef.current = null
     setWhatsappPhone("")
     setWhatsappSubmitted(null)
     setWhatsappError(null)
