@@ -1358,12 +1358,22 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
         <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col px-4 py-8">
           {/* Logo aéroport + coche succès */}
           <div className="flex flex-col items-center text-center">
-            {zoneData?.airportLogo && (
+            {/* Logo aéroport (si configuré) OU fallback icône avion */}
+            {zoneData?.airportLogo ? (
               <img
                 src={zoneData.airportLogo}
                 alt={zoneData.airportName ?? "Aéroport"}
                 className="mb-4 h-16 w-auto rounded-lg object-contain bg-white/80 p-1 shadow-md backdrop-blur-md"
               />
+            ) : (
+              <div className="mb-4 flex h-16 items-center justify-center rounded-2xl bg-white/80 px-4 shadow-md backdrop-blur-md ring-1 ring-white/60">
+                <Plane className="size-8 text-[#5257C9]" aria-hidden />
+              </div>
+            )}
+            {zoneData?.airportName && (
+              <p className="mb-4 text-xs font-bold uppercase tracking-widest text-slate-400">
+                {zoneData.airportName}
+              </p>
             )}
             <div className="relative">
               <div className="absolute inset-0 -m-6 rounded-full bg-gradient-to-br from-emerald-300/40 to-teal-300/30 blur-2xl" />
