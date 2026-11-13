@@ -950,15 +950,6 @@ export function LandingView({
           <div className="grid grid-cols-1 lg:grid-cols-[55%_45%] gap-12 lg:gap-8 items-center">
             {/* Left column — text */}
             <div className="text-center lg:text-left">
-              <Reveal>
-                <img
-                  src="/logo-feedbackpro.png"
-                  alt="FeedbackPro"
-                  className="h-10 w-auto mx-auto lg:mx-0 mb-6"
-                  style={{ filter: "drop-shadow(0 4px 16px rgba(82,87,201,0.25))" }}
-                />
-              </Reveal>
-
               <Reveal delay={0.05}>
                 <span className="inline-flex items-center gap-2 rounded-full bg-[#5257C9]/8 px-4 py-1.5 text-xs font-semibold text-[#5257C9]">
                   <Sparkles className="h-3.5 w-3.5" />

@@ -404,15 +404,15 @@ export function ProDashboard() {
           <div className="absolute -left-32 -top-24 h-[28rem] w-[28rem] rounded-full bg-emerald-500/15 blur-3xl" />
           <div className="absolute -right-24 -top-16 h-[24rem] w-[24rem] rounded-full bg-primary/10 blur-3xl" />
         </div>
-        <aside className="fixed inset-y-4 left-4 z-40 hidden w-64 flex-col rounded-3xl bg-sidebar text-sidebar-foreground shadow-[0_10px_30px_rgba(0,0,0,0.06)] lg:flex">
-          <div className="flex items-center gap-2.5 px-5 py-5">
+        <aside className="fixed inset-y-4 left-4 z-40 hidden max-h-[calc(100vh-2rem)] w-64 flex-col rounded-3xl bg-sidebar text-sidebar-foreground shadow-[0_10px_30px_rgba(0,0,0,0.06)] lg:flex">
+          <div className="flex shrink-0 items-center gap-2.5 px-5 py-5">
             <Skeleton className="h-10 w-10 rounded-xl bg-sidebar-foreground/20" />
             <div className="flex-1 space-y-2">
               <Skeleton className="h-3.5 w-24 bg-sidebar-foreground/20" />
               <Skeleton className="h-2.5 w-16 bg-sidebar-foreground/20" />
             </div>
           </div>
-          <div className="space-y-2 px-3 py-2">
+          <div className="flex-1 min-h-0 space-y-2 overflow-y-auto px-3 py-2 [scrollbar-width:thin] [scrollbar-color:rgba(125,125,125,0.25)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-sidebar-foreground/25 [&::-webkit-scrollbar-thumb:hover]:bg-sidebar-foreground/40 [&::-webkit-scrollbar-track]:bg-transparent">
             {ONGLETS.map((o) => (
               <Skeleton key={o.id} className="mx-0 h-10 rounded-xl bg-sidebar-foreground/15" />
             ))}
@@ -450,8 +450,15 @@ export function ProDashboard() {
         <div className="absolute -left-32 -top-24 h-[28rem] w-[28rem] rounded-full bg-emerald-500/15 blur-3xl" />
         <div className="absolute -right-24 -top-16 h-[24rem] w-[24rem] rounded-full bg-primary/10 blur-3xl" />
       </div>
-      {/* ---------- Sidebar détachée (desktop lg+) ---------- */}
-      <aside className="fixed inset-y-4 left-4 z-40 hidden w-64 flex-col rounded-3xl bg-sidebar text-sidebar-foreground shadow-[0_10px_30px_rgba(0,0,0,0.06)] lg:flex">
+      {/* ---------- Sidebar détachée (desktop lg+) ----------
+          max-h-[calc(100vh-2rem)] : contraint la sidebar dans le viewport
+          (hauteur = 100vh - 2rem, identique à inset-y-4). Le <nav> interne
+          a flex-1 + overflow-y-auto + min-h-0 pour scroller verticalement
+          quand les 22 entrées (9 principales + 8 aéroport + 5 gestion)
+          débordent — typiquement sur écran 11" (1366×768) où 22×44px ≈ 968px
+          > 768px viewport. Le header (logo) et le footer (promesse) restent
+          visibles grâce à shrink-0 / mt-auto. */}
+      <aside className="fixed inset-y-4 left-4 z-40 hidden max-h-[calc(100vh-2rem)] w-64 flex-col rounded-3xl bg-sidebar text-sidebar-foreground shadow-[0_10px_30px_rgba(0,0,0,0.06)] lg:flex">
         <ContenuSidebar ongletActif={onglet} onNaviguer={naviguer} retoursNonLus={retoursNonLus} estAeroport={typeEtablissement === "Aéroport"} airportEnAttente={airportEnAttente} />
       </aside>
 
@@ -688,9 +695,9 @@ function ContenuSidebar({
 }) {
   const t = (key: string) => { const map: Record<string, string> = {"nav.dashboard": "Tableau de bord", "nav.coach": "Coach IA", "nav.auditMatin": "Audit Matin", "nav.zones": "Zones", "nav.retours": "Retours", "nav.team": "Equipe", "nav.stats": "Statistiques", "nav.qrcode": "QR Codes", "nav.settings": "Parametres", "nav.commander": "Commander", "nav.rapports": "Rapports IA", "nav.recompenses": "Recompenses", "nav.actions": "Actions", "nav.billing": "Facturation", "nav.airportWallboard": "Wallboard", "nav.airportZones": "Zones aéroport", "nav.airportReports": "Signalements", "nav.airportLeaderboard": "Classement", "nav.airportBot": "Bot WhatsApp", "nav.airportBlackBox": "Black Box", "nav.airportStaffQr": "QR Staff", "nav.airportVols": "Vols & Portes", "nav.aeroport": "Aéroport", "nav.gestion": "Gestion", "common.ouvrirMenu": "Ouvrir le menu", "common.navigationDashboard": "Navigation du dashboard", "common.deconnexion": "Deconnexion", "common.tableauBordFeedback": "Tableau de bord FeedbackPro", "common.promesseCoach": "Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorites concretes."}; return map[key] || key }
   return (
-    <div className="flex h-full flex-col">
-      {/* Logo */}
-      <div className="flex items-center gap-2.5 px-5 py-5">
+    <div className="flex h-full min-h-0 flex-col">
+      {/* Logo — shrink-0 pour rester visible en haut quand le nav scroll */}
+      <div className="flex shrink-0 items-center gap-2.5 px-5 py-5">
         <img
           src="/logo-feedbackpro-transparent.png"
           alt="FeedbackPro"
@@ -699,8 +706,12 @@ function ContenuSidebar({
         <span className="text-xs text-sidebar-foreground/70">Coach qualité continu</span>
       </div>
 
-      {/* Navigation verticale : principaux, séparateur « Gestion », secondaires */}
-      <nav aria-label={t("common.navigationDashboard")} className="flex flex-col gap-1 py-2">
+      {/* Navigation verticale : principaux, séparateur « Gestion », secondaires.
+          flex-1 + min-h-0 + overflow-y-auto : scroll interne quand les 22
+          entrées débordent (desktop 11" ou drawer mobile). Le header (logo)
+          et le footer (promesse) restent fixes grâce à shrink-0 / mt-auto.
+          Scrollbar fine et discrète (sidebar-foreground à 25% d'opacité). */}
+      <nav aria-label={t("common.navigationDashboard")} className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto py-2 [scrollbar-width:thin] [scrollbar-color:rgba(125,125,125,0.25)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-sidebar-foreground/25 [&::-webkit-scrollbar-thumb:hover]:bg-sidebar-foreground/40 [&::-webkit-scrollbar-track]:bg-transparent">
         {ONGLETS_PRINCIPAUX.map((o) => (
           <BoutonOnglet key={o.id} entree={{ ...o, badge: o.id === "retours" ? retoursNonLus : undefined }} actif={ongletActif === o.id} onNaviguer={onNaviguer} />
         ))}
@@ -743,8 +754,9 @@ function ContenuSidebar({
         ))}
       </nav>
 
-      {/* Bas de sidebar : rappel de la promesse produit */}
-      <div className="mt-auto border-t border-sidebar-border p-4">
+      {/* Bas de sidebar : rappel de la promesse produit — shrink-0 pour
+          rester ancré en bas quand le nav scroll au-dessus. */}
+      <div className="mt-auto shrink-0 border-t border-sidebar-border p-4">
         <p className="text-[11px] leading-relaxed text-sidebar-foreground/60">
           {t("common.promesseCoach")}
         </p>

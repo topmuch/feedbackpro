@@ -299,11 +299,11 @@ function BoardRow({ r, fresh }: { r: RecentReport; fresh: boolean }) {
   return (
     <div
       role="row"
-      className={`grid shrink-0 grid-cols-[1.2fr_2.5fr_1fr_1.3fr_0.8fr] gap-1.5 ${
+      className={`grid shrink-0 grid-cols-[1fr_1.4fr] gap-1.5 sm:grid-cols-[1.2fr_2.5fr_1fr_1.3fr_0.8fr] ${
         fresh ? 'animate-in fade-in slide-in-from-top-2 duration-500' : ''
       }`}
     >
-      {/* ZONE */}
+      {/* ZONE — toujours visible (mobile + desktop) */}
       <div
         role="cell"
         className="flex min-w-0 items-center gap-2 rounded-md bg-[#1a1a1a] px-3 py-2"
@@ -316,7 +316,7 @@ function BoardRow({ r, fresh }: { r: RecentReport; fresh: boolean }) {
         </span>
       </div>
 
-      {/* PROBLÈME */}
+      {/* PROBLÈME — toujours visible (mobile + desktop) */}
       <div
         role="cell"
         className="flex min-w-0 items-center rounded-md bg-[#1a1a1a] px-3 py-2"
@@ -326,8 +326,8 @@ function BoardRow({ r, fresh }: { r: RecentReport; fresh: boolean }) {
         </span>
       </div>
 
-      {/* STATUT */}
-      <div role="cell" className="flex items-center rounded-md bg-[#1a1a1a] px-3 py-2">
+      {/* STATUT — masqué sur mobile (trop étroit pour le badge) */}
+      <div role="cell" className="hidden items-center rounded-md bg-[#1a1a1a] px-3 py-2 sm:flex">
         <span
           className={`inline-flex items-center gap-1.5 rounded border px-2 py-0.5 font-mono text-[11px] font-bold uppercase tracking-wider ${s.badge}`}
         >
@@ -336,10 +336,10 @@ function BoardRow({ r, fresh }: { r: RecentReport; fresh: boolean }) {
         </span>
       </div>
 
-      {/* ÉQUIPE */}
+      {/* ÉQUIPE — masqué sur mobile */}
       <div
         role="cell"
-        className="flex min-w-0 items-center gap-1.5 rounded-md bg-[#1a1a1a] px-3 py-2"
+        className="hidden min-w-0 items-center gap-1.5 rounded-md bg-[#1a1a1a] px-3 py-2 sm:flex"
       >
         {team ? (
           <>
@@ -353,10 +353,10 @@ function BoardRow({ r, fresh }: { r: RecentReport; fresh: boolean }) {
         )}
       </div>
 
-      {/* IL Y A */}
+      {/* IL Y A — masqué sur mobile */}
       <div
         role="cell"
-        className="flex items-center justify-end rounded-md bg-[#1a1a1a] px-3 py-2"
+        className="hidden items-center justify-end rounded-md bg-[#1a1a1a] px-3 py-2 sm:flex"
       >
         <span className="font-mono text-sm tabular-nums text-white">
           {relativeTime(r.createdAt)}
@@ -366,13 +366,14 @@ function BoardRow({ r, fresh }: { r: RecentReport; fresh: boolean }) {
   )
 }
 
-/** Ligne "emplacement vide" — dots muted gray, comme un vrai departure board */
+/** Ligne "emplacement vide" — dots muted gray, comme un vrai departure board.
+ *  Responsive : 2 colonnes sur mobile (zone + problème), 5 sur sm+. */
 function PlaceholderRow() {
   return (
     <div
       role="row"
       aria-hidden
-      className="grid shrink-0 grid-cols-[1.2fr_2.5fr_1fr_1.3fr_0.8fr] gap-1.5"
+      className="grid shrink-0 grid-cols-[1fr_1.4fr] gap-1.5 sm:grid-cols-[1.2fr_2.5fr_1fr_1.3fr_0.8fr]"
     >
       <div className="rounded-md bg-[#1a1a1a] px-3 py-2 font-mono text-sm text-neutral-700">
         · · · · ·
@@ -380,13 +381,13 @@ function PlaceholderRow() {
       <div className="truncate rounded-md bg-[#1a1a1a] px-3 py-2 font-mono text-sm text-neutral-700">
         · · · · · · · · · ·
       </div>
-      <div className="rounded-md bg-[#1a1a1a] px-3 py-2 font-mono text-sm text-neutral-700">
+      <div className="hidden rounded-md bg-[#1a1a1a] px-3 py-2 font-mono text-sm text-neutral-700 sm:block">
         · · ·
       </div>
-      <div className="rounded-md bg-[#1a1a1a] px-3 py-2 font-mono text-sm text-neutral-700">
+      <div className="hidden rounded-md bg-[#1a1a1a] px-3 py-2 font-mono text-sm text-neutral-700 sm:block">
         · · · ·
       </div>
-      <div className="rounded-md bg-[#1a1a1a] px-3 py-2 text-right font-mono text-sm text-neutral-700">
+      <div className="hidden rounded-md bg-[#1a1a1a] px-3 py-2 text-right font-mono text-sm text-neutral-700 sm:block">
         · · ·
       </div>
     </div>
@@ -475,10 +476,12 @@ function StatSkeleton() {
 
 function RowSkeleton() {
   return (
-    <div className="grid shrink-0 grid-cols-[1.2fr_2.5fr_1fr_1.3fr_0.8fr] gap-1.5">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className="h-11 animate-pulse rounded-md bg-[#1a1a1a]" />
-      ))}
+    <div className="grid shrink-0 grid-cols-[1fr_1.4fr] gap-1.5 sm:grid-cols-[1.2fr_2.5fr_1fr_1.3fr_0.8fr]">
+      <div className="h-11 animate-pulse rounded-md bg-[#1a1a1a]" />
+      <div className="h-11 animate-pulse rounded-md bg-[#1a1a1a]" />
+      <div className="hidden h-11 animate-pulse rounded-md bg-[#1a1a1a] sm:block" />
+      <div className="hidden h-11 animate-pulse rounded-md bg-[#1a1a1a] sm:block" />
+      <div className="hidden h-11 animate-pulse rounded-md bg-[#1a1a1a] sm:block" />
     </div>
   )
 }
@@ -789,7 +792,7 @@ export default function OpsWallboardPage() {
   const topAlerts = alerts.slice(0, 3)
 
   return (
-    <div className="flex min-h-screen flex-col bg-neutral-950 p-3 font-sans text-white sm:p-4">
+    <div className="flex min-h-screen flex-col overflow-x-hidden bg-neutral-950 p-3 font-sans text-white sm:p-4">
       {/* Élément audio caché pour le ding (play() programmatique) */}
       <audio ref={audioRef} preload="auto" />
       <div className="mx-auto flex w-full max-w-[1920px] flex-1 flex-col overflow-hidden rounded-[20px] border border-neutral-800 bg-[#0a0a0a] shadow-2xl">
@@ -957,10 +960,12 @@ export default function OpsWallboardPage() {
           aria-label="Derniers signalements"
           className="flex min-h-0 flex-1 flex-col gap-1.5 bg-black p-2"
         >
-          {/* Column headers */}
+          {/* Column headers — masqués sur mobile (layout 2-col n'a pas de
+              correspondance 1-pour-1 avec les 5 entêtes ; les cellules
+              restantes sont auto-descriptives grâce au texte monospace). */}
           <div
             role="row"
-            className="grid shrink-0 grid-cols-[1.2fr_2.5fr_1fr_1.3fr_0.8fr] gap-1.5"
+            className="hidden shrink-0 grid-cols-[1.2fr_2.5fr_1fr_1.3fr_0.8fr] gap-1.5 sm:grid"
           >
             <div className="px-3 py-1 font-mono text-[11px] font-bold uppercase tracking-wider text-amber-400">
               Zone

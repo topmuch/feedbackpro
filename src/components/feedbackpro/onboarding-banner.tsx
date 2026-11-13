@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { Check, ChevronRight, Loader2, Sparkles, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
@@ -50,6 +50,11 @@ const ETAPES: Etape[] = [
   },
 ]
 
+// Clé localStorage pour marquer la bannière comme vue/déjà fermée.
+// Une fois fermée (auto après 3 min ou clic X), elle ne réapparaît plus jamais.
+const ONBOARDING_DISMISSED_KEY = "fp-onboarding-dismissed"
+const AUTO_DISMISS_MS = 3 * 60 * 1000 // 3 minutes
+
 export function OnboardingBanner() {
   const session = useAppStore((s) => s.session)
   const updatePro = useAppStore((s) => s.updatePro)
@@ -58,13 +63,43 @@ export function OnboardingBanner() {
   const step =
     (session?.pro as unknown as { onboardingStep?: number } | undefined)?.onboardingStep ?? 0
 
+  // masquee = cachée pour cette session (soit par timer auto, soit par clic X)
   const [masquee, setMasquee] = useState(false)
   const [enCours, setEnCours] = useState(false)
+  // dejaVu = la bannière a déjà été fermée une fois (localStorage) — ne jamais revoir
+  const [dejaVu, setDejaVu] = useState(false)
+
+  // Au mount : vérifie localStorage. Si déjà fermée → ne pas afficher.
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    const dismissed = localStorage.getItem(ONBOARDING_DISMISSED_KEY)
+    if (dismissed) setDejaVu(true)
+  }, [])
+
+  // Marque la bannière comme fermée définitivement (localStorage) — ne réapparaît plus jamais.
+  const dismissForEver = useCallback(() => {
+    setMasquee(true)
+    try {
+      localStorage.setItem(ONBOARDING_DISMISSED_KEY, new Date().toISOString())
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  // Auto-dismiss après 3 minutes — une fois le timer écoulé, marque localStorage
+  // pour que la bannière ne réapparaisse plus jamais (même après reconnexion).
+  useEffect(() => {
+    if (dejaVu || masquee || step >= 5) return
+    const timer = setTimeout(() => {
+      dismissForEver()
+    }, AUTO_DISMISS_MS)
+    return () => clearTimeout(timer)
+  }, [dejaVu, masquee, step, dismissForEver])
 
   const etapeActive = Math.min(step + 1, 4)
   const progression = Math.round((step / 4) * 100)
 
-  if (step >= 5 || masquee) return null
+  if (step >= 5 || masquee || dejaVu) return null
 
   async function validerEtape() {
     setEnCours(true)
@@ -104,7 +139,7 @@ export function OnboardingBanner() {
         </div>
         <button
           type="button"
-          onClick={() => setMasquee(true)}
+          onClick={() => dismissForEver()}
           className="rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
           aria-label="Masquer la bannière d'onboarding"
         >
