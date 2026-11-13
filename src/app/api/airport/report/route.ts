@@ -30,6 +30,7 @@ import {
 } from '@/lib/airport-config'
 import { analyserEtRouterReport } from '@/lib/airport-vlm'
 import { sendEmail } from '@/lib/email'
+import { triggerPushNotification } from '@/lib/push-notifier'
 
 export const runtime = 'nodejs'
 
@@ -190,6 +191,22 @@ export async function POST(req: NextRequest) {
   // au voyageur). En mode démo (pas de RESEND_API_KEY), logge seulement.
   notifierManagersEmail(report, zone, b.tag, b.commentaire ?? null, flightNumber, createdAt).catch((err) => {
     console.warn('[airport-report] Email notification error:', err instanceof Error ? err.message : String(err))
+  })
+
+  // --- Push notification au staff terrain (Task P1 — always-on) ---
+  // Fire-and-forget : envoie une notification Web Push à tous les
+  // appareils staff abonnés (AirportPushSubscription). Le SW réveille
+  // le navigateur — même PWA fermée — et affiche une notif système
+  // avec actions "Voir l'incident" / "Ignorer".
+  // URL cible : "/?staff=1&report=<id>" pour que le clic ouvre la PWA
+  // staff directement sur l'incident concerné.
+  triggerPushNotification({
+    title: 'Nouvel incident',
+    body: `${zone.nom} — ${b.problemType}`,
+    url: `/?staff=1&report=${report.id}`,
+    tag: `incident-${report.id}`,
+  }).catch((err) => {
+    console.warn('[airport-report] Push notification error:', err instanceof Error ? err.message : String(err))
   })
 
   // --- Logging serveur (mode démo WhatsApp) ---

@@ -649,6 +649,36 @@ model AirportStaffScan {
 }
 
 // ============================================================
+// AirportPushSubscription — abonnements Web Push (PWA staff)
+// ------------------------------------------------------------
+// Chaque appareil staff qui active les notifications push enregistre
+// ici son endpoint + les clés cryptographiques p256dh/auth retournées
+// par le navigateur lors de pushManager.subscribe(). Le serveur
+// utilise web-push + la clé VAPID privée pour envoyer des
+// notifications "always-on" même quand la PWA est fermée.
+//
+// staffName : nom saisi par l'employé dans la PWA (clé fp-staff-name)
+//   — permet de cibler un employé précis si besoin (ex: notifier
+//   uniquement l'agent qui a pris en charge un incident).
+// endpoint : URL unique du service push (FCM/APNS/Mozilla). Unique
+//   par appareil/navigateur — on l'utilise comme clé d'upsert pour
+//   éviter les doublons quand le même employé ré-active les notifs.
+// p256dh, auth : clés base64url nécessaires au chiffrement du
+//   payload par web-push (ECDH P-256 sur Curve25519).
+// ============================================================
+model AirportPushSubscription {
+  id         String   @id @default(cuid())
+  endpoint   String   @unique
+  p256dh     String
+  auth       String
+  staffName  String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([staffName])
+}
+
+// ============================================================
 // Score Agent — Gamification
 // ------------------------------------------------------------
 // Points attribués aux employés pour chaque résolution rapide.

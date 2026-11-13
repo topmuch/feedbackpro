@@ -13,15 +13,16 @@
 // servi tel quel par Next.js sans compilation).
 // ============================================================
 
-// CACHE_NAME bumpé v2 → v3 (feedbackpro-airport-v3) pour forcer le
-// refresh du shell suite à l'ajout des routes aéroport offline (Task 3 Phase 2).
-const CACHE_NAME = "feedbackpro-airport-v3"
+// CACHE_NAME bumpé v3 → v4 (feedbackpro-airport-v4) pour forcer le
+// refresh du shell suite à l'ajout du handler push (Task P1 —
+// notifications always-on via Service Worker + Push API).
+const CACHE_NAME = "feedbackpro-airport-v4"
 const CACHE_API = "feedbackpro-api-v2"
 // Cache dédié aux réponses GET /api/airport/zone/* (network-first, pas de
 // TTL : on veut toujours la version réseau si disponible, le cache n'est
 // qu'un repli offline). Séparé de CACHE_API pour ne pas mélanger avec les
 // réponses TTL-marquées de /api/zone/[qrToken].
-const CACHE_AIRPORT_API = "feedbackpro-airport-api-v3"
+const CACHE_AIRPORT_API = "feedbackpro-airport-api-v4"
 const PRECACHE_URLS = [
   "/",
   "/manifest.webmanifest",
@@ -478,3 +479,97 @@ async function notifieClientsAirportPendingChanged() {
     /* silencieux */
   }
 }
+
+// ============================================================
+// PUSH NOTIFICATIONS (Task P1 — always-on)
+// ------------------------------------------------------------
+// Le serveur POST /api/airport/push/send envoie à chaque appareil
+// staff abonné un message Web Push chiffré (via web-push + clé VAPID
+// privée côté serveur). Le navigateur réveille le Service Worker
+// — même si la PWA est fermée ou l'écran verrouillé — et déclenche
+// l'événement 'push' ci-dessous. On y affiche une Notification
+// système avec actions "Voir l'incident" / "Ignorer".
+//
+// Payload attendu (JSON) : { title, body, url, tag }
+//   - tag : identifiant unique de la notif (ex: "incident-<id>") →
+//     empêche le stacking : une nouvelle notif pour le même tag
+//     remplace l'ancienne (renotify: true rappelle l'attention).
+//   - url : page à ouvrir au clic (ex: "/?staff=1&report=xxx").
+//
+// Fallback : si le payload n'est pas du JSON (push sans payload),
+// on affiche une notification générique "Nouvel incident".
+// ============================================================
+
+self.addEventListener("push", function (event) {
+  let data = { title: "FeedbackPro", body: "Nouvel incident", url: "/" }
+  try {
+    if (event.data) {
+      const parsed = event.data.json()
+      if (parsed && typeof parsed === "object") {
+        data = { ...data, ...parsed }
+      }
+    }
+  } catch {
+    // Le payload n'est pas du JSON — on garde le défaut ci-dessus
+    // et on tente de lire le texte brut pour le body.
+    try {
+      if (event.data) {
+        const txt = event.data.text()
+        if (txt) data.body = txt
+      }
+    } catch {
+      /* silencieux */
+    }
+  }
+
+  const options = {
+    body: data.body,
+    icon: "/icon-192.png",
+    badge: "/icon-192.png",
+    vibrate: [200, 100, 200, 100, 200],
+    tag: data.tag || "fp-incident",
+    renotify: true,
+    data: { url: data.url || "/" },
+    actions: [
+      { action: "open", title: "Voir l'incident" },
+      { action: "close", title: "Ignorer" },
+    ],
+  }
+
+  event.waitUntil(self.registration.showNotification(data.title, options))
+})
+
+// ---------- Clic sur une notification push ----------
+//
+// Action 'open' (ou clic sur le corps de la notif) :
+//   - Si une fenêtre de la PWA est déjà ouverte sur l'URL cible → focus
+//   - Sinon → ouvre une nouvelle fenêtre (clients.openWindow)
+// Action 'close' (bouton "Ignorer") :
+//   - Juste ferme la notification. L'incident reste EN_ATTENTE dans
+//     la base (statut NEW) — il réapparaîtra dans la liste "Nouveaux"
+//     de la PWA au prochain poll ou à la prochaine ouverture.
+//     On NE le perd PAS (cahier des charges Scénario 2).
+self.addEventListener("notificationclick", function (event) {
+  event.notification.close()
+
+  // Action 'close' = ignorer : rien à faire, la notif est fermée.
+  if (event.action === "close") return
+
+  // Action 'open' ou clic sur le corps : ouvrir / focus la PWA.
+  const url = (event.notification.data && event.notification.data.url) || "/"
+  event.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then(function (clientList) {
+      for (const client of clientList) {
+        // Focus une fenêtre existante dont l'URL contient la cible.
+        // (on utilise includes plutôt qu'égalité stricte car l'URL
+        //  réelle contient souvent des query params XTransformPort.)
+        if (client.url.includes(url) && "focus" in client) {
+          return client.focus()
+        }
+      }
+      // Aucune fenêtre existante → on en ouvre une nouvelle.
+      if (clients.openWindow) return clients.openWindow(url)
+      return null
+    })
+  )
+})

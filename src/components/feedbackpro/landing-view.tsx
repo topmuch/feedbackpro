@@ -252,12 +252,15 @@ function Logo({
   className?: string
   inverted?: boolean
 }) {
+  // On utilise le logo transparent normal (bleu) sur tous les fonds.
+  // Le filtre brightness(0) invert(1) causait des problèmes d'affichage
+  // (logo blanc invisible sur certains fonds, rendu masqué par zone blanche).
+  // Le bleu FeedbackPro #5257C9 est visible sur fond clair ET sombre.
   return (
     <img
       src="/logo-feedbackpro.png"
       alt="FeedbackPro"
       className={className}
-      style={inverted ? { filter: "brightness(0) invert(1)" } : undefined}
     />
   )
 }
