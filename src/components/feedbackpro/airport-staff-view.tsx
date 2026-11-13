@@ -58,6 +58,7 @@ import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -213,6 +214,26 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
   const [pendingName, setPendingName] = useState('')
   const [pendingPhone, setPendingPhone] = useState('')
   const [nameSaved, setNameSaved] = useState(false)
+  // Liste des employés (depuis l'onglet équipe du dashboard Pro)
+  const [employes, setEmployes] = useState<Array<{ id: string; nom: string; poste: string }>>([])
+
+  // Au mount : charge la liste des employés actifs (auth via équipe)
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/airport/staff-auth', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((json) => {
+        if (!cancelled && json?.ok && Array.isArray(json.data?.employes)) {
+          setEmployes(json.data.employes)
+        }
+      })
+      .catch(() => {
+        /* réseau down — fallback texte libre */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   // Scanner
   const [scanDialogOpen, setScanDialogOpen] = useState(false)
@@ -797,7 +818,7 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
       </header>
 
       {/* Main */}
-      <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col px-4 py-6">
+      <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col px-4 py-6 sm:px-6">
         <AnimatePresence mode="wait" custom={screenDir}>
           <motion.div
             key={screen}
@@ -814,6 +835,7 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
                 nameSaved={nameSaved}
                 pendingName={pendingName}
                 pendingPhone={pendingPhone}
+                employes={employes}
                 todayStats={todayStats}
                 onPendingName={setPendingName}
                 onPendingPhone={setPendingPhone}
@@ -896,7 +918,7 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
 
       {/* Dialog Scanner */}
       <Dialog open={scanDialogOpen} onOpenChange={setScanDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[95%] max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl font-black text-[#1E1E2E]">
               <QrCode className="size-5" style={{ color: INDIGO }} />
@@ -981,6 +1003,7 @@ interface HomeScreenProps {
   nameSaved: boolean
   pendingName: string
   pendingPhone: string
+  employes: Array<{ id: string; nom: string; poste: string }>
   todayStats: { enCours: number; resolus: number; tempsMoyen: number }
   onPendingName: (v: string) => void
   onPendingPhone: (v: string) => void
@@ -1002,6 +1025,7 @@ function HomeScreen({
   nameSaved,
   pendingName,
   pendingPhone,
+  employes,
   todayStats,
   onPendingName,
   onPendingPhone,
@@ -1040,17 +1064,39 @@ function HomeScreen({
             <h1 className="text-center text-xl font-black text-[#1E1E2E] sm:text-2xl">
               Identifiez-vous
             </h1>
-            <div className="space-y-1.5">
-              <Label className="text-xs font-bold uppercase tracking-wide text-slate-500">
-                Votre nom
-              </Label>
-              <Input
-                value={pendingName}
-                onChange={(e) => onPendingName(e.target.value)}
-                placeholder="Ex: Marc, Sophie…"
-                className="rounded-xl border-2 border-slate-200 bg-white text-base"
-              />
-            </div>
+            {employes.length > 0 ? (
+              // Auth via équipe : sélecteur d'employés
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                  Sélectionnez votre nom
+                </Label>
+                <Select value={pendingName} onValueChange={onPendingName}>
+                  <SelectTrigger className="w-full rounded-xl border-2 border-slate-200 bg-white text-base">
+                    <SelectValue placeholder="Choisir mon nom…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {employes.map((emp) => (
+                      <SelectItem key={emp.id} value={emp.nom}>
+                        {emp.nom}{emp.poste ? ` — ${emp.poste}` : ''}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            ) : (
+              // Fallback : texte libre (si pas d'employés en BDD)
+              <div className="space-y-1.5">
+                <Label className="text-xs font-bold uppercase tracking-wide text-slate-500">
+                  Votre nom
+                </Label>
+                <Input
+                  value={pendingName}
+                  onChange={(e) => onPendingName(e.target.value)}
+                  placeholder="Ex: Marc, Sophie…"
+                  className="rounded-xl border-2 border-slate-200 bg-white text-base"
+                />
+              </div>
+            )}
             <div className="space-y-1.5">
               <Label className="text-xs font-bold uppercase tracking-wide text-slate-500">
                 Téléphone (optionnel)
@@ -1189,7 +1235,7 @@ function StatRow({
   icon?: React.ReactNode
 }) {
   return (
-    <div className="flex items-center justify-between px-5 py-4">
+    <div className="flex items-center justify-between px-4 py-4 sm:px-5">
       <div className="flex items-center gap-2.5">
         {dotColor ? (
           <span className={cn('size-2.5 rounded-full', dotColor)} />
@@ -1225,7 +1271,7 @@ function IncidentNewScreen({
   return (
     <div className="space-y-4">
       {/* Header amber */}
-      <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 px-5 py-4 text-white shadow-lg">
+      <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 px-4 py-4 text-white shadow-lg sm:px-5">
         <div className="flex items-center gap-2">
           <TriangleAlert className="size-6" />
           <h1 className="text-xl font-black uppercase tracking-wide">Nouvel Incident</h1>
@@ -1236,7 +1282,7 @@ function IncidentNewScreen({
       </div>
 
       {/* Détails */}
-      <Card className="rounded-2xl border-0 bg-white/90 p-5 shadow-md ring-1 ring-slate-200">
+      <Card className="rounded-2xl border-0 bg-white/90 p-4 shadow-md ring-1 ring-slate-200 sm:p-5">
         <DetailRow label="Terminal" value={extractTerminal(tag + ' ' + report.zone.nom)} />
         <DetailRow label="Zone" value={report.zone.nom || tag} />
         <DetailRow label="Type" value={report.problemType} />
@@ -1310,7 +1356,7 @@ function IncidentOngoingScreen({
       </button>
 
       {/* Header blue */}
-      <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-sky-500 to-sky-600 px-5 py-4 text-white shadow-lg">
+      <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-sky-500 to-sky-600 px-4 py-4 text-white shadow-lg sm:px-5">
         <div className="flex items-center gap-2">
           <RefreshCw className="size-6" />
           <h1 className="text-xl font-black uppercase tracking-wide">Incident En Cours</h1>
@@ -1321,7 +1367,7 @@ function IncidentOngoingScreen({
       </div>
 
       {/* Détails */}
-      <Card className="rounded-2xl border-0 bg-white/90 p-5 shadow-md ring-1 ring-slate-200">
+      <Card className="rounded-2xl border-0 bg-white/90 p-4 shadow-md ring-1 ring-slate-200 sm:p-5">
         <DetailRow label="Pris en charge par" value="VOUS" bold />
         <DetailRow label="Depuis" value={`${sinceMin} min`} />
         <div className="my-3 border-t border-dashed border-slate-200" />
@@ -1409,7 +1455,7 @@ function ResolveConfirmScreen({
       </button>
 
       {/* Header green */}
-      <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-5 py-4 text-white shadow-lg">
+      <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-4 py-4 text-white shadow-lg sm:px-5">
         <div className="flex items-center gap-2">
           <CheckCircle2 className="size-6" />
           <h1 className="text-xl font-black uppercase tracking-wide">Confirmer Résolution</h1>
@@ -1420,7 +1466,7 @@ function ResolveConfirmScreen({
       </div>
 
       {/* Temps écoulé */}
-      <Card className="flex items-center justify-between rounded-2xl border-0 bg-white/90 p-5 shadow-md ring-1 ring-slate-200">
+      <Card className="flex items-center justify-between rounded-2xl border-0 bg-white/90 p-4 shadow-md ring-1 ring-slate-200 sm:p-5">
         <div className="flex items-center gap-2 text-slate-600">
           <Clock className="size-5 text-emerald-600" />
           <span className="text-sm font-semibold">Temps écoulé</span>
@@ -1541,7 +1587,7 @@ function DashboardScreen({
       </button>
 
       {/* Header */}
-      <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-[#1E1E2E] to-[#2D2D44] px-5 py-4 text-white shadow-lg">
+      <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-[#1E1E2E] to-[#2D2D44] px-4 py-4 text-white shadow-lg sm:px-5">
         <div className="flex items-center gap-2">
           <Trophy className="size-6 text-amber-400" />
           <h1 className="text-xl font-black uppercase tracking-wide">Dashboard Staff</h1>
@@ -1700,7 +1746,7 @@ function DashboardRow({
   icon?: React.ReactNode
 }) {
   return (
-    <div className="flex items-center justify-between px-5 py-3.5">
+    <div className="flex items-center justify-between px-4 py-3.5 sm:px-5">
       <div className="flex items-center gap-2.5">
         {dotColor ? (
           <span className={cn('size-2.5 rounded-full', dotColor)} />

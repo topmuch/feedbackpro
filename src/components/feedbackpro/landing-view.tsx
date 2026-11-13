@@ -233,7 +233,7 @@ function ProblemStat({
   const val = useCountUp(target, inView)
   return (
     <div ref={ref} className="text-center">
-      <div className="text-6xl sm:text-7xl lg:text-8xl font-bold font-mono bg-gradient-to-b from-[#5257C9] to-[#7578E8] bg-clip-text text-transparent leading-none">
+      <div className="text-5xl sm:text-7xl lg:text-8xl font-bold font-mono bg-gradient-to-b from-[#5257C9] to-[#7578E8] bg-clip-text text-transparent leading-none">
         {Math.round(val)}
         {suffix}
       </div>
@@ -463,7 +463,7 @@ function AuroraBlobs({ variant = "light" }: { variant?: "light" | "onGradient" }
 // ------------------------------------------------------------
 function HeroMockup() {
   return (
-    <div className="relative">
+    <div className="relative scale-[0.95] origin-top sm:scale-100">
       {/* Floating badge — top right */}
       <div
         className="fbp-float absolute -top-5 right-0 sm:-right-4 z-20 rounded-2xl bg-white/80 backdrop-blur-xl border border-white/70 px-4 py-2.5 shadow-xl shadow-[#5257C9]/10"
@@ -809,7 +809,7 @@ function PriceTag({ plan, annual }: { plan: Plan; annual: boolean }) {
   const price = annual ? plan.annual : plan.monthly
   return (
     <div className="flex items-end gap-1">
-      <span className="text-5xl font-bold text-[#0F0F1A]">{price}€</span>
+      <span className="text-4xl sm:text-5xl font-bold text-[#0F0F1A]">{price}€</span>
       <span className="text-sm text-[#5B5F7A] mb-2">/mois</span>
     </div>
   )
@@ -831,7 +831,7 @@ export function LandingView({
   const handleNav = (href: string) => setMobileOpen(false)
 
   return (
-    <div className="min-h-screen bg-[#FAFBFF] text-[#0F0F1A] antialiased">
+    <div className="min-h-screen overflow-x-hidden bg-[#FAFBFF] text-[#0F0F1A] antialiased">
       <style>{FBP_STYLES}</style>
 
       {/* ============ SECTION 1 : HEADER ============ */}
@@ -958,13 +958,13 @@ export function LandingView({
               </Reveal>
 
               <Reveal delay={0.1}>
-                <h1 className="mt-5 text-5xl sm:text-6xl lg:text-7xl font-bold tracking-tighter leading-[0.95] bg-gradient-to-r from-[#5257C9] via-[#7578E8] to-[#06B6D4] bg-clip-text text-transparent">
+                <h1 className="mt-5 text-4xl sm:text-5xl lg:text-7xl font-bold tracking-tighter leading-[0.95] bg-gradient-to-r from-[#5257C9] via-[#7578E8] to-[#06B6D4] bg-clip-text text-transparent">
                   L'audit qualité continu pour votre établissement
                 </h1>
               </Reveal>
 
               <Reveal delay={0.15}>
-                <p className="text-lg sm:text-xl text-[#5B5F7A] max-w-xl mt-6 mx-auto lg:mx-0">
+                <p className="text-base sm:text-lg lg:text-xl text-[#5B5F7A] max-w-xl mt-6 mx-auto lg:mx-0">
                   Transformez chaque client en auditeur qualité. Recevez chaque jour
                   3 priorités concrètes issues de l'IA qui analyse tous vos feedbacks.
                 </p>
@@ -974,14 +974,14 @@ export function LandingView({
                 <div className="mt-8 flex flex-col sm:flex-row gap-3 justify-center lg:justify-start">
                   <button
                     onClick={onSignup}
-                    className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-[#5257C9] to-[#7578E8] text-white px-7 py-3.5 rounded-xl font-semibold shadow-xl shadow-[#5257C9]/30 hover:shadow-2xl hover:shadow-[#5257C9]/40 hover:-translate-y-0.5 transition-all"
+                    className="inline-flex items-center justify-center gap-2 bg-gradient-to-r from-[#5257C9] to-[#7578E8] text-white px-5 py-3 sm:px-7 sm:py-3.5 rounded-xl font-semibold shadow-xl shadow-[#5257C9]/30 hover:shadow-2xl hover:shadow-[#5257C9]/40 hover:-translate-y-0.5 transition-all"
                   >
                     Essayer gratuitement
                     <ArrowRight className="h-4 w-4" />
                   </button>
                   <a
                     href="#how"
-                    className="inline-flex items-center justify-center gap-2 border border-[#5257C9]/15 bg-white/50 backdrop-blur text-[#5257C9] px-7 py-3.5 rounded-xl font-semibold hover:bg-white hover:border-[#5257C9]/30 transition-all"
+                    className="inline-flex items-center justify-center gap-2 border border-[#5257C9]/15 bg-white/50 backdrop-blur text-[#5257C9] px-5 py-3 sm:px-7 sm:py-3.5 rounded-xl font-semibold hover:bg-white hover:border-[#5257C9]/30 transition-all"
                   >
                     Voir la démo
                   </a>
@@ -1227,7 +1227,7 @@ export function LandingView({
               <Reveal key={plan.name} delay={i * 0.1} className={cn(plan.highlighted && "lg:scale-105")}>
                 <div
                   className={cn(
-                    "relative h-full rounded-3xl p-8 flex flex-col",
+                    "relative h-full rounded-3xl p-6 sm:p-8 flex flex-col",
                     plan.highlighted
                       ? "bg-gradient-to-br from-[#5257C9]/5 to-[#7578E8]/5 border-2 border-[#5257C9] shadow-2xl shadow-[#5257C9]/15"
                       : "bg-white border border-black/5 shadow-sm"
@@ -1343,7 +1343,7 @@ export function LandingView({
           <Reveal delay={0.15}>
             <button
               onClick={onSignup}
-              className="mt-8 inline-flex items-center gap-2 bg-white text-[#5257C9] px-8 py-4 rounded-xl font-bold shadow-2xl hover:scale-105 transition-transform"
+              className="mt-8 inline-flex items-center gap-2 bg-white text-[#5257C9] px-6 py-3.5 sm:px-8 sm:py-4 rounded-xl font-bold shadow-2xl hover:scale-105 transition-transform"
             >
               Essayer gratuitement
               <ArrowRight className="h-4 w-4" />

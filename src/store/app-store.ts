@@ -236,7 +236,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch {
       /* ignore */
     }
-    set({ view: deriveView(get().scanToken, get().airportTag, null, get().session) })
+    // Après déconnexion staff → afficher la page de connexion (pas la landing)
+    set({ view: "auth", authMode: "login" })
   },
 
   setSession: (s) => {
