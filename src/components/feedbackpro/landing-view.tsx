@@ -330,7 +330,7 @@ function Header({
 }) {
   return (
     <header className="sticky top-0 z-50 h-16 border-b border-black/5 bg-white/60 backdrop-blur-xl">
-      <div className="mx-auto flex h-full max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto flex h-full max-w-screen-2xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <button
           onClick={() => navigate("accueil")}
@@ -937,7 +937,7 @@ function AccueilPage({
           aria-hidden
         />
 
-        <div className="relative mx-auto flex max-w-6xl flex-col items-center px-4 pb-20 pt-20 text-center sm:px-6 sm:pt-28 lg:pt-32">
+        <div className="relative mx-auto flex max-w-screen-2xl flex-col items-center px-4 pb-20 pt-20 text-center sm:px-6 sm:pt-28 lg:pt-32">
           <Reveal>
             <div className="inline-flex items-center gap-2 rounded-full border border-[#5257C9]/15 bg-white/70 px-4 py-1.5 text-xs font-medium text-[#5257C9] backdrop-blur">
               <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#7C3AED]" />
@@ -997,7 +997,7 @@ function AccueilPage({
           </Reveal>
 
           {/* Dashboard mockup */}
-          <Reveal delay={0.4} className="mt-14 w-full max-w-5xl">
+          <Reveal delay={0.4} className="mt-14 w-full max-w-screen-xl">
             <DashboardMockup />
           </Reveal>
         </div>
@@ -1005,7 +1005,7 @@ function AccueilPage({
 
       {/* 1C. LE PROBLEME INVISIBLE */}
       <section className="border-y border-black/5 bg-white py-24 sm:py-32">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-screen-2xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <Reveal>
               <div className="text-xs font-semibold uppercase tracking-widest text-[#5257C9]">
@@ -1070,7 +1070,7 @@ function AccueilPage({
         />
         <div className="absolute inset-0 fbp-grid-dark opacity-40" aria-hidden />
 
-        <div className="relative mx-auto grid max-w-6xl gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-8">
+        <div className="relative mx-auto grid max-w-screen-2xl gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-8">
           {/* Left */}
           <div className="flex flex-col justify-center">
             <Reveal>
@@ -1153,7 +1153,7 @@ function AccueilPage({
 
       {/* 1E. SECTOR SELECTOR */}
       <section className="bg-[#F8FAFC] py-24 sm:py-32">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-screen-2xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <Reveal>
               <div className="text-xs font-semibold uppercase tracking-widest text-[#5257C9]">
@@ -1231,7 +1231,9 @@ function AccueilPage({
           <Aurora dark />
           <div className="relative mx-auto flex max-w-4xl flex-col items-center px-4 text-center sm:px-6">
             <Reveal>
-              <Logo className="h-10 w-auto" inverted />
+              <div className="rounded-xl bg-white px-4 py-2 shadow-lg">
+                <Logo className="h-8 w-auto" />
+              </div>
             </Reveal>
             <Reveal delay={0.08}>
               <h2 className="mt-6 text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl">
@@ -1284,7 +1286,7 @@ function RestaurantPage({ onSignup }: { onSignup: () => void }) {
       <section className="relative flex min-h-[60vh] items-center overflow-hidden bg-[#F8FAFC]">
         <Aurora />
         <div className="fbp-grid-mask fbp-grid-light pointer-events-none absolute inset-0" aria-hidden />
-        <div className="relative mx-auto w-full max-w-6xl px-4 py-20 sm:px-6 lg:px-8">
+        <div className="relative mx-auto w-full max-w-screen-2xl px-4 py-20 sm:px-6 lg:px-8">
           <div className="max-w-3xl">
             <Reveal>
               <div className="inline-flex items-center gap-2 rounded-full border border-[#F59E0B]/20 bg-white/70 px-4 py-1.5 text-xs font-medium text-[#F59E0B] backdrop-blur">
@@ -1320,7 +1322,7 @@ function RestaurantPage({ onSignup }: { onSignup: () => void }) {
 
       {/* AVANTAGE 1 - QR INVISIBLE */}
       <section className="bg-white py-24 sm:py-28">
-        <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-8">
+        <div className="mx-auto grid max-w-screen-2xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-8">
           <div>
             <Reveal>
               <div className="text-xs font-semibold uppercase tracking-widest text-[#5257C9]">
@@ -1383,7 +1385,7 @@ function RestaurantPage({ onSignup }: { onSignup: () => void }) {
 
       {/* AVANTAGE 2 - TAGS */}
       <section className="bg-[#F8FAFC] py-24 sm:py-28">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-screen-2xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <Reveal>
               <div className="text-xs font-semibold uppercase tracking-widest text-[#5257C9]">
@@ -1458,7 +1460,7 @@ function RestaurantPage({ onSignup }: { onSignup: () => void }) {
 
       {/* AVANTAGE 3 - REACTION IMMEDIATE */}
       <section className="bg-white py-24 sm:py-28">
-        <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-8">
+        <div className="mx-auto grid max-w-screen-2xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-8">
           {/* Mockup phone */}
           <Reveal delay={0.2} className="order-2 lg:order-1">
             <PhoneMockup />
@@ -1569,7 +1571,7 @@ function AeroportPage({ onSignup }: { onSignup: () => void }) {
       <section className="relative flex min-h-[60vh] items-center overflow-hidden bg-[#0F172A] text-white">
         <Aurora dark />
         <div className="fbp-grid-mask fbp-grid-dark pointer-events-none absolute inset-0" aria-hidden />
-        <div className="relative mx-auto w-full max-w-6xl px-4 py-20 sm:px-6 lg:px-8">
+        <div className="relative mx-auto w-full max-w-screen-2xl px-4 py-20 sm:px-6 lg:px-8">
           <div className="max-w-3xl">
             <Reveal>
               <div className="inline-flex items-center gap-2 rounded-full border border-[#06B6D4]/30 bg-white/5 px-4 py-1.5 text-xs font-medium text-[#06B6D4] backdrop-blur">
@@ -1609,7 +1611,7 @@ function AeroportPage({ onSignup }: { onSignup: () => void }) {
 
       {/* AVANTAGE 1 - GEOLOCALISATION */}
       <section className="bg-[#0F172A] py-24 text-white sm:py-28">
-        <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-8">
+        <div className="mx-auto grid max-w-screen-2xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-8">
           <div>
             <Reveal>
               <div className="text-xs font-semibold uppercase tracking-widest text-[#06B6D4]">
@@ -1661,7 +1663,7 @@ function AeroportPage({ onSignup }: { onSignup: () => void }) {
           className="pointer-events-none absolute top-0 left-1/2 h-[40rem] w-[60rem] -translate-x-1/2 rounded-full bg-[#7C3AED]/15 blur-[140px]"
           aria-hidden
         />
-        <div className="relative mx-auto grid max-w-6xl gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-8">
+        <div className="relative mx-auto grid max-w-screen-2xl gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-8">
           <div className="flex flex-col justify-center">
             <Reveal>
               <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-[#06B6D4]">
@@ -1719,7 +1721,7 @@ function AeroportPage({ onSignup }: { onSignup: () => void }) {
 
       {/* AVANTAGE 3 - CENTRALISATION (light) */}
       <section className="bg-[#F8FAFC] py-24 sm:py-28">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-screen-2xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <Reveal>
               <div className="text-xs font-semibold uppercase tracking-widest text-[#5257C9]">
@@ -1772,7 +1774,7 @@ function AeroportPage({ onSignup }: { onSignup: () => void }) {
 
       {/* CAS D'USAGE SECURITE */}
       <section className="bg-white py-24 sm:py-28">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-screen-2xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <Reveal>
               <div className="flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-widest text-red-500">
@@ -1879,7 +1881,7 @@ function AproposPage() {
 
       {/* HISTOIRE DE DENISE */}
       <section className="bg-white py-24 sm:py-28">
-        <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-8">
+        <div className="mx-auto grid max-w-screen-2xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-8">
           <div>
             <Reveal>
               <div className="text-xs font-semibold uppercase tracking-widest text-[#5257C9]">
@@ -1939,7 +1941,7 @@ function AproposPage() {
 
       {/* EQUIPE */}
       <section className="bg-[#F8FAFC] py-24 sm:py-28">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-screen-2xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <Reveal>
               <div className="text-xs font-semibold uppercase tracking-widest text-[#5257C9]">
@@ -2000,7 +2002,7 @@ function AproposPage() {
 
       {/* VALEURS */}
       <section className="bg-white py-24 sm:py-28">
-        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-screen-2xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <Reveal>
               <div className="text-xs font-semibold uppercase tracking-widest text-[#5257C9]">
@@ -2199,7 +2201,9 @@ function ContactPage() {
           <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#5257C9] to-[#7C3AED] py-16 px-6 text-center text-white shadow-2xl shadow-[#5257C9]/30">
             <Aurora dark />
             <div className="relative">
-              <Logo className="mx-auto h-8 w-auto" inverted />
+              <div className="mx-auto w-fit rounded-xl bg-white px-4 py-2 shadow-lg">
+                <Logo className="h-7 w-auto" />
+              </div>
               <h2 className="mt-5 text-3xl font-bold tracking-tight sm:text-4xl">
                 Une démo personnalisée sous 24h.
               </h2>
@@ -2254,11 +2258,13 @@ function Field({
 function Footer({ navigate }: { navigate: Navigate }) {
   return (
     <footer className="bg-[#0F172A] text-white">
-      <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-screen-2xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-5">
           {/* Brand */}
           <div className="lg:col-span-2">
-            <Logo className="h-8 w-auto" inverted />
+            <div className="w-fit rounded-xl bg-white px-4 py-2 shadow-lg">
+              <Logo className="h-7 w-auto" />
+            </div>
             <p className="mt-4 max-w-sm text-sm text-white/60">
               L&apos;intelligence terrain pour vos établissements. Piloté par
               Denise, votre assistante vocale temps réel.

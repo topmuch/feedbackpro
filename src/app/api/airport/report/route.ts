@@ -31,6 +31,7 @@ import {
 import { analyserEtRouterReport } from '@/lib/airport-vlm'
 import { sendEmail } from '@/lib/email'
 import { triggerPushNotification } from '@/lib/push-notifier'
+import { dispatchNotification } from '@/lib/notification-engine'
 
 export const runtime = 'nodejs'
 
@@ -207,6 +208,24 @@ export async function POST(req: NextRequest) {
     tag: `incident-${report.id}`,
   }).catch((err) => {
     console.warn('[airport-report] Push notification error:', err instanceof Error ? err.message : String(err))
+  })
+
+  // --- Task N1 — Centre de Notifications : dispatch unifié ---
+  // Fire-and-forget : délègue au moteur de notifications central qui
+  // consulte les NotificationTemplate + NotificationSetting en base et
+  // envoie sur tous les canaux actifs (push / sms_mtarget / whatsapp /
+  // email) configurés pour le déclencheur "new_incident". Le moteur logge
+  // chaque envoi dans NotificationLog pour audit. Ne lève jamais.
+  const incidentLink = `${process.env.NEXT_PUBLIC_APP_URL || ''}/?staff=1&report=${report.id}`
+  dispatchNotification('new_incident', {
+    incidentId: report.id,
+    zone: `${zone.emoji} ${zone.nom}`,
+    type: b.problemType,
+    link: incidentLink,
+    // Pas de staffName à ce stade : l'incident vient d'être créé, il n'est
+    // pas encore assigné. Le template "new_incident" broadcast au staff.
+  }).catch((err) => {
+    console.warn('[airport-report] Notification dispatch error:', err instanceof Error ? err.message : String(err))
   })
 
   // --- Logging serveur (mode démo WhatsApp) ---

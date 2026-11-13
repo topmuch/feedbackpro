@@ -150,13 +150,15 @@ function PanneauVisuel() {
         }}
       />
 
-      {/* ---------- En-tête : logo blanc ---------- */}
+      {/* ---------- En-tête : logo sur fond blanc arrondi ---------- */}
       <div className="relative flex items-center gap-3">
-        <img
-          src="/logo-feedbackpro.png"
-          alt="FeedbackPro"
-          className="h-12 brightness-0 invert"
-        />
+        <div className="rounded-xl bg-white px-4 py-2 shadow-lg">
+          <img
+            src="/logo-feedbackpro.png"
+            alt="FeedbackPro"
+            className="h-10 w-auto"
+          />
+        </div>
       </div>
 
       {/* ---------- Centre : tagline + témoignage ---------- */}

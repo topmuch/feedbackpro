@@ -50,11 +50,11 @@ if (process.env.NODE_ENV !== 'production' && dynamicRequire.cache) {
 const PrismaClientCtor: typeof import('@prisma/client').PrismaClient =
   dynamicRequire('@prisma/client').PrismaClient
 
-// Version bumpé à v18 (Task P1) : le schéma Prisma a évolué (nouveau
-// modèle AirportPushSubscription). Incrémenter la version force la
-// création d'une nouvelle instance PrismaClient qui connaît ce modèle —
-// sans redémarrage manuel du serveur de dev.
-const PRISMA_CACHE_KEY = 'prisma_v18_push'
+// Version bumpé à v20 (Task O1) : le schéma Prisma a évolué (nouveau
+// modèle SystemHealthLog pour le Centre Opérationnel). Incrémenter la
+// version force la création d'une nouvelle instance PrismaClient qui
+// connaît ce modèle — sans redémarrage manuel du serveur de dev.
+const PRISMA_CACHE_KEY = 'prisma_v20_operations'
 
 const globalForPrisma = globalThis as unknown as {
   [key: string]: import('@prisma/client').PrismaClient | undefined

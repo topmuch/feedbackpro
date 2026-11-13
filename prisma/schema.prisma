@@ -796,3 +796,99 @@ model AirportStaffQr {
 
   @@index([zoneCode])
 }
+
+// ============================================================
+// Task N1 — Centre de Notifications (SuperAdmin)
+// ------------------------------------------------------------
+// Centralise la gestion des canaux de notification (Email, WhatsApp,
+// SMS Mtarget, Push PWA), les templates par déclencheur et l'historique
+// des envois. Piloté depuis l'onglet "Notifications" du dashboard admin.
+// ============================================================
+
+model NotificationSetting {
+  id        String   @id @default(cuid())
+  // Canal : "email" | "whatsapp" | "sms_mtarget" | "push_pwa"
+  canal     String   @unique
+  // Statut d'activation global
+  active    Boolean  @default(false)
+  // Configuration JSON (API keys, endpoints, sender IDs, etc.)
+  // Ex pour SMS Mtarget : { "endpoint": "https://api.mtarget.sn/v1/sms/send", "login": "...", "password": "...", "senderId": "FBKPRO" }
+  // Ex pour WhatsApp : { "provider": "meta", "phoneNumberId": "...", "templateId": "incident_alert_staff" }
+  // Ex pour Email : { "provider": "sendgrid", "fromName": "FeedbackPro Alertes", "fromEmail": "alertes@feedbackpro.sn" }
+  // Ex pour Push : { "provider": "onesignal", "appId": "..." }
+  config    String   @default("{}")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model NotificationTemplate {
+  id          String   @id @default(cuid())
+  // Déclencheur : "new_incident" | "assigned" | "resolved" | "escalation_15min" | "escalation_30min"
+  trigger     String   @unique
+  // Nom affiché : "Nouvel Incident Assigné", "Escalade 15 min", etc.
+  label       String
+  // Canaux actifs pour ce template : JSON string[] : ["sms_mtarget", "push_pwa", "whatsapp"]
+  channels    String   @default("[]")
+  // Template du message avec variables : {STAFF_NOM}, {INCIDENT_ID}, {ZONE}, {TYPE}, {LIEN_DIRECT}, {HEURE}, {TEMPS}
+  template    String   @default("Incident {TYPE} a {ZONE}. Lien : {LIEN_DIRECT}")
+  // Destinataire : "assigned_staff" | "terminal_staff" | "supervisor"
+  recipient   String   @default("assigned_staff")
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model NotificationLog {
+  id          String   @id @default(cuid())
+  // Template trigger qui a déclenché l'envoi
+  trigger     String
+  // Canal utilisé
+  canal       String
+  // Destinataire (numéro/email/staffName)
+  recipient   String
+  // Statut : "sent" | "failed" | "delivered" | "read"
+  status      String   @default("sent")
+  // Message envoyé (pour audit)
+  message     String?
+  // Coût (pour SMS principalement)
+  cost        Float?
+  // ReportId lié si applicable
+  reportId    String?
+  createdAt   DateTime @default(now())
+
+  @@index([trigger, createdAt])
+  @@index([canal, status])
+}
+
+// ============================================================
+// Task O1 — Centre Opérationnel (SuperAdmin NOC)
+// ------------------------------------------------------------
+// Logs d'intégrité des 7 services critiques de la plateforme :
+//   db_primary, mtarget_sms, whatsapp_api, smtp_email,
+//   push_pwa, denise_tts, service_worker
+// Seuls les status "warning" et "critical" sont journalisés (pour
+// éviter de saturer la table avec des "ok"). Le centre opérationnel
+// (admin-operations-tab) interroge /api/admin/operations/health
+// toutes les 10s et /api/admin/operations/alerts toutes les 5s.
+// ============================================================
+
+model SystemHealthLog {
+  id           String    @id @default(cuid())
+  // Service : "db_primary" | "mtarget_sms" | "whatsapp_api" | "smtp_email" | "push_pwa" | "denise_tts" | "service_worker"
+  serviceName  String
+  // Status : "ok" | "warning" | "critical"
+  status       String
+  // Latency in ms (if applicable)
+  latencyMs    Int?
+  // Error message (if any)
+  errorMessage String?
+  // When detected
+  detectedAt   DateTime  @default(now())
+  // When resolved (null if still active)
+  resolvedAt   DateTime?
+  // Whether an alert email was sent
+  alertSent    Boolean   @default(false)
+
+  @@index([serviceName, detectedAt])
+  @@index([status, detectedAt])
+}
