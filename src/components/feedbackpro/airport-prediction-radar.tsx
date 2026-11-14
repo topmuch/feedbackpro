@@ -90,6 +90,27 @@ function trendInfo(zone: ZonePrediction): TrendInfo {
   return { Icon: Minus, label: '→' }
 }
 
+/**
+ * Raison affichée sous le score — Task WB2 Feature 5.
+ * Texte court et actionnable selon le niveau de risque :
+ *   - score > 60 : "Pic d'incidents dans les 20 dernières min"
+ *   - score > 40 : "Tendance à la hausse"
+ *   - score > 20 : "Surveillance normale"
+ *   - score = 0  : "Aucun incident récent"
+ */
+function riskReason(zone: ZonePrediction): string {
+  if (zone.riskScore > 60) {
+    return 'Pic d\'incidents dans les 20 dernières min'
+  }
+  if (zone.riskScore > 40) {
+    return 'Tendance à la hausse'
+  }
+  if (zone.riskScore > 20) {
+    return 'Surveillance normale'
+  }
+  return 'Aucun incident récent'
+}
+
 function formatTime(d: Date): string {
   return d.toLocaleTimeString('fr-FR', {
     hour: '2-digit',
@@ -278,6 +299,16 @@ export function AirportPredictionRadar({ className }: { className?: string }) {
               {/* Recommandation */}
               <p className="mt-2 text-[10px] leading-snug text-slate-500">
                 {zone.recommendation}
+              </p>
+
+              {/* Reasoning — Task WB2 Feature 5 : explication courte du score
+                  pour aider l'ops à prioriser sans devoir interpréter le chiffre. */}
+              <p
+                className="mt-1.5 flex items-center gap-1 text-[10px] font-medium leading-snug text-slate-400"
+                title={`Score ${zone.riskScore}/100 — ${riskReason(zone)}`}
+              >
+                <Activity className="h-2.5 w-2.5 shrink-0 text-slate-500" aria-hidden />
+                {riskReason(zone)}
               </p>
             </div>
           )
