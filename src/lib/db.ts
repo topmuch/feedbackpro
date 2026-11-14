@@ -50,12 +50,12 @@ if (process.env.NODE_ENV !== 'production' && dynamicRequire.cache) {
 const PrismaClientCtor: typeof import('@prisma/client').PrismaClient =
   dynamicRequire('@prisma/client').PrismaClient
 
-// Version bumpé à v21 (Task VDE) : le schéma Prisma a évolué (3 nouveaux
-// modèles VoiceDecisionRule, VoiceAnnouncementLog, VoiceTimeMode pour la
-// Voice Decision Engine de Denise). Incrémenter la version force la
+// Version bumpé à v22 (Task AD1) : le schéma Prisma a évolué (4 nouveaux
+// modèles Advertiser, Campaign, CampaignSlot, AdStat pour la Régie
+// Publicitaire / AdTech platform). Incrémenter la version force la
 // création d'une nouvelle instance PrismaClient qui connaît ces modèles —
 // sans redémarrage manuel du serveur de dev.
-const PRISMA_CACHE_KEY = 'prisma_v21_voice'
+const PRISMA_CACHE_KEY = 'prisma_v22_ads'
 
 const globalForPrisma = globalThis as unknown as {
   [key: string]: import('@prisma/client').PrismaClient | undefined

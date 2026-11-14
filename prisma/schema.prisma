@@ -995,3 +995,76 @@ model ContactMessage {
 
   @@index([statut, createdAt])
 }
+
+// ============================================================
+// RÉGIE PUBLICITAIRE — Task AD1
+// ------------------------------------------------------------
+// Plateforme AdTech pour la zone aéroport (leaderboard 916x90).
+// Triple verrou : isAdEligible sur AirportZoneConfig (DB),
+// check backend 403 dans /api/admin/ads/campaigns, frontend
+// Select avec zones interdites désactivées + tooltip.
+// ============================================================
+
+model Advertiser {
+  id             String      @id @default(cuid())
+  companyName    String
+  contactName    String?
+  contactPhone   String?
+  contactEmail   String?
+  billingAddress String?
+  logoUrl        String?
+  createdAt      DateTime    @default(now())
+  campaigns      Campaign[]
+}
+
+model Campaign {
+  id               String         @id @default(cuid())
+  advertiserId     String
+  advertiser       Advertiser     @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+  title            String
+  imageUrl         String? // 916x90 leaderboard format
+  landingUrl       String?
+  zoneCode         String // Parking, Dépose, Tapis, Embarq, Arrivée
+  priority         Int            @default(1)
+  startDate        DateTime
+  endDate          DateTime?
+  dailyBudgetViews Int? // max impressions per day
+  status           String         @default("draft") // draft | active | paused | completed
+  priceMonthlyFcfa Int?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  slots            CampaignSlot[]
+  stats            AdStat[]
+
+  @@index([zoneCode, status])
+  @@index([advertiserId])
+}
+
+model CampaignSlot {
+  id         String   @id @default(cuid())
+  campaignId String
+  campaign   Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  dayOfWeek  Int // 0=Dim, 1=Lun... 6=Sam
+  startTime  String // "08:00"
+  endTime    String // "10:00"
+  zoneCode   String
+  createdAt  DateTime @default(now())
+
+  @@index([zoneCode, dayOfWeek])
+  @@index([campaignId])
+}
+
+model AdStat {
+  id             String   @id @default(cuid())
+  campaignId     String
+  campaign       Campaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  zoneCode       String
+  viewDate       DateTime @default(now())
+  viewHour       Int // 0-23
+  impressions    Int      @default(0)
+  clicks         Int      @default(0)
+  uniqueVisitors Int      @default(0)
+
+  @@index([campaignId, viewDate])
+  @@index([zoneCode, viewDate])
+}

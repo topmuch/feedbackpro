@@ -36,6 +36,12 @@ export type AirportZoneConfig = {
   /** Les problématiques prédéfinies (boutons rapides) — tableau flexible
    * (1 minimum pour la zone SOS, 4+ pour les autres). */
   problemes: string[]
+  /** Task AD1 — Régie publicitaire : indique si la zone est éligible à
+   *  l'affichage de publicités (leaderboard 916x90).
+   *  - true (défaut) : publicité autorisée
+   *  - false : zone protégée — interdiction absolue (SOS / URGENCE).
+   *  Verrou #1 du triple verrou FeedbackPro. */
+  isAdEligible?: boolean
 }
 
 export const AIRPORT_ZONES: AirportZoneConfig[] = [
@@ -151,8 +157,18 @@ export const AIRPORT_ZONES: AirportZoneConfig[] = [
 
   // ===========================================================
   // URGENCE (1 zone) — Bouton unique APPELER SECOURS
+  // Task AD1 — Triple verrou #1 : isAdEligible: false (zone protégée,
+  // interdiction absolue de publicité — sécurité publique).
   // ===========================================================
-  { code: 'urg_sos', nom: 'Point d\'Urgence / SOS', emoji: '🚨', description: 'Point d\'urgence — bouton unique APPELER SECOURS', tags: ['urg_sos_1', 'urg_sos_2', 'urg_sos_colonne_1', 'urg_sos_borne_1'], problemes: ['APPELER SECOURS'] },
+  {
+    code: 'urg_sos',
+    nom: 'Point d\'Urgence / SOS',
+    emoji: '🚨',
+    description: 'Point d\'urgence — bouton unique APPELER SECOURS',
+    tags: ['urg_sos_1', 'urg_sos_2', 'urg_sos_colonne_1', 'urg_sos_borne_1'],
+    problemes: ['APPELER SECOURS'],
+    isAdEligible: false,
+  },
 ]
 
 /**
@@ -286,6 +302,19 @@ export function resoudreZoneParTag(tag: string): AirportZoneConfig | null {
  */
 export function getZoneParCode(code: string): AirportZoneConfig | null {
   return AIRPORT_ZONES.find((z) => z.code === code) ?? null
+}
+
+/**
+ * Task AD1 — Régie publicitaire : indique si une zone est éligible à
+ * l'affichage de publicités. Par défaut true, sauf pour les zones
+ * marquées explicitement `isAdEligible: false` (ex: urg_sos).
+ *
+ * Utilisé par le triple verrou #2 (backend API) et #3 (frontend Select).
+ */
+export function isZoneAdEligible(code: string): boolean {
+  const zone = getZoneParCode(code)
+  if (!zone) return true // zone inconnue → on autorise par défaut (legacy)
+  return zone.isAdEligible !== false
 }
 
 /**

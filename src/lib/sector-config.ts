@@ -34,6 +34,10 @@ export type ZoneConfig = {
   description?: string
   tags: string[]
   problemes: string[]
+  /** Task AD1 — Régie publicitaire : indique si la zone est éligible à
+   *  l'affichage de publicités (défaut true). false = zone protégée
+   *  (ex: urg_sos aéroport — interdiction absolue de pub). */
+  isAdEligible?: boolean
 }
 
 /** Identifiants des secteurs supportés par FeedbackPro. */
@@ -202,4 +206,19 @@ export function getSectorForZoneCode(code: string): SectorConfig | null {
  */
 export function getAllStaticZones(): ZoneConfig[] {
   return SECTORS.flatMap((s) => s.zones)
+}
+
+/**
+ * Task AD1 — Régie publicitaire : indique si une zone (par code,
+ * tous secteurs confondus) est éligible à la publicité.
+ * - true (défaut) : publicité autorisée
+ * - false : zone protégée — interdiction absolue (ex: urg_sos).
+ *
+ * Utilisé par le triple verrou #2 (backend) dans /api/admin/ads/campaigns
+ * pour bloquer la création d'une campagne ciblant une zone interdite.
+ */
+export function isZoneAdEligibleByCode(code: string): boolean {
+  const zone = getZoneByCode(code)
+  if (!zone) return true // zone inconnue → on autorise par défaut (legacy)
+  return zone.isAdEligible !== false
 }
