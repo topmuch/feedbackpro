@@ -279,46 +279,11 @@ async function decideAndSpeakInner(event: VoiceEvent): Promise<VoiceDecision> {
   const timeMode = resolveTimeModeFromHour(event.sector, hour)
   const rulePriority = rule.priority as Priority
 
-  // Time mode filtering — DÉSACTIVÉ par défaut (Denise parle à toute heure)
-  // Le filtrage horaire (mode nuit/service) causait des annonces manquées.
-  // Les conditions `false &&` court-circuitent le filtrage sans casser le code.
-  // Le timeMode est quand même calculé pour affichage/debug mais ne filtre plus.
-  if (false && timeMode === 'night' && event.eventType !== 'security_sanitary') {
-    const message = renderTemplate(rule.template, event)
-    return logAndReturn({
-      event,
-      shouldSpeak: false,
-      priority: rulePriority,
-      tone: rule.tone as Tone,
-      volumeAdjustment: rule.volumeAdjustment,
-      message,
-      targetAudience: [],
-      aggregateId: null,
-      suppressUntil: null,
-      reason: 'night_mode_silent',
-      zoneRef,
-    })
-  }
-
-  if (
-    false && (timeMode === 'service_lunch' || timeMode === 'service_dinner') &&
-    rulePriority === 'info'
-  ) {
-    const message = renderTemplate(rule.template, event)
-    return logAndReturn({
-      event,
-      shouldSpeak: false,
-      priority: rulePriority,
-      tone: rule.tone as Tone,
-      volumeAdjustment: rule.volumeAdjustment,
-      message,
-      targetAudience: [],
-      aggregateId: null,
-      suppressUntil: null,
-      reason: 'service_mode_info_filtered',
-      zoneRef,
-    })
-  }
+  // Time mode filtering — DÉSACTIVÉ (Denise parle à toute heure)
+  // Les blocs de filtrage horaire (night/service/quiet) ont été supprimés
+  // car ils causaient des annonces manquées + erreurs TypeScript.
+  // Pour réactiver : recréer les blocs avec les conditions appropriées
+  // et ajouter `if (rule)` guards ou `rule!` assertions.
 
   if (timeMode === 'quiet' && rulePriority === 'info') {
     const message = renderTemplate(rule.template, event)
