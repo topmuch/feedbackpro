@@ -4013,6 +4013,10 @@ type MessageLigne = {
   message: string
   lu: boolean
   createdAt: string
+  typeEtablissement?: string | null
+  volume?: string | null
+  defi?: string | null
+  statut?: string
 }
 
 function MessagesTab({ onApresAction }: { onApresAction: () => void }) {
@@ -4210,6 +4214,29 @@ function MessagesTab({ onApresAction }: { onApresAction: () => void }) {
                   </div>
                 </CardHeader>
                 <CardContent className="space-y-4">
+                  {/* Infos détaillées : type / volume / defi */}
+                  {(messageSelectionne.typeEtablissement || messageSelectionne.volume || messageSelectionne.defi) && (
+                    <div className="flex flex-wrap gap-2">
+                      {messageSelectionne.typeEtablissement && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
+                          <Building2 className="h-3 w-3" />
+                          {messageSelectionne.typeEtablissement}
+                        </span>
+                      )}
+                      {messageSelectionne.volume && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-muted px-3 py-1 text-xs font-medium text-muted-foreground">
+                          Volume : {messageSelectionne.volume}
+                        </span>
+                      )}
+                      {messageSelectionne.defi && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-700">
+                          Défi : {messageSelectionne.defi}
+                        </span>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Message détaillé */}
                   <div className="rounded-2xl bg-muted/40 p-4">
                     <p className="whitespace-pre-wrap text-sm leading-relaxed text-foreground">
                       {messageSelectionne.message}

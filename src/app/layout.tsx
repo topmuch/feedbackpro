@@ -159,7 +159,7 @@ export default async function RootLayout({
       <body
         className={`${interSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
-        <ThemeProvider attribute="class" defaultTheme="system" enableSystem={true} disableTransitionOnChange>
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange storageKey="fp-theme">
           {children}
           <Toaster />
         </ThemeProvider>
