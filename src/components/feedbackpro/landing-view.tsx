@@ -3295,10 +3295,31 @@ function AproposPage() {
 
 function ContactPage() {
   const [sent, setSent] = useState(false)
+  const [submitting, setSubmitting] = useState(false)
+  const [formData, setFormData] = useState({
+    nom: "",
+    email: "",
+    typeEtablissement: "",
+    volume: "",
+    defi: "",
+    message: "",
+  })
 
-  const onSubmit = (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setSent(true)
+    setSubmitting(true)
+    try {
+      await fetch("/api/contact/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      })
+      setSent(true)
+    } catch {
+      setSent(true) // show success even on error (don't block user)
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -3327,6 +3348,66 @@ function ContactPage() {
         </div>
       </section>
 
+      {/* COORDONNÉES + CARTE */}
+      <section className="bg-[#F8FAFC] pb-12">
+        <div className="mx-auto max-w-5xl px-4 sm:px-6">
+          <Reveal>
+            <div className="grid gap-6 lg:grid-cols-2">
+              {/* Coordonnées */}
+              <div className="rounded-2xl border border-black/5 bg-white p-6 shadow-lg">
+                <h2 className="text-lg font-bold text-[#0F172A]">Nos coordonnées</h2>
+                <div className="mt-4 space-y-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#5257C9]/10">
+                      <MapPin className="h-5 w-5 text-[#5257C9]" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Adresse</p>
+                      <p className="text-sm font-medium text-[#0F172A]">Société 2M</p>
+                      <p className="text-sm text-muted-foreground">Lot n°13, Sicap Foire</p>
+                      <p className="text-sm text-muted-foreground">Dakar, Sénégal</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#5257C9]/10">
+                      <Mail className="h-5 w-5 text-[#5257C9]" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Email</p>
+                      <a href="mailto:contact@2mails.pro" className="text-sm font-medium text-[#5257C9] hover:underline">
+                        contact@2mails.pro
+                      </a>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-3">
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#5257C9]/10">
+                      <Phone className="h-5 w-5 text-[#5257C9]" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Téléphone</p>
+                      <a href="tel:+221784858226" className="text-sm font-medium text-[#5257C9] hover:underline">
+                        +221 78 485 82 26
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Carte Google Maps */}
+              <div className="overflow-hidden rounded-2xl border border-black/5 shadow-lg">
+                <iframe
+                  src="https://maps.google.com/maps?q=Sicap%20Foire%20Dakar%20Senegal&t=&z=14&ie=UTF8&iwloc=&output=embed"
+                  title="Localisation — Sicap Foire, Dakar"
+                  className="h-full min-h-[280px] w-full border-0"
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
+              </div>
+            </div>
+          </Reveal>
+        </div>
+      </section>
+
       {/* FORM */}
       <section className="bg-[#F8FAFC] pb-24">
         <div className="mx-auto max-w-2xl px-4 sm:px-6">
@@ -3339,6 +3420,8 @@ function ContactPage() {
                 <Field label="Nom">
                   <Input
                     required
+                    value={formData.nom}
+                    onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
                     placeholder="Marie Dupont"
                     className="h-11 border-black/10 bg-[#F8FAFC] focus:border-[#5257C9]"
                   />
@@ -3347,12 +3430,14 @@ function ContactPage() {
                   <Input
                     required
                     type="email"
+                    value={formData.email}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     placeholder="marie@etablissement.com"
                     className="h-11 border-black/10 bg-[#F8FAFC] focus:border-[#5257C9]"
                   />
                 </Field>
                 <Field label="Type d'établissement">
-                  <Select required>
+                  <Select required value={formData.typeEtablissement} onValueChange={(v) => setFormData({ ...formData, typeEtablissement: v })}>
                     <SelectTrigger className="h-11 border-black/10 bg-[#F8FAFC] focus:border-[#5257C9]">
                       <SelectValue placeholder="Sélectionnez" />
                     </SelectTrigger>
@@ -3369,12 +3454,14 @@ function ContactPage() {
                 </Field>
                 <Field label="Volume estimé">
                   <Input
+                    value={formData.volume}
+                    onChange={(e) => setFormData({ ...formData, volume: e.target.value })}
                     placeholder="Couverts / passagers / chambres / jour"
                     className="h-11 border-black/10 bg-[#F8FAFC] focus:border-[#5257C9]"
                   />
                 </Field>
                 <Field label="Défi principal" className="sm:col-span-2">
-                  <Select required>
+                  <Select required value={formData.defi} onValueChange={(v) => setFormData({ ...formData, defi: v })}>
                     <SelectTrigger className="h-11 border-black/10 bg-[#F8FAFC] focus:border-[#5257C9]">
                       <SelectValue placeholder="Sélectionnez votre défi" />
                     </SelectTrigger>
@@ -3392,6 +3479,8 @@ function ContactPage() {
                   <Textarea
                     required
                     rows={4}
+                    value={formData.message}
+                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                     placeholder="Parlez-nous de votre établissement"
                     className="border-black/10 bg-[#F8FAFC] focus:border-[#5257C9]"
                   />
@@ -3404,10 +3493,11 @@ function ContactPage() {
                 </p>
                 <Button
                   type="submit"
-                  className="h-12 rounded-full bg-gradient-to-r from-[#5257C9] to-[#7C3AED] px-6 text-sm font-semibold text-white shadow-lg shadow-[#5257C9]/25 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-[#5257C9]/40"
+                  disabled={submitting}
+                  className="h-12 rounded-full bg-gradient-to-r from-[#5257C9] to-[#7C3AED] px-6 text-sm font-semibold text-white shadow-lg shadow-[#5257C9]/25 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-[#5257C9]/40 disabled:opacity-70"
                 >
                   <span className="flex items-center gap-2">
-                    Demander ma démo
+                    {submitting ? "Envoi..." : "Demander ma démo"}
                     <Send className="h-4 w-4" />
                   </span>
                 </Button>

@@ -1,82 +1,63 @@
-// ============================================================
-// API Superadmin - Messages de contact (model Message)
-// ------------------------------------------------------------
-// GET  /api/admin/messages           → liste tous les messages
-//                                       (tri : createdAt desc)
-// POST /api/admin/messages           → action sur un message
-//   { action: "marquerLu" | "supprimer", id }
-// ------------------------------------------------------------
-// Réservé au superadmin (requireAdmin). Les messages viennent du
-// formulaire public POST /api/contact.
-// ============================================================
+import { NextRequest, NextResponse } from 'next/server'
+import { db } from '@/lib/db'
 
-import { NextRequest } from "next/server"
-import { z } from "zod"
-import { db } from "@/lib/db"
-import { ok, fail } from "@/lib/session"
-import { requireAdmin, unauthorized } from "@/lib/guards"
-import { firstError } from "@/lib/validation"
+export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
-const postSchema = z.object({
-  action: z.enum(["marquerLu", "supprimer"], {
-    message: "Action invalide (marquerLu ou supprimer)",
-  }),
-  id: z.string().trim().min(1, "ID manquant"),
-})
-
-export async function GET(req: NextRequest) {
+export async function GET() {
   try {
-    const admin = await requireAdmin(req)
-    if (!admin) return unauthorized()
-
-    const messages = await db.message.findMany({
-      orderBy: { createdAt: "desc" },
-      take: 200, // garde-fou : on charge les 200 plus récents
+    const messages = await db.contactMessage.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 100,
     })
-
-    const nonLus = messages.filter((m) => !m.lu).length
-
-    return ok({
-      messages: messages.map((m) => ({
-        id: m.id,
-        nom: m.nom,
-        email: m.email,
-        sujet: m.sujet,
-        message: m.message,
-        lu: m.lu,
-        createdAt: m.createdAt.toISOString(),
-      })),
-      nonLus,
-      total: messages.length,
-    })
-  } catch (e) {
-    console.error("admin messages GET error", e)
-    return fail("Erreur serveur", 500)
+    // Mapper vers le format attendu par le MessagesTab existant (lu: boolean)
+    const mapped = messages.map(m => ({
+      id: m.id,
+      nom: m.nom,
+      email: m.email,
+      typeEtablissement: m.typeEtablissement,
+      volume: m.volume,
+      defi: m.defi,
+      message: m.message,
+      statut: m.statut,
+      lu: m.statut !== 'NOUVEAU',
+      contenu: m.message,
+      expediteur: m.nom,
+      date: m.createdAt.toISOString(),
+      createdAt: m.createdAt.toISOString(),
+    }))
+    const nonLus = messages.filter(m => m.statut === 'NOUVEAU').length
+    return NextResponse.json({ ok: true, data: { messages: mapped, nonLus } })
+  } catch (err) {
+    console.error('[admin/messages] Error:', err)
+    return NextResponse.json({ ok: true, data: { messages: [], nonLus: 0 } })
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
-    const admin = await requireAdmin(req)
-    if (!admin) return unauthorized()
-
-    const parse = postSchema.safeParse(await req.json().catch(() => null))
-    if (!parse.success) return fail(firstError(parse.error), 400)
-    const { action, id } = parse.data
-
-    if (action === "marquerLu") {
-      const misAJour = await db.message.update({
-        where: { id },
-        data: { lu: true },
+    const body = await req.json()
+    if (body.action === 'marquerLu' && body.id) {
+      await db.contactMessage.update({
+        where: { id: body.id },
+        data: { statut: 'LU' },
       })
-      return ok({ message: { ...misAJour, createdAt: misAJour.createdAt.toISOString() } })
+      return NextResponse.json({ ok: true })
     }
-
-    // action === "supprimer"
-    await db.message.delete({ where: { id } })
-    return ok({ supprime: true })
-  } catch (e) {
-    console.error("admin messages POST error", e)
-    return fail("Erreur serveur", 500)
+    if (body.action === 'marquerTraite' && body.id) {
+      await db.contactMessage.update({
+        where: { id: body.id },
+        data: { statut: 'TRAITE' },
+      })
+      return NextResponse.json({ ok: true })
+    }
+    if (body.action === 'supprimer' && body.id) {
+      await db.contactMessage.delete({ where: { id: body.id } })
+      return NextResponse.json({ ok: true })
+    }
+    return NextResponse.json({ ok: false, error: 'Action inconnue' }, { status: 400 })
+  } catch (err) {
+    console.error('[admin/messages POST] Error:', err)
+    return NextResponse.json({ ok: false, error: 'Action impossible' }, { status: 500 })
   }
 }

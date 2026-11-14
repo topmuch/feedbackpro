@@ -978,3 +978,20 @@ model VoiceTimeMode {
   active      Boolean  @default(true)
   updatedAt   DateTime @updatedAt
 }
+
+// ============================================================
+// ContactMessage — Messages reçus depuis le formulaire contact
+// ============================================================
+model ContactMessage {
+  id          String   @id @default(cuid())
+  nom         String
+  email       String
+  typeEtablissement String?
+  volume      String?
+  defi        String?
+  message     String
+  statut      String   @default("NOUVEAU") // NOUVEAU | LU | TRAITE
+  createdAt   DateTime @default(now())
+
+  @@index([statut, createdAt])
+}

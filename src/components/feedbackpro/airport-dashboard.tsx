@@ -315,6 +315,19 @@ export default function AirportDashboard() {
 function WallboardTab() {
   return (
     <div className="relative h-[calc(100vh-128px)] w-full">
+      {/* Bouton ouvrir sur TV (URL externe plein écran) */}
+      <div className="absolute right-4 top-4 z-10">
+        <a
+          href="/ops-wallboard"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-2 rounded-lg bg-[#5257C9] px-4 py-2 text-sm font-bold text-white shadow-lg transition-all hover:bg-[#4549b8] hover:shadow-xl"
+          title="Ouvrir le wallboard plein écran sur un TV"
+        >
+          <ExternalLink className="h-4 w-4" />
+          Ouvrir sur TV
+        </a>
+      </div>
       <iframe
         src="/ops-wallboard"
         title="Wallboard Ops Aéroport"
