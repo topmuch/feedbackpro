@@ -701,6 +701,74 @@ function KpiCard({
   )
 }
 
+// Hero image générée par IA + bulles de notification en CSS overlay
+// L'image montre un terminal aéroport avec QR code holographique central.
+// Les bulles de notification sont ajoutées en CSS (l'IA ne gère pas le texte).
+function HeroImageWithBubbles() {
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-black/5 shadow-2xl shadow-[#5257C9]/15">
+      {/* Image générée */}
+      <img
+        src="/hero-feedbackpro.png"
+        alt="FeedbackPro — Intelligence terrain avec QR code et notifications Denise"
+        className="w-full"
+        loading="eager"
+      />
+
+      {/* Overlay gradient pour améliorer la lisibilité des bulles */}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#5257C9]/5 via-transparent to-[#7C3AED]/5" />
+
+      {/* Bulle 1 — Rouge : Bagage perdu (top-right) */}
+      <div
+        className="absolute right-4 top-[15%] animate-[fbp-float_4s_ease-in-out_infinite] rounded-xl border border-red-400/30 bg-red-500/15 px-3 py-2 backdrop-blur-md shadow-lg sm:right-8 sm:top-[12%]"
+        style={{ animationDelay: "0s" }}
+      >
+        <div className="flex items-center gap-1.5">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />
+          <span className="text-[10px] font-bold text-red-100 sm:text-xs">Bagage perdu</span>
+        </div>
+        <p className="mt-0.5 text-[8px] text-red-200/80 sm:text-[10px]">Tapis 4 · il y a 2 min</p>
+      </div>
+
+      {/* Bulle 2 — Jaune : Toilettes sales (top-left) */}
+      <div
+        className="absolute left-4 top-[20%] animate-[fbp-float_5s_ease-in-out_infinite] rounded-xl border border-amber-400/30 bg-amber-500/15 px-3 py-2 backdrop-blur-md shadow-lg sm:left-8 sm:top-[18%]"
+        style={{ animationDelay: "0.5s" }}
+      >
+        <div className="flex items-center gap-1.5">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-amber-400" />
+          <span className="text-[10px] font-bold text-amber-100 sm:text-xs">Toilettes sales</span>
+        </div>
+        <p className="mt-0.5 text-[8px] text-amber-200/80 sm:text-[10px]">Zone B · il y a 5 min</p>
+      </div>
+
+      {/* Bulle 3 — Violet : Denise alerte (bottom-right) */}
+      <div
+        className="absolute right-6 bottom-[20%] animate-[fbp-float_4.5s_ease-in-out_infinite] rounded-xl border border-violet-400/30 bg-violet-500/20 px-3 py-2 backdrop-blur-md shadow-lg sm:right-12 sm:bottom-[18%]"
+        style={{ animationDelay: "1s" }}
+      >
+        <div className="flex items-center gap-1.5">
+          <span className="h-2 w-2 animate-pulse rounded-full bg-violet-400" />
+          <span className="text-[10px] font-bold text-violet-100 sm:text-xs">Denise alerte</span>
+        </div>
+        <p className="mt-0.5 text-[8px] text-violet-200/80 sm:text-[10px]">Équipe notifiée · 18:32</p>
+      </div>
+
+      {/* Bulle 4 — Vert : Incident résolu (bottom-left) */}
+      <div
+        className="absolute left-6 bottom-[25%] animate-[fbp-float_5.5s_ease-in-out_infinite] rounded-xl border border-emerald-400/30 bg-emerald-500/15 px-3 py-2 backdrop-blur-md shadow-lg sm:left-12 sm:bottom-[22%]"
+        style={{ animationDelay: "1.5s" }}
+      >
+        <div className="flex items-center gap-1.5">
+          <span className="h-2 w-2 rounded-full bg-emerald-400" />
+          <span className="text-[10px] font-bold text-emerald-100 sm:text-xs">Incident résolu</span>
+        </div>
+        <p className="mt-0.5 text-[8px] text-emerald-200/80 sm:text-[10px]">Porte B12 · 5 min</p>
+      </div>
+    </div>
+  )
+}
+
 function DashboardMockup() {
   return (
     <div className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-2xl shadow-[#5257C9]/10">
@@ -1592,9 +1660,9 @@ function AccueilPage({
             </div>
           </Reveal>
 
-          {/* Dashboard mockup */}
+          {/* Hero image générée + bulles notification CSS overlay */}
           <Reveal delay={0.4} className="mt-14 w-full max-w-screen-xl">
-            <DashboardMockup />
+            <HeroImageWithBubbles />
           </Reveal>
         </div>
       </section>
