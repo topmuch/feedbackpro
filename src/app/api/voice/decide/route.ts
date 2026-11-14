@@ -19,6 +19,7 @@ import {
   decideAndSpeak,
   type VoiceEvent,
 } from '@/lib/voice-decision-engine'
+import { seedVoiceRulesIfEmpty } from '@/lib/voice-rules-seed'
 
 export async function POST(req: Request) {
   try {
@@ -28,6 +29,15 @@ export async function POST(req: Request) {
         { error: 'event requis' },
         { status: 400 },
       )
+    }
+    // Auto-seed les règles si la table est vide (la première fois que
+    // Denise est appelée, les règles n'existent pas encore → elle se
+    // tait avec reason='no_rule'. On seed ici pour éviter ça).
+    try {
+      await seedVoiceRulesIfEmpty()
+    } catch {
+      /* si le seed échoue (table absente), on continue — le moteur
+         retournera shouldSpeak=false avec reason='no_rule' */
     }
     const decision = await decideAndSpeak(body.event)
     return NextResponse.json({ decision })

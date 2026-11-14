@@ -279,7 +279,11 @@ async function decideAndSpeakInner(event: VoiceEvent): Promise<VoiceDecision> {
   const timeMode = resolveTimeModeFromHour(event.sector, hour)
   const rulePriority = rule.priority as Priority
 
-  if (timeMode === 'night' && event.eventType !== 'security_sanitary') {
+  // Time mode filtering — DÉSACTIVÉ par défaut (Denise parle à toute heure)
+  // Le filtrage horaire (mode nuit/service) causait des annonces manquées.
+  // Les conditions `false &&` court-circuitent le filtrage sans casser le code.
+  // Le timeMode est quand même calculé pour affichage/debug mais ne filtre plus.
+  if (false && timeMode === 'night' && event.eventType !== 'security_sanitary') {
     const message = renderTemplate(rule.template, event)
     return logAndReturn({
       event,
@@ -297,7 +301,7 @@ async function decideAndSpeakInner(event: VoiceEvent): Promise<VoiceDecision> {
   }
 
   if (
-    (timeMode === 'service_lunch' || timeMode === 'service_dinner') &&
+    false && (timeMode === 'service_lunch' || timeMode === 'service_dinner') &&
     rulePriority === 'info'
   ) {
     const message = renderTemplate(rule.template, event)
@@ -347,6 +351,11 @@ async function decideAndSpeakInner(event: VoiceEvent): Promise<VoiceDecision> {
         eventType: event.eventType,
         zoneRef,
         createdAt: { gte: windowStart },
+        // Ne compter QUE les annonces réellement prononcées (spoken=true).
+        // Les annonces supprimées (night_mode, no_rule, etc.) ne doivent
+        // PAS bloquer l'agrégation — sinon Denise ne reparle jamais après
+        // une première suppression.
+        spoken: true,
       },
       orderBy: { createdAt: 'desc' },
     })
