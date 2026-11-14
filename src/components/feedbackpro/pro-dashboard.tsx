@@ -705,60 +705,73 @@ function ContenuSidebar({
     <div className="flex h-full min-h-0 flex-col">
       {/* Logo — shrink-0 pour rester visible en haut quand le nav scroll */}
       <div className="flex shrink-0 items-center gap-2.5 px-5 py-5">
-        <img
-          src="/logo-feedbackpro-transparent.png"
-          alt="FeedbackPro"
-          className="h-10 w-auto brightness-0 invert"
-        />
-        <span className="text-xs text-sidebar-foreground/70">Coach qualité continu</span>
+        <div className="rounded-lg bg-white px-2 py-1 shadow-sm">
+          <img
+            src="/logo-feedbackpro-transparent.png"
+            alt="FeedbackPro"
+            className="h-8 w-auto"
+          />
+        </div>
+        <span className="text-xs text-sidebar-foreground/70">
+          {estAeroport ? "Aéroport Ops" : "Coach qualité continu"}
+        </span>
       </div>
 
-      {/* Navigation verticale : principaux, séparateur « Gestion », secondaires.
-          flex-1 + min-h-0 + overflow-y-auto : scroll interne quand les 22
-          entrées débordent (desktop 11" ou drawer mobile). Le header (logo)
-          et le footer (promesse) restent fixes grâce à shrink-0 / mt-auto.
-          Scrollbar fine et discrète (sidebar-foreground à 25% d'opacité). */}
+      {/* Navigation verticale.
+          - Si estAeroport : UNIQUEMENT les onglets aéroport (+ Paramètres)
+          - Sinon : onglets principaux + gestion (dashboard classique) */}
       <nav aria-label={t("common.navigationDashboard")} className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto py-2 [scrollbar-width:thin] [scrollbar-color:rgba(125,125,125,0.25)_transparent] [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-sidebar-foreground/25 [&::-webkit-scrollbar-thumb:hover]:bg-sidebar-foreground/40 [&::-webkit-scrollbar-track]:bg-transparent">
-        {ONGLETS_PRINCIPAUX.map((o) => (
-          <BoutonOnglet key={o.id} entree={{ ...o, badge: o.id === "retours" ? retoursNonLus : undefined }} actif={ongletActif === o.id} onNaviguer={onNaviguer} />
-        ))}
+        {estAeroport ? (
+          /* --- Dashboard AÉROPORT dédié : uniquement les onglets aéroport --- */
+          <>
+            <p
+              className="px-6 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-[#E8B54D]"
+              role="presentation"
+            >
+              {t("nav.aeroport")}
+            </p>
+            {ONGLETS_AEROPORT.map((o) => (
+              <BoutonOnglet
+                key={o.id}
+                entree={{
+                  ...o,
+                  badge: o.id === "airport-reports" || o.id === "airport-wallboard"
+                    ? (airportEnAttente > 0 ? airportEnAttente : undefined)
+                    : undefined,
+                }}
+                actif={ongletActif === o.id}
+                onNaviguer={onNaviguer}
+              />
+            ))}
+            {/* Paramètres + Déconnexion (communs mais séparés des onglets aéroport) */}
+            <p
+              className="px-6 pt-4 pb-1 text-[11px] font-medium uppercase tracking-wider text-sidebar-foreground/50"
+              role="presentation"
+            >
+              Compte
+            </p>
+            <BoutonOnglet entree={{ id: "settings", labelKey: "nav.settings", icon: Settings }} actif={ongletActif === "settings"} onNaviguer={onNaviguer} />
+          </>
+        ) : (
+          /* --- Dashboard CLASSIQUE (restaurant/ERP) : onglets principaux + gestion --- */
+          <>
+            {ONGLETS_PRINCIPAUX.map((o) => (
+              <BoutonOnglet key={o.id} entree={{ ...o, badge: o.id === "retours" ? retoursNonLus : undefined }} actif={ongletActif === o.id} onNaviguer={onNaviguer} />
+            ))}
 
-        {/* Task 2-4 — Section « ✈️ Aéroport » — TOUJOURS visible (dashboard complet).
-            Placée APRÈS les onglets principaux et AVANT le séparateur « Gestion »
-            pour rester près des onglets opérationnels (Zones, Retours). */}
-        <>
-          <p
-            className="px-6 pt-4 pb-1 text-[11px] font-semibold uppercase tracking-wider text-[#E8B54D]"
-            role="presentation"
-          >
-            ✈️ {t("nav.aeroport")}
-          </p>
-          {ONGLETS_AEROPORT.map((o) => (
-            <BoutonOnglet
-              key={o.id}
-              entree={{
-                ...o,
-                badge: o.id === "airport-reports" || o.id === "airport-wallboard"
-                  ? (airportEnAttente > 0 ? airportEnAttente : undefined)
-                  : undefined,
-              }}
-              actif={ongletActif === o.id}
-              onNaviguer={onNaviguer}
-            />
-          ))}
-        </>
+            {/* Séparateur visuel : label « Gestion » en majuscules */}
+            <p
+              className="px-6 pt-4 pb-1 text-[11px] font-medium uppercase tracking-wider text-sidebar-foreground/50"
+              role="presentation"
+            >
+              {t("nav.gestion")}
+            </p>
 
-        {/* Séparateur visuel : label « Gestion » en majuscules */}
-        <p
-          className="px-6 pt-4 pb-1 text-[11px] font-medium uppercase tracking-wider text-sidebar-foreground/50"
-          role="presentation"
-        >
-          {t("nav.gestion")}
-        </p>
-
-        {ONGLETS_GESTION.map((o) => (
-          <BoutonOnglet key={o.id} entree={o} actif={ongletActif === o.id} onNaviguer={onNaviguer} />
-        ))}
+            {ONGLETS_GESTION.map((o) => (
+              <BoutonOnglet key={o.id} entree={o} actif={ongletActif === o.id} onNaviguer={onNaviguer} />
+            ))}
+          </>
+        )}
       </nav>
 
       {/* Bas de sidebar : rappel de la promesse produit — shrink-0 pour
