@@ -879,7 +879,9 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
     setExitAdLoading(true)
     let ad: AirportAd | null = null
     try {
-      ad = await apiGet<{ ad: AirportAd | null }>("/api/airport/ads").then(
+      // Passe le zoneCode pour filtrer les Campaigns (Régie Pub) par zone
+      const zoneParam = zoneData?.tagScanne ? `?zone=${encodeURIComponent(zoneData.tagScanne)}` : ''
+      ad = await apiGet<{ ad: AirportAd | null }>(`/api/airport/ads${zoneParam}`).then(
         (r) => r.ad ?? null,
       )
     } catch {

@@ -48,12 +48,16 @@ function serializeAd(a: {
 
 // ---------- GET : une publicité active au hasard (PWA) OU liste complète (admin) ----------
 // Sans query param : renvoie UNE pub active au hasard (pour la PWA).
-// ?all=true : renvoie TOUTES les pubs (pour le dashboard admin).
+//   → cherche d'abord dans les Campaigns (nouveau système Régie Pub)
+//   → si aucune Campaign active, fallback sur AirportAd (legacy)
+// ?all=true : renvoie TOUTES les pubs AirportAd (pour le dashboard admin).
+// ?zone=<code> : filtre les Campaigns par zone code.
 export async function GET(req: NextRequest) {
   const url = new URL(req.url)
   const all = url.searchParams.get('all') === 'true'
+  const zone = url.searchParams.get('zone')
 
-  // Mode admin : liste complète avec stats
+  // Mode admin : liste complète avec stats (AirportAd legacy)
   if (all) {
     const ads = await db.airportAd.findMany({
       orderBy: { createdAt: 'desc' },
@@ -75,7 +79,81 @@ export async function GET(req: NextRequest) {
     })
   }
 
-  // Mode PWA : une pub active au hasard
+  // Mode PWA : chercher d'abord les Campaigns actives (nouveau système Régie Pub)
+  try {
+    const now = new Date()
+    const campaignWhere: Record<string, unknown> = {
+      status: 'active',
+      startDate: { lte: now },
+      OR: [{ endDate: null }, { endDate: { gte: now } }],
+    }
+    if (zone) {
+      campaignWhere.zoneCode = zone
+    }
+
+    const campaigns = await db.campaign.findMany({
+      where: campaignWhere,
+      select: { id: true, title: true, imageUrl: true, landingUrl: true, zoneCode: true },
+    })
+
+    if (campaigns.length > 0) {
+      const idx = Math.floor(Math.random() * campaigns.length)
+      const picked = campaigns[idx]
+
+      // Incrémenter les stats d'impression (AdStat)
+      try {
+        const hour = now.getHours()
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+        await db.adStat.upsert({
+          where: {
+            // Pas d'unique constraint sur (campaignId, viewDate, viewHour, zoneCode)
+            // → on utilise create + fallback
+            id: `${picked.id}-${todayStart.toISOString().slice(0,10)}-${hour}`,
+          },
+          create: {
+            campaignId: picked.id,
+            zoneCode: picked.zoneCode,
+            viewDate: todayStart,
+            viewHour: hour,
+            impressions: 1,
+          },
+          update: {
+            impressions: { increment: 1 },
+          },
+        }).catch(() => {
+          // Fallback si l'upsert échoue (ID trop long ou autre), on crée juste une ligne
+          db.adStat.create({
+            data: {
+              campaignId: picked.id,
+              zoneCode: picked.zoneCode,
+              viewDate: todayStart,
+              viewHour: hour,
+              impressions: 1,
+            },
+          }).catch(() => undefined)
+        })
+      } catch {
+        /* non bloquant */
+      }
+
+      // Retourner au format AirportAd (compatibilité PWA)
+      return ok({
+        ad: {
+          id: picked.id,
+          title: picked.title,
+          subtitle: null,
+          imageUrl: picked.imageUrl,
+          linkUrl: picked.landingUrl,
+          ctaText: 'En savoir plus',
+        } satisfies AdPublic,
+      })
+    }
+  } catch (err) {
+    // Si la table Campaign n'existe pas encore ou autre erreur → fallback AirportAd
+    console.warn('[ads] Campaign query failed, falling back to AirportAd:', err instanceof Error ? err.message : String(err))
+  }
+
+  // Fallback : AirportAd (système legacy)
   const actifs = await db.airportAd.findMany({
     where: { active: true },
     select: { id: true },
