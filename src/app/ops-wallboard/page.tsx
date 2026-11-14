@@ -1421,14 +1421,21 @@ export default function OpsWallboardPage() {
             const zoneNom = latest.zone?.nom ?? latest.tagScanne
             const elapsedMs = Date.now() - new Date(latest.createdAt).getTime()
             const tempsMin = Math.max(1, Math.floor(elapsedMs / 60000))
-            void decideAndSpeakForWallboard({
-              sector: 'aeroport',
-              eventType: 'new_scan',
-              zone: zoneNom,
-              type: latest.problemType,
-              temps: `${tempsMin} min`,
-              reportId: latest.id,
-            })
+            // Le wallboard annonce TOUJOURS les nouveaux incidents via speak()
+            // directement (pas via decideAndSpeakForWallboard) car l'engine
+            // peut supprimer l'annonce à cause de la déduplication avec la
+            // PWA staff qui a déjà annoncé le même incident. Le wallboard est
+            // une TV dans une salle ops — il DOIT annoncer même si le
+            // téléphone du staff l'a déjà fait.
+            const team = latest.routedTeam
+            const equipeLabel = team ? ` Équipe ${team}.` : ''
+            setTimeout(
+              () => speak(
+                `Nouvel incident signalé. ${zoneNom}. Type: ${latest.problemType}.${equipeLabel} En attente depuis ${tempsMin} minute${tempsMin > 1 ? 's' : ''}.`,
+                soundOn,
+              ),
+              300,
+            )
           }
         }
       }
