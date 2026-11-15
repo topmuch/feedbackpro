@@ -374,10 +374,12 @@ export default function AirportReportsTab() {
   }, [])
 
   // --- Fetch des reports ---
-  const load = useCallback(async () => {
+  const load = useCallback(async (silent?: boolean) => {
     if (pollingRef.current) return
     pollingRef.current = true
-    setLoading(true)
+    // silent = true pour le polling auto → on ne bascule pas loading
+    // afin d'éviter le clignotement du skeleton toutes les 10 s (Issue 3).
+    if (!silent) setLoading(true)
     setError(null)
     try {
       const r = await fetchReports(zoneFilter, statutFilter, 100)
@@ -386,7 +388,7 @@ export default function AirportReportsTab() {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Erreur de chargement')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
       pollingRef.current = false
     }
   }, [zoneFilter, statutFilter])
@@ -396,10 +398,10 @@ export default function AirportReportsTab() {
     void load()
   }, [load])
 
-  // Polling 10s
+  // Polling 10s — silent (pas de skeleton flicker, Issue 3)
   useEffect(() => {
     const t = setInterval(() => {
-      void load()
+      void load(true)
     }, 10000)
     return () => clearInterval(t)
   }, [load])
@@ -1475,22 +1477,24 @@ function StaffPhotoCard({
 }) {
   const isBefore = variant === 'before'
   const label = isBefore ? 'AVANT' : 'APRÈS'
-  const badgeCls = isBefore
-    ? 'border-amber-500/40 bg-amber-500/15 text-amber-700'
-    : 'border-emerald-500/40 bg-emerald-500/15 text-emerald-600'
   return (
     <div className="overflow-hidden rounded-lg border border-border bg-card">
       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
+        {/* Issue 5 — légendes AVANT / APRÈS en style signalétique jaune
+            IATA #FCD116 (cohérent avec le wallboard ops room). */}
         <span
-          className={cn(
-            'inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide',
-            badgeCls,
-          )}
+          className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase"
+          style={{
+            backgroundColor: '#FCD116',
+            color: '#0A0A0A',
+            border: '1px solid #FCD116',
+            letterSpacing: '0.08em',
+          }}
         >
           {isBefore ? <Camera className="h-3 w-3" /> : <CheckCircle2 className="h-3 w-3" />}
           {label}
           {hint && (
-            <span className="ml-1 font-normal normal-case text-muted-foreground">
+            <span className="ml-1 font-normal normal-case text-black/70">
               {hint}
             </span>
           )}
@@ -1511,12 +1515,12 @@ function StaffPhotoCard({
           <img
             src={scan.photoUrl}
             alt={`Photo ${label} prise par ${scan.staffName ?? 'un membre du staff'}`}
-            className="h-48 w-full object-cover transition hover:opacity-90"
+            className="h-64 w-full object-cover transition hover:opacity-90"
             loading="lazy"
           />
         </a>
       ) : (
-        <div className="flex h-48 w-full items-center justify-center bg-muted text-muted-foreground">
+        <div className="flex h-64 w-full items-center justify-center bg-muted text-muted-foreground">
           <span className="flex flex-col items-center gap-1 text-[11px]">
             <Camera className="h-6 w-6 opacity-50" />
             Photo manquante

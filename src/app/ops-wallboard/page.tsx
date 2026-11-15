@@ -82,6 +82,22 @@ type RecentReport = {
   routedTeam: string | null
   flightNumber?: string | null
   createdAt: string
+  /** Issue 1 — true pour les SOS help requests fusionnées dans le feed */
+  isHelpRequest?: boolean
+}
+
+// Issue 1 — SOS / demandes d'aide voyageur affichées dans le panneau
+// d'alertes du wallboard via <HelpRequestAlertCard />.
+type HelpRequestLite = {
+  id: string
+  zone: { code: string; nom: string; emoji: string }
+  tagScanne: string
+  message: string | null
+  problemType: string
+  travelerPhone: string | null
+  statut: string
+  createdAt: string
+  resolvedAt: Date | null
 }
 
 // Feature 3 — SLA temps de résolution par zone (renvoyé par le wallboard)
@@ -106,6 +122,7 @@ type WallboardData = {
   recent_reports: RecentReport[]
   by_team: Record<TeamKey, number>
   sla?: Record<string, SlaStats>
+  help_requests?: HelpRequestLite[]
   recently_resolved?: {
     id: string
     zone: { code: string; nom: string; emoji: string } | null
@@ -295,6 +312,19 @@ type ZoneFamily =
   | 'HISTORIQUE'
 
 function zoneFamily(code: string): ZoneFamily {
+  // Issue 2 — anciennes zones historiques (rétro-compat) mappées vers
+  // les nouvelles familles signalétiques AVANT les checks de préfixe.
+  // Sans cela, les reports créés via ?airport=tapis_bagages_1 (code
+  // "bagages") n'apparaissaient pas sur la carte (famille HISTORIQUE
+  // → ignorée) et les tuiles affichaient 0.
+  if (
+    code === 'bagages' ||
+    code === 'sanitaires' ||
+    code === 'files_attente' ||
+    code === 'embarquement'
+  )
+    return 'TERMINAL'
+  if (code === 'restauration') return 'COMMERCIAL'
   if (code.startsWith('ext_')) return 'EXTÉRIEUR'
   if (code.startsWith('sec_')) return 'SÛRETÉ'
   if (code.startsWith('term_')) return 'TERMINAL'
@@ -592,9 +622,22 @@ function ZoneTile({
         boxShadow: isActive ? '0 0 0 2px #FCD116' : 'none',
       }}
     >
-      <span style={{ fontSize: '22px', lineHeight: 1 }} aria-hidden>
-        {zone.emoji}
-      </span>
+      {/* Issue 4 — signalétique : [flèche jaune] [pictogramme] puis
+          nom + compteur. La flèche ▸ jaune IATA #FCD116 indique la
+          direction (standard signalétique aéroportuaire). */}
+      <div className="flex items-center gap-1" aria-hidden>
+        <span
+          style={{
+            fontSize: '15px',
+            lineHeight: 1,
+            color: '#FCD116',
+            fontWeight: 900,
+          }}
+        >
+          ▸
+        </span>
+        <span style={{ fontSize: '16px', lineHeight: 1 }}>{zone.emoji}</span>
+      </div>
       <span
         className="w-full truncate font-bold uppercase"
         style={{ fontSize: '10px', letterSpacing: '1px', color: '#FFFFFF' }}
@@ -876,8 +919,80 @@ function ReportAlertCard({
   )
 }
 
+/** Carte d'alerte SOS — demande d'aide voyageur (panneau droit).
+ *  Style signalétique : bordure gauche jaune IATA #FCD116, badge SOS,
+ *  message du voyageur, et bouton "APPELER VOYAGEUR" si un numéro est
+ *  joint. Issue 1 — les help requests disposent désormais d'une carte
+ *  dédiée dans le panneau d'alertes du wallboard. */
+function HelpRequestAlertCard({ h }: { h: HelpRequestLite }) {
+  const elapsedMin = Math.floor(
+    (Date.now() - new Date(h.createdAt).getTime()) / 60000,
+  )
+  const isLate = elapsedMin > 15
+  const accent = isLate ? '#FF3B30' : '#FCD116'
+  return (
+    <div
+      role="alert"
+      className={`relative flex flex-col gap-1 bg-[#0A0A0A] px-3 py-2 ${
+        isLate ? 'ops-flash-red' : ''
+      }`}
+      style={{
+        border: '3px solid #333333',
+        borderLeft: `8px solid ${accent}`,
+      }}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span
+          className="font-black uppercase"
+          style={{ fontSize: '13px', letterSpacing: '2px', color: accent }}
+        >
+          🆘 SOS {(h.zone?.nom ?? 'ZONE').toUpperCase()}
+        </span>
+        <span
+          className="font-bold tabular-nums"
+          style={{ fontSize: '13px', color: '#FF3B30' }}
+        >
+          {elapsedMin} MIN
+        </span>
+      </div>
+      <p
+        className="font-bold uppercase leading-tight"
+        style={{ fontSize: '15px', color: '#FFFFFF', letterSpacing: '0.5px' }}
+      >
+        {h.message ?? "Demande d'aide voyageur"}
+      </p>
+      <div className="flex items-center gap-2">
+        <span
+          className="font-bold uppercase"
+          style={{ fontSize: '11px', color: '#999999', letterSpacing: '1px' }}
+        >
+          {h.tagScanne}
+        </span>
+        {h.travelerPhone && (
+          <a
+            href={`tel:${h.travelerPhone}`}
+            className="ml-auto flex items-center gap-1 px-2 py-1 font-bold uppercase transition-opacity hover:opacity-80"
+            style={{
+              backgroundColor: '#FCD116',
+              color: '#0A0A0A',
+              fontSize: '11px',
+              letterSpacing: '1px',
+            }}
+          >
+            <Phone className="size-3" aria-hidden />
+            APPELER VOYAGEUR
+          </a>
+        )}
+      </div>
+    </div>
+  )
+}
+
 /** Ligne du tableau d'incidents — style signalétique.
- *  Feature W1 — rappel 15 min : si > 15 min en attente, badge EN RETARD. */
+ *  Feature W1 — rappel 15 min : si > 15 min en attente, badge EN RETARD.
+ *  Issue 1 — les SOS help requests (isHelpRequest) y apparaissent aussi
+ *  avec un badge SOS jaune ; les actions assign/escalade (liées aux
+ *  AirportReport) y sont masquées car l'id est préfixé `sos_`. */
 function IncidentRow({
   r,
   fresh,
@@ -999,7 +1114,22 @@ function IncidentRow({
       </div>
 
       {/* PROBLÈME */}
-      <div role="cell" className="flex min-w-0 items-center px-3 py-2">
+      <div role="cell" className="flex min-w-0 items-center gap-2 px-3 py-2">
+        {r.isHelpRequest && (
+          <span
+            className="shrink-0 font-black uppercase"
+            style={{
+              fontSize: '10px',
+              letterSpacing: '1px',
+              color: '#0A0A0A',
+              backgroundColor: '#FCD116',
+              padding: '2px 6px',
+              border: '1px solid #FCD116',
+            }}
+          >
+            SOS
+          </span>
+        )}
         <span
           className="truncate font-bold uppercase"
           style={{ fontSize: '14px', color: '#FFFFFF', letterSpacing: '0.5px' }}
@@ -1060,6 +1190,7 @@ function IncidentRow({
         )}
         {/* ACTIONS rapides */}
         <div className="ml-auto flex items-center gap-1">
+          {!r.isHelpRequest && (
           <div className="relative">
             <button
               type="button"
@@ -1102,6 +1233,7 @@ function IncidentRow({
               </div>
             )}
           </div>
+          )}
           <button
             type="button"
             onClick={handleCall}
@@ -1112,6 +1244,7 @@ function IncidentRow({
           >
             <Phone className="size-3.5" aria-hidden />
           </button>
+          {!r.isHelpRequest && (
           <button
             type="button"
             onClick={handleEscalate}
@@ -1123,6 +1256,7 @@ function IncidentRow({
           >
             <Megaphone className="size-3.5" aria-hidden />
           </button>
+          )}
         </div>
       </div>
 
@@ -1451,11 +1585,11 @@ export default function OpsWallboardPage() {
             // téléphone du staff l'a déjà fait.
             const team = latest.routedTeam
             const equipeLabel = team ? ` Équipe ${team}.` : ''
+            const annonce = latest.isHelpRequest
+              ? `Demande d'aide SOS voyageur. ${zoneNom}. ${latest.problemType}. En attente depuis ${tempsMin} minute${tempsMin > 1 ? 's' : ''}.`
+              : `Nouvel incident signalé. ${zoneNom}. Type: ${latest.problemType}.${equipeLabel} En attente depuis ${tempsMin} minute${tempsMin > 1 ? 's' : ''}.`
             setTimeout(
-              () => speak(
-                `Nouvel incident signalé. ${zoneNom}. Type: ${latest.problemType}.${equipeLabel} En attente depuis ${tempsMin} minute${tempsMin > 1 ? 's' : ''}.`,
-                soundOn,
-              ),
+              () => speak(annonce, soundOn),
               300,
             )
           }
@@ -1783,7 +1917,7 @@ export default function OpsWallboardPage() {
     if (!data) return []
     const nowMs = Date.now()
     return data.recent_reports
-      .filter((r) => r.statut !== 'RESOLU')
+      .filter((r) => r.statut !== 'RESOLU' && !r.isHelpRequest)
       .sort((a, b) => {
         // Tri : en retard d'abord, puis par ancienneté
         const aMin = (nowMs - new Date(a.createdAt).getTime()) / 60000
@@ -2398,6 +2532,10 @@ export default function OpsWallboardPage() {
               {topAlerts.map((a, idx) => (
                 <AlertCard key={`alert-${a.thresholdId}-${a.zoneCode}-${idx}`} alert={a} />
               ))}
+              {/* Issue 1 — SOS : demandes d'aide voyageur actives */}
+              {data?.help_requests?.slice(0, 3).map((h) => (
+                <HelpRequestAlertCard key={`help-${h.id}`} h={h} />
+              ))}
               {/* Alertes basées sur les signalements EN_ATTENTE/EN_COURS */}
               {activeReportAlerts.map((r) => (
                 <ReportAlertCard
@@ -2409,7 +2547,7 @@ export default function OpsWallboardPage() {
                   busy={false}
                 />
               ))}
-              {topAlerts.length === 0 && activeReportAlerts.length === 0 && (
+              {topAlerts.length === 0 && activeReportAlerts.length === 0 && (data?.help_requests?.length ?? 0) === 0 && (
                 <div
                   className="flex items-center justify-center px-3 py-8"
                   style={{ border: '2px solid #333333' }}

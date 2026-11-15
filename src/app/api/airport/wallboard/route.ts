@@ -227,6 +227,55 @@ export async function GET() {
     }
   }
 
+  // --- SOS / Demandes d'aide voyageur (Issue 1 + Issue 6) ---
+  // Les demandes d'aide (bouton "Aide" PWA) sont stockées dans
+  // AirportHelpRequest et créées via /api/airport/help. Elles ne sont
+  // PAS des AirportReport mais DOIVENT apparaître sur le wallboard :
+  //   - comptées dans les zone counts + stats globales (en_attente)
+  //   - fusionnées dans recent_reports (flag isHelpRequest)
+  //   - exposées dans un tableau help_requests dédié (panneau alertes)
+  //   - leurs résolutions récentes alimentent recently_resolved (son)
+  const helpRequests = await db.airportHelpRequest.findMany({
+    where: { statut: 'EN_ATTENTE', createdAt: { gte: since24 } },
+    orderBy: { createdAt: 'desc' },
+  })
+
+  // Help requests résolues dans les dernières 30s → pour le son "résolu"
+  // du wallboard (Issue 6 — notification de résolution SOS).
+  const recentlyResolvedHelp = await db.airportHelpRequest.findMany({
+    where: { statut: 'RESOLU', resolvedAt: { gte: new Date(now - 30000) } },
+    orderBy: { resolvedAt: 'desc' },
+  })
+
+  // Incorporation des SOS dans les agrégations zone + stats globales.
+  // On ne touche qu'aux compteurs EN_ATTENTE (les help requests sont
+  // filtrées sur statut = 'EN_ATTENTE' ci-dessus).
+  for (const h of helpRequests) {
+    const c = h.createdAt.getTime()
+    const code = h.zoneCode ?? 'restauration'
+    const meta = zoneMetaByCode.get(code) ?? zoneMetaByCode.get('restauration')!
+    let agg = zoneAggByCode.get(code)
+    if (!agg) {
+      agg = {
+        code,
+        nom: meta.nom,
+        emoji: meta.emoji,
+        count_24h: 0,
+        count_prev_24h: 0,
+        count_en_attente: 0,
+        last_report_at: null,
+      }
+      zoneAggByCode.set(code, agg)
+    }
+    total_24h++
+    en_attente++
+    agg.count_24h++
+    agg.count_en_attente++
+    if (agg.last_report_at === null || c > agg.last_report_at) {
+      agg.last_report_at = c
+    }
+  }
+
   // --- Construction des zones ordonnées par count_en_attente desc ---
   const zones = Array.from(zoneAggByCode.values())
     .map((z) => ({
@@ -243,10 +292,12 @@ export async function GET() {
   // --- Top 3 zones par count_24h ---
   const top_zones = [...zones].sort((a, b) => b.count_24h - a.count_24h).slice(0, 3)
 
-  // --- 10 derniers reports (pré-formatés pour le feed) ---
-  const recent = reports
+  // --- 10 derniers signalements (reports + SOS help requests) ---
+  // Les SOS help requests sont fusionnées avec un flag isHelpRequest et
+  // un id préfixé `sos_` pour éviter toute collision avec les ids
+  // d'AirportReport dans les refs de déduplication du wallboard.
+  const recentReports = reports
     .filter((r) => r.createdAt.getTime() >= since24.getTime())
-    .slice(0, 10)
     .map((r) => ({
       id: r.id,
       zone: r.zone
@@ -259,7 +310,32 @@ export async function GET() {
       routedTeam: r.routedTeam ?? null,
       flightNumber: r.flightNumber ?? null,
       createdAt: r.createdAt.toISOString(),
+      isHelpRequest: false,
     }))
+
+  const recentHelpItems = helpRequests.map((h) => {
+    const code = h.zoneCode ?? 'restauration'
+    const meta = zoneMetaByCode.get(code) ?? zoneMetaByCode.get('restauration')!
+    return {
+      id: `sos_${h.id}`,
+      zone: { code, nom: meta.nom, emoji: meta.emoji },
+      tagScanne: h.tagScanne,
+      problemType: h.message ?? "Demande d'aide voyageur",
+      statut: h.statut as Statut,
+      photoCategory: null,
+      routedTeam: null,
+      flightNumber: null,
+      createdAt: h.createdAt.toISOString(),
+      isHelpRequest: true,
+    }
+  })
+
+  const recent = [...recentReports, ...recentHelpItems]
+    .sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )
+    .slice(0, 10)
 
   // --- Avg resolution en minutes (null si aucun résolu sur 24h) ---
   const avg_resolution_minutes =
@@ -304,18 +380,50 @@ export async function GET() {
     recent_reports: recent,
     by_team: byTeam,
     sla,
+    // Issue 1 — SOS help requests actives (panneau d'alertes dédié du
+    // wallboard). On expose le message voyageur + le téléphone pour que
+    // l'ops puisse rappeler directement.
+    help_requests: helpRequests.map((h) => {
+      const code = h.zoneCode ?? 'restauration'
+      const meta = zoneMetaByCode.get(code) ?? zoneMetaByCode.get('restauration')!
+      return {
+        id: h.id,
+        zone: { code, nom: meta.nom, emoji: meta.emoji },
+        tagScanne: h.tagScanne,
+        message: h.message,
+        problemType: h.message ?? "Demande d'aide voyageur",
+        travelerPhone: h.travelerPhone,
+        statut: h.statut,
+        createdAt: h.createdAt.toISOString(),
+        resolvedAt: h.resolvedAt,
+      }
+    }),
     // Signalements résolus dans les dernières 30 secondes — permet au
     // wallboard de jouer le son "résolu" même s'il vient d'être ouvert
     // ou s'il a manqué la transition de statut.
-    recently_resolved: reports
-      .filter((r) => r.statut === 'RESOLU' && r.resolvedAt && (now - r.resolvedAt.getTime()) < 30000)
-      .map((r) => ({
-        id: r.id,
-        zone: r.zone ? { code: r.zone.code, nom: r.zone.nom, emoji: r.zone.emoji } : null,
-        problemType: r.problemType,
-        tagScanne: r.tagScanne,
-        resolvedAt: r.resolvedAt,
-      })),
+    // Issue 6 — on y fusionne aussi les SOS help requests résolues.
+    recently_resolved: [
+      ...reports
+        .filter((r) => r.statut === 'RESOLU' && r.resolvedAt && (now - r.resolvedAt.getTime()) < 30000)
+        .map((r) => ({
+          id: r.id,
+          zone: r.zone ? { code: r.zone.code, nom: r.zone.nom, emoji: r.zone.emoji } : null,
+          problemType: r.problemType,
+          tagScanne: r.tagScanne,
+          resolvedAt: r.resolvedAt,
+        })),
+      ...recentlyResolvedHelp.map((h) => {
+        const code = h.zoneCode ?? 'restauration'
+        const meta = zoneMetaByCode.get(code) ?? zoneMetaByCode.get('restauration')!
+        return {
+          id: `sos_${h.id}`,
+          zone: { code, nom: meta.nom, emoji: meta.emoji },
+          problemType: h.message ?? "Demande d'aide voyageur",
+          tagScanne: h.tagScanne,
+          resolvedAt: h.resolvedAt,
+        }
+      }),
+    ],
     // Photos Avant/Après pour les signalements résolus dans les dernières 24h
     // (pour affichage dans le wallboard)
     staff_scans: await (async () => {
