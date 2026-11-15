@@ -58,7 +58,8 @@ import {
   Mic,
 } from 'lucide-react'
 import { AirportPredictionRadar } from '@/components/feedbackpro/airport-prediction-radar'
-import { AirportHeatmap } from '@/components/feedbackpro/airport-heatmap'
+// AirportHeatmap import retiré — design original ZonePanel restauré
+// (panneaux horizontaux colorés par famille, avec compteurs en attente + en cours).
 import { parler } from '@/lib/staff-tts'
 
 // ---------------------------------------------------------------
@@ -74,6 +75,7 @@ type ZoneAgg = {
   emoji: string
   count_24h: number
   count_en_attente: number
+  count_en_cours: number
   last_report_at: string | null
   trend: Trend
 }
@@ -377,10 +379,18 @@ function truncateName(name: string, max = 14): string {
 
 type ZoneStatus = 'calm' | 'attention' | 'critical' | 'none'
 
-function zoneStatus(count: number | null | undefined): ZoneStatus {
-  if (count === null || count === undefined) return 'none'
-  if (count === 0) return 'calm'
-  if (count <= 2) return 'attention'
+/**
+ * Calcule le statut d'une zone à partir des compteurs en attente ET en cours.
+ * On additionne les deux pour refléter la charge réelle de la zone :
+ * un incident en cours (pris en charge mais non résolu) compte toujours
+ * dans l'activité opérationnelle. 0 = calme, 1-2 = attention, 3+ = critique.
+ */
+function zoneStatus(enAttente: number | null | undefined, enCours: number | null | undefined): ZoneStatus {
+  const a = enAttente ?? 0
+  const c = enCours ?? 0
+  const total = a + c
+  if (total === 0) return 'calm'
+  if (total <= 2) return 'attention'
   return 'critical'
 }
 
@@ -588,8 +598,9 @@ function KpiCard({
 
 /**
  * ZonePanel — panneau horizontal coloré représentant une zone.
- * Layout : [icon white 45x45] [name] [status badge] [count] [→ arrow circle]
+ * Layout : [icon white 45x45] [name] [status badge] [en attente | en cours] [→ arrow circle]
  * Couleur de fond selon statut (calme=bleu, attention=orange, critique=rouge+flash, default=jaune).
+ * Le compteur affiche EN ATTENTE (grand) + EN COURS (badge pulsant si > 0).
  * Clic → filtre le tableau.
  */
 function ZonePanel({
@@ -601,7 +612,7 @@ function ZonePanel({
   isActive: boolean
   onClick: () => void
 }) {
-  const st = zoneStatus(zone.count_en_attente)
+  const st = zoneStatus(zone.count_en_attente, zone.count_en_cours)
   const isCritical = st === 'critical'
   const bgClass =
     st === 'calm'
@@ -612,12 +623,13 @@ function ZonePanel({
           ? 'bg-[#E30613] text-white'
           : 'bg-[#FCD116] text-black'
   const statusLabel = ZONE_STATUS_META_V2[st].label
+  const hasOngoing = (zone.count_en_cours ?? 0) > 0
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={isActive}
-      title={`${zone.nom} — ${statusLabel} · ${zone.count_en_attente} en attente`}
+      title={`${zone.nom} — ${statusLabel} · ${zone.count_en_attente} en attente · ${zone.count_en_cours ?? 0} en cours`}
       className={`group flex w-full items-center justify-between gap-3 rounded-[15px] px-5 py-[15px] transition-transform hover:-translate-y-0.5 ${bgClass} ${isCritical ? 'ops-flash-red' : ''}`}
       style={{
         boxShadow: '0 3px 6px rgba(0,0,0,0.1)',
@@ -647,13 +659,32 @@ function ZonePanel({
       >
         {statusLabel}
       </span>
-      {/* Count */}
-      <span
-        className="min-w-[50px] text-right font-black tabular-nums"
-        style={{ fontSize: '32px', lineHeight: 1 }}
-        suppressHydrationWarning
-      >
-        {zone.count_en_attente}
+      {/* Compteurs : en attente (grand) + en cours (badge pulsant) */}
+      <span className="flex shrink-0 items-baseline gap-1.5">
+        {/* EN COURS — badge pulsant si > 0 */}
+        {hasOngoing && (
+          <span
+            className="ops-pulse-soft flex items-center gap-1 rounded-[10px] bg-white/90 px-1.5 py-0.5 font-black tabular-nums"
+            style={{ fontSize: '13px', color: '#003399', lineHeight: 1.1 }}
+            title={`${zone.count_en_cours} incident(s) en cours`}
+            suppressHydrationWarning
+          >
+            <span
+              className="inline-block size-2 rounded-full bg-[#003399]"
+              style={{ animation: 'ops-pulse-dot 1.2s ease-in-out infinite' }}
+              aria-hidden
+            />
+            {zone.count_en_cours}
+          </span>
+        )}
+        {/* EN ATTENTE — compteur principal */}
+        <span
+          className="min-w-[44px] text-right font-black tabular-nums"
+          style={{ fontSize: '32px', lineHeight: 1 }}
+          suppressHydrationWarning
+        >
+          {zone.count_en_attente}
+        </span>
       </span>
       {/* Arrow circle 40×40 */}
       <span
@@ -2072,7 +2103,12 @@ export default function OpsWallboardPage() {
           0%,100% { opacity: 1; transform: scale(1); }
           50% { opacity: 0.4; transform: scale(1.3); }
         }
+        @keyframes opsPulseDot {
+          0%,100% { opacity: 0.45; transform: scale(0.9); }
+          50% { opacity: 1; transform: scale(1.25); }
+        }
         .ops-pulse { animation: opsPulse 1.4s ease-in-out infinite; }
+        .ops-pulse-soft { animation: opsPulse 1.6s ease-in-out infinite; }
         .ops-flash-red { animation: opsFlashRed 2s ease-in-out infinite; }
         .ops-flash-red-row { animation: opsFlashRedRow 1.2s ease-in-out infinite; }
         .ops-flap-in { animation: opsFlapIn 0.5s ease-out; }
@@ -2651,12 +2687,107 @@ export default function OpsWallboardPage() {
             )}
           </div>
 
-          {/* Heatmap interactive — remplace les panneaux statiques */}
-          <AirportHeatmap
-            className="w-full"
-            onZoneSelect={(code) => setFilterZone(filterZone === code ? null : code)}
-            selectedZone={filterZone}
-          />
+          {/* Familles de zones — panneaux colorés (design original restauré) */}
+          <div className="ops-scroll flex max-h-[calc(100vh-360px)] flex-col gap-4 overflow-y-auto pr-1">
+            {families.map((fam) => {
+              const famZones = zonesByFamily[fam] ?? []
+              if (famZones.length === 0) return null
+              return (
+                <div key={fam} className="flex flex-col gap-2">
+                  <h3
+                    className="font-black uppercase text-black"
+                    style={{
+                      fontSize: '14px',
+                      letterSpacing: '3px',
+                      borderBottom: `3px solid ${JAUNE}`,
+                      paddingBottom: '6px',
+                    }}
+                  >
+                    {fam}
+                  </h3>
+                  <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+                    {famZones.map((z) => (
+                      <ZonePanel
+                        key={z.code}
+                        zone={z}
+                        isActive={filterZone === z.code}
+                        onClick={() => setFilterZone(filterZone === z.code ? null : z.code)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+            {data && data.zones.length === 0 && (
+              <div
+                className="rounded-[15px] bg-[#FCD116] px-5 py-6 text-center font-black uppercase text-black"
+                style={{ fontSize: '14px', letterSpacing: '1px' }}
+              >
+                AUCUNE ZONE CONFIGURÉE
+              </div>
+            )}
+            {!data && (
+              <div className="grid grid-cols-1 gap-3 xl:grid-cols-2">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="ops-pulse h-[75px] rounded-[15px]"
+                    style={{ backgroundColor: '#E0E0E0' }}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Légende compteurs */}
+          <div
+            className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-[10px] px-4 py-2"
+            style={{ background: '#F5F5F5' }}
+          >
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex items-center gap-1.5">
+                <span
+                  className="inline-block rounded-[3px]"
+                  style={{ width: '12px', height: '12px', background: '#003399' }}
+                  aria-hidden
+                />
+                <span className="font-black uppercase text-black" style={{ fontSize: '10px', letterSpacing: '1px' }}>
+                  CALME
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span
+                  className="inline-block rounded-[3px]"
+                  style={{ width: '12px', height: '12px', background: '#FF6B00' }}
+                  aria-hidden
+                />
+                <span className="font-black uppercase text-black" style={{ fontSize: '10px', letterSpacing: '1px' }}>
+                  ATTENTION
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span
+                  className="inline-block rounded-[3px]"
+                  style={{ width: '12px', height: '12px', background: '#E30613' }}
+                  aria-hidden
+                />
+                <span className="font-black uppercase text-black" style={{ fontSize: '10px', letterSpacing: '1px' }}>
+                  CRITIQUE
+                </span>
+              </div>
+            </div>
+            <div className="flex items-center gap-3" style={{ fontSize: '10px', fontWeight: 800, color: '#666' }}>
+              <span className="flex items-center gap-1">
+                <span
+                  className="inline-block size-2 rounded-full"
+                  style={{ background: '#003399', animation: 'opsPulseDot 1.2s ease-in-out infinite' }}
+                  aria-hidden
+                />
+                EN COURS
+              </span>
+              <span className="uppercase tracking-wide">Clic zone → filtrer</span>
+            </div>
+          </div>
         </section>
 
         {/* ---------- RIGHT : Alertes section ---------- */}

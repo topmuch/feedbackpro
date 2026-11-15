@@ -149,6 +149,25 @@
   background: oklch(0.35 0 0);
 }
 
+/* ---------- Scrollbar sidebar admin (fond navy #003399) ---------- */
+.admin-sidebar-nav::-webkit-scrollbar {
+  width: 6px;
+}
+.admin-sidebar-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+.admin-sidebar-nav::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.25);
+  border-radius: 6px;
+}
+.admin-sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.45);
+}
+.admin-sidebar-nav {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+
 /* Masque la scrollbar mais garde le scroll (mobile) */
 .no-scrollbar::-webkit-scrollbar {
   display: none;

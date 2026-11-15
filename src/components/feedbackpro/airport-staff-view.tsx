@@ -438,16 +438,19 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // --- Task F3 — Body Cam Staff (auto-photo + geolocation) ---
-  // Deuxième input file caché dédié à la body cam : déclenché
-  // automatiquement après TAKE_CHARGE et RESOLVE pour capturer une
-  // photo (avant/après intervention). Le scan correspondant est
-  // ensuite PATCHé avec l'URL de la photo + les coordonnées GPS.
+  // --- Task F3 — Body Cam Staff (photo manuelle + geolocation) ---
+  // Input file caché dédié à la body cam : déclenché MANUELLEMENT par
+  // l'agent depuis l'écran "Incident en cours" (bouton "Photo AVANT").
+  // Le scan correspondant est ensuite PATCHé avec l'URL de la photo +
+  // les coordonnées GPS. La photo est affichée en aperçu sur l'écran.
   const bodyCamInputRef = useRef<HTMLInputElement>(null)
   const [bodyCamMode, setBodyCamMode] = useState<'TAKE_CHARGE' | 'RESOLVE' | null>(null)
   const bodyCamScanIdRef = useRef<string | null>(null)
   const [bodyCamFlash, setBodyCamFlash] = useState<string | null>(null)
   const [bodyCamUploading, setBodyCamUploading] = useState(false)
+  // Photo AVANT capturée pour l'incident actif (affichée en aperçu).
+  // Réinitialisée quand on change d'incident actif.
+  const [bodyCamPhotoUrl, setBodyCamPhotoUrl] = useState<string | null>(null)
 
   // --- Alerte nouvel incident ---
   // seenReportIdsRef : mémorise les IDs EN_ATTENTE déjà vus (pour n'alerter
@@ -922,13 +925,13 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
         go('incident-ongoing', 1)
         void fetchStats()
 
-        // --- Task F3 — Body Cam : auto-capture photo AVANT + géolocation ---
-        // Déclenché automatiquement après le TAKE_CHARGE (non bloquant
-        // pour l'UX : si l'utilisateur ferme la modale caméra, on ignore
-        // silencieusement — le scan existe déjà sans photo).
+        // Task F3 — Body Cam : la photo AVANT est désormais déclenchée
+        // MANUELLEMENT par l'agent depuis l'écran "Incident en cours"
+        // (bouton "📸 Photo AVANT"). On mémorise juste le scanId pour
+        // permettre le PATCH ultérieur.
         const scanId = json.data?.scan?.id
         if (typeof scanId === 'string') {
-          triggerBodyCam(scanId, 'TAKE_CHARGE')
+          bodyCamScanIdRef.current = scanId
         }
       } else {
         setToast(json?.error ?? 'Erreur prise en charge.')
@@ -986,18 +989,16 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
         setResolveComment('')
         setResolvePhotoUrl(null)
         setShowCommentInline(false)
+        setBodyCamPhotoUrl(null)
+        bodyCamScanIdRef.current = null
         setActiveReport(null)
         go('home', -1)
         void fetchStats()
 
-        // --- Task F3 — Body Cam : auto-capture photo APRÈS + géolocation ---
-        // Déclenché automatiquement après la résolution (non bloquant).
-        // La photo "après" est attachée au scan de résolution (en plus
-        // de la photo déjà fournie par le user si présente).
-        const scanId = json.data?.scan?.id
-        if (typeof scanId === 'string') {
-          triggerBodyCam(scanId, 'RESOLVE')
-        }
+        // Task F3 — Body Cam : la photo APRÈS est désormais capturée
+        // MANUELLEMENT par l'agent sur l'écran de confirmation de
+        // résolution (bouton "Ajouter une photo" existant via
+        // fileInputRef → resolvePhotoUrl). Plus d'auto-trigger.
       } else {
         setToast(json?.error ?? 'Erreur résolution.')
       }
@@ -1113,15 +1114,15 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
   }, [staffName])
 
   /**
-   * Déclenche automatiquement la caméra (input file capture=environment)
-   * après une prise en charge ou une résolution. Le scan correspondant
-   * sera PATCHé avec l'URL de la photo + les coordonnées GPS dans le
-   * champ `message` (format "geo:lat,lng").
+   * Ouvre la caméra (input file capture=environment) pour capturer une
+   * photo AVANT de l'incident. Déclenché MANUELLEMENT par l'agent depuis
+   * l'écran "Incident en cours". Le scanId doit déjà être mémorisé dans
+   * bodyCamScanIdRef (positionné au moment du TAKE_CHARGE).
    */
   const triggerBodyCam = useCallback<
-    (scanId: string, mode: 'TAKE_CHARGE' | 'RESOLVE') => void
-  >((scanId, mode) => {
-    bodyCamScanIdRef.current = scanId
+    (mode: 'TAKE_CHARGE' | 'RESOLVE') => void
+  >((mode) => {
+    // On conserve le scanId déjà positionné (ne pas l'écraser ici).
     setBodyCamMode(mode)
     // Petit délai pour laisser React setter l'état avant le click()
     setTimeout(() => bodyCamInputRef.current?.click(), 80)
@@ -1130,8 +1131,9 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
   /**
    * Handler du second input file (body cam). Upload la photo,
    * capture la géolocalisation, PATCH le scan avec photoUrl+message,
-   * envoie la position à /api/airport/staff-location, et affiche un
-   * flash "📸 Photo auto-capturée".
+   * envoie la position à /api/airport/staff-location, affiche un
+   * flash "📸 Photo capturée" ET expose l'URL de la photo dans
+   * l'état bodyCamPhotoUrl pour l'aperçu sur l'écran incident-ongoing.
    */
   const onBodyCamChosen = useCallback<
     (e: React.ChangeEvent<HTMLInputElement>) => void
@@ -1141,7 +1143,6 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
     const scanId = bodyCamScanIdRef.current
     const mode = bodyCamMode
     setBodyCamMode(null)
-    bodyCamScanIdRef.current = null
     if (!f || !scanId) return
 
     setBodyCamUploading(true)
@@ -1176,10 +1177,16 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
         await postStaffLocation(geo.lat, geo.lng)
       }
 
-      // 4. Flash confirmation visuel
+      // 4. Mémorise l'URL de la photo pour l'aperçu sur l'écran
+      //    incident-ongoing (uniquement pour la photo AVANT).
+      if (mode === 'TAKE_CHARGE' && photoUrl) {
+        setBodyCamPhotoUrl(photoUrl)
+      }
+
+      // 5. Flash confirmation visuel
       const label = mode === 'TAKE_CHARGE' ? 'AVANT' : 'APRÈS'
       setBodyCamFlash(
-        `📸 Photo auto-capturée (${label})${geo ? ' + position GPS' : ''}`,
+        `📸 Photo capturée (${label})${geo ? ' + position GPS' : ''}`,
       )
       setTimeout(() => setBodyCamFlash(null), 3500)
       setBodyCamUploading(false)
@@ -1314,6 +1321,14 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
                 onClickOngoing={(r) => {
                   setActiveReport(r)
                   setActiveTag(r.tagScanne)
+                  // Task F3 — Body Cam : restaure le scanId TAKE_CHARGE et
+                  // la photo AVANT éventuelle depuis les staffScans du
+                  // report, pour permettre une (re)capture manuelle.
+                  const tcScan = r.staffScans.find(
+                    (s) => s.action === 'TAKE_CHARGE',
+                  )
+                  bodyCamScanIdRef.current = tcScan?.id ?? null
+                  setBodyCamPhotoUrl(tcScan?.photoUrl ?? null)
                   go('incident-ongoing', 1)
                 }}
                 onDashboard={() => go('dashboard', 1)}
@@ -1347,6 +1362,10 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
                 submitting={submitting}
                 showCommentInline={showCommentInline}
                 comment={resolveComment}
+                bodyCamPhotoUrl={bodyCamPhotoUrl}
+                bodyCamUploading={bodyCamUploading}
+                canTakeBodyCam={!!bodyCamScanIdRef.current}
+                onTakeBodyCamPhoto={() => triggerBodyCam('TAKE_CHARGE')}
                 onToggleComment={() => setShowCommentInline((v) => !v)}
                 onComment={setResolveComment}
                 onResolve={() => go('resolve-confirm', 1)}
@@ -2151,6 +2170,14 @@ interface IncidentOngoingScreenProps {
   submitting: boolean
   showCommentInline: boolean
   comment: string
+  /** URL de la photo AVANT capturée (body cam) — null si aucune. */
+  bodyCamPhotoUrl: string | null
+  /** Indique que la photo body cam est en cours d'upload/traitement. */
+  bodyCamUploading: boolean
+  /** True si un scan TAKE_CHARGE existe (permet la capture body cam). */
+  canTakeBodyCam: boolean
+  /** Ouvre la caméra pour capturer/remplacer la photo AVANT. */
+  onTakeBodyCamPhoto: () => void
   onToggleComment: () => void
   onComment: (v: string) => void
   onResolve: () => void
@@ -2164,6 +2191,10 @@ function IncidentOngoingScreen({
   submitting,
   showCommentInline,
   comment,
+  bodyCamPhotoUrl,
+  bodyCamUploading,
+  canTakeBodyCam,
+  onTakeBodyCamPhoto,
   onToggleComment,
   onComment,
   onResolve,
@@ -2208,6 +2239,68 @@ function IncidentOngoingScreen({
         <DetailRow label="Type" value={report.problemType} />
         <DetailRow label="Zone" value={report.zone.nom || tag} />
         <DetailRow label="Terminal" value={extractTerminal(tag + ' ' + report.zone.nom)} />
+      </Card>
+
+      {/* Task F3 — Body Cam : photo AVANT (capture manuelle + aperçu) */}
+      <Card className="rounded-2xl border-2 border-amber-200 bg-amber-50/40 p-4 shadow-sm sm:p-5">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-amber-700">
+            <Camera className="size-5" />
+            <span className="text-xs font-bold uppercase tracking-wide">
+              Photo AVANT intervention
+            </span>
+          </div>
+          {bodyCamPhotoUrl && (
+            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-700">
+              Capturée
+            </span>
+          )}
+        </div>
+
+        {/* Aperçu de la photo capturée */}
+        {bodyCamPhotoUrl ? (
+          <div className="space-y-3">
+            <img
+              src={bodyCamPhotoUrl}
+              alt="Photo AVANT capturée"
+              className="w-full rounded-xl border-2 border-amber-200 object-cover shadow-sm"
+              style={{ maxHeight: '240px' }}
+            />
+            <button
+              type="button"
+              onClick={onTakeBodyCamPhoto}
+              disabled={bodyCamUploading || !canTakeBodyCam || submitting}
+              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border-2 border-amber-300 bg-white py-2.5 text-xs font-bold uppercase text-amber-700 transition hover:bg-amber-50 disabled:opacity-50"
+            >
+              <RefreshCw className={bodyCamUploading ? 'size-3.5 animate-spin' : 'size-3.5'} />
+              {bodyCamUploading ? 'Traitement…' : 'Reprendre la photo'}
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={onTakeBodyCamPhoto}
+            disabled={bodyCamUploading || !canTakeBodyCam || submitting}
+            className="flex min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 py-3 text-sm font-black uppercase tracking-wide text-white shadow-md transition active:scale-[0.98] disabled:opacity-50"
+          >
+            {bodyCamUploading ? (
+              <>
+                <Loader2 className="size-5 animate-spin" />
+                Traitement photo + GPS…
+              </>
+            ) : (
+              <>
+                <Camera className="size-5" />
+                Prendre une photo
+              </>
+            )}
+          </button>
+        )}
+        {!canTakeBodyCam && (
+          <p className="mt-2 text-[10px] font-medium text-slate-400">
+            Capture disponible après la prise en charge.
+          </p>
+        )}
       </Card>
 
       {/* Commentaire inline (optionnel) — S4 */}

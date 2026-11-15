@@ -55,6 +55,8 @@ import {
   DollarSign,
   Webhook,
   Plane,
+  BarChart3,
+  Sparkles,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -102,6 +104,8 @@ import { AdminVoiceTab } from "@/components/feedbackpro/admin-voice-tab"
 import { AdminAdsTab } from "@/components/feedbackpro/admin-ads-tab"
 import { AdminDirectionTab } from "@/components/feedbackpro/admin-direction-tab"
 import { AdminWebhooksTab } from "@/components/feedbackpro/admin-webhooks-tab"
+import { AdminQrAnalyticsTab } from "@/components/feedbackpro/admin-qr-analytics-tab"
+import { AirportCrystalBall } from "@/components/feedbackpro/airport-crystal-ball"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { LanguageSelector } from "@/components/feedbackpro/language-selector"
 import { exportToCsv } from "@/lib/export-csv"
@@ -153,6 +157,8 @@ type OngletAdmin =
   | "voix"
   | "direction"
   | "webhooks"
+  | "qr_analytics"
+  | "crystal_ball"
 
 const ONGLETS: { id: OngletAdmin; labelKey: string; icone: React.ComponentType<{ className?: string }> }[] = [
   { id: "globale", labelKey: "nav.overview", icone: LayoutDashboard },
@@ -169,6 +175,8 @@ const ONGLETS: { id: OngletAdmin; labelKey: string; icone: React.ComponentType<{
   { id: "notifications", labelKey: "nav.notifications", icone: Bell },
   { id: "voix", labelKey: "nav.voix", icone: Mic },
   { id: "direction", labelKey: "nav.direction", icone: Plane },
+  { id: "qr_analytics", labelKey: "nav.qr_analytics", icone: BarChart3 },
+  { id: "crystal_ball", labelKey: "nav.crystal_ball", icone: Sparkles },
   { id: "webhooks", labelKey: "nav.webhooks", icone: Webhook },
   { id: "parametres", labelKey: "nav.parametres", icone: Settings },
   { id: "publicites", labelKey: "nav.publicites", icone: Megaphone },
@@ -313,7 +321,7 @@ function enArray<T>(v: T[] | null | undefined): T[] {
 // ============================================================
 
 export function AdminDashboard() {
-  const t = (key: string) => { const map: Record<string, string> = {"nav.overview": "Vue d'ensemble", "nav.commercants": "Commercants", "nav.utilisateurs": "Utilisateurs", "nav.commandes": "Commandes", "nav.revenus": "Revenus", "nav.retention": "Retention", "nav.secteurs": "Config. secteurs", "nav.modules": "Modules", "nav.messages": "Messages", "nav.email": "Email", "nav.parametres": "Parametres", "nav.publicites": "Publicités", "nav.regie_pub": "Régie Pub", "nav.operations": "Centre Opérationnel", "nav.notifications": "Notifications", "nav.voix": "Voix Denise", "nav.direction": "Direction", "nav.webhooks": "Webhooks", "nav.superadmin": "Superadmin", "nav.gestion": "Gestion", "common.navigationAdmin": "Sections administration", "common.ouvrirMenu": "Ouvrir le menu", "common.deconnexion": "Deconnexion", "common.connecteSuperadmin": "Connecte en superadmin", "dashboard.titreAdmin": "Administration FeedbackPro"}; return map[key] || key }
+  const t = (key: string) => { const map: Record<string, string> = {"nav.overview": "Vue d'ensemble", "nav.commercants": "Commercants", "nav.utilisateurs": "Utilisateurs", "nav.commandes": "Commandes", "nav.revenus": "Revenus", "nav.retention": "Retention", "nav.secteurs": "Config. secteurs", "nav.modules": "Modules", "nav.messages": "Messages", "nav.email": "Email", "nav.parametres": "Parametres", "nav.publicites": "Publicités", "nav.regie_pub": "Régie Pub", "nav.operations": "Centre Opérationnel", "nav.notifications": "Notifications", "nav.voix": "Voix Denise", "nav.direction": "Direction", "nav.qr_analytics": "QR Analytics", "nav.crystal_ball": "Boule de Cristal", "nav.webhooks": "Webhooks", "nav.superadmin": "Superadmin", "nav.gestion": "Gestion", "common.navigationAdmin": "Sections administration", "common.ouvrirMenu": "Ouvrir le menu", "common.deconnexion": "Deconnexion", "common.connecteSuperadmin": "Connecte en superadmin", "dashboard.titreAdmin": "Administration FeedbackPro"}; return map[key] || key }
   const [onglet, setOnglet] = useState<OngletAdmin>(() => ongletDepuisUrl())
   const [overview, setOverview] = useState<OverviewApi | null>(null)
   const [menuOuvert, setMenuOuvert] = useState(false)
@@ -471,6 +479,8 @@ export function AdminDashboard() {
         {onglet === "notifications" && <AdminNotificationsTab />}
         {onglet === "voix" && <AdminVoiceTab />}
         {onglet === "direction" && <AdminDirectionTab />}
+        {onglet === "qr_analytics" && <AdminQrAnalyticsTab />}
+        {onglet === "crystal_ball" && <AirportCrystalBall className="w-full" />}
         {onglet === "webhooks" && <AdminWebhooksTab />}
         {onglet === "parametres" && <ParametresTab />}
         {onglet === "publicites" && <PublicitesTab />}
@@ -497,11 +507,11 @@ function ContenuSidebarAdmin({
   onLogout: () => void
   messagesNonLus?: number
 }) {
-  const t = (key: string) => { const map: Record<string, string> = {"nav.overview": "Vue d'ensemble", "nav.commercants": "Commercants", "nav.utilisateurs": "Utilisateurs", "nav.commandes": "Commandes", "nav.revenus": "Revenus", "nav.retention": "Retention", "nav.secteurs": "Config. secteurs", "nav.modules": "Modules", "nav.messages": "Messages", "nav.email": "Email", "nav.parametres": "Parametres", "nav.publicites": "Publicités", "nav.regie_pub": "Régie Pub", "nav.operations": "Centre Opérationnel", "nav.notifications": "Notifications", "nav.voix": "Voix Denise", "nav.direction": "Direction", "nav.webhooks": "Webhooks", "nav.superadmin": "Superadmin", "nav.gestion": "Gestion", "common.navigationAdmin": "Sections administration", "common.ouvrirMenu": "Ouvrir le menu", "common.deconnexion": "Deconnexion", "common.connecteSuperadmin": "Connecte en superadmin", "dashboard.titreAdmin": "Administration FeedbackPro"}; return map[key] || key }
+  const t = (key: string) => { const map: Record<string, string> = {"nav.overview": "Vue d'ensemble", "nav.commercants": "Commercants", "nav.utilisateurs": "Utilisateurs", "nav.commandes": "Commandes", "nav.revenus": "Revenus", "nav.retention": "Retention", "nav.secteurs": "Config. secteurs", "nav.modules": "Modules", "nav.messages": "Messages", "nav.email": "Email", "nav.parametres": "Parametres", "nav.publicites": "Publicités", "nav.regie_pub": "Régie Pub", "nav.operations": "Centre Opérationnel", "nav.notifications": "Notifications", "nav.voix": "Voix Denise", "nav.direction": "Direction", "nav.qr_analytics": "QR Analytics", "nav.crystal_ball": "Boule de Cristal", "nav.webhooks": "Webhooks", "nav.superadmin": "Superadmin", "nav.gestion": "Gestion", "common.navigationAdmin": "Sections administration", "common.ouvrirMenu": "Ouvrir le menu", "common.deconnexion": "Deconnexion", "common.connecteSuperadmin": "Connecte en superadmin", "dashboard.titreAdmin": "Administration FeedbackPro"}; return map[key] || key }
   return (
     <div className="flex h-full flex-col">
       {/* Logo */}
-      <div className="flex items-center gap-2.5 px-5 py-5">
+      <div className="flex shrink-0 items-center gap-2.5 px-5 py-5">
         <img
           src="/logo-feedbackpro-transparent.png"
           alt="FeedbackPro"
@@ -510,8 +520,11 @@ function ContenuSidebarAdmin({
         <span className="text-xs text-white/70">Administration</span>
       </div>
 
-      {/* Navigation verticale */}
-      <nav aria-label={t("common.navigationAdmin")} className="flex flex-col gap-1 px-3 py-2">
+      {/* Navigation verticale — scrollable (19 onglets) */}
+      <nav
+        aria-label={t("common.navigationAdmin")}
+        className="admin-sidebar-nav flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-2"
+      >
         {ONGLETS.map((o) => {
           const Icone = o.icone
           const actif = ongletActif === o.id
@@ -543,7 +556,7 @@ function ContenuSidebarAdmin({
       </nav>
 
       {/* Bas de sidebar : email + déconnexion */}
-      <div className="mt-auto border-t border-white/10 p-3">
+      <div className="shrink-0 border-t border-white/10 p-3">
         <div className="rounded-2xl px-3 py-2 text-xs text-white/70">
           <p className="truncate">{emailAdmin || "—"}</p>
           <p className="mt-0.5 text-white/50">{t("common.connecteSuperadmin")}</p>

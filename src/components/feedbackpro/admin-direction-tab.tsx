@@ -197,7 +197,7 @@ export function AdminDirectionTab() {
             </h2>
           </div>
           <p className="mt-1 text-sm text-slate-500">
-            Vue exécutive agrégée — {new Date(data.generatedAt).toLocaleDateString("fr-FR", { dateStyle: "full", timeStyle: "short" })}
+            Vue exécutive agrégée — {new Date(data.generatedAt).toLocaleString("fr-FR", { dateStyle: "full", timeStyle: "short" })}
           </p>
         </div>
         <div className="flex items-center gap-2">

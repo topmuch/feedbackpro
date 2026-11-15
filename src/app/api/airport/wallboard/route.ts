@@ -89,6 +89,7 @@ export async function GET() {
     count_24h: number
     count_prev_24h: number
     count_en_attente: number
+    count_en_cours: number
     last_report_at: number | null // ms epoch
   }
   const zoneAggByCode = new Map<string, ZoneAgg>()
@@ -100,6 +101,7 @@ export async function GET() {
       count_24h: 0,
       count_prev_24h: 0,
       count_en_attente: 0,
+      count_en_cours: 0,
       last_report_at: null,
     })
   }
@@ -221,6 +223,8 @@ export async function GET() {
       }
       if (statut === 'EN_ATTENTE') {
         agg.count_en_attente++
+      } else if (statut === 'EN_COURS') {
+        agg.count_en_cours++
       }
     } else {
       agg.count_prev_24h++
@@ -263,6 +267,7 @@ export async function GET() {
         count_24h: 0,
         count_prev_24h: 0,
         count_en_attente: 0,
+        count_en_cours: 0,
         last_report_at: null,
       }
       zoneAggByCode.set(code, agg)
@@ -276,7 +281,7 @@ export async function GET() {
     }
   }
 
-  // --- Construction des zones ordonnées par count_en_attente desc ---
+  // --- Construction des zones ordonnées par (count_en_attente + count_en_cours) desc ---
   const zones = Array.from(zoneAggByCode.values())
     .map((z) => ({
       code: z.code,
@@ -284,10 +289,15 @@ export async function GET() {
       emoji: z.emoji,
       count_24h: z.count_24h,
       count_en_attente: z.count_en_attente,
+      count_en_cours: z.count_en_cours,
       last_report_at: z.last_report_at !== null ? new Date(z.last_report_at).toISOString() : null,
       trend: trendFromCounts(z.count_24h, z.count_prev_24h),
     }))
-    .sort((a, b) => b.count_en_attente - a.count_en_attente || b.count_24h - a.count_24h)
+    .sort(
+      (a, b) =>
+        b.count_en_attente + b.count_en_cours - (a.count_en_attente + a.count_en_cours) ||
+        b.count_24h - a.count_24h,
+    )
 
   // --- Top 3 zones par count_24h ---
   const top_zones = [...zones].sort((a, b) => b.count_24h - a.count_24h).slice(0, 3)
