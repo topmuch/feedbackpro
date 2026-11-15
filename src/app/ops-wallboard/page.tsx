@@ -390,13 +390,35 @@ function speak(text: string, enabled: boolean) {
   if (!enabled) return
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
   try {
-    window.speechSynthesis.cancel() // coupe l'annonce précédente
+    // NE PAS appeler cancel() juste avant speak() — sur certains navigateurs
+    // (Chrome notamment), cancel() est asynchrone et annule aussi le speak()
+    // qui suit immédiatement. On utilise une file d'attente naturelle à la
+    // place : si Denise parlait déjà, le nouveau message s'ajoute à la file.
+    // Pour couper l'annonce précédente, on ne fait rien — la nouvelle
+    // annonce remplace naturellement l'ancienne après qu'elle se termine.
+
     const u = new SpeechSynthesisUtterance(text)
     u.lang = 'fr-FR'
     u.rate = 1.05
     u.pitch = 1.0
     u.volume = 0.9
-    window.speechSynthesis.speak(u)
+
+    // Charger les voix françaises si disponibles
+    const voices = window.speechSynthesis.getVoices()
+    const frVoice = voices.find(v => v.lang.startsWith('fr'))
+    if (frVoice) {
+      u.voice = frVoice
+    }
+
+    // Si Denise parlait déjà, on annule APRES un court délai pour laisser
+    // le nouveau speak() se mettre en file (évite la race condition).
+    if (window.speechSynthesis.speaking) {
+      window.speechSynthesis.cancel()
+      // Petit délai pour que le cancel soit bien traité avant le speak
+      setTimeout(() => window.speechSynthesis.speak(u), 50)
+    } else {
+      window.speechSynthesis.speak(u)
+    }
   } catch {
     // TTS indisponible — silencieux
   }
