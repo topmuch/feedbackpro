@@ -1015,6 +1015,7 @@ model Advertiser {
   logoUrl        String?
   createdAt      DateTime    @default(now())
   campaigns      Campaign[]
+  flashRewardCampaigns FlashRewardCampaign[]
 }
 
 model Campaign {
@@ -1115,4 +1116,78 @@ model AirportStaffLocation {
   createdAt DateTime @default(now())
 
   @@index([staffName, createdAt])
+}
+
+// ============================================================
+// Flash Rewards — Cartes à gratter post-signalement
+// ------------------------------------------------------------
+// Module de récompenses voyageurs : après qu'un passager a signalé
+// un incident (et 3s après la voix de Denise), une carte à gratter
+// s'affiche. Le voyageur gratte → révèle une récompense (ex: -15%
+// au Café Teranga) avec un code unique. L'annonceur paie uniquement
+// les codes UTILISÉS (prix par code).
+//
+// Anti-abus : 1 code par session, 3 codes/jour/IP, incident valide
+// requis. Les codes expirent après codeValidityHours.
+// ============================================================
+
+model FlashRewardCampaign {
+  id                 String   @id @default(cuid())
+  advertiserId       String
+  advertiser         Advertiser @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+  title              String   // "Un café offert pour tout achat de 2000 FCFA"
+  rewardType         String   // percentage | fixed_amount | free_article | gift
+  rewardValue        String   // "15" (avec unité implicite selon rewardType)
+  description        String   // affichée sur la carte révélée
+  imageUrl           String?  // visuel 1200x800 (logo + design attractif)
+  eligibleZones      String   @default("[]") // JSON string[] de codes zones
+  triggerIncidentTypes String @default("[]") // JSON string[] de problemTypes (vide = tous)
+  maxPerDay          Int      @default(50)
+  maxTotal           Int      @default(500)
+  codeValidityHours  Int      @default(24)
+  activeFrom         String   @default("08:00") // HH:MM
+  activeTo           String   @default("22:00") // HH:MM
+  pricePerCodeFcfa   Int      @default(500)
+  status             String   @default("active") // active | paused | expired
+  startDate          DateTime @default(now())
+  endDate            DateTime?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  codes              FlashRewardCode[]
+  stats              FlashRewardStat[]
+
+  @@index([advertiserId, status])
+  @@index([status, startDate])
+}
+
+model FlashRewardCode {
+  id          String    @id @default(cuid())
+  campaignId  String
+  campaign    FlashRewardCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  code        String    @unique // "FBK-7X9M-2026"
+  status      String    @default("unused") // unused | scratched | used | expired
+  reportId    String?   // FK vers AirportReport (le signalement déclencheur)
+  zoneCode    String?
+  clientIp    String?
+  scratchedAt DateTime?
+  usedAt      DateTime?
+  expiresAt   DateTime  // maintenant + codeValidityHours à la génération
+  createdAt   DateTime  @default(now())
+
+  @@index([campaignId, status])
+  @@index([code])
+  @@index([reportId])
+}
+
+model FlashRewardStat {
+  id          String   @id @default(cuid())
+  campaignId  String
+  campaign    FlashRewardCampaign @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  statDate    DateTime @default(now())
+  views       Int      @default(0) // carte affichée
+  scratches   Int      @default(0) // grattements effectués
+  used        Int      @default(0) // codes marqués utilisés
+  revenueFcfa Int      @default(0) // used × pricePerCodeFcfa
+
+  @@index([campaignId, statDate])
 }

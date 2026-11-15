@@ -50,11 +50,11 @@ if (process.env.NODE_ENV !== 'production' && dynamicRequire.cache) {
 const PrismaClientCtor: typeof import('@prisma/client').PrismaClient =
   dynamicRequire('@prisma/client').PrismaClient
 
-// Version bumpé à v23 (Task F3) : 2 nouveaux modèles WebhookEndpoint
-// (marketplace intégrations) et AirportStaffLocation (body cam staff
-// géolocalisation). Incrémenter la version force la création d'une
-// nouvelle instance PrismaClient qui connaît ces modèles.
-const PRISMA_CACHE_KEY = 'prisma_v23_f3'
+// Version bumpé à v24 (Flash Rewards) : 3 nouveaux modèles FlashRewardCampaign,
+// FlashRewardCode, FlashRewardStat (cartes à gratter post-signalement) + champ
+// back-relation flashRewardCampaigns sur Advertiser. Incrémenter la version
+// force la création d'une nouvelle instance PrismaClient qui connaît ces modèles.
+const PRISMA_CACHE_KEY = 'prisma_v24_flash_rewards'
 
 const globalForPrisma = globalThis as unknown as {
   [key: string]: import('@prisma/client').PrismaClient | undefined

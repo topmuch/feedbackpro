@@ -57,6 +57,7 @@ import {
   Plane,
   BarChart3,
   Sparkles,
+  Gift,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -102,6 +103,7 @@ import { AdminOperationsTab } from "@/components/feedbackpro/admin-operations-ta
 import { AdminNotificationsTab } from "@/components/feedbackpro/admin-notifications-tab"
 import { AdminVoiceTab } from "@/components/feedbackpro/admin-voice-tab"
 import { AdminAdsTab } from "@/components/feedbackpro/admin-ads-tab"
+import { AdminFlashRewardsTab } from "@/components/feedbackpro/admin-flash-rewards-tab"
 import { AdminDirectionTab } from "@/components/feedbackpro/admin-direction-tab"
 import { AdminWebhooksTab } from "@/components/feedbackpro/admin-webhooks-tab"
 import { AdminQrAnalyticsTab } from "@/components/feedbackpro/admin-qr-analytics-tab"
@@ -152,6 +154,7 @@ type OngletAdmin =
   | "modules"
   | "publicites"
   | "regie_pub"
+  | "flash_rewards"
   | "notifications"
   | "operations"
   | "voix"
@@ -181,6 +184,7 @@ const ONGLETS: { id: OngletAdmin; labelKey: string; icone: React.ComponentType<{
   { id: "parametres", labelKey: "nav.parametres", icone: Settings },
   { id: "publicites", labelKey: "nav.publicites", icone: Megaphone },
   { id: "regie_pub", labelKey: "nav.regie_pub", icone: DollarSign },
+  { id: "flash_rewards", labelKey: "nav.flash_rewards", icone: Gift },
 ]
 
 // Alias de slugs historiques (rétrocompatibilité des anciennes URLs)
@@ -321,7 +325,7 @@ function enArray<T>(v: T[] | null | undefined): T[] {
 // ============================================================
 
 export function AdminDashboard() {
-  const t = (key: string) => { const map: Record<string, string> = {"nav.overview": "Vue d'ensemble", "nav.commercants": "Commercants", "nav.utilisateurs": "Utilisateurs", "nav.commandes": "Commandes", "nav.revenus": "Revenus", "nav.retention": "Retention", "nav.secteurs": "Config. secteurs", "nav.modules": "Modules", "nav.messages": "Messages", "nav.email": "Email", "nav.parametres": "Parametres", "nav.publicites": "Publicités", "nav.regie_pub": "Régie Pub", "nav.operations": "Centre Opérationnel", "nav.notifications": "Notifications", "nav.voix": "Voix Denise", "nav.direction": "Direction", "nav.qr_analytics": "QR Analytics", "nav.crystal_ball": "Boule de Cristal", "nav.webhooks": "Webhooks", "nav.superadmin": "Superadmin", "nav.gestion": "Gestion", "common.navigationAdmin": "Sections administration", "common.ouvrirMenu": "Ouvrir le menu", "common.deconnexion": "Deconnexion", "common.connecteSuperadmin": "Connecte en superadmin", "dashboard.titreAdmin": "Administration FeedbackPro"}; return map[key] || key }
+  const t = (key: string) => { const map: Record<string, string> = {"nav.overview": "Vue d'ensemble", "nav.commercants": "Commercants", "nav.utilisateurs": "Utilisateurs", "nav.commandes": "Commandes", "nav.revenus": "Revenus", "nav.retention": "Retention", "nav.secteurs": "Config. secteurs", "nav.modules": "Modules", "nav.messages": "Messages", "nav.email": "Email", "nav.parametres": "Parametres", "nav.publicites": "Publicités", "nav.regie_pub": "Régie Pub", "nav.flash_rewards": "Flash Rewards", "nav.operations": "Centre Opérationnel", "nav.notifications": "Notifications", "nav.voix": "Voix Denise", "nav.direction": "Direction", "nav.qr_analytics": "QR Analytics", "nav.crystal_ball": "Boule de Cristal", "nav.webhooks": "Webhooks", "nav.superadmin": "Superadmin", "nav.gestion": "Gestion", "common.navigationAdmin": "Sections administration", "common.ouvrirMenu": "Ouvrir le menu", "common.deconnexion": "Deconnexion", "common.connecteSuperadmin": "Connecte en superadmin", "dashboard.titreAdmin": "Administration FeedbackPro"}; return map[key] || key }
   const [onglet, setOnglet] = useState<OngletAdmin>(() => ongletDepuisUrl())
   const [overview, setOverview] = useState<OverviewApi | null>(null)
   const [menuOuvert, setMenuOuvert] = useState(false)
@@ -485,6 +489,7 @@ export function AdminDashboard() {
         {onglet === "parametres" && <ParametresTab />}
         {onglet === "publicites" && <PublicitesTab />}
         {onglet === "regie_pub" && <AdminAdsTab />}
+        {onglet === "flash_rewards" && <AdminFlashRewardsTab />}
       </main>
     </div>
   )
@@ -507,7 +512,7 @@ function ContenuSidebarAdmin({
   onLogout: () => void
   messagesNonLus?: number
 }) {
-  const t = (key: string) => { const map: Record<string, string> = {"nav.overview": "Vue d'ensemble", "nav.commercants": "Commercants", "nav.utilisateurs": "Utilisateurs", "nav.commandes": "Commandes", "nav.revenus": "Revenus", "nav.retention": "Retention", "nav.secteurs": "Config. secteurs", "nav.modules": "Modules", "nav.messages": "Messages", "nav.email": "Email", "nav.parametres": "Parametres", "nav.publicites": "Publicités", "nav.regie_pub": "Régie Pub", "nav.operations": "Centre Opérationnel", "nav.notifications": "Notifications", "nav.voix": "Voix Denise", "nav.direction": "Direction", "nav.qr_analytics": "QR Analytics", "nav.crystal_ball": "Boule de Cristal", "nav.webhooks": "Webhooks", "nav.superadmin": "Superadmin", "nav.gestion": "Gestion", "common.navigationAdmin": "Sections administration", "common.ouvrirMenu": "Ouvrir le menu", "common.deconnexion": "Deconnexion", "common.connecteSuperadmin": "Connecte en superadmin", "dashboard.titreAdmin": "Administration FeedbackPro"}; return map[key] || key }
+  const t = (key: string) => { const map: Record<string, string> = {"nav.overview": "Vue d'ensemble", "nav.commercants": "Commercants", "nav.utilisateurs": "Utilisateurs", "nav.commandes": "Commandes", "nav.revenus": "Revenus", "nav.retention": "Retention", "nav.secteurs": "Config. secteurs", "nav.modules": "Modules", "nav.messages": "Messages", "nav.email": "Email", "nav.parametres": "Parametres", "nav.publicites": "Publicités", "nav.regie_pub": "Régie Pub", "nav.flash_rewards": "Flash Rewards", "nav.operations": "Centre Opérationnel", "nav.notifications": "Notifications", "nav.voix": "Voix Denise", "nav.direction": "Direction", "nav.qr_analytics": "QR Analytics", "nav.crystal_ball": "Boule de Cristal", "nav.webhooks": "Webhooks", "nav.superadmin": "Superadmin", "nav.gestion": "Gestion", "common.navigationAdmin": "Sections administration", "common.ouvrirMenu": "Ouvrir le menu", "common.deconnexion": "Deconnexion", "common.connecteSuperadmin": "Connecte en superadmin", "dashboard.titreAdmin": "Administration FeedbackPro"}; return map[key] || key }
   return (
     <div className="flex h-full flex-col">
       {/* Logo */}

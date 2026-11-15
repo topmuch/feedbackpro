@@ -70,6 +70,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog"
 import { AirportOfflineBanner } from "@/components/feedbackpro/airport-offline-banner"
+import { FlashRewardOverlay } from "@/components/feedbackpro/flash-reward-overlay"
 import { useAirportOffline } from "@/hooks/use-airport-offline"
 import { routerVersService, serviceLabel } from "@/lib/airport-routing"
 import { parler } from "@/lib/staff-tts"
@@ -314,6 +315,12 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
   // Ref pour s'assurer que Denise ne parle qu'une seule fois par signalement
   // sur l'écran de confirmation (pas à chaque re-render).
   const deniseConfirmSpokenRef = useRef<string | null>(null)
+
+  // --- Flash Rewards (carte à gratter post-signalement) ---
+  // Affichée ~3,5 s après que Denise a parlé pour confirmer le
+  // signalement. L'overlay appelle /redeem pour savoir s'il y a une
+  // campagne active éligible (zone + incident + horaires + limites).
+  const [showFlashReward, setShowFlashReward] = useState(false)
 
   // --- Offline PWA (Phase 2 — fonctionne sans 4G) ---
   const offline = useAirportOffline()
@@ -832,6 +839,19 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
     parler(
       `Votre signalement a bien été reçu. ${equipeLabel} a été alertée et intervient sur place. Merci pour votre contribution.`
     )
+
+    // Flash Rewards — après que Denise a parlé (~3 s de voix), on
+    // déclenche l'overlay carte à gratter. Le setTimeout de 3500ms
+    // laisse le temps à la voix de finir avant de surprendre le
+    // voyageur. L'overlay appellera /redeem et se fermera de lui-même
+    // si le voyageur n'est pas éligible (anti-bruit visuel).
+    const flashRewardTimer = setTimeout(() => {
+      setShowFlashReward(true)
+    }, 3500)
+
+    return () => {
+      clearTimeout(flashRewardTimer)
+    }
   }, [phase, reportResult])
 
   const signalerAutre = useCallback(() => {
@@ -845,6 +865,8 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
     setReportResult(null)
     // Reset Denise pour qu'elle parle au prochain signalement
     deniseConfirmSpokenRef.current = null
+    // Reset Flash Rewards overlay pour le prochain signalement
+    setShowFlashReward(false)
     setWhatsappPhone("")
     setWhatsappSubmitted(null)
     setWhatsappError(null)
@@ -2146,6 +2168,20 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
               </div>
             </div>
           </div>
+        )}
+
+        {/* ---------- Flash Rewards : carte à gratter post-signalement ----------
+            Affichée ~3,5 s après que Denise a parlé. L'overlay appelle
+            /api/airport/flash-rewards/redeem pour vérifier l'éligibilité
+            (zone + incident + horaires + limites anti-abus). Si non
+            éligible, l'overlay se ferme automatiquement sans bruit. */}
+        {showFlashReward && reportResult && (
+          <FlashRewardOverlay
+            reportId={reportResult.report.id}
+            zoneCode={zoneData?.code ?? ""}
+            problemType={reportResult.report.problemType}
+            onClose={() => setShowFlashReward(false)}
+          />
         )}
       </div>
     )
