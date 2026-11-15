@@ -1,17 +1,18 @@
 // ============================================================
 // Page /ops-wallboard — Wallboard Ops Room Aéroport
 // ------------------------------------------------------------
-// Style "Signalétique Aéroportuaire" — panneaux jaune/noir
-// à haute visibilité inspirés des enseignes IATA :
-//   - fond noir profond #0A0A0A (PAS slate/neutral)
-//   - barre d'en-tête jaune IATA #FCD116
-//   - bordures 3px jaune pour sections, 2px pour tuiles
-//   - texte BLANC, MAJUSCULES, letter-spacing 2-4px
-//   - chiffres KPI géants (56px, font-weight 900)
-//   - tuiles zone "signalétique" avec bordure colorée par statut
-//   - table d'incidents style panneau d'affichage
-//   - cartes d'alertes avec bordure gauche colorée par sévérité
-//   - animations : pulse pour LIVE, flashRed pour zones critiques
+// Style "Signalétique Aéroportuaire" — reproduction exacte des
+// panneaux signalétiques IATA (istockphoto-1913318633) :
+//   - fond NOIR PUR #000000 (pas #0A0A0A, pas slate)
+//   - JAUNE IATA #F5C400 (pas #FCD116)
+//   - texte JAUNE, MAJUSCULES, BOLD, sans-serif
+//   - ZERO coins arrondis (rounded-none partout, sauf dots légende)
+//   - PAS de glassmorphism, PAS de gradients, PAS de backdrop-blur
+//   - layout en LIGNES HORIZONTALES (bandeaux rectangulaires)
+//   - séparation par GAPS, pas par bordures fines
+//   - carrés jaunes pleins avec picto noir pour les signalétiques
+//   - flèche ▸ jaune devant chaque panneau
+//   - bordure gauche 4px pour les bandeaux d'alerte
 //
 // Polling identique au précédent :
 //   - /api/airport/wallboard toutes les 5s
@@ -21,13 +22,13 @@
 //
 // Fonctionnalités préservées :
 //   - Sons (ding-dong, ding-critical, resolved, escalade 660/880/990Hz)
-//   - TTS Denise (decideAndSpeakForWallboard)
+//   - TTS Denise (decideAndSpeakForWallboard + race-condition fix)
 //   - Rappel 15 min (badge EN RETARD + escalade sonore 15/20/25/30)
 //   - Toggle son (persisté localStorage)
 //   - Mode crise (filtre incidents critiques + timer + overlay)
-//   - Actions rapides (🔧 assign / 📞 call / 📢 escalate)
-//   - Filtre zone (clic sur la carte → filtre le tableau)
-//   - Radar prédiction
+//   - Actions rapides (assign / call / escalate)
+//   - Filtre zone (clic sur le panneau → filtre le tableau)
+//   - Radar prédiction (wrapper noir/jaune)
 //   - Bottom strip (SLA + charge par zone)
 // ============================================================
 
@@ -35,23 +36,12 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  Plane,
-  TriangleAlert,
-  OctagonAlert,
   Volume2,
   VolumeX,
   Phone,
   Megaphone,
-  Trophy,
-  TrendingUp,
-  TrendingDown,
-  ShieldAlert,
-  Activity,
   Wrench,
-  Users,
-  Clock,
-  AlertTriangle,
-  Map as MapIcon,
+  ShieldAlert,
 } from 'lucide-react'
 import { AirportPredictionRadar } from '@/components/feedbackpro/airport-prediction-radar'
 
@@ -82,12 +72,9 @@ type RecentReport = {
   routedTeam: string | null
   flightNumber?: string | null
   createdAt: string
-  /** Issue 1 — true pour les SOS help requests fusionnées dans le feed */
   isHelpRequest?: boolean
 }
 
-// Issue 1 — SOS / demandes d'aide voyageur affichées dans le panneau
-// d'alertes du wallboard via <HelpRequestAlertCard />.
 type HelpRequestLite = {
   id: string
   zone: { code: string; nom: string; emoji: string }
@@ -100,7 +87,6 @@ type HelpRequestLite = {
   resolvedAt: Date | null
 }
 
-// Feature 3 — SLA temps de résolution par zone (renvoyé par le wallboard)
 type SlaStats = {
   targetMinutes: number | null
   resolvedCount: number
@@ -132,9 +118,6 @@ type WallboardData = {
   }[]
 }
 
-// ---------------------------------------------------------------
-// Types — Task WB2 — leaderboard pour Top Performer
-// ---------------------------------------------------------------
 type LeaderboardEntry = {
   rank: number
   id: string
@@ -151,9 +134,6 @@ type LeaderboardData = {
   leaderboard: LeaderboardEntry[]
 }
 
-// ---------------------------------------------------------------
-// Types — /api/airport/alerts/check
-// ---------------------------------------------------------------
 type AlertType =
   | 'SPIKE_15MIN'
   | 'SPIKE_30MIN'
@@ -183,10 +163,19 @@ type AlertsCheckResponse = {
 }
 
 // ---------------------------------------------------------------
+// Constantes signalétique — IATA #F5C400
+// ---------------------------------------------------------------
+const YELLOW = '#F5C400'
+const BLACK = '#000000'
+const RED = '#FF3B30'
+const GREEN = '#34C759'
+const AMBER = '#FF9500'
+const WHITE = '#FFFFFF'
+
+// ---------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------
 
-/** "il y a 3 min" / "il y a 1 h" / "il y a 2 j" / "à l'instant" */
 function relativeTime(iso: string | null): string {
   if (!iso) return '—'
   const diff = Date.now() - new Date(iso).getTime()
@@ -202,7 +191,6 @@ function relativeTime(iso: string | null): string {
   return `il y a ${j} j`
 }
 
-/** "il y a 12 MIN" — version signalétique (UPPERCASE, court) */
 function relativeTimeSignaletique(iso: string | null): string {
   if (!iso) return '—'
   const diff = Date.now() - new Date(iso).getTime()
@@ -232,37 +220,22 @@ function formatDateFR(d: Date): string {
 }
 
 /** Statut meta — palette signalétique aéroport :
- *   EN_ATTENTE → jaune IATA (#FCD116)
- *   EN_COURS   → orange (#FF9500)
- *   RESOLU     → vert OK (#34C759) */
-const STATUT_META: Record<Statut, { label: string; color: string; bg: string; border: string }> = {
-  EN_ATTENTE: {
-    label: 'EN ATTENTE',
-    color: '#FCD116',
-    bg: 'rgba(252,209,22,0.15)',
-    border: '#FCD116',
-  },
-  EN_COURS: {
-    label: 'EN COURS',
-    color: '#FF9500',
-    bg: 'rgba(255,149,0,0.15)',
-    border: '#FF9500',
-  },
-  RESOLU: {
-    label: 'RÉSOLU',
-    color: '#34C759',
-    bg: 'rgba(52,199,89,0.15)',
-    border: '#34C759',
-  },
+ *   EN_ATTENTE → AMBER #FF9500 (bg-amber-500, texte noir)
+ *   EN_COURS   → RED #FF3B30 (bg-red-500, texte blanc)
+ *   RESOLU     → YELLOW #F5C400 (bg-[#F5C400], texte noir) */
+const STATUT_META: Record<Statut, { label: string; color: string; bg: string; text: string }> = {
+  EN_ATTENTE: { label: 'EN ATTENTE', color: AMBER, bg: AMBER, text: BLACK },
+  EN_COURS: { label: 'EN COURS', color: RED, bg: RED, text: WHITE },
+  RESOLU: { label: 'RÉSOLU', color: YELLOW, bg: YELLOW, text: BLACK },
 }
 
-function statutMeta(s: string): { label: string; color: string; bg: string; border: string } {
+function statutMeta(s: string): { label: string; color: string; bg: string; text: string } {
   return (
     STATUT_META[s as Statut] ?? {
       label: s,
       color: '#999999',
-      bg: 'rgba(153,153,153,0.15)',
-      border: '#999999',
+      bg: '#999999',
+      text: BLACK,
     }
   )
 }
@@ -281,11 +254,6 @@ function teamMeta(key: string | null): { emoji: string; label: string } | null {
   return TEAM_META[key as TeamKey] ?? TEAM_META.other
 }
 
-// ---------------------------------------------------------------
-// Task WB2 — Helpers additionnels
-// ---------------------------------------------------------------
-
-/** "8M 23S" — formatage humain court en MAJUSCULES */
 function formatDurationMin(minutes: number | null | undefined): string {
   if (minutes === null || minutes === undefined) return '—'
   const totalSec = Math.round(minutes * 60)
@@ -294,14 +262,12 @@ function formatDurationMin(minutes: number | null | undefined): string {
   return `${m}M ${String(s).padStart(2, '0')}S`
 }
 
-/** "12MIN 34S" — formatage d'une durée en secondes pour le timer Mode Crise */
 function formatDurationSec(totalSec: number): string {
   const m = Math.floor(totalSec / 60)
   const s = totalSec % 60
   return `${m}MIN ${String(s).padStart(2, '0')}S`
 }
 
-/** Code zone → famille (EXTÉRIEUR / TERMINAL / SÛRETÉ / COMMERCIAL / SERVICE / URGENCE / HISTORIQUE) */
 type ZoneFamily =
   | 'EXTÉRIEUR'
   | 'SÛRETÉ'
@@ -312,11 +278,6 @@ type ZoneFamily =
   | 'HISTORIQUE'
 
 function zoneFamily(code: string): ZoneFamily {
-  // Issue 2 — anciennes zones historiques (rétro-compat) mappées vers
-  // les nouvelles familles signalétiques AVANT les checks de préfixe.
-  // Sans cela, les reports créés via ?airport=tapis_bagages_1 (code
-  // "bagages") n'apparaissaient pas sur la carte (famille HISTORIQUE
-  // → ignorée) et les tuiles affichaient 0.
   if (
     code === 'bagages' ||
     code === 'sanitaires' ||
@@ -334,17 +295,11 @@ function zoneFamily(code: string): ZoneFamily {
   return 'HISTORIQUE'
 }
 
-/** Truncate a zone name for compact map display */
 function truncateName(name: string, max = 12): string {
   if (name.length <= max) return name
   return `${name.slice(0, max - 1)}…`
 }
 
-/** Détermine la couleur de statut d'une zone selon son count_en_attente :
- *   - 0           → 'calm' (green)
- *   - 1-2         → 'attention' (yellow)
- *   - 3+          → 'critical' (red, flashRed animation)
- *   - null/undef  → 'none' (gray) */
 type ZoneStatus = 'calm' | 'attention' | 'critical' | 'none'
 
 function zoneStatus(count: number | null | undefined): ZoneStatus {
@@ -354,16 +309,13 @@ function zoneStatus(count: number | null | undefined): ZoneStatus {
   return 'critical'
 }
 
-/** Palette signalétique pour les statuts de zone — couleurs IATA */
 const ZONE_STATUS_META: Record<ZoneStatus, { color: string; label: string }> = {
-  calm: { color: '#34C759', label: 'CALME' },
-  attention: { color: '#FCD116', label: 'ATTENTION' },
-  critical: { color: '#FF3B30', label: 'CRITIQUE' },
+  calm: { color: GREEN, label: 'CALME' },
+  attention: { color: YELLOW, label: 'ATTENTION' },
+  critical: { color: RED, label: 'CRITIQUE' },
   none: { color: '#555555', label: 'N/A' },
 }
 
-/** Task WB2 Feature 4 — Mode Crise :
- *  Détermine si un signalement est "critique" (à afficher en mode crise). */
 function isCriticalInCrisis(r: RecentReport): boolean {
   if (r.statut === 'RESOLU') return false
   const elapsedMin = (Date.now() - new Date(r.createdAt).getTime()) / 60000
@@ -390,9 +342,7 @@ async function fetchWallboard(): Promise<WallboardData> {
 async function fetchAlerts(): Promise<TriggeredAlert[]> {
   const res = await fetch('/api/airport/alerts/check', { cache: 'no-store' })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  const json = (await res.json()) as
-    | AlertsCheckResponse
-    | { ok: false; error: string }
+  const json = (await res.json()) as AlertsCheckResponse | { ok: false; error: string }
   if (!json.ok) throw new Error(json.error ?? 'réponse invalide')
   return json.data.alerts
 }
@@ -404,58 +354,45 @@ const SOUND_NORMAL = '/sounds/ding-dong.mp3'
 const SOUND_CRITICAL = '/sounds/ding-critical.wav'
 const SOUND_RESOLVED = '/sounds/resolved.wav'
 
-/** Joue un fichier son si l'audio est activé */
 function playSound(src: string, audioRef: React.RefObject<HTMLAudioElement | null>) {
   const a = audioRef.current
   if (!a) return
   a.src = src
   a.volume = 0.6
   a.play().catch(() => {
-    // Autoplay bloqué — silencieux, l'utilisateur doit cliquer
+    // Autoplay bloqué — silencieux
   })
 }
 
-/** Annonce vocale via Web Speech API (synthèse navigateur) */
 function speak(text: string, enabled: boolean) {
   if (!enabled) return
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return
   try {
-    // NE PAS appeler cancel() juste avant speak() — sur certains navigateurs
-    // (Chrome notamment), cancel() est asynchrone et annule aussi le speak()
-    // qui suit immédiatement. On utilise une file d'attente naturelle à la
-    // place : si Denise parlait déjà, le nouveau message s'ajoute à la file.
-    // Pour couper l'annonce précédente, on ne fait rien — la nouvelle
-    // annonce remplace naturellement l'ancienne après qu'elle se termine.
-
     const u = new SpeechSynthesisUtterance(text)
     u.lang = 'fr-FR'
     u.rate = 1.05
     u.pitch = 1.0
     u.volume = 0.9
 
-    // Charger les voix françaises si disponibles
     const voices = window.speechSynthesis.getVoices()
-    const frVoice = voices.find(v => v.lang.startsWith('fr'))
+    const frVoice = voices.find((v) => v.lang.startsWith('fr'))
     if (frVoice) {
       u.voice = frVoice
     }
 
-    // Si Denise parlait déjà, on annule APRES un court délai pour laisser
-    // le nouveau speak() se mettre en file (évite la race condition).
     if (window.speechSynthesis.speaking) {
       window.speechSynthesis.cancel()
-      // Petit délai pour que le cancel soit bien traité avant le speak
       setTimeout(() => window.speechSynthesis.speak(u), 50)
     } else {
       window.speechSynthesis.speak(u)
     }
   } catch {
-    // TTS indisponible — silencieux
+    // TTS indisponible
   }
 }
 
 // ============================================================
-// Voice Decision Engine — Denise "réfléchit" avant de parler
+// Voice Decision Engine — Denise
 // ============================================================
 type VoiceEvent = {
   sector: 'aeroport' | 'restaurant'
@@ -501,14 +438,14 @@ async function decideAndSpeakForWallboard(event: VoiceEvent): Promise<VoiceDecis
   }
 }
 
-/** Triple-ding d'escalade — généré via Web Audio API (660/880/990 Hz). */
+void decideAndSpeakForWallboard
+
 function playEscalationDing() {
   if (typeof window === 'undefined') return
   try {
     const AudioCtx =
       window.AudioContext ||
-      (window as unknown as { webkitAudioContext?: typeof AudioContext })
-        .webkitAudioContext
+      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
     if (!AudioCtx) return
     const ctx = new AudioCtx()
     if (ctx.state === 'suspended') void ctx.resume().catch(() => {})
@@ -529,55 +466,51 @@ function playEscalationDing() {
     })
     setTimeout(() => ctx.close().catch(() => {}), 900)
   } catch {
-    // Web Audio indisponible — silencieux
+    // Web Audio indisponible
   }
 }
 
 // ---------------------------------------------------------------
-// Sous-composants — SIGNALÉTIQUE AÉROPORT
+// Sous-composants — SIGNALÉTIQUE AÉROPORT EXACT
 // ---------------------------------------------------------------
 
 /**
- * Tuile KPI géante — style signalétique IATA.
- *   - Fond noir, bordure droite 2px #333
- *   - Chiffre géant 56px font-weight 900
- *   - Bordure basse 4px colorée par sévérité
- *   - Label 14px 700 weight letter-spacing 2px #999 */
-function KpiTile({
+ * Cellule KPI — bandeau horizontal plat dans une strip unique.
+ * Séparation par ligne jaune fine (border-r #F5C400/30).
+ * PAS de fond différent, PAS de bordure arrondie. */
+function KpiCell({
   label,
   value,
-  accent = 'white',
+  accent = 'yellow',
+  isLast = false,
 }: {
   label: string
   value: string | number
-  accent?: 'white' | 'yellow' | 'red' | 'green' | 'orange'
+  accent?: 'yellow' | 'red' | 'green' | 'amber' | 'white'
+  isLast?: boolean
 }) {
   const colorMap = {
-    white: '#FFFFFF',
-    yellow: '#FCD116',
-    red: '#FF3B30',
-    green: '#34C759',
-    orange: '#FF9500',
+    yellow: YELLOW,
+    red: RED,
+    green: GREEN,
+    amber: AMBER,
+    white: WHITE,
   } as const
-  const borderColor = colorMap[accent]
+  const color = colorMap[accent]
   return (
     <div
-      className="relative flex flex-col items-center justify-center gap-1 bg-[#0A0A0A] px-2 py-3"
-      style={{ borderRight: '2px solid #333333', borderBottom: `4px solid ${borderColor}` }}
+      className="flex flex-1 flex-col items-center justify-center gap-1 px-3 py-3"
+      style={{ borderRight: isLast ? 'none' : `1px solid ${YELLOW}4D` }}
     >
       <span
-        className="font-black tabular-nums leading-none uppercase"
-        style={{
-          fontSize: 'clamp(28px, 5vw, 56px)',
-          color: borderColor,
-          letterSpacing: '1px',
-        }}
+        className="font-bold tabular-nums leading-none uppercase"
+        style={{ fontSize: 'clamp(28px, 4vw, 42px)', color, letterSpacing: '1px' }}
       >
         {value}
       </span>
       <span
         className="font-bold uppercase"
-        style={{ fontSize: '12px', letterSpacing: '2px', color: '#999999' }}
+        style={{ fontSize: '11px', letterSpacing: '2px', color: `${YELLOW}99` }}
       >
         {label}
       </span>
@@ -585,11 +518,13 @@ function KpiTile({
   )
 }
 
-/** Tuile Zone Signalétique —
- *   - Fond noir, bordure 3px colorée par statut
- *   - Critical : bordure rouge + fond flashRed + animation
- *   - Clic → filtre le tableau d'incidents */
-function ZoneTile({
+/**
+ * Mini-panneau signalétique de zone — bandeau horizontal plat :
+ *   ▸ [CARRÉ JAUNE 32×32 avec picto] NOM  COUNT
+ * - PAS de bordure sur les panneaux normaux
+ * - Zone critique : fond rouge subtil + bordure gauche rouge 2px
+ * - Clic → filtre le tableau */
+function ZonePanel({
   zone,
   isActive,
   onClick,
@@ -599,54 +534,46 @@ function ZoneTile({
   onClick: () => void
 }) {
   const st = zoneStatus(zone.count_en_attente)
-  const meta = ZONE_STATUS_META[st]
   const isCritical = st === 'critical'
-  const isAttention = st === 'attention'
-  const borderColor = meta.color
+  const countColor = zone.count_en_attente > 0 ? RED : `${GREEN}80`
+  const cls = [
+    'flex items-center gap-1.5 px-2 py-1.5 transition-opacity hover:opacity-80',
+    isCritical ? 'bg-red-500/10 border-l-2 border-red-500' : '',
+    isActive ? `bg-[${YELLOW}]/15` : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={isActive}
-      title={`${zone.nom} — ${meta.label} · ${zone.count_en_attente} en attente`}
-      className={`relative flex flex-col items-center justify-center gap-0.5 px-2 py-2 text-center transition-all ${
-        isCritical ? 'ops-flash-red' : ''
-      }`}
-      style={{
-        backgroundColor: isCritical
-          ? 'rgba(255,59,48,0.15)'
-          : isAttention
-            ? 'rgba(252,209,22,0.1)'
-            : '#0A0A0A',
-        border: `3px solid ${isActive ? '#FCD116' : borderColor}`,
-        boxShadow: isActive ? '0 0 0 2px #FCD116' : 'none',
-      }}
+      title={`${zone.nom} — ${ZONE_STATUS_META[st].label} · ${zone.count_en_attente} en attente`}
+      className={cls}
     >
-      {/* Issue 4 — signalétique : [flèche jaune] [pictogramme] puis
-          nom + compteur. La flèche ▸ jaune IATA #FCD116 indique la
-          direction (standard signalétique aéroportuaire). */}
-      <div className="flex items-center gap-1" aria-hidden>
-        <span
-          style={{
-            fontSize: '15px',
-            lineHeight: 1,
-            color: '#FCD116',
-            fontWeight: 900,
-          }}
-        >
-          ▸
-        </span>
-        <span style={{ fontSize: '16px', lineHeight: 1 }}>{zone.emoji}</span>
-      </div>
       <span
-        className="w-full truncate font-bold uppercase"
-        style={{ fontSize: '10px', letterSpacing: '1px', color: '#FFFFFF' }}
+        aria-hidden
+        className="font-bold leading-none"
+        style={{ fontSize: '15px', color: YELLOW }}
       >
-        {truncateName(zone.nom.toUpperCase(), 12)}
+        ▸
       </span>
       <span
-        className="font-black tabular-nums leading-none"
-        style={{ fontSize: '20px', color: borderColor }}
+        aria-hidden
+        className="flex size-8 items-center justify-center bg-[#F5C400] text-black"
+        style={{ fontSize: '16px', lineHeight: 1 }}
+      >
+        {zone.emoji}
+      </span>
+      <span
+        className="truncate font-bold uppercase"
+        style={{ fontSize: '11px', letterSpacing: '1px', color: YELLOW }}
+      >
+        {truncateName(zone.nom.toUpperCase(), 10)}
+      </span>
+      <span
+        className="ml-auto font-bold tabular-nums leading-none"
+        style={{ fontSize: '16px', color: countColor }}
       >
         {zone.count_en_attente}
       </span>
@@ -655,99 +582,98 @@ function ZoneTile({
 }
 
 /**
- * Carte d'alerte (panneau droit) — style signalétique.
- *   - Bordure 3px, bordure gauche 8px colorée par sévérité
- *   - Zone en jaune, temps en rouge, problème en blanc gras
- *   - Boutons d'action : fond jaune #FCD116, texte noir */
-function AlertCard({
-  alert,
+ * Bouton d'action signalétique — carré jaune plein avec icône noire.
+ * Coins droits, fond #F5C400, texte/icône noir. */
+function ActionSquare({
+  onClick,
+  disabled,
+  label,
+  title,
+  children,
+  variant = 'yellow',
 }: {
-  alert: TriggeredAlert
+  onClick: () => void
+  disabled?: boolean
+  label: string
+  title: string
+  children: React.ReactNode
+  variant?: 'yellow' | 'red'
 }) {
+  const bg = variant === 'red' ? RED : YELLOW
+  const fg = variant === 'red' ? WHITE : BLACK
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={label}
+      title={title}
+      className="flex items-center justify-center gap-1 px-2 py-1 font-bold uppercase transition-opacity hover:opacity-80 disabled:opacity-50"
+      style={{ backgroundColor: bg, color: fg, fontSize: '11px', letterSpacing: '1px' }}
+    >
+      {children}
+      <span>{label}</span>
+    </button>
+  )
+}
+
+/**
+ * Bandeau d'alerte seuil — bandeau horizontal plat :
+ *   [bordure gauche 4px] ▸ [CARRÉ JAUNE ⚠] ZONE · MESSAGE · TEMPS  [APPELER] [ESCALADER]
+ * PAS de coins arrondis, fond noir. */
+function AlertBandeau({ alert }: { alert: TriggeredAlert }) {
   const isCritical = alert.severity === 'critical'
-  const accent = isCritical ? '#FF3B30' : '#FCD116'
+  const accent = isCritical ? RED : YELLOW
   return (
     <div
       role="alert"
-      className={`flex flex-col gap-1 bg-[#0A0A0A] px-3 py-2 ${
-        isCritical ? 'ops-flash-red' : ''
-      }`}
-      style={{
-        border: '3px solid #333333',
-        borderLeft: `8px solid ${accent}`,
-      }}
+      className={`flex items-center gap-2 bg-black px-3 py-2 ${isCritical ? 'ops-flash-red' : ''}`}
+      style={{ borderLeft: `4px solid ${accent}` }}
     >
-      <div className="flex items-center justify-between gap-2">
+      <span aria-hidden className="font-bold leading-none" style={{ fontSize: '15px', color: YELLOW }}>
+        ▸
+      </span>
+      <span
+        aria-hidden
+        className="flex size-8 shrink-0 items-center justify-center bg-[#F5C400] font-bold text-black"
+        style={{ fontSize: '14px', lineHeight: 1 }}
+      >
+        {isCritical ? '⚠' : '!'}
+      </span>
+      <div className="flex min-w-0 flex-1 items-baseline gap-2">
         <span
-          className="font-bold uppercase"
-          style={{ fontSize: '13px', letterSpacing: '2px', color: '#FCD116' }}
+          className="shrink-0 font-bold uppercase"
+          style={{ fontSize: '12px', letterSpacing: '1px', color: YELLOW }}
         >
-          {isCritical ? '🔴 ' : '🟡 '}
           {alert.zoneCode}
         </span>
         <span
-          className="font-bold tabular-nums"
-          style={{ fontSize: '13px', color: '#FF3B30' }}
+          className="truncate font-bold uppercase"
+          style={{ fontSize: '12px', letterSpacing: '0.5px', color: `${YELLOW}CC` }}
         >
-          {relativeTimeSignaletique(alert.triggeredAt)}
+          · {alert.message}
         </span>
       </div>
-      <p
-        className="font-bold uppercase leading-tight"
-        style={{ fontSize: '15px', color: '#FFFFFF', letterSpacing: '0.5px' }}
+      <span
+        className="shrink-0 font-bold tabular-nums uppercase"
+        style={{ fontSize: '12px', color: RED }}
       >
-        {alert.message}
-      </p>
-      <div className="flex items-center gap-1">
-        <span
-          className="font-bold uppercase"
-          style={{ fontSize: '11px', color: '#999999', letterSpacing: '1px' }}
-        >
-          {alert.type.replace(/_/g, ' ')}
-        </span>
-        <span
-          className="ml-auto font-bold tabular-nums"
-          style={{ fontSize: '12px', color: accent }}
-        >
-          {alert.currentValue}/{alert.threshold}
-        </span>
-      </div>
-      <div className="mt-1 flex gap-1.5">
-        <button
-          type="button"
-          className="flex items-center gap-1 px-2 py-1 font-bold uppercase transition-opacity hover:opacity-80"
-          style={{
-            backgroundColor: '#FCD116',
-            color: '#0A0A0A',
-            fontSize: '11px',
-            letterSpacing: '1px',
-          }}
-        >
-          <Phone className="size-3" aria-hidden />
-          APPELER
-        </button>
-        <button
-          type="button"
-          className="flex items-center gap-1 px-2 py-1 font-bold uppercase transition-opacity hover:opacity-80"
-          style={{
-            backgroundColor: '#FCD116',
-            color: '#0A0A0A',
-            fontSize: '11px',
-            letterSpacing: '1px',
-          }}
-        >
-          <Megaphone className="size-3" aria-hidden />
-          ESCALADER
-        </button>
-      </div>
+        {relativeTimeSignaletique(alert.triggeredAt)}
+      </span>
+      <ActionSquare onClick={() => {}} label="APPELER" title="APPELER">
+        <Phone className="size-3" aria-hidden />
+      </ActionSquare>
+      <ActionSquare onClick={() => {}} label="ESCALADER" title="ESCALADER">
+        <Megaphone className="size-3" aria-hidden />
+      </ActionSquare>
     </div>
   )
 }
 
-/** Carte d'alerte basée sur un signalement récent (panneau droit).
- *  Utilise les signalements EN_ATTENTE/EN_COURS comme alertes actives
- *  quand peu d'alertes seuil sont déclenchées. */
-function ReportAlertCard({
+/**
+ * Bandeau d'alerte basé sur un signalement récent — même format signalétique.
+ * Boutons APPELER / ASSIGNER (menu) / ESCALADER. */
+function ReportAlertBandeau({
   r,
   onCall,
   onEscalate,
@@ -761,238 +687,181 @@ function ReportAlertCard({
   busy: boolean
 }) {
   const s = statutMeta(r.statut)
-  const team = teamMeta(r.routedTeam)
   const elapsedMin = Math.floor((Date.now() - new Date(r.createdAt).getTime()) / 60000)
   const isLate = elapsedMin > 15 && r.statut !== 'RESOLU'
-  const accent = isLate ? '#FF3B30' : s.color
+  const accent = isLate ? RED : s.color
   const [showAssignMenu, setShowAssignMenu] = useState(false)
   return (
     <div
       role="alert"
-      className={`relative flex flex-col gap-1 bg-[#0A0A0A] px-3 py-2 ${
-        isLate ? 'ops-flash-red' : ''
-      }`}
-      style={{
-        border: '3px solid #333333',
-        borderLeft: `8px solid ${accent}`,
-      }}
+      className={`relative flex items-center gap-2 bg-black px-3 py-2 ${isLate ? 'ops-flash-red' : ''}`}
+      style={{ borderLeft: `4px solid ${accent}` }}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span
-          className="font-bold uppercase"
-          style={{ fontSize: '13px', letterSpacing: '2px', color: '#FCD116' }}
-        >
-          {r.zone?.emoji ?? '📍'} {(r.zone?.nom ?? 'ZONE').toUpperCase()}
-        </span>
-        <span
-          className="font-bold tabular-nums"
-          style={{ fontSize: '13px', color: '#FF3B30' }}
-        >
-          {elapsedMin} MIN
-        </span>
-      </div>
-      <p
-        className="font-bold uppercase leading-tight"
-        style={{ fontSize: '15px', color: '#FFFFFF', letterSpacing: '0.5px' }}
+      <span aria-hidden className="font-bold leading-none" style={{ fontSize: '15px', color: YELLOW }}>
+        ▸
+      </span>
+      <span
+        aria-hidden
+        className="flex size-8 shrink-0 items-center justify-center bg-[#F5C400] text-base text-black"
+        style={{ lineHeight: 1 }}
       >
-        {r.problemType}
-      </p>
-      <div className="flex items-center gap-2">
-        <span
-          className="inline-flex items-center font-bold uppercase"
-          style={{
-            fontSize: '10px',
-            color: s.color,
-            border: `1px solid ${s.color}`,
-            backgroundColor: s.bg,
-            padding: '1px 6px',
-            letterSpacing: '1px',
-          }}
-        >
-          {s.label}
-        </span>
-        {team && (
+        {r.zone?.emoji ?? '📍'}
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <div className="flex items-baseline gap-2">
+          <span
+            className="shrink-0 font-bold uppercase"
+            style={{ fontSize: '12px', letterSpacing: '1px', color: YELLOW }}
+          >
+            {(r.zone?.nom ?? 'ZONE').toUpperCase()}
+          </span>
+          <span
+            className="truncate font-bold uppercase"
+            style={{ fontSize: '12px', letterSpacing: '0.5px', color: `${YELLOW}CC` }}
+          >
+            · {r.problemType}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
           <span
             className="font-bold uppercase"
-            style={{ fontSize: '11px', color: '#999999', letterSpacing: '1px' }}
-          >
-            {team.emoji} {team.label}
-          </span>
-        )}
-        {isLate && (
-          <span
-            className="font-bold uppercase ops-pulse"
             style={{
               fontSize: '10px',
-              color: '#FF3B30',
-              border: '1px solid #FF3B30',
-              backgroundColor: 'rgba(255,59,48,0.2)',
+              letterSpacing: '1px',
+              color: s.text,
+              backgroundColor: s.bg,
               padding: '1px 6px',
-              letterSpacing: '1px',
             }}
           >
-            EN RETARD
+            {s.label}
           </span>
-        )}
-      </div>
-      <div className="mt-1 flex gap-1.5">
-        <button
-          type="button"
-          onClick={onCall}
-          className="flex items-center gap-1 px-2 py-1 font-bold uppercase transition-opacity hover:opacity-80"
-          style={{
-            backgroundColor: '#FCD116',
-            color: '#0A0A0A',
-            fontSize: '11px',
-            letterSpacing: '1px',
-          }}
-        >
-          <Phone className="size-3" aria-hidden />
-          APPELER OPS
-        </button>
-        <div className="relative">
-          <button
-            type="button"
-            onClick={() => setShowAssignMenu((v) => !v)}
-            disabled={busy}
-            className="flex items-center gap-1 px-2 py-1 font-bold uppercase transition-opacity hover:opacity-80 disabled:opacity-50"
-            style={{
-              backgroundColor: '#FCD116',
-              color: '#0A0A0A',
-              fontSize: '11px',
-              letterSpacing: '1px',
-            }}
-          >
-            <Wrench className="size-3" aria-hidden />
-            ASSIGNER
-          </button>
-          {showAssignMenu && (
-            <div
-              role="menu"
-              className="absolute left-0 top-full z-30 mt-1 w-40 border-2 bg-black p-1"
-              style={{ borderColor: '#FCD116' }}
+          {isLate && (
+            <span
+              className="font-bold uppercase ops-pulse"
+              style={{ fontSize: '10px', letterSpacing: '1px', color: RED }}
             >
-              <p
-                className="px-2 py-1 font-bold uppercase"
-                style={{ fontSize: '10px', letterSpacing: '1px', color: '#FCD116' }}
-              >
-                REROUTER VERS
-              </p>
-              {(Object.keys(TEAM_META) as TeamKey[])
-                .filter((k) => k !== 'other')
-                .map((k) => (
-                  <button
-                    key={k}
-                    type="button"
-                    role="menuitem"
-                    onClick={() => {
-                      onAssign(k)
-                      setShowAssignMenu(false)
-                    }}
-                    className="flex w-full items-center gap-2 px-2 py-1.5 text-left font-bold uppercase transition-colors hover:bg-[#FCD116]/10"
-                    style={{ fontSize: '11px', color: '#FFFFFF', letterSpacing: '1px' }}
-                  >
-                    <span aria-hidden>{TEAM_META[k].emoji}</span>
-                    <span>{TEAM_META[k].label}</span>
-                  </button>
-                ))}
-            </div>
+              EN RETARD
+            </span>
           )}
         </div>
-        <button
-          type="button"
-          onClick={onEscalate}
-          disabled={busy}
-          className="flex items-center gap-1 px-2 py-1 font-bold uppercase transition-opacity hover:opacity-80 disabled:opacity-50"
-          style={{
-            backgroundColor: '#FF3B30',
-            color: '#FFFFFF',
-            fontSize: '11px',
-            letterSpacing: '1px',
-          }}
-        >
-          <Megaphone className="size-3" aria-hidden />
-          ESCALADER
-        </button>
       </div>
+      <span
+        className="shrink-0 font-bold tabular-nums uppercase"
+        style={{ fontSize: '12px', color: RED }}
+      >
+        {relativeTimeSignaletique(r.createdAt)}
+      </span>
+      <ActionSquare onClick={onCall} label="APPELER" title="APPELER OPS">
+        <Phone className="size-3" aria-hidden />
+      </ActionSquare>
+      <div className="relative">
+        <ActionSquare
+          onClick={() => setShowAssignMenu((v) => !v)}
+          disabled={busy}
+          label="ASSIGNER"
+          title="ASSIGNER / REROUTER"
+        >
+          <Wrench className="size-3" aria-hidden />
+        </ActionSquare>
+        {showAssignMenu && (
+          <div
+            role="menu"
+            className="absolute right-0 top-full z-30 mt-1 w-40 bg-black p-1"
+            style={{ border: `1px solid ${YELLOW}` }}
+          >
+            <p
+              className="px-2 py-1 font-bold uppercase"
+              style={{ fontSize: '10px', letterSpacing: '1px', color: YELLOW }}
+            >
+              REROUTER VERS
+            </p>
+            {(Object.keys(TEAM_META) as TeamKey[])
+              .filter((k) => k !== 'other')
+              .map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    onAssign(k)
+                    setShowAssignMenu(false)
+                  }}
+                  className="flex w-full items-center gap-2 px-2 py-1.5 text-left font-bold uppercase transition-colors hover:bg-[#F5C400]/10"
+                  style={{ fontSize: '11px', color: WHITE, letterSpacing: '1px' }}
+                >
+                  <span aria-hidden>{TEAM_META[k].emoji}</span>
+                  <span>{TEAM_META[k].label}</span>
+                </button>
+              ))}
+          </div>
+        )}
+      </div>
+      <ActionSquare onClick={onEscalate} disabled={busy} label="ESCALADER" title="ESCALADER" variant="red">
+        <Megaphone className="size-3" aria-hidden />
+      </ActionSquare>
     </div>
   )
 }
 
-/** Carte d'alerte SOS — demande d'aide voyageur (panneau droit).
- *  Style signalétique : bordure gauche jaune IATA #FCD116, badge SOS,
- *  message du voyageur, et bouton "APPELER VOYAGEUR" si un numéro est
- *  joint. Issue 1 — les help requests disposent désormais d'une carte
- *  dédiée dans le panneau d'alertes du wallboard. */
-function HelpRequestAlertCard({ h }: { h: HelpRequestLite }) {
-  const elapsedMin = Math.floor(
-    (Date.now() - new Date(h.createdAt).getTime()) / 60000,
-  )
+/** Bandeau SOS — demande d'aide voyageur. */
+function HelpRequestBandeau({ h }: { h: HelpRequestLite }) {
+  const elapsedMin = Math.floor((Date.now() - new Date(h.createdAt).getTime()) / 60000)
   const isLate = elapsedMin > 15
-  const accent = isLate ? '#FF3B30' : '#FCD116'
+  const accent = isLate ? RED : YELLOW
   return (
     <div
       role="alert"
-      className={`relative flex flex-col gap-1 bg-[#0A0A0A] px-3 py-2 ${
-        isLate ? 'ops-flash-red' : ''
-      }`}
-      style={{
-        border: '3px solid #333333',
-        borderLeft: `8px solid ${accent}`,
-      }}
+      className={`flex items-center gap-2 bg-black px-3 py-2 ${isLate ? 'ops-flash-red' : ''}`}
+      style={{ borderLeft: `4px solid ${accent}` }}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span
-          className="font-black uppercase"
-          style={{ fontSize: '13px', letterSpacing: '2px', color: accent }}
-        >
-          🆘 SOS {(h.zone?.nom ?? 'ZONE').toUpperCase()}
-        </span>
-        <span
-          className="font-bold tabular-nums"
-          style={{ fontSize: '13px', color: '#FF3B30' }}
-        >
-          {elapsedMin} MIN
-        </span>
-      </div>
-      <p
-        className="font-bold uppercase leading-tight"
-        style={{ fontSize: '15px', color: '#FFFFFF', letterSpacing: '0.5px' }}
+      <span aria-hidden className="font-bold leading-none" style={{ fontSize: '15px', color: YELLOW }}>
+        ▸
+      </span>
+      <span
+        aria-hidden
+        className="flex size-8 shrink-0 items-center justify-center bg-[#F5C400] text-base text-black"
+        style={{ lineHeight: 1 }}
       >
-        {h.message ?? "Demande d'aide voyageur"}
-      </p>
-      <div className="flex items-center gap-2">
+        🆘
+      </span>
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span
           className="font-bold uppercase"
-          style={{ fontSize: '11px', color: '#999999', letterSpacing: '1px' }}
+          style={{ fontSize: '12px', letterSpacing: '1px', color: accent }}
         >
-          {h.tagScanne}
+          SOS {(h.zone?.nom ?? 'ZONE').toUpperCase()}
         </span>
-        {h.travelerPhone && (
-          <a
-            href={`tel:${h.travelerPhone}`}
-            className="ml-auto flex items-center gap-1 px-2 py-1 font-bold uppercase transition-opacity hover:opacity-80"
-            style={{
-              backgroundColor: '#FCD116',
-              color: '#0A0A0A',
-              fontSize: '11px',
-              letterSpacing: '1px',
-            }}
-          >
-            <Phone className="size-3" aria-hidden />
-            APPELER VOYAGEUR
-          </a>
-        )}
+        <span
+          className="truncate font-bold uppercase"
+          style={{ fontSize: '11px', letterSpacing: '0.5px', color: `${YELLOW}CC` }}
+        >
+          · {h.message ?? "Demande d'aide voyageur"}
+        </span>
       </div>
+      <span
+        className="shrink-0 font-bold tabular-nums uppercase"
+        style={{ fontSize: '12px', color: RED }}
+      >
+        {relativeTimeSignaletique(h.createdAt)}
+      </span>
+      {h.travelerPhone && (
+        <a
+          href={`tel:${h.travelerPhone}`}
+          className="flex items-center gap-1 px-2 py-1 font-bold uppercase transition-opacity hover:opacity-80"
+          style={{ backgroundColor: YELLOW, color: BLACK, fontSize: '11px', letterSpacing: '1px' }}
+        >
+          <Phone className="size-3" aria-hidden />
+          APPELER VOYAGEUR
+        </a>
+      )}
     </div>
   )
 }
 
-/** Ligne du tableau d'incidents — style signalétique.
- *  Feature W1 — rappel 15 min : si > 15 min en attente, badge EN RETARD.
- *  Issue 1 — les SOS help requests (isHelpRequest) y apparaissent aussi
- *  avec un badge SOS jaune ; les actions assign/escalade (liées aux
- *  AirportReport) y sont masquées car l'id est préfixé `sos_`. */
+/**
+ * Ligne du tableau d'incidents — style signalétique.
+ * En-tête jaune, lignes noires, séparateurs colonnes jaune fin.
+ * Statut badge plein (jaune/rouge/amber). Actions = carrés jaunes. */
 function IncidentRow({
   r,
   fresh,
@@ -1010,10 +879,8 @@ function IncidentRow({
   const [busy, setBusy] = useState(false)
   const elapsedMin = Math.floor((Date.now() - new Date(r.createdAt).getTime()) / 60000)
   const isLate = elapsedMin > 15 && r.statut !== 'RESOLU'
-  const rowBg = index % 2 === 0 ? '#0A0A0A' : '#111111'
-  const statusDot = isLate ? '#FF3B30' : s.color
+  const rowBg = index % 2 === 0 ? BLACK : '#0A0A0A'
 
-  // --- Actions handlers ---
   const handleAssign = useCallback(
     async (teamKey: TeamKey) => {
       setShowAssignMenu(false)
@@ -1031,10 +898,7 @@ function IncidentRow({
         })
         const json = (await res.json()) as { ok?: boolean; error?: string }
         if (json?.ok) {
-          onActionFeedback?.(
-            `AFFECTÉ → ${TEAM_META[teamKey].label} — ${r.zone?.nom ?? 'ZONE'}`,
-            'ok',
-          )
+          onActionFeedback?.(`AFFECTÉ → ${TEAM_META[teamKey].label} — ${r.zone?.nom ?? 'ZONE'}`, 'ok')
         } else {
           onActionFeedback?.(json?.error ?? 'ÉCHEC ASSIGNATION', 'err')
         }
@@ -1070,10 +934,7 @@ function IncidentRow({
       })
       const json = (await res.json()) as { ok?: boolean; error?: string }
       if (json?.ok) {
-        onActionFeedback?.(
-          `ESCALADE DENISE → ${(r.zone?.nom ?? 'ZONE').toUpperCase()}`,
-          'ok',
-        )
+        onActionFeedback?.(`ESCALADE DENISE → ${(r.zone?.nom ?? 'ZONE').toUpperCase()}`, 'ok')
       } else {
         onActionFeedback?.(json?.error ?? 'ÉCHEC ESCALADE', 'err')
       }
@@ -1087,44 +948,43 @@ function IncidentRow({
   return (
     <div
       role="row"
-      className={`grid shrink-0 grid-cols-[1fr_1.4fr_0.8fr_1fr_0.6fr] ${
-        fresh ? 'ops-fade-in' : ''
-      }`}
+      className={`grid shrink-0 grid-cols-[1fr_1.4fr_0.8fr_1fr_0.6fr] ${fresh ? 'ops-fade-in' : ''}`}
       style={{
         backgroundColor: isLate ? 'rgba(255,59,48,0.08)' : rowBg,
-        borderTop: '2px solid #222222',
+        borderTop: `1px solid ${YELLOW}33`,
       }}
     >
       {/* ZONE */}
       <div role="cell" className="flex min-w-0 items-center gap-2 px-3 py-2">
-        <span
-          aria-hidden
-          className="shrink-0 rounded-full"
-          style={{ width: '8px', height: '8px', backgroundColor: statusDot }}
-        />
-        <span style={{ fontSize: '16px', lineHeight: 1 }} aria-hidden>
+        <span aria-hidden className="font-bold leading-none" style={{ fontSize: '14px', color: YELLOW }}>
+          ▸
+        </span>
+        <span aria-hidden style={{ fontSize: '16px', lineHeight: 1 }}>
           {r.zone?.emoji ?? '📍'}
         </span>
         <span
           className="truncate font-bold uppercase"
-          style={{ fontSize: '14px', color: '#FCD116', letterSpacing: '1px' }}
+          style={{ fontSize: '13px', color: YELLOW, letterSpacing: '1px' }}
         >
           {(r.zone?.nom ?? 'ZONE INCONNUE').toUpperCase()}
         </span>
       </div>
 
       {/* PROBLÈME */}
-      <div role="cell" className="flex min-w-0 items-center gap-2 px-3 py-2">
+      <div
+        role="cell"
+        className="flex min-w-0 items-center gap-2 px-3 py-2"
+        style={{ borderLeft: `1px solid ${YELLOW}1A` }}
+      >
         {r.isHelpRequest && (
           <span
-            className="shrink-0 font-black uppercase"
+            className="shrink-0 font-bold uppercase"
             style={{
               fontSize: '10px',
               letterSpacing: '1px',
-              color: '#0A0A0A',
-              backgroundColor: '#FCD116',
+              color: BLACK,
+              backgroundColor: YELLOW,
               padding: '2px 6px',
-              border: '1px solid #FCD116',
             }}
           >
             SOS
@@ -1132,7 +992,7 @@ function IncidentRow({
         )}
         <span
           className="truncate font-bold uppercase"
-          style={{ fontSize: '14px', color: '#FFFFFF', letterSpacing: '0.5px' }}
+          style={{ fontSize: '13px', color: WHITE, letterSpacing: '0.5px' }}
           title={r.problemType}
         >
           {r.problemType}
@@ -1140,13 +1000,16 @@ function IncidentRow({
       </div>
 
       {/* STATUT */}
-      <div role="cell" className="hidden items-center px-3 py-2 sm:flex">
+      <div
+        role="cell"
+        className="hidden items-center gap-1 px-3 py-2 sm:flex"
+        style={{ borderLeft: `1px solid ${YELLOW}1A` }}
+      >
         <span
-          className="inline-flex font-bold uppercase"
+          className="font-bold uppercase"
           style={{
             fontSize: '11px',
-            color: s.color,
-            border: `1px solid ${s.color}`,
+            color: s.text,
             backgroundColor: s.bg,
             padding: '2px 8px',
             letterSpacing: '1px',
@@ -1156,15 +1019,8 @@ function IncidentRow({
         </span>
         {isLate && (
           <span
-            className="ml-1 font-bold uppercase ops-pulse"
-            style={{
-              fontSize: '10px',
-              color: '#FF3B30',
-              border: '1px solid #FF3B30',
-              backgroundColor: 'rgba(255,59,48,0.2)',
-              padding: '1px 5px',
-              letterSpacing: '1px',
-            }}
+            className="font-bold uppercase ops-pulse"
+            style={{ fontSize: '10px', letterSpacing: '1px', color: RED }}
           >
             EN RETARD
           </span>
@@ -1172,90 +1028,87 @@ function IncidentRow({
       </div>
 
       {/* ÉQUIPE + ACTIONS */}
-      <div role="cell" className="hidden items-center gap-2 px-3 py-2 sm:flex">
+      <div
+        role="cell"
+        className="hidden items-center gap-2 px-3 py-2 sm:flex"
+        style={{ borderLeft: `1px solid ${YELLOW}1A` }}
+      >
         {team ? (
           <span
             className="truncate font-bold uppercase"
-            style={{ fontSize: '13px', color: '#FCD116', letterSpacing: '1px' }}
+            style={{ fontSize: '12px', color: YELLOW, letterSpacing: '1px' }}
           >
             {team.emoji} {team.label}
           </span>
         ) : (
-          <span
-            className="font-bold uppercase"
-            style={{ fontSize: '13px', color: '#555555' }}
-          >
+          <span className="font-bold uppercase" style={{ fontSize: '12px', color: '#555555' }}>
             —
           </span>
         )}
-        {/* ACTIONS rapides */}
         <div className="ml-auto flex items-center gap-1">
           {!r.isHelpRequest && (
-          <div className="relative">
-            <button
-              type="button"
-              onClick={() => setShowAssignMenu((v) => !v)}
-              disabled={busy}
-              aria-label="Assigner ou rerouter le signalement"
-              title="ASSIGNER / REROUTER"
-              className="flex size-7 items-center justify-center border-2 transition-colors disabled:opacity-50"
-              style={{ borderColor: '#FCD116', color: '#FCD116' }}
-            >
-              <Wrench className="size-3.5" aria-hidden />
-            </button>
-            {showAssignMenu && (
-              <div
-                role="menu"
-                className="absolute right-0 top-full z-20 mt-1 w-40 border-2 bg-black p-1"
-                style={{ borderColor: '#FCD116' }}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setShowAssignMenu((v) => !v)}
+                disabled={busy}
+                aria-label="Assigner ou rerouter le signalement"
+                title="ASSIGNER / REROUTER"
+                className="flex size-7 items-center justify-center bg-[#F5C400] text-black transition-opacity hover:opacity-80 disabled:opacity-50"
               >
-                <p
-                  className="px-2 py-1 font-bold uppercase"
-                  style={{ fontSize: '10px', letterSpacing: '1px', color: '#FCD116' }}
+                <Wrench className="size-3.5" aria-hidden />
+              </button>
+              {showAssignMenu && (
+                <div
+                  role="menu"
+                  className="absolute right-0 top-full z-20 mt-1 w-40 bg-black p-1"
+                  style={{ border: `1px solid ${YELLOW}` }}
                 >
-                  REROUTER VERS
-                </p>
-                {(Object.keys(TEAM_META) as TeamKey[])
-                  .filter((k) => k !== 'other')
-                  .map((k) => (
-                    <button
-                      key={k}
-                      type="button"
-                      role="menuitem"
-                      onClick={() => void handleAssign(k)}
-                      className="flex w-full items-center gap-2 px-2 py-1.5 text-left font-bold uppercase transition-colors hover:bg-[#FCD116]/10"
-                      style={{ fontSize: '11px', color: '#FFFFFF', letterSpacing: '1px' }}
-                    >
-                      <span aria-hidden>{TEAM_META[k].emoji}</span>
-                      <span>{TEAM_META[k].label}</span>
-                    </button>
-                  ))}
-              </div>
-            )}
-          </div>
+                  <p
+                    className="px-2 py-1 font-bold uppercase"
+                    style={{ fontSize: '10px', letterSpacing: '1px', color: YELLOW }}
+                  >
+                    REROUTER VERS
+                  </p>
+                  {(Object.keys(TEAM_META) as TeamKey[])
+                    .filter((k) => k !== 'other')
+                    .map((k) => (
+                      <button
+                        key={k}
+                        type="button"
+                        role="menuitem"
+                        onClick={() => void handleAssign(k)}
+                        className="flex w-full items-center gap-2 px-2 py-1.5 text-left font-bold uppercase transition-colors hover:bg-[#F5C400]/10"
+                        style={{ fontSize: '11px', color: WHITE, letterSpacing: '1px' }}
+                      >
+                        <span aria-hidden>{TEAM_META[k].emoji}</span>
+                        <span>{TEAM_META[k].label}</span>
+                      </button>
+                    ))}
+                </div>
+              )}
+            </div>
           )}
           <button
             type="button"
             onClick={handleCall}
             aria-label="Appeler le PC ops"
             title="APPELER PC OPS (+221 78 485 8226)"
-            className="flex size-7 items-center justify-center border-2 transition-colors"
-            style={{ borderColor: '#FCD116', color: '#FCD116' }}
+            className="flex size-7 items-center justify-center bg-[#F5C400] text-black transition-opacity hover:opacity-80"
           >
             <Phone className="size-3.5" aria-hidden />
           </button>
           {!r.isHelpRequest && (
-          <button
-            type="button"
-            onClick={handleEscalate}
-            disabled={busy}
-            aria-label="Escalader auprès de Denise"
-            title="ESCALADER (DENISE TAKE_CHARGE)"
-            className="flex size-7 items-center justify-center border-2 transition-colors disabled:opacity-50"
-            style={{ borderColor: '#FF3B30', color: '#FF3B30' }}
-          >
-            <Megaphone className="size-3.5" aria-hidden />
-          </button>
+            <button
+              type="button"
+              onClick={handleEscalate}
+              disabled={busy}
+              aria-label="Escalader auprès de Denise"
+              title="ESCALADER (DENISE TAKE_CHARGE)"
+              className="flex size-7 items-center justify-center bg-red-500 text-white transition-opacity hover:opacity-80 disabled:opacity-50"
+            >
+              <Megaphone className="size-3.5" aria-hidden />
+            </button>
           )}
         </div>
       </div>
@@ -1264,14 +1117,11 @@ function IncidentRow({
       <div
         role="cell"
         className="flex items-center justify-end px-3 py-2"
+        style={{ borderLeft: `1px solid ${YELLOW}1A` }}
       >
         <span
-          className="font-bold tabular-nums uppercase"
-          style={{
-            fontSize: '14px',
-            color: isLate ? '#FF3B30' : '#FFFFFF',
-            letterSpacing: '1px',
-          }}
+          className={`font-bold tabular-nums uppercase ${isLate ? 'ops-pulse' : ''}`}
+          style={{ fontSize: '13px', color: isLate ? RED : WHITE, letterSpacing: '1px' }}
         >
           {relativeTimeSignaletique(r.createdAt)}
         </span>
@@ -1280,20 +1130,19 @@ function IncidentRow({
   )
 }
 
-/** Ligne placeholder vide — comme un vrai panneau d'affichage */
 function PlaceholderRow({ index }: { index: number }) {
-  const rowBg = index % 2 === 0 ? '#0A0A0A' : '#111111'
+  const rowBg = index % 2 === 0 ? BLACK : '#0A0A0A'
   return (
     <div
       role="row"
       aria-hidden
       className="grid shrink-0 grid-cols-[1fr_1.4fr_0.8fr_1fr_0.6fr]"
-      style={{ backgroundColor: rowBg, borderTop: '2px solid #222222' }}
+      style={{ backgroundColor: rowBg, borderTop: `1px solid ${YELLOW}33` }}
     >
-      <div className="px-3 py-2 font-bold uppercase" style={{ fontSize: '14px', color: '#333333' }}>
+      <div className="px-3 py-2 font-bold uppercase" style={{ fontSize: '13px', color: '#333333' }}>
         · · · · ·
       </div>
-      <div className="px-3 py-2 font-bold uppercase" style={{ fontSize: '14px', color: '#333333' }}>
+      <div className="px-3 py-2 font-bold uppercase" style={{ fontSize: '13px', color: '#333333' }}>
         · · · · · · · ·
       </div>
       <div className="hidden px-3 py-2 sm:block" style={{ color: '#333333' }}>· · ·</div>
@@ -1303,25 +1152,19 @@ function PlaceholderRow({ index }: { index: number }) {
   )
 }
 
-/** Ligne SLA par zone — style signalétique compact */
-function SlaBottomRow({ zone, sla }: { zone: ZoneAgg; sla?: SlaStats }) {
+/** Ligne SLA par zone — bandeau plat signalétique. */
+function SlaRow({ zone, sla }: { zone: ZoneAgg; sla?: SlaStats }) {
   if (!sla || sla.targetMinutes === null) {
     return (
-      <div
-        className="flex items-center gap-2 px-3 py-1.5"
-        style={{ border: '2px solid #333333' }}
-      >
-        <span style={{ fontSize: '14px' }} aria-hidden>{zone.emoji}</span>
+      <div className="flex items-center gap-2 px-3 py-1.5 bg-black">
+        <span aria-hidden style={{ fontSize: '14px' }}>{zone.emoji}</span>
         <span
           className="min-w-0 flex-1 truncate font-bold uppercase"
-          style={{ fontSize: '11px', color: '#FFFFFF', letterSpacing: '1px' }}
+          style={{ fontSize: '11px', color: YELLOW, letterSpacing: '1px' }}
         >
           {zone.nom.toUpperCase()}
         </span>
-        <span
-          className="font-bold uppercase"
-          style={{ fontSize: '11px', color: '#555555', letterSpacing: '1px' }}
-        >
+        <span className="font-bold uppercase" style={{ fontSize: '11px', color: '#555555', letterSpacing: '1px' }}>
           N/A
         </span>
       </div>
@@ -1329,36 +1172,29 @@ function SlaBottomRow({ zone, sla }: { zone: ZoneAgg; sla?: SlaStats }) {
   }
   const pct = sla.slaCompliancePercent
   const hasResolutions = sla.resolvedCount > 0
-  const pctColor = !hasResolutions
-    ? '#555555'
-    : pct >= 80
-      ? '#34C759'
-      : pct >= 60
-        ? '#FCD116'
-        : '#FF3B30'
+  const pctColor = !hasResolutions ? '#555555' : pct >= 80 ? GREEN : pct >= 60 ? YELLOW : RED
   return (
-    <div
-      className="flex items-center gap-2 px-3 py-1.5"
-      style={{ border: '2px solid #333333' }}
-    >
-      <span style={{ fontSize: '14px' }} aria-hidden>{zone.emoji}</span>
+    <div className="flex items-center gap-2 px-3 py-1.5 bg-black">
+      <span aria-hidden style={{ fontSize: '14px' }}>{zone.emoji}</span>
       <span
         className="min-w-0 flex-1 truncate font-bold uppercase"
-        style={{ fontSize: '11px', color: '#FFFFFF', letterSpacing: '1px' }}
+        style={{ fontSize: '11px', color: YELLOW, letterSpacing: '1px' }}
         title={zone.nom}
       >
         {zone.nom.toUpperCase()}
       </span>
-      <span
-        className="font-bold tabular-nums"
-        style={{ fontSize: '11px', color: '#FCD116' }}
-      >
+      <span className="font-bold tabular-nums" style={{ fontSize: '11px', color: YELLOW }}>
         ≤{sla.targetMinutes}M
       </span>
+      {hasResolutions && pct >= 80 ? (
+        <span className="font-bold" style={{ fontSize: '11px', color: GREEN }} aria-hidden>
+          ✓
+        </span>
+      ) : null}
       <span
-        className="w-12 text-right font-black tabular-nums"
+        className="w-12 text-right font-bold tabular-nums"
         style={{ fontSize: '12px', color: pctColor }}
-        title={`MOY RÉSOLUTION: ${sla.avgResolutionMinutes ?? '—'} MIN · RETARDS: ${sla.pendingBreaches}`}
+        title={`MOY: ${sla.avgResolutionMinutes ?? '—'} MIN · RETARDS: ${sla.pendingBreaches}`}
       >
         {hasResolutions ? `${pct}%` : '—'}
       </span>
@@ -1366,32 +1202,21 @@ function SlaBottomRow({ zone, sla }: { zone: ZoneAgg; sla?: SlaStats }) {
   )
 }
 
-/** Ligne charge par zone — barre colorée + count */
-function ZoneChargeRow({ zone, max }: { zone: ZoneAgg; max: number }) {
+/** Ligne charge par zone — barre jaune + count. */
+function ChargeRow({ zone, max }: { zone: ZoneAgg; max: number }) {
   const pct = max > 0 ? Math.max(2, Math.round((zone.count_en_attente / max) * 100)) : 0
-  const barColor =
-    zone.count_en_attente > 5
-      ? '#FF3B30'
-      : zone.count_en_attente > 0
-        ? '#FCD116'
-        : '#333333'
+  const barColor = zone.count_en_attente > 5 ? RED : zone.count_en_attente > 0 ? YELLOW : '#333333'
   return (
-    <div
-      className="flex items-center gap-2 px-3 py-1.5"
-      style={{ border: '2px solid #333333' }}
-    >
-      <span style={{ fontSize: '14px' }} aria-hidden>{zone.emoji}</span>
+    <div className="flex items-center gap-2 px-3 py-1.5 bg-black">
+      <span aria-hidden style={{ fontSize: '14px' }}>{zone.emoji}</span>
       <span
         className="min-w-0 flex-1 truncate font-bold uppercase"
-        style={{ fontSize: '11px', color: '#FFFFFF', letterSpacing: '1px' }}
+        style={{ fontSize: '11px', color: YELLOW, letterSpacing: '1px' }}
         title={zone.nom}
       >
         {zone.nom.toUpperCase()}
       </span>
-      <div
-        className="overflow-hidden"
-        style={{ width: '96px', height: '8px', backgroundColor: '#000000' }}
-      >
+      <div className="overflow-hidden" style={{ width: '96px', height: '8px', backgroundColor: BLACK }}>
         <div
           className="h-full transition-all duration-700"
           style={{
@@ -1400,10 +1225,7 @@ function ZoneChargeRow({ zone, max }: { zone: ZoneAgg; max: number }) {
           }}
         />
       </div>
-      <span
-        className="w-8 text-right font-black tabular-nums"
-        style={{ fontSize: '12px', color: '#FFFFFF' }}
-      >
+      <span className="w-8 text-right font-bold tabular-nums" style={{ fontSize: '12px', color: WHITE }}>
         {zone.count_en_attente}
       </span>
     </div>
@@ -1411,14 +1233,14 @@ function ZoneChargeRow({ zone, max }: { zone: ZoneAgg; max: number }) {
 }
 
 // --- Squelettes de chargement ---
-function KpiSkeleton() {
+function KpiSkeleton({ isLast = false }: { isLast?: boolean }) {
   return (
     <div
-      className="flex flex-col items-center justify-center gap-1 px-2 py-3"
-      style={{ borderRight: '2px solid #333333', borderBottom: '4px solid #333333' }}
+      className="flex flex-1 flex-col items-center justify-center gap-1 px-2 py-3"
+      style={{ borderRight: isLast ? 'none' : `1px solid ${YELLOW}4D` }}
     >
-      <div className="ops-pulse" style={{ width: '60%', height: '40px', backgroundColor: '#222222' }} />
-      <div className="ops-pulse" style={{ width: '40%', height: '14px', backgroundColor: '#222222' }} />
+      <div className="ops-pulse" style={{ width: '60%', height: '36px', backgroundColor: '#222222' }} />
+      <div className="ops-pulse" style={{ width: '40%', height: '12px', backgroundColor: '#222222' }} />
     </div>
   )
 }
@@ -1427,13 +1249,13 @@ function RowSkeleton() {
   return (
     <div
       className="grid shrink-0 grid-cols-[1fr_1.4fr_0.8fr_1fr_0.6fr]"
-      style={{ backgroundColor: '#0A0A0A', borderTop: '2px solid #222222' }}
+      style={{ backgroundColor: BLACK, borderTop: `1px solid ${YELLOW}33` }}
     >
-      <div className="ops-pulse px-3 py-2" style={{ height: '44px' }} />
-      <div className="ops-pulse px-3 py-2" style={{ height: '44px' }} />
-      <div className="hidden ops-pulse px-3 py-2 sm:block" style={{ height: '44px' }} />
-      <div className="hidden ops-pulse px-3 py-2 sm:block" style={{ height: '44px' }} />
-      <div className="ops-pulse px-3 py-2" style={{ height: '44px' }} />
+      <div className="ops-pulse px-3 py-2" style={{ height: '42px' }} />
+      <div className="ops-pulse px-3 py-2" style={{ height: '42px' }} />
+      <div className="hidden ops-pulse px-3 py-2 sm:block" style={{ height: '42px' }} />
+      <div className="hidden ops-pulse px-3 py-2 sm:block" style={{ height: '42px' }} />
+      <div className="ops-pulse px-3 py-2" style={{ height: '42px' }} />
     </div>
   )
 }
@@ -1443,9 +1265,7 @@ function MiniRowSkeleton() {
 }
 
 /**
- * Feature WB2 #4 — Mode Crise : bouton header + timer.
- * Bouton pulsant rouge "MODE CRISE" (bordure rouge signalétique).
- * Quand actif : timer "DEPUIS HH:MM:SS" + bouton "FIN DE CRISE". */
+ * Mode Crise : bouton bordure rouge (fond transparent) + timer quand actif. */
 function CrisisButton({
   active,
   onStart,
@@ -1463,14 +1283,14 @@ function CrisisButton({
         <div className="flex flex-col items-end leading-tight">
           <span
             className="font-bold uppercase ops-pulse"
-            style={{ fontSize: '10px', letterSpacing: '2px', color: '#FF3B30' }}
+            style={{ fontSize: '10px', letterSpacing: '2px', color: RED }}
           >
             CRISE ACTIVE
           </span>
           <span
             suppressHydrationWarning
-            className="font-black tabular-nums"
-            style={{ fontSize: '12px', color: '#FFFFFF', letterSpacing: '1px' }}
+            className="font-bold tabular-nums"
+            style={{ fontSize: '12px', color: WHITE, letterSpacing: '1px' }}
           >
             DEPUIS {formatDurationSec(elapsedSec)}
           </span>
@@ -1481,13 +1301,12 @@ function CrisisButton({
           aria-pressed={active}
           aria-label="Désactiver le mode crise"
           title="Terminer la crise"
-          className="flex items-center gap-1.5 px-3 py-1.5 font-bold uppercase transition-transform hover:scale-105"
+          className="flex items-center gap-1.5 px-3 py-1.5 font-bold uppercase transition-opacity hover:opacity-80"
           style={{
-            backgroundColor: '#34C759',
-            color: '#0A0A0A',
+            backgroundColor: GREEN,
+            color: BLACK,
             fontSize: '12px',
             letterSpacing: '1px',
-            border: '2px solid #34C759',
           }}
         >
           <ShieldAlert className="size-4" aria-hidden />
@@ -1503,10 +1322,10 @@ function CrisisButton({
       aria-pressed={false}
       aria-label="Activer le mode crise"
       title="Mode crise : filtre les incidents critiques uniquement"
-      className="flex items-center gap-1.5 px-3 py-1.5 font-bold uppercase transition-transform hover:scale-105 ops-pulse"
+      className="flex items-center gap-1.5 px-3 py-1.5 font-bold uppercase transition-opacity hover:opacity-80"
       style={{
-        backgroundColor: '#0A0A0A',
-        color: '#FF3B30',
+        backgroundColor: 'transparent',
+        color: RED,
         fontSize: '12px',
         letterSpacing: '1px',
         border: '2px solid #FF3B30',
@@ -1533,17 +1352,14 @@ export default function OpsWallboardPage() {
   const alertedLateRef = useRef<Set<string>>(new Set())
   const escalationStartedRef = useRef<boolean>(false)
 
-  // --- État son ---
   const [soundOn, setSoundOn] = useState<boolean>(false)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const announcedAlertsRef = useRef<Set<string>>(new Set())
   const [showSoundBanner, setShowSoundBanner] = useState<boolean>(false)
 
-  // --- État des alertes (poll 30s) ---
   const [alerts, setAlerts] = useState<TriggeredAlert[]>([])
   const [alertsError, setAlertsError] = useState<string | null>(null)
 
-  // --- Task WB2 — États additionnels ---
   const [filterZone, setFilterZone] = useState<string | null>(null)
   const [crisisMode, setCrisisMode] = useState<boolean>(false)
   const [crisisStart, setCrisisStart] = useState<Date | null>(null)
@@ -1577,21 +1393,12 @@ export default function OpsWallboardPage() {
             const zoneNom = latest.zone?.nom ?? latest.tagScanne
             const elapsedMs = Date.now() - new Date(latest.createdAt).getTime()
             const tempsMin = Math.max(1, Math.floor(elapsedMs / 60000))
-            // Le wallboard annonce TOUJOURS les nouveaux incidents via speak()
-            // directement (pas via decideAndSpeakForWallboard) car l'engine
-            // peut supprimer l'annonce à cause de la déduplication avec la
-            // PWA staff qui a déjà annoncé le même incident. Le wallboard est
-            // une TV dans une salle ops — il DOIT annoncer même si le
-            // téléphone du staff l'a déjà fait.
             const team = latest.routedTeam
             const equipeLabel = team ? ` Équipe ${team}.` : ''
             const annonce = latest.isHelpRequest
               ? `Demande d'aide SOS voyageur. ${zoneNom}. ${latest.problemType}. En attente depuis ${tempsMin} minute${tempsMin > 1 ? 's' : ''}.`
               : `Nouvel incident signalé. ${zoneNom}. Type: ${latest.problemType}.${equipeLabel} En attente depuis ${tempsMin} minute${tempsMin > 1 ? 's' : ''}.`
-            setTimeout(
-              () => speak(annonce, soundOn),
-              300,
-            )
+            setTimeout(() => speak(annonce, soundOn), 300)
           }
         }
       }
@@ -1680,7 +1487,7 @@ export default function OpsWallboardPage() {
         const json = (await res.json()) as { ok?: boolean; data?: LeaderboardData }
         if (json?.ok && json.data) setLeaderboard(json.data)
       } catch {
-        // silently ignore
+        // ignore
       }
     }
     const initial = setTimeout(() => void fetchLeaderboard(), 2000)
@@ -1862,33 +1669,6 @@ export default function OpsWallboardPage() {
     return { count: active, total: Math.max(15, active) }
   }, [leaderboard])
 
-  const topZone = useMemo<ZoneAgg | null>(() => {
-    if (!data?.top_zones || data.top_zones.length === 0) return null
-    return data.top_zones[0]
-  }, [data])
-
-  const tendance = useMemo<{ dir: 'up' | 'down' | 'flat'; pct: number; label: string }>(() => {
-    if (!data) return { dir: 'flat', pct: 0, label: '—' }
-    const upCount = data.zones.filter((z) => z.trend === 'up').length
-    const downCount = data.zones.filter((z) => z.trend === 'down').length
-    if (upCount === 0 && downCount === 0) {
-      return { dir: 'flat', pct: 0, label: 'STABLE' }
-    }
-    if (upCount > downCount) {
-      const pct = data.stats.total_24h > 0
-        ? Math.round((upCount / Math.max(1, upCount + downCount)) * 100)
-        : 0
-      return { dir: 'up', pct, label: `↑${pct}%` }
-    }
-    if (downCount > upCount) {
-      const pct = data.stats.total_24h > 0
-        ? Math.round((downCount / Math.max(1, upCount + downCount)) * 100)
-        : 0
-      return { dir: 'down', pct, label: `↓${pct}%` }
-    }
-    return { dir: 'flat', pct: 0, label: 'STABLE' }
-  }, [data])
-
   // --- Lignes filtrées (zone + crise) ---
   const filteredRows = useMemo<RecentReport[]>(() => {
     if (!data) return []
@@ -1911,15 +1691,12 @@ export default function OpsWallboardPage() {
       ? `FILTRE: ${filterZone.toUpperCase()} — ${filledRows.length} SIGNALEMENT(S)`
       : null
 
-  // --- Signalements actifs pour le panneau d'alertes droit ---
-  // Combine alertes seuil + signalements EN_ATTENTE/EN_COURS (max 4)
   const activeReportAlerts = useMemo<RecentReport[]>(() => {
     if (!data) return []
     const nowMs = Date.now()
     return data.recent_reports
       .filter((r) => r.statut !== 'RESOLU' && !r.isHelpRequest)
       .sort((a, b) => {
-        // Tri : en retard d'abord, puis par ancienneté
         const aMin = (nowMs - new Date(a.createdAt).getTime()) / 60000
         const bMin = (nowMs - new Date(b.createdAt).getTime()) / 60000
         const aLate = aMin > 15 ? 1 : 0
@@ -1930,7 +1707,6 @@ export default function OpsWallboardPage() {
       .slice(0, 4 - topAlerts.length)
   }, [data, topAlerts.length])
 
-  // --- Familles de zones pour la carte ---
   const families: Exclude<ZoneFamily, 'HISTORIQUE'>[] = [
     'EXTÉRIEUR',
     'SÛRETÉ',
@@ -1950,7 +1726,6 @@ export default function OpsWallboardPage() {
     return groups
   }, [data])
 
-  // --- Handlers pour les ReportAlertCard (actions rapides) ---
   const handleReportCall = useCallback(() => {
     if (typeof window !== 'undefined') {
       window.open('tel:+221784858226', '_self')
@@ -2003,10 +1778,7 @@ export default function OpsWallboardPage() {
         })
         const json = (await res.json()) as { ok?: boolean; error?: string }
         if (json?.ok) {
-          handleActionFeedback(
-            `ESCALADE DENISE → ${(r.zone?.nom ?? 'ZONE').toUpperCase()}`,
-            'ok',
-          )
+          handleActionFeedback(`ESCALADE DENISE → ${(r.zone?.nom ?? 'ZONE').toUpperCase()}`, 'ok')
         } else {
           handleActionFeedback(json?.error ?? 'ÉCHEC ESCALADE', 'err')
         }
@@ -2017,32 +1789,37 @@ export default function OpsWallboardPage() {
     [handleActionFeedback],
   )
 
-  // SLA accent color pour la KPI tile
-  const slaAccent: 'white' | 'green' | 'orange' | 'red' =
+  const slaAccent: 'white' | 'green' | 'amber' | 'red' =
     overallSlaPctNum === null
       ? 'white'
       : overallSlaPctNum >= 80
         ? 'green'
         : overallSlaPctNum < 60
           ? 'red'
-          : 'orange'
+          : 'amber'
 
   const enAttenteAccent: 'white' | 'yellow' | 'red' =
-    data && data.stats.en_attente > 5
-      ? 'red'
-      : data && data.stats.en_attente > 0
-        ? 'yellow'
-        : 'white'
+    data && data.stats.en_attente > 5 ? 'red' : data && data.stats.en_attente > 0 ? 'yellow' : 'white'
 
-  const untreatedAccent: 'white' | 'red' | 'green' =
-    untreatedOver10Min > 0 ? 'red' : 'green'
+  const untreatedAccent: 'white' | 'red' | 'green' = untreatedOver10Min > 0 ? 'red' : 'green'
 
-  const staffAccent: 'white' | 'green' | 'yellow' =
-    staffActive.count > 0 ? 'green' : 'yellow'
+  const staffAccent: 'white' | 'green' | 'yellow' = staffActive.count > 0 ? 'green' : 'yellow'
+
+  // KPI definitions for the flat strip
+  const kpis: { label: string; value: string | number; accent: 'yellow' | 'red' | 'green' | 'amber' | 'white' }[] = data
+    ? [
+        { label: 'CRITIQUE', value: untreatedOver10Min, accent: untreatedAccent },
+        { label: 'ATTENTE', value: data.stats.en_attente, accent: enAttenteAccent },
+        { label: 'RÉSOLUS', value: data.stats.resolus_24h, accent: 'green' },
+        { label: 'TEMPS', value: formatDurationMin(data.stats.avg_resolution_minutes), accent: 'yellow' },
+        { label: 'SLA', value: overallSlaPct, accent: slaAccent },
+        { label: 'STAFF', value: `${staffActive.count}/${staffActive.total}`, accent: staffAccent },
+      ]
+    : []
 
   return (
     <div
-      className={`flex min-h-screen flex-col overflow-x-hidden bg-[#0A0A0A] font-sans text-white ${
+      className={`flex min-h-screen flex-col overflow-x-hidden bg-black font-sans text-white ${
         crisisMode ? 'ops-crisis-overlay' : ''
       }`}
     >
@@ -2050,37 +1827,21 @@ export default function OpsWallboardPage() {
       <style>{`
         @keyframes opsPulse { 0%,100%{opacity:1} 50%{opacity:.55} }
         @keyframes opsFlashRed {
-          0%,100% { background-color: rgba(255,59,48,0.12); }
-          50% { background-color: rgba(255,59,48,0.28); }
+          0%,100% { background-color: rgba(255,59,48,0.08); }
+          50% { background-color: rgba(255,59,48,0.22); }
         }
         @keyframes opsFadeIn {
           from { opacity: 0; transform: translateY(-8px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        @keyframes opsPing {
-          0% { transform: scale(1); opacity: 1; }
-          75%,100% { transform: scale(2); opacity: 0; }
-        }
         @keyframes opsLiveBlink {
           0%,100% { opacity: 1; }
-          50% { opacity: 0.4; }
+          50% { opacity: 0.5; }
         }
         .ops-pulse { animation: opsPulse 1.4s ease-in-out infinite; }
         .ops-flash-red { animation: opsFlashRed 1.2s ease-in-out infinite; }
         .ops-fade-in { animation: opsFadeIn 0.5s ease-out; }
-        .ops-crisis-overlay { background-color: rgba(255,59,48,0.06); }
-        .ops-live-dot {
-          position: relative;
-          display: inline-block;
-        }
-        .ops-live-dot::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          border-radius: 9999px;
-          background-color: #FF3B30;
-          animation: opsPing 1.4s cubic-bezier(0,0,0.2,1) infinite;
-        }
+        .ops-crisis-overlay { background-color: rgba(255,59,48,0.05); }
         .ops-live-blink { animation: opsLiveBlink 1.4s ease-in-out infinite; }
       `}</style>
 
@@ -2089,92 +1850,70 @@ export default function OpsWallboardPage() {
 
       <div className="mx-auto flex w-full max-w-[1920px] flex-1 flex-col overflow-hidden">
         {/* ============================================================
-            1. HEADER — barre jaune IATA pleine largeur
+            1. HEADER — bandeau NOIR avec texte JAUNE
             ============================================================ */}
         <header
-          className="flex shrink-0 flex-wrap items-center justify-between gap-3 px-4 py-2 sm:px-6"
-          style={{
-            backgroundColor: '#FCD116',
-            color: '#0A0A0A',
-            borderBottom: '3px solid #0A0A0A',
-          }}
+          className="flex h-16 shrink-0 flex-wrap items-center justify-between gap-3 bg-black px-4 sm:px-6"
+          style={{ borderBottom: `1px solid ${YELLOW}4D` }}
         >
-          {/* LEFT — Logo + titre */}
+          {/* LEFT — ▸ FBK logo square + title */}
           <div className="flex items-center gap-3">
+            <span aria-hidden className="font-bold leading-none" style={{ fontSize: '18px', color: YELLOW }}>
+              ▸
+            </span>
             <div
-              className="flex size-11 items-center justify-center"
-              aria-hidden
-              style={{ backgroundColor: '#0A0A0A', color: '#FCD116' }}
+              className="bg-[#F5C400] px-3 py-1 font-bold text-black"
+              style={{ fontSize: '18px', letterSpacing: '2px' }}
             >
-              <Plane className="size-6" strokeWidth={2.5} />
+              FBK
             </div>
-            <div className="flex flex-col leading-tight">
-              <h1
-                className="font-black uppercase"
-                style={{ fontSize: 'clamp(20px, 3vw, 32px)', letterSpacing: '2px' }}
-              >
-                AÉROPORT OPS
-              </h1>
-              <span
-                className="font-bold uppercase"
-                style={{ fontSize: '12px', letterSpacing: '3px', color: '#0A0A0A', opacity: 0.7 }}
-              >
-                WALLBOARD · DIASS · DÉPARTS
-              </span>
-            </div>
+            <h1
+              className="font-bold uppercase"
+              style={{ fontSize: 'clamp(16px, 2.5vw, 22px)', letterSpacing: '2px', color: YELLOW }}
+            >
+              AÉROPORT OPS · WALLBOARD · DIASS
+            </h1>
           </div>
 
           {/* CENTER — Date + alert count */}
           <div className="hidden flex-col items-center md:flex">
-            <div
+            <span
               className="font-bold uppercase"
-              style={{ fontSize: '16px', letterSpacing: '2px', color: '#0A0A0A' }}
+              style={{ fontSize: '12px', letterSpacing: '3px', color: `${YELLOW}CC` }}
             >
               {formatDateFR(now)}
-            </div>
-            <div
-              className="flex items-center gap-1.5 font-bold uppercase"
-              style={{ fontSize: '13px', letterSpacing: '2px', color: '#0A0A0A', opacity: 0.75 }}
+            </span>
+            <span
+              className="font-bold uppercase"
+              style={{ fontSize: '11px', letterSpacing: '2px', color: `${YELLOW}99` }}
             >
-              {alertsError ? (
-                <span>ALERTES: ERREUR</span>
-              ) : (
-                <>
-                  <TriangleAlert className="size-3.5" aria-hidden />
-                  <span>{alerts.length} ALERTE(S)</span>
-                </>
-              )}
-            </div>
+              {alertsError ? 'ALERTES: ERREUR' : `${alerts.length} ALERTE(S)`}
+            </span>
           </div>
 
           {/* RIGHT — LIVE + Clock + MODE CRISE + Sound */}
           <div className="flex items-center gap-3">
-            {/* LIVE indicator (red, pulsing) */}
-            <div
-              className="flex items-center gap-1.5 px-2 py-1"
-              style={{ backgroundColor: '#0A0A0A' }}
-            >
+            {/* LIVE indicator — red dot + white text */}
+            <div className="flex items-center gap-1.5">
               {error ? (
                 <>
                   <span
-                    className="ops-live-blink"
-                    style={{ width: '8px', height: '8px', borderRadius: '9999px', backgroundColor: '#FF3B30' }}
+                    className="ops-live-blink size-2 rounded-full bg-red-500"
                     aria-hidden
                   />
                   <span
-                    className="font-bold uppercase ops-live-blink"
-                    style={{ fontSize: '11px', letterSpacing: '2px', color: '#FF3B30' }}
+                    className="ops-live-blink font-bold uppercase"
+                    style={{ fontSize: '11px', letterSpacing: '2px', color: RED }}
                   >
                     ERREUR
                   </span>
                 </>
               ) : (
                 <>
-                  <span className="ops-live-dot" style={{ width: '8px', height: '8px' }} aria-hidden />
-                  <span className="ops-live-dot" style={{ width: '8px', height: '8px', borderRadius: '9999px', backgroundColor: '#FF3B30' }} aria-hidden />
+                  <span className="size-2 rounded-full bg-red-500" aria-hidden />
                   <span
-                    className="font-black uppercase"
-                    style={{ fontSize: '11px', letterSpacing: '2px', color: '#FF3B30' }}
+                    className="font-bold uppercase text-white"
+                    style={{ fontSize: '11px', letterSpacing: '2px' }}
                   >
                     LIVE
                   </span>
@@ -2182,23 +1921,16 @@ export default function OpsWallboardPage() {
               )}
             </div>
 
-            {/* Clock (42px tabular-nums) */}
-            <div
-              className="font-black tabular-nums"
-              style={{
-                backgroundColor: '#0A0A0A',
-                color: '#FCD116',
-                fontSize: 'clamp(20px, 4vw, 42px)',
-                letterSpacing: '1px',
-                padding: '4px 12px',
-              }}
-              aria-label="Heure courante"
+            {/* Clock */}
+            <span
               suppressHydrationWarning
+              className="font-bold tabular-nums text-[#F5C400]"
+              style={{ fontSize: 'clamp(18px, 3vw, 24px)', letterSpacing: '1px' }}
             >
               {formatClock(now)}
-            </div>
+            </span>
 
-            {/* MODE CRISE button */}
+            {/* MODE CRISE */}
             <CrisisButton
               active={crisisMode}
               onStart={handleCrisisStart}
@@ -2213,26 +1945,24 @@ export default function OpsWallboardPage() {
               aria-pressed={soundOn}
               aria-label={soundOn ? 'Couper le son' : 'Activer le son (ding + annonces vocales)'}
               title={soundOn ? 'Son activé — clic pour couper' : 'Son coupé — clic pour activer ding + annonces vocales'}
-              className="flex items-center gap-1.5 px-3 py-1.5 transition-transform hover:scale-105"
+              className="flex items-center gap-1.5 px-3 py-1.5 font-bold uppercase transition-opacity hover:opacity-80"
               style={{
-                backgroundColor: '#0A0A0A',
-                color: soundOn ? '#FCD116' : '#FFFFFF',
-                border: '2px solid #0A0A0A',
+                backgroundColor: 'transparent',
+                color: YELLOW,
+                fontSize: '11px',
+                letterSpacing: '2px',
+                border: 'none',
               }}
             >
               {soundOn ? (
                 <>
                   <Volume2 className="size-5" aria-hidden />
-                  <span className="font-bold uppercase" style={{ fontSize: '11px', letterSpacing: '2px' }}>
-                    ON
-                  </span>
+                  <span>ON</span>
                 </>
               ) : (
                 <>
                   <VolumeX className="size-5" aria-hidden />
-                  <span className="font-bold uppercase" style={{ fontSize: '11px', letterSpacing: '2px' }}>
-                    OFF
-                  </span>
+                  <span>OFF</span>
                 </>
               )}
             </button>
@@ -2242,20 +1972,19 @@ export default function OpsWallboardPage() {
         {/* ---------- BANNIÈRE D'ACTIVATION DU SON ---------- */}
         {showSoundBanner && !soundOn && (
           <div
-            className="flex shrink-0 items-center justify-between gap-4 px-4 py-3 sm:px-6"
-            style={{ backgroundColor: '#FCD116', borderBottom: '2px solid #0A0A0A' }}
+            className="flex shrink-0 items-center justify-between gap-4 bg-black px-4 py-3 sm:px-6"
+            style={{ borderBottom: `1px solid ${YELLOW}33` }}
           >
             <div className="flex items-center gap-3">
-              <span
-                className="ops-pulse"
-                style={{ width: '12px', height: '12px', borderRadius: '9999px', backgroundColor: '#FF3B30' }}
-                aria-hidden
-              />
+              <span className="ops-pulse size-3 rounded-full bg-red-500" aria-hidden />
               <div className="flex flex-col">
-                <p className="font-black uppercase" style={{ fontSize: '14px', letterSpacing: '1px', color: '#0A0A0A' }}>
+                <p
+                  className="font-bold uppercase"
+                  style={{ fontSize: '13px', letterSpacing: '1px', color: YELLOW }}
+                >
                   ACTIVEZ LE SON POUR LES ALERTES VOCALES
                 </p>
-                <p className="font-bold" style={{ fontSize: '11px', color: '#0A0A0A', opacity: 0.75 }}>
+                <p className="font-bold" style={{ fontSize: '11px', color: `${YELLOW}99` }}>
                   DING + ANNONCES VOCALES À CHAQUE NOUVEAU SIGNALEMENT
                 </p>
               </div>
@@ -2264,8 +1993,8 @@ export default function OpsWallboardPage() {
               <button
                 type="button"
                 onClick={toggleSound}
-                className="flex items-center gap-1.5 px-4 py-2 font-black uppercase transition-transform hover:scale-105"
-                style={{ backgroundColor: '#0A0A0A', color: '#FCD116', fontSize: '13px', letterSpacing: '2px' }}
+                className="flex items-center gap-1.5 px-4 py-2 font-bold uppercase transition-opacity hover:opacity-80"
+                style={{ backgroundColor: YELLOW, color: BLACK, fontSize: '12px', letterSpacing: '2px' }}
               >
                 <Volume2 className="size-4" aria-hidden />
                 ACTIVER LE SON
@@ -2274,8 +2003,8 @@ export default function OpsWallboardPage() {
                 type="button"
                 onClick={() => setShowSoundBanner(false)}
                 aria-label="Fermer la bannière"
-                className="flex items-center justify-center px-2.5 py-2 font-black"
-                style={{ border: '2px solid #0A0A0A', color: '#0A0A0A' }}
+                className="flex items-center justify-center px-2.5 py-2 font-bold"
+                style={{ border: `1px solid ${YELLOW}`, color: YELLOW }}
               >
                 <span style={{ fontSize: '16px', lineHeight: 1 }} aria-hidden>×</span>
               </button>
@@ -2288,10 +2017,10 @@ export default function OpsWallboardPage() {
           <div
             role="status"
             className="flex shrink-0 items-center justify-center gap-3 px-4 py-2 sm:px-6"
-            style={{ backgroundColor: '#34C759', borderBottom: '2px solid #0A0A0A' }}
+            style={{ backgroundColor: GREEN, borderBottom: `1px solid ${BLACK}` }}
           >
-            <ShieldAlert className="size-4" style={{ color: '#0A0A0A' }} aria-hidden />
-            <p className="font-black uppercase" style={{ fontSize: '14px', letterSpacing: '2px', color: '#0A0A0A' }}>
+            <ShieldAlert className="size-4" style={{ color: BLACK }} aria-hidden />
+            <p className="font-bold uppercase" style={{ fontSize: '13px', letterSpacing: '2px', color: BLACK }}>
               {crisisSummary}
             </p>
           </div>
@@ -2302,22 +2031,16 @@ export default function OpsWallboardPage() {
           <div
             role="alert"
             className="flex shrink-0 items-center justify-between gap-3 px-4 py-2 sm:px-6"
-            style={{ backgroundColor: '#FF3B30', borderBottom: '2px solid #0A0A0A' }}
+            style={{ backgroundColor: RED, borderBottom: `1px solid ${BLACK}` }}
           >
             <div className="flex items-center gap-2">
-              <ShieldAlert className="size-4 ops-pulse" style={{ color: '#FFFFFF' }} aria-hidden />
-              <span
-                className="font-black uppercase"
-                style={{ fontSize: '12px', letterSpacing: '2px', color: '#FFFFFF' }}
-              >
+              <ShieldAlert className="ops-pulse size-4 text-white" aria-hidden />
+              <span className="font-bold uppercase text-white" style={{ fontSize: '12px', letterSpacing: '2px' }}>
                 MODE CRISE — BOARD FILTRÉ AUX INCIDENTS CRITIQUES UNIQUEMENT
               </span>
             </div>
             {activeFilterLabel && (
-              <span
-                className="font-bold uppercase"
-                style={{ fontSize: '11px', letterSpacing: '2px', color: '#FFFFFF' }}
-              >
+              <span className="font-bold uppercase text-white" style={{ fontSize: '11px', letterSpacing: '2px' }}>
                 {activeFilterLabel}
               </span>
             )}
@@ -2325,289 +2048,166 @@ export default function OpsWallboardPage() {
         )}
 
         {/* ============================================================
-            2. KPI ROW — 6 tuiles géantes signalétique
+            2. KPI ROW — bandeau horizontal plat, séparateurs jaunes
             ============================================================ */}
         <section
           aria-label="KPI temps réel"
-          className="grid shrink-0 grid-cols-3 lg:grid-cols-6"
-          style={{ borderBottom: '3px solid #FCD116' }}
+          className="flex shrink-0 bg-black"
+          style={{ borderBottom: `1px solid ${YELLOW}4D` }}
         >
           {data ? (
-            <>
-              <KpiTile label="CRITIQUE" value={untreatedOver10Min} accent={untreatedAccent} />
-              <KpiTile label="EN ATTENTE" value={data.stats.en_attente} accent={enAttenteAccent} />
-              <KpiTile label="RÉSOLUS" value={data.stats.resolus_24h} accent="green" />
-              <KpiTile
-                label="TEMPS MOY."
-                value={formatDurationMin(data.stats.avg_resolution_minutes)}
-                accent="yellow"
+            kpis.map((kpi, i) => (
+              <KpiCell
+                key={kpi.label}
+                label={kpi.label}
+                value={kpi.value}
+                accent={kpi.accent}
+                isLast={i === kpis.length - 1}
               />
-              <KpiTile label="SLA" value={overallSlaPct} accent={slaAccent} />
-              <KpiTile
-                label="STAFF"
-                value={`${staffActive.count}/${staffActive.total}`}
-                accent={staffAccent}
-              />
-            </>
+            ))
           ) : (
-            Array.from({ length: 6 }).map((_, i) => <KpiSkeleton key={i} />)
+            Array.from({ length: 6 }).map((_, i) => <KpiSkeleton key={i} isLast={i === 5} />)
           )}
         </section>
 
         {/* ============================================================
-            3. MAIN GRID — 2 colonnes : Carte zones (2fr) + Alertes (1fr)
+            3. ZONE MAP — panneaux signalétiques horizontaux
             ============================================================ */}
-        <section
-          aria-label="Carte zones et alertes actives"
-          className="grid shrink-0 grid-cols-1 gap-0 lg:grid-cols-[2fr_1fr]"
-        >
-          {/* ---------- LEFT — Carte des zones (signalétique) ---------- */}
-          <div
-            className="flex flex-col gap-2 p-3"
-            style={{ borderRight: '3px solid #222222' }}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <h2
-                className="flex items-center gap-2 font-black uppercase"
-                style={{ fontSize: '16px', letterSpacing: '4px', color: '#FCD116' }}
+        <section aria-label="Carte zones" className="shrink-0 bg-black px-4 py-4 sm:px-6">
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h2
+              className="font-bold uppercase"
+              style={{ fontSize: '13px', letterSpacing: '3px', color: YELLOW }}
+            >
+              CARTE TEMPS RÉEL · {data?.zones.length ?? 0} ZONES
+            </h2>
+            {filterZone && (
+              <button
+                type="button"
+                onClick={() => setFilterZone(null)}
+                className="font-bold uppercase transition-opacity hover:opacity-80"
+                style={{
+                  fontSize: '11px',
+                  letterSpacing: '2px',
+                  color: BLACK,
+                  backgroundColor: YELLOW,
+                  padding: '4px 8px',
+                }}
               >
-                <MapIcon className="size-4" aria-hidden />
-                CARTE TEMPS RÉEL · {data?.zones.length ?? 0} ZONES
-              </h2>
-              {filterZone && (
-                <button
-                  type="button"
-                  onClick={() => setFilterZone(null)}
-                  className="font-bold uppercase transition-opacity hover:opacity-80"
-                  style={{
-                    fontSize: '11px',
-                    letterSpacing: '2px',
-                    color: '#0A0A0A',
-                    backgroundColor: '#FCD116',
-                    padding: '4px 8px',
-                    border: '2px solid #FCD116',
-                  }}
-                >
-                  ✕ FILTRE: {filterZone.toUpperCase()}
-                </button>
-              )}
-            </div>
-
-            {/* Familles de zones */}
-            <div className="flex flex-col gap-3">
-              {families.map((fam) => {
-                const famZones = zonesByFamily[fam] ?? []
-                if (famZones.length === 0) return null
-                return (
-                  <div key={fam} className="flex flex-col gap-1.5">
-                    <div
-                      className="flex items-center gap-2 font-black uppercase"
-                      style={{
-                        fontSize: '13px',
-                        letterSpacing: '4px',
-                        color: '#FCD116',
-                        borderBottom: '2px solid #333333',
-                        paddingBottom: '4px',
-                      }}
-                    >
-                      <span style={{ color: '#FCD116' }} aria-hidden>▶</span>
-                      {fam}
-                    </div>
-                    <div className="grid grid-cols-3 gap-2 sm:grid-cols-5 lg:grid-cols-6">
-                      {famZones.map((z) => (
-                        <ZoneTile
-                          key={z.code}
-                          zone={z}
-                          isActive={filterZone === z.code}
-                          onClick={() =>
-                            setFilterZone(filterZone === z.code ? null : z.code)
-                          }
-                        />
-                      ))}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-
-            {/* Mini info bars — Top zone critique + Tendance + Top performer */}
-            {data && (
-              <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
-                <div
-                  className="flex items-center gap-2 px-2 py-1.5"
-                  style={{ border: '2px solid #333333', borderLeft: '4px solid #FF9500' }}
-                >
-                  <AlertTriangle className="size-3.5 shrink-0" style={{ color: '#FF9500' }} aria-hidden />
-                  <span
-                    className="shrink-0 font-bold uppercase"
-                    style={{ fontSize: '10px', letterSpacing: '1px', color: '#FF9500' }}
-                  >
-                    ZONE CRITIQUE
-                  </span>
-                  <span
-                    className="min-w-0 flex-1 truncate font-bold uppercase"
-                    style={{ fontSize: '11px', color: '#FFFFFF', letterSpacing: '1px' }}
-                  >
-                    {topZone ? `${topZone.emoji} ${topZone.nom.toUpperCase()}` : 'AUCUNE'}
-                  </span>
-                  {topZone && (
-                    <span className="font-black tabular-nums" style={{ fontSize: '12px', color: '#FCD116' }}>
-                      {topZone.count_24h}
-                    </span>
-                  )}
-                </div>
-                <div
-                  className="flex items-center gap-2 px-2 py-1.5"
-                  style={{
-                    border: '2px solid #333333',
-                    borderLeft: `4px solid ${
-                      tendance.dir === 'up' ? '#FF9500' : tendance.dir === 'down' ? '#34C759' : '#999999'
-                    }`,
-                  }}
-                >
-                  {tendance.dir === 'up' ? (
-                    <TrendingUp className="size-3.5 shrink-0" style={{ color: '#FF9500' }} aria-hidden />
-                  ) : tendance.dir === 'down' ? (
-                    <TrendingDown className="size-3.5 shrink-0" style={{ color: '#34C759' }} aria-hidden />
-                  ) : (
-                    <Activity className="size-3.5 shrink-0" style={{ color: '#999999' }} aria-hidden />
-                  )}
-                  <span
-                    className="shrink-0 font-bold uppercase"
-                    style={{
-                      fontSize: '10px',
-                      letterSpacing: '1px',
-                      color: tendance.dir === 'up' ? '#FF9500' : tendance.dir === 'down' ? '#34C759' : '#999999',
-                    }}
-                  >
-                    TENDANCE 24H
-                  </span>
-                  <span
-                    className="ml-auto font-black uppercase"
-                    style={{ fontSize: '13px', color: '#FFFFFF', letterSpacing: '1px' }}
-                  >
-                    {tendance.label}
-                  </span>
-                </div>
-                <div
-                  className="flex items-center gap-2 px-2 py-1.5"
-                  style={{ border: '2px solid #333333', borderLeft: '4px solid #34C759' }}
-                >
-                  <Trophy className="size-3.5 shrink-0" style={{ color: '#34C759' }} aria-hidden />
-                  <span
-                    className="shrink-0 font-bold uppercase"
-                    style={{ fontSize: '10px', letterSpacing: '1px', color: '#34C759' }}
-                  >
-                    TOP PERFORMER
-                  </span>
-                  <span
-                    className="min-w-0 flex-1 truncate font-bold uppercase"
-                    style={{ fontSize: '11px', color: '#FFFFFF', letterSpacing: '1px' }}
-                  >
-                    {leaderboard && leaderboard.leaderboard[0]
-                      ? leaderboard.leaderboard[0].staffName.toUpperCase()
-                      : 'AUCUN CLASSEMENT'}
-                  </span>
-                </div>
-              </div>
+                ✕ FILTRE: {filterZone.toUpperCase()}
+              </button>
             )}
           </div>
 
-          {/* ---------- RIGHT — Panneau Alertes Actives ---------- */}
-          <div className="flex flex-col gap-2 p-3" style={{ backgroundColor: '#080808' }}>
-            <h2
-              className="font-black uppercase"
-              style={{
-                fontSize: '16px',
-                letterSpacing: '4px',
-                color: '#FCD116',
-                borderBottom: '3px solid #FCD116',
-                paddingBottom: '4px',
-              }}
-            >
-              ALERTES ACTIVES
-            </h2>
-            <div className="flex max-h-[420px] flex-col gap-2 overflow-y-auto pr-1 lg:max-h-[520px]">
-              {/* Alertes seuil (de /api/airport/alerts/check) */}
-              {topAlerts.map((a, idx) => (
-                <AlertCard key={`alert-${a.thresholdId}-${a.zoneCode}-${idx}`} alert={a} />
-              ))}
-              {/* Issue 1 — SOS : demandes d'aide voyageur actives */}
-              {data?.help_requests?.slice(0, 3).map((h) => (
-                <HelpRequestAlertCard key={`help-${h.id}`} h={h} />
-              ))}
-              {/* Alertes basées sur les signalements EN_ATTENTE/EN_COURS */}
-              {activeReportAlerts.map((r) => (
-                <ReportAlertCard
-                  key={`report-alert-${r.id}`}
-                  r={r}
-                  onCall={handleReportCall}
-                  onEscalate={() => void handleReportEscalate(r)}
-                  onAssign={(teamKey) => void handleReportAssign(r, teamKey)}
-                  busy={false}
-                />
-              ))}
-              {topAlerts.length === 0 && activeReportAlerts.length === 0 && (data?.help_requests?.length ?? 0) === 0 && (
+          {/* Familles de zones — panneaux signalétiques */}
+          <div className="flex flex-col gap-4">
+            {families.map((fam) => {
+              const famZones = zonesByFamily[fam] ?? []
+              if (famZones.length === 0) return null
+              return (
+                <div key={fam} className="flex flex-col gap-2">
+                  <h3
+                    className="font-bold uppercase"
+                    style={{ fontSize: '11px', letterSpacing: '3px', color: `${YELLOW}CC` }}
+                  >
+                    {fam}
+                  </h3>
+                  <div className="flex flex-wrap gap-2">
+                    {famZones.map((z) => (
+                      <ZonePanel
+                        key={z.code}
+                        zone={z}
+                        isActive={filterZone === z.code}
+                        onClick={() => setFilterZone(filterZone === z.code ? null : z.code)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </section>
+
+        {/* ============================================================
+            4. ALERTES ACTIVES — bandeaux horizontaux avec bordure gauche
+            ============================================================ */}
+        <section
+          aria-label="Alertes actives"
+          className="shrink-0 bg-black px-4 py-4 sm:px-6"
+          style={{ borderTop: `1px solid ${YELLOW}33` }}
+        >
+          <h2
+            className="mb-3 font-bold uppercase"
+            style={{ fontSize: '13px', letterSpacing: '3px', color: YELLOW }}
+          >
+            ALERTES ACTIVES
+          </h2>
+          <div className="flex max-h-[460px] flex-col gap-2 overflow-y-auto pr-1">
+            {topAlerts.map((a, idx) => (
+              <AlertBandeau key={`alert-${a.thresholdId}-${a.zoneCode}-${idx}`} alert={a} />
+            ))}
+            {data?.help_requests?.slice(0, 3).map((h) => (
+              <HelpRequestBandeau key={`help-${h.id}`} h={h} />
+            ))}
+            {activeReportAlerts.map((r) => (
+              <ReportAlertBandeau
+                key={`report-alert-${r.id}`}
+                r={r}
+                onCall={handleReportCall}
+                onEscalate={() => void handleReportEscalate(r)}
+                onAssign={(teamKey) => void handleReportAssign(r, teamKey)}
+                busy={false}
+              />
+            ))}
+            {topAlerts.length === 0 &&
+              activeReportAlerts.length === 0 &&
+              (data?.help_requests?.length ?? 0) === 0 && (
                 <div
-                  className="flex items-center justify-center px-3 py-8"
-                  style={{ border: '2px solid #333333' }}
+                  className="flex items-center justify-center px-3 py-8 bg-black"
+                  style={{ border: `1px solid ${YELLOW}33` }}
                 >
                   <p
                     className="font-bold uppercase"
-                    style={{ fontSize: '13px', letterSpacing: '2px', color: '#34C759' }}
+                    style={{ fontSize: '13px', letterSpacing: '2px', color: GREEN }}
                   >
                     AUCUNE ALERTE ACTIVE
                   </p>
                 </div>
               )}
-            </div>
           </div>
         </section>
 
         {/* ============================================================
-            4. INCIDENTS TABLE — style panneau d'affichage
+            5. INCIDENTS TABLE — tableau signalétique avec en-tête jaune
             ============================================================ */}
         <main
           aria-label="Derniers signalements"
-          className="relative flex min-h-0 flex-1 flex-col"
-          style={{ borderTop: '3px solid #FCD116' }}
+          className="relative flex min-h-0 flex-1 flex-col bg-black"
+          style={{ borderTop: `1px solid ${YELLOW}4D` }}
         >
-          {/* En-tête table */}
+          {/* En-tête table — fond jaune, texte noir */}
           <div
             role="row"
             className="grid grid-cols-[1fr_1.4fr_0.8fr_1fr_0.6fr]"
-            style={{ backgroundColor: '#FCD116' }}
+            style={{ backgroundColor: YELLOW }}
           >
-            <div
-              className="px-3 py-2 font-black uppercase"
-              style={{ fontSize: '13px', letterSpacing: '2px', color: '#0A0A0A' }}
-            >
-              ZONE
-            </div>
-            <div
-              className="px-3 py-2 font-black uppercase"
-              style={{ fontSize: '13px', letterSpacing: '2px', color: '#0A0A0A' }}
-            >
-              PROBLÈME
-            </div>
-            <div
-              className="hidden px-3 py-2 font-black uppercase sm:block"
-              style={{ fontSize: '13px', letterSpacing: '2px', color: '#0A0A0A' }}
-            >
-              STATUT
-            </div>
-            <div
-              className="hidden px-3 py-2 font-black uppercase sm:block"
-              style={{ fontSize: '13px', letterSpacing: '2px', color: '#0A0A0A' }}
-            >
-              ÉQUIPE
-            </div>
-            <div
-              className="px-3 py-2 text-right font-black uppercase"
-              style={{ fontSize: '13px', letterSpacing: '2px', color: '#0A0A0A' }}
-            >
-              IL Y A
-            </div>
+            {['ZONE', 'PROBLÈME', 'STATUT', 'ÉQUIPE', 'IL Y A'].map((header, i) => (
+              <div
+                key={header}
+                role="columnheader"
+                className={`px-3 py-2 font-bold uppercase ${i >= 2 ? 'hidden sm:block' : ''} ${
+                  i === 4 ? 'text-right' : ''
+                }`}
+                style={{
+                  fontSize: '12px',
+                  letterSpacing: '2px',
+                  color: BLACK,
+                  borderLeft: i > 0 ? `1px solid ${BLACK}33` : 'none',
+                }}
+              >
+                {header}
+              </div>
+            ))}
           </div>
 
           {/* Lignes */}
@@ -2629,13 +2229,10 @@ export default function OpsWallboardPage() {
                   ))}
                 </>
               ) : (
-                <div
-                  className="flex flex-1 items-center justify-center px-6 py-12"
-                  style={{ backgroundColor: '#0A0A0A' }}
-                >
+                <div className="flex flex-1 items-center justify-center bg-black px-6 py-12">
                   <p
                     className="font-bold uppercase"
-                    style={{ fontSize: '15px', letterSpacing: '2px', color: '#999999' }}
+                    style={{ fontSize: '14px', letterSpacing: '2px', color: `${YELLOW}99` }}
                   >
                     {crisisMode
                       ? 'AUCUN INCIDENT CRITIQUE EN COURS — CRISE MAÎTRISÉE'
@@ -2654,14 +2251,13 @@ export default function OpsWallboardPage() {
           {actionToast && (
             <div
               role="status"
-              className="pointer-events-none absolute left-1/2 top-2 z-30 -translate-x-1/2 px-4 py-2 font-black uppercase shadow-lg"
+              className="pointer-events-none absolute left-1/2 top-2 z-30 -translate-x-1/2 px-4 py-2 font-bold uppercase"
               style={{
                 fontSize: '12px',
                 letterSpacing: '2px',
-                border: '2px solid',
-                borderColor: actionToast.kind === 'ok' ? '#34C759' : '#FF3B30',
-                backgroundColor: actionToast.kind === 'ok' ? '#0A0A0A' : '#0A0A0A',
-                color: actionToast.kind === 'ok' ? '#34C759' : '#FF3B30',
+                border: `1px solid ${actionToast.kind === 'ok' ? GREEN : RED}`,
+                backgroundColor: BLACK,
+                color: actionToast.kind === 'ok' ? GREEN : RED,
               }}
             >
               {actionToast.msg}
@@ -2670,44 +2266,46 @@ export default function OpsWallboardPage() {
         </main>
 
         {/* ============================================================
-            5. PREDICTION RADAR (signalétique styled wrapper)
+            6. PREDICTION RADAR — wrapper noir/jaune
             ============================================================ */}
         <section
           aria-label="Radar prédiction des pics de plaintes"
-          className="flex shrink-0 flex-col gap-1.5 p-3"
-          style={{ borderTop: '3px solid #FCD116' }}
+          className="flex shrink-0 flex-col gap-2 bg-black px-4 py-4 sm:px-6"
+          style={{ borderTop: `1px solid ${YELLOW}33` }}
         >
           <h2
-            className="flex items-center gap-2 font-black uppercase"
-            style={{ fontSize: '14px', letterSpacing: '4px', color: '#FCD116' }}
+            className="font-bold uppercase"
+            style={{ fontSize: '13px', letterSpacing: '3px', color: YELLOW }}
           >
-            <span aria-hidden>🔮</span>
             RADAR PRÉDICTION — ÇA VA PÉTER DANS 20 MIN ?
           </h2>
-          <AirportPredictionRadar
-            className="w-full"
-          />
+          <div style={{ border: `1px solid ${YELLOW}4D` }} className="p-3">
+            <AirportPredictionRadar className="w-full" />
+          </div>
         </section>
 
         {/* ============================================================
-            6. BOTTOM STRIP — SLA par zone + Charge par zone
+            7. BOTTOM STRIP — SLA par zone + Charge par zone
             ============================================================ */}
         <footer
           aria-label="Synthèse SLA et charge par zone"
-          className="grid shrink-0 grid-cols-1 gap-0 lg:grid-cols-2"
-          style={{ borderTop: '3px solid #FCD116' }}
+          className="grid shrink-0 grid-cols-1 bg-black lg:grid-cols-2"
+          style={{ borderTop: `1px solid ${YELLOW}4D` }}
         >
-          <section className="flex flex-col gap-1.5 p-3" style={{ borderRight: '3px solid #222222' }}>
+          <section
+            className="flex flex-col gap-1.5 px-4 py-4 sm:px-6"
+            style={{ borderRight: `1px solid ${YELLOW}33` }}
+          >
             <h2
-              className="font-black uppercase"
-              style={{ fontSize: '13px', letterSpacing: '4px', color: '#FCD116' }}
+              className="mb-2 font-bold uppercase"
+              style={{ fontSize: '12px', letterSpacing: '3px', color: YELLOW }}
             >
               SLA PAR ZONE
             </h2>
             <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
               {data ? (
                 data.zones.slice(0, 6).map((z) => (
-                  <SlaBottomRow key={`sla-${z.code}`} zone={z} sla={data.sla?.[z.code]} />
+                  <SlaRow key={`sla-${z.code}`} zone={z} sla={data.sla?.[z.code]} />
                 ))
               ) : (
                 Array.from({ length: 6 }).map((_, i) => <MiniRowSkeleton key={i} />)
@@ -2715,17 +2313,17 @@ export default function OpsWallboardPage() {
             </div>
           </section>
 
-          <section className="flex flex-col gap-1.5 p-3">
+          <section className="flex flex-col gap-1.5 px-4 py-4 sm:px-6">
             <h2
-              className="font-black uppercase"
-              style={{ fontSize: '13px', letterSpacing: '4px', color: '#FCD116' }}
+              className="mb-2 font-bold uppercase"
+              style={{ fontSize: '12px', letterSpacing: '3px', color: YELLOW }}
             >
               CHARGE PAR ZONE · EN ATTENTE
             </h2>
             <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
               {data ? (
                 data.zones.slice(0, 6).map((z) => (
-                  <ZoneChargeRow key={`chg-${z.code}`} zone={z} max={maxEnAttente} />
+                  <ChargeRow key={`chg-${z.code}`} zone={z} max={maxEnAttente} />
                 ))
               ) : (
                 Array.from({ length: 6 }).map((_, i) => <MiniRowSkeleton key={i} />)
@@ -2735,25 +2333,37 @@ export default function OpsWallboardPage() {
         </footer>
 
         {/* ============================================================
-            7. LEGEND BAR — barre de légende statuts + rappel filtre
+            8. LEGEND — bandeau horizontal simple
             ============================================================ */}
         <div
-          className="flex shrink-0 flex-wrap items-center justify-center gap-x-6 gap-y-1 px-4 py-2"
-          style={{ backgroundColor: '#0A0A0A', borderTop: '2px solid #FCD116' }}
+          className="flex shrink-0 flex-wrap items-center justify-center gap-x-6 gap-y-1 bg-black px-4 py-2 sm:px-6"
+          style={{ borderTop: `1px solid ${YELLOW}33` }}
         >
-          <span className="flex items-center gap-1.5 font-bold uppercase" style={{ fontSize: '12px', letterSpacing: '2px', color: '#34C759' }}>
-            <span style={{ width: '10px', height: '10px', borderRadius: '9999px', backgroundColor: '#34C759' }} aria-hidden />
+          <span
+            className="flex items-center gap-1.5 font-bold uppercase"
+            style={{ fontSize: '11px', letterSpacing: '2px', color: `${YELLOW}99` }}
+          >
+            <span className="size-2 rounded-full bg-green-500" aria-hidden />
             CALME (0)
           </span>
-          <span className="flex items-center gap-1.5 font-bold uppercase" style={{ fontSize: '12px', letterSpacing: '2px', color: '#FCD116' }}>
-            <span style={{ width: '10px', height: '10px', borderRadius: '9999px', backgroundColor: '#FCD116' }} aria-hidden />
+          <span
+            className="flex items-center gap-1.5 font-bold uppercase"
+            style={{ fontSize: '11px', letterSpacing: '2px', color: `${YELLOW}99` }}
+          >
+            <span className="size-2 rounded-full bg-[#F5C400]" aria-hidden />
             ATTENTION (1-2)
           </span>
-          <span className="flex items-center gap-1.5 font-bold uppercase" style={{ fontSize: '12px', letterSpacing: '2px', color: '#FF3B30' }}>
-            <span style={{ width: '10px', height: '10px', borderRadius: '9999px', backgroundColor: '#FF3B30' }} aria-hidden />
+          <span
+            className="flex items-center gap-1.5 font-bold uppercase"
+            style={{ fontSize: '11px', letterSpacing: '2px', color: `${YELLOW}99` }}
+          >
+            <span className="size-2 rounded-full bg-red-500" aria-hidden />
             CRITIQUE (3+)
           </span>
-          <span className="ml-auto font-bold uppercase" style={{ fontSize: '11px', letterSpacing: '2px', color: '#999999' }}>
+          <span
+            className="ml-auto font-bold uppercase"
+            style={{ fontSize: '11px', letterSpacing: '2px', color: `${YELLOW}66` }}
+          >
             CLIC SUR UNE ZONE POUR FILTRER · {data?.stats.total_24h ?? 0} TOTAL 24H
           </span>
         </div>
