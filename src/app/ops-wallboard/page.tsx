@@ -58,6 +58,7 @@ import {
   Mic,
 } from 'lucide-react'
 import { AirportPredictionRadar } from '@/components/feedbackpro/airport-prediction-radar'
+import { AirportHeatmap } from '@/components/feedbackpro/airport-heatmap'
 import { parler } from '@/lib/staff-tts'
 
 // ---------------------------------------------------------------
@@ -2636,7 +2637,7 @@ export default function OpsWallboardPage() {
               className="font-black uppercase leading-none"
               style={{ fontSize: 'clamp(18px, 2vw, 24px)', letterSpacing: '3px', color: BLEU }}
             >
-              🗺 CARTE TEMPS RÉEL · {data?.zones.length ?? 0} ZONES
+              🗺 CARTE THERMIQUE · TEMPS RÉEL
             </h2>
             {filterZone && (
               <button
@@ -2650,57 +2651,12 @@ export default function OpsWallboardPage() {
             )}
           </div>
 
-          {/* Familles de zones — panneaux colorés */}
-          <div className="flex flex-col gap-4">
-            {families.map((fam) => {
-              const famZones = zonesByFamily[fam] ?? []
-              if (famZones.length === 0) return null
-              return (
-                <div key={fam} className="flex flex-col gap-2">
-                  <h3
-                    className="font-black uppercase text-black"
-                    style={{
-                      fontSize: '14px',
-                      letterSpacing: '3px',
-                      borderBottom: `3px solid ${JAUNE}`,
-                      paddingBottom: '6px',
-                    }}
-                  >
-                    {fam}
-                  </h3>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {famZones.map((z) => (
-                      <ZonePanel
-                        key={z.code}
-                        zone={z}
-                        isActive={filterZone === z.code}
-                        onClick={() => setFilterZone(filterZone === z.code ? null : z.code)}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )
-            })}
-            {data && data.zones.length === 0 && (
-              <div
-                className="rounded-[15px] bg-[#FCD116] px-5 py-6 text-center font-black uppercase text-black"
-                style={{ fontSize: '14px', letterSpacing: '1px' }}
-              >
-                AUCUNE ZONE CONFIGURÉE
-              </div>
-            )}
-            {!data && (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                {Array.from({ length: 8 }).map((_, i) => (
-                  <div
-                    key={i}
-                    className="ops-pulse h-[75px] rounded-[15px]"
-                    style={{ backgroundColor: '#E0E0E0' }}
-                  />
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Heatmap interactive — remplace les panneaux statiques */}
+          <AirportHeatmap
+            className="w-full"
+            onZoneSelect={(code) => setFilterZone(filterZone === code ? null : code)}
+            selectedZone={filterZone}
+          />
         </section>
 
         {/* ---------- RIGHT : Alertes section ---------- */}
