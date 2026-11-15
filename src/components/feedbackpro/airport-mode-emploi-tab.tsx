@@ -295,7 +295,7 @@ export function AirportModeEmploiTab() {
       <div className="mx-auto max-w-5xl space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#5257C9] to-[#7C3AED] text-white shadow-lg">
+          <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#003399] to-[#FCD116] text-white shadow-lg">
             <BookOpen className="size-6" />
           </div>
           <div>

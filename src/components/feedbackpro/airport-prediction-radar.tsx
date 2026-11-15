@@ -165,7 +165,7 @@ export function AirportPredictionRadar({ className }: { className?: string }) {
   if (loading && !data) {
     return (
       <div
-        className={`rounded-xl border border-slate-800 bg-slate-950 p-4 text-slate-300 ${className ?? ''}`}
+        className={`rounded-xl border border-slate-800 bg-[#0F172A] p-4 text-slate-300 ${className ?? ''}`}
       >
         <div className="flex items-center gap-2">
           <Radar className="h-4 w-4 animate-pulse text-slate-500" />
@@ -189,7 +189,7 @@ export function AirportPredictionRadar({ className }: { className?: string }) {
   if (error && !data) {
     return (
       <div
-        className={`rounded-xl border border-rose-500/40 bg-slate-950 p-4 text-rose-300 ${className ?? ''}`}
+        className={`rounded-xl border border-rose-500/40 bg-[#0F172A] p-4 text-rose-300 ${className ?? ''}`}
       >
         <div className="flex items-center gap-2">
           <AlertTriangle className="h-4 w-4" />
@@ -207,7 +207,7 @@ export function AirportPredictionRadar({ className }: { className?: string }) {
 
   return (
     <div
-      className={`rounded-xl border border-slate-800 bg-slate-950 p-4 ${className ?? ''}`}
+      className={`rounded-xl border border-slate-800 bg-[#0F172A] p-4 ${className ?? ''}`}
       aria-label="Radar prédiction des pics de plaintes"
     >
       {/* Header */}

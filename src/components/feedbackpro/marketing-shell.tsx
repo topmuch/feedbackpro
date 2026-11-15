@@ -84,7 +84,7 @@ export function MarketingHeader({ activePath }: { activePath?: string }) {
           </Link>
           <Link
             href="/?auth=register"
-            className="inline-flex h-9 items-center gap-1.5 rounded-md bg-gradient-to-br from-[#5257C9] to-[#0047c7] px-4 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
+            className="inline-flex h-9 items-center gap-1.5 rounded-md bg-gradient-to-br from-[#003399] to-[#0047c7] px-4 text-sm font-semibold text-white shadow-sm transition-opacity hover:opacity-90"
           >
             Essayer gratuitement
             <ArrowRight className="h-4 w-4" />
@@ -119,7 +119,7 @@ export function MarketingHeader({ activePath }: { activePath?: string }) {
               </Link>
               <Link
                 href="/?auth=register"
-                className="rounded-lg bg-gradient-to-br from-[#5257C9] to-[#0047c7] px-3 py-2 text-center text-sm font-semibold text-white"
+                className="rounded-lg bg-gradient-to-br from-[#003399] to-[#0047c7] px-3 py-2 text-center text-sm font-semibold text-white"
               >
                 Essayer gratuitement
               </Link>
@@ -280,7 +280,7 @@ export function MarketingCTA({
 }) {
   return (
     <section className="px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
-      <div className="relative mx-auto max-w-6xl overflow-hidden rounded-3xl border border-[#5257C9]/30 bg-gradient-to-br from-[#5257C9] to-[#0047c7] px-6 py-14 text-center shadow-2xl shadow-[#5257C9]/30 sm:px-12 sm:py-18">
+      <div className="relative mx-auto max-w-6xl overflow-hidden rounded-3xl border border-[#003399]/30 bg-gradient-to-br from-[#003399] to-[#0047c7] px-6 py-14 text-center shadow-2xl shadow-[#003399]/30 sm:px-12 sm:py-18">
         <div className="relative">
           <h2 className="text-3xl font-extrabold tracking-tight text-white sm:text-4xl lg:text-5xl">
             {titre}
@@ -289,7 +289,7 @@ export function MarketingCTA({
           <div className="mt-8 flex flex-col items-center gap-4">
             <Link
               href="/?auth=register"
-              className="inline-flex h-12 items-center gap-2 rounded-md border-0 bg-white px-8 text-base font-semibold text-[#5257C9] shadow-lg hover:bg-gray-50"
+              className="inline-flex h-12 items-center gap-2 rounded-md border-0 bg-white px-8 text-base font-semibold text-[#003399] shadow-lg hover:bg-gray-50"
             >
               {bouton}
               <ArrowRight className="h-4 w-4" />

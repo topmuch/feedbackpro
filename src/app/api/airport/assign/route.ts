@@ -176,7 +176,7 @@ export async function POST(req: NextRequest) {
 <tr><td style="padding:32px;">
 <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;color:#1c1917;">Bonjour,</h1>
 <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#44403c;">Un signalement voyageur vient de vous être affecté pour prise en charge sur place :</p>
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f8fafc;border-radius:8px;margin:0 0 16px;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#F5F5F5;border-radius:8px;margin:0 0 16px;">
 <tr><td style="padding:16px 20px;">
 <p style="margin:0 0 6px;font-size:14px;color:#1c1917;"><strong>Zone :</strong> ${escapeHtml(report.zone?.nom ?? 'Zone inconnue')}</p>
 <p style="margin:0 0 6px;font-size:14px;color:#1c1917;"><strong>Problème :</strong> ${escapeHtml(report.problemType)}</p>

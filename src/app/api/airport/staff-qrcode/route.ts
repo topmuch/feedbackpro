@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     width: TAILLE_QR,
     margin: 2,
     errorCorrectionLevel: 'H',
-    color: { dark: '#5257C9', light: '#ffffff' },
+    color: { dark: '#003399', light: '#ffffff' },
   })
 
   if (format === 'pdf') {

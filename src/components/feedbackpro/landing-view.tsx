@@ -12,9 +12,9 @@
 //   secteur expose : hero, 3 avantages (split/centered-tags),
 //   citation Denise, témoignage, CTA -> setPage('contact').
 //
-// Sections light #F8FAFC + sections dark dramatiques #0F172A pour
-//   les parties Tech/Denise. Palette indigo #5257C9 -> violet
-//   #7C3AED, accent cyan #06B6D4. Effets : aurora blobs CSS,
+// Sections light #F5F5F5 + sections dark dramatiques #0F172A pour
+//   les parties Tech/Denise. Palette bleu aéroport #003399 -> jaune
+//   IATA #FCD116, accent cyan #06B6D4. Effets : aurora blobs CSS,
 //   sound wave Denise (20 bars animées), mockups dashboard /
 //   terminal / QR / phone / housekeeping / info-voyageurs /
 //   patient-flow / maintenance (HTML/CSS pur), count-up stats,
@@ -277,7 +277,7 @@ function SoundWave({
       {Array.from({ length: bars }, (_, i) => (
         <div
           key={i}
-          className={`fbp-bar w-[3px] rounded-full bg-gradient-to-t from-[#5257C9] to-[#7C3AED] ${barClassName}`}
+          className={`fbp-bar w-[3px] rounded-full bg-gradient-to-t from-[#003399] to-[#FCD116] ${barClassName}`}
           style={{
             animationDelay: `${(i % 6) * 0.13}s`,
             height: "20%",
@@ -332,12 +332,12 @@ function Aurora({ dark = false }: { dark?: boolean }) {
     >
       <div
         className={`fbp-aurora1 absolute -top-32 -left-24 h-[42rem] w-[42rem] rounded-full ${
-          dark ? "bg-[#5257C9]/30" : "bg-[#5257C9]/20"
+          dark ? "bg-[#003399]/30" : "bg-[#003399]/20"
         } blur-[140px]`}
       />
       <div
         className={`fbp-aurora2 absolute top-1/4 -right-32 h-[38rem] w-[38rem] rounded-full ${
-          dark ? "bg-[#7C3AED]/25" : "bg-[#7C3AED]/15"
+          dark ? "bg-[#FCD116]/25" : "bg-[#FCD116]/15"
         } blur-[140px]`}
       />
       <div
@@ -379,13 +379,13 @@ function CtaSignup({
 }) {
   const styles: Record<string, string> = {
     primary:
-      "bg-gradient-to-r from-[#5257C9] to-[#7C3AED] text-white shadow-lg shadow-[#5257C9]/25 hover:shadow-xl hover:shadow-[#5257C9]/40",
+      "bg-gradient-to-r from-[#003399] to-[#FCD116] text-white shadow-lg shadow-[#003399]/25 hover:shadow-xl hover:shadow-[#003399]/40",
     white:
       "bg-white text-[#0F172A] shadow-lg shadow-black/10 hover:shadow-xl hover:shadow-black/20",
     tech:
-      "bg-gradient-to-r from-[#06B6D4] via-[#5257C9] to-[#7C3AED] text-white shadow-lg shadow-[#5257C9]/30 hover:shadow-xl hover:shadow-[#5257C9]/50",
+      "bg-gradient-to-r from-[#06B6D4] via-[#003399] to-[#FCD116] text-white shadow-lg shadow-[#003399]/30 hover:shadow-xl hover:shadow-[#003399]/50",
     warm:
-      "bg-gradient-to-r from-[#F59E0B] via-[#FB923C] to-[#5257C9] text-white shadow-lg shadow-[#F59E0B]/25 hover:shadow-xl hover:shadow-[#F59E0B]/40",
+      "bg-gradient-to-r from-[#F59E0B] via-[#FB923C] to-[#003399] text-white shadow-lg shadow-[#F59E0B]/25 hover:shadow-xl hover:shadow-[#F59E0B]/40",
     ghost:
       "border border-black/10 text-[#0F172A] bg-white/60 backdrop-blur hover:bg-white",
   }
@@ -453,7 +453,7 @@ function Header({
             onClick={() => navigate("accueil")}
             className={`relative px-4 py-2 text-sm font-medium transition-colors ${
               page === "accueil"
-                ? "text-[#5257C9]"
+                ? "text-[#003399]"
                 : "text-[#0F172A]/70 hover:text-[#0F172A]"
             }`}
           >
@@ -461,7 +461,7 @@ function Header({
             {page === "accueil" && (
               <motion.span
                 layoutId="nav-underline"
-                className="absolute -bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full bg-gradient-to-r from-[#5257C9] to-[#7C3AED]"
+                className="absolute -bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full bg-gradient-to-r from-[#003399] to-[#FCD116]"
               />
             )}
           </button>
@@ -471,7 +471,7 @@ function Header({
             <button
               className={`relative flex items-center gap-1 px-4 py-2 text-sm font-medium transition-colors ${
                 isSector
-                  ? "text-[#5257C9]"
+                  ? "text-[#003399]"
                   : "text-[#0F172A]/70 hover:text-[#0F172A]"
               }`}
               aria-haspopup="true"
@@ -482,13 +482,13 @@ function Header({
               {isSector && (
                 <motion.span
                   layoutId="nav-underline"
-                  className="absolute -bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full bg-gradient-to-r from-[#5257C9] to-[#7C3AED]"
+                  className="absolute -bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full bg-gradient-to-r from-[#003399] to-[#FCD116]"
                 />
               )}
             </button>
             {/* Dropdown panel */}
             <div className="invisible absolute left-1/2 top-full z-50 w-[28rem] -translate-x-1/2 pt-2 opacity-0 transition-all duration-200 group-hover:visible group-hover:opacity-100">
-              <div className="overflow-hidden rounded-2xl border border-black/5 bg-white p-3 shadow-2xl shadow-[#5257C9]/10">
+              <div className="overflow-hidden rounded-2xl border border-black/5 bg-white p-3 shadow-2xl shadow-[#003399]/10">
                 <div className="grid grid-cols-2 gap-1.5">
                   {SECTOR_NAV.map((s) => {
                     const active = page === s.key
@@ -498,13 +498,13 @@ function Header({
                         onClick={() => navigate(s.key)}
                         className={`flex flex-col gap-0.5 rounded-xl px-3 py-2.5 text-left transition-colors ${
                           active
-                            ? "bg-[#5257C9]/8"
-                            : "hover:bg-[#F8FAFC]"
+                            ? "bg-[#003399]/8"
+                            : "hover:bg-[#F5F5F5]"
                         }`}
                       >
                         <span
                           className={`text-sm font-semibold ${
-                            active ? "text-[#5257C9]" : "text-[#0F172A]"
+                            active ? "text-[#003399]" : "text-[#0F172A]"
                           }`}
                         >
                           {s.label}
@@ -525,7 +525,7 @@ function Header({
             onClick={() => navigate("apropos")}
             className={`relative px-4 py-2 text-sm font-medium transition-colors ${
               page === "apropos"
-                ? "text-[#5257C9]"
+                ? "text-[#003399]"
                 : "text-[#0F172A]/70 hover:text-[#0F172A]"
             }`}
           >
@@ -533,7 +533,7 @@ function Header({
             {page === "apropos" && (
               <motion.span
                 layoutId="nav-underline"
-                className="absolute -bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full bg-gradient-to-r from-[#5257C9] to-[#7C3AED]"
+                className="absolute -bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full bg-gradient-to-r from-[#003399] to-[#FCD116]"
               />
             )}
           </button>
@@ -543,7 +543,7 @@ function Header({
             onClick={() => navigate("contact")}
             className={`relative px-4 py-2 text-sm font-medium transition-colors ${
               page === "contact"
-                ? "text-[#5257C9]"
+                ? "text-[#003399]"
                 : "text-[#0F172A]/70 hover:text-[#0F172A]"
             }`}
           >
@@ -551,7 +551,7 @@ function Header({
             {page === "contact" && (
               <motion.span
                 layoutId="nav-underline"
-                className="absolute -bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full bg-gradient-to-r from-[#5257C9] to-[#7C3AED]"
+                className="absolute -bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full bg-gradient-to-r from-[#003399] to-[#FCD116]"
               />
             )}
           </button>
@@ -641,8 +641,8 @@ function MobileLink({
       onClick={onClick}
       className={`flex items-center justify-between rounded-xl px-4 py-3 text-base font-medium transition-colors ${
         active
-          ? "bg-[#5257C9]/8 text-[#5257C9]"
-          : "text-[#0F172A]/80 hover:bg-[#F8FAFC]"
+          ? "bg-[#003399]/8 text-[#003399]"
+          : "text-[#0F172A]/80 hover:bg-[#F5F5F5]"
       }`}
     >
       {label}
@@ -706,7 +706,7 @@ function KpiCard({
 // Les bulles de notification sont ajoutées en CSS (l'IA ne gère pas le texte).
 function HeroImageWithBubbles() {
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-black/5 shadow-2xl shadow-[#5257C9]/15">
+    <div className="relative overflow-hidden rounded-2xl border border-black/5 shadow-2xl shadow-[#003399]/15">
       {/* Image générée */}
       <img
         src="/hero-feedbackpro.png"
@@ -716,7 +716,7 @@ function HeroImageWithBubbles() {
       />
 
       {/* Overlay gradient pour améliorer la lisibilité des bulles */}
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#5257C9]/5 via-transparent to-[#7C3AED]/5" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-[#003399]/5 via-transparent to-[#FCD116]/5" />
 
       {/* Bulle 1 — Rouge : Bagage perdu (top-right) */}
       <div
@@ -771,9 +771,9 @@ function HeroImageWithBubbles() {
 
 function DashboardMockup() {
   return (
-    <div className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-2xl shadow-[#5257C9]/10">
+    <div className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-2xl shadow-[#003399]/10">
       {/* Browser top bar */}
-      <div className="flex items-center gap-2 border-b border-black/5 bg-[#F8FAFC] px-4 py-3">
+      <div className="flex items-center gap-2 border-b border-black/5 bg-[#F5F5F5] px-4 py-3">
         <div className="h-3 w-3 rounded-full bg-red-400" />
         <div className="h-3 w-3 rounded-full bg-amber-400" />
         <div className="h-3 w-3 rounded-full bg-emerald-400" />
@@ -795,7 +795,7 @@ function DashboardMockup() {
             <div className="mt-4 flex h-16 items-center justify-center gap-1">
               <SoundWave
                 bars={26}
-                barClassName="from-[#5257C9] to-[#06B6D4] w-[3px]"
+                barClassName="from-[#003399] to-[#06B6D4] w-[3px]"
               />
             </div>
             <div className="mt-4 rounded-lg bg-white/5 p-3 text-xs text-white/85">
@@ -813,7 +813,7 @@ function DashboardMockup() {
             <KpiCard label="Satisfaction" value="4.9" trend="+0.3" />
             <KpiCard label="Alertes" value="3" trend="en cours" positive={false} />
           </div>
-          <div className="fbp-scrollbar max-h-32 overflow-y-auto rounded-xl border border-black/5 bg-[#F8FAFC] p-2">
+          <div className="fbp-scrollbar max-h-32 overflow-y-auto rounded-xl border border-black/5 bg-[#F5F5F5] p-2">
             <div className="space-y-1.5">
               {[
                 { tag: "Ambiance top", who: "Table 14", t: "Il y a 12s" },
@@ -826,7 +826,7 @@ function DashboardMockup() {
                   className="flex items-center justify-between rounded-md bg-white px-2 py-1.5 text-[10px]"
                 >
                   <div className="flex items-center gap-2">
-                    <span className="h-1.5 w-1.5 rounded-full bg-[#5257C9]" />
+                    <span className="h-1.5 w-1.5 rounded-full bg-[#003399]" />
                     <span className="font-semibold text-[#0F172A]">{f.tag}</span>
                   </div>
                   <span className="text-muted-foreground">{f.who}</span>
@@ -846,10 +846,10 @@ function PhoneMockup({
     { delay: "0s", tag: "Critique", title: "Erreur plat", sub: "Table 14 · Plat froid servi", color: "bg-red-500" },
     { delay: "1.4s", tag: "Important", title: "Service lent", sub: "Table 7 · 25 min d'attente", color: "bg-amber-500" },
     { delay: "2.8s", tag: "Positif", title: "Ambiance top", sub: "Table 3 · Coup de cœur client", color: "bg-emerald-500" },
-    { delay: "4.2s", tag: "Info", title: "Demande addition", sub: "Table 9 · Client pressé", color: "bg-[#5257C9]" },
+    { delay: "4.2s", tag: "Info", title: "Demande addition", sub: "Table 9 · Client pressé", color: "bg-[#003399]" },
   ],
   badgeLabel = "Service en salle",
-  accent = "#5257C9",
+  accent = "#003399",
 }: {
   notifications?: { delay: string; tag: string; title: string; sub: string; color: string }[]
   badgeLabel?: string
@@ -857,9 +857,9 @@ function PhoneMockup({
 }) {
   return (
     <div className="fbp-float relative mx-auto w-[260px]">
-      <div className="relative rounded-[2.5rem] border-[10px] border-[#0F172A] bg-[#0F172A] shadow-2xl shadow-[#5257C9]/20">
+      <div className="relative rounded-[2.5rem] border-[10px] border-[#0F172A] bg-[#0F172A] shadow-2xl shadow-[#003399]/20">
         <div className="absolute left-1/2 top-2 z-10 h-5 w-20 -translate-x-1/2 rounded-full bg-[#0F172A]" />
-        <div className="relative h-[480px] overflow-hidden rounded-[1.8rem] bg-gradient-to-br from-[#F8FAFC] to-[#E2E8F0]">
+        <div className="relative h-[480px] overflow-hidden rounded-[1.8rem] bg-gradient-to-br from-[#F5F5F5] to-[#E2E8F0]">
           {/* status bar */}
           <div className="flex items-center justify-between px-4 pb-2 pt-9 text-[10px] font-semibold text-[#0F172A]/60">
             <span>14:32</span>
@@ -891,7 +891,7 @@ function PhoneMockup({
           {/* mic bar bottom */}
           <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-[#0F172A] px-3 py-1.5">
             <Mic className="h-3 w-3 text-[#06B6D4]" />
-            <SoundWave bars={14} barClassName="from-[#5257C9] to-[#06B6D4] h-3 w-[2px]" />
+            <SoundWave bars={14} barClassName="from-[#003399] to-[#06B6D4] h-3 w-[2px]" />
           </div>
         </div>
       </div>
@@ -1001,8 +1001,8 @@ function TerminalMapMockup() {
 
 function CentralDashboardMockup() {
   return (
-    <div className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-2xl shadow-[#5257C9]/10">
-      <div className="flex items-center gap-2 border-b border-black/5 bg-[#F8FAFC] px-4 py-3">
+    <div className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-2xl shadow-[#003399]/10">
+      <div className="flex items-center gap-2 border-b border-black/5 bg-[#F5F5F5] px-4 py-3">
         <div className="h-3 w-3 rounded-full bg-red-400" />
         <div className="h-3 w-3 rounded-full bg-amber-400" />
         <div className="h-3 w-3 rounded-full bg-emerald-400" />
@@ -1016,9 +1016,9 @@ function CentralDashboardMockup() {
       </div>
       <div className="grid gap-4 p-4 sm:p-5 md:grid-cols-3">
         {/* Incidents list */}
-        <div className="md:col-span-2 rounded-xl border border-black/5 bg-[#F8FAFC] p-4">
+        <div className="md:col-span-2 rounded-xl border border-black/5 bg-[#F5F5F5] p-4">
           <div className="mb-3 flex items-center justify-between">
-            <div className="text-[10px] font-semibold uppercase tracking-widest text-[#5257C9]">
+            <div className="text-[10px] font-semibold uppercase tracking-widest text-[#003399]">
               Incidents actifs
             </div>
             <div className="text-[10px] text-muted-foreground">12 aujourd&apos;hui</div>
@@ -1052,7 +1052,7 @@ function CentralDashboardMockup() {
                     {inc.by} · {inc.time}
                   </div>
                 </div>
-                <div className="shrink-0 rounded-full bg-[#5257C9]/8 px-2 py-0.5 text-[9px] font-semibold text-[#5257C9]">
+                <div className="shrink-0 rounded-full bg-[#003399]/8 px-2 py-0.5 text-[9px] font-semibold text-[#003399]">
                   {inc.st}
                 </div>
               </div>
@@ -1068,7 +1068,7 @@ function CentralDashboardMockup() {
             <div className="mt-2 space-y-1.5">
               {[
                 { n: "Nettoyage T2", s: 92, c: "bg-emerald-500" },
-                { n: "Sécurité", s: 88, c: "bg-[#5257C9]" },
+                { n: "Sécurité", s: 88, c: "bg-[#003399]" },
                 { n: "Maintenance", s: 76, c: "bg-amber-500" },
               ].map((t, i) => (
                 <div key={i}>
@@ -1097,7 +1097,7 @@ function CentralDashboardMockup() {
             <div className="mt-2 flex h-10 items-end gap-1">
               <SoundWave
                 bars={22}
-                barClassName="from-[#5257C9] to-[#06B6D4] w-[2px]"
+                barClassName="from-[#003399] to-[#06B6D4] w-[2px]"
               />
             </div>
           </div>
@@ -1113,13 +1113,13 @@ function DeniseLiveCard({ dark = false }: { dark?: boolean }) {
       className={`relative overflow-hidden rounded-2xl border p-6 ${
         dark
           ? "border-white/10 bg-white/5 backdrop-blur-xl"
-          : "border-black/5 bg-white shadow-2xl shadow-[#5257C9]/10"
+          : "border-black/5 bg-white shadow-2xl shadow-[#003399]/10"
       }`}
     >
       <div className="flex items-center justify-between">
         <div
           className={`flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest ${
-            dark ? "text-[#06B6D4]" : "text-[#5257C9]"
+            dark ? "text-[#06B6D4]" : "text-[#003399]"
           }`}
         >
           <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#06B6D4]" />
@@ -1133,12 +1133,12 @@ function DeniseLiveCard({ dark = false }: { dark?: boolean }) {
       {/* wave */}
       <div
         className={`mt-5 flex h-24 items-center justify-center gap-1 rounded-xl ${
-          dark ? "bg-white/5" : "bg-[#F8FAFC]"
+          dark ? "bg-white/5" : "bg-[#F5F5F5]"
         }`}
       >
         <SoundWave
           bars={28}
-          barClassName="from-[#5257C9] to-[#06B6D4] w-1"
+          barClassName="from-[#003399] to-[#06B6D4] w-1"
         />
       </div>
 
@@ -1162,7 +1162,7 @@ function DeniseLiveCard({ dark = false }: { dark?: boolean }) {
       <div className="mt-4 grid grid-cols-3 gap-2">
         <div
           className={`rounded-lg p-2 text-center ${
-            dark ? "bg-white/5" : "bg-[#F8FAFC]"
+            dark ? "bg-white/5" : "bg-[#F5F5F5]"
           }`}
         >
           <div
@@ -1174,12 +1174,12 @@ function DeniseLiveCard({ dark = false }: { dark?: boolean }) {
           </div>
           <div className="mt-1 flex items-center justify-center gap-1">
             <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#06B6D4]" />
-            <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#5257C9]" style={{ animationDelay: "0.3s" }} />
+            <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#003399]" style={{ animationDelay: "0.3s" }} />
           </div>
         </div>
         <div
           className={`rounded-lg p-2 text-center ${
-            dark ? "bg-white/5" : "bg-[#F8FAFC]"
+            dark ? "bg-white/5" : "bg-[#F5F5F5]"
           }`}
         >
           <div
@@ -1189,13 +1189,13 @@ function DeniseLiveCard({ dark = false }: { dark?: boolean }) {
           >
             Zone
           </div>
-          <div className="mt-1 flex items-center justify-center gap-1 text-xs font-bold text-[#5257C9]">
+          <div className="mt-1 flex items-center justify-center gap-1 text-xs font-bold text-[#003399]">
             <MapPin className="h-3 w-3" /> T2 · F
           </div>
         </div>
         <div
           className={`rounded-lg p-2 text-center ${
-            dark ? "bg-white/5" : "bg-[#F8FAFC]"
+            dark ? "bg-white/5" : "bg-[#F5F5F5]"
           }`}
         >
           <div
@@ -1288,7 +1288,7 @@ function HousekeepingBoard() {
         {rooms.map((r, i) => (
           <div
             key={i}
-            className="rounded-xl border border-black/5 bg-[#F8FAFC] p-3"
+            className="rounded-xl border border-black/5 bg-[#F5F5F5] p-3"
           >
             <div className="flex items-center justify-between">
               <span className="text-sm font-bold text-[#0F172A]">
@@ -1396,7 +1396,7 @@ function PatientFlowBoard() {
           return (
             <div
               key={i}
-              className="rounded-xl border border-black/5 bg-[#F8FAFC] p-3"
+              className="rounded-xl border border-black/5 bg-[#F5F5F5] p-3"
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
@@ -1459,7 +1459,7 @@ function MaintenanceBoard() {
         {tickets.map((t, i) => (
           <div
             key={i}
-            className="flex items-center gap-3 rounded-lg border border-black/5 bg-[#F8FAFC] p-2.5"
+            className="flex items-center gap-3 rounded-lg border border-black/5 bg-[#F5F5F5] p-2.5"
           >
             <span className={`h-2 w-2 shrink-0 rounded-full ${t.c}`} />
             <div className="min-w-0 flex-1">
@@ -1535,12 +1535,12 @@ function TagsGrid({
             className={`mt-12 mx-auto max-w-2xl rounded-2xl border p-6 shadow-lg ${
               dark
                 ? "border-white/10 bg-white/5 backdrop-blur-xl"
-                : "border-[#5257C9]/10 bg-white shadow-[#5257C9]/5"
+                : "border-[#003399]/10 bg-white shadow-[#003399]/5"
             }`}
           >
             <div
               className={`flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest ${
-                dark ? "text-[#06B6D4]" : "text-[#5257C9]"
+                dark ? "text-[#06B6D4]" : "text-[#003399]"
               }`}
             >
               <Activity className="h-3 w-3" /> Vue patterns · 30 derniers jours
@@ -1550,7 +1550,7 @@ function TagsGrid({
                 <div
                   key={i}
                   className={`rounded-xl p-3 ${
-                    dark ? "bg-white/5" : "bg-[#F8FAFC]"
+                    dark ? "bg-white/5" : "bg-[#F5F5F5]"
                   }`}
                 >
                   <div className="flex items-center gap-2">
@@ -1594,7 +1594,7 @@ function AccueilPage({
   return (
     <>
       {/* HERO */}
-      <section className="relative min-h-screen overflow-hidden bg-[#F8FAFC]">
+      <section className="relative min-h-screen overflow-hidden bg-[#F5F5F5]">
         <Aurora />
         <div
           className="fbp-grid-mask fbp-grid-light pointer-events-none absolute inset-0"
@@ -1603,15 +1603,15 @@ function AccueilPage({
 
         <div className="relative mx-auto flex max-w-screen-2xl flex-col items-center px-4 pb-20 pt-20 text-center sm:px-6 sm:pt-28 lg:pt-32">
           <Reveal>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#5257C9]/15 bg-white/70 px-4 py-1.5 text-xs font-medium text-[#5257C9] backdrop-blur">
-              <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#7C3AED]" />
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#003399]/15 bg-white/70 px-4 py-1.5 text-xs font-medium text-[#003399] backdrop-blur">
+              <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#FCD116]" />
               Nouveau · Denise, votre assistante vocale temps réel
             </div>
           </Reveal>
 
           <Reveal delay={0.08}>
             <h1 className="mt-6 max-w-4xl text-5xl font-bold tracking-tighter leading-[0.95] sm:text-6xl lg:text-7xl">
-              <span className="bg-gradient-to-r from-[#5257C9] via-[#7C3AED] to-[#06B6D4] bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-[#003399] via-[#FCD116] to-[#06B6D4] bg-clip-text text-transparent">
                 L&apos;Intelligence Terrain
               </span>
               <br />
@@ -1651,11 +1651,11 @@ function AccueilPage({
               </span>
               <span className="text-muted-foreground/40">·</span>
               <span className="flex items-center gap-1">
-                <Check className="h-3 w-3 text-[#5257C9]" /> Setup en 5 min
+                <Check className="h-3 w-3 text-[#003399]" /> Setup en 5 min
               </span>
               <span className="text-muted-foreground/40">·</span>
               <span className="flex items-center gap-1">
-                <Check className="h-3 w-3 text-[#5257C9]" /> Sans carte bancaire
+                <Check className="h-3 w-3 text-[#003399]" /> Sans carte bancaire
               </span>
             </div>
           </Reveal>
@@ -1672,7 +1672,7 @@ function AccueilPage({
         <div className="mx-auto max-w-screen-2xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <Reveal>
-              <div className="text-xs font-semibold uppercase tracking-widest text-[#5257C9]">
+              <div className="text-xs font-semibold uppercase tracking-widest text-[#003399]">
                 Un moteur, tous vos terrains
               </div>
             </Reveal>
@@ -1724,7 +1724,7 @@ function AccueilPage({
       <section className="relative overflow-hidden bg-[#0F172A] py-24 text-white sm:py-32">
         {/* Radial indigo glow at top */}
         <div
-          className="pointer-events-none absolute -top-32 left-1/2 h-[40rem] w-[60rem] -translate-x-1/2 rounded-full bg-[#5257C9]/20 blur-[140px]"
+          className="pointer-events-none absolute -top-32 left-1/2 h-[40rem] w-[60rem] -translate-x-1/2 rounded-full bg-[#003399]/20 blur-[140px]"
           aria-hidden
         />
         <div className="absolute inset-0 fbp-grid-dark opacity-40" aria-hidden />
@@ -1733,7 +1733,7 @@ function AccueilPage({
           {/* Left */}
           <div className="flex flex-col justify-center">
             <Reveal>
-              <div className="text-xs font-semibold uppercase tracking-widest text-[#7C3AED]">
+              <div className="text-xs font-semibold uppercase tracking-widest text-[#FCD116]">
                 La technologie
               </div>
             </Reveal>
@@ -1743,7 +1743,7 @@ function AccueilPage({
                   Denise ne dort jamais.
                 </span>
                 <br />
-                <span className="bg-gradient-to-r from-[#5257C9] via-[#7C3AED] to-[#06B6D4] bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-[#003399] via-[#FCD116] to-[#06B6D4] bg-clip-text text-transparent">
                   Elle alerte, elle guide, elle centralise.
                 </span>
               </h2>
@@ -1781,7 +1781,7 @@ function AccueilPage({
                   <Volume2 className="h-4 w-4 text-white/50" />
                 </div>
                 <div className="mt-5 flex h-32 items-center justify-center gap-1">
-                  <SoundWave bars={20} barClassName="from-[#5257C9] to-[#06B6D4] w-1" />
+                  <SoundWave bars={20} barClassName="from-[#003399] to-[#06B6D4] w-1" />
                 </div>
                 <div className="mt-4 text-center text-[10px] text-white/40">
                   Fréquence · 16 kHz · temps réel
@@ -1789,7 +1789,7 @@ function AccueilPage({
               </div>
 
               <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-white/5 to-white/0 p-5 backdrop-blur-xl">
-                <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-[#7C3AED]">
+                <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-[#FCD116]">
                   <Mic className="h-3 w-3" /> Annonce de Denise
                 </div>
                 <p className="mt-3 text-sm leading-relaxed text-white/90">
@@ -1811,11 +1811,11 @@ function AccueilPage({
       </section>
 
       {/* SECTION PREUVE - stats génériques */}
-      <section className="bg-[#F8FAFC] py-24 sm:py-32">
+      <section className="bg-[#F5F5F5] py-24 sm:py-32">
         <div className="mx-auto max-w-screen-2xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <Reveal>
-              <div className="text-xs font-semibold uppercase tracking-widest text-[#5257C9]">
+              <div className="text-xs font-semibold uppercase tracking-widest text-[#003399]">
                 La preuve
               </div>
             </Reveal>
@@ -1841,7 +1841,7 @@ function AccueilPage({
                 icon: Eye,
               },
               {
-                stat: <span className="text-[#5257C9]">÷2</span>,
+                stat: <span className="text-[#003399]">÷2</span>,
                 label: "temps de résolution divisé par 2 avec alertes temps réel",
                 icon: Zap,
               },
@@ -1852,8 +1852,8 @@ function AccueilPage({
               },
             ].map((s, i) => (
               <Reveal key={i} delay={0.1 * i}>
-                <div className="group h-full rounded-2xl border border-black/5 bg-white p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[#5257C9]/20 hover:shadow-xl hover:shadow-[#5257C9]/10">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-[#5257C9]/10 to-[#7C3AED]/10 text-[#5257C9]">
+                <div className="group h-full rounded-2xl border border-black/5 bg-white p-6 transition-all duration-300 hover:-translate-y-1 hover:border-[#003399]/20 hover:shadow-xl hover:shadow-[#003399]/10">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-[#003399]/10 to-[#FCD116]/10 text-[#003399]">
                     <s.icon className="h-5 w-5" />
                   </div>
                   <div className="mt-5 text-5xl font-bold tracking-tighter text-[#0F172A] sm:text-6xl">
@@ -1869,7 +1869,7 @@ function AccueilPage({
 
       {/* CTA FINAL - NO pricing */}
       <section className="relative overflow-hidden">
-        <div className="relative bg-gradient-to-br from-[#5257C9] via-[#7C3AED] to-[#06B6D4] py-24 sm:py-32">
+        <div className="relative bg-gradient-to-br from-[#003399] via-[#FCD116] to-[#06B6D4] py-24 sm:py-32">
           <Aurora dark />
           <div className="relative mx-auto flex max-w-4xl flex-col items-center px-4 text-center sm:px-6">
             <Reveal>
@@ -1952,13 +1952,13 @@ const SECTORS: SectorConfig[] = [
     glowClasses: "bg-[#F59E0B]/30",
     cardTitleColor: "text-[#0F172A]",
     cardBodyColor: "text-[#0F172A]/70",
-    cardLinkColor: "text-[#5257C9]",
+    cardLinkColor: "text-[#003399]",
     dark: false,
     ctaVariant: "warm",
     heroTitle: (
       <>
         Ne laissez plus un mauvais avis{" "}
-        <span className="bg-gradient-to-r from-[#F59E0B] to-[#5257C9] bg-clip-text text-transparent">
+        <span className="bg-gradient-to-r from-[#F59E0B] to-[#003399] bg-clip-text text-transparent">
           gâcher votre service.
         </span>
       </>
@@ -2020,7 +2020,7 @@ const SECTORS: SectorConfig[] = [
         layout: "split-right",
         steps: [
           { n: "1", t: "Client signale", d: "« Erreur plat · Table 14 » via QR", icon: AlertCircle, color: "text-red-500" },
-          { n: "2", t: "Serveur reçoit l'alerte", d: "Sur sa montre ou son téléphone, en moins de 2s", icon: Phone, color: "text-[#5257C9]" },
+          { n: "2", t: "Serveur reçoit l'alerte", d: "Sur sa montre ou son téléphone, en moins de 2s", icon: Phone, color: "text-[#003399]" },
           { n: "3", t: "Intervention immédiate", d: "Le serveur intervient pendant que le client est encore à table", icon: Zap, color: "text-amber-500" },
           { n: "4", t: "Client transformé", d: "Un mécontent devient un ambassadeur", icon: Trophy, color: "text-emerald-500" },
         ],
@@ -2046,11 +2046,11 @@ const SECTORS: SectorConfig[] = [
     cardTitle: "Aéroports",
     tagline: "Sécurité, flux, réactivité ops",
     icon: Plane,
-    accentFrom: "#5257C9",
+    accentFrom: "#003399",
     accentTo: "#06B6D4",
-    iconGradient: "from-[#5257C9] to-[#06B6D4]",
+    iconGradient: "from-[#003399] to-[#06B6D4]",
     cardClasses:
-      "border-white/10 bg-gradient-to-br from-[#0F172A] via-[#1E2A4A] to-[#5257C9]/20 hover:shadow-[#5257C9]/30",
+      "border-white/10 bg-gradient-to-br from-[#0F172A] via-[#1E2A4A] to-[#003399]/20 hover:shadow-[#003399]/30",
     glowClasses: "bg-[#06B6D4]/30",
     cardTitleColor: "text-white",
     cardBodyColor: "text-white/70",
@@ -2059,7 +2059,7 @@ const SECTORS: SectorConfig[] = [
     ctaVariant: "tech",
     heroTitle: (
       <>
-        <span className="bg-gradient-to-r from-[#5257C9] via-[#7C3AED] to-[#06B6D4] bg-clip-text text-transparent">
+        <span className="bg-gradient-to-r from-[#003399] via-[#FCD116] to-[#06B6D4] bg-clip-text text-transparent">
           Maîtrisez chaque mètre carré
         </span>
         <br />
@@ -2210,7 +2210,7 @@ const SECTORS: SectorConfig[] = [
           { label: "Propreté", icon: CheckCircle2, color: "from-teal-500 to-emerald-500" },
           { label: "Bruit", icon: BellRing, color: "from-rose-500 to-pink-500" },
           { label: "Room service lent", icon: Clock, color: "from-amber-500 to-orange-500" },
-          { label: "Conciergerie", icon: ConciergeBell, color: "from-[#5257C9] to-[#7C3AED]" },
+          { label: "Conciergerie", icon: ConciergeBell, color: "from-[#003399] to-[#FCD116]" },
           { label: "Vue agréable", icon: Sparkles, color: "from-emerald-500 to-teal-500" },
         ],
         patterns: [
@@ -2231,7 +2231,7 @@ const SECTORS: SectorConfig[] = [
         steps: [
           { n: "1", t: "Guest signale", d: "« Chambre 301, draps à changer » via QR", icon: BellRing, color: "text-[#EC4899]" },
           { n: "2", t: "Denise priorise", d: "Urgent vs à-faire, attribution automatique à l'étage", icon: Sparkles, color: "text-[#8B5CF6]" },
-          { n: "3", t: "Femme de chambre notifiée", d: "Sur son téléphone, avec le n° de chambre et le besoin", icon: Phone, color: "text-[#5257C9]" },
+          { n: "3", t: "Femme de chambre notifiée", d: "Sur son téléphone, avec le n° de chambre et le besoin", icon: Phone, color: "text-[#003399]" },
           { n: "4", t: "Statut synchronisé", d: "Réception et superviseur voient la chambre en temps réel", icon: CheckCircle2, color: "text-emerald-500" },
         ],
         mockup: "housekeeping",
@@ -2334,7 +2334,7 @@ const SECTORS: SectorConfig[] = [
         steps: [
           { n: "1", t: "Voyageur signale", d: "« Bus Dakar retardé » via QR quai 3", icon: Signpost, color: "text-[#06B6D4]" },
           { n: "2", t: "IA confirme", d: "Croisement avec données planning et GPS bus", icon: Activity, color: "text-[#10B981]" },
-          { n: "3", t: "Affichage MAJ", d: "Tableau info voyageurs mis à jour en <5s", icon: Megaphone, color: "text-[#5257C9]" },
+          { n: "3", t: "Affichage MAJ", d: "Tableau info voyageurs mis à jour en <5s", icon: Megaphone, color: "text-[#003399]" },
           { n: "4", t: "Denise annonce", d: "Vocale sur le quai : « Retard 20min, voie 3. »", icon: Volume2, color: "text-[#06B6D4]" },
         ],
         mockup: "infovoyageurs",
@@ -2412,7 +2412,7 @@ const SECTORS: SectorConfig[] = [
           { label: "Attente excessive", icon: Clock, color: "from-red-500 to-rose-500" },
           { label: "Hygiène", icon: CheckCircle2, color: "from-teal-500 to-emerald-500" },
           { label: "Équipement HS", icon: Wrench, color: "from-amber-500 to-orange-500" },
-          { label: "Accueil", icon: ConciergeBell, color: "from-[#5257C9] to-[#7C3AED]" },
+          { label: "Accueil", icon: ConciergeBell, color: "from-[#003399] to-[#FCD116]" },
           { label: "Wi-Fi", icon: Wifi, color: "from-violet-500 to-purple-500" },
           { label: "Clim", icon: AirVent, color: "from-cyan-500 to-blue-500" },
           { label: "Info manquante", icon: Info, color: "from-amber-500 to-orange-500" },
@@ -2422,7 +2422,7 @@ const SECTORS: SectorConfig[] = [
           { l: "Attente excessive", v: "38%", c: "bg-red-500" },
           { l: "Hygiène", v: "12%", c: "bg-emerald-500" },
           { l: "Équipement HS", v: "9%", c: "bg-amber-500" },
-          { l: "Accueil", v: "17%", c: "bg-[#5257C9]" },
+          { l: "Accueil", v: "17%", c: "bg-[#003399]" },
         ],
         bg: "light",
       },
@@ -2517,7 +2517,7 @@ const SECTORS: SectorConfig[] = [
           { label: "Guichet fermé", icon: AlertCircle, color: "from-amber-500 to-orange-500" },
           { label: "Écran info HS", icon: AlertCircle, color: "from-red-500 to-rose-500" },
           { label: "Propreté", icon: CheckCircle2, color: "from-teal-500 to-emerald-500" },
-          { label: "Accessibilité", icon: Footprints, color: "from-[#5257C9] to-[#7C3AED]" },
+          { label: "Accessibilité", icon: Footprints, color: "from-[#003399] to-[#FCD116]" },
           { label: "Ascenseur HS", icon: Wrench, color: "from-red-500 to-rose-500" },
           { label: "Accueil pro", icon: ConciergeBell, color: "from-emerald-500 to-teal-500" },
         ],
@@ -2525,7 +2525,7 @@ const SECTORS: SectorConfig[] = [
           { l: "File longue", v: "26%", c: "bg-amber-500" },
           { l: "Borne HS", v: "11%", c: "bg-red-500" },
           { l: "Guichet fermé", v: "9%", c: "bg-amber-500" },
-          { l: "Accessibilité", v: "5%", c: "bg-[#5257C9]" },
+          { l: "Accessibilité", v: "5%", c: "bg-[#003399]" },
         ],
         bg: "light",
       },
@@ -2539,7 +2539,7 @@ const SECTORS: SectorConfig[] = [
         steps: [
           { n: "1", t: "Usager signale", d: "« Borne interactive HS » via QR hall principal", icon: AlertCircle, color: "text-red-500" },
           { n: "2", t: "IA priorise", d: "Critique vs planifié, attribution au technicien de garde", icon: Sparkles, color: "text-[#10B981]" },
-          { n: "3", t: "Technicien notifié", d: "Sur son téléphone, avec localisation et contexte", icon: Phone, color: "text-[#5257C9]" },
+          { n: "3", t: "Technicien notifié", d: "Sur son téléphone, avec localisation et contexte", icon: Phone, color: "text-[#003399]" },
           { n: "4", t: "Résolution tracée", d: "Statut synchronisé au superviseur et au responsable", icon: CheckCircle2, color: "text-emerald-500" },
         ],
         mockup: "maintenanceboard",
@@ -2577,7 +2577,7 @@ function SectorPage({
       {/* HERO */}
       <section
         className={`relative flex min-h-[60vh] items-center overflow-hidden ${
-          dark ? "bg-[#0F172A] text-white" : "bg-[#F8FAFC]"
+          dark ? "bg-[#0F172A] text-white" : "bg-[#F5F5F5]"
         }`}
       >
         <Aurora dark={dark} />
@@ -2672,7 +2672,7 @@ function AdvantageSection({
     adv.bg === "dark"
       ? "bg-[#0F172A] text-white"
       : adv.bg === "light"
-        ? "bg-[#F8FAFC]"
+        ? "bg-[#F5F5F5]"
         : "bg-white"
 
   if (adv.layout === "centered-tags") {
@@ -2680,7 +2680,7 @@ function AdvantageSection({
       <section className={`relative py-24 sm:py-28 ${bgClass}`}>
         {dark && (
           <div
-            className="pointer-events-none absolute top-0 left-1/2 h-[32rem] w-[50rem] -translate-x-1/2 rounded-full bg-[#7C3AED]/15 blur-[140px]"
+            className="pointer-events-none absolute top-0 left-1/2 h-[32rem] w-[50rem] -translate-x-1/2 rounded-full bg-[#FCD116]/15 blur-[140px]"
             aria-hidden
           />
         )}
@@ -2689,7 +2689,7 @@ function AdvantageSection({
             <Reveal>
               <div
                 className={`flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-widest ${
-                  dark ? "text-[#06B6D4]" : "text-[#5257C9]"
+                  dark ? "text-[#06B6D4]" : "text-[#003399]"
                 }`}
               >
                 <adv.icon className="h-3 w-3" /> {adv.num}
@@ -2729,7 +2729,7 @@ function AdvantageSection({
     <section className={`relative py-24 sm:py-28 ${bgClass}`}>
       {dark && (
         <div
-          className="pointer-events-none absolute top-0 left-1/2 h-[32rem] w-[50rem] -translate-x-1/2 rounded-full bg-[#5257C9]/15 blur-[140px]"
+          className="pointer-events-none absolute top-0 left-1/2 h-[32rem] w-[50rem] -translate-x-1/2 rounded-full bg-[#003399]/15 blur-[140px]"
           aria-hidden
         />
       )}
@@ -2747,7 +2747,7 @@ function AdvantageSection({
           <Reveal>
             <div
               className={`flex items-center gap-2 text-xs font-semibold uppercase tracking-widest ${
-                dark ? "text-[#06B6D4]" : "text-[#5257C9]"
+                dark ? "text-[#06B6D4]" : "text-[#003399]"
               }`}
             >
               <adv.icon className="h-3 w-3" /> {adv.num}
@@ -2802,7 +2802,7 @@ function AdvantageSection({
                     className={`flex items-start gap-4 rounded-xl border p-4 ${
                       dark
                         ? "border-white/10 bg-white/5"
-                        : "border-black/5 bg-[#F8FAFC]"
+                        : "border-black/5 bg-[#F5F5F5]"
                     }`}
                   >
                     <div
@@ -2862,8 +2862,8 @@ function AdvantageMockup({
           // accent is carried by the inline-style glow + accent-colored title.
           bgGradient={
             sector.dark
-              ? "from-[#0F172A] via-[#1E2A4A] to-[#5257C9]/20"
-              : "from-[#F8FAFC] via-white to-slate-100"
+              ? "from-[#0F172A] via-[#1E2A4A] to-[#003399]/20"
+              : "from-[#F5F5F5] via-white to-slate-100"
           }
           accentColor={sector.accentFrom}
         />
@@ -2930,7 +2930,7 @@ function DeniseQuoteSection({ sector }: { sector: SectorConfig }) {
 
 function TestimonialSection({ sector }: { sector: SectorConfig }) {
   return (
-    <section className="bg-[#F8FAFC] py-24 sm:py-28">
+    <section className="bg-[#F5F5F5] py-24 sm:py-28">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         <Reveal>
           <div className="relative overflow-hidden rounded-3xl border border-black/5 bg-white p-8 shadow-xl sm:p-12">
@@ -3040,7 +3040,7 @@ function AproposPage() {
   return (
     <>
       {/* HERO */}
-      <section className="bg-[#F8FAFC] py-24 sm:py-28">
+      <section className="bg-[#F5F5F5] py-24 sm:py-28">
         <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
           <Reveal>
             <div className="w-fit mx-auto rounded-xl bg-white px-4 py-2 shadow-lg">
@@ -3050,7 +3050,7 @@ function AproposPage() {
           <Reveal delay={0.08}>
             <h1 className="mt-6 text-4xl font-bold tracking-tighter text-[#0F172A] sm:text-5xl">
               Redonner du{" "}
-              <span className="bg-gradient-to-r from-[#5257C9] to-[#7C3AED] bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-[#003399] to-[#FCD116] bg-clip-text text-transparent">
                 pouvoir d&apos;agir
               </span>{" "}
               au terrain.
@@ -3071,7 +3071,7 @@ function AproposPage() {
         <div className="mx-auto grid max-w-screen-2xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-8">
           <div>
             <Reveal>
-              <div className="text-xs font-semibold uppercase tracking-widest text-[#5257C9]">
+              <div className="text-xs font-semibold uppercase tracking-widest text-[#003399]">
                 L&apos;histoire
               </div>
             </Reveal>
@@ -3105,8 +3105,8 @@ function AproposPage() {
               {/* Denise avatar */}
               <div className="relative flex items-center justify-center">
                 <div className="relative">
-                  <span className="fbp-ring-pulse absolute inset-0 rounded-full bg-[#7C3AED]/40" />
-                  <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-[#5257C9] to-[#7C3AED] shadow-2xl">
+                  <span className="fbp-ring-pulse absolute inset-0 rounded-full bg-[#FCD116]/40" />
+                  <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-[#003399] to-[#FCD116] shadow-2xl">
                     <Volume2 className="h-10 w-10 text-white" />
                   </div>
                 </div>
@@ -3116,7 +3116,7 @@ function AproposPage() {
                   Denise · Assistante vocale
                 </div>
                 <div className="mt-4 flex h-16 items-center justify-center gap-1">
-                  <SoundWave bars={22} barClassName="from-[#5257C9] to-[#06B6D4] w-1" />
+                  <SoundWave bars={22} barClassName="from-[#003399] to-[#06B6D4] w-1" />
                 </div>
                 <p className="mt-4 text-sm text-white/80">
                   « Bonjour. Je veille sur votre établissement. Dites-moi ce qui
@@ -3129,11 +3129,11 @@ function AproposPage() {
       </section>
 
       {/* MULTI-SECTEURS */}
-      <section className="bg-[#F8FAFC] py-24 sm:py-28">
+      <section className="bg-[#F5F5F5] py-24 sm:py-28">
         <div className="mx-auto max-w-screen-2xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <Reveal>
-              <div className="text-xs font-semibold uppercase tracking-widest text-[#5257C9]">
+              <div className="text-xs font-semibold uppercase tracking-widest text-[#003399]">
                 Un moteur, six terrains
               </div>
             </Reveal>
@@ -3180,7 +3180,7 @@ function AproposPage() {
         <div className="mx-auto max-w-screen-2xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <Reveal>
-              <div className="text-xs font-semibold uppercase tracking-widest text-[#5257C9]">
+              <div className="text-xs font-semibold uppercase tracking-widest text-[#003399]">
                 L&apos;équipe
               </div>
             </Reveal>
@@ -3198,21 +3198,21 @@ function AproposPage() {
                 name: "Alexandre Roy",
                 role: "CEO & Co-fondateur",
                 bio: "15 ans dans l'hôtellerie-restauration. A vu trop de mauvaises expériences devenir des avis publics. A décidé d'agir en amont.",
-                color: "from-[#5257C9] to-[#7C3AED]",
+                color: "from-[#003399] to-[#FCD116]",
               },
               {
                 initials: "SK",
                 name: "Sofia Kone",
                 role: "CTO & Co-fondatrice",
                 bio: "Ingénieure IA. A conçu Denise pour qu'elle parle comme une collègue, pas comme un robot. Obsédée par la latence et la clarté.",
-                color: "from-[#06B6D4] to-[#5257C9]",
+                color: "from-[#06B6D4] to-[#003399]",
               },
               {
                 initials: "JD",
                 name: "Julien Diaz",
                 role: "Head of Ops Multi-Secteurs",
                 bio: "Ex-responsable opérations dans un grand aéroport européen. Connaît chaque mètre carré d'un terminal — et chaque douleur associée.",
-                color: "from-[#7C3AED] to-[#06B6D4]",
+                color: "from-[#FCD116] to-[#06B6D4]",
               },
             ].map((m, i) => (
               <Reveal key={i} delay={0.1 * i}>
@@ -3225,7 +3225,7 @@ function AproposPage() {
                   <h3 className="mt-4 text-lg font-bold text-[#0F172A]">
                     {m.name}
                   </h3>
-                  <div className="text-xs font-semibold uppercase tracking-widest text-[#5257C9]">
+                  <div className="text-xs font-semibold uppercase tracking-widest text-[#003399]">
                     {m.role}
                   </div>
                   <p className="mt-3 text-sm text-muted-foreground">{m.bio}</p>
@@ -3237,11 +3237,11 @@ function AproposPage() {
       </section>
 
       {/* VALEURS */}
-      <section className="bg-[#F8FAFC] py-24 sm:py-28">
+      <section className="bg-[#F5F5F5] py-24 sm:py-28">
         <div className="mx-auto max-w-screen-2xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <Reveal>
-              <div className="text-xs font-semibold uppercase tracking-widest text-[#5257C9]">
+              <div className="text-xs font-semibold uppercase tracking-widest text-[#003399]">
                 Nos valeurs
               </div>
             </Reveal>
@@ -3271,8 +3271,8 @@ function AproposPage() {
               },
             ].map((v, i) => (
               <Reveal key={i} delay={0.1 * i}>
-                <div className="h-full rounded-2xl border border-[#5257C9]/10 bg-gradient-to-br from-[#F8FAFC] to-white p-6">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#5257C9] to-[#7C3AED] text-white shadow-lg shadow-[#5257C9]/25">
+                <div className="h-full rounded-2xl border border-[#003399]/10 bg-gradient-to-br from-[#F5F5F5] to-white p-6">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#003399] to-[#FCD116] text-white shadow-lg shadow-[#003399]/25">
                     <v.icon className="h-5 w-5" />
                   </div>
                   <h3 className="mt-4 text-lg font-bold text-[#0F172A]">
@@ -3325,17 +3325,17 @@ function ContactPage() {
   return (
     <>
       {/* HERO */}
-      <section className="bg-[#F8FAFC] py-24 sm:py-28">
+      <section className="bg-[#F5F5F5] py-24 sm:py-28">
         <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
           <Reveal>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[#5257C9]/15 bg-white/70 px-4 py-1.5 text-xs font-medium text-[#5257C9] backdrop-blur">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#003399]/15 bg-white/70 px-4 py-1.5 text-xs font-medium text-[#003399] backdrop-blur">
               <Mail className="h-3 w-3" /> Contact
             </div>
           </Reveal>
           <Reveal delay={0.08}>
             <h1 className="mt-5 text-4xl font-bold tracking-tighter text-[#0F172A] sm:text-5xl">
               Parlez-nous de votre{" "}
-              <span className="bg-gradient-to-r from-[#5257C9] to-[#7C3AED] bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-[#003399] to-[#FCD116] bg-clip-text text-transparent">
                 établissement.
               </span>
             </h1>
@@ -3349,7 +3349,7 @@ function ContactPage() {
       </section>
 
       {/* COORDONNÉES + CARTE */}
-      <section className="bg-[#F8FAFC] pb-12">
+      <section className="bg-[#F5F5F5] pb-12">
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
           <Reveal>
             <div className="grid gap-6 lg:grid-cols-2">
@@ -3358,8 +3358,8 @@ function ContactPage() {
                 <h2 className="text-lg font-bold text-[#0F172A]">Nos coordonnées</h2>
                 <div className="mt-4 space-y-4">
                   <div className="flex items-start gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#5257C9]/10">
-                      <MapPin className="h-5 w-5 text-[#5257C9]" />
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#003399]/10">
+                      <MapPin className="h-5 w-5 text-[#003399]" />
                     </div>
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Adresse</p>
@@ -3369,23 +3369,23 @@ function ContactPage() {
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#5257C9]/10">
-                      <Mail className="h-5 w-5 text-[#5257C9]" />
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#003399]/10">
+                      <Mail className="h-5 w-5 text-[#003399]" />
                     </div>
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Email</p>
-                      <a href="mailto:contact@2mails.pro" className="text-sm font-medium text-[#5257C9] hover:underline">
+                      <a href="mailto:contact@2mails.pro" className="text-sm font-medium text-[#003399] hover:underline">
                         contact@2mails.pro
                       </a>
                     </div>
                   </div>
                   <div className="flex items-start gap-3">
-                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#5257C9]/10">
-                      <Phone className="h-5 w-5 text-[#5257C9]" />
+                    <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#003399]/10">
+                      <Phone className="h-5 w-5 text-[#003399]" />
                     </div>
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Téléphone</p>
-                      <a href="tel:+221784858226" className="text-sm font-medium text-[#5257C9] hover:underline">
+                      <a href="tel:+221784858226" className="text-sm font-medium text-[#003399] hover:underline">
                         +221 78 485 82 26
                       </a>
                     </div>
@@ -3409,7 +3409,7 @@ function ContactPage() {
       </section>
 
       {/* FORM */}
-      <section className="bg-[#F8FAFC] pb-24">
+      <section className="bg-[#F5F5F5] pb-24">
         <div className="mx-auto max-w-2xl px-4 sm:px-6">
           <Reveal>
             <form
@@ -3423,7 +3423,7 @@ function ContactPage() {
                     value={formData.nom}
                     onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
                     placeholder="Marie Dupont"
-                    className="h-11 border-black/10 bg-[#F8FAFC] focus:border-[#5257C9]"
+                    className="h-11 border-black/10 bg-[#F5F5F5] focus:border-[#003399]"
                   />
                 </Field>
                 <Field label="Email">
@@ -3433,12 +3433,12 @@ function ContactPage() {
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     placeholder="marie@etablissement.com"
-                    className="h-11 border-black/10 bg-[#F8FAFC] focus:border-[#5257C9]"
+                    className="h-11 border-black/10 bg-[#F5F5F5] focus:border-[#003399]"
                   />
                 </Field>
                 <Field label="Type d'établissement">
                   <Select required value={formData.typeEtablissement} onValueChange={(v) => setFormData({ ...formData, typeEtablissement: v })}>
-                    <SelectTrigger className="h-11 border-black/10 bg-[#F8FAFC] focus:border-[#5257C9]">
+                    <SelectTrigger className="h-11 border-black/10 bg-[#F5F5F5] focus:border-[#003399]">
                       <SelectValue placeholder="Sélectionnez" />
                     </SelectTrigger>
                     <SelectContent>
@@ -3457,12 +3457,12 @@ function ContactPage() {
                     value={formData.volume}
                     onChange={(e) => setFormData({ ...formData, volume: e.target.value })}
                     placeholder="Couverts / passagers / chambres / jour"
-                    className="h-11 border-black/10 bg-[#F8FAFC] focus:border-[#5257C9]"
+                    className="h-11 border-black/10 bg-[#F5F5F5] focus:border-[#003399]"
                   />
                 </Field>
                 <Field label="Défi principal" className="sm:col-span-2">
                   <Select required value={formData.defi} onValueChange={(v) => setFormData({ ...formData, defi: v })}>
-                    <SelectTrigger className="h-11 border-black/10 bg-[#F8FAFC] focus:border-[#5257C9]">
+                    <SelectTrigger className="h-11 border-black/10 bg-[#F5F5F5] focus:border-[#003399]">
                       <SelectValue placeholder="Sélectionnez votre défi" />
                     </SelectTrigger>
                     <SelectContent>
@@ -3482,7 +3482,7 @@ function ContactPage() {
                     value={formData.message}
                     onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                     placeholder="Parlez-nous de votre établissement"
-                    className="border-black/10 bg-[#F8FAFC] focus:border-[#5257C9]"
+                    className="border-black/10 bg-[#F5F5F5] focus:border-[#003399]"
                   />
                 </Field>
               </div>
@@ -3494,7 +3494,7 @@ function ContactPage() {
                 <Button
                   type="submit"
                   disabled={submitting}
-                  className="h-12 rounded-full bg-gradient-to-r from-[#5257C9] to-[#7C3AED] px-6 text-sm font-semibold text-white shadow-lg shadow-[#5257C9]/25 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-[#5257C9]/40 disabled:opacity-70"
+                  className="h-12 rounded-full bg-gradient-to-r from-[#003399] to-[#FCD116] px-6 text-sm font-semibold text-white shadow-lg shadow-[#003399]/25 transition-all hover:-translate-y-0.5 hover:shadow-xl hover:shadow-[#003399]/40 disabled:opacity-70"
                 >
                   <span className="flex items-center gap-2">
                     {submitting ? "Envoi..." : "Demander ma démo"}
@@ -3529,7 +3529,7 @@ function ContactPage() {
       {/* PROMISE */}
       <section className="px-4 pb-24 sm:px-6">
         <Reveal className="mx-auto max-w-4xl">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#5257C9] to-[#7C3AED] py-16 px-6 text-center text-white shadow-2xl shadow-[#5257C9]/30">
+          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#003399] to-[#FCD116] py-16 px-6 text-center text-white shadow-2xl shadow-[#003399]/30">
             <Aurora dark />
             <div className="relative">
               <div className="mx-auto w-fit rounded-xl bg-white px-4 py-2 shadow-lg">
@@ -3663,7 +3663,7 @@ function Footer({ navigate }: { navigate: Navigate }) {
             />
             <Button
               type="submit"
-              className="h-11 shrink-0 rounded-full bg-gradient-to-r from-[#5257C9] to-[#7C3AED] px-5 text-sm font-semibold text-white shadow-lg shadow-[#5257C9]/25"
+              className="h-11 shrink-0 rounded-full bg-gradient-to-r from-[#003399] to-[#FCD116] px-5 text-sm font-semibold text-white shadow-lg shadow-[#003399]/25"
             >
               S&apos;abonner
             </Button>

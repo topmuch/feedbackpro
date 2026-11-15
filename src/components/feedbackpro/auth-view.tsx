@@ -4,10 +4,10 @@
 // FeedbackPro — Vue Authentification (Refonte Premium)
 // ------------------------------------------------------------
 // Layout split-screen desktop :
-//   - Panneau gauche (lg+) : dégradé indigo #5257C9 → violet
-//     #7C3AED, 3 aurora blobs flous (CSS keyframes), logo blanc,
+//   - Panneau gauche (lg+) : dégradé bleu aéroport #003399 → jaune
+//     IATA #FCD116, 3 aurora blobs flous (CSS keyframes), logo blanc,
 //     tagline, témoignage glass dark, ligne de stats sociales.
-//   - Panneau droit : formulaire sur fond #F8FAFC, max-w-md,
+//   - Panneau droit : formulaire sur fond #F5F5F5, max-w-md,
 //     toggle à pastille coulissante (framer-motion layoutId)
 //     entre Connexion / Inscription.
 // Mobile : colonne unique, formulaire seul (panneau visuel caché).
@@ -114,7 +114,7 @@ type ValeursInscription = z.infer<typeof inscriptionSchema>
 
 export function AuthView() {
   return (
-    <div className="relative grid min-h-screen grid-cols-1 bg-[#F8FAFC] lg:grid-cols-2">
+    <div className="relative grid min-h-screen grid-cols-1 bg-[#F5F5F5] lg:grid-cols-2">
       <style dangerouslySetInnerHTML={{ __html: AUTH_CSS }} />
       <PanneauVisuel />
       <PanneauForm />
@@ -133,11 +133,11 @@ function PanneauVisuel() {
   return (
     <aside
       aria-hidden="true"
-      className="relative hidden overflow-hidden bg-gradient-to-br from-[#5257C9] to-[#7C3AED] lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16"
+      className="relative hidden overflow-hidden bg-gradient-to-br from-[#003399] to-[#FCD116] lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16"
     >
       {/* Aurora blobs (3, flous, loops lents) */}
       <div className="fbp-aurora1 pointer-events-none absolute -top-32 -left-24 h-[40rem] w-[40rem] rounded-full bg-white/15 blur-[120px]" />
-      <div className="fbp-aurora2 pointer-events-none absolute top-1/4 -right-32 h-[36rem] w-[36rem] rounded-full bg-[#7C3AED]/30 blur-[120px]" />
+      <div className="fbp-aurora2 pointer-events-none absolute top-1/4 -right-32 h-[36rem] w-[36rem] rounded-full bg-[#FCD116]/30 blur-[120px]" />
       <div className="fbp-aurora3 pointer-events-none absolute -bottom-32 left-1/3 h-[32rem] w-[32rem] rounded-full bg-[#06B6D4]/20 blur-[120px]" />
 
       {/* Grille subtile en arrière-plan */}
@@ -201,7 +201,7 @@ function PanneauVisuel() {
 
 // ============================================================
 // Panneau formulaire (droite, toujours visible)
-// Fond #F8FAFC, formulaire max-w-md centré verticalement.
+// Fond #F5F5F5, formulaire max-w-md centré verticalement.
 // Logo mobile en haut (lg:hidden), toggle pastille coulissante,
 // puis AnimatePresence pour le slide-in du formulaire actif.
 // ============================================================
@@ -212,14 +212,14 @@ function PanneauForm() {
   const setView = useAppStore((s) => s.setView)
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F8FAFC] px-4 py-8 sm:px-6 lg:px-8">
+    <div className="flex min-h-screen items-center justify-center bg-[#F5F5F5] px-4 py-8 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-6">
         {/* Logo mobile (panneau visuel caché sur petit écran) */}
         <div className="flex items-center justify-between lg:hidden">
           <button
             type="button"
             onClick={() => setView("landing")}
-            className="flex items-center gap-2 text-sm font-medium text-slate-500 transition-colors hover:text-[#5257C9]"
+            className="flex items-center gap-2 text-sm font-medium text-slate-500 transition-colors hover:text-[#003399]"
             aria-label="Retour à l'accueil"
           >
             <img src="/logo-feedbackpro.png" alt="FeedbackPro" className="h-9" />
@@ -227,7 +227,7 @@ function PanneauForm() {
           <button
             type="button"
             onClick={() => setView("landing")}
-            className="text-xs font-medium text-slate-400 hover:text-[#5257C9]"
+            className="text-xs font-medium text-slate-400 hover:text-[#003399]"
           >
             Accueil
           </button>
@@ -251,7 +251,7 @@ function PanneauForm() {
                 {actif && (
                   <motion.div
                     layoutId="auth-tab-pill"
-                    className="absolute inset-0 rounded-lg bg-gradient-to-r from-[#5257C9] to-[#7C3AED] shadow-lg shadow-[#5257C9]/25"
+                    className="absolute inset-0 rounded-lg bg-gradient-to-r from-[#003399] to-[#FCD116] shadow-lg shadow-[#003399]/25"
                     transition={{ type: "spring", stiffness: 380, damping: 32 }}
                   />
                 )}
@@ -397,7 +397,7 @@ function ConnexionForm() {
             autoComplete="email"
             aria-invalid={!!errors.email}
             {...register("email")}
-            className="h-12 rounded-xl border-2 border-slate-200 bg-white pl-11 pr-4 text-slate-900 placeholder:text-slate-400 focus-visible:border-[#5257C9] focus-visible:ring-2 focus-visible:ring-[#5257C9]/20"
+            className="h-12 rounded-xl border-2 border-slate-200 bg-white pl-11 pr-4 text-slate-900 placeholder:text-slate-400 focus-visible:border-[#003399] focus-visible:ring-2 focus-visible:ring-[#003399]/20"
           />
         </div>
         <ErreurChamp message={errors.email?.message} />
@@ -420,7 +420,7 @@ function ConnexionForm() {
             autoComplete="current-password"
             aria-invalid={!!errors.password}
             {...register("password")}
-            className="h-12 rounded-xl border-2 border-slate-200 bg-white pl-11 pr-11 text-slate-900 placeholder:text-slate-400 focus-visible:border-[#5257C9] focus-visible:ring-2 focus-visible:ring-[#5257C9]/20"
+            className="h-12 rounded-xl border-2 border-slate-200 bg-white pl-11 pr-11 text-slate-900 placeholder:text-slate-400 focus-visible:border-[#003399] focus-visible:ring-2 focus-visible:ring-[#003399]/20"
           />
           <button
             type="button"
@@ -440,7 +440,7 @@ function ConnexionForm() {
       <button
         type="submit"
         disabled={isSubmitting || !!demoLoading}
-        className="fbp-shimmer flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#5257C9] to-[#7C3AED] px-4 py-3.5 text-base font-semibold text-white shadow-lg shadow-[#5257C9]/25 transition-all hover:scale-[1.02] hover:shadow-xl hover:shadow-[#5257C9]/35 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100"
+        className="fbp-shimmer flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#003399] to-[#FCD116] px-4 py-3.5 text-base font-semibold text-white shadow-lg shadow-[#003399]/25 transition-all hover:scale-[1.02] hover:shadow-xl hover:shadow-[#003399]/35 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100"
       >
         {isSubmitting ? (
           <>
@@ -459,7 +459,7 @@ function ConnexionForm() {
       <p className="text-center">
         <a
           href="mailto:support@feedbackpro.fr?subject=Mot%20de%20passe%20oubli%C3%A9"
-          className="text-sm font-medium text-slate-500 transition-colors hover:text-[#5257C9] hover:underline"
+          className="text-sm font-medium text-slate-500 transition-colors hover:text-[#003399] hover:underline"
         >
           Mot de passe oublié ?
         </a>
@@ -471,7 +471,7 @@ function ConnexionForm() {
           <div className="w-full border-t border-slate-200" />
         </div>
         <div className="relative flex justify-center">
-          <span className="bg-[#F8FAFC] px-3 text-xs font-medium uppercase tracking-wide text-slate-400">
+          <span className="bg-[#F5F5F5] px-3 text-xs font-medium uppercase tracking-wide text-slate-400">
             ou
           </span>
         </div>
@@ -483,12 +483,12 @@ function ConnexionForm() {
           type="button"
           onClick={() => demoRapide("pro")}
           disabled={!!demoLoading || isSubmitting}
-          className="flex items-center justify-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 transition-all hover:border-[#5257C9]/40 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex items-center justify-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 transition-all hover:border-[#003399]/40 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {demoLoading === "pro" ? (
-            <Loader2 className="h-4 w-4 animate-spin text-[#5257C9]" aria-hidden />
+            <Loader2 className="h-4 w-4 animate-spin text-[#003399]" aria-hidden />
           ) : (
-            <Building2 className="h-4 w-4 text-[#5257C9]" aria-hidden />
+            <Building2 className="h-4 w-4 text-[#003399]" aria-hidden />
           )}
           Démo Restaurant
         </button>
@@ -496,12 +496,12 @@ function ConnexionForm() {
           type="button"
           onClick={() => demoRapide("admin")}
           disabled={!!demoLoading || isSubmitting}
-          className="flex items-center justify-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 transition-all hover:border-[#7C3AED]/40 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
+          className="flex items-center justify-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 transition-all hover:border-[#FCD116]/40 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {demoLoading === "admin" ? (
-            <Loader2 className="h-4 w-4 animate-spin text-[#7C3AED]" aria-hidden />
+            <Loader2 className="h-4 w-4 animate-spin text-[#FCD116]" aria-hidden />
           ) : (
-            <Sparkles className="h-4 w-4 text-[#7C3AED]" aria-hidden />
+            <Sparkles className="h-4 w-4 text-[#FCD116]" aria-hidden />
           )}
           Démo Admin
         </button>
@@ -513,7 +513,7 @@ function ConnexionForm() {
         <button
           type="button"
           onClick={() => setAuthMode("signup")}
-          className="font-semibold text-[#5257C9] transition-colors hover:underline"
+          className="font-semibold text-[#003399] transition-colors hover:underline"
         >
           S&apos;inscrire
         </button>
@@ -625,7 +625,7 @@ function InscriptionForm() {
             autoComplete="organization"
             aria-invalid={!!errors.nomEtablissement}
             {...register("nomEtablissement")}
-            className="h-12 rounded-xl border-2 border-slate-200 bg-white pl-11 pr-4 text-slate-900 placeholder:text-slate-400 focus-visible:border-[#5257C9] focus-visible:ring-2 focus-visible:ring-[#5257C9]/20"
+            className="h-12 rounded-xl border-2 border-slate-200 bg-white pl-11 pr-4 text-slate-900 placeholder:text-slate-400 focus-visible:border-[#003399] focus-visible:ring-2 focus-visible:ring-[#003399]/20"
           />
         </div>
         <ErreurChamp message={errors.nomEtablissement?.message} />
@@ -649,7 +649,7 @@ function InscriptionForm() {
             autoComplete="email"
             aria-invalid={!!errors.email}
             {...register("email")}
-            className="h-12 rounded-xl border-2 border-slate-200 bg-white pl-11 pr-4 text-slate-900 placeholder:text-slate-400 focus-visible:border-[#5257C9] focus-visible:ring-2 focus-visible:ring-[#5257C9]/20"
+            className="h-12 rounded-xl border-2 border-slate-200 bg-white pl-11 pr-4 text-slate-900 placeholder:text-slate-400 focus-visible:border-[#003399] focus-visible:ring-2 focus-visible:ring-[#003399]/20"
           />
         </div>
         <ErreurChamp message={errors.email?.message} />
@@ -672,7 +672,7 @@ function InscriptionForm() {
             autoComplete="new-password"
             aria-invalid={!!errors.password}
             {...register("password")}
-            className="h-12 rounded-xl border-2 border-slate-200 bg-white pl-11 pr-11 text-slate-900 placeholder:text-slate-400 focus-visible:border-[#5257C9] focus-visible:ring-2 focus-visible:ring-[#5257C9]/20"
+            className="h-12 rounded-xl border-2 border-slate-200 bg-white pl-11 pr-11 text-slate-900 placeholder:text-slate-400 focus-visible:border-[#003399] focus-visible:ring-2 focus-visible:ring-[#003399]/20"
           />
           <button
             type="button"
@@ -700,7 +700,7 @@ function InscriptionForm() {
             id="secteur"
             aria-invalid={!!errors.secteur}
             {...register("secteur")}
-            className="flex h-12 w-full appearance-none rounded-xl border-2 border-slate-200 bg-white pl-11 pr-10 text-slate-900 transition-colors focus:border-[#5257C9] focus:outline-none focus:ring-2 focus:ring-[#5257C9]/20"
+            className="flex h-12 w-full appearance-none rounded-xl border-2 border-slate-200 bg-white pl-11 pr-10 text-slate-900 transition-colors focus:border-[#003399] focus:outline-none focus:ring-2 focus:ring-[#003399]/20"
             defaultValue=""
           >
             <option value="" disabled>
@@ -735,7 +735,7 @@ function InscriptionForm() {
       <button
         type="submit"
         disabled={isSubmitting}
-        className="fbp-shimmer flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#5257C9] to-[#7C3AED] px-4 py-3.5 text-base font-semibold text-white shadow-lg shadow-[#5257C9]/25 transition-all hover:scale-[1.02] hover:shadow-xl hover:shadow-[#5257C9]/35 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100"
+        className="fbp-shimmer flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#003399] to-[#FCD116] px-4 py-3.5 text-base font-semibold text-white shadow-lg shadow-[#003399]/25 transition-all hover:scale-[1.02] hover:shadow-xl hover:shadow-[#003399]/35 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100"
       >
         {isSubmitting ? (
           <>
@@ -756,7 +756,7 @@ function InscriptionForm() {
         <button
           type="button"
           onClick={() => setAuthMode("login")}
-          className="font-semibold text-[#5257C9] transition-colors hover:underline"
+          className="font-semibold text-[#003399] transition-colors hover:underline"
         >
           Se connecter
         </button>

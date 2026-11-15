@@ -410,7 +410,7 @@ export function ProDashboard() {
           <div className="absolute -left-32 -top-24 h-[28rem] w-[28rem] rounded-full bg-emerald-500/15 blur-3xl" />
           <div className="absolute -right-24 -top-16 h-[24rem] w-[24rem] rounded-full bg-primary/10 blur-3xl" />
         </div>
-        <aside className="fixed inset-y-4 left-4 z-40 hidden max-h-[calc(100vh-2rem)] w-64 flex-col rounded-3xl bg-sidebar text-sidebar-foreground shadow-[0_10px_30px_rgba(0,0,0,0.06)] lg:flex">
+        <aside className="fixed inset-y-4 left-4 z-40 hidden max-h-[calc(100vh-2rem)] w-64 flex-col rounded-3xl bg-[#003399] text-sidebar-foreground shadow-[0_10px_30px_rgba(0,0,0,0.06)] lg:flex">
           <div className="flex shrink-0 items-center gap-2.5 px-5 py-5">
             <Skeleton className="h-10 w-10 rounded-xl bg-sidebar-foreground/20" />
             <div className="flex-1 space-y-2">
@@ -464,7 +464,7 @@ export function ProDashboard() {
           débordent — typiquement sur écran 11" (1366×768) où 22×44px ≈ 968px
           > 768px viewport. Le header (logo) et le footer (promesse) restent
           visibles grâce à shrink-0 / mt-auto. */}
-      <aside className="fixed inset-y-4 left-4 z-40 hidden max-h-[calc(100vh-2rem)] w-64 flex-col rounded-3xl bg-sidebar text-sidebar-foreground shadow-[0_10px_30px_rgba(0,0,0,0.06)] lg:flex">
+      <aside className="fixed inset-y-4 left-4 z-40 hidden max-h-[calc(100vh-2rem)] w-64 flex-col rounded-3xl bg-[#003399] text-sidebar-foreground shadow-[0_10px_30px_rgba(0,0,0,0.06)] lg:flex">
         <ContenuSidebar ongletActif={onglet} onNaviguer={naviguer} retoursNonLus={retoursNonLus} estAeroport={typeEtablissement === "Aéroport"} airportEnAttente={airportEnAttente} />
       </aside>
 
@@ -485,7 +485,7 @@ export function ProDashboard() {
                   <Menu className="h-5 w-5" aria-hidden />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-72 border-0 bg-sidebar p-0 text-sidebar-foreground" aria-describedby={undefined}>
+              <SheetContent side="left" className="w-72 border-0 bg-[#003399] p-0 text-sidebar-foreground" aria-describedby={undefined}>
                 <SheetTitle className="sr-only">{t("common.navigationDashboard")}</SheetTitle>
                 <ContenuSidebar
                   ongletActif={onglet}

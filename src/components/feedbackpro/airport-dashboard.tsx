@@ -159,7 +159,7 @@ export default function AirportDashboard() {
   // SSR-safe : on ne rend le dashboard qu'une fois monté côté client
   if (!mounted) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-slate-950">
+      <div className="flex min-h-screen items-center justify-center bg-[#0F172A]">
         <div className="text-center">
           <span className="text-4xl">✈️</span>
           <p className="mt-3 font-mono text-sm text-slate-500">Chargement du dashboard ops…</p>
@@ -169,9 +169,9 @@ export default function AirportDashboard() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-slate-950 font-sans text-slate-100">
+    <div className="flex min-h-screen flex-col bg-[#0F172A] font-sans text-slate-100">
       {/* ---------- HEADER ---------- */}
-      <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between border-b border-slate-800 bg-slate-900 px-4 sm:px-6">
+      <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between border-b border-[#002288] bg-gradient-to-r from-[#003399] to-[#002288] px-4 sm:px-6">
         <div className="flex items-center gap-3">
           <span className="text-2xl leading-none" aria-hidden>
             ✈️
@@ -263,7 +263,7 @@ export default function AirportDashboard() {
               className={cn(
                 'relative flex shrink-0 items-center gap-2 px-3 py-3 text-sm font-medium transition sm:px-4',
                 active
-                  ? 'bg-slate-950 text-emerald-400'
+                  ? 'bg-[#0F172A] text-emerald-400'
                   : 'text-slate-300 hover:bg-slate-700/50 hover:text-white',
               )}
             >
@@ -283,7 +283,7 @@ export default function AirportDashboard() {
       </nav>
 
       {/* ---------- TAB CONTENT ---------- */}
-      <main className="min-h-0 flex-1 bg-slate-950">
+      <main className="min-h-0 flex-1 bg-[#0F172A]">
         {tab === 'wallboard' && <WallboardTab />}
         {tab === 'zones' && <AirportZonesTab />}
         {tab === 'signalements' && <AirportReportsTab />}
@@ -321,7 +321,7 @@ function WallboardTab() {
           href="/ops-wallboard"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 rounded-lg bg-[#5257C9] px-4 py-2 text-sm font-bold text-white shadow-lg transition-all hover:bg-[#4549b8] hover:shadow-xl"
+          className="inline-flex items-center gap-2 rounded-lg bg-[#003399] px-4 py-2 text-sm font-bold text-white shadow-lg transition-all hover:bg-[#4549b8] hover:shadow-xl"
           title="Ouvrir le wallboard plein écran sur un TV"
         >
           <ExternalLink className="h-4 w-4" />

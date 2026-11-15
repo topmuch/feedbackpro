@@ -137,8 +137,8 @@ export function OverviewTab() {
           </div>
         </div>
 
-        {/* Retours — indigo #5257C9 */}
-        <div className="relative overflow-hidden rounded-2xl bg-[#5257C9] p-5 text-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] sm:p-6">
+        {/* Retours — indigo #003399 */}
+        <div className="relative overflow-hidden rounded-2xl bg-[#003399] p-5 text-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] sm:p-6">
           <div className="absolute -right-6 -top-6 h-24 w-24 rounded-full bg-white/10" aria-hidden />
           <div className="relative flex items-start justify-between gap-3">
             <div className="min-w-0">

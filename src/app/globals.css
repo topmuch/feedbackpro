@@ -51,14 +51,15 @@
   --card-foreground: oklch(0.145 0 0);
   --popover: oklch(1 0 0);
   --popover-foreground: oklch(0.145 0 0);
-  /* Bleu FeedbackPro #002e85 (bleu profond) + blanc + gris */
-  --primary: oklch(0.38 0.14 264);
-  --primary-foreground: oklch(0.985 0 0);
+  /* V2.0 Palette FeedbackPro : Bleu aéroport #003399 (primary, headers, buttons)
+     + Jaune IATA #FCD116 (accents, highlights, badges) + blanc + gris clair #F5F5F5 */
+  --primary: #003399;
+  --primary-foreground: #FFFFFF;
   --secondary: oklch(0.97 0 0);
   --secondary-foreground: oklch(0.205 0 0);
   --muted: oklch(0.97 0 0);
   --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
+  --accent: #FCD116;
   --accent-foreground: oklch(0.205 0 0);
   --destructive: oklch(0.577 0.245 27.325);
   --border: oklch(0.922 0 0);
@@ -69,14 +70,14 @@
   --chart-3: oklch(0.554 0.046 257.417);
   --chart-4: oklch(0.809 0.105 251.813);
   --chart-5: oklch(0.623 0.214 259.815);
-  /* Sidebar bleu indigo FeedbackPro (#5257C9) en mode clair.
+  /* Sidebar bleu aéroport #003399 (V2.0) en mode clair.
      Le sidebar est volontairement bleu foncé (pas blanc comme shadcn par défaut)
-     — c'est la signature visuelle FeedbackPro. Le texte dessus est blanc. */
-  --sidebar: oklch(0.48 0.17 264);
+     — c'est la signature visuelle FeedbackPro V2.0. Le texte dessus est blanc. */
+  --sidebar: #003399;
   --sidebar-foreground: oklch(0.985 0 0);
   --sidebar-primary: oklch(0.985 0 0);
   --sidebar-primary-foreground: oklch(0.20 0.03 264);
-  --sidebar-accent: oklch(0.38 0.14 264);
+  --sidebar-accent: #002288;
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 12%);
   --sidebar-ring: oklch(0.708 0 0);

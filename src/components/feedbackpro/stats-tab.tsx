@@ -105,7 +105,7 @@ const ROUGE = "#EF4444"
 /** Audit UX : rose-500 (#F43F5E) pour les tags négatifs (fill-rose-500) */
 const ROSE = "#F43F5E"
 /** Palette du thème (6 teintes distinctes) pour le camembert des zones */
-const ZONE_COLORS = ["#3B82F6", "#0891b2", "#7c3aed", "#f59e0b", "#10B981", "#EF4444"]
+const ZONE_COLORS = ["#3B82F6", "#0891b2", "#FCD116", "#f59e0b", "#10B981", "#EF4444"]
 
 /** Ensembles d'IDs de tags positifs/négatifs pour la coloration par sentiment. */
 const IDS_TAGS_POSITIFS = new Set(POSITIVE_TAGS_ETENDUS.map((t) => t.id))

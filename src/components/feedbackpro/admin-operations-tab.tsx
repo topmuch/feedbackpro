@@ -384,7 +384,7 @@ export function AdminOperationsTab() {
             className={`flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between ${globalMeta?.bg ?? "bg-slate-50 dark:bg-slate-900/40"} ${globalMeta?.border ?? "border-slate-200 dark:border-slate-800"} border-b-2`}
           >
             <div className="flex items-center gap-4">
-              <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-white dark:bg-slate-950 shadow-sm">
+              <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-white dark:bg-[#0F172A] shadow-sm">
                 {globalMeta ? (
                   <span
                     className={`h-4 w-4 rounded-full ${globalMeta.dot} ${globalMeta.pulse ? "animate-pulse" : ""}`}
@@ -604,7 +604,7 @@ function ServiceCard({ service }: { service: ServiceHealth }) {
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <div
-              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-slate-950 shadow-sm`}
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#0F172A] shadow-sm`}
             >
               <Icon className={`h-5 w-5 ${colors.text}`} aria-hidden />
             </div>
@@ -830,7 +830,7 @@ function ActionButton({
       type="button"
       onClick={onClick}
       disabled={loading}
-      className="group flex flex-col items-start gap-1.5 rounded-xl border border-slate-200 bg-white p-3.5 text-left transition-all hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-800 dark:bg-slate-950 dark:hover:border-slate-700 dark:hover:bg-slate-900"
+      className="group flex flex-col items-start gap-1.5 rounded-xl border border-slate-200 bg-white p-3.5 text-left transition-all hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-800 dark:bg-[#0F172A] dark:hover:border-slate-700 dark:hover:bg-slate-900"
     >
       <div className="flex w-full items-center justify-between">
         <Icon className="h-4 w-4 text-slate-700 dark:text-slate-300" aria-hidden />

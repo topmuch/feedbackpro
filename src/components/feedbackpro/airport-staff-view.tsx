@@ -192,9 +192,9 @@ const STAFF_PIN_PREFIX = 'fp-staff-pin:'
 // IDs d'incidents "ignorés" (UI temp) — reste EN_ATTENTE en base.
 const IGNORED_IDS_KEY = 'fp-staff-ignored-ids'
 
-// Couleur primaire interface (indigo FeedbackPro)
-const INDIGO = '#5257C9'
-const INDIGO_DARK = '#4549b8'
+// Couleur primaire interface (bleu aeroport V2.0)
+const BLEU = '#003399'
+const BLEU_DARK = '#002288'
 
 // Tags d'exemple pour le quick-pick du scanner
 const EXAMPLE_TAGS = [
@@ -1028,14 +1028,14 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
   // ---------- Rendu ----------
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-indigo-50/30 to-emerald-50/40 text-foreground">
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/40 text-foreground">
       {/* Halos décoratifs */}
-      <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-[#5257C9]/15 blur-3xl" />
+      <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-[#003399]/15 blur-3xl" />
       <div className="pointer-events-none absolute bottom-0 -left-20 h-64 w-64 rounded-full bg-emerald-400/15 blur-3xl" />
 
       {/* Header (masqué sur l'écran login) */}
       {screen !== 'login' && (
-        <header className="relative z-10 bg-gradient-to-r from-[#5257C9] to-[#4549b8] text-white shadow-lg">
+        <header className="relative z-10 bg-gradient-to-r from-[#003399] to-[#002288] text-white shadow-lg">
           <div className="mx-auto flex max-w-md items-center justify-between px-4 py-3">
             <div className="flex items-center gap-2">
               <div className="flex size-8 items-center justify-center rounded-lg bg-white/20 backdrop-blur-sm">
@@ -1212,7 +1212,7 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
         <DialogContent className="w-[95%] max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-xl font-black text-[#1E1E2E]">
-              <QrCode className="size-5" style={{ color: INDIGO }} />
+              <QrCode className="size-5" style={{ color: BLEU }} />
               Scanner le QR du lieu
             </DialogTitle>
             <DialogDescription>
@@ -1233,7 +1233,7 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
                 <button
                   key={t}
                   onClick={() => setScanInput(t)}
-                  className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-mono font-bold text-slate-700 transition hover:border-[#5257C9] hover:text-[#5257C9]"
+                  className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-mono font-bold text-slate-700 transition hover:border-[#003399] hover:text-[#003399]"
                 >
                   {t}
                 </button>
@@ -1257,7 +1257,7 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
             <Button
               onClick={() => void confirmScan()}
               disabled={scanning}
-              className="w-full rounded-xl bg-gradient-to-r from-[#5257C9] to-[#4549b8] px-6 text-white sm:w-auto"
+              className="w-full rounded-xl bg-gradient-to-r from-[#003399] to-[#002288] px-6 text-white sm:w-auto"
             >
               {scanning ? (
                 <Loader2 className="size-4 animate-spin" />
@@ -1425,7 +1425,7 @@ function LoginScreen({
     <div className="flex flex-1 flex-col justify-center space-y-6">
       {/* Logo + titre */}
       <div className="text-center">
-        <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#5257C9] to-[#4549b8] shadow-xl">
+        <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#003399] to-[#002288] shadow-xl">
           <Smartphone className="size-8 text-white" />
         </div>
         <h1 className="mt-4 text-2xl font-black text-[#1E1E2E]">Staff Airport</h1>
@@ -1516,7 +1516,7 @@ function LoginScreen({
           <Button
             onClick={onSubmitPin}
             disabled={pinInput.length !== 4}
-            className="w-full rounded-xl bg-gradient-to-r from-[#5257C9] to-[#4549b8] py-4 text-base font-black text-white"
+            className="w-full rounded-xl bg-gradient-to-r from-[#003399] to-[#002288] py-4 text-base font-black text-white"
           >
             {loginMode === 'create' ? 'Créer & se connecter' : 'Se connecter'}
           </Button>
@@ -1583,7 +1583,7 @@ function HomeScreen({
       {/* Greeting */}
       <div className="text-center">
         <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-white shadow-lg ring-1 ring-slate-200">
-          <User className="size-7" style={{ color: INDIGO }} />
+          <User className="size-7" style={{ color: BLEU }} />
         </div>
         <h1 className="mt-3 break-words text-xl font-black text-[#1E1E2E] sm:text-2xl">
           Bonjour, {staffName}
@@ -1620,7 +1620,7 @@ function HomeScreen({
       {/* Bouton scan central — HUGE */}
       <button
         onClick={onScan}
-        className="group relative flex w-full flex-col items-center gap-3 overflow-hidden rounded-3xl bg-gradient-to-br from-[#5257C9] to-[#4549b8] py-8 text-white shadow-xl transition active:scale-[0.98]"
+        className="group relative flex w-full flex-col items-center gap-3 overflow-hidden rounded-3xl bg-gradient-to-br from-[#003399] to-[#002288] py-8 text-white shadow-xl transition active:scale-[0.98]"
       >
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />
         <div className="relative flex size-16 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm">
@@ -1700,7 +1700,7 @@ function HomeScreen({
       <Button
         onClick={onDashboard}
         variant="outline"
-        className="w-full rounded-xl border-2 border-slate-200 bg-white py-4 text-base font-bold text-[#1E1E2E] hover:border-[#5257C9] hover:text-[#5257C9]"
+        className="w-full rounded-xl border-2 border-slate-200 bg-white py-4 text-base font-bold text-[#1E1E2E] hover:border-[#003399] hover:text-[#003399]"
       >
         <BarChart3 className="size-4" />
         Voir Dashboard Complet
@@ -1711,7 +1711,7 @@ function HomeScreen({
         <div className="space-y-2">
           <button
             onClick={onInstall}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-slate-200 bg-white py-4 text-base font-bold text-[#1E1E2E] transition hover:border-[#5257C9] hover:text-[#5257C9]"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-slate-200 bg-white py-4 text-base font-bold text-[#1E1E2E] transition hover:border-[#003399] hover:text-[#003399]"
           >
             <Download className="size-4" />
             Installer l&apos;app
@@ -1857,7 +1857,7 @@ function IncidentNewScreen({
     <div className="space-y-4">
       <button
         onClick={onBack}
-        className="flex items-center gap-1 text-xs font-bold text-[#5257C9]"
+        className="flex items-center gap-1 text-xs font-bold text-[#003399]"
       >
         <ArrowLeft className="size-3.5" /> Retour accueil
       </button>
@@ -1949,13 +1949,13 @@ function IncidentOngoingScreen({
     <div className="space-y-4">
       <button
         onClick={onBack}
-        className="flex items-center gap-1 text-xs font-bold text-[#5257C9]"
+        className="flex items-center gap-1 text-xs font-bold text-[#003399]"
       >
         <ArrowLeft className="size-3.5" /> Retour accueil
       </button>
 
-      {/* Header indigo (en cours) */}
-      <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-[#5257C9] to-[#4549b8] px-4 py-4 text-white shadow-lg sm:px-5">
+      {/* Header bleu aeroport (en cours) */}
+      <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-[#003399] to-[#002288] px-4 py-4 text-white shadow-lg sm:px-5">
         <div className="flex items-center gap-2">
           <RefreshCw className="size-6" />
           <h1 className="text-xl font-black uppercase tracking-wide">Incident En Cours</h1>
@@ -2059,7 +2059,7 @@ function ResolveConfirmScreen({
     <div className="space-y-4">
       <button
         onClick={onBack}
-        className="flex items-center gap-1 text-xs font-bold text-[#5257C9]"
+        className="flex items-center gap-1 text-xs font-bold text-[#003399]"
       >
         <ArrowLeft className="size-3.5" /> Retour
       </button>
@@ -2108,12 +2108,12 @@ function ResolveConfirmScreen({
           <button
             onClick={onPickPhoto}
             disabled={photoUploading}
-            className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-white/60 py-6 transition hover:border-[#5257C9] disabled:opacity-60"
+            className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-white/60 py-6 transition hover:border-[#003399] disabled:opacity-60"
           >
             {photoUploading ? (
-              <Loader2 className="size-7 animate-spin text-[#5257C9]" />
+              <Loader2 className="size-7 animate-spin text-[#003399]" />
             ) : (
-              <Camera className="size-7 text-[#5257C9]" />
+              <Camera className="size-7 text-[#003399]" />
             )}
             <span className="text-sm font-bold text-slate-700">
               {photoUploading ? 'Upload…' : 'Prendre / choisir une photo'}
@@ -2187,7 +2187,7 @@ function DashboardScreen({
     <div className="space-y-4">
       <button
         onClick={onBack}
-        className="flex items-center gap-1 text-xs font-bold text-[#5257C9]"
+        className="flex items-center gap-1 text-xs font-bold text-[#003399]"
       >
         <ArrowLeft className="size-3.5" /> Retour accueil
       </button>
@@ -2246,8 +2246,8 @@ function DashboardScreen({
             <DashboardRow
               label="Score réactivité"
               value={`${reactivityScore(monthStats?.avgMinutes ?? 0)}%`}
-              valueColor="text-[#5257C9]"
-              icon={<TrendingUp className="size-4 text-[#5257C9]" />}
+              valueColor="text-[#003399]"
+              icon={<TrendingUp className="size-4 text-[#003399]" />}
             />
             <DashboardRow
               label="Rang équipe"
@@ -2310,7 +2310,7 @@ function DashboardScreen({
 
         <button
           onClick={onBack}
-          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border-2 border-slate-200 bg-white py-3 text-sm font-bold text-slate-700 transition hover:border-[#5257C9] hover:text-[#5257C9]"
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border-2 border-slate-200 bg-white py-3 text-sm font-bold text-slate-700 transition hover:border-[#003399] hover:text-[#003399]"
         >
           <ArrowLeft className="size-4" /> Retour Accueil
         </button>

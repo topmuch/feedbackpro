@@ -1672,7 +1672,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                 <button
                   type="button"
                   onClick={chargerScan}
-                  className="flex h-14 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 py-4 text-base font-bold text-white shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99]"
+                  className="flex h-14 w-full items-center justify-center rounded-2xl bg-gradient-to-r from-[#003399] via-[#003399] to-[#0044bb] py-4 text-base font-bold text-white shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99]"
                 >
                   {t.reessayer}
                 </button>
@@ -1740,7 +1740,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
               <button
                 type="button"
                 onClick={passerAuStep1}
-                className="fp-scan-tap-pulse mt-3 inline-flex w-full max-w-xs items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 px-8 py-4 text-lg font-bold text-white shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99]"
+                className="fp-scan-tap-pulse mt-3 inline-flex w-full max-w-xs items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#003399] via-[#003399] to-[#0044bb] px-8 py-4 text-lg font-bold text-white shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99]"
                 style={{ animationDelay: "800ms" }}
               >
                 {t.continuer}
@@ -1873,7 +1873,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                       className={cn(
                         "shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide",
                         questionCourante.obligatoire
-                          ? "bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 text-white"
+                          ? "bg-gradient-to-r from-[#003399] via-[#003399] to-[#0044bb] text-white"
                           : "bg-gray-100 text-gray-600"
                       )}
                     >
@@ -3028,7 +3028,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                   <button
                     type="button"
                     onClick={() => allerEtape("success", 1)}
-                    className="mt-2 rounded-2xl bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 px-6 py-3 text-sm font-bold text-white shadow-lg transition-transform hover:scale-105"
+                    className="mt-2 rounded-2xl bg-gradient-to-r from-[#003399] via-[#003399] to-[#0044bb] px-6 py-3 text-sm font-bold text-white shadow-lg transition-transform hover:scale-105"
                   >
                     {t.fermer}
                   </button>
@@ -3039,7 +3039,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                   <button
                     type="button"
                     onClick={() => allerEtape("success", 1)}
-                    className="rounded-2xl bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 px-6 py-3 text-sm font-bold text-white shadow-lg"
+                    className="rounded-2xl bg-gradient-to-r from-[#003399] via-[#003399] to-[#0044bb] px-6 py-3 text-sm font-bold text-white shadow-lg"
                   >
                     {t.fermer}
                   </button>
@@ -3280,7 +3280,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
               onClick={questionSuivante}
               disabled={!questionValide}
               className={cn(
-                "flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 py-4 text-lg font-bold text-white shadow-lg transition-all",
+                "flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#003399] via-[#003399] to-[#0044bb] py-4 text-lg font-bold text-white shadow-lg transition-all",
                 !questionValide
                   ? "cursor-not-allowed opacity-50"
                   : "hover:scale-[1.01] active:scale-[0.99]"
@@ -3299,7 +3299,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                 onClick={() => envoyer("aucun")}
                 disabled={soumission !== null}
                 className={cn(
-                  "fp-scan-pulse-soft group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 py-5 text-xl font-bold text-white shadow-xl shadow-purple-500/30 transition-all",
+                  "fp-scan-pulse-soft group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-[#003399] via-[#003399] to-[#0044bb] py-5 text-xl font-bold text-white shadow-xl shadow-[#003399]/30 transition-all",
                   soumission !== null
                     ? "cursor-wait opacity-80"
                     : "hover:scale-[1.01] active:scale-[0.99]"
@@ -3339,7 +3339,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
               onClick={() => allerEtape("step3", 1)}
               disabled={tags.length === 0}
               className={cn(
-                "flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 py-4 text-lg font-bold text-white shadow-lg transition-all",
+                "flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#003399] via-[#003399] to-[#0044bb] py-4 text-lg font-bold text-white shadow-lg transition-all",
                 tags.length === 0
                   ? "cursor-not-allowed opacity-50"
                   : "hover:scale-[1.01] active:scale-[0.99]"
@@ -3355,7 +3355,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
             <button
               type="button"
               onClick={() => allerEtape("step4", 1)}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 py-4 text-lg font-bold text-white shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99]"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#003399] via-[#003399] to-[#0044bb] py-4 text-lg font-bold text-white shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99]"
             >
               {t.suivant}
               <ArrowRight className="size-5" aria-hidden />
@@ -3370,7 +3370,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                 onClick={() => envoyer("aucun")}
                 disabled={soumission !== null}
                 className={cn(
-                  "fp-scan-pulse-soft group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 py-5 text-xl font-bold text-white shadow-xl shadow-purple-500/30 transition-all",
+                  "fp-scan-pulse-soft group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-[#003399] via-[#003399] to-[#0044bb] py-5 text-xl font-bold text-white shadow-xl shadow-[#003399]/30 transition-all",
                   soumission !== null
                     ? "cursor-wait opacity-80"
                     : "hover:scale-[1.01] active:scale-[0.99]"
@@ -3427,7 +3427,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
           <button
             type="button"
             onClick={onExit}
-            className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 py-4 text-base font-bold text-white shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99]"
+            className="flex h-14 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#003399] via-[#003399] to-[#0044bb] py-4 text-base font-bold text-white shadow-lg transition-all hover:scale-[1.01] active:scale-[0.99]"
           >
             {t.fermer}
           </button>

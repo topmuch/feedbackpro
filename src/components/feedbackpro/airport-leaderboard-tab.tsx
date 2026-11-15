@@ -117,7 +117,7 @@ export function AirportLeaderboardTab() {
                   style={{
                     background: agent.rank <= 3
                       ? ['#E8B54D', '#C0C0C0', '#CD7F32'][agent.rank - 1]
-                      : '#E9E9EF',
+                      : '#F5F5F5',
                     color: agent.rank <= 3 ? 'white' : '#9A9AAE',
                   }}
                 >

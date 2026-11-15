@@ -187,7 +187,7 @@ async function notifyManagerStaffIssue(staffTag: string, message: string, staffN
   const sujet = `📢 Signalement interne staff — ${staffTag}`
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background: #5257C9; padding: 20px; color: white;">
+      <div style="background: #003399; padding: 20px; color: white;">
         <h2 style="margin: 0;">📢 Signalement interne staff</h2>
         <p style="margin: 5px 0 0; opacity: 0.8;">FeedbackPro — QR Staff Only</p>
       </div>

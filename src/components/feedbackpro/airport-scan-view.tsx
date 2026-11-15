@@ -930,7 +930,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
   if (phase === "loading") {
     return (
       <div
-        className="flex min-h-screen flex-col items-center justify-center bg-slate-950 px-6 text-white"
+        className="flex min-h-screen flex-col items-center justify-center bg-[#0F172A] px-6 text-white"
         aria-busy="true"
         aria-live="polite"
       >
@@ -952,7 +952,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
   // ---------- Phase : error ----------
   if (phase === "error") {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-slate-950 px-6 text-white">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#0F172A] px-6 text-white">
         <div className="flex w-full max-w-md flex-col items-center gap-6 text-center">
           <div className="flex size-20 items-center justify-center rounded-2xl bg-orange-500/15 ring-1 ring-orange-500/30">
             <AlertTriangle className="size-10 text-orange-400" aria-hidden />
@@ -1002,7 +1002,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
         <div className="pointer-events-none absolute bottom-0 right-1/4 h-56 w-56 rounded-full bg-sky-300/15 blur-3xl" />
 
         {/* Header — gradient vibrant avec glassmorphism */}
-        <header className="relative z-10 bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 text-white shadow-lg shadow-purple-500/20">
+        <header className="relative z-10 bg-gradient-to-r from-[#003399] via-[#003399] to-[#0044bb] text-white shadow-lg shadow-[#003399]/20">
           <div className="mx-auto flex max-w-md items-center justify-between px-4 py-3">
             <div className="flex items-center gap-2">
               <AirportLogo zoneData={zoneData} />
@@ -1280,7 +1280,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
         <div className="pointer-events-none absolute bottom-0 -left-20 h-64 w-64 rounded-full bg-emerald-300/15 blur-3xl" />
 
         {/* Header gradient vibrant */}
-        <header className="sticky top-0 z-10 bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 text-white shadow-lg shadow-purple-500/20">
+        <header className="sticky top-0 z-10 bg-gradient-to-r from-[#003399] via-[#003399] to-[#0044bb] text-white shadow-lg shadow-[#003399]/20">
           <div className="mx-auto flex max-w-md items-center justify-between gap-2 px-4 py-3">
             <button
               type="button"
@@ -1555,7 +1555,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
               type="button"
               onClick={envoyerSignalement}
               disabled={submitting}
-              className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 py-5 text-lg font-bold text-white shadow-xl shadow-purple-500/30 transition-all hover:shadow-2xl hover:shadow-purple-500/40 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
+              className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-[#003399] via-[#003399] to-[#0044bb] py-5 text-lg font-bold text-white shadow-xl shadow-[#003399]/30 transition-all hover:shadow-2xl hover:shadow-[#003399]/40 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
             >
               {/* Effet shine au hover */}
               <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
@@ -1752,7 +1752,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
   if (phase === "confirmation" && reportResult) {
     const dateFormatee = formaterDate(reportResult.report.createdAt)
     return (
-      <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-emerald-50/30 to-violet-50/40">
+      <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-emerald-50/30 to-[#F5F5F5]">
         {/* --- Bandeau offline (Phase 2) : sticky en haut --- */}
         <AirportOfflineBanner />
 
@@ -1781,7 +1781,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
               />
             ) : (
               <div className="mb-4 flex h-16 items-center justify-center rounded-2xl bg-white/80 px-4 shadow-md backdrop-blur-md ring-1 ring-white/60">
-                <Plane className="size-8 text-[#5257C9]" aria-hidden />
+                <Plane className="size-8 text-[#003399]" aria-hidden />
               </div>
             )}
             {zoneData?.airportName && (
@@ -1803,7 +1803,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
             </p>
 
             {/* ---------- Bloc Denise : confirmation vocale animée ---------- */}
-            <div className="mt-5 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-violet-500/10 to-indigo-500/10 px-4 py-3 ring-1 ring-violet-300/30 backdrop-blur-md">
+            <div className="mt-5 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-[#003399]/10 to-[#FCD116]/10 px-4 py-3 ring-1 ring-[#003399]/30 backdrop-blur-md">
               {/* Onde sonore animée */}
               <div className="flex items-center gap-[3px] h-5" aria-hidden>
                 {[0, 0.1, 0.2, 0.3, 0.15].map((delay, i) => (
@@ -2004,7 +2004,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                           type="button"
                           onClick={envoyerRetourInterne}
                           disabled={ratingSubmitting}
-                          className="group relative mt-3 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 text-sm font-bold text-white shadow-lg shadow-purple-500/30 transition-all hover:shadow-xl active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
+                          className="group relative mt-3 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-[#003399] via-[#003399] to-[#0044bb] text-sm font-bold text-white shadow-lg shadow-[#003399]/30 transition-all hover:shadow-xl active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
                         >
                           <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
                           {ratingSubmitting ? (
@@ -2045,7 +2045,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
             <button
               type="button"
               onClick={signalerAutre}
-              className="group relative flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-violet-600 via-purple-600 to-fuchsia-600 text-sm font-bold text-white shadow-xl shadow-purple-500/30 transition-all hover:shadow-2xl active:scale-[0.99]"
+              className="group relative flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-[#003399] via-[#003399] to-[#0044bb] text-sm font-bold text-white shadow-xl shadow-[#003399]/30 transition-all hover:shadow-2xl active:scale-[0.99]"
             >
               <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
               Signaler un autre problème
@@ -2153,7 +2153,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
 
   // ---------- Repli défensif (ne devrait jamais arriver) ----------
   return (
-    <div className="flex min-h-screen items-center justify-center bg-slate-950 text-white">
+    <div className="flex min-h-screen items-center justify-center bg-[#0F172A] text-white">
       <Loader2 className="size-6 animate-spin text-amber-300" aria-hidden />
     </div>
   )

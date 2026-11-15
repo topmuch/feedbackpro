@@ -303,7 +303,7 @@ async function notifierManagersEmail(
   const sujet = `🚨 Nouveau signalement — ${zone.emoji} ${zone.nom} — ${report.problemType}`
 
   const html = `
-    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background: #f8fafc; border-radius: 12px; overflow: hidden;">
+    <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background: #F5F5F5; border-radius: 12px; overflow: hidden;">
       <!-- Header -->
       <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 24px 32px;">
         <div style="display: flex; align-items: center; gap: 12px;">

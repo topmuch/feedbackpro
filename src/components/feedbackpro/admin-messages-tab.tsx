@@ -76,7 +76,7 @@ export function AdminMessagesTab() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#5257C9] to-[#7C3AED] text-white shadow-lg">
+            <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#003399] to-[#FCD116] text-white shadow-lg">
               <Inbox className="size-6" />
             </div>
             <div>
@@ -122,11 +122,11 @@ export function AdminMessagesTab() {
         ) : (
           <div className="space-y-3">
             {filtered.map((msg) => (
-              <Card key={msg.id} className={msg.statut === 'NOUVEAU' ? 'border-[#5257C9]/30 ring-1 ring-[#5257C9]/10' : ''}>
+              <Card key={msg.id} className={msg.statut === 'NOUVEAU' ? 'border-[#003399]/30 ring-1 ring-[#003399]/10' : ''}>
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-2">
-                      <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#5257C9] to-[#7C3AED] text-sm font-bold text-white">
+                      <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#003399] to-[#FCD116] text-sm font-bold text-white">
                         {msg.nom.charAt(0).toUpperCase()}
                       </div>
                       <div>
