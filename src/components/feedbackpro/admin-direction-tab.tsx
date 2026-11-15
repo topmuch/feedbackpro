@@ -48,6 +48,7 @@ import {
   TableRow,
 } from "@/components/ui/table"
 import { useToast } from "@/hooks/use-toast"
+import { LiveScoreWidget } from "@/components/feedbackpro/live-score-widget"
 
 // ---------- Types (mirroir API) ----------
 
@@ -211,6 +212,9 @@ export function AdminDirectionTab() {
           </Button>
         </div>
       </div>
+
+      {/* Live Score — hero temps réel (WAHOO-2) */}
+      <LiveScoreWidget />
 
       {/* 4 Big KPI Cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">

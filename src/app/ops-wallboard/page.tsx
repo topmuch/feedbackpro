@@ -61,6 +61,7 @@ import { AirportPredictionRadar } from '@/components/feedbackpro/airport-predict
 // AirportHeatmap import retiré — design original ZonePanel restauré
 // (panneaux horizontaux colorés par famille, avec compteurs en attente + en cours).
 import { parler } from '@/lib/staff-tts'
+import { LiveScoreWidget } from '@/components/feedbackpro/live-score-widget'
 
 // ---------------------------------------------------------------
 // Types — match exact du contrat /api/airport/wallboard
@@ -91,6 +92,11 @@ type RecentReport = {
   flightNumber?: string | null
   createdAt: string
   isHelpRequest?: boolean
+  // Task WAHOO-1 — Denise Traducteur Universel
+  // Code langue source du commentaire (fr, en, zh, ar, es, de, pt, it,
+  // ru, ja, wo, auto) ou null si le voyageur a écrit en français.
+  // Utilisé pour annoncer « Message original en [langue] » via Denise.
+  commentaireLang?: string | null
 }
 
 type HelpRequestLite = {
@@ -242,6 +248,21 @@ type AchievementsData = {
     avgMinutes: number
     achievements: AchievementBadge[]
   }[]
+}
+
+// ---------------------------------------------------------------
+// Task WAHOO-4 — Mode Prédictif de Denise
+// Contrat /api/airport/predictive-alert → predictions[].
+// ---------------------------------------------------------------
+type PredictiveAlert = {
+  id: string
+  type: 'flight_arrival' | 'historical_pattern' | 'current_load'
+  priority: 'high' | 'medium' | 'low'
+  message: string
+  zones: string[]
+  flightCount: number
+  paxCount: number
+  etaMinutes: number
 }
 
 // ---------------------------------------------------------------
@@ -438,6 +459,36 @@ async function fetchAlerts(): Promise<TriggeredAlert[]> {
 const SOUND_NORMAL = '/sounds/ding-dong.mp3'
 const SOUND_CRITICAL = '/sounds/ding-critical.wav'
 const SOUND_RESOLVED = '/sounds/resolved.wav'
+
+/**
+ * Task WAHOO-1 — Denise Traducteur Universel
+ * Mappe un code langue (fr, en, zh, ar, es, de, pt, it, ru, ja, wo, auto)
+ * vers son nom en français, pour l'annonce vocale :
+ *   « Nouvel incident signalé. [...] Message original en anglais. »
+ *
+ * Renvoie null si le code est inconnu ou si c'est 'fr' (pas d'annonce
+ * de langue dans ce cas — le message est déjà en français).
+ */
+function langueEnFrancais(code: string | null | undefined): string | null {
+  if (!code) return null
+  const map: Record<string, string> = {
+    fr: 'français',
+    en: 'anglais',
+    zh: 'chinois',
+    ar: 'arabe',
+    es: 'espagnol',
+    de: 'allemand',
+    pt: 'portugais',
+    it: 'italien',
+    ru: 'russe',
+    ja: 'japonais',
+    wo: 'wolof',
+    auto: 'langue auto-détectée',
+  }
+  const label = map[code.toLowerCase()]
+  if (!label || code.toLowerCase() === 'fr') return null
+  return label
+}
 
 function playSound(src: string, audioRef: React.RefObject<HTMLAudioElement | null>) {
   const a = audioRef.current
@@ -1457,6 +1508,17 @@ export default function OpsWallboardPage() {
   const [achievementsData, setAchievementsData] = useState<AchievementsData | null>(null)
   const announcedAchievementsRef = useRef<Set<string>>(new Set())
 
+  // --- Task WAHOO-4 — Mode Prédictif de Denise (polling 5 min) ---
+  // predictiveAlerts : liste des prédictions HIGH/MEDIUM renvoyées par
+  //   /api/airport/predictive-alert (max 3, triées par priorité).
+  // predictiveTick : index de la prédiction actuellement affichée dans
+  //   le bandeau — cycle toutes les 8s si plusieurs prédictions.
+  // announcedPredictionsRef : Set des IDs déjà annoncés vocalement par
+  //   Denise (dédup — évite de répéter la même prédiction toutes les 5 min).
+  const [predictiveAlerts, setPredictiveAlerts] = useState<PredictiveAlert[]>([])
+  const [predictiveTick, setPredictiveTick] = useState(0)
+  const announcedPredictionsRef = useRef<Set<string>>(new Set())
+
   // --- Polling API toutes les 5s ---
   const poll = useCallback(async () => {
     try {
@@ -1485,9 +1547,17 @@ export default function OpsWallboardPage() {
             const tempsMin = Math.max(1, Math.floor(elapsedMs / 60000))
             const team = latest.routedTeam
             const equipeLabel = team ? ` Équipe ${team}.` : ''
+            // Task WAHOO-1 — Denise Traducteur Universel
+            // Si le voyageur a écrit dans une langue ≠ français (commentaireLang
+            // !== 'fr' et non null), on ajoute « Message original en [langue] »
+            // à l'annonce vocale. Denise parle en français (le commentaire stocké
+            // est la traduction FR), mais signale la langue d'origine au staff
+            // pour contexte culturel (touriste chinois, voyageur wolof, etc.).
+            const langueOrigine = langueEnFrancais(latest.commentaireLang)
+            const origineLabel = langueOrigine ? ` Message original en ${langueOrigine}.` : ''
             const annonce = latest.isHelpRequest
-              ? `Demande d'aide SOS voyageur. ${zoneNom}. ${latest.problemType}. En attente depuis ${tempsMin} minute${tempsMin > 1 ? 's' : ''}.`
-              : `Nouvel incident signalé. ${zoneNom}. Type: ${latest.problemType}.${equipeLabel} En attente depuis ${tempsMin} minute${tempsMin > 1 ? 's' : ''}.`
+              ? `Demande d'aide SOS voyageur. ${zoneNom}. ${latest.problemType}. En attente depuis ${tempsMin} minute${tempsMin > 1 ? 's' : ''}.${origineLabel}`
+              : `Nouvel incident signalé. ${zoneNom}. Type: ${latest.problemType}.${equipeLabel} En attente depuis ${tempsMin} minute${tempsMin > 1 ? 's' : ''}.${origineLabel}`
             setTimeout(() => speak(annonce, soundOn), 300)
           }
         }
@@ -1685,6 +1755,66 @@ export default function OpsWallboardPage() {
       clearInterval(api)
     }
   }, [pollAchievements])
+
+  // --- Task WAHOO-4 — Polling prédictions Denise (5 min) ---
+  //
+  // Toutes les 5 min, on récupère les prédictions HIGH/MEDIUM calculées
+  // côté serveur (vols aux portes + patterns historiques + charge actuelle).
+  // Pour chaque NOUVELLE prédiction HIGH (non encore annoncée), Denise
+  // l'énonce après un délai de 1,5 s pour éviter le chevauchement avec
+  // d'autres annonces (nouvel incident, résolution, escalade, etc.).
+  // Les prédictions MEDIUM ne sont pas annoncées vocalement (anti-spam) —
+  // elles s'affichent juste dans le bandeau "PRÉDICTION DENISE".
+  useEffect(() => {
+    const fetchPredictive = async () => {
+      try {
+        const res = await fetch('/api/airport/predictive-alert', { cache: 'no-store' })
+        const json = (await res.json()) as {
+          ok?: boolean
+          data?: { predictions: PredictiveAlert[] }
+        }
+        if (!json?.ok || !json.data?.predictions) return
+        const preds = json.data.predictions
+        setPredictiveAlerts(preds)
+        // Reset predictiveTick si on dépasse la nouvelle longueur
+        if (preds.length > 0) {
+          setPredictiveTick((t) => t % preds.length)
+        }
+        // Annonce vocale des NOUVELLES prédictions HIGH via Denise.
+        for (const pred of preds) {
+          if (pred.priority !== 'high') continue
+          if (announcedPredictionsRef.current.has(pred.id)) continue
+          announcedPredictionsRef.current.add(pred.id)
+          // Délai 1,5 s : laisse passer les annonces prioritaires (nouveaux
+          // signalements, alertes critiques) avant la prédiction.
+          setTimeout(() => speak(pred.message, soundOn), 1500)
+        }
+        // Cleanup : retire les IDs annoncés qui ne sont plus dans la réponse
+        // (la prédiction a expiré — vol décollé, charge retombée, etc.).
+        const activeIds = new Set(preds.map((p) => p.id))
+        for (const id of [...announcedPredictionsRef.current]) {
+          if (!activeIds.has(id)) announcedPredictionsRef.current.delete(id)
+        }
+      } catch {
+        // ignore — réseau coupé, on réessaiera au prochain cycle
+      }
+    }
+    void fetchPredictive()
+    const id = setInterval(() => void fetchPredictive(), 5 * 60 * 1000) // 5 min
+    return () => clearInterval(id)
+  }, [soundOn])
+
+  // --- Task WAHOO-4 — Cycle d'affichage du bandeau (8 s par prédiction) ---
+  // Si plusieurs prédictions sont actives, on alterne entre elles toutes
+  // les 8 s. Une seule prédiction → pas de cycle (fixe).
+  useEffect(() => {
+    if (predictiveAlerts.length <= 1) return
+    const id = setInterval(
+      () => setPredictiveTick((t) => (t + 1) % predictiveAlerts.length),
+      8000,
+    )
+    return () => clearInterval(id)
+  }, [predictiveAlerts.length])
 
   // --- Mode Crise ---
   const handleCrisisStart = useCallback(() => {
@@ -2118,6 +2248,22 @@ export default function OpsWallboardPage() {
         .ops-scroll::-webkit-scrollbar-track { background: #E0E0E0; border-radius: 4px; }
         .ops-scroll::-webkit-scrollbar-thumb { background: #003399; border-radius: 4px; }
         .ops-scroll::-webkit-scrollbar-thumb:hover { background: #002277; }
+        @keyframes opsPredMarquee {
+          0% { transform: translateX(0); }
+          100% { transform: translateX(-50%); }
+        }
+        @keyframes opsPredFadeIn {
+          from { opacity: 0; transform: translateY(-4px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        .ops-pred-marquee {
+          display: inline-flex;
+          align-items: center;
+          animation: opsPredMarquee 30s linear infinite;
+          will-change: transform;
+        }
+        .ops-pred-marquee:hover { animation-play-state: paused; }
+        .ops-pred-fade-in { animation: opsPredFadeIn 0.4s ease-out; }
       `}</style>
 
       {/* Élément audio caché pour le ding */}
@@ -2429,13 +2575,18 @@ export default function OpsWallboardPage() {
       )}
 
       {/* ============================================================
-          2. KPI ROW — 6 cartes colorées
+          2. KPI ROW — 6 cartes colorées + Live Score (WAHOO-2)
           ============================================================ */}
       <section
         aria-label="KPI temps réel"
         className="grid shrink-0 gap-[15px] px-[30px] py-5"
-        style={{ gridTemplateColumns: 'repeat(6, 1fr)' }}
+        style={{ gridTemplateColumns: 'repeat(8, 1fr)' }}
       >
+        {/* Live Score — hero temps réel, occupe 2 colonnes (prominent) */}
+        <LiveScoreWidget
+          compact
+          className="col-span-2 min-h-[120px] flex flex-col justify-center"
+        />
         {data ? (
           <>
             <KpiCard
@@ -2479,6 +2630,117 @@ export default function OpsWallboardPage() {
           Array.from({ length: 6 }).map((_, i) => <KpiSkeleton key={i} />)
         )}
       </section>
+
+      {/* ============================================================
+          Task WAHOO-4 — BANDEAU PRÉDICTION DENISE
+          ------------------------------------------------------------
+          Slim banner navy/gold affichant les prédictions HIGH/MEDIUM
+          renvoyées par /api/airport/predictive-alert. Cycle de 8 s
+          entre les prédictions si plusieurs sont actives. Le texte
+          défile en marquee horizontal (CSS). Si aucune prédiction →
+          bandeau invisible (ne prend pas de place).
+          ============================================================ */}
+      {predictiveAlerts.length > 0 && (
+        <section
+          aria-label="Prédictions Denise"
+          aria-live="polite"
+          className="mx-[30px] mb-1 shrink-0"
+        >
+          {(() => {
+            const idx = predictiveTick % predictiveAlerts.length
+            const pred = predictiveAlerts[idx]
+            const isHigh = pred.priority === 'high'
+            return (
+              <div
+                role="alert"
+                className="flex items-stretch overflow-hidden rounded-[15px]"
+                style={{
+                  backgroundColor: BLEU,
+                  borderLeft: `4px solid ${JAUNE}`,
+                  boxShadow: '0 4px 10px rgba(0,0,0,0.15)',
+                }}
+              >
+                {/* LEFT — label or + PRÉDICTION DENISE */}
+                <div
+                  className="flex shrink-0 items-center gap-2 px-4 py-2"
+                  style={{ backgroundColor: BLEU }}
+                >
+                  <span
+                    className="ops-pulse-soft"
+                    style={{ fontSize: '16px', lineHeight: 1 }}
+                    aria-hidden
+                  >
+                    🔮
+                  </span>
+                  <span
+                    className="font-black uppercase"
+                    style={{ fontSize: '11px', letterSpacing: '2px', color: JAUNE }}
+                  >
+                    PRÉDICTION DENISE
+                  </span>
+                </div>
+                {/* RIGHT — priority badge + scrolling message + dots */}
+                <div className="flex min-w-0 flex-1 items-center gap-3 px-3 py-2">
+                  {/* Priority badge (HIGH=red / MEDIUM=orange) */}
+                  <span
+                    className="shrink-0 rounded-[8px] px-2 py-0.5 font-black uppercase"
+                    style={{
+                      fontSize: '10px',
+                      letterSpacing: '1px',
+                      backgroundColor: isHigh ? ROUGE : ORANGE,
+                      color: '#FFFFFF',
+                    }}
+                  >
+                    {isHigh ? 'HIGH' : 'MEDIUM'}
+                  </span>
+                  {/* Marquee — duplicate text for seamless loop */}
+                  <div
+                    className="relative min-w-0 flex-1 overflow-hidden"
+                    style={{ height: '18px' }}
+                  >
+                    <div
+                      key={pred.id}
+                      className="ops-pred-marquee ops-pred-fade-in whitespace-nowrap"
+                      style={{
+                        fontSize: '12px',
+                        fontWeight: 700,
+                        letterSpacing: '1px',
+                        color: BLANC,
+                        textTransform: 'uppercase',
+                      }}
+                    >
+                      <span style={{ paddingRight: '60px' }} aria-label={pred.message}>
+                        {pred.message}
+                      </span>
+                      <span style={{ paddingRight: '60px' }} aria-hidden>
+                        {pred.message}
+                      </span>
+                    </div>
+                  </div>
+                  {/* Indicator dots if multiple predictions */}
+                  {predictiveAlerts.length > 1 && (
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {predictiveAlerts.map((p, i) => (
+                        <span
+                          key={p.id}
+                          className="rounded-full transition-all"
+                          style={{
+                            width: i === idx ? '10px' : '6px',
+                            height: '6px',
+                            backgroundColor:
+                              i === idx ? JAUNE : 'rgba(255,255,255,0.35)',
+                          }}
+                          aria-hidden
+                        />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            )
+          })()}
+        </section>
+      )}
 
       {/* ============================================================
           Feature F3 — CLASSEMENT (compétition d'équipes + top performer + série SLA)

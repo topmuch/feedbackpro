@@ -127,6 +127,7 @@ import {
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp'
 import { parler } from '@/lib/staff-tts'
 import { jouerDing, vibrer } from '@/lib/staff-alert'
+import { playLevelUpSound } from '@/lib/level-up-sound'
 import {
   areNotificationsSupported,
   getExistingSubscription,
@@ -179,6 +180,23 @@ interface EmployeEntry {
   nom: string
   poste: string
   proId: string
+}
+
+// WAHOO-3 — Réponse de /api/airport/check-record (gamification Denise)
+interface CheckRecordResponse {
+  isRecord: boolean
+  isUnderTarget: boolean
+  targetMinutes: number | null
+  previousAvg: number
+  resolutionMinutes: number
+  firstResolution: boolean
+}
+
+// WAHOO-3 — Toast stylé pour les records / temps cible (palette aéroport)
+type RecordToastKind = 'record' | 'underTarget'
+interface RecordToast {
+  kind: RecordToastKind
+  text: string
 }
 
 // ---------- Constantes ----------
@@ -415,6 +433,15 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
   // Toast inline minimal
   const [toast, setToast] = useState<string | null>(null)
 
+  // WAHOO-3 — Coach vocal Denise + gamification
+  // celebration : emoji géant centré à l'écran pendant 2.5s quand l'agent
+  //   bat son record perso (effet "level up" visuel). Null = pas d'overlay.
+  // recordToast : pill stylée (or pour record, vert pour under target) qui
+  //   remplace le toast sombre par défaut quand il y a un motif de félicitations.
+  //   Null = pas affichée.
+  const [celebration, setCelebration] = useState<string | null>(null)
+  const [recordToast, setRecordToast] = useState<RecordToast | null>(null)
+
   // Feature W1 — PWA install
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null)
   const [isIOS, setIsIOS] = useState(false)
@@ -459,6 +486,12 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
   const seenReportIdsRef = useRef<Set<string>>(new Set())
   const ignoredIdsRef = useRef<Set<string>>(new Set())
   const firstPollDoneRef = useRef(false)
+
+  // --- Task WAHOO-4 — Mode Prédictif de Denise (polling 5 min) ---
+  // announcedPredictionsRef : mémorise les IDs de prédictions HIGH déjà
+  //   annoncées vocalement par parler() — évite de répéter la même
+  //   prédiction à chaque cycle de 5 min (anti-spam).
+  const announcedPredictionsRef = useRef<Set<string>>(new Set())
 
   // ---------- Lifecycle ----------
 
@@ -825,6 +858,59 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
     return () => window.clearInterval(id)
   }, [staffName, screen, pollPendingReports])
 
+  // ---------- Task WAHOO-4 — Polling prédictions Denise (5 min) ----------
+  //
+  // Toutes les 5 min, on interroge /api/airport/predictive-alert. Pour
+  // chaque NOUVELLE prédiction HIGH (non encore annoncée), on appelle
+  // parler(pred.message) pour que le staff terrain entende l'alerte
+  // prédictive en même temps que le wallboard ops room.
+  //
+  // Sécurité anti-spam :
+  //   - announcedPredictionsRef dédoublonne les IDs (la même prédiction
+  //     n'est annoncée qu'une fois, même si elle reste active pendant
+  //     plusieurs cycles de 5 min).
+  //   - Les prédictions MEDIUM ne sont PAS annoncées sur la PWA staff
+  //     (seul le wallboard ops les affiche visuellement dans le bandeau).
+  //   - Cleanup : retire les IDs annoncés qui ne sont plus actifs dans
+  //     la réponse (la prédiction a expiré).
+  useEffect(() => {
+    if (!staffName || screen === 'login') return
+    const fetchPredictive = async () => {
+      try {
+        const res = await fetch('/api/airport/predictive-alert', { cache: 'no-store' })
+        const json = (await res.json()) as {
+          ok?: boolean
+          data?: {
+            predictions: Array<{
+              id: string
+              priority: 'high' | 'medium' | 'low'
+              message: string
+            }>
+          }
+        }
+        if (!json?.ok || !json.data?.predictions) return
+        const preds = json.data.predictions
+        for (const pred of preds) {
+          if (pred.priority !== 'high') continue
+          if (announcedPredictionsRef.current.has(pred.id)) continue
+          announcedPredictionsRef.current.add(pred.id)
+          // Petit délai (1,2 s) pour ne pas chevaucher avec un éventuel
+          // ding incident qui vient d'arriver (polling 10s).
+          window.setTimeout(() => parler(pred.message), 1200)
+        }
+        const activeIds = new Set(preds.map((p) => p.id))
+        for (const id of [...announcedPredictionsRef.current]) {
+          if (!activeIds.has(id)) announcedPredictionsRef.current.delete(id)
+        }
+      } catch {
+        // réseau down — on réessaiera au prochain cycle
+      }
+    }
+    void fetchPredictive()
+    const id = window.setInterval(() => void fetchPredictive(), 5 * 60 * 1000) // 5 min
+    return () => window.clearInterval(id)
+  }, [staffName, screen])
+
   // ---------- Polling de l'incident actif (mise à jour temps réel) ----------
   useEffect(() => {
     if (!activeReport) return
@@ -977,15 +1063,92 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
       })
       const json = await res.json().catch(() => null)
       if (json?.ok) {
+        // WAHOO-3 — On capture la zone AVANT de nullifier activeReport
+        // (servira à l'appel /api/airport/check-record ci-dessous).
+        const zoneCode = activeReport?.zone?.code ?? ''
         const minutes = activeReport
           ? Math.round(
               (Date.now() - new Date(activeReport.createdAt).getTime()) / 60000,
             )
           : 0
-        // S5 — Denise : "Incident résolu en <minutes> minutes."
-        parler(`Incident résolu en ${minutes} minutes. Merci.`)
+
+        // WAHOO-3 — Coach vocal Denise + gamification "record perso"
+        // On interroge l'API check-record pour savoir si la résolution
+        // constitue un record perso (all-time) et/ou respecte le SLA cible.
+        // En cas d'échec réseau/API, on retombe sur le message par défaut
+        // existant — pas de blocage de l'UI, l'incident reste résolu.
+        let recordData: CheckRecordResponse | null = null
+        try {
+          const recRes = await fetch('/api/airport/check-record', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              staffName,
+              resolutionMinutes: minutes,
+              zoneCode,
+            }),
+          })
+          const recJson = await recRes.json().catch(() => null)
+          if (recJson?.ok && recJson?.data) {
+            recordData = recJson.data as CheckRecordResponse
+          }
+        } catch {
+          // Réseau down — on garde le message par défaut (fallback)
+        }
+
+        // S5 + WAHOO-3 — Message Denise + son + celebration selon le résultat.
+        // Le prénom rend l'annonce plus chaleureuse ("Bravo Amadou.").
+        const prenom = (staffName || 'Agent').split(' ')[0]
+        if (recordData?.isRecord && recordData.isUnderTarget) {
+          // Record ET dans les temps → announcement complet "Nouveau record"
+          parler(
+            `Bravo ${prenom}. Incident résolu en ${minutes} minutes. Nouveau record personnel !`,
+          )
+          // Son level-up fire-and-forget (ne bloque pas l'UI)
+          playLevelUpSound()
+          // Overlay celebration : trophée géant pendant 2.5s
+          setCelebration('🏆')
+          window.setTimeout(() => setCelebration(null), 2500)
+          // Toast stylé or (record perso)
+          setRecordToast({
+            kind: 'record',
+            text: `🏆 Nouveau record personnel ! ${minutes} min`,
+          })
+          window.setTimeout(() => setRecordToast(null), 4000)
+        } else if (recordData?.isUnderTarget) {
+          // Dans les temps cible mais pas un record → félicitations "Dans les temps"
+          parler(
+            `Bravo ${prenom}. Incident résolu en ${minutes} minutes. Dans les temps cible.`,
+          )
+          // Petit son level-up (réussite) — fire-and-forget
+          playLevelUpSound()
+          // Toast stylé vert (under target)
+          const target = recordData.targetMinutes ?? '?'
+          setRecordToast({
+            kind: 'underTarget',
+            text: `✅ Résolu dans les temps cible (${minutes} min ≤ ${target} min cible)`,
+          })
+          window.setTimeout(() => setRecordToast(null), 4000)
+        } else if (recordData?.isRecord) {
+          // Record perso mais hors temps cible (SLA non défini ou dépassé)
+          parler(`Bravo ${prenom}. Nouveau record personnel : ${minutes} minutes.`)
+          // Son level-up fire-and-forget
+          playLevelUpSound()
+          // Overlay celebration : trophée géant pendant 2.5s
+          setCelebration('🏆')
+          window.setTimeout(() => setCelebration(null), 2500)
+          // Toast stylé or (record perso)
+          setRecordToast({
+            kind: 'record',
+            text: `🏆 Nouveau record personnel ! ${minutes} min`,
+          })
+          window.setTimeout(() => setRecordToast(null), 4000)
+        } else {
+          // Pas de record / pas under target → message par défaut existant
+          parler(`Incident résolu en ${minutes} minutes. Merci.`)
+          setToast(`Incident résolu en ${minutes} min. Bien fait !`)
+        }
         vibrer()
-        setToast(`Incident résolu en ${minutes} min. Bien fait !`)
         setResolveComment('')
         setResolvePhotoUrl(null)
         setShowCommentInline(false)
@@ -1557,6 +1720,84 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
           {toast}
         </motion.div>
       )}
+
+      {/* WAHOO-3 — Toast stylé pour les records perso / temps cible.
+          Pilule or (#FCD116, texte navy) pour "Nouveau record personnel",
+          pilule vert (#00A651, texte blanc) pour "Résolu dans les temps cible".
+          Positionné en HAUT de l'écran pour ne pas empiéter sur le toast
+          sombre par défaut qui reste en bas. S'auto-masque après 4s côté handler. */}
+      <AnimatePresence>
+        {recordToast && (
+          <motion.div
+            key={recordToast.text}
+            initial={{ opacity: 0, y: -24, scale: 0.92 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -24, scale: 0.92 }}
+            transition={{ duration: 0.25, ease: 'easeOut' }}
+            role="status"
+            aria-live="polite"
+            className={cn(
+              'fixed inset-x-0 top-24 z-[60] mx-auto flex w-fit max-w-[92%] items-center gap-2 rounded-2xl px-4 py-3 text-sm font-black shadow-2xl',
+              recordToast.kind === 'record'
+                ? 'bg-[#FCD116] text-[#003399] shadow-[0_10px_30px_rgba(252,209,22,0.45)]'
+                : 'bg-[#00A651] text-white shadow-[0_10px_30px_rgba(0,166,81,0.45)]',
+            )}
+          >
+            {recordToast.text}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* WAHOO-3 — Overlay de célébration "level up".
+          Trophée géant centré à l'écran pendant 2.5s quand l'agent bat son
+          record perso. Halo doré pulsant en fond + emoji qui scale avec un
+          léger overshoot + rotation (effet "tada"). pointer-events-none pour
+          ne pas bloquer l'UI pendant l'animation. */}
+      <AnimatePresence>
+        {celebration && (
+          <motion.div
+            key="celebration-overlay"
+            className="pointer-events-none fixed inset-0 z-[100] flex items-center justify-center"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.3 }}
+            aria-hidden="true"
+          >
+            {/* Halo doré pulsant (cercle flou agrandi) */}
+            <motion.div
+              className="absolute h-72 w-72 rounded-full bg-[#FCD116]/45 blur-3xl"
+              initial={{ scale: 0 }}
+              animate={{ scale: [0, 1.4, 1.2] }}
+              transition={{ duration: 0.7, times: [0, 0.6, 1], ease: 'easeOut' }}
+            />
+            {/* Anneau doré concentrique (effet "level up ring") */}
+            <motion.div
+              className="absolute h-40 w-40 rounded-full border-4 border-[#FCD116]"
+              initial={{ scale: 0, opacity: 0.9 }}
+              animate={{ scale: [0, 2.2], opacity: [0.9, 0] }}
+              transition={{ duration: 1, ease: 'easeOut' }}
+            />
+            {/* Trophée géant — effet "tada" : scale overshoot + légère rotation */}
+            <motion.div
+              className="relative select-none text-[120px] leading-none drop-shadow-[0_8px_16px_rgba(0,0,0,0.25)]"
+              initial={{ scale: 0, rotate: -25, opacity: 0 }}
+              animate={{
+                scale: [0, 1.35, 0.95, 1.1, 1],
+                rotate: [-25, 8, -4, 2, 0],
+                opacity: 1,
+              }}
+              transition={{
+                duration: 0.8,
+                times: [0, 0.35, 0.55, 0.75, 1],
+                ease: 'easeOut',
+              }}
+            >
+              {celebration}
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 

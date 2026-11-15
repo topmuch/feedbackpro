@@ -60,6 +60,28 @@ function trendFromCounts(curr: number, prev: number): 'up' | 'down' | 'stable' {
   return 'stable'
 }
 
+/**
+ * Task WAHOO-1 — Denise Traducteur Universel
+ * Extrait le code langue source depuis un commentaire stocké en BDD.
+ *
+ * Le report API encode la langue source dans le commentaire sous la forme :
+ *   `[origine:en] Bagage oublié à la porte B4 — Original (en): I forgot...`
+ *
+ * Cette fonction parse le préfixe `[origine:XX]` et renvoie le code langue
+ * ('en', 'wo', 'zh'…) ou null si le commentaire n'a pas de préfixe
+ * (voyager a écrit directement en français, ou commentaire absent).
+ *
+ * Le wallboard utilise ce code pour annoncer :
+ *   « Nouvel incident signalé. [...] Message original en anglais. »
+ */
+function parseCommentaireLang(commentaire: string | null | undefined): string | null {
+  if (!commentaire) return null
+  // Regex : préfixe [origine:XX] en début de chaîne, XX = 2-4 lettres.
+  const m = /^\[origine:([a-zA-Z]{2,4})\]/.exec(commentaire)
+  if (!m) return null
+  return m[1].toLowerCase()
+}
+
 export async function GET() {
   const now = Date.now()
   const MS_24H = 24 * 3600 * 1000
@@ -306,6 +328,12 @@ export async function GET() {
   // Les SOS help requests sont fusionnées avec un flag isHelpRequest et
   // un id préfixé `sos_` pour éviter toute collision avec les ids
   // d'AirportReport dans les refs de déduplication du wallboard.
+  //
+  // Task WAHOO-1 — Denise Traducteur Universel :
+  // On expose `commentaireLang` (code langue source) parsé depuis le
+  // préfixe `[origine:XX]` du commentaire stocké. Le wallboard l'utilise
+  // pour annoncer « Message original en [langue] » via Denise (speak()).
+  // Null si le voyageur a écrit en français (pas de préfixe).
   const recentReports = reports
     .filter((r) => r.createdAt.getTime() >= since24.getTime())
     .map((r) => ({
@@ -321,6 +349,9 @@ export async function GET() {
       flightNumber: r.flightNumber ?? null,
       createdAt: r.createdAt.toISOString(),
       isHelpRequest: false,
+      // Task WAHOO-1 — code langue source (fr, en, zh, ar, es, de, pt,
+      // it, ru, ja, wo, auto) ou null si pas de préfixe [origine:XX].
+      commentaireLang: parseCommentaireLang(r.commentaire),
     }))
 
   const recentHelpItems = helpRequests.map((h) => {
@@ -337,6 +368,8 @@ export async function GET() {
       flightNumber: null,
       createdAt: h.createdAt.toISOString(),
       isHelpRequest: true,
+      // Les SOS n'ont pas de traduction (message libre en français).
+      commentaireLang: null as string | null,
     }
   })
 

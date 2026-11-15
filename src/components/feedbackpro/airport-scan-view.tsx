@@ -40,6 +40,7 @@ import {
   CheckCircle2,
   ChevronLeft,
   ExternalLink,
+  Languages,
   LifeBuoy,
   Loader2,
   MapPin,
@@ -71,6 +72,7 @@ import {
 } from "@/components/ui/dialog"
 import { AirportOfflineBanner } from "@/components/feedbackpro/airport-offline-banner"
 import { FlashRewardOverlay } from "@/components/feedbackpro/flash-reward-overlay"
+import { LanguagePicker, type AirportLang } from "@/components/feedbackpro/language-picker"
 import { useAirportOffline } from "@/hooks/use-airport-offline"
 import { routerVersService, serviceLabel } from "@/lib/airport-routing"
 import { parler } from "@/lib/staff-tts"
@@ -316,6 +318,33 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
   // sur l'écran de confirmation (pas à chaque re-render).
   const deniseConfirmSpokenRef = useRef<string | null>(null)
 
+  // --- Task WAHOO-1 — Denise Traducteur Universel ---
+  // selectedLang : langue maternellle du voyageur (sélectionnée via le
+  //   LanguagePicker au-dessus du commentaire). Défaut 'fr' (pas de
+  //   traduction nécessaire). Quand !== 'fr', le commentaire saisi est
+  //   traduit en français par /api/airport/translate (debounce 800 ms).
+  // translatedComment : version française du commentaire (affichée dans
+  //   une boîte de prévisualisation + envoyée comme `commentaire` au
+  //   report API pour que Denise l'annonce en français). Null tant que
+  //   la traduction n'a pas été faite ou si le commentaire est vide.
+  // translating : flag pour afficher le spinner "Traduction en cours…".
+  const [selectedLang, setSelectedLang] = useState<AirportLang>("fr")
+  const [translatedComment, setTranslatedComment] = useState<string | null>(null)
+  const [translating, setTranslating] = useState(false)
+  // Ref pour invalider une requête de traduction en cours si le
+  // voyageur continue de taper (évite les courses / traductions
+  // périmées qui écraseraient une traduction plus récente).
+  const translateReqIdRef = useRef(0)
+
+  // --- Web Speech API dictation (Task WAHOO-1) ---
+  // Dictée vocale in-browser (SpeechRecognition) — alternative légère
+  // au pipeline MediaRecorder + ASR backend. Pas d'upload, pas de
+  // backend, latence minimale. recognition.lang mappé depuis
+  // selectedLang (fr→fr-FR, en→en-US, zh→zh-CN, etc.).
+  const [dictating, setDictating] = useState(false)
+  const [dictationError, setDictationError] = useState<string | null>(null)
+  const recognitionRef = useRef<unknown>(null)
+
   // --- Flash Rewards (carte à gratter post-signalement) ---
   // Affichée ~3,5 s après que Denise a parlé pour confirmer le
   // signalement. L'overlay appelle /redeem pour savoir s'il y a une
@@ -530,6 +559,195 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
     [voiceLang],
   )
 
+  // ---------- Task WAHOO-1 — Traduction automatique du commentaire ----------
+  // Quand le voyageur tape un commentaire dans une langue ≠ français
+  // (selectedLang !== 'fr'), on déclenche après 800 ms d'inactivité un
+  // appel à /api/airport/translate pour obtenir la version française.
+  // La traduction est affichée dans une boîte de prévisualisation et
+  // envoyée comme `commentaire` au report API à la soumission (pour
+  // que Denise l'annonce en français au staff).
+  //
+  // Robustesse :
+  //   - debounce 800 ms (évite de spammer le LLM à chaque frappe)
+  //   - requête numérotée (translateReqIdRef) pour invalider une
+  //     traduction périmée si le voyageur continue de taper
+  //   - si le commentaire est vidé → on reset translatedComment
+  //   - si selectedLang === 'fr' → pas d'appel LLM (commentaire déjà FR)
+  useEffect(() => {
+    // Pas de traduction si la langue est le français ou si le commentaire est vide.
+    if (selectedLang === "fr") {
+      setTranslatedComment(null)
+      setTranslating(false)
+      return
+    }
+    const text = commentaire.trim()
+    if (!text) {
+      setTranslatedComment(null)
+      setTranslating(false)
+      return
+    }
+    // Numérote cette requête. Toute réponse ultérieure d'une requête
+    // précédente (numéro inférieur) sera ignorée.
+    const reqId = ++translateReqIdRef.current
+    setTranslating(true)
+    const timer = window.setTimeout(async () => {
+      try {
+        const res = await fetch("/api/airport/translate", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text, sourceLang: selectedLang }),
+        })
+        const json = (await res.json().catch(() => null)) as
+          | { ok: boolean; data?: { translated: string; original: string; sourceLang: string }; error?: string }
+          | null
+        if (!res.ok || !json?.ok || !json.data) {
+          throw new Error(json?.error || "Traduction échouée")
+        }
+        // Ignore la réponse si une requête plus récente est en cours.
+        if (reqId !== translateReqIdRef.current) return
+        const translated = (json.data.translated || "").trim()
+        setTranslatedComment(translated || null)
+      } catch {
+        // Échec non bloquant — le voyageur peut quand même soumettre
+        // son commentaire dans sa langue (le backend le stockera tel quel).
+        if (reqId === translateReqIdRef.current) {
+          setTranslatedComment(null)
+        }
+      } finally {
+        if (reqId === translateReqIdRef.current) {
+          setTranslating(false)
+        }
+      }
+    }, 800)
+    return () => {
+      window.clearTimeout(timer)
+    }
+  }, [commentaire, selectedLang])
+
+  // ---------- Task WAHOO-1 — Web Speech API dictation ----------
+  // Dictée vocale in-browser (SpeechRecognition). Quand le voyageur
+  // clique sur le bouton micro à côté du LanguagePicker, on démarre
+  // la reconnaissance vocale dans la langue sélectionnée. Le texte
+  // transcrit remplit le commentaire (déclenchant ensuite la traduction
+  // automatique via l'effet ci-dessus si la langue ≠ français).
+  //
+  // Mapping de codes : selectedLang (ISO 639-1) → locale BCP-47
+  // attendue par SpeechRecognition (fr→fr-FR, en→en-US, zh→zh-CN, etc.).
+  // Wolof n'a pas de locale SpeechRecognition standard → fallback fr-FR
+  // (le voyageur wolofophone utilise plutôt le pipeline MediaRecorder +
+  // ASR backend qui supporte le wolof via /api/airport/voice/transcribe).
+  const LANG_TO_LOCALE: Record<AirportLang, string> = {
+    fr: "fr-FR",
+    en: "en-US",
+    zh: "zh-CN",
+    ar: "ar-SA",
+    es: "es-ES",
+    de: "de-DE",
+    pt: "pt-PT",
+    it: "it-IT",
+    ru: "ru-RU",
+    ja: "ja-JP",
+    wo: "fr-FR", // Wolof non supporté par SpeechRecognition → fallback FR
+    auto: "fr-FR",
+  }
+
+  // Type minimal pour SpeechRecognition (la lib DOM TS ne l'expose pas
+  // de façon stable). On déclare le minimum nécessaire.
+  type SpeechRecognitionLike = {
+    lang: string
+    continuous: boolean
+    interimResults: boolean
+    start: () => void
+    stop: () => void
+    abort: () => void
+    onresult: ((event: { results: ArrayLike<ArrayLike<{ transcript: string }> > }) => void) | null
+    onerror: ((event: { error?: string }) => void) | null
+    onend: (() => void) | null
+  }
+
+  function getSpeechRecognitionCtor(): (new () => SpeechRecognitionLike) | null {
+    if (typeof window === "undefined") return null
+    const w = window as unknown as {
+      SpeechRecognition?: new () => SpeechRecognitionLike
+      webkitSpeechRecognition?: new () => SpeechRecognitionLike
+    }
+    return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null
+  }
+
+  const demarrerDictation = useCallback(() => {
+    setDictationError(null)
+    const Ctor = getSpeechRecognitionCtor()
+    if (!Ctor) {
+      setDictationError("Dictée vocale non supportée sur cet appareil.")
+      return
+    }
+    try {
+      const rec = new Ctor()
+      rec.lang = LANG_TO_LOCALE[selectedLang]
+      rec.continuous = false
+      rec.interimResults = false
+      rec.onresult = (event) => {
+        try {
+          const first = event.results[0]
+          const transcript = first?.[0]?.transcript ?? ""
+          if (transcript.trim()) {
+            // On remplit le commentaire (en préservant un éventuel texte déjà tapé).
+            setCommentaire((prev) => {
+              const base = prev.trim()
+              return base ? `${base} ${transcript.trim()}` : transcript.trim()
+            })
+          }
+        } catch {
+          /* ignore — erreur de parsing DOM */
+        }
+      }
+      rec.onerror = (event) => {
+        const err = event?.error ?? ""
+        if (/notallowed|denied|service/i.test(err)) {
+          setDictationError("Autorisation micro refusée pour la dictée.")
+        } else if (err && err !== "no-speech") {
+          setDictationError(`Dictée indisponible : ${err}`)
+        }
+        setDictating(false)
+      }
+      rec.onend = () => {
+        setDictating(false)
+      }
+      recognitionRef.current = rec
+      rec.start()
+      setDictating(true)
+    } catch (err) {
+      setDictating(false)
+      setDictationError(err instanceof Error ? err.message : "Dictée indisponible")
+    }
+  }, [selectedLang])
+
+  const arreterDictation = useCallback(() => {
+    const rec = recognitionRef.current as SpeechRecognitionLike | null
+    if (rec) {
+      try {
+        rec.stop()
+      } catch {
+        /* ignore */
+      }
+    }
+    setDictating(false)
+  }, [])
+
+  // Nettoyage : si le composant est démonté pendant une dictée, on arrête.
+  useEffect(() => {
+    return () => {
+      const rec = recognitionRef.current as SpeechRecognitionLike | null
+      if (rec) {
+        try {
+          rec.abort()
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+  }, [])
+
   // ---------- Soumission du signalement (POST /api/airport/report) ----------
   // Si le réseau est offline OU que l'API renvoie une erreur réseau/5xx,
   // on enfile le rapport dans IndexedDB (Background Sync le rejouera au
@@ -544,6 +762,15 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
         tag: string
         problemType: string
         commentaire?: string
+        // Task WAHOO-1 — Denise Traducteur Universel
+        // commentaireOriginal : texte original saisi par le voyageur dans
+        //   sa langue (avant traduction). Préservé pour référence côté
+        //   backend (audit, email, webhook Slack/Teams).
+        // commentaireLang : code langue source (fr, en, zh, ar, es, de,
+        //   pt, it, ru, ja, wo, auto). Permet au wallboard d'annoncer
+        //   « Message original en [langue] ».
+        commentaireOriginal?: string
+        commentaireLang?: string
         photoUrl?: string
         flightNumber?: string
       } = {
@@ -551,7 +778,22 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
         problemType: selectedProblem,
       }
       const c = commentaire.trim()
-      if (c) body.commentaire = c
+      // Task WAHOO-1 — si le voyageur a écrit dans une langue ≠ français
+      // et qu'une traduction est disponible, on envoie :
+      //   - commentaire = version FR (traduite) → Denise l'annonce en FR
+      //   - commentaireOriginal = texte source (préservé pour référence)
+      //   - commentaireLang = code langue source
+      // Sinon (selectedLang === 'fr' ou pas de traduction disponible),
+      // on envoie le commentaire tel quel (pas de champs original/lang).
+      if (c) {
+        if (selectedLang !== "fr" && translatedComment) {
+          body.commentaire = translatedComment
+          body.commentaireOriginal = c
+          body.commentaireLang = selectedLang
+        } else {
+          body.commentaire = c
+        }
+      }
       if (photoUrl) body.photoUrl = photoUrl
       const fn = flightNumber.trim()
       if (fn) body.flightNumber = fn
@@ -618,7 +860,17 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
     } finally {
       setSubmitting(false)
     }
-  }, [zoneData, selectedProblem, submitting, commentaire, photoUrl, flightNumber, offline])
+  }, [
+    zoneData,
+    selectedProblem,
+    submitting,
+    commentaire,
+    photoUrl,
+    flightNumber,
+    offline,
+    selectedLang,
+    translatedComment,
+  ])
 
   // ---------- Opt-in WhatsApp (POST /api/airport/whatsapp-optin) ----------
   const activerWhatsapp = useCallback(async () => {
@@ -1355,37 +1607,43 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
             </div>
           </div>
 
-          {/* Commentaire optionnel + saisie vocale (Phase 2 — Wolof/FR/EN) */}
+          {/* Commentaire optionnel + saisie vocale (Phase 2 — Wolof/FR/EN)
+              + Task WAHOO-1 — Denise Traducteur Universel :
+              LanguagePicker (11 langues + auto) au-dessus du textarea,
+              bouton micro (Web Speech API) à côté, boîte de traduction
+              française en temps réel sous le textarea. */}
           <div className="mt-5 space-y-2">
             <div className="flex items-center justify-between gap-2">
               <Label htmlFor="airport-commentaire" className="flex items-center gap-1.5 text-sm font-bold text-slate-700">
                 <span className="inline-block h-1 w-4 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500" />
                 Précisez le problème si besoin
               </Label>
-              {/* Sélecteur de langue (auto par défaut) */}
-              <div className="flex items-center gap-1 rounded-full bg-white/70 p-0.5 ring-1 ring-white/60 backdrop-blur-md">
-                {([
-                  { k: "auto", l: "Auto" },
-                  { k: "wolof", l: "Wolof" },
-                  { k: "fr", l: "FR" },
-                  { k: "en", l: "EN" },
-                ] as const).map((opt) => (
+              {/* Task WAHOO-1 — LanguagePicker + bouton dictée Web Speech API */}
+              <div className="flex items-center gap-1.5">
+                <LanguagePicker value={selectedLang} onChange={(l) => setSelectedLang(l)} />
+                {/* Bouton micro (Web Speech API dictation) */}
+                {dictating ? (
                   <button
-                    key={opt.k}
                     type="button"
-                    onClick={() => setVoiceLang(opt.k)}
-                    className={cn(
-                      "rounded-full px-2.5 py-1 text-[11px] font-bold transition-all",
-                      voiceLang === opt.k
-                        ? "bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white shadow-sm"
-                        : "text-slate-500 hover:text-slate-800",
-                    )}
-                    aria-pressed={voiceLang === opt.k}
-                    title={`Langue parlée : ${opt.l}`}
+                    onClick={arreterDictation}
+                    className="flex items-center gap-1.5 rounded-full bg-gradient-to-r from-rose-500 to-red-600 px-3 py-1.5 text-xs font-bold text-white shadow-md ring-2 ring-rose-300 transition-all hover:scale-105 animate-pulse"
+                    aria-label="Arrêter la dictée vocale"
+                    title="Cliquez pour arrêter la dictée"
                   >
-                    {opt.l}
+                    <Square className="size-3 fill-current" aria-hidden />
+                    <span>Stop</span>
                   </button>
-                ))}
+                ) : (
+                  <button
+                    type="button"
+                    onClick={demarrerDictation}
+                    className="flex items-center gap-1.5 rounded-full bg-white/70 px-2.5 py-1.5 text-xs font-bold text-violet-700 shadow-sm ring-1 ring-white/60 backdrop-blur-md transition-all hover:bg-white/90 hover:ring-violet-200"
+                    aria-label="Dicter votre message dans la langue sélectionnée"
+                    title="Dictée vocale (Web Speech API) dans la langue sélectionnée — le texte sera ensuite traduit en français automatiquement."
+                  >
+                    <Mic className="size-3.5" aria-hidden />
+                  </button>
+                )}
               </div>
             </div>
             <Textarea
@@ -1393,44 +1651,113 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
               value={commentaire}
               onChange={(e) => setCommentaire(e.target.value)}
               maxLength={1000}
-              placeholder="Ex: Le tapis est arrêté depuis 10 minutes, environ 30 personnes attendent..."
+              placeholder={
+                selectedLang === "fr"
+                  ? "Ex: Le tapis est arrêté depuis 10 minutes, environ 30 personnes attendent..."
+                  : "Écrivez dans votre langue — votre message sera traduit en français automatiquement."
+              }
               className="min-h-24 resize-none rounded-2xl border-2 border-white bg-white/70 backdrop-blur-md text-sm shadow-sm ring-1 ring-white/60 focus:border-violet-400 focus:ring-violet-200"
             />
-            <div className="flex items-center justify-between gap-2">
+            {/* Task WAHOO-1 — Boîte de traduction française en temps réel */}
+            {selectedLang !== "fr" && (
+              <div className="space-y-1.5">
+                {translating ? (
+                  <p className="flex items-center gap-1.5 rounded-xl bg-violet-50/80 px-3 py-2 text-xs font-medium text-violet-700 ring-1 ring-violet-200">
+                    <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                    <span>Traduction en cours…</span>
+                  </p>
+                ) : translatedComment ? (
+                  <div className="rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 px-3 py-2 ring-1 ring-emerald-200">
+                    <p className="flex items-start gap-1.5 text-xs font-medium text-emerald-800">
+                      <Languages className="mt-0.5 size-3.5 shrink-0 text-emerald-600" aria-hidden />
+                      <span className="min-w-0 flex-1">
+                        <span className="font-bold">Votre message en français :</span>{" "}
+                        <span className="text-emerald-900">{translatedComment}</span>
+                      </span>
+                    </p>
+                    <p className="mt-1 text-[10px] text-emerald-600">
+                      Denise annoncera cette version au staff ops.
+                    </p>
+                  </div>
+                ) : commentaire.trim() ? (
+                  <p className="flex items-center gap-1.5 rounded-xl bg-amber-50/80 px-3 py-2 text-xs font-medium text-amber-700 ring-1 ring-amber-200">
+                    <Languages className="size-3.5" aria-hidden />
+                    <span>La traduction apparaîtra ici automatiquement.</span>
+                  </p>
+                ) : null}
+                {dictationError && (
+                  <p className="flex items-center gap-1.5 rounded-lg bg-rose-50/80 px-3 py-1.5 text-xs font-medium text-rose-700 ring-1 ring-rose-200">
+                    <MicOff className="size-3.5" aria-hidden />
+                    {dictationError}
+                  </p>
+                )}
+              </div>
+            )}
+            <div className="flex flex-wrap items-center justify-between gap-2">
               <p className="text-right text-xs text-slate-400">{commentaire.length}/1000</p>
-              {/* Bouton micro (Phase 2) : enregistre, transcrit (ASR), traduit en FR (LLM) */}
-              {voiceState === "recording" ? (
-                <button
-                  type="button"
-                  onClick={arreterEnregistrement}
-                  className="flex items-center gap-2 rounded-full bg-gradient-to-r from-rose-500 to-red-600 px-4 py-2 text-xs font-bold text-white shadow-md ring-2 ring-rose-300 transition-all hover:scale-105 animate-pulse"
-                  aria-label="Arrêter l'enregistrement"
-                >
-                  <Square className="size-3.5 fill-current" aria-hidden />
-                  <span>Arrêter & transcrire</span>
-                </button>
-              ) : voiceState === "transcribing" ? (
-                <button
-                  type="button"
-                  disabled
-                  className="flex items-center gap-2 rounded-full bg-slate-200 px-4 py-2 text-xs font-bold text-slate-500"
-                  aria-label="Transcription en cours"
-                >
-                  <Loader2 className="size-3.5 animate-spin" aria-hidden />
-                  <span>Transcription…</span>
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={demarrerEnregistrement}
-                  className="group flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-600 px-4 py-2 text-xs font-bold text-white shadow-md transition-all hover:scale-105 hover:shadow-lg"
-                  aria-label="Parler votre commentaire (Wolof, Français ou Anglais)"
-                  title="Parlez en Wolof, Français ou Anglais — votre voix sera transcrite et traduite en français automatiquement."
-                >
-                  <Mic className="size-3.5" aria-hidden />
-                  <span>Parler</span>
-                </button>
-              )}
+              {/* Sélecteur de langue (auto par défaut) pour le pipeline
+                  MediaRecorder + ASR backend (Phase 2 — Wolof/FR/EN).
+                  Indépendant du LanguagePicker ci-dessus (qui pilote la
+                  traduction texte via /api/airport/translate). */}
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 rounded-full bg-white/70 p-0.5 ring-1 ring-white/60 backdrop-blur-md">
+                  {([
+                    { k: "auto", l: "Auto" },
+                    { k: "wolof", l: "Wolof" },
+                    { k: "fr", l: "FR" },
+                    { k: "en", l: "EN" },
+                  ] as const).map((opt) => (
+                    <button
+                      key={opt.k}
+                      type="button"
+                      onClick={() => setVoiceLang(opt.k)}
+                      className={cn(
+                        "rounded-full px-2.5 py-1 text-[11px] font-bold transition-all",
+                        voiceLang === opt.k
+                          ? "bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white shadow-sm"
+                          : "text-slate-500 hover:text-slate-800",
+                      )}
+                      aria-pressed={voiceLang === opt.k}
+                      title={`Langue parlée : ${opt.l}`}
+                    >
+                      {opt.l}
+                    </button>
+                  ))}
+                </div>
+                {/* Bouton micro (Phase 2) : enregistre, transcrit (ASR), traduit en FR (LLM) */}
+                {voiceState === "recording" ? (
+                  <button
+                    type="button"
+                    onClick={arreterEnregistrement}
+                    className="flex items-center gap-2 rounded-full bg-gradient-to-r from-rose-500 to-red-600 px-4 py-2 text-xs font-bold text-white shadow-md ring-2 ring-rose-300 transition-all hover:scale-105 animate-pulse"
+                    aria-label="Arrêter l'enregistrement"
+                  >
+                    <Square className="size-3.5 fill-current" aria-hidden />
+                    <span>Arrêter & transcrire</span>
+                  </button>
+                ) : voiceState === "transcribing" ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="flex items-center gap-2 rounded-full bg-slate-200 px-4 py-2 text-xs font-bold text-slate-500"
+                    aria-label="Transcription en cours"
+                  >
+                    <Loader2 className="size-3.5 animate-spin" aria-hidden />
+                    <span>Transcription…</span>
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={demarrerEnregistrement}
+                    className="group flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-600 px-4 py-2 text-xs font-bold text-white shadow-md transition-all hover:scale-105 hover:shadow-lg"
+                    aria-label="Parler votre commentaire (Wolof, Français ou Anglais)"
+                    title="Parlez en Wolof, Français ou Anglais — votre voix sera transcrite et traduite en français automatiquement."
+                  >
+                    <Mic className="size-3.5" aria-hidden />
+                    <span>Parler</span>
+                  </button>
+                )}
+              </div>
             </div>
             {/* Aperçu voix : langue détectée + traduite */}
             {voicePreview && voiceState === "idle" && !voiceError && (

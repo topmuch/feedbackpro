@@ -65,6 +65,14 @@ export async function POST(req: NextRequest) {
     tag?: string
     problemType?: string
     commentaire?: string
+    // --- Task WAHOO-1 — Denise Traducteur Universel ---
+    // commentaireOriginal : texte original saisi par le voyageur dans sa
+    //   langue (avant traduction). Préservé pour référence (audit, email).
+    // commentaireLang : code langue source (fr, en, zh, ar, es, de, pt,
+    //   it, ru, ja, wo, auto). Quand !== 'fr', le commentaire a été
+    //   traduit en français côté PWA avant envoi.
+    commentaireOriginal?: string
+    commentaireLang?: string
     photoUrl?: string
     whatsappOptin?: boolean
     whatsappPhone?: string
@@ -83,6 +91,19 @@ export async function POST(req: NextRequest) {
   }
   if (b.commentaire && b.commentaire.length > 1000) {
     return fail('Commentaire trop long (max 1000 caractères)', 400)
+  }
+  if (b.commentaireOriginal && typeof b.commentaireOriginal !== 'string') {
+    return fail('Commentaire original invalide', 400)
+  }
+  if (b.commentaireOriginal && b.commentaireOriginal.length > 1000) {
+    return fail('Commentaire original trop long (max 1000 caractères)', 400)
+  }
+  // Normalisation du code langue (liste blanche — robustesse face à
+  // un client qui enverrait n'importe quoi). 'auto' est accepté.
+  const VALID_LANGS = ['fr', 'en', 'zh', 'ar', 'es', 'de', 'pt', 'it', 'ru', 'ja', 'wo', 'auto']
+  let commentaireLang: string | null = null
+  if (typeof b.commentaireLang === 'string' && VALID_LANGS.includes(b.commentaireLang)) {
+    commentaireLang = b.commentaireLang
   }
   if (b.photoUrl && typeof b.photoUrl !== 'string') {
     return fail('Photo invalide', 400)
@@ -144,14 +165,45 @@ export async function POST(req: NextRequest) {
     return fail('Numéro WhatsApp invalide (format attendu : international sans +, ex: 33612345678)', 400)
   }
 
+  // --- Task WAHOO-1 — Construction du commentaire stocké ---
+  // Si le voyageur a écrit dans une langue ≠ français (commentaireLang
+  // !== 'fr'), la PWA a déjà traduit son texte en français (champ
+  // `commentaire` = version FR). On encode dans le champ DB `commentaire` :
+  //   - un préfixe `[origine:XX]` parsable par le wallboard pour annoncer
+  //     « Message original en [langue] »
+  //   - la traduction française (Denise lit cette partie en français)
+  //   - le texte original pour référence (audit, email, ops)
+  //
+  // Format : `[origine:en] Bagage oublié à la porte B4 — Original (en): I forgot my bag at gate B4`
+  //
+  // Si commentaireLang === 'fr' ou absent → on stocke le commentaire tel quel.
+  const commentaireFr = b.commentaire?.trim() || null
+  const commentaireSrc = b.commentaireOriginal?.trim() || null
+  let commentaireStocke: string | null = commentaireFr
+  if (
+    commentaireFr &&
+    commentaireLang &&
+    commentaireLang !== 'fr' &&
+    commentaireSrc &&
+    commentaireSrc !== commentaireFr
+  ) {
+    commentaireStocke = `[origine:${commentaireLang}] ${commentaireFr} — Original (${commentaireLang}): ${commentaireSrc}`
+  } else if (commentaireFr && commentaireLang && commentaireLang !== 'fr') {
+    // Pas d'original conservé (cas rare) — on garde quand même la langue.
+    commentaireStocke = `[origine:${commentaireLang}] ${commentaireFr}`
+  }
+
   // --- Génération du payload WhatsApp (cahier des charges) ---
+  // On utilise commentaireStocke (qui contient le préfixe [origine:XX]
+  // + la trad FR + l'original) : l'ops voit la langue d'origine + le
+  // texte français + le texte source dans le message WhatsApp.
   const createdAt = new Date()
   const whatsappPayloadData: AirportWhatsappPayload = {
     zoneNom: zone.nom,
     zoneEmoji: zone.emoji,
     problemType: b.problemType,
     tagScanne: b.tag,
-    commentaire: b.commentaire ?? null,
+    commentaire: commentaireStocke,
     photoUrl: b.photoUrl ?? null,
     createdAt,
   }
@@ -164,7 +216,7 @@ export async function POST(req: NextRequest) {
       zoneId: zone.id,
       tagScanne: b.tag,
       problemType: b.problemType,
-      commentaire: b.commentaire?.trim() || null,
+      commentaire: commentaireStocke,
       photoUrl: b.photoUrl ?? null,
       flightNumber,
       whatsappOptin: optin,
@@ -191,7 +243,10 @@ export async function POST(req: NextRequest) {
   // Envoie un email à tous les Pros "Aéroport" pour les informer
   // du nouveau signalement. Fire-and-forget (ne bloque pas la réponse
   // au voyageur). En mode démo (pas de RESEND_API_KEY), logge seulement.
-  notifierManagersEmail(report, zone, b.tag, b.commentaire ?? null, flightNumber, createdAt).catch((err) => {
+  // Task WAHOO-1 : on passe commentaireStocke (qui contient le préfixe
+  // [origine:XX] + la trad FR + l'original) pour que l'email reflète
+  // exactement la même chose que le message WhatsApp.
+  notifierManagersEmail(report, zone, b.tag, commentaireStocke, flightNumber, createdAt).catch((err) => {
     console.warn('[airport-report] Email notification error:', err instanceof Error ? err.message : String(err))
   })
 
@@ -240,7 +295,13 @@ export async function POST(req: NextRequest) {
     problemType: b.problemType,
     tag: b.tag,
     flightNumber: flightNumber,
-    commentaire: b.commentaire ?? null,
+    // Task WAHOO-1 : commentaireStocke contient le préfixe [origine:XX]
+    // + la trad FR + l'original — les intégrations tierces (Slack/Teams)
+    // reçoivent la même information que WhatsApp/email.
+    commentaire: commentaireStocke,
+    // Champs explicites pour faciliter le filtrage côté intégration.
+    commentaireLang: commentaireLang,
+    commentaireOriginal: commentaireSrc,
     photoUrl: b.photoUrl ?? null,
     createdAt: report.createdAt.toISOString(),
     link: incidentLink,
