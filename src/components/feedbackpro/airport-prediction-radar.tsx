@@ -1,20 +1,15 @@
 'use client'
 
 // ============================================================
-// <AirportPredictionRadar /> — Widget "Radar Prédiction"
+// <AirportPredictionRadar /> — Widget "Radar Prédiction" V2.0
 // ------------------------------------------------------------
 // Affiche le risque d'explosion de plaintes voyageurs dans les
 // ~20 prochaines minutes pour chaque zone aéroport. Polle
-// /api/airport/predict toutes les 30 s. Conçu pour être embarqué
-// dans le wallboard ops room (affichage TV salle de supervision).
+// /api/airport/predict toutes les 30 s.
 //
-// Palette : dark slate-950, accents emerald (CALME) / yellow
-// (VIGILANCE) / orange (TENDU) / rose (CRITIQUE / IMMINENT).
-// Les niveaux CRITIQUE et IMMINENT pulsent (animate-pulse) pour
-// attirer l'œil ops en un coup d'œil.
-//
-// SSR-safe : skeleton grisé jusqu'à la première résolution du
-// fetch (le composant est 'use client' mais peut être pré-rendu).
+// Palette V2.0 : fond blanc #FFFFFF + cartes avec coins arrondis
+// + bleu #003399 (scores) + vert #00A651 (calme) + orange #FF6B00
+// (attention) + rouge #E30613 (critique). Coins arrondis 15px.
 // ============================================================
 
 import { useCallback, useEffect, useState } from 'react'
@@ -64,71 +59,51 @@ type PredictionData = {
   alerts: AlertItem[]
 }
 
-const POLL_MS = 30_000
+const POLL_MS = 30000
 
-const LEVEL_STYLES: Record<RiskLevel, string> = {
-  CALME: 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30',
-  VIGILANCE: 'bg-yellow-500/20 text-yellow-300 border-yellow-500/30',
-  TENDU: 'bg-orange-500/20 text-orange-300 border-orange-500/30',
-  CRITIQUE: 'bg-rose-500/20 text-rose-300 border-rose-500/30 animate-pulse',
-  IMMINENT: 'bg-rose-600/30 text-rose-100 border-rose-500/50 animate-pulse',
+const BLEU = '#003399'
+const JAUNE = '#FCD116'
+const ROUGE = '#E30613'
+const VERT = '#00A651'
+const ORANGE = '#FF6B00'
+
+const LEVEL_STYLES: Record<RiskLevel, { bg: string; text: string; border: string; pulse?: boolean }> = {
+  CALME:      { bg: 'bg-[#00A651]', text: 'text-white', border: '' },
+  VIGILANCE:  { bg: 'bg-[#FCD116]', text: 'text-black', border: '' },
+  TENDU:      { bg: 'bg-[#FF6B00]', text: 'text-white', border: '' },
+  CRITIQUE:   { bg: 'bg-[#E30613]', text: 'text-white', border: '', pulse: true },
+  IMMINENT:   { bg: 'bg-[#E30613]', text: 'text-white', border: '', pulse: true },
 }
 
-type TrendInfo = {
-  Icon: typeof TrendingUp
-  label: string
-}
-
-function trendInfo(zone: ZonePrediction): TrendInfo {
-  // Zone sans activité récente : trend neutre (pas de flèche descendante
-  // trompeuse quand il n'y a rien à décélérer).
-  if (zone.countLast30Min === 0 && zone.countPrev30Min === 0) {
-    return { Icon: Minus, label: '→' }
+function trendInfo(zone: ZonePrediction): { Icon: typeof TrendingUp; color: string } {
+  if (zone.countPrev30Min > 0 && zone.countLast30Min / zone.countPrev30Min >= 1.5) {
+    return { Icon: TrendingUp, color: ROUGE }
   }
-  if (zone.trendRatio >= 1.5) return { Icon: TrendingUp, label: '↑' }
-  if (zone.trendRatio < 0.7) return { Icon: TrendingDown, label: '↓' }
-  return { Icon: Minus, label: '→' }
+  if (zone.countPrev30Min > 0 && zone.countLast30Min / zone.countPrev30Min < 0.7) {
+    return { Icon: TrendingDown, color: VERT }
+  }
+  return { Icon: Minus, color: '#999' }
 }
 
-/**
- * Raison affichée sous le score — Task WB2 Feature 5.
- * Texte court et actionnable selon le niveau de risque :
- *   - score > 60 : "Pic d'incidents dans les 20 dernières min"
- *   - score > 40 : "Tendance à la hausse"
- *   - score > 20 : "Surveillance normale"
- *   - score = 0  : "Aucun incident récent"
- */
 function riskReason(zone: ZonePrediction): string {
-  if (zone.riskScore > 60) {
-    return 'Pic d\'incidents dans les 20 dernières min'
-  }
-  if (zone.riskScore > 40) {
-    return 'Tendance à la hausse'
-  }
-  if (zone.riskScore > 20) {
-    return 'Surveillance normale'
-  }
+  if (zone.riskScore > 60) return 'Pic d\'incidents dans les 20 dernières min'
+  if (zone.riskScore > 40) return 'Tendance à la hausse'
+  if (zone.riskScore > 20) return 'Surveillance normale'
   return 'Aucun incident récent'
 }
 
 function formatTime(d: Date): string {
-  return d.toLocaleTimeString('fr-FR', {
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-  })
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
 }
 
 export function AirportPredictionRadar({ className }: { className?: string }) {
   const [data, setData] = useState<PredictionData | null>(null)
-  const [loading, setLoading] = useState<boolean>(true)
-  const [refreshing, setRefreshing] = useState<boolean>(false)
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [clock, setClock] = useState<string>('')
+  const [clock, setClock] = useState('')
 
-  // Horloge live (1 Hz) — mise à jour côté client uniquement pour
-  // éviter toute divergence d'hydration (suppressHydrationWarning sur
-  // le span afficheur).
   useEffect(() => {
     setClock(formatTime(new Date()))
     const id = setInterval(() => setClock(formatTime(new Date())), 1000)
@@ -140,7 +115,7 @@ export function AirportPredictionRadar({ className }: { className?: string }) {
       setRefreshing(true)
       const res = await fetch('/api/airport/predict', { cache: 'no-store' })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      const json = (await res.json()) as { ok?: boolean; error?: string; data?: PredictionData }
+      const json = await res.json() as { ok?: boolean; error?: string; data?: PredictionData }
       if (!json?.ok || !json.data) {
         throw new Error(json?.error ?? 'Réponse invalide')
       }
@@ -154,30 +129,22 @@ export function AirportPredictionRadar({ className }: { className?: string }) {
     }
   }, [])
 
-  // Fetch immédiat au mount + polling toutes les 30 s.
   useEffect(() => {
     void fetchPredict()
     const id = setInterval(() => void fetchPredict(), POLL_MS)
     return () => clearInterval(id)
   }, [fetchPredict])
 
-  // --- Skeleton / placeholder SSR-safe (avant 1ère résolution) ---
+  // Skeleton
   if (loading && !data) {
     return (
-      <div
-        className={`rounded-xl border border-slate-800 bg-[#0F172A] p-4 text-slate-300 ${className ?? ''}`}
-      >
-        <div className="flex items-center gap-2">
-          <Radar className="h-4 w-4 animate-pulse text-slate-500" />
-          <span className="text-xs font-semibold uppercase tracking-widest text-slate-400">
-            RADAR PRÉDICTION
-          </span>
-        </div>
-        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      <div className={`w-full ${className ?? ''}`}>
+        <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
           {Array.from({ length: 5 }).map((_, i) => (
             <div
               key={i}
-              className="h-32 animate-pulse rounded-lg border border-slate-800 bg-slate-900/60"
+              className="h-40 animate-pulse rounded-[15px] bg-[#F5F5F5]"
+              style={{ boxShadow: '0 2px 6px rgba(0,0,0,0.05)' }}
             />
           ))}
         </div>
@@ -185,19 +152,21 @@ export function AirportPredictionRadar({ className }: { className?: string }) {
     )
   }
 
-  // --- État d'erreur fatale (jamais de data reçue) ---
   if (error && !data) {
     return (
-      <div
-        className={`rounded-xl border border-rose-500/40 bg-[#0F172A] p-4 text-rose-300 ${className ?? ''}`}
-      >
-        <div className="flex items-center gap-2">
-          <AlertTriangle className="h-4 w-4" />
-          <span className="text-xs font-semibold uppercase tracking-widest">
-            RADAR PRÉDICTION — ERREUR
-          </span>
+      <div className={`w-full ${className ?? ''}`}>
+        <div
+          className="rounded-[15px] bg-[#E30613] p-4 text-white"
+          style={{ boxShadow: '0 4px 8px rgba(227,6,19,0.2)' }}
+        >
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            <span className="text-xs font-black uppercase tracking-widest">
+              RADAR PRÉDICTION — ERREUR
+            </span>
+          </div>
+          <p className="mt-2 text-sm opacity-90">{error}</p>
         </div>
-        <p className="mt-2 text-sm text-rose-200/80">{error}</p>
       </div>
     )
   }
@@ -206,108 +175,141 @@ export function AirportPredictionRadar({ className }: { className?: string }) {
   const zones = data?.zones ?? []
 
   return (
-    <div
-      className={`rounded-xl border border-slate-800 bg-[#0F172A] p-4 ${className ?? ''}`}
-      aria-label="Radar prédiction des pics de plaintes"
-    >
+    <div className={`w-full ${className ?? ''}`}>
       {/* Header */}
-      <div className="flex items-center justify-between gap-3">
+      <div className="mb-4 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Radar className="h-4 w-4 text-emerald-400" />
-          <span className="text-xs font-semibold uppercase tracking-widest text-slate-200">
+          <div
+            className="flex h-10 w-10 items-center justify-center rounded-[10px] text-white"
+            style={{ background: BLEU }}
+          >
+            <Radar className="h-5 w-5" />
+          </div>
+          <span
+            className="font-black uppercase tracking-widest"
+            style={{ color: BLEU, fontSize: '13px', letterSpacing: '2px' }}
+          >
             RADAR PRÉDICTION
           </span>
         </div>
         <div className="flex items-center gap-3">
           <span
+            className="font-bold tabular-nums"
+            style={{ color: '#666', fontSize: '12px' }}
             suppressHydrationWarning
-            className="font-mono text-xs text-slate-400"
           >
             {clock || '--:--:--'}
           </span>
           <RefreshCw
-            className={`h-3.5 w-3.5 text-slate-500 ${refreshing ? 'animate-spin' : ''}`}
+            className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`}
+            style={{ color: BLEU }}
             aria-hidden
           />
         </div>
       </div>
 
-      {/* Alerte préventive (zone >= CRITIQUE) */}
+      {/* Alerte préventive */}
       {topAlert && (
         <div
-          className="mt-3 flex animate-pulse items-center gap-3 rounded-lg border border-rose-500/50 bg-rose-600/20 px-3 py-2 text-rose-100"
+          className={`mb-4 flex items-center gap-3 rounded-[15px] px-4 py-3 text-white ${LEVEL_STYLES[topAlert.riskLevel].pulse ? 'animate-pulse' : ''}`}
+          style={{ background: topAlert.riskLevel === 'CALME' || topAlert.riskLevel === 'VIGILANCE' ? ORANGE : ROUGE, boxShadow: '0 4px 8px rgba(0,0,0,0.15)' }}
           role="alert"
         >
           <AlertTriangle className="h-5 w-5 shrink-0" aria-hidden />
-          <span className="text-sm font-semibold">
+          <span className="text-sm font-black uppercase tracking-wide">
             ALERTE PRÉVENTIVE — Ça va péter dans ~{topAlert.minutesToBurst ?? 20} min sur {topAlert.nom}
           </span>
         </div>
       )}
 
-      {/* Grille des 5 zones */}
-      <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      {/* Grille des 5 zones — cartes premium V2.0 */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
         {zones.map((zone) => {
           const { Icon } = trendInfo(zone)
+          const lvl = LEVEL_STYLES[zone.riskLevel]
+          const scoreColor = zone.riskScore >= 60 ? ROUGE : zone.riskScore >= 40 ? ORANGE : zone.riskScore >= 20 ? JAUNE : VERT
+
           return (
             <div
               key={zone.code}
-              className="rounded-lg border border-slate-800 bg-slate-900/60 p-3"
+              className={`rounded-[15px] bg-white p-4 ${lvl.pulse ? 'animate-pulse' : ''}`}
+              style={{ boxShadow: '0 4px 8px rgba(0,0,0,0.1)' }}
             >
-              {/* Emoji + nom */}
-              <div className="flex items-center gap-2">
-                <span className="text-lg" aria-hidden>
-                  {zone.emoji}
-                </span>
-                <span className="truncate text-xs font-medium text-slate-300">
+              {/* Header : icône bleue + nom */}
+              <div
+                className="mb-3 flex items-center gap-2 pb-2"
+                style={{ borderBottom: `2px solid ${JAUNE}` }}
+              >
+                <div
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] text-white"
+                  style={{ background: BLEU }}
+                >
+                  <span className="text-lg">{zone.emoji}</span>
+                </div>
+                <span
+                  className="font-black uppercase leading-tight"
+                  style={{ color: '#000', fontSize: '12px', letterSpacing: '1px' }}
+                >
                   {zone.nom}
                 </span>
               </div>
 
-              {/* Score gros */}
-              <div className="mt-2 flex items-baseline gap-1">
-                <span className="font-mono text-3xl font-bold text-slate-100">
+              {/* Score */}
+              <div className="flex items-baseline gap-1">
+                <span
+                  className="font-black tabular-nums leading-none"
+                  style={{ color: scoreColor, fontSize: '40px' }}
+                >
                   {zone.riskScore}
                 </span>
-                <span className="text-[10px] uppercase tracking-wide text-slate-500">
+                <span
+                  className="font-bold"
+                  style={{ color: '#999', fontSize: '14px' }}
+                >
                   /100
                 </span>
               </div>
 
               {/* Badge niveau */}
               <span
-                className={`mt-2 inline-block rounded border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${LEVEL_STYLES[zone.riskLevel]}`}
+                className={`mt-2 inline-block rounded-[12px] px-3 py-1 text-[11px] font-black uppercase tracking-widest ${lvl.bg} ${lvl.text}`}
               >
                 {zone.riskLevel}
               </span>
 
-              {/* Mini stats */}
-              <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[10px] text-slate-400">
-                <span>
-                  30min:{' '}
-                  <span className="font-mono text-slate-200">{zone.countLast30Min}</span>
+              {/* Stats */}
+              <div
+                className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1"
+                style={{ fontSize: '10px', fontWeight: 700, letterSpacing: '1px', color: '#666' }}
+              >
+                <span className="flex items-center gap-1">
+                  30MIN:
+                  <span className="font-black" style={{ color: '#000' }}>{zone.countLast30Min}</span>
                 </span>
-                <span>
-                  pending:{' '}
-                  <span className="font-mono text-slate-200">{zone.pendingCount}</span>
+                <span className="flex items-center gap-1">
+                  PENDING:
+                  <span className="font-black" style={{ color: '#000' }}>{zone.pendingCount}</span>
                 </span>
-                <span className="flex items-center gap-0.5">
-                  trend: <Icon className="h-3 w-3" aria-hidden />
+                <span className="flex items-center gap-1">
+                  TREND:
+                  <Icon className="h-3 w-3" style={{ color: trendInfo(zone).color }} aria-hidden />
                 </span>
               </div>
 
-              {/* Recommandation */}
-              <p className="mt-2 text-[10px] leading-snug text-slate-500">
+              {/* Recommendation */}
+              <p
+                className="mt-2 leading-snug"
+                style={{ fontSize: '10px', fontWeight: 700, color: '#666', letterSpacing: '0.5px' }}
+              >
                 {zone.recommendation}
               </p>
 
-              {/* Reasoning — Task WB2 Feature 5 : explication courte du score
-                  pour aider l'ops à prioriser sans devoir interpréter le chiffre. */}
+              {/* Risk reason */}
               <p
-                className="mt-1.5 flex items-center gap-1 text-[10px] font-medium leading-snug text-slate-400"
-                title={`Score ${zone.riskScore}/100 — ${riskReason(zone)}`}
+                className="mt-1 flex items-center gap-1 leading-snug"
+                style={{ fontSize: '10px', fontWeight: 700, color: '#999' }}
               >
-                <Activity className="h-2.5 w-2.5 shrink-0 text-slate-500" aria-hidden />
+                <Activity className="h-2.5 w-2.5 shrink-0" style={{ color: '#999' }} aria-hidden />
                 {riskReason(zone)}
               </p>
             </div>
@@ -315,22 +317,20 @@ export function AirportPredictionRadar({ className }: { className?: string }) {
         })}
       </div>
 
-      {/* Footer : risque global + dernière maj */}
-      {data && (
-        <div className="mt-4 flex items-center justify-between text-[10px] text-slate-500">
-          <span className="flex items-center gap-1">
-            <Activity className="h-3 w-3" aria-hidden />
-            Risque global :{' '}
-            <span className="font-mono text-slate-300">{data.globalRiskScore}/100</span>
-            <span className="ml-1 uppercase tracking-wide text-slate-400">
-              {data.globalRiskLevel}
-            </span>
+      {/* Footer */}
+      <div
+        className="mt-4 flex items-center justify-between"
+        style={{ fontSize: '10px', fontWeight: 700, color: '#666', letterSpacing: '1px' }}
+      >
+        <span>
+          SCORE GLOBAL:
+          <span className="ml-1 font-black tabular-nums" style={{ color: BLEU }}>
+            {data?.globalRiskScore ?? 0}/100
           </span>
-          <span suppressHydrationWarning className="font-mono">
-            Maj: {formatTime(new Date(data.generatedAt))}
-          </span>
-        </div>
-      )}
+          <span className="ml-1 uppercase tracking-wide">{data?.globalRiskLevel ?? '—'}</span>
+        </span>
+        <span suppressHydrationWarning>MAJ: {clock}</span>
+      </div>
     </div>
   )
 }
