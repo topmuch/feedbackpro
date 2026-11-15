@@ -12,9 +12,38 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { ok, fail } from '@/lib/session'
 import { resoudreZoneParTag, AIRPORT_ZONES } from '@/lib/airport-config'
+import { seedVoiceRulesIfEmpty } from '@/lib/voice-rules-seed'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
+
+// Auto-seed : crée les zones + règles Denise en BDD si elles n'existent pas.
+// Lancé en fire-and-forget au premier appel API (idempotent).
+let seeded = false
+async function autoSeed() {
+  if (seeded) return
+  seeded = true
+  try {
+    // Seed les règles Denise
+    await seedVoiceRulesIfEmpty().catch(() => undefined)
+    // Seed les zones aéroport (upsert idempotent)
+    for (const z of AIRPORT_ZONES) {
+      await db.airportZone.upsert({
+        where: { code: z.code },
+        create: {
+          code: z.code, nom: z.nom, emoji: z.emoji,
+          description: z.description ?? null,
+          tags: JSON.stringify(z.tags),
+          problemes: JSON.stringify([...z.problemes]),
+        },
+        update: {},
+      }).catch(() => undefined)
+    }
+    console.log('[autoSeed] Zones + voice rules seedées')
+  } catch {
+    /* non bloquant */
+  }
+}
 
 function safeParse<T>(s: string | null, fallback: T): T {
   if (!s) return fallback
@@ -30,6 +59,9 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ tag: strin
   if (!tag || typeof tag !== 'string') {
     return fail('Tag manquant', 400)
   }
+
+  // Auto-seed les zones + règles Denise si BDD vide (fire-and-forget)
+  void autoSeed()
 
   // 1. Résolution par la config statique (source de vérité)
   const config = resoudreZoneParTag(tag)

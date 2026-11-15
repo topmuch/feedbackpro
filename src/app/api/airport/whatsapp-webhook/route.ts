@@ -24,7 +24,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import crypto from 'crypto'
-import { handleAirportBotMessage } from '@/lib/airport-bot'
+import { processWhatsAppMessage } from '@/lib/whatsapp-bot-ai'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -168,12 +168,12 @@ export async function POST(req: NextRequest) {
       `[airport-webhook] Message reçu de ${phone} (sid=${messageSid}) : "${body.slice(0, 80)}"`,
     )
 
-    // --- Dispatch vers le bot ---
-    const result = await handleAirportBotMessage(phone, body)
+    // --- Dispatch vers le bot 2.0 conversational ---
+    const result = await processWhatsAppMessage(phone, body)
 
-    if (result.shouldAlert) {
+    if (result.action && result.action !== 'help') {
       console.log(
-        `[airport-webhook] Action ops détectée de ${phone} — réponse: ${result.reply.slice(0, 80)}...`,
+        `[airport-webhook] Action ops détectée de ${phone} (${result.action}) — réponse: ${result.reply.slice(0, 80)}...`,
       )
     }
 

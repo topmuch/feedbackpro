@@ -25,6 +25,7 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { ok, fail } from '@/lib/session'
+import { dispatchWebhook } from '@/lib/webhook-dispatcher'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -54,6 +55,8 @@ export async function POST(req: NextRequest) {
       whatsappPhone: true,
       problemType: true,
       zoneId: true,
+      tagScanne: true,
+      createdAt: true,
     },
   })
   if (!existing) {
@@ -81,6 +84,25 @@ export async function POST(req: NextRequest) {
   console.log(
     `[airport] /ops/resolve — report ${updated.id} marqué RESOLU par ${phone ?? 'unknown'} à ${now.toISOString()}`,
   )
+
+  // --- Task F3 — Marketplace Webhooks : dispatch externe "resolved" ---
+  // Fire-and-forget : envoie un HTTP POST aux intégrations tierces
+  // (Slack, Teams, Zapier…) abonnées à l'événement "resolved".
+  const resolutionMinutes = existing.createdAt
+    ? Math.round((now.getTime() - existing.createdAt.getTime()) / 60000)
+    : null
+  dispatchWebhook('resolved', {
+    reportId: updated.id,
+    shortId: updated.id.slice(-8),
+    problemType: existing.problemType,
+    tag: existing.tagScanne,
+    resolvedAt: now.toISOString(),
+    resolvedBy: phone ?? 'unknown',
+    resolutionMinutes,
+    zoneId: existing.zoneId,
+  }).catch((err) => {
+    console.warn('[airport/ops/resolve] Webhook dispatch error:', err instanceof Error ? err.message : String(err))
+  })
 
   return ok({
     reportId: updated.id,

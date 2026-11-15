@@ -55,8 +55,10 @@ import {
   Wrench,
   ShieldAlert,
   Plane,
+  Mic,
 } from 'lucide-react'
 import { AirportPredictionRadar } from '@/components/feedbackpro/airport-prediction-radar'
+import { parler } from '@/lib/staff-tts'
 
 // ---------------------------------------------------------------
 // Types — match exact du contrat /api/airport/wallboard
@@ -173,6 +175,70 @@ type AlertsCheckResponse = {
     lastCheckedAt: string
     stats: { totalActive: number; triggered: number; critical: number; warning: number }
   }
+}
+
+// ---------------------------------------------------------------
+// Types — Feature F1/F2/F3 (Denise conversationnelle, auto-pilot, achievements)
+// ---------------------------------------------------------------
+
+/** Sous-ensemble du SpeechRecognition (Web Speech API) — la lib DOM TS ne
+ *  l'expose pas de façon stable, on déclare le minimum nécessaire. */
+type SpeechRecognitionLike = {
+  lang: string
+  continuous: boolean
+  interimResults: boolean
+  maxAlternatives: number
+  start: () => void
+  stop: () => void
+  abort: () => void
+  onresult:
+    | ((event: {
+        results: ArrayLike<ArrayLike<{ transcript: string }>>
+        resultIndex: number
+      }) => void)
+    | null
+  onerror: ((event: { error: string }) => void) | null
+  onend: (() => void) | null
+}
+
+type AutopilotAction = {
+  type: 'AUTO_ASSIGN' | 'PATTERN_ALERT' | 'PREPOSITION'
+  description: string
+  reportId?: string
+  zoneCode?: string
+}
+
+type AchievementBadge = {
+  id: string
+  label: string
+  emoji: string
+  description: string
+  unlockedAt?: string
+  meta?: string
+}
+
+type AchievementsData = {
+  definitions: AchievementBadge[]
+  competition: { morning: number; evening: number; night: number }
+  streakDays: number
+  streakSlaPct: number
+  topPerformer: {
+    rank: number
+    staffName: string
+    points: number
+    resolutions: number
+    avgMinutes: number
+    lastResolvedAt: string | null
+    achievements: AchievementBadge[]
+  } | null
+  leaderboard: {
+    rank: number
+    staffName: string
+    points: number
+    resolutions: number
+    avgMinutes: number
+    achievements: AchievementBadge[]
+  }[]
 }
 
 // ---------------------------------------------------------------
@@ -1345,6 +1411,20 @@ export default function OpsWallboardPage() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardData | null>(null)
   const [actionToast, setActionToast] = useState<{ msg: string; kind: 'ok' | 'err' } | null>(null)
 
+  // --- Feature F1 : Denise IA Conversationnelle (micro + SpeechRecognition) ---
+  const [listening, setListening] = useState<boolean>(false)
+  const [deniseTranscript, setDeniseTranscript] = useState<string>('')
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
+
+  // --- Feature F2 : Auto-Pilot Denise (polling 60s) ---
+  const [autopilotActive, setAutopilotActive] = useState<boolean>(false)
+  const [autopilotActions, setAutopilotActions] = useState<AutopilotAction[]>([])
+  const announcedAutopilotRef = useRef<Map<string, number>>(new Map())
+
+  // --- Feature F3 : Mini-Game Staff 2.0 (achievements + compétition) ---
+  const [achievementsData, setAchievementsData] = useState<AchievementsData | null>(null)
+  const announcedAchievementsRef = useRef<Set<string>>(new Set())
+
   // --- Polling API toutes les 5s ---
   const poll = useCallback(async () => {
     try {
@@ -1476,6 +1556,104 @@ export default function OpsWallboardPage() {
     }
   }, [])
 
+  // --- Feature F2 : Auto-Pilot Denise (polling 60s) ---
+  // Vérifie les incidents orphelins (> 10min), les motifs systémiques (3+
+  // même zone en 1h) et les pics imminents (score prédiction > 80). Le
+  // serveur exécute les auto-affectations ; le wallboard annonce chaque
+  // action via parler() (voix Denise).
+  const pollAutopilot = useCallback(async () => {
+    try {
+      const res = await fetch('/api/airport/autopilot', { method: 'POST' })
+      if (!res.ok) return
+      const json = (await res.json()) as {
+        ok?: boolean
+        data?: { actions: AutopilotAction[]; generatedAt: string }
+      }
+      if (!json?.ok || !json.data) return
+      const actions = json.data.actions
+      if (actions.length === 0) return
+      setAutopilotActive(true)
+      setAutopilotActions(actions)
+      // Auto-hide du badge après 30s (l'action reste affichée le temps
+      // que l'équipe ops la constate visuellement).
+      setTimeout(() => setAutopilotActive(false), 30000)
+      if (soundOn) {
+        const nowMs = Date.now()
+        const toAnnounce: string[] = []
+        for (const action of actions) {
+          const key = action.description
+          const last = announcedAutopilotRef.current.get(key) ?? 0
+          // Anti-spam : ne pas réannoncer la même description < 5min.
+          if (nowMs - last < 5 * 60 * 1000) continue
+          announcedAutopilotRef.current.set(key, nowMs)
+          toAnnounce.push(action.description)
+        }
+        // Séquence les annonces (4s d'écart) — parler() coupe l'annonce
+        // précédente, on espace donc pour que chaque message soit audible.
+        toAnnounce.forEach((msg, i) => {
+          setTimeout(() => parler(msg), i * 4000)
+        })
+        // Nettoyage des entrées expirées (> 10min).
+        for (const [k, t] of announcedAutopilotRef.current) {
+          if (nowMs - t > 10 * 60 * 1000) announcedAutopilotRef.current.delete(k)
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }, [soundOn])
+
+  useEffect(() => {
+    const initial = setTimeout(() => void pollAutopilot(), 8000)
+    const api = setInterval(() => void pollAutopilot(), 60000)
+    return () => {
+      clearTimeout(initial)
+      clearInterval(api)
+    }
+  }, [pollAutopilot])
+
+  // --- Feature F3 : Achievements (polling 60s) ---
+  // Récupère la compétition d'équipes + le top performer + ses badges +
+  // la série SLA. Annonce vocalement chaque nouveau badge débloqué via
+  // parler() : "Achievement débloqué: Speed Demon! …"
+  const pollAchievements = useCallback(async () => {
+    try {
+      const res = await fetch('/api/airport/achievements', { cache: 'no-store' })
+      if (!res.ok) return
+      const json = (await res.json()) as { ok?: boolean; data?: AchievementsData }
+      if (!json?.ok || !json.data) return
+      const data = json.data
+      setAchievementsData(data)
+      if (soundOn) {
+        const toAnnounce: string[] = []
+        for (const entry of data.leaderboard) {
+          for (const ach of entry.achievements) {
+            const key = `${entry.staffName}:${ach.id}`
+            if (announcedAchievementsRef.current.has(key)) continue
+            announcedAchievementsRef.current.add(key)
+            toAnnounce.push(
+              `Achievement débloqué: ${ach.label}! ${ach.description}`,
+            )
+          }
+        }
+        toAnnounce.forEach((msg, i) => {
+          setTimeout(() => parler(msg), i * 4500)
+        })
+      }
+    } catch {
+      // ignore
+    }
+  }, [soundOn])
+
+  useEffect(() => {
+    const initial = setTimeout(() => void pollAchievements(), 3000)
+    const api = setInterval(() => void pollAchievements(), 60000)
+    return () => {
+      clearTimeout(initial)
+      clearInterval(api)
+    }
+  }, [pollAchievements])
+
   // --- Mode Crise ---
   const handleCrisisStart = useCallback(() => {
     setCrisisMode(true)
@@ -1605,6 +1783,89 @@ export default function OpsWallboardPage() {
     })
   }, [])
 
+  // --- Feature F1 : toggle micro (SpeechRecognition → processVoiceCommand → parler) ---
+  // Bouton micro dans le header : démarre la reconnaissance vocale (fr-FR),
+  // transcrit la phrase, l'envoie à /api/airport/denise-command (qui exécute
+  // `processVoiceCommand()` côté serveur — la lib faisant des requêtes Prisma)
+  // et énonce la réponse via parler() (voix Denise). Si l'action retournée
+  // est 'crisis', déclenche handleCrisisStart() (qui énonce son propre message).
+  const toggleListening = useCallback(() => {
+    if (typeof window === 'undefined') return
+    const w = window as unknown as {
+      SpeechRecognition?: new () => SpeechRecognitionLike
+      webkitSpeechRecognition?: new () => SpeechRecognitionLike
+    }
+    const Ctor = w.SpeechRecognition ?? w.webkitSpeechRecognition
+    if (!Ctor) {
+      handleActionFeedback(
+        'Reconnaissance vocale non supportée par ce navigateur',
+        'err',
+      )
+      return
+    }
+    if (listening) {
+      recognitionRef.current?.stop()
+      return
+    }
+    const rec = new Ctor()
+    rec.lang = 'fr-FR'
+    rec.continuous = false
+    rec.interimResults = false
+    rec.maxAlternatives = 1
+    rec.onresult = async (event) => {
+      const transcript = event.results[0]?.[0]?.transcript ?? ''
+      if (!transcript) return
+      setDeniseTranscript(transcript)
+      try {
+        const res = await fetch('/api/airport/denise-command', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text: transcript }),
+        })
+        if (!res.ok) {
+          parler('Erreur lors du traitement de la commande.')
+          return
+        }
+        const json = (await res.json()) as {
+          ok?: boolean
+          data?: { response: string; action?: string }
+          error?: string
+        }
+        if (!json?.ok || !json.data) {
+          parler(json?.error ?? 'Erreur lors du traitement de la commande.')
+          return
+        }
+        const result = json.data
+        if (result.action === 'crisis') {
+          // handleCrisisStart énonce son propre message + joue le ding
+          // d'escalade — on évite le double parler.
+          handleCrisisStart()
+        } else {
+          parler(result.response)
+        }
+      } catch {
+        parler('Erreur lors du traitement de la commande.')
+      }
+    }
+    rec.onerror = (event) => {
+      console.warn('SpeechRecognition error', event.error)
+      setListening(false)
+    }
+    rec.onend = () => {
+      setListening(false)
+      recognitionRef.current = null
+    }
+    recognitionRef.current = rec
+    setListening(true)
+    setDeniseTranscript('')
+    try {
+      rec.start()
+    } catch (e) {
+      console.warn('SpeechRecognition start error', e)
+      setListening(false)
+    }
+  }, [listening, handleCrisisStart, handleActionFeedback])
+
   // --- Mémos ---
   const maxEnAttente = useMemo(
     () => (data ? Math.max(1, ...data.zones.map((z) => z.count_en_attente)) : 1),
@@ -1646,6 +1907,12 @@ export default function OpsWallboardPage() {
     const active = leaderboard.leaderboard.filter((e) => e.resolutions > 0).length
     return { count: active, total: Math.max(15, active) }
   }, [leaderboard])
+
+  // --- Feature F3 : valeurs dérivées du payload achievements ---
+  const competition = achievementsData?.competition ?? null
+  const topPerformer = achievementsData?.topPerformer ?? null
+  const streakDays = achievementsData?.streakDays ?? 0
+  const streakSlaPct = achievementsData?.streakSlaPct ?? 0
 
   // --- Lignes filtrées (zone + crise) ---
   const filteredRows = useMemo<RecentReport[]>(() => {
@@ -1908,6 +2175,23 @@ export default function OpsWallboardPage() {
             </span>
           </div>
 
+          {/* Feature F2 — Badge AUTO-PILOT (actif tant que Denise a pris des décisions auto) */}
+          {autopilotActive && (
+            <div
+              className="ops-pulse flex items-center gap-1.5 rounded-[25px] px-3 py-1.5 text-black"
+              style={{ backgroundColor: JAUNE }}
+              title={
+                autopilotActions.length > 0
+                  ? autopilotActions.map((a) => a.description).join('\n')
+                  : 'Denise prend des décisions automatiques'
+              }
+            >
+              <span className="font-black uppercase" style={{ fontSize: '11px', letterSpacing: '2px' }}>
+                AUTO-PILOT
+              </span>
+            </div>
+          )}
+
           {/* Clock — yellow bg, black text, 36px */}
           <span
             suppressHydrationWarning
@@ -1957,8 +2241,62 @@ export default function OpsWallboardPage() {
               </>
             )}
           </button>
+
+          {/* Feature F1 — Micro Denise (SpeechRecognition) */}
+          <button
+            type="button"
+            onClick={toggleListening}
+            aria-pressed={listening}
+            aria-label={
+              listening ? 'Arrêter Denise' : 'Parler à Denise (commande vocale)'
+            }
+            title={
+              listening
+                ? 'Denise écoute — clic pour couper'
+                : 'Parler à Denise (bilan, zone, assigne, alerte, calme, top performer, crise)'
+            }
+            className={`flex items-center gap-1.5 rounded-[15px] px-3 py-2 font-black uppercase text-white transition-opacity hover:opacity-90 ${listening ? 'ops-pulse' : ''}`}
+            style={{
+              backgroundColor: listening ? ROUGE : 'transparent',
+              border: '3px solid #FFFFFF',
+              fontSize: '11px',
+              letterSpacing: '1px',
+            }}
+          >
+            <Mic className="size-4" aria-hidden />
+            <span>{listening ? 'DENISE' : 'MIC'}</span>
+          </button>
         </div>
       </header>
+
+      {/* ---------- Feature F1 — Indicateur "Denise écoute…" ---------- */}
+      {listening && (
+        <div
+          role="status"
+          className="mx-[30px] mt-4 flex shrink-0 flex-wrap items-center justify-center gap-3 rounded-[15px] px-5 py-2"
+          style={{ backgroundColor: BLANC, boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
+        >
+          <span
+            className="ops-pulse size-2.5 rounded-full"
+            style={{ backgroundColor: ROUGE }}
+            aria-hidden
+          />
+          <span
+            className="font-black uppercase text-black"
+            style={{ fontSize: '12px', letterSpacing: '2px' }}
+          >
+            DENISE ÉCOUTE…
+          </span>
+          {deniseTranscript && (
+            <span
+              className="font-bold text-black"
+              style={{ fontSize: '11px', letterSpacing: '1px', opacity: 0.7 }}
+            >
+              « {deniseTranscript} »
+            </span>
+          )}
+        </div>
+      )}
 
       {/* ---------- BANNIÈRE D'ACTIVATION DU SON ---------- */}
       {showSoundBanner && !soundOn && (
@@ -2103,6 +2441,180 @@ export default function OpsWallboardPage() {
         ) : (
           Array.from({ length: 6 }).map((_, i) => <KpiSkeleton key={i} />)
         )}
+      </section>
+
+      {/* ============================================================
+          Feature F3 — CLASSEMENT (compétition d'équipes + top performer + série SLA)
+          ============================================================ */}
+      <section
+        aria-label="Classement staff et achievements"
+        className="px-[30px] pb-5"
+      >
+        <div
+          className="rounded-[20px] bg-white p-[25px]"
+          style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
+        >
+          <h2
+            className="mb-4 font-black uppercase leading-none"
+            style={{ fontSize: 'clamp(16px, 1.8vw, 20px)', letterSpacing: '3px', color: BLEU }}
+          >
+            🏆 CLASSEMENT
+          </h2>
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+            {/* --- Compétition d'équipes (24h) --- */}
+            <div className="rounded-[15px] bg-[#F5F5F5] p-4">
+              <p
+                className="mb-3 font-black uppercase text-black"
+                style={{ fontSize: '11px', letterSpacing: '2px' }}
+              >
+                COMPÉTITION D'ÉQUIPES (24H)
+              </p>
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-col items-center">
+                  <span
+                    className="font-black tabular-nums leading-none text-[#003399]"
+                    style={{ fontSize: '28px' }}
+                    suppressHydrationWarning
+                  >
+                    {competition?.morning ?? 0}
+                  </span>
+                  <span
+                    className="mt-1 font-black uppercase"
+                    style={{ fontSize: '10px', letterSpacing: '1px' }}
+                  >
+                    MATIN
+                  </span>
+                </div>
+                <span className="font-black text-black" style={{ fontSize: '16px', opacity: 0.3 }}>
+                  |
+                </span>
+                <div className="flex flex-col items-center">
+                  <span
+                    className="font-black tabular-nums leading-none text-[#FF6B00]"
+                    style={{ fontSize: '28px' }}
+                    suppressHydrationWarning
+                  >
+                    {competition?.evening ?? 0}
+                  </span>
+                  <span
+                    className="mt-1 font-black uppercase"
+                    style={{ fontSize: '10px', letterSpacing: '1px' }}
+                  >
+                    SOIR
+                  </span>
+                </div>
+                <span className="font-black text-black" style={{ fontSize: '16px', opacity: 0.3 }}>
+                  |
+                </span>
+                <div className="flex flex-col items-center">
+                  <span
+                    className="font-black tabular-nums leading-none text-[#003399]"
+                    style={{ fontSize: '28px' }}
+                    suppressHydrationWarning
+                  >
+                    {competition?.night ?? 0}
+                  </span>
+                  <span
+                    className="mt-1 font-black uppercase"
+                    style={{ fontSize: '10px', letterSpacing: '1px' }}
+                  >
+                    NUIT
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* --- Top performer + badges --- */}
+            <div className="rounded-[15px] bg-[#F5F5F5] p-4">
+              <p
+                className="mb-3 font-black uppercase text-black"
+                style={{ fontSize: '11px', letterSpacing: '2px' }}
+              >
+                TOP PERFORMER
+              </p>
+              {topPerformer ? (
+                <div className="flex flex-col gap-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span
+                      className="truncate font-black uppercase text-black"
+                      style={{ fontSize: '15px', letterSpacing: '1px' }}
+                    >
+                      🥇 {truncateName(topPerformer.staffName, 18)}
+                    </span>
+                    <span
+                      className="shrink-0 font-black tabular-nums text-[#003399]"
+                      style={{ fontSize: '20px' }}
+                    >
+                      {topPerformer.points}pts
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    {topPerformer.achievements.length > 0 ? (
+                      topPerformer.achievements.map((a) => (
+                        <span
+                          key={a.id}
+                          title={a.meta ? `${a.description} — ${a.meta}` : a.description}
+                          className="inline-flex items-center gap-1 rounded-[8px] bg-[#FCD116] px-2 py-1 font-black uppercase text-black"
+                          style={{ fontSize: '10px', letterSpacing: '1px' }}
+                        >
+                          {a.emoji} {a.label}
+                        </span>
+                      ))
+                    ) : (
+                      <span
+                        className="font-bold uppercase text-black"
+                        style={{ fontSize: '10px', letterSpacing: '1px', opacity: 0.5 }}
+                      >
+                        AUCUN BADGE ENCORE
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <span
+                  className="font-bold uppercase text-black"
+                  style={{ fontSize: '11px', letterSpacing: '1px', opacity: 0.5 }}
+                >
+                  AUCUN CLASSEMENT CE MOIS-CI
+                </span>
+              )}
+            </div>
+
+            {/* --- Série SLA --- */}
+            <div className="rounded-[15px] bg-[#F5F5F5] p-4">
+              <p
+                className="mb-3 font-black uppercase text-black"
+                style={{ fontSize: '11px', letterSpacing: '2px' }}
+              >
+                SÉRIE SLA
+              </p>
+              <div className="flex items-center gap-2">
+                <span className="font-black" style={{ fontSize: '28px', lineHeight: 1 }} aria-hidden>
+                  🔥
+                </span>
+                <span
+                  className="font-black tabular-nums leading-none text-[#E30613]"
+                  style={{ fontSize: '28px' }}
+                  suppressHydrationWarning
+                >
+                  {streakDays}
+                </span>
+                <span
+                  className="font-black uppercase text-black"
+                  style={{ fontSize: '11px', letterSpacing: '1px' }}
+                >
+                  JOURS SLA {'>'} 90%
+                </span>
+              </div>
+              <p
+                className="mt-2 font-bold uppercase text-black"
+                style={{ fontSize: '10px', letterSpacing: '1px', opacity: 0.6 }}
+              >
+                SLA GLOBAL: {streakSlaPct}%
+              </p>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* ============================================================

@@ -438,6 +438,17 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
 
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+  // --- Task F3 — Body Cam Staff (auto-photo + geolocation) ---
+  // Deuxième input file caché dédié à la body cam : déclenché
+  // automatiquement après TAKE_CHARGE et RESOLVE pour capturer une
+  // photo (avant/après intervention). Le scan correspondant est
+  // ensuite PATCHé avec l'URL de la photo + les coordonnées GPS.
+  const bodyCamInputRef = useRef<HTMLInputElement>(null)
+  const [bodyCamMode, setBodyCamMode] = useState<'TAKE_CHARGE' | 'RESOLVE' | null>(null)
+  const bodyCamScanIdRef = useRef<string | null>(null)
+  const [bodyCamFlash, setBodyCamFlash] = useState<string | null>(null)
+  const [bodyCamUploading, setBodyCamUploading] = useState(false)
+
   // --- Alerte nouvel incident ---
   // seenReportIdsRef : mémorise les IDs EN_ATTENTE déjà vus (pour n'alerter
   //   que sur les NOUVEAUX). Au premier poll, on seede sans alerter.
@@ -910,6 +921,15 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
         setToast('Pris en charge.')
         go('incident-ongoing', 1)
         void fetchStats()
+
+        // --- Task F3 — Body Cam : auto-capture photo AVANT + géolocation ---
+        // Déclenché automatiquement après le TAKE_CHARGE (non bloquant
+        // pour l'UX : si l'utilisateur ferme la modale caméra, on ignore
+        // silencieusement — le scan existe déjà sans photo).
+        const scanId = json.data?.scan?.id
+        if (typeof scanId === 'string') {
+          triggerBodyCam(scanId, 'TAKE_CHARGE')
+        }
       } else {
         setToast(json?.error ?? 'Erreur prise en charge.')
       }
@@ -969,6 +989,15 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
         setActiveReport(null)
         go('home', -1)
         void fetchStats()
+
+        // --- Task F3 — Body Cam : auto-capture photo APRÈS + géolocation ---
+        // Déclenché automatiquement après la résolution (non bloquant).
+        // La photo "après" est attachée au scan de résolution (en plus
+        // de la photo déjà fournie par le user si présente).
+        const scanId = json.data?.scan?.id
+        if (typeof scanId === 'string') {
+          triggerBodyCam(scanId, 'RESOLVE')
+        }
       } else {
         setToast(json?.error ?? 'Erreur résolution.')
       }
@@ -1002,6 +1031,165 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
       setPhotoUploading(false)
     }
   }
+
+  // ---------- Task F3 — Body Cam Staff (auto-photo + geolocation) ----------
+
+  /**
+   * Capture la position GPS de l'employé. Résout null si la
+   * géolocalisation est indisponible ou refusée (jamais d'exception).
+   */
+  const captureGeolocation = useCallback<
+    () => Promise<{ lat: number; lng: number } | null>
+  >(() => {
+    return new Promise((resolve) => {
+      if (typeof navigator === 'undefined' || !('geolocation' in navigator)) {
+        resolve(null)
+        return
+      }
+      navigator.geolocation.getCurrentPosition(
+        (pos) =>
+          resolve({
+            lat: pos.coords.latitude,
+            lng: pos.coords.longitude,
+          }),
+        () => resolve(null),
+        { enableHighAccuracy: true, timeout: 5000, maximumAge: 60000 },
+      )
+    })
+  }, [])
+
+  /**
+   * Upload une photo vers /api/public/upload. Retourne l'URL relative
+   * ou null en cas d'échec (jamais d'exception).
+   */
+  const uploadBodyCamPhoto = useCallback<
+    (file: File) => Promise<string | null>
+  >((file) => {
+    return (async () => {
+      if (file.size > 8 * 1024 * 1024) return null
+      if (!file.type.startsWith('image/')) return null
+      const fd = new FormData()
+      fd.append('photo', file)
+      try {
+        const res = await fetch('/api/public/upload', {
+          method: 'POST',
+          body: fd,
+        })
+        const json = await res.json().catch(() => null)
+        if (res.ok && json?.ok && json.data?.url) {
+          return json.data.url as string
+        }
+      } catch {
+        /* ignore */
+      }
+      return null
+    })()
+  }, [])
+
+  /**
+   * Envoie la position GPS de l'employé à /api/airport/staff-location
+   * pour le wallboard map overlay. Non bloquant.
+   */
+  const postStaffLocation = useCallback<
+    (lat: number, lng: number) => Promise<void>
+  >((lat, lng) => {
+    return (async () => {
+      if (!staffName) return
+      try {
+        await fetch('/api/airport/staff-location', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            staffName,
+            lat,
+            lng,
+            timestamp: new Date().toISOString(),
+          }),
+        })
+      } catch {
+        /* ignore — non bloquant */
+      }
+    })()
+  }, [staffName])
+
+  /**
+   * Déclenche automatiquement la caméra (input file capture=environment)
+   * après une prise en charge ou une résolution. Le scan correspondant
+   * sera PATCHé avec l'URL de la photo + les coordonnées GPS dans le
+   * champ `message` (format "geo:lat,lng").
+   */
+  const triggerBodyCam = useCallback<
+    (scanId: string, mode: 'TAKE_CHARGE' | 'RESOLVE') => void
+  >((scanId, mode) => {
+    bodyCamScanIdRef.current = scanId
+    setBodyCamMode(mode)
+    // Petit délai pour laisser React setter l'état avant le click()
+    setTimeout(() => bodyCamInputRef.current?.click(), 80)
+  }, [])
+
+  /**
+   * Handler du second input file (body cam). Upload la photo,
+   * capture la géolocalisation, PATCH le scan avec photoUrl+message,
+   * envoie la position à /api/airport/staff-location, et affiche un
+   * flash "📸 Photo auto-capturée".
+   */
+  const onBodyCamChosen = useCallback<
+    (e: React.ChangeEvent<HTMLInputElement>) => void
+  >((e) => {
+    const f = e.target.files?.[0]
+    e.target.value = ''
+    const scanId = bodyCamScanIdRef.current
+    const mode = bodyCamMode
+    setBodyCamMode(null)
+    bodyCamScanIdRef.current = null
+    if (!f || !scanId) return
+
+    setBodyCamUploading(true)
+    ;(async () => {
+      // 1. Upload photo + capture geolocation en parallèle
+      const [photoUrl, geo] = await Promise.all([
+        uploadBodyCamPhoto(f),
+        captureGeolocation(),
+      ])
+
+      // 2. PATCH le scan avec photoUrl + message (geo:lat,lng)
+      const message = geo
+        ? `geo:${geo.lat.toFixed(6)},${geo.lng.toFixed(6)}`
+        : null
+      if (photoUrl || message) {
+        try {
+          await fetch(`/api/airport/staff-scan/${scanId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              photoUrl: photoUrl ?? undefined,
+              message: message ?? undefined,
+            }),
+          })
+        } catch {
+          /* ignore */
+        }
+      }
+
+      // 3. Envoie la position GPS pour le wallboard map overlay
+      if (geo) {
+        await postStaffLocation(geo.lat, geo.lng)
+      }
+
+      // 4. Flash confirmation visuel
+      const label = mode === 'TAKE_CHARGE' ? 'AVANT' : 'APRÈS'
+      setBodyCamFlash(
+        `📸 Photo auto-capturée (${label})${geo ? ' + position GPS' : ''}`,
+      )
+      setTimeout(() => setBodyCamFlash(null), 3500)
+      setBodyCamUploading(false)
+    })()
+  }, [
+    bodyCamMode,
+    captureGeolocation,
+    uploadBodyCamPhoto,
+    postStaffLocation,
+  ])
 
   // ---------- Dérivés ----------
 
@@ -1205,6 +1393,42 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
           onChange={onPhotoChosen}
           className="sr-only"
         />
+
+        {/* Task F3 — Input file caché pour la body cam (auto-capture AVANT/APRÈS) */}
+        <input
+          ref={bodyCamInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={onBodyCamChosen}
+          className="sr-only"
+          aria-label="Body cam auto-capture"
+        />
+
+        {/* Task F3 — Flash de confirmation body cam */}
+        <AnimatePresence>
+          {(bodyCamFlash || bodyCamUploading) && (
+            <motion.div
+              key="bodycam-flash"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              className="pointer-events-none fixed inset-x-0 bottom-6 z-50 mx-auto flex max-w-md items-center justify-center gap-2 rounded-2xl bg-[#1E1E2E] px-4 py-3 text-sm font-semibold text-white shadow-xl"
+            >
+              {bodyCamUploading ? (
+                <>
+                  <Camera className="size-4 animate-pulse text-[#fbbf24]" />
+                  <span>Traitement photo + GPS…</span>
+                </>
+              ) : (
+                <>
+                  <Camera className="size-4 text-[#fbbf24]" />
+                  <span>{bodyCamFlash}</span>
+                </>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </main>
 
       {/* Dialog Scanner */}

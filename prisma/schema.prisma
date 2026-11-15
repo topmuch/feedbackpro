@@ -1068,3 +1068,51 @@ model AdStat {
   @@index([campaignId, viewDate])
   @@index([zoneCode, viewDate])
 }
+
+// ============================================================
+// Task F3 — Marketplace Intégrations : WebhookEndpoints
+// ------------------------------------------------------------
+// Endpoints de webhook pour intégrations tierces (Slack, Microsoft
+// Teams, Zapier, Make.com, n8n, etc.). Chaque endpoint s'abonne à
+// une liste d'événements (new_incident, resolved, escalation,
+// prediction_alert). Quand un de ces événements se produit sur la
+// plateforme, dispatchWebhook() envoie un HTTP POST au webhook.
+//
+// events : JSON string[] sérialisé (Prisma SQLite ne supporte pas
+//   les listes natives). Déserialisé côté API par JSON.parse.
+// active : toggle pour désactiver un endpoint sans le supprimer
+//   (utile pour la maintenance ou les quotas atteints).
+// ============================================================
+model WebhookEndpoint {
+  id        String   @id @default(cuid())
+  name      String
+  url       String
+  events    String   @default("[]")
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
+
+// ============================================================
+// Task F3 — Body Cam Staff : géolocalisation temps réel
+// ------------------------------------------------------------
+// Chaque POST /api/airport/staff-location enregistre la position GPS
+// d'un employé aéroport (capture au moment de la prise en charge et
+// de la résolution d'un incident). GET retourne toutes les positions
+// récentes (< 10 min) pour affichage en overlay sur la wallboard map.
+//
+// staffName : libellé libre saisi par l'employé sur la PWA (clé de
+//   regroupement — plusieurs enregistrements par employé au fil du
+//   temps, on garde l'historique pour audit).
+// lat, lng : coordonnées GPS en degrés décimaux (WGS84).
+// createdAt : horodatage serveur — utilisé pour filtrer les
+//   positions "actives" (recentes) côté wallboard.
+// ============================================================
+model AirportStaffLocation {
+  id        String   @id @default(cuid())
+  staffName String
+  lat       Float
+  lng       Float
+  createdAt DateTime @default(now())
+
+  @@index([staffName, createdAt])
+}

@@ -32,6 +32,7 @@ import { analyserEtRouterReport } from '@/lib/airport-vlm'
 import { sendEmail } from '@/lib/email'
 import { triggerPushNotification } from '@/lib/push-notifier'
 import { dispatchNotification } from '@/lib/notification-engine'
+import { dispatchWebhook } from '@/lib/webhook-dispatcher'
 
 export const runtime = 'nodejs'
 
@@ -226,6 +227,25 @@ export async function POST(req: NextRequest) {
     // pas encore assigné. Le template "new_incident" broadcast au staff.
   }).catch((err) => {
     console.warn('[airport-report] Notification dispatch error:', err instanceof Error ? err.message : String(err))
+  })
+
+  // --- Task F3 — Marketplace Webhooks : dispatch externe ---
+  // Fire-and-forget : envoie un HTTP POST aux intégrations tierces
+  // (Slack, Teams, Zapier…) abonnées à l'événement "new_incident".
+  // Non bloquant — un échec réseau est loggué côté dispatcher.
+  dispatchWebhook('new_incident', {
+    reportId: report.id,
+    shortId: report.id.slice(-8),
+    zone: { code: zone.code, nom: zone.nom, emoji: zone.emoji },
+    problemType: b.problemType,
+    tag: b.tag,
+    flightNumber: flightNumber,
+    commentaire: b.commentaire ?? null,
+    photoUrl: b.photoUrl ?? null,
+    createdAt: report.createdAt.toISOString(),
+    link: incidentLink,
+  }).catch((err) => {
+    console.warn('[airport-report] Webhook dispatch error:', err instanceof Error ? err.message : String(err))
   })
 
   // --- Logging serveur (mode démo WhatsApp) ---
