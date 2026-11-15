@@ -1,36 +1,47 @@
 // ============================================================
-// Page /ops-wallboard — Wallboard Ops Room Aéroport
+// Page /ops-wallboard — Wallboard Ops Room Aéroport — V2.0 PREMIUM
 // ------------------------------------------------------------
-// Style "Split-Flap Departure Board" — reproduction d'un panneau
-// de départ type aéroport (tuiles split-flap à charnière) :
-//   - Fond global GRIS FONCÉ #2B2B2B
-//   - Panneau NOIR PUR #000000, coins arrondis 6px, padding 24px
-//   - Texte BLANC PUR #FFFFFF, MAJUSCULES, sans-serif bold/black
-//   - Tuiles split-flap : gradient gris vertical + charnière médiane
-//   - AUCUNE couleur jaune/bleu/violet — uniquement noir/gris/blanc
-//   - Statuts colorés : VERT (résolu), AMBER (attente),
-//     ORANGE (en cours), ROUGE (retard/critique)
-//   - Icônes avion (lucide Plane) encadrant le titre
-//   - Chaque valeur dans une tuile flap (gradient + charnière)
+// Style "Aéroport Premium V2.0" — refoundation visuelle complète :
+//   - Fond global GRIS CLAIR #F5F5F5 (makes panels pop)
+//   - Header BLEU #003399 (rounded bottom 20px) + logo JAUNE #FCD116
+//   - KPI ROW : 6 cartes colorées (red/yellow/green/blue/yellow/green)
+//   - MAIN LAYOUT 2fr/1fr : zones (white card) | alertes (white card)
+//   - Zone panels : panneaux horizontaux colorés selon statut
+//       · Calme (0)        → BLEU #003399 texte blanc
+//       · Attention (1-2)  → ORANGE #FF6B00 texte blanc
+//       · Critique (3+)    → ROUGE #E30613 texte blanc + flash
+//       · Default          → JAUNE #FCD116 texte noir
+//   - Incidents table : lignes séparées (gap 8px) avec coins arrondis
+//   - Radar prédiction : wrapper premium blanc
+//   - Legend bar : white card avec box colors + hint
 //
-// Polling identique au précédent :
+// Palette V2.0 :
+//   --jaune  #FCD116   --bleu  #003399   --noir #000000
+//   --blanc  #FFFFFF   --rouge #E30613   --vert #00A651
+//   --orange #FF6B00   --page-bg #F5F5F5
+//
+// Police : Roboto Condensed (700/900) via Google Fonts @import
+// Tout en MAJUSCULES, letter-spacing 1-4px selon élément
+//
+// Polling (IDENTIQUE au précédent — préservé 100%) :
 //   - /api/airport/wallboard toutes les 5s
 //   - /api/airport/alerts/check toutes les 30s
 //   - /api/airport/leaderboard toutes les 60s
 //   - horloge 1s
 //
-// Fonctionnalités préservées :
-//   - Sons (ding-dong, ding-critical, resolved, escalade 660/880/990Hz)
+// Fonctionnalités préservées (100% — AUCUNE EXCEPTION) :
+//   - Sons (ding-dong.mp3, ding-critical.wav, resolved.wav)
+//   - Escalade sonore Web Audio (660/880/990 Hz)
 //   - TTS Denise (decideAndSpeakForWallboard + race-condition fix)
-//   - Rappel 15 min (badge EN RETARD + escalade sonore 15/20/25/30)
-//   - Toggle son (persisté localStorage)
+//   - Rappel 15 min (alertedLateRef + badge EN RETARD + escalade)
+//   - Toggle son (persisté localStorage "wallboard_sound")
 //   - Mode crise (filtre incidents critiques + timer + overlay)
-//   - Actions rapides (assign / call / escalate)
-//   - Filtre zone (clic sur le panneau → filtre le tableau)
-//   - Radar prédiction (wrapper noir/blanc)
-//   - Bottom strip (SLA + charge par zone)
-//   - SOS help requests support
-//   - recently_resolved sound trigger
+//   - Actions rapides par ligne : [ASSIGNER] [APPELER] [ESCALADER]
+//   - Filtre zone (clic panneau zone → filtre le tableau)
+//   - SOS help requests (HelpRequestAlertCard)
+//   - recently_resolved (son + annonce Denise)
+//   - firstLoadRef + seenIdsRef (détection nouveaux signalements)
+//   - announcedResolvedRef + announcedAlertsRef (dédup annonces)
 // ============================================================
 
 'use client'
@@ -165,39 +176,16 @@ type AlertsCheckResponse = {
 }
 
 // ---------------------------------------------------------------
-// Constantes — palette SPLIT-FLAP (NOIR / GRIS / BLANC)
+// Constantes — palette V2.0 PREMIUM
 // ---------------------------------------------------------------
-const BLACK = '#000000'
-const PAGE_BG = '#2B2B2B'
-const WHITE = '#FFFFFF'
-const GREEN = '#2d8a2d'
-const AMBER = '#8a732d'
-const ORANGE = '#8a5a2d'
-const RED = '#8a2d2d'
-const TILE_BORDER = '#1c1c1c'
-const HINGE_LINE = '#1a1a1a'
-const DOT_RED = '#ef4444'
-
-// ---------------------------------------------------------------
-// Variantes de tuile flap
-// ---------------------------------------------------------------
-type FlapVariant = 'default' | 'green' | 'amber' | 'orange' | 'red'
-
-const FLAP_GRADIENTS: Record<FlapVariant, string> = {
-  default: 'linear-gradient(180deg,#3d3d3d 0%,#575757 45%,#454545 50%,#2e2e2e 100%)',
-  green: 'linear-gradient(180deg,#1a5c1a 0%,#2d8a2d 45%,#1f6b1f 50%,#1a4a1a 100%)',
-  amber: 'linear-gradient(180deg,#5c4a1a 0%,#8a732d 45%,#6b5a22 50%,#4a3a15 100%)',
-  orange: 'linear-gradient(180deg,#5c3a1a 0%,#8a5a2d 45%,#6b4520 50%,#4a3015 100%)',
-  red: 'linear-gradient(180deg,#5c1a1a 0%,#8a2d2d 45%,#6b2020 50%,#4a1515 100%)',
-}
-
-const FLAP_BORDER: Record<FlapVariant, string> = {
-  default: TILE_BORDER,
-  green: '#1a4a1a',
-  amber: '#4a3a15',
-  orange: '#4a3015',
-  red: '#4a1515',
-}
+const JAUNE = '#FCD116' // Yellow IATA
+const BLEU = '#003399' // Airport blue
+const NOIR = '#000000'
+const BLANC = '#FFFFFF'
+const ROUGE = '#E30613' // Alert red
+const VERT = '#00A651' // Success green
+const ORANGE = '#FF6B00' // Warning orange
+const PAGE_BG = '#F5F5F5' // Light gray (makes panels pop)
 
 // ---------------------------------------------------------------
 // Helpers
@@ -218,32 +206,42 @@ function relativeTime(iso: string | null): string {
   return `il y a ${j} j`
 }
 
-function relativeTimeFlap(iso: string | null): string {
+function relativeTimeShort(iso: string | null): string {
   if (!iso) return '—'
   const diff = Date.now() - new Date(iso).getTime()
-  if (diff < 0) return '0 MIN'
+  if (diff < 0) return '0MIN'
   const sec = Math.floor(diff / 1000)
-  if (sec < 60) return '<1 MIN'
+  if (sec < 60) return '<1MIN'
   const min = Math.floor(sec / 60)
-  if (min < 60) return `${min} MIN`
+  if (min < 60) return `${min}MIN`
   const h = Math.floor(min / 60)
-  if (h < 24) return `${h} H`
+  if (h < 24) return `${h}H`
   const j = Math.floor(h / 24)
-  return `${j} J`
+  return `${j}J`
 }
 
 function formatClock(d: Date): string {
   const pad = (n: number) => String(n).padStart(2, '0')
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+  return `${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
 function formatDateFR(d: Date): string {
-  return d.toLocaleDateString('fr-FR', {
-    weekday: 'long',
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric',
-  })
+  const days = ['DIM', 'LUN', 'MAR', 'MER', 'JEU', 'VEN', 'SAM']
+  const months = [
+    'JAN',
+    'FÉV',
+    'MAR',
+    'AVR',
+    'MAI',
+    'JUN',
+    'JUL',
+    'AOÛ',
+    'SEP',
+    'OCT',
+    'NOV',
+    'DÉC',
+  ]
+  return `${days[d.getDay()]} ${String(d.getDate()).padStart(2, '0')} ${months[d.getMonth()]}`
 }
 
 function formatTimeShort(iso: string): string {
@@ -252,19 +250,16 @@ function formatTimeShort(iso: string): string {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}`
 }
 
-/** Statut meta — palette split-flap :
- *   EN_ATTENTE → AMBER (tuile amber)
- *   EN_COURS   → ORANGE (tuile orange)
- *   RESOLU     → GREEN (tuile green)
- *   EN_RETARD  → RED + pulse (tuile red) */
-const STATUT_META: Record<Statut, { label: string; variant: FlapVariant }> = {
-  EN_ATTENTE: { label: 'ATTENTE', variant: 'amber' },
-  EN_COURS: { label: 'EN COURS', variant: 'orange' },
-  RESOLU: { label: 'RÉSOLU', variant: 'green' },
+function formatDurationMin(minutes: number | null | undefined): string {
+  if (minutes === null || minutes === undefined) return '—'
+  const m = Math.floor(minutes)
+  return `${m}M`
 }
 
-function statutMeta(s: string): { label: string; variant: FlapVariant } {
-  return STATUT_META[s as Statut] ?? { label: s, variant: 'default' }
+function formatDurationSec(totalSec: number): string {
+  const m = Math.floor(totalSec / 60)
+  const s = totalSec % 60
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
 const TEAM_META: Record<TeamKey, { emoji: string; label: string; abbr: string }> = {
@@ -279,20 +274,6 @@ const TEAM_META: Record<TeamKey, { emoji: string; label: string; abbr: string }>
 function teamMeta(key: string | null): { emoji: string; label: string; abbr: string } | null {
   if (!key) return null
   return TEAM_META[key as TeamKey] ?? TEAM_META.other
-}
-
-function formatDurationMin(minutes: number | null | undefined): string {
-  if (minutes === null || minutes === undefined) return '—'
-  const totalSec = Math.round(minutes * 60)
-  const m = Math.floor(totalSec / 60)
-  const s = totalSec % 60
-  return `${m}M ${String(s).padStart(2, '0')}S`
-}
-
-function formatDurationSec(totalSec: number): string {
-  const m = Math.floor(totalSec / 60)
-  const s = totalSec % 60
-  return `${m}MIN ${String(s).padStart(2, '0')}S`
 }
 
 type ZoneFamily =
@@ -322,7 +303,7 @@ function zoneFamily(code: string): ZoneFamily {
   return 'HISTORIQUE'
 }
 
-function truncateName(name: string, max = 12): string {
+function truncateName(name: string, max = 14): string {
   if (name.length <= max) return name
   return `${name.slice(0, max - 1)}…`
 }
@@ -336,11 +317,11 @@ function zoneStatus(count: number | null | undefined): ZoneStatus {
   return 'critical'
 }
 
-const ZONE_STATUS_META: Record<ZoneStatus, { variant: FlapVariant; label: string; dotColor: string }> = {
-  calm: { variant: 'green', label: 'CALME', dotColor: GREEN },
-  attention: { variant: 'amber', label: 'ATTENTION', dotColor: AMBER },
-  critical: { variant: 'red', label: 'CRITIQUE', dotColor: RED },
-  none: { variant: 'default', label: 'N/A', dotColor: '#555555' },
+const ZONE_STATUS_META_V2: Record<ZoneStatus, { label: string }> = {
+  calm: { label: 'CALME' },
+  attention: { label: 'ATTENTION' },
+  critical: { label: 'CRITIQUE' },
+  none: { label: 'N/A' },
 }
 
 function isCriticalInCrisis(r: RecentReport): boolean {
@@ -498,125 +479,39 @@ function playEscalationDing() {
 }
 
 // ============================================================
-// Sous-composants — SPLIT-FLAP DEPARTURE BOARD
+// Sous-composants — V2.0 PREMIUM
 // ============================================================
 
 /**
- * FlapTile — la tuile split-flap de base.
- * Gradient gris vertical avec charnière médiane (ligne noire au milieu).
- * Variantes colorées pour les statuts (green/amber/orange/red).
+ * KpiCard — carte colorée pour la KPI row.
+ * bg coloré selon type, value en 5xl font-black, label xs tracking 2px.
  */
-function FlapTile({
-  children,
-  className = '',
-  variant = 'default',
-  pulse = false,
-  borderAccent,
-}: {
-  children: React.ReactNode
-  className?: string
-  variant?: FlapVariant
-  pulse?: boolean
-  borderAccent?: string
-}) {
-  return (
-    <span
-      className={`relative inline-flex items-center justify-center rounded-[3px] px-2 py-1 font-bold uppercase text-white ${pulse ? 'ops-pulse' : ''} ${className}`}
-      style={{
-        backgroundImage: FLAP_GRADIENTS[variant],
-        border: `1px solid ${borderAccent ?? FLAP_BORDER[variant]}`,
-        boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.5)',
-        fontSize: '14px',
-        letterSpacing: '1px',
-        lineHeight: 1.1,
-      }}
-    >
-      {children}
-      {/* Charnière médiane — ligne noire horizontale au milieu */}
-      <span
-        aria-hidden
-        className="pointer-events-none absolute inset-x-0 top-1/2 h-px"
-        style={{ backgroundColor: HINGE_LINE }}
-      />
-    </span>
-  )
-}
-
-/**
- * FlapString — découpe une chaîne en tuiles flap par caractère.
- * Simule un panneau split-flap où chaque lettre est une tuile.
- * Les espaces deviennent des points médians '·'.
- */
-function FlapString({
-  text,
-  variant = 'default',
-  maxLength = 10,
-  pulse = false,
-  className = '',
-  tileSize = 'sm',
-}: {
-  text: string
-  variant?: FlapVariant
-  maxLength?: number
-  pulse?: boolean
-  className?: string
-  tileSize?: 'xs' | 'sm' | 'md'
-}) {
-  const display = truncateName(text.toUpperCase(), maxLength)
-  const sizeCls =
-    tileSize === 'xs'
-      ? 'min-w-[16px] px-1 text-[11px]'
-      : tileSize === 'sm'
-        ? 'min-w-[20px] px-1 text-xs'
-        : 'min-w-[24px] px-1.5 text-sm'
-  return (
-    <div className={`inline-flex flex-wrap gap-[3px] ${className}`}>
-      {display.split('').map((ch, i) => (
-        <FlapTile key={i} variant={variant} pulse={pulse} className={sizeCls}>
-          {ch === ' ' ? '·' : ch}
-        </FlapTile>
-      ))}
-    </div>
-  )
-}
-
-/**
- * KpiTile — grande tuile flap pour la KPI strip.
- * Valeur en grand, label en dessous, bordure colorée selon statut.
- */
-function KpiTile({
+function KpiCard({
   label,
   value,
-  variant = 'default',
+  bgClass,
+  textClass,
 }: {
   label: string
   value: string | number
-  variant?: FlapVariant
+  bgClass: string
+  textClass: string
 }) {
   return (
-    <div className="flex flex-1 flex-col items-center gap-1.5 px-2 py-2">
+    <div
+      className={`flex flex-col items-center justify-center rounded-[15px] px-3 py-5 text-center ${bgClass} ${textClass}`}
+      style={{ boxShadow: '0 4px 8px rgba(0,0,0,0.1)', minHeight: '120px' }}
+    >
       <span
-        className="inline-flex min-w-[70px] items-center justify-center rounded-[3px] px-3 py-2 font-black tabular-nums text-white"
-        style={{
-          backgroundImage: FLAP_GRADIENTS[variant],
-          border: `2px solid ${FLAP_BORDER[variant]}`,
-          boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.5)',
-          fontSize: 'clamp(20px, 3vw, 28px)',
-          letterSpacing: '1px',
-          lineHeight: 1,
-          position: 'relative',
-        }}
+        className="font-black uppercase leading-none tabular-nums"
+        style={{ fontSize: 'clamp(28px, 3.2vw, 48px)', letterSpacing: '1px' }}
+        suppressHydrationWarning
       >
         {value}
-        <span
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-1/2 h-px"
-          style={{ backgroundColor: HINGE_LINE }}
-        />
       </span>
       <span
-        className="font-bold uppercase text-white"
-        style={{ fontSize: '10px', letterSpacing: '2px', opacity: 0.6 }}
+        className="mt-2 font-bold uppercase"
+        style={{ fontSize: '11px', letterSpacing: '2px' }}
       >
         {label}
       </span>
@@ -625,11 +520,12 @@ function KpiTile({
 }
 
 /**
- * ZoneTile — tuile flap représentant une zone.
- * Contient emoji + nom + badge count coloré.
- * Clic → filtre le tableau. Zone critique → pulse + bordure rouge.
+ * ZonePanel — panneau horizontal coloré représentant une zone.
+ * Layout : [icon white 45x45] [name] [status badge] [count] [→ arrow circle]
+ * Couleur de fond selon statut (calme=bleu, attention=orange, critique=rouge+flash, default=jaune).
+ * Clic → filtre le tableau.
  */
-function ZoneTile({
+function ZonePanel({
   zone,
   isActive,
   onClick,
@@ -640,140 +536,135 @@ function ZoneTile({
 }) {
   const st = zoneStatus(zone.count_en_attente)
   const isCritical = st === 'critical'
-  const countVariant: FlapVariant =
-    st === 'calm' ? 'green' : st === 'attention' ? 'amber' : st === 'critical' ? 'red' : 'default'
+  const bgClass =
+    st === 'calm'
+      ? 'bg-[#003399] text-white'
+      : st === 'attention'
+        ? 'bg-[#FF6B00] text-white'
+        : st === 'critical'
+          ? 'bg-[#E30613] text-white'
+          : 'bg-[#FCD116] text-black'
+  const statusLabel = ZONE_STATUS_META_V2[st].label
   return (
     <button
       type="button"
       onClick={onClick}
       aria-pressed={isActive}
-      title={`${zone.nom} — ${ZONE_STATUS_META[st].label} · ${zone.count_en_attente} en attente`}
-      className={`transition-opacity hover:opacity-90 ${isCritical ? 'ops-pulse' : ''}`}
+      title={`${zone.nom} — ${statusLabel} · ${zone.count_en_attente} en attente`}
+      className={`group flex w-full items-center justify-between gap-3 rounded-[15px] px-5 py-[15px] transition-transform hover:-translate-y-0.5 ${bgClass} ${isCritical ? 'ops-flash-red' : ''}`}
+      style={{
+        boxShadow: '0 3px 6px rgba(0,0,0,0.1)',
+        outline: isActive ? '3px solid #FFFFFF' : 'none',
+        outlineOffset: isActive ? '-3px' : '0',
+      }}
     >
-      <FlapTile
-        variant="default"
-        borderAccent={isCritical ? RED : isActive ? WHITE : TILE_BORDER}
-        className="gap-1.5 px-2 py-1.5"
+      {/* White icon container 45×45 */}
+      <span
+        className="flex h-[45px] w-[45px] shrink-0 items-center justify-center rounded-[10px] bg-white"
+        aria-hidden
+        style={{ fontSize: '22px', lineHeight: 1 }}
       >
-        <span aria-hidden style={{ fontSize: '14px', lineHeight: 1 }}>
-          {zone.emoji}
-        </span>
-        <span
-          className="font-bold uppercase text-white"
-          style={{ fontSize: '11px', letterSpacing: '1px' }}
-        >
-          {truncateName(zone.nom.toUpperCase(), 10)}
-        </span>
-        <span
-          className="ml-1 inline-flex items-center justify-center rounded-[2px] px-1.5 text-xs font-black tabular-nums text-white"
-          style={{
-            backgroundImage: FLAP_GRADIENTS[countVariant],
-            border: `1px solid ${FLAP_BORDER[countVariant]}`,
-            minWidth: '22px',
-            boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.5)',
-            position: 'relative',
-          }}
-        >
-          {zone.count_en_attente}
-          <span
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-1/2 h-px"
-            style={{ backgroundColor: HINGE_LINE }}
-          />
-        </span>
-      </FlapTile>
+        {zone.emoji}
+      </span>
+      {/* Zone name */}
+      <span
+        className="min-w-0 flex-1 truncate text-left font-black uppercase"
+        style={{ fontSize: '15px', letterSpacing: '1px' }}
+      >
+        {zone.nom}
+      </span>
+      {/* Status badge */}
+      <span
+        className="shrink-0 rounded-[12px] bg-white/30 px-2.5 py-1 font-black uppercase"
+        style={{ fontSize: '11px', letterSpacing: '2px' }}
+      >
+        {statusLabel}
+      </span>
+      {/* Count */}
+      <span
+        className="min-w-[50px] text-right font-black tabular-nums"
+        style={{ fontSize: '32px', lineHeight: 1 }}
+        suppressHydrationWarning
+      >
+        {zone.count_en_attente}
+      </span>
+      {/* Arrow circle 40×40 */}
+      <span
+        className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white font-black text-black"
+        aria-hidden
+        style={{ fontSize: '20px', lineHeight: 1 }}
+      >
+        →
+      </span>
     </button>
   )
 }
 
 /**
- * ActionFlapTile — petite tuile flap pour bouton d'action.
- * Bordure blanche, fond flap, icône blanche.
+ * AlertCard — carte pleine largeur pour une alerte seuil (TriggeredAlert).
+ * Critical → bg rouge, Warning → bg orange.
  */
-function ActionFlapTile({
-  onClick,
-  disabled,
-  label,
-  title,
-  children,
-  variant = 'default',
-}: {
-  onClick: () => void
-  disabled?: boolean
-  label: string
-  title: string
-  children: React.ReactNode
-  variant?: FlapVariant
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={label}
-      title={title}
-      className="transition-opacity hover:opacity-90 disabled:opacity-50"
-    >
-      <FlapTile variant={variant} className="gap-1 px-2 py-1 text-xs">
-        {children}
-        <span>{label}</span>
-      </FlapTile>
-    </button>
-  )
-}
-
-/**
- * AlertTileRow — rangée de tuiles flap pour une alerte seuil.
- */
-function AlertTileRow({ alert }: { alert: TriggeredAlert }) {
+function AlertCard({ alert }: { alert: TriggeredAlert }) {
   const isCritical = alert.severity === 'critical'
-  const variant: FlapVariant = isCritical ? 'red' : 'amber'
+  const bgClass = isCritical ? 'bg-[#E30613] text-white' : 'bg-[#FF6B00] text-white'
   return (
     <div
       role="alert"
-      className={`flex flex-wrap items-center gap-1.5 ${isCritical ? 'ops-flash-red' : ''}`}
+      className={`flex flex-col gap-2 rounded-[15px] px-5 py-4 ${bgClass}`}
       style={{
-        padding: '6px 8px',
-        backgroundColor: isCritical ? 'rgba(138,45,45,0.12)' : 'rgba(138,115,45,0.08)',
-        borderRadius: '3px',
+        marginBottom: '15px',
+        boxShadow: isCritical ? '0 4px 8px rgba(227,6,19,0.3)' : '0 4px 8px rgba(255,107,0,0.3)',
       }}
     >
-      <FlapTile variant={variant} pulse={isCritical} className="px-2 py-1 text-xs">
-        <span aria-hidden style={{ fontSize: '13px', lineHeight: 1 }}>
-          {isCritical ? '⚠' : '!'}
+      {/* Header : zone name + time badge */}
+      <div className="flex items-center justify-between gap-2">
+        <span
+          className="font-black uppercase"
+          style={{ fontSize: '14px', letterSpacing: '2px' }}
+        >
+          {alert.zoneCode}
         </span>
-      </FlapTile>
-      <FlapString
-        text={alert.zoneCode}
-        variant="default"
-        maxLength={10}
-        tileSize="xs"
-      />
-      <FlapString
-        text={alert.message}
-        variant="default"
-        maxLength={24}
-        tileSize="xs"
-        className="flex-1"
-      />
-      <FlapTile variant="red" className="px-2 py-1 text-xs tabular-nums">
-        {relativeTimeFlap(alert.triggeredAt)}
-      </FlapTile>
-      <ActionFlapTile onClick={() => {}} label="APPELER" title="APPELER">
-        <Phone className="size-3" aria-hidden />
-      </ActionFlapTile>
-      <ActionFlapTile onClick={() => {}} label="ESCALADER" title="ESCALADER" variant="red">
-        <Megaphone className="size-3" aria-hidden />
-      </ActionFlapTile>
+        <span
+          className="rounded-[12px] bg-white px-2.5 py-1 font-black uppercase tabular-nums"
+          style={{ fontSize: '11px', letterSpacing: '1px', color: ROUGE }}
+        >
+          {relativeTimeShort(alert.triggeredAt)}
+        </span>
+      </div>
+      {/* Problem */}
+      <p
+        className="font-black uppercase"
+        style={{ fontSize: '18px', letterSpacing: '1px' }}
+      >
+        {alert.message}
+      </p>
+      {/* Buttons */}
+      <div className="flex flex-wrap gap-2">
+        <button
+          type="button"
+          className="rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#FCD116]"
+          style={{ fontSize: '11px', letterSpacing: '1px', color: NOIR }}
+        >
+          APPELER
+        </button>
+        <button
+          type="button"
+          className="rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#FCD116]"
+          style={{ fontSize: '11px', letterSpacing: '1px', color: NOIR }}
+        >
+          ESCALADER
+        </button>
+      </div>
     </div>
   )
 }
 
 /**
- * ReportAlertTileRow — rangée de tuiles flap pour un signalement actif.
+ * ReportAlertCard — carte pleine largeur pour un signalement actif.
+ * Critical (late > 15min) → bg rouge, sinon orange.
  * Boutons APPELER / ASSIGNER (menu) / ESCALADER.
  */
-function ReportAlertTileRow({
+function ReportAlertCard({
   r,
   onCall,
   onEscalate,
@@ -786,150 +677,153 @@ function ReportAlertTileRow({
   onAssign: (team: TeamKey) => void
   busy: boolean
 }) {
-  const s = statutMeta(r.statut)
   const elapsedMin = Math.floor((Date.now() - new Date(r.createdAt).getTime()) / 60000)
   const isLate = elapsedMin > 15 && r.statut !== 'RESOLU'
-  const statusVariant: FlapVariant = isLate ? 'red' : s.variant
+  const bgClass = isLate ? 'bg-[#E30613] text-white' : 'bg-[#FF6B00] text-white'
   const [showAssignMenu, setShowAssignMenu] = useState(false)
   return (
     <div
       role="alert"
-      className={`relative flex flex-wrap items-center gap-1.5 ${isLate ? 'ops-flash-red' : ''}`}
+      className={`relative flex flex-col gap-2 rounded-[15px] px-5 py-4 ${bgClass}`}
       style={{
-        padding: '6px 8px',
-        backgroundColor: isLate ? 'rgba(138,45,45,0.12)' : 'rgba(0,0,0,0.4)',
-        borderRadius: '3px',
+        marginBottom: '15px',
+        boxShadow: isLate ? '0 4px 8px rgba(227,6,19,0.3)' : '0 4px 8px rgba(255,107,0,0.3)',
       }}
     >
-      <FlapTile variant="default" className="px-2 py-1 text-xs">
-        <span aria-hidden style={{ fontSize: '14px', lineHeight: 1 }}>
-          {r.zone?.emoji ?? '📍'}
-        </span>
-      </FlapTile>
-      <FlapString
-        text={(r.zone?.nom ?? 'ZONE').toUpperCase()}
-        variant="default"
-        maxLength={10}
-        tileSize="xs"
-      />
-      <FlapString
-        text={r.problemType}
-        variant="default"
-        maxLength={20}
-        tileSize="xs"
-        className="flex-1"
-      />
-      <FlapTile variant={statusVariant} pulse={isLate} className="px-2 py-1 text-xs">
-        {isLate ? 'EN RETARD' : s.label}
-      </FlapTile>
-      <FlapTile variant="red" className="px-2 py-1 text-xs tabular-nums">
-        {relativeTimeFlap(r.createdAt)}
-      </FlapTile>
-      <ActionFlapTile onClick={onCall} label="APPELER" title="APPELER OPS">
-        <Phone className="size-3" aria-hidden />
-      </ActionFlapTile>
-      <div className="relative">
-        <ActionFlapTile
-          onClick={() => setShowAssignMenu((v) => !v)}
-          disabled={busy}
-          label="ASSIGNER"
-          title="ASSIGNER / REROUTER"
+      {/* Header */}
+      <div className="flex items-center justify-between gap-2">
+        <span
+          className="font-black uppercase"
+          style={{ fontSize: '14px', letterSpacing: '2px' }}
         >
-          <Wrench className="size-3" aria-hidden />
-        </ActionFlapTile>
-        {showAssignMenu && (
-          <div
-            role="menu"
-            className="absolute right-0 top-full z-30 mt-1 w-44 p-1"
-            style={{
-              backgroundColor: BLACK,
-              border: `1px solid ${WHITE}`,
-              borderRadius: '3px',
-            }}
-          >
-            <p
-              className="px-2 py-1 font-bold uppercase text-white"
-              style={{ fontSize: '10px', letterSpacing: '1px', opacity: 0.7 }}
-            >
-              REROUTER VERS
-            </p>
-            {(Object.keys(TEAM_META) as TeamKey[])
-              .filter((k) => k !== 'other')
-              .map((k) => (
-                <button
-                  key={k}
-                  type="button"
-                  role="menuitem"
-                  onClick={() => {
-                    onAssign(k)
-                    setShowAssignMenu(false)
-                  }}
-                  className="flex w-full items-center gap-2 px-2 py-1.5 text-left font-bold uppercase text-white transition-opacity hover:opacity-80"
-                  style={{ fontSize: '11px', letterSpacing: '1px' }}
-                >
-                  <span aria-hidden>{TEAM_META[k].emoji}</span>
-                  <span>{TEAM_META[k].label}</span>
-                </button>
-              ))}
-          </div>
-        )}
+          {(r.zone?.nom ?? 'ZONE').toUpperCase()}
+        </span>
+        <span
+          className="rounded-[12px] bg-white px-2.5 py-1 font-black uppercase tabular-nums"
+          style={{ fontSize: '11px', letterSpacing: '1px', color: ROUGE }}
+        >
+          {isLate ? 'EN RETARD' : relativeTimeShort(r.createdAt)}
+        </span>
       </div>
-      <ActionFlapTile
-        onClick={onEscalate}
-        disabled={busy}
-        label="ESCALADER"
-        title="ESCALADER"
-        variant="red"
+      {/* Problem */}
+      <p
+        className="font-black uppercase"
+        style={{ fontSize: '18px', letterSpacing: '1px' }}
       >
-        <Megaphone className="size-3" aria-hidden />
-      </ActionFlapTile>
+        {r.problemType}
+      </p>
+      {/* Buttons */}
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={onCall}
+          className="inline-flex items-center gap-1 rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#FCD116]"
+          style={{ fontSize: '11px', letterSpacing: '1px', color: NOIR }}
+        >
+          <Phone className="size-3" aria-hidden />
+          APPELER
+        </button>
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setShowAssignMenu((v) => !v)}
+            disabled={busy}
+            className="inline-flex items-center gap-1 rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#FCD116] disabled:opacity-50"
+            style={{ fontSize: '11px', letterSpacing: '1px', color: NOIR }}
+          >
+            <Wrench className="size-3" aria-hidden />
+            ASSIGNER
+          </button>
+          {showAssignMenu && (
+            <div
+              role="menu"
+              className="absolute left-0 top-full z-30 mt-1 w-48 rounded-[12px] bg-white p-1.5"
+              style={{ boxShadow: '0 6px 14px rgba(0,0,0,0.2)' }}
+            >
+              <p
+                className="px-2 py-1 font-black uppercase text-[#003399]"
+                style={{ fontSize: '10px', letterSpacing: '2px' }}
+              >
+                REROUTER VERS
+              </p>
+              {(Object.keys(TEAM_META) as TeamKey[])
+                .filter((k) => k !== 'other')
+                .map((k) => (
+                  <button
+                    key={k}
+                    type="button"
+                    role="menuitem"
+                    onClick={() => {
+                      onAssign(k)
+                      setShowAssignMenu(false)
+                    }}
+                    className="flex w-full items-center gap-2 rounded-[8px] px-2 py-1.5 text-left font-bold uppercase text-black transition-colors hover:bg-[#FCD116]"
+                    style={{ fontSize: '11px', letterSpacing: '1px' }}
+                  >
+                    <span aria-hidden>{TEAM_META[k].emoji}</span>
+                    <span>{TEAM_META[k].label}</span>
+                  </button>
+                ))}
+            </div>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onEscalate}
+          disabled={busy}
+          className="inline-flex items-center gap-1 rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#FCD116] disabled:opacity-50"
+          style={{ fontSize: '11px', letterSpacing: '1px', color: NOIR }}
+        >
+          <Megaphone className="size-3" aria-hidden />
+          ESCALADER
+        </button>
+      </div>
     </div>
   )
 }
 
-/** HelpRequestTileRow — rangée de tuiles flap pour SOS voyageur. */
-function HelpRequestTileRow({ h }: { h: HelpRequestLite }) {
+/** HelpRequestAlertCard — carte SOS voyageur. */
+function HelpRequestAlertCard({ h }: { h: HelpRequestLite }) {
   const elapsedMin = Math.floor((Date.now() - new Date(h.createdAt).getTime()) / 60000)
   const isLate = elapsedMin > 15
-  const variant: FlapVariant = isLate ? 'red' : 'amber'
+  const bgClass = isLate ? 'bg-[#E30613] text-white' : 'bg-[#FF6B00] text-white'
   return (
     <div
       role="alert"
-      className={`flex flex-wrap items-center gap-1.5 ${isLate ? 'ops-flash-red' : ''}`}
+      className={`flex flex-col gap-2 rounded-[15px] px-5 py-4 ${bgClass}`}
       style={{
-        padding: '6px 8px',
-        backgroundColor: isLate ? 'rgba(138,45,45,0.12)' : 'rgba(138,115,45,0.08)',
-        borderRadius: '3px',
+        marginBottom: '15px',
+        boxShadow: isLate ? '0 4px 8px rgba(227,6,19,0.3)' : '0 4px 8px rgba(255,107,0,0.3)',
       }}
     >
-      <FlapTile variant={variant} pulse={isLate} className="px-2 py-1 text-xs">
-        <span aria-hidden style={{ fontSize: '13px', lineHeight: 1 }}>🆘</span>
-      </FlapTile>
-      <FlapString
-        text={`SOS ${(h.zone?.nom ?? 'ZONE').toUpperCase()}`}
-        variant={variant}
-        maxLength={14}
-        tileSize="xs"
-      />
-      <FlapString
-        text={h.message ?? "Demande d'aide voyageur"}
-        variant="default"
-        maxLength={24}
-        tileSize="xs"
-        className="flex-1"
-      />
-      <FlapTile variant="red" className="px-2 py-1 text-xs tabular-nums">
-        {relativeTimeFlap(h.createdAt)}
-      </FlapTile>
+      <div className="flex items-center justify-between gap-2">
+        <span
+          className="font-black uppercase"
+          style={{ fontSize: '14px', letterSpacing: '2px' }}
+        >
+          🆘 SOS {(h.zone?.nom ?? 'ZONE').toUpperCase()}
+        </span>
+        <span
+          className="rounded-[12px] bg-white px-2.5 py-1 font-black uppercase tabular-nums"
+          style={{ fontSize: '11px', letterSpacing: '1px', color: ROUGE }}
+        >
+          {relativeTimeShort(h.createdAt)}
+        </span>
+      </div>
+      <p
+        className="font-black uppercase"
+        style={{ fontSize: '18px', letterSpacing: '1px' }}
+      >
+        {h.message ?? "DEMANDE D'AIDE VOYAGEUR"}
+      </p>
       {h.travelerPhone && (
         <a
           href={`tel:${h.travelerPhone}`}
-          className="transition-opacity hover:opacity-90"
+          className="inline-flex w-fit items-center gap-1 rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#FCD116]"
+          style={{ fontSize: '11px', letterSpacing: '1px', color: NOIR }}
         >
-          <FlapTile variant="default" className="gap-1 px-2 py-1 text-xs">
-            <Phone className="size-3" aria-hidden />
-            <span>APPELER VOYAGEUR</span>
-          </FlapTile>
+          <Phone className="size-3" aria-hidden />
+          APPELER VOYAGEUR
         </a>
       )}
     </div>
@@ -937,31 +831,44 @@ function HelpRequestTileRow({ h }: { h: HelpRequestLite }) {
 }
 
 /**
- * IncidentFlapRow — ligne du tableau d'incidents en tuiles split-flap.
- * TIME / ZONE / PROBLÈME en tuiles par caractère.
- * STATUT / ÉQUIPE / ÉCoulÉ en une tuile chacun.
- * Actions en petites tuiles flap avec icônes.
+ * IncidentRow — ligne du tableau d'incidents.
+ * Ligne blanche arrondie (10px), cells en flex, première/dernière cell gère le radius.
+ * Statut badge coloré, actions icônes 32×32 (bleu normal / rouge danger).
+ * Time rouge si < 15min écoulées.
  */
-function IncidentFlapRow({
+function IncidentRow({
   r,
   fresh,
   onActionFeedback,
-  index,
 }: {
   r: RecentReport
   fresh: boolean
   onActionFeedback?: (msg: string, kind?: 'ok' | 'err') => void
-  index: number
 }) {
-  const s = statutMeta(r.statut)
   const team = teamMeta(r.routedTeam)
   const [showAssignMenu, setShowAssignMenu] = useState(false)
   const [busy, setBusy] = useState(false)
   const elapsedMin = Math.floor((Date.now() - new Date(r.createdAt).getTime()) / 60000)
   const isLate = elapsedMin > 15 && r.statut !== 'RESOLU'
-  const statusVariant: FlapVariant = isLate ? 'red' : s.variant
-  const statusLabel = isLate ? 'EN RETARD' : s.label
-  const rowBg = index % 2 === 0 ? BLACK : '#0d0d0d'
+
+  // Status badge classes
+  const statusBadgeCls =
+    r.statut === 'RESOLU'
+      ? 'bg-[#00A651] text-white'
+      : r.statut === 'EN_ATTENTE'
+        ? 'bg-[#E30613] text-white'
+        : r.statut === 'EN_COURS'
+          ? 'bg-[#FCD116] text-black'
+          : 'bg-[#003399] text-white'
+  const statusLabel = isLate
+    ? 'EN RETARD'
+    : r.statut === 'EN_ATTENTE'
+      ? 'EN ATTENTE'
+      : r.statut === 'EN_COURS'
+        ? 'EN COURS'
+        : r.statut === 'RESOLU'
+          ? 'RÉSOLU'
+          : r.statut
 
   const handleAssign = useCallback(
     async (teamKey: TeamKey) => {
@@ -1030,89 +937,87 @@ function IncidentFlapRow({
   return (
     <div
       role="row"
-      className={`flex items-center gap-2 px-2 py-2 ${fresh ? 'ops-flap-in' : ''}`}
-      style={{
-        backgroundColor: isLate ? 'rgba(138,45,45,0.10)' : rowBg,
-        borderBottom: `1px solid ${TILE_BORDER}`,
-      }}
+      className={`flex items-center gap-2 rounded-[10px] bg-white px-5 py-3.5 ${fresh ? 'ops-flap-in' : ''} ${isLate ? 'ops-flash-red-row' : ''}`}
+      style={{ boxShadow: '0 2px 4px rgba(0,0,0,0.06)' }}
     >
-      {/* TIME — tuiles par caractère [H][H][:][M][M] */}
-      <div role="cell" className="flex shrink-0 items-center">
-        <FlapString
-          text={formatTimeShort(r.createdAt)}
-          variant="default"
-          maxLength={5}
-          tileSize="sm"
-        />
+      {/* TIME */}
+      <div
+        role="cell"
+        className="shrink-0 font-black uppercase tabular-nums"
+        style={{ fontSize: '14px', letterSpacing: '1px', width: '70px', color: isLate ? ROUGE : NOIR }}
+      >
+        {formatTimeShort(r.createdAt)}
       </div>
 
-      {/* ZONE — tuiles par caractère */}
-      <div role="cell" className="flex min-w-0 flex-1 items-center gap-1.5">
-        <span aria-hidden style={{ fontSize: '14px', lineHeight: 1 }}>
+      {/* ZONE */}
+      <div role="cell" className="flex min-w-0 flex-1 items-center gap-2">
+        <span aria-hidden style={{ fontSize: '16px', lineHeight: 1 }}>
           {r.zone?.emoji ?? '📍'}
         </span>
-        <FlapString
-          text={(r.zone?.nom ?? 'ZONE INCONNUE').toUpperCase()}
-          variant="default"
-          maxLength={10}
-          tileSize="xs"
-        />
+        <span
+          className="truncate font-black uppercase"
+          style={{ fontSize: '13px', letterSpacing: '1px' }}
+        >
+          {(r.zone?.nom ?? 'ZONE INCONNUE').toUpperCase()}
+        </span>
       </div>
 
-      {/* PROBLÈME — tuiles par caractère */}
+      {/* PROBLÈME */}
       <div
         role="cell"
         className="hidden min-w-0 flex-1 items-center gap-1.5 sm:flex"
       >
         {r.isHelpRequest && (
-          <FlapTile variant="red" pulse className="px-1.5 py-0.5 text-[10px]">
+          <span
+            className="rounded-[8px] bg-[#E30613] px-1.5 py-0.5 font-black uppercase text-white"
+            style={{ fontSize: '10px', letterSpacing: '1px' }}
+          >
             SOS
-          </FlapTile>
+          </span>
         )}
-        <FlapString
-          text={r.problemType}
-          variant="default"
-          maxLength={12}
-          tileSize="xs"
-        />
+        <span
+          className="truncate font-bold uppercase"
+          style={{ fontSize: '12px', letterSpacing: '1px' }}
+        >
+          {r.problemType}
+        </span>
       </div>
 
-      {/* STATUT — une tuile colorée */}
-      <div role="cell" className="hidden shrink-0 items-center md:flex">
-        <FlapTile
-          variant={statusVariant}
-          pulse={isLate}
-          className="px-2 py-1 text-[11px] whitespace-nowrap"
+      {/* STATUT */}
+      <div role="cell" className="hidden shrink-0 md:block">
+        <span
+          className={`inline-block rounded-[12px] px-3.5 py-1.5 font-black uppercase ${statusBadgeCls}`}
+          style={{ fontSize: '11px', letterSpacing: '2px' }}
         >
           {statusLabel}
-        </FlapTile>
+        </span>
       </div>
 
-      {/* ÉQUIPE — une tuile */}
-      <div role="cell" className="hidden shrink-0 items-center lg:flex">
+      {/* ÉQUIPE */}
+      <div role="cell" className="hidden shrink-0 lg:block" style={{ width: '90px' }}>
         {team ? (
-          <FlapTile variant="default" className="gap-1 px-2 py-1 text-[11px]">
-            <span aria-hidden>{team.emoji}</span>
-            <span>{team.abbr}</span>
-          </FlapTile>
+          <span
+            className="font-bold uppercase"
+            style={{ fontSize: '12px', letterSpacing: '1px' }}
+          >
+            <span aria-hidden>{team.emoji}</span> {team.abbr}
+          </span>
         ) : (
-          <FlapTile variant="default" className="px-2 py-1 text-[11px]">—</FlapTile>
+          <span style={{ fontSize: '12px', opacity: 0.4 }}>—</span>
         )}
       </div>
 
-      {/* ÉCoulÉ — une tuile */}
-      <div role="cell" className="flex shrink-0 items-center">
-        <FlapTile
-          variant={isLate ? 'red' : 'default'}
-          pulse={isLate}
-          className="px-2 py-1 text-[11px] tabular-nums whitespace-nowrap"
-        >
-          {relativeTimeFlap(r.createdAt)}
-        </FlapTile>
+      {/* ÉCOULÉ */}
+      <div
+        role="cell"
+        className="shrink-0 font-black uppercase tabular-nums"
+        style={{ fontSize: '12px', letterSpacing: '1px', width: '60px', color: isLate ? ROUGE : NOIR }}
+      >
+        {relativeTimeShort(r.createdAt)}
       </div>
 
-      {/* ACTIONS — petites tuiles flap avec icônes */}
-      <div role="cell" className="hidden shrink-0 items-center gap-1 xl:flex">
+      {/* ACTIONS — icônes 32×32 */}
+      <div role="cell" className="hidden shrink-0 items-center gap-1.5 xl:flex">
         {!r.isHelpRequest && (
           <div className="relative">
             <button
@@ -1121,25 +1026,19 @@ function IncidentFlapRow({
               disabled={busy}
               aria-label="Assigner ou rerouter le signalement"
               title="ASSIGNER / REROUTER"
-              className="transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-[#003399] text-white transition-opacity hover:opacity-90 disabled:opacity-50"
             >
-              <FlapTile variant="default" className="px-1.5 py-1">
-                <Wrench className="size-3.5 text-white" aria-hidden />
-              </FlapTile>
+              <Wrench className="size-4" aria-hidden />
             </button>
             {showAssignMenu && (
               <div
                 role="menu"
-                className="absolute right-0 top-full z-20 mt-1 w-44 p-1"
-                style={{
-                  backgroundColor: BLACK,
-                  border: `1px solid ${WHITE}`,
-                  borderRadius: '3px',
-                }}
+                className="absolute right-0 top-full z-20 mt-1 w-44 rounded-[12px] bg-white p-1.5"
+                style={{ boxShadow: '0 6px 14px rgba(0,0,0,0.2)' }}
               >
                 <p
-                  className="px-2 py-1 font-bold uppercase text-white"
-                  style={{ fontSize: '10px', letterSpacing: '1px', opacity: 0.7 }}
+                  className="px-2 py-1 font-black uppercase text-[#003399]"
+                  style={{ fontSize: '10px', letterSpacing: '2px' }}
                 >
                   REROUTER VERS
                 </p>
@@ -1151,7 +1050,7 @@ function IncidentFlapRow({
                       type="button"
                       role="menuitem"
                       onClick={() => void handleAssign(k)}
-                      className="flex w-full items-center gap-2 px-2 py-1.5 text-left font-bold uppercase text-white transition-opacity hover:opacity-80"
+                      className="flex w-full items-center gap-2 rounded-[8px] px-2 py-1.5 text-left font-bold uppercase text-black transition-colors hover:bg-[#FCD116]"
                       style={{ fontSize: '11px', letterSpacing: '1px' }}
                     >
                       <span aria-hidden>{TEAM_META[k].emoji}</span>
@@ -1167,11 +1066,9 @@ function IncidentFlapRow({
           onClick={handleCall}
           aria-label="Appeler le PC ops"
           title="APPELER PC OPS (+221 78 485 8226)"
-          className="transition-opacity hover:opacity-90"
+          className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-[#003399] text-white transition-opacity hover:opacity-90"
         >
-          <FlapTile variant="default" className="px-1.5 py-1">
-            <Phone className="size-3.5 text-white" aria-hidden />
-          </FlapTile>
+          <Phone className="size-4" aria-hidden />
         </button>
         {!r.isHelpRequest && (
           <button
@@ -1180,11 +1077,9 @@ function IncidentFlapRow({
             disabled={busy}
             aria-label="Escalader auprès de Denise"
             title="ESCALADER (DENISE TAKE_CHARGE)"
-            className="transition-opacity hover:opacity-90 disabled:opacity-50"
+            className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-[#E30613] text-white transition-opacity hover:opacity-90 disabled:opacity-50"
           >
-            <FlapTile variant="red" pulse={isLate} className="px-1.5 py-1">
-              <Megaphone className="size-3.5 text-white" aria-hidden />
-            </FlapTile>
+            <Megaphone className="size-4" aria-hidden />
           </button>
         )}
       </div>
@@ -1192,192 +1087,172 @@ function IncidentFlapRow({
   )
 }
 
-function PlaceholderFlapRow({ index }: { index: number }) {
-  const rowBg = index % 2 === 0 ? BLACK : '#0d0d0d'
+function PlaceholderRow() {
   return (
     <div
       role="row"
       aria-hidden
-      className="flex items-center gap-2 px-2 py-2"
-      style={{ backgroundColor: rowBg, borderBottom: `1px solid ${TILE_BORDER}` }}
+      className="flex items-center gap-2 rounded-[10px] bg-white/60 px-5 py-3.5"
+      style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
     >
-      <div className="flex shrink-0 gap-[3px]">
-        {Array.from({ length: 5 }).map((_, i) => (
-          <FlapTile key={i} variant="default" className="min-w-[20px] px-1 text-xs">
-            ·
-          </FlapTile>
-        ))}
-      </div>
-      <div className="flex min-w-0 flex-1 gap-[3px]">
-        {Array.from({ length: 8 }).map((_, i) => (
-          <FlapTile key={i} variant="default" className="min-w-[16px] px-1 text-[11px]">
-            ·
-          </FlapTile>
-        ))}
-      </div>
-      <div className="hidden min-w-0 flex-1 gap-[3px] sm:flex">
-        {Array.from({ length: 10 }).map((_, i) => (
-          <FlapTile key={i} variant="default" className="min-w-[16px] px-1 text-[11px]">
-            ·
-          </FlapTile>
-        ))}
-      </div>
-      <div className="hidden shrink-0 md:block">
-        <FlapTile variant="default" className="px-2 py-1 text-[11px]">· · ·</FlapTile>
-      </div>
-      <div className="hidden shrink-0 lg:block">
-        <FlapTile variant="default" className="px-2 py-1 text-[11px]">· ·</FlapTile>
-      </div>
-      <div className="flex shrink-0">
-        <FlapTile variant="default" className="px-2 py-1 text-[11px]">· ·</FlapTile>
-      </div>
-      <div className="hidden shrink-0 gap-1 xl:flex">
-        <FlapTile variant="default" className="px-1.5 py-1">·</FlapTile>
-        <FlapTile variant="default" className="px-1.5 py-1">·</FlapTile>
-        <FlapTile variant="default" className="px-1.5 py-1">·</FlapTile>
-      </div>
+      <div className="ops-pulse rounded-[6px]" style={{ width: '70px', height: '16px', backgroundColor: '#E0E0E0' }} />
+      <div className="ops-pulse flex-1 rounded-[6px]" style={{ height: '16px', backgroundColor: '#E0E0E0' }} />
+      <div className="ops-pulse hidden flex-1 rounded-[6px] sm:block" style={{ height: '16px', backgroundColor: '#E0E0E0' }} />
+      <div className="ops-pulse hidden rounded-[12px] md:block" style={{ width: '90px', height: '24px', backgroundColor: '#E0E0E0' }} />
+      <div className="ops-pulse hidden rounded-[6px] lg:block" style={{ width: '90px', height: '16px', backgroundColor: '#E0E0E0' }} />
+      <div className="ops-pulse rounded-[6px]" style={{ width: '60px', height: '16px', backgroundColor: '#E0E0E0' }} />
+      <div className="ops-pulse hidden rounded-[8px] xl:block" style={{ width: '32px', height: '32px', backgroundColor: '#E0E0E0' }} />
     </div>
   )
 }
 
-/** SlaTileRow — ligne SLA par zone en tuiles flap. */
-function SlaTileRow({ zone, sla }: { zone: ZoneAgg; sla?: SlaStats }) {
+/** SlaRow — ligne SLA par zone. */
+function SlaRow({ zone, sla }: { zone: ZoneAgg; sla?: SlaStats }) {
   if (!sla || sla.targetMinutes === null) {
     return (
-      <div className="flex items-center gap-1.5 px-1 py-1">
-        <span aria-hidden style={{ fontSize: '13px' }}>{zone.emoji}</span>
-        <FlapString
-          text={zone.nom.toUpperCase()}
-          variant="default"
-          maxLength={12}
-          tileSize="xs"
-          className="flex-1"
-        />
-        <FlapTile variant="default" className="px-2 py-0.5 text-[10px]">N/A</FlapTile>
+      <div className="flex items-center gap-2 rounded-[8px] bg-[#F5F5F5] px-2.5 py-1.5">
+        <span aria-hidden style={{ fontSize: '14px' }}>{zone.emoji}</span>
+        <span
+          className="min-w-0 flex-1 truncate font-black uppercase"
+          style={{ fontSize: '11px', letterSpacing: '1px' }}
+        >
+          {zone.nom}
+        </span>
+        <span
+          className="rounded-[8px] bg-[#003399] px-2 py-0.5 font-black uppercase text-white"
+          style={{ fontSize: '10px', letterSpacing: '1px' }}
+        >
+          N/A
+        </span>
       </div>
     )
   }
   const pct = sla.slaCompliancePercent
   const hasResolutions = sla.resolvedCount > 0
-  const pctVariant: FlapVariant = !hasResolutions
-    ? 'default'
-    : pct >= 80
-      ? 'green'
-      : pct >= 60
-        ? 'amber'
-        : 'red'
+  const pctCls =
+    !hasResolutions
+      ? 'bg-[#003399] text-white'
+      : pct >= 80
+        ? 'bg-[#00A651] text-white'
+        : pct >= 60
+          ? 'bg-[#FCD116] text-black'
+          : 'bg-[#E30613] text-white'
   return (
-    <div className="flex items-center gap-1.5 px-1 py-1">
-      <span aria-hidden style={{ fontSize: '13px' }}>{zone.emoji}</span>
-      <FlapString
-        text={zone.nom.toUpperCase()}
-        variant="default"
-        maxLength={12}
-        tileSize="xs"
-        className="min-w-0 flex-1"
-      />
-      <FlapTile variant="default" className="px-1.5 py-0.5 text-[10px] tabular-nums">
+    <div className="flex items-center gap-2 rounded-[8px] bg-[#F5F5F5] px-2.5 py-1.5">
+      <span aria-hidden style={{ fontSize: '14px' }}>{zone.emoji}</span>
+      <span
+        className="min-w-0 flex-1 truncate font-black uppercase"
+        style={{ fontSize: '11px', letterSpacing: '1px' }}
+      >
+        {zone.nom}
+      </span>
+      <span
+        className="font-black uppercase tabular-nums"
+        style={{ fontSize: '10px', letterSpacing: '1px', color: NOIR }}
+      >
         ≤{sla.targetMinutes}M
-      </FlapTile>
-      {hasResolutions && pct >= 80 ? (
-        <FlapTile variant="green" className="px-1.5 py-0.5 text-[10px]">✓</FlapTile>
-      ) : null}
-      <FlapTile
-        variant={pctVariant}
-        className="px-2 py-0.5 text-[11px] tabular-nums"
+      </span>
+      <span
+        className={`rounded-[8px] px-2 py-0.5 font-black uppercase tabular-nums ${pctCls}`}
+        style={{ fontSize: '11px', letterSpacing: '1px' }}
       >
         {hasResolutions ? `${pct}%` : '—'}
-      </FlapTile>
+      </span>
     </div>
   )
 }
 
-/** ChargeTileRow — ligne charge par zone : barre grayscale + count en tuile. */
-function ChargeTileRow({ zone, max }: { zone: ZoneAgg; max: number }) {
+/** ChargeRow — ligne charge par zone : barre colorée + count. */
+function ChargeRow({ zone, max }: { zone: ZoneAgg; max: number }) {
   const pct = max > 0 ? Math.max(2, Math.round((zone.count_en_attente / max) * 100)) : 0
-  const countVariant: FlapVariant =
-    zone.count_en_attente > 5 ? 'red' : zone.count_en_attente > 0 ? 'amber' : 'default'
+  const countCls =
+    zone.count_en_attente > 5
+      ? 'bg-[#E30613] text-white'
+      : zone.count_en_attente > 0
+        ? 'bg-[#FF6B00] text-white'
+        : 'bg-[#003399] text-white'
+  const barColor =
+    zone.count_en_attente > 5
+      ? ROUGE
+      : zone.count_en_attente > 0
+        ? ORANGE
+        : BLEU
   return (
-    <div className="flex items-center gap-1.5 px-1 py-1">
-      <span aria-hidden style={{ fontSize: '13px' }}>{zone.emoji}</span>
-      <FlapString
-        text={zone.nom.toUpperCase()}
-        variant="default"
-        maxLength={12}
-        tileSize="xs"
-        className="min-w-0 flex-1"
-      />
-      {/* Progress bar grayscale — gradient white to dark gray */}
+    <div className="flex items-center gap-2 rounded-[8px] bg-[#F5F5F5] px-2.5 py-1.5">
+      <span aria-hidden style={{ fontSize: '14px' }}>{zone.emoji}</span>
+      <span
+        className="min-w-0 flex-1 truncate font-black uppercase"
+        style={{ fontSize: '11px', letterSpacing: '1px' }}
+      >
+        {zone.nom}
+      </span>
       <div
-        className="overflow-hidden rounded-[2px]"
-        style={{ width: '80px', height: '10px', backgroundColor: '#1a1a1a' }}
+        className="overflow-hidden rounded-[4px]"
+        style={{ width: '80px', height: '8px', backgroundColor: '#E0E0E0' }}
       >
         <div
           className="h-full transition-all duration-700"
           style={{
             width: `${zone.count_en_attente === 0 ? 0 : pct}%`,
-            backgroundImage:
-              'linear-gradient(90deg,#ffffff 0%,#cccccc 50%,#555555 100%)',
+            backgroundColor: barColor,
           }}
         />
       </div>
-      <FlapTile
-        variant={countVariant}
-        className="px-2 py-0.5 text-[11px] tabular-nums"
+      <span
+        className={`rounded-[8px] px-2 py-0.5 font-black uppercase tabular-nums ${countCls}`}
+        style={{ fontSize: '11px', letterSpacing: '1px' }}
       >
         {zone.count_en_attente}
-      </FlapTile>
+      </span>
     </div>
   )
 }
 
 // --- Squelettes de chargement ---
-function KpiSkeletonFlap() {
-  return (
-    <div className="flex flex-1 flex-col items-center gap-1.5 px-2 py-2">
-      <div
-        className="ops-pulse rounded-[3px]"
-        style={{ width: '70%', height: '32px', backgroundColor: '#222222' }}
-      />
-      <div
-        className="ops-pulse rounded-[3px]"
-        style={{ width: '50%', height: '10px', backgroundColor: '#222222' }}
-      />
-    </div>
-  )
-}
-
-function RowSkeletonFlap() {
+function KpiSkeleton() {
   return (
     <div
-      className="flex items-center gap-2 px-2 py-2"
-      style={{ backgroundColor: BLACK, borderBottom: `1px solid ${TILE_BORDER}` }}
+      className="ops-pulse flex flex-col items-center justify-center rounded-[15px] px-3 py-5"
+      style={{ backgroundColor: '#E0E0E0', minHeight: '120px' }}
     >
-      <div className="ops-pulse rounded-[3px]" style={{ width: '90px', height: '24px' }} />
-      <div className="ops-pulse flex-1 rounded-[3px]" style={{ height: '24px' }} />
-      <div className="hidden ops-pulse flex-1 rounded-[3px] sm:block" style={{ height: '24px' }} />
-      <div className="hidden ops-pulse rounded-[3px] md:block" style={{ width: '80px', height: '24px' }} />
-      <div className="hidden ops-pulse rounded-[3px] lg:block" style={{ width: '50px', height: '24px' }} />
-      <div className="ops-pulse rounded-[3px]" style={{ width: '50px', height: '24px' }} />
+      <div className="rounded-[6px]" style={{ width: '60%', height: '36px', backgroundColor: '#D0D0D0' }} />
+      <div className="mt-2 rounded-[4px]" style={{ width: '40%', height: '12px', backgroundColor: '#D0D0D0' }} />
     </div>
   )
 }
 
-function MiniRowSkeletonFlap() {
+function RowSkeleton() {
   return (
-    <div className="flex items-center gap-1.5 px-1 py-1">
-      <div className="ops-pulse rounded-[3px]" style={{ width: '16px', height: '16px' }} />
-      <div className="ops-pulse flex-1 rounded-[3px]" style={{ height: '16px' }} />
-      <div className="ops-pulse rounded-[3px]" style={{ width: '40px', height: '16px' }} />
+    <div
+      className="flex items-center gap-2 rounded-[10px] bg-white px-5 py-3.5"
+      style={{ boxShadow: '0 2px 4px rgba(0,0,0,0.06)' }}
+    >
+      <div className="ops-pulse rounded-[4px]" style={{ width: '70px', height: '16px', backgroundColor: '#E0E0E0' }} />
+      <div className="ops-pulse flex-1 rounded-[4px]" style={{ height: '16px', backgroundColor: '#E0E0E0' }} />
+      <div className="ops-pulse hidden flex-1 rounded-[4px] sm:block" style={{ height: '16px', backgroundColor: '#E0E0E0' }} />
+      <div className="ops-pulse hidden rounded-[12px] md:block" style={{ width: '90px', height: '24px', backgroundColor: '#E0E0E0' }} />
+      <div className="ops-pulse hidden rounded-[4px] lg:block" style={{ width: '90px', height: '16px', backgroundColor: '#E0E0E0' }} />
+      <div className="ops-pulse rounded-[4px]" style={{ width: '60px', height: '16px', backgroundColor: '#E0E0E0' }} />
+    </div>
+  )
+}
+
+function MiniRowSkeleton() {
+  return (
+    <div className="flex items-center gap-2 rounded-[8px] bg-[#F5F5F5] px-2.5 py-1.5">
+      <div className="ops-pulse rounded-[4px]" style={{ width: '16px', height: '16px', backgroundColor: '#D0D0D0' }} />
+      <div className="ops-pulse flex-1 rounded-[4px]" style={{ height: '16px', backgroundColor: '#D0D0D0' }} />
+      <div className="ops-pulse rounded-[8px]" style={{ width: '40px', height: '16px', backgroundColor: '#D0D0D0' }} />
     </div>
   )
 }
 
 /**
- * CrisisButtonFlap — bouton mode crise style split-flap.
- * Inactif : tuile transparente bordure blanche.
- * Actif : tuile rouge pulse + timer + bouton FIN (vert). */
-function CrisisButtonFlap({
+ * CrisisButtonV2 — bouton mode crise V2.0 premium.
+ * Inactif : bg rouge, border blanc 3px, rounded 15px, texte blanc.
+ * Actif : tuile rouge pulse + timer + bouton FIN (vert).
+ */
+function CrisisButtonV2({
   active,
   onStart,
   onEnd,
@@ -1391,28 +1266,35 @@ function CrisisButtonFlap({
   if (active) {
     return (
       <div className="flex items-center gap-2">
-        <FlapTile variant="red" pulse className="flex-col gap-0 px-2 py-1">
-          <span className="text-[9px] font-black uppercase tracking-wider">CRISE ACTIVE</span>
+        <div
+          className="ops-pulse flex flex-col items-center rounded-[15px] bg-[#E30613] px-3 py-1.5 text-white"
+          style={{ border: '3px solid #FFFFFF' }}
+        >
+          <span
+            className="font-black uppercase"
+            style={{ fontSize: '9px', letterSpacing: '2px' }}
+          >
+            CRISE ACTIVE
+          </span>
           <span
             suppressHydrationWarning
-            className="font-bold tabular-nums text-white"
-            style={{ fontSize: '11px' }}
+            className="font-black tabular-nums"
+            style={{ fontSize: '14px' }}
           >
             {formatDurationSec(elapsedSec)}
           </span>
-        </FlapTile>
+        </div>
         <button
           type="button"
           onClick={onEnd}
           aria-pressed={active}
           aria-label="Désactiver le mode crise"
           title="Terminer la crise"
-          className="transition-opacity hover:opacity-90"
+          className="flex items-center gap-1.5 rounded-[15px] bg-[#00A651] px-3 py-2 font-black uppercase text-white transition-opacity hover:opacity-90"
+          style={{ border: '3px solid #FFFFFF', fontSize: '11px', letterSpacing: '1px' }}
         >
-          <FlapTile variant="green" className="gap-1 px-2 py-1.5 text-[11px]">
-            <ShieldAlert className="size-3.5 text-white" aria-hidden />
-            <span>FIN</span>
-          </FlapTile>
+          <ShieldAlert className="size-4" aria-hidden />
+          FIN
         </button>
       </div>
     )
@@ -1424,20 +1306,11 @@ function CrisisButtonFlap({
       aria-pressed={false}
       aria-label="Activer le mode crise"
       title="Mode crise : filtre les incidents critiques uniquement"
-      className="transition-opacity hover:opacity-90"
+      className="flex items-center gap-1.5 rounded-[15px] bg-[#E30613] px-3 py-2 font-black uppercase text-white transition-opacity hover:opacity-90"
+      style={{ border: '3px solid #FFFFFF', fontSize: '11px', letterSpacing: '1px' }}
     >
-      <span
-        className="inline-flex items-center gap-1.5 rounded-[3px] px-2.5 py-1.5 font-bold uppercase text-white"
-        style={{
-          backgroundColor: 'transparent',
-          border: `1px solid ${WHITE}`,
-          fontSize: '11px',
-          letterSpacing: '1px',
-        }}
-      >
-        <ShieldAlert className="size-3.5" aria-hidden />
-        MODE CRISE
-      </span>
+      <ShieldAlert className="size-4" aria-hidden />
+      MODE CRISE
     </button>
   )
 }
@@ -1894,369 +1767,398 @@ export default function OpsWallboardPage() {
     [handleActionFeedback],
   )
 
-  const slaAccent: FlapVariant =
+  const slaCardCls =
     overallSlaPctNum === null
-      ? 'default'
+      ? 'bg-[#FCD116] text-black'
       : overallSlaPctNum >= 80
-        ? 'green'
+        ? 'bg-[#00A651] text-white'
         : overallSlaPctNum < 60
-          ? 'red'
-          : 'amber'
-
-  const enAttenteAccent: FlapVariant =
-    data && data.stats.en_attente > 5 ? 'red' : data && data.stats.en_attente > 0 ? 'amber' : 'default'
-
-  const untreatedAccent: FlapVariant = untreatedOver10Min > 0 ? 'red' : 'green'
-
-  const staffAccent: FlapVariant = staffActive.count > 0 ? 'green' : 'amber'
-
-  // KPI definitions for the flap strip
-  const kpis: { label: string; value: string | number; variant: FlapVariant }[] = data
-    ? [
-        { label: 'CRIT.', value: untreatedOver10Min, variant: untreatedAccent },
-        { label: 'ATT.', value: data.stats.en_attente, variant: enAttenteAccent },
-        { label: 'RÉSOL.', value: data.stats.resolus_24h, variant: 'green' },
-        { label: 'TEMPS', value: formatDurationMin(data.stats.avg_resolution_minutes), variant: 'amber' },
-        { label: 'SLA', value: overallSlaPct, variant: slaAccent },
-        { label: 'STAFF', value: `${staffActive.count}/${staffActive.total}`, variant: staffAccent },
-      ]
-    : []
+          ? 'bg-[#E30613] text-white'
+          : 'bg-[#FCD116] text-black'
 
   return (
     <div
-      className="flex min-h-screen flex-col overflow-x-hidden font-sans"
-      style={{ backgroundColor: PAGE_BG }}
+      className="flex min-h-screen flex-col overflow-x-hidden uppercase"
+      style={{
+        backgroundColor: PAGE_BG,
+        fontFamily: "'Roboto Condensed', Arial, sans-serif",
+      }}
     >
-      {/* Keyframes globales — split-flap animations */}
+      {/* Keyframes globales — V2.0 animations */}
       <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Roboto+Condensed:wght@700;900&display=swap');
         @keyframes opsPulse { 0%,100%{opacity:1} 50%{opacity:.55} }
         @keyframes opsFlashRed {
-          0%,100% { background-color: rgba(138,45,45,0.10); }
-          50% { background-color: rgba(138,45,45,0.24); }
+          0%,100% { background-color: #E30613; }
+          50% { background-color: #FF0000; }
+        }
+        @keyframes opsFlashRedRow {
+          0%,100% { background-color: #FFFFFF; }
+          50% { background-color: #FFE5E7; }
         }
         @keyframes opsFlapIn {
-          from { opacity: 0; transform: translateY(-8px); }
+          from { opacity: 0; transform: translateY(-6px); }
           to { opacity: 1; transform: translateY(0); }
         }
-        @keyframes opsLiveBlink {
-          0%,100% { opacity: 1; }
-          50% { opacity: 0.4; }
+        @keyframes opsLivePulse {
+          0%,100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.4; transform: scale(1.3); }
         }
         .ops-pulse { animation: opsPulse 1.4s ease-in-out infinite; }
-        .ops-flash-red { animation: opsFlashRed 1.2s ease-in-out infinite; }
+        .ops-flash-red { animation: opsFlashRed 2s ease-in-out infinite; }
+        .ops-flash-red-row { animation: opsFlashRedRow 1.2s ease-in-out infinite; }
         .ops-flap-in { animation: opsFlapIn 0.5s ease-out; }
-        .ops-crisis-overlay { background-color: rgba(138,45,45,0.06); }
-        .ops-live-blink { animation: opsLiveBlink 1.4s ease-in-out infinite; }
-        .ops-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
-        .ops-scroll::-webkit-scrollbar-track { background: #1a1a1a; }
-        .ops-scroll::-webkit-scrollbar-thumb { background: #454545; border-radius: 3px; }
-        .ops-scroll::-webkit-scrollbar-thumb:hover { background: #575757; }
+        .ops-live-pulse { animation: opsLivePulse 1.4s ease-in-out infinite; }
+        .ops-crisis-overlay { background-color: rgba(227,6,19,0.04); }
+        .ops-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+        .ops-scroll::-webkit-scrollbar-track { background: #E0E0E0; border-radius: 4px; }
+        .ops-scroll::-webkit-scrollbar-thumb { background: #003399; border-radius: 4px; }
+        .ops-scroll::-webkit-scrollbar-thumb:hover { background: #002277; }
       `}</style>
 
       {/* Élément audio caché pour le ding */}
       <audio ref={audioRef} preload="auto" />
 
-      {/* === PANNEAU PRINCIPAL — bloc noir arrondi sur fond gris foncé === */}
-      <div
-        className={`mx-auto flex w-full max-w-[1920px] flex-1 flex-col overflow-hidden rounded-md p-4 sm:p-6 ${
-          crisisMode ? 'ops-crisis-overlay' : ''
-        }`}
+      {/* ============================================================
+          1. HEADER — bandeau BLEU avec logo JAUNE + horloge JAUNE
+          ============================================================ */}
+      <header
+        className="flex shrink-0 flex-wrap items-center justify-between gap-4 px-[30px] py-5 text-white"
         style={{
-          backgroundColor: BLACK,
-          border: `1px solid ${TILE_BORDER}`,
+          backgroundColor: BLEU,
+          borderRadius: '0 0 20px 20px',
+          boxShadow: '0 4px 10px rgba(0,0,0,0.2)',
         }}
       >
-        {/* ============================================================
-            1. HEADER — bandeau NOIR avec icônes avion + texte blanc
-            ============================================================ */}
-        <header
-          className="flex shrink-0 flex-wrap items-center justify-between gap-3 pb-4"
-          style={{ borderBottom: `1px solid ${TILE_BORDER}` }}
+        {/* LEFT — Logo box jaune avec icon blanc + titre */}
+        <div
+          className="flex items-center gap-3 rounded-[15px] px-4 py-2"
+          style={{ backgroundColor: JAUNE }}
         >
-          {/* LEFT — Plane icon (mirrored) + title + Plane icon */}
-          <div className="flex items-center gap-3">
-            <Plane
-              className="size-8 -scale-x-100 text-white"
-              aria-hidden
-            />
-            <h1
-              className="font-black uppercase text-white"
-              style={{ fontSize: 'clamp(16px, 2.5vw, 24px)', letterSpacing: '2px' }}
-            >
-              AÉROPORT OPS · WALLBOARD
-            </h1>
-            <Plane
-              className="size-8 text-white"
-              aria-hidden
-            />
-          </div>
-
-          {/* CENTER — Date + alert count */}
-          <div className="hidden flex-col items-center md:flex">
+          {/* White icon container 50×50 */}
+          <span
+            className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-[10px] bg-white"
+            aria-hidden
+          >
+            <Plane className="size-7 text-[#003399]" />
+          </span>
+          {/* Title + subtitle */}
+          <div className="flex flex-col">
             <span
-              className="font-bold uppercase text-white"
-              style={{ fontSize: '11px', letterSpacing: '2px', opacity: 0.7 }}
+              className="font-black uppercase leading-none text-black"
+              style={{ fontSize: 'clamp(18px, 2vw, 28px)', letterSpacing: '2px' }}
+            >
+              AÉROPORT OPS
+            </span>
+            <span
+              className="mt-1 font-bold uppercase leading-none text-black"
+              style={{ fontSize: '11px', letterSpacing: '2px', opacity: 0.75 }}
+            >
+              WALLBOARD · DIASS · DÉPARTS
+            </span>
+          </div>
+        </div>
+
+        {/* CENTER — Title + alerts count */}
+        <div className="hidden flex-col items-center md:flex">
+          <span
+            className="font-black uppercase leading-none text-white"
+            style={{ fontSize: '20px', letterSpacing: '4px' }}
+          >
+            WALLBOARD · DIASS
+          </span>
+          <span
+            className="mt-1 font-bold uppercase"
+            style={{ fontSize: '12px', letterSpacing: '2px', color: JAUNE }}
+          >
+            {alertsError ? 'ALERTES: ERREUR' : `${alerts.length} ALERTE(S)`}
+          </span>
+        </div>
+
+        {/* RIGHT — Date + LIVE + Clock + MODE CRISE + Sound */}
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Date + alerts */}
+          <div className="flex flex-col items-end">
+            <span
+              suppressHydrationWarning
+              className="font-bold uppercase leading-none text-white"
+              style={{ fontSize: '14px', letterSpacing: '2px' }}
             >
               {formatDateFR(now)}
             </span>
             <span
-              className="font-bold uppercase text-white"
-              style={{ fontSize: '10px', letterSpacing: '2px', opacity: 0.5 }}
+              className="mt-1 font-bold uppercase"
+              style={{ fontSize: '11px', letterSpacing: '2px', color: JAUNE }}
             >
-              {alertsError ? 'ALERTES: ERREUR' : `${alerts.length} ALERTE(S)`}
+              {error ? 'ERREUR API' : 'SYSTÈME OK'}
             </span>
           </div>
 
-          {/* RIGHT — LIVE + Clock + MODE CRISE + Sound */}
-          <div className="flex items-center gap-3">
-            {/* LIVE indicator — red dot + white text */}
-            <div className="flex items-center gap-1.5">
-              {error ? (
-                <>
-                  <span
-                    className="ops-live-blink size-2 rounded-full"
-                    style={{ backgroundColor: DOT_RED }}
-                    aria-hidden
-                  />
-                  <span
-                    className="ops-live-blink font-bold uppercase"
-                    style={{ fontSize: '11px', letterSpacing: '2px', color: DOT_RED }}
-                  >
-                    ERREUR
-                  </span>
-                </>
-              ) : (
-                <>
-                  <span
-                    className="size-2 rounded-full"
-                    style={{ backgroundColor: DOT_RED }}
-                    aria-hidden
-                  />
-                  <span
-                    className="font-bold uppercase text-white"
-                    style={{ fontSize: '11px', letterSpacing: '2px' }}
-                  >
-                    LIVE
-                  </span>
-                </>
-              )}
-            </div>
-
-            {/* Clock — white tabular-nums */}
+          {/* LIVE badge */}
+          <div
+            className="ops-pulse flex items-center gap-1.5 rounded-[25px] px-3 py-1.5 text-white"
+            style={{ backgroundColor: ROUGE }}
+          >
             <span
-              suppressHydrationWarning
-              className="font-bold tabular-nums text-white"
-              style={{ fontSize: 'clamp(18px, 3vw, 24px)', letterSpacing: '1px' }}
-            >
-              {formatClock(now)}
-            </span>
-
-            {/* MODE CRISE */}
-            <CrisisButtonFlap
-              active={crisisMode}
-              onStart={handleCrisisStart}
-              onEnd={handleCrisisEnd}
-              elapsedSec={crisisElapsedSec}
+              className="ops-live-pulse size-2 rounded-full bg-white"
+              aria-hidden
             />
+            <span className="font-black uppercase" style={{ fontSize: '11px', letterSpacing: '2px' }}>
+              LIVE
+            </span>
+          </div>
 
-            {/* Sound toggle — transparent bg, white border */}
+          {/* Clock — yellow bg, black text, 36px */}
+          <span
+            suppressHydrationWarning
+            className="rounded-[15px] px-4 py-1.5 font-black tabular-nums text-black"
+            style={{
+              backgroundColor: JAUNE,
+              fontSize: 'clamp(20px, 2.5vw, 36px)',
+              letterSpacing: '1px',
+              lineHeight: 1,
+            }}
+          >
+            {formatClock(now)}
+          </span>
+
+          {/* MODE CRISE */}
+          <CrisisButtonV2
+            active={crisisMode}
+            onStart={handleCrisisStart}
+            onEnd={handleCrisisEnd}
+            elapsedSec={crisisElapsedSec}
+          />
+
+          {/* Sound toggle */}
+          <button
+            type="button"
+            onClick={toggleSound}
+            aria-pressed={soundOn}
+            aria-label={soundOn ? 'Couper le son' : 'Activer le son (ding + annonces vocales)'}
+            title={soundOn ? 'Son activé — clic pour couper' : 'Son coupé — clic pour activer ding + annonces vocales'}
+            className="flex items-center gap-1.5 rounded-[15px] px-3 py-2 font-black uppercase text-white transition-opacity hover:opacity-90"
+            style={{
+              backgroundColor: 'transparent',
+              border: '3px solid #FFFFFF',
+              fontSize: '11px',
+              letterSpacing: '1px',
+            }}
+          >
+            {soundOn ? (
+              <>
+                <Volume2 className="size-4" aria-hidden />
+                <span>ON</span>
+              </>
+            ) : (
+              <>
+                <VolumeX className="size-4" aria-hidden />
+                <span>OFF</span>
+              </>
+            )}
+          </button>
+        </div>
+      </header>
+
+      {/* ---------- BANNIÈRE D'ACTIVATION DU SON ---------- */}
+      {showSoundBanner && !soundOn && (
+        <div
+          className="mx-[30px] mt-4 flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-[15px] px-5 py-3"
+          style={{ backgroundColor: BLANC, boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
+        >
+          <div className="flex items-center gap-3">
+            <span
+              className="ops-pulse size-2.5 rounded-full"
+              style={{ backgroundColor: ROUGE }}
+              aria-hidden
+            />
+            <div className="flex flex-col">
+              <p
+                className="font-black uppercase text-black"
+                style={{ fontSize: '13px', letterSpacing: '1px' }}
+              >
+                ACTIVEZ LE SON POUR LES ALERTES VOCALES
+              </p>
+              <p
+                className="font-bold text-black"
+                style={{ fontSize: '10px', letterSpacing: '1px', opacity: 0.6 }}
+              >
+                DING + ANNONCES VOCALES À CHAQUE NOUVEAU SIGNALEMENT
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
             <button
               type="button"
               onClick={toggleSound}
-              aria-pressed={soundOn}
-              aria-label={soundOn ? 'Couper le son' : 'Activer le son (ding + annonces vocales)'}
-              title={soundOn ? 'Son activé — clic pour couper' : 'Son coupé — clic pour activer ding + annonces vocales'}
-              className="transition-opacity hover:opacity-90"
+              className="flex items-center gap-1.5 rounded-[10px] bg-[#00A651] px-4 py-2 font-black uppercase text-white transition-opacity hover:opacity-90"
+              style={{ fontSize: '11px', letterSpacing: '1px' }}
             >
-              <span
-                className="inline-flex items-center gap-1.5 rounded-[3px] px-2.5 py-1.5 font-bold uppercase text-white"
-                style={{
-                  backgroundColor: 'transparent',
-                  border: `1px solid ${WHITE}`,
-                  fontSize: '11px',
-                  letterSpacing: '1px',
-                }}
-              >
-                {soundOn ? (
-                  <>
-                    <Volume2 className="size-4" aria-hidden />
-                    <span>ON</span>
-                  </>
-                ) : (
-                  <>
-                    <VolumeX className="size-4" aria-hidden />
-                    <span>OFF</span>
-                  </>
-                )}
-              </span>
+              <Volume2 className="size-4" aria-hidden />
+              ACTIVER LE SON
+            </button>
+            <button
+              type="button"
+              onClick={() => setShowSoundBanner(false)}
+              aria-label="Fermer la bannière"
+              className="flex items-center justify-center rounded-[10px] bg-[#003399] px-3 py-2 font-black text-white transition-opacity hover:opacity-90"
+            >
+              <span style={{ fontSize: '16px', lineHeight: 1 }} aria-hidden>×</span>
             </button>
           </div>
-        </header>
+        </div>
+      )}
 
-        {/* ---------- BANNIÈRE D'ACTIVATION DU SON ---------- */}
-        {showSoundBanner && !soundOn && (
-          <div
-            className="mt-4 flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-[3px] px-3 py-3"
-            style={{ backgroundColor: '#0d0d0d', border: `1px solid ${TILE_BORDER}` }}
+      {/* ---------- Résumé fin de crise ---------- */}
+      {crisisSummary && !crisisMode && (
+        <div
+          role="status"
+          className="mx-[30px] mt-4 flex shrink-0 items-center justify-center gap-3 rounded-[15px] px-5 py-2"
+          style={{ backgroundColor: BLANC, boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
+        >
+          <ShieldAlert className="size-4" style={{ color: VERT }} aria-hidden />
+          <p
+            className="font-black uppercase text-black"
+            style={{ fontSize: '12px', letterSpacing: '2px' }}
           >
-            <div className="flex items-center gap-3">
-              <span
-                className="ops-pulse size-2.5 rounded-full"
-                style={{ backgroundColor: DOT_RED }}
-                aria-hidden
-              />
-              <div className="flex flex-col">
-                <p
-                  className="font-bold uppercase text-white"
-                  style={{ fontSize: '12px', letterSpacing: '1px' }}
-                >
-                  ACTIVEZ LE SON POUR LES ALERTES VOCALES
-                </p>
-                <p
-                  className="font-bold text-white"
-                  style={{ fontSize: '10px', letterSpacing: '1px', opacity: 0.5 }}
-                >
-                  DING + ANNONCES VOCALES À CHAQUE NOUVEAU SIGNALEMENT
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={toggleSound}
-                className="transition-opacity hover:opacity-90"
-              >
-                <FlapTile variant="green" className="gap-1 px-3 py-2 text-xs">
-                  <Volume2 className="size-4 text-white" aria-hidden />
-                  <span>ACTIVER LE SON</span>
-                </FlapTile>
-              </button>
-              <button
-                type="button"
-                onClick={() => setShowSoundBanner(false)}
-                aria-label="Fermer la bannière"
-                className="transition-opacity hover:opacity-90"
-              >
-                <span
-                  className="inline-flex items-center justify-center rounded-[3px] px-2 py-1.5 font-bold text-white"
-                  style={{ border: `1px solid ${WHITE}` }}
-                >
-                  <span style={{ fontSize: '16px', lineHeight: 1 }} aria-hidden>×</span>
-                </span>
-              </button>
-            </div>
-          </div>
-        )}
+            {crisisSummary}
+          </p>
+        </div>
+      )}
 
-        {/* ---------- Résumé fin de crise ---------- */}
-        {crisisSummary && !crisisMode && (
-          <div
-            role="status"
-            className="mt-4 flex shrink-0 items-center justify-center gap-3 rounded-[3px] px-4 py-2"
-            style={{ backgroundColor: '#0d0d0d', border: `1px solid ${GREEN}` }}
-          >
-            <ShieldAlert className="size-4" style={{ color: GREEN }} aria-hidden />
-            <p
-              className="font-bold uppercase text-white"
+      {/* ---------- Bandeau crise active ---------- */}
+      {crisisMode && (
+        <div
+          role="alert"
+          className="mx-[30px] mt-4 flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-[15px] px-5 py-2"
+          style={{ backgroundColor: 'rgba(227,6,19,0.15)', border: `2px solid ${ROUGE}` }}
+        >
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="ops-pulse size-4 text-[#E30613]" aria-hidden />
+            <span
+              className="font-black uppercase text-black"
               style={{ fontSize: '12px', letterSpacing: '2px' }}
             >
-              {crisisSummary}
-            </p>
+              MODE CRISE — BOARD FILTRÉ AUX INCIDENTS CRITIQUES UNIQUEMENT
+            </span>
           </div>
-        )}
-
-        {/* ---------- Bandeau crise active ---------- */}
-        {crisisMode && (
-          <div
-            role="alert"
-            className="mt-4 flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-[3px] px-4 py-2"
-            style={{ backgroundColor: 'rgba(138,45,45,0.2)', border: `1px solid ${RED}` }}
-          >
-            <div className="flex items-center gap-2">
-              <ShieldAlert className="ops-pulse size-4 text-white" aria-hidden />
-              <span
-                className="font-bold uppercase text-white"
-                style={{ fontSize: '12px', letterSpacing: '2px' }}
-              >
-                MODE CRISE — BOARD FILTRÉ AUX INCIDENTS CRITIQUES UNIQUEMENT
-              </span>
-            </div>
-            {activeFilterLabel && (
-              <span
-                className="font-bold uppercase text-white"
-                style={{ fontSize: '11px', letterSpacing: '2px' }}
-              >
-                {activeFilterLabel}
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* ============================================================
-            2. KPI STRIP — 6 tuiles flap avec valeur + label
-            ============================================================ */}
-        <section
-          aria-label="KPI temps réel"
-          className="mt-4 flex shrink-0 flex-wrap items-start gap-2"
-        >
-          {data ? (
-            kpis.map((kpi) => (
-              <KpiTile
-                key={kpi.label}
-                label={kpi.label}
-                value={kpi.value}
-                variant={kpi.variant}
-              />
-            ))
-          ) : (
-            Array.from({ length: 6 }).map((_, i) => <KpiSkeletonFlap key={i} />)
+          {activeFilterLabel && (
+            <span
+              className="font-black uppercase text-[#E30613]"
+              style={{ fontSize: '11px', letterSpacing: '2px' }}
+            >
+              {activeFilterLabel}
+            </span>
           )}
-        </section>
+        </div>
+      )}
 
-        {/* ============================================================
-            3. ZONE MAP — tuiles flap groupées par famille
-            ============================================================ */}
-        <section aria-label="Carte zones" className="mt-4 shrink-0">
-          <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <div className="flex items-center gap-2">
-              <Plane className="size-5 -scale-x-100 text-white" aria-hidden />
-              <h2
-                className="font-bold uppercase text-white"
-                style={{ fontSize: '13px', letterSpacing: '2px' }}
-              >
-                CARTE TEMPS RÉEL · {data?.zones.length ?? 0} ZONES
-              </h2>
-              <Plane className="size-5 text-white" aria-hidden />
-            </div>
+      {/* ============================================================
+          2. KPI ROW — 6 cartes colorées
+          ============================================================ */}
+      <section
+        aria-label="KPI temps réel"
+        className="grid shrink-0 gap-[15px] px-[30px] py-5"
+        style={{ gridTemplateColumns: 'repeat(6, 1fr)' }}
+      >
+        {data ? (
+          <>
+            <KpiCard
+              label="CRITIQUE"
+              value={untreatedOver10Min}
+              bgClass="bg-[#E30613]"
+              textClass="text-white"
+            />
+            <KpiCard
+              label="EN ATTENTE"
+              value={data.stats.en_attente}
+              bgClass="bg-[#FCD116]"
+              textClass="text-black"
+            />
+            <KpiCard
+              label="RÉSOLUS"
+              value={data.stats.resolus_24h}
+              bgClass="bg-[#00A651]"
+              textClass="text-white"
+            />
+            <KpiCard
+              label="TEMPS MOY"
+              value={formatDurationMin(data.stats.avg_resolution_minutes)}
+              bgClass="bg-[#003399]"
+              textClass="text-white"
+            />
+            <KpiCard
+              label="SLA"
+              value={overallSlaPct}
+              bgClass={slaCardCls.split(' ')[0]}
+              textClass={slaCardCls.split(' ')[1] ?? 'text-black'}
+            />
+            <KpiCard
+              label="STAFF"
+              value={`${staffActive.count}/${staffActive.total}`}
+              bgClass="bg-[#00A651]"
+              textClass="text-white"
+            />
+          </>
+        ) : (
+          Array.from({ length: 6 }).map((_, i) => <KpiSkeleton key={i} />)
+        )}
+      </section>
+
+      {/* ============================================================
+          3. MAIN LAYOUT — 2 colonnes (2fr zones | 1fr alertes)
+          ============================================================ */}
+      <div
+        className={`grid shrink-0 gap-5 px-[30px] pb-5 ${crisisMode ? 'ops-crisis-overlay' : ''}`}
+        style={{ gridTemplateColumns: '2fr 1fr' }}
+      >
+        {/* ---------- LEFT : Zones section ---------- */}
+        <section
+          aria-label="Carte zones temps réel"
+          className="rounded-[20px] bg-white p-[25px]"
+          style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
+        >
+          {/* Section title */}
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h2
+              className="font-black uppercase leading-none"
+              style={{ fontSize: 'clamp(18px, 2vw, 24px)', letterSpacing: '3px', color: BLEU }}
+            >
+              🗺 CARTE TEMPS RÉEL · {data?.zones.length ?? 0} ZONES
+            </h2>
             {filterZone && (
               <button
                 type="button"
                 onClick={() => setFilterZone(null)}
-                className="transition-opacity hover:opacity-90"
+                className="rounded-[10px] bg-[#E30613] px-3 py-1.5 font-black uppercase text-white transition-opacity hover:opacity-90"
+                style={{ fontSize: '11px', letterSpacing: '1px' }}
               >
-                <FlapTile variant="default" className="px-2 py-1 text-xs">
-                  ✕ FILTRE: {filterZone.toUpperCase()}
-                </FlapTile>
+                ✕ FILTRE: {filterZone.toUpperCase()}
               </button>
             )}
           </div>
 
-          {/* Familles de zones — tuiles flap */}
-          <div className="flex flex-col gap-3">
+          {/* Familles de zones — panneaux colorés */}
+          <div className="flex flex-col gap-4">
             {families.map((fam) => {
               const famZones = zonesByFamily[fam] ?? []
               if (famZones.length === 0) return null
               return (
-                <div key={fam} className="flex flex-col gap-1.5">
+                <div key={fam} className="flex flex-col gap-2">
                   <h3
-                    className="font-bold uppercase text-white"
-                    style={{ fontSize: '10px', letterSpacing: '2px', opacity: 0.5 }}
+                    className="font-black uppercase text-black"
+                    style={{
+                      fontSize: '14px',
+                      letterSpacing: '3px',
+                      borderBottom: `3px solid ${JAUNE}`,
+                      paddingBottom: '6px',
+                    }}
                   >
                     {fam}
                   </h3>
-                  <div className="flex flex-wrap gap-1.5">
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                     {famZones.map((z) => (
-                      <ZoneTile
+                      <ZonePanel
                         key={z.code}
                         zone={z}
                         isActive={filterZone === z.code}
@@ -2267,37 +2169,49 @@ export default function OpsWallboardPage() {
                 </div>
               )
             })}
+            {data && data.zones.length === 0 && (
+              <div
+                className="rounded-[15px] bg-[#FCD116] px-5 py-6 text-center font-black uppercase text-black"
+                style={{ fontSize: '14px', letterSpacing: '1px' }}
+              >
+                AUCUNE ZONE CONFIGURÉE
+              </div>
+            )}
+            {!data && (
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="ops-pulse h-[75px] rounded-[15px]"
+                    style={{ backgroundColor: '#E0E0E0' }}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         </section>
 
-        {/* ============================================================
-            4. ALERTES ACTIVES — rangées de tuiles flap
-            ============================================================ */}
+        {/* ---------- RIGHT : Alertes section ---------- */}
         <section
           aria-label="Alertes actives"
-          className="mt-4 shrink-0"
+          className="flex max-h-[calc(100vh-300px)] flex-col rounded-[20px] bg-white p-[25px]"
+          style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
         >
-          <div className="mb-3 flex items-center gap-2">
-            <Plane className="size-5 -scale-x-100 text-white" aria-hidden />
-            <h2
-              className="font-bold uppercase text-white"
-              style={{ fontSize: '13px', letterSpacing: '2px' }}
-            >
-              ALERTES ACTIVES
-            </h2>
-            <Plane className="size-5 text-white" aria-hidden />
-          </div>
-          <div
-            className="flex max-h-[420px] flex-col gap-1.5 overflow-y-auto pr-1 ops-scroll"
+          <h2
+            className="mb-4 font-black uppercase leading-none"
+            style={{ fontSize: 'clamp(16px, 1.8vw, 20px)', letterSpacing: '3px', color: BLEU }}
           >
+            ⚠ ALERTES ACTIVES
+          </h2>
+          <div className="ops-scroll flex flex-1 flex-col overflow-y-auto pr-1">
             {topAlerts.map((a, idx) => (
-              <AlertTileRow key={`alert-${a.thresholdId}-${a.zoneCode}-${idx}`} alert={a} />
+              <AlertCard key={`alert-${a.thresholdId}-${a.zoneCode}-${idx}`} alert={a} />
             ))}
             {data?.help_requests?.slice(0, 3).map((h) => (
-              <HelpRequestTileRow key={`help-${h.id}`} h={h} />
+              <HelpRequestAlertCard key={`help-${h.id}`} h={h} />
             ))}
             {activeReportAlerts.map((r) => (
-              <ReportAlertTileRow
+              <ReportAlertCard
                 key={`report-alert-${r.id}`}
                 r={r}
                 onCall={handleReportCall}
@@ -2310,120 +2224,115 @@ export default function OpsWallboardPage() {
               activeReportAlerts.length === 0 &&
               (data?.help_requests?.length ?? 0) === 0 && (
                 <div
-                  className="flex items-center justify-center rounded-[3px] px-3 py-6"
-                  style={{ border: `1px solid ${TILE_BORDER}` }}
+                  className="flex items-center justify-center rounded-[15px] bg-[#00A651] px-5 py-6 text-center font-black uppercase text-white"
+                  style={{ fontSize: '13px', letterSpacing: '1px' }}
                 >
-                  <FlapTile variant="green" className="px-3 py-2 text-xs">
-                    AUCUNE ALERTE ACTIVE
-                  </FlapTile>
+                  AUCUNE ALERTE ACTIVE
                 </div>
               )}
           </div>
         </section>
+      </div>
 
-        {/* ============================================================
-            5. INCIDENTS TABLE — split-flap departure board
-            ============================================================ */}
-        <main
-          aria-label="Derniers signalements"
-          className="relative mt-4 flex min-h-0 flex-1 flex-col"
+      {/* ============================================================
+          4. INCIDENTS TABLE — lignes séparées avec coins arrondis
+          ============================================================ */}
+      <section
+        aria-label="Incidents du jour"
+        className="px-[30px] pb-5"
+      >
+        <div
+          className="rounded-[20px] bg-white p-[25px]"
+          style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
         >
-          {/* Title bar — ✈ INCIDENTS BOARD ✈ */}
-          <div
-            className="mb-2 flex items-center justify-center gap-3 rounded-[3px] px-4 py-2"
-            style={{ backgroundColor: '#0d0d0d', border: `1px solid ${TILE_BORDER}` }}
+          <h2
+            className="mb-4 font-black uppercase leading-none"
+            style={{ fontSize: 'clamp(18px, 2vw, 24px)', letterSpacing: '3px', color: BLEU }}
           >
-            <Plane className="size-6 -scale-x-100 text-white" aria-hidden />
-            <span
-              className="font-black uppercase text-white"
-              style={{ fontSize: 'clamp(16px, 2vw, 22px)', letterSpacing: '4px' }}
-            >
-              INCIDENTS BOARD
-            </span>
-            <Plane className="size-6 text-white" aria-hidden />
-          </div>
+            📋 INCIDENTS DU JOUR
+          </h2>
 
-          {/* En-tête table — texte blanc sur fond noir (no tiles for headers) */}
+          {/* En-tête table — bg bleu, coins arrondis haut */}
           <div
             role="row"
-            className="flex items-center gap-2 px-2 py-2"
-            style={{ borderBottom: `1px solid ${TILE_BORDER}` }}
+            className="mb-2 flex items-center gap-2 rounded-[10px_10px_0_0] px-5 py-3.5 text-white"
+            style={{ backgroundColor: BLEU }}
           >
             <div
-              className="shrink-0 font-bold uppercase text-white"
-              style={{ fontSize: '11px', letterSpacing: '2px', opacity: 0.6, width: '90px' }}
+              className="shrink-0 font-black uppercase"
+              style={{ fontSize: '11px', letterSpacing: '2px', width: '70px' }}
             >
-              TIME
+              HEURE
             </div>
             <div
-              className="min-w-0 flex-1 font-bold uppercase text-white"
-              style={{ fontSize: '11px', letterSpacing: '2px', opacity: 0.6 }}
+              className="min-w-0 flex-1 font-black uppercase"
+              style={{ fontSize: '11px', letterSpacing: '2px' }}
             >
               ZONE
             </div>
             <div
-              className="hidden min-w-0 flex-1 font-bold uppercase text-white sm:block"
-              style={{ fontSize: '11px', letterSpacing: '2px', opacity: 0.6 }}
+              className="hidden min-w-0 flex-1 font-black uppercase sm:block"
+              style={{ fontSize: '11px', letterSpacing: '2px' }}
             >
               PROBLÈME
             </div>
             <div
-              className="hidden shrink-0 font-bold uppercase text-white md:block"
-              style={{ fontSize: '11px', letterSpacing: '2px', opacity: 0.6, width: '90px' }}
+              className="hidden shrink-0 font-black uppercase md:block"
+              style={{ fontSize: '11px', letterSpacing: '2px', width: '120px' }}
             >
               STATUT
             </div>
             <div
-              className="hidden shrink-0 font-bold uppercase text-white lg:block"
-              style={{ fontSize: '11px', letterSpacing: '2px', opacity: 0.6, width: '70px' }}
+              className="hidden shrink-0 font-black uppercase lg:block"
+              style={{ fontSize: '11px', letterSpacing: '2px', width: '90px' }}
             >
               ÉQUIPE
             </div>
             <div
-              className="shrink-0 font-bold uppercase text-white"
-              style={{ fontSize: '11px', letterSpacing: '2px', opacity: 0.6, width: '60px' }}
+              className="shrink-0 font-black uppercase"
+              style={{ fontSize: '11px', letterSpacing: '2px', width: '60px' }}
             >
-              ÉCoulÉ
+              ÉCOULÉ
             </div>
             <div
-              className="hidden shrink-0 font-bold uppercase text-white xl:block"
-              style={{ fontSize: '11px', letterSpacing: '2px', opacity: 0.6, width: '90px' }}
+              className="hidden shrink-0 font-black uppercase xl:block"
+              style={{ fontSize: '11px', letterSpacing: '2px', width: '120px' }}
             >
               ACTIONS
             </div>
           </div>
 
-          {/* Lignes — tuiles flap par caractère */}
-          <div className="flex min-h-0 flex-1 flex-col overflow-y-auto ops-scroll">
+          {/* Lignes — séparées par gap (margin-bottom sur chaque ligne) */}
+          <div className="flex flex-col gap-2">
             {data ? (
               filledRows.length > 0 ? (
                 <>
-                  {filledRows.map((r, idx) => (
-                    <IncidentFlapRow
+                  {filledRows.map((r) => (
+                    <IncidentRow
                       key={r.id}
                       r={r}
                       fresh={freshIds.has(r.id)}
                       onActionFeedback={handleActionFeedback}
-                      index={idx}
                     />
                   ))}
                   {Array.from({ length: placeholderCount }).map((_, i) => (
-                    <PlaceholderFlapRow key={`ph-${i}`} index={filledRows.length + i} />
+                    <PlaceholderRow key={`ph-${i}`} />
                   ))}
                 </>
               ) : (
-                <div className="flex flex-1 items-center justify-center px-6 py-12">
-                  <FlapTile variant="default" className="px-4 py-3 text-sm">
-                    {crisisMode
-                      ? 'AUCUN INCIDENT CRITIQUE — CRISE MAÎTRISÉE'
-                      : filterZone
-                        ? `AUCUN SIGNALEMENT (${filterZone.toUpperCase()})`
-                        : 'AUCUN SIGNALEMENT 24H'}
-                  </FlapTile>
+                <div
+                  className="flex items-center justify-center rounded-[15px] bg-[#FCD116] px-6 py-8 text-center font-black uppercase text-black"
+                  style={{ fontSize: '14px', letterSpacing: '1px' }}
+                >
+                  {crisisMode
+                    ? 'AUCUN INCIDENT CRITIQUE — CRISE MAÎTRISÉE'
+                    : filterZone
+                      ? `AUCUN SIGNALEMENT (${filterZone.toUpperCase()})`
+                      : 'AUCUN SIGNALEMENT 24H'}
                 </div>
               )
             ) : (
-              Array.from({ length: 10 }).map((_, i) => <RowSkeletonFlap key={i} />)
+              Array.from({ length: 8 }).map((_, i) => <RowSkeleton key={i} />)
             )}
           </div>
 
@@ -2431,143 +2340,155 @@ export default function OpsWallboardPage() {
           {actionToast && (
             <div
               role="status"
-              className="pointer-events-none absolute left-1/2 top-2 z-30 -translate-x-1/2"
+              className="pointer-events-none fixed left-1/2 top-24 z-30 -translate-x-1/2"
             >
-              <FlapTile
-                variant={actionToast.kind === 'ok' ? 'green' : 'red'}
-                className="px-4 py-2 text-xs"
+              <div
+                className={`rounded-[12px] px-5 py-2.5 font-black uppercase text-white ${actionToast.kind === 'ok' ? 'bg-[#00A651]' : 'bg-[#E30613]'}`}
+                style={{ fontSize: '12px', letterSpacing: '1px', boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }}
               >
                 {actionToast.msg}
-              </FlapTile>
+              </div>
             </div>
           )}
-        </main>
+        </div>
+      </section>
 
-        {/* ============================================================
-            6. PREDICTION RADAR — wrapper noir/blanc
-            ============================================================ */}
-        <section
-          aria-label="Radar prédiction des pics de plaintes"
-          className="mt-4 flex shrink-0 flex-col gap-2"
+      {/* ============================================================
+          5. RADAR PRÉDICTION — wrapper premium blanc
+          ============================================================ */}
+      <section
+        aria-label="Radar prédiction des pics de plaintes"
+        className="px-[30px] pb-5"
+      >
+        <div
+          className="rounded-[20px] bg-white p-[25px]"
+          style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
         >
-          <div className="flex items-center gap-2">
-            <Plane className="size-5 -scale-x-100 text-white" aria-hidden />
-            <h2
-              className="font-bold uppercase text-white"
-              style={{ fontSize: '13px', letterSpacing: '2px' }}
-            >
-              RADAR PRÉDICTION
-            </h2>
-            <Plane className="size-5 text-white" aria-hidden />
-          </div>
-          <div
-            className="rounded-[3px] p-3"
-            style={{ backgroundColor: '#0d0d0d', border: `1px solid ${TILE_BORDER}` }}
+          <h2
+            className="mb-4 font-black uppercase leading-none"
+            style={{ fontSize: 'clamp(16px, 1.8vw, 20px)', letterSpacing: '3px', color: BLEU }}
           >
+            🔮 RADAR PRÉDICTION — ÇA VA PÉTER DANS 20 MIN ?
+          </h2>
+          <div className="rounded-[15px] bg-[#F5F5F5] p-3">
             <AirportPredictionRadar className="w-full" />
           </div>
-        </section>
-
-        {/* ============================================================
-            7. BOTTOM STRIP — SLA + Charge par zone (tuiles flap)
-            ============================================================ */}
-        <footer
-          aria-label="Synthèse SLA et charge par zone"
-          className="mt-4 grid shrink-0 grid-cols-1 gap-4 lg:grid-cols-2"
-        >
-          <section
-            className="flex flex-col gap-2 rounded-[3px] p-3"
-            style={{ backgroundColor: '#0d0d0d', border: `1px solid ${TILE_BORDER}` }}
-          >
-            <div className="flex items-center gap-2">
-              <Plane className="size-4 -scale-x-100 text-white" aria-hidden />
-              <h2
-                className="font-bold uppercase text-white"
-                style={{ fontSize: '11px', letterSpacing: '2px' }}
-              >
-                SLA PAR ZONE
-              </h2>
-            </div>
-            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-              {data ? (
-                data.zones.slice(0, 6).map((z) => (
-                  <SlaTileRow key={`sla-${z.code}`} zone={z} sla={data.sla?.[z.code]} />
-                ))
-              ) : (
-                Array.from({ length: 6 }).map((_, i) => <MiniRowSkeletonFlap key={i} />)
-              )}
-            </div>
-          </section>
-
-          <section
-            className="flex flex-col gap-2 rounded-[3px] p-3"
-            style={{ backgroundColor: '#0d0d0d', border: `1px solid ${TILE_BORDER}` }}
-          >
-            <div className="flex items-center gap-2">
-              <Plane className="size-4 -scale-x-100 text-white" aria-hidden />
-              <h2
-                className="font-bold uppercase text-white"
-                style={{ fontSize: '11px', letterSpacing: '2px' }}
-              >
-                CHARGE PAR ZONE · EN ATTENTE
-              </h2>
-            </div>
-            <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-              {data ? (
-                data.zones.slice(0, 6).map((z) => (
-                  <ChargeTileRow key={`chg-${z.code}`} zone={z} max={maxEnAttente} />
-                ))
-              ) : (
-                Array.from({ length: 6 }).map((_, i) => <MiniRowSkeletonFlap key={i} />)
-              )}
-            </div>
-          </section>
-        </footer>
-
-        {/* ============================================================
-            8. LEGEND — tuiles flap avec dots colorés
-            ============================================================ */}
-        <div
-          className="mt-4 flex shrink-0 flex-wrap items-center justify-center gap-x-6 gap-y-2 rounded-[3px] px-4 py-2"
-          style={{ backgroundColor: '#0d0d0d', border: `1px solid ${TILE_BORDER}` }}
-        >
-          <span className="flex items-center gap-1.5">
-            <FlapTile variant="green" className="px-2 py-0.5 text-[10px]">
-              <span
-                className="size-2 rounded-full"
-                style={{ backgroundColor: GREEN }}
-                aria-hidden
-              />
-              <span className="font-bold uppercase text-white">CALME (0)</span>
-            </FlapTile>
-          </span>
-          <span className="flex items-center gap-1.5">
-            <FlapTile variant="amber" className="px-2 py-0.5 text-[10px]">
-              <span
-                className="size-2 rounded-full"
-                style={{ backgroundColor: AMBER }}
-                aria-hidden
-              />
-              <span className="font-bold uppercase text-white">ATTENTION (1-2)</span>
-            </FlapTile>
-          </span>
-          <span className="flex items-center gap-1.5">
-            <FlapTile variant="red" className="px-2 py-0.5 text-[10px]">
-              <span
-                className="size-2 rounded-full"
-                style={{ backgroundColor: RED }}
-                aria-hidden
-              />
-              <span className="font-bold uppercase text-white">CRITIQUE (3+)</span>
-            </FlapTile>
-          </span>
-          <span
-            className="ml-auto font-bold uppercase text-white"
-            style={{ fontSize: '10px', letterSpacing: '2px', opacity: 0.4 }}
-          >
-            CLIC ZONE POUR FILTRER · {data?.stats.total_24h ?? 0} TOTAL 24H
-          </span>
         </div>
+      </section>
+
+      {/* ============================================================
+          6. BOTTOM STRIP — SLA + Charge par zone (2 colonnes)
+          ============================================================ */}
+      <section
+        aria-label="Synthèse SLA et charge par zone"
+        className="grid gap-5 px-[30px] pb-5 lg:grid-cols-2"
+      >
+        <div
+          className="rounded-[20px] bg-white p-[20px]"
+          style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
+        >
+          <h2
+            className="mb-3 font-black uppercase leading-none"
+            style={{ fontSize: '14px', letterSpacing: '2px', color: BLEU }}
+          >
+            📊 SLA PAR ZONE
+          </h2>
+          <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+            {data ? (
+              data.zones.slice(0, 6).map((z) => (
+                <SlaRow key={`sla-${z.code}`} zone={z} sla={data.sla?.[z.code]} />
+              ))
+            ) : (
+              Array.from({ length: 6 }).map((_, i) => <MiniRowSkeleton key={i} />)
+            )}
+          </div>
+        </div>
+
+        <div
+          className="rounded-[20px] bg-white p-[20px]"
+          style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
+        >
+          <h2
+            className="mb-3 font-black uppercase leading-none"
+            style={{ fontSize: '14px', letterSpacing: '2px', color: BLEU }}
+          >
+            ⚡ CHARGE PAR ZONE · EN ATTENTE
+          </h2>
+          <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+            {data ? (
+              data.zones.slice(0, 6).map((z) => (
+                <ChargeRow key={`chg-${z.code}`} zone={z} max={maxEnAttente} />
+              ))
+            ) : (
+              Array.from({ length: 6 }).map((_, i) => <MiniRowSkeleton key={i} />)
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* ============================================================
+          7. LEGEND BAR — white card avec box colors + hint
+          ============================================================ */}
+      <div
+        className="mx-[30px] mb-5 flex shrink-0 flex-wrap items-center gap-8 rounded-[15px] px-[30px] py-5"
+        style={{ backgroundColor: BLANC, boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
+      >
+        <span className="flex items-center gap-2">
+          <span
+            className="size-5 rounded-[5px]"
+            style={{ backgroundColor: ROUGE }}
+            aria-hidden
+          />
+          <span className="font-black uppercase text-black" style={{ fontSize: '11px', letterSpacing: '2px' }}>
+            CRITIQUE (3+)
+          </span>
+        </span>
+        <span className="flex items-center gap-2">
+          <span
+            className="size-5 rounded-[5px]"
+            style={{ backgroundColor: ORANGE }}
+            aria-hidden
+          />
+          <span className="font-black uppercase text-black" style={{ fontSize: '11px', letterSpacing: '2px' }}>
+            ATTENTION (1-2)
+          </span>
+        </span>
+        <span className="flex items-center gap-2">
+          <span
+            className="size-5 rounded-[5px]"
+            style={{ backgroundColor: JAUNE }}
+            aria-hidden
+          />
+          <span className="font-black uppercase text-black" style={{ fontSize: '11px', letterSpacing: '2px' }}>
+            SURVEILLANCE
+          </span>
+        </span>
+        <span className="flex items-center gap-2">
+          <span
+            className="size-5 rounded-[5px]"
+            style={{ backgroundColor: VERT }}
+            aria-hidden
+          />
+          <span className="font-black uppercase text-black" style={{ fontSize: '11px', letterSpacing: '2px' }}>
+            RÉSOLU / OK
+          </span>
+        </span>
+        <span className="flex items-center gap-2">
+          <span
+            className="size-5 rounded-[5px]"
+            style={{ backgroundColor: BLEU }}
+            aria-hidden
+          />
+          <span className="font-black uppercase text-black" style={{ fontSize: '11px', letterSpacing: '2px' }}>
+            CALME (0)
+          </span>
+        </span>
+        <span
+          className="ml-auto font-bold uppercase text-black"
+          style={{ fontSize: '10px', letterSpacing: '2px', opacity: 0.6 }}
+        >
+          CLIC ZONE POUR FILTRER · {data?.stats.total_24h ?? 0} TOTAL 24H
+        </span>
       </div>
     </div>
   )
