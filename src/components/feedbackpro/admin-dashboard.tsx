@@ -424,7 +424,7 @@ export function AdminDashboard() {
         <div className="flex h-14 items-center justify-between gap-3 rounded-2xl bg-card px-4 shadow-[0_10px_30px_rgba(0,0,0,0.06)] sm:h-16 sm:px-5">
           <div className="flex min-w-0 items-center gap-2.5">
             <Sheet open={menuOuvert} onOpenChange={setMenuOuvert}>
-              <SheetContent side="left" className="w-72 border-0 bg-[#003399] p-0 text-white" aria-describedby={undefined}>
+              <SheetContent side="left" className="h-full w-72 border-0 bg-[#003399] p-0 text-white" aria-describedby={undefined}>
                 <SheetTitle className="sr-only">{t("common.navigationAdmin")}</SheetTitle>
                 <ContenuSidebarAdmin
                   ongletActif={onglet}
@@ -496,6 +496,74 @@ export function AdminDashboard() {
 }
 
 // ============================================================
+// SidebarScrollWrap — wrapper scrollable avec fades dynamiques
+// ------------------------------------------------------------
+// Encadre la <nav> dans un conteneur flex-1 min-h-0 overflow-hidden.
+// Deux overlays gradient (haut/bas) s'affichent dynamiquement selon
+// la position de scroll pour indiquer qu'il y a plus d'onglets
+// au-dessus ou en-dessous. Scrollbar bien visible (10px, blanc).
+// ============================================================
+
+function SidebarScrollWrap({ children }: { children: React.ReactNode }) {
+  const wrapRef = useRef<HTMLDivElement | null>(null)
+  const navRef = useRef<HTMLElement | null>(null)
+  const [showFadeTop, setShowFadeTop] = useState(false)
+  const [showFadeBottom, setShowFadeBottom] = useState(true)
+
+  // Met à jour la visibilité des fades selon la position de scroll
+  const updateFades = useCallback(() => {
+    const el = navRef.current
+    if (!el) return
+    const { scrollTop, scrollHeight, clientHeight } = el
+    const canScroll = scrollHeight > clientHeight + 4
+    setShowFadeTop(canScroll && scrollTop > 4)
+    setShowFadeBottom(canScroll && scrollTop + clientHeight < scrollHeight - 4)
+  }, [])
+
+  useEffect(() => {
+    const el = navRef.current
+    if (!el) return
+    // Diffère l'appel initial pour éviter un setState synchrone dans l'effect
+    const raf = requestAnimationFrame(updateFades)
+    el.addEventListener("scroll", updateFades, { passive: true })
+    window.addEventListener("resize", updateFades)
+    // Re-check après un délai (au cas où le contenu se charge tard)
+    const t = window.setTimeout(updateFades, 400)
+    return () => {
+      cancelAnimationFrame(raf)
+      el.removeEventListener("scroll", updateFades)
+      window.removeEventListener("resize", updateFades)
+      clearTimeout(t)
+    }
+  }, [updateFades])
+
+  return (
+    <div ref={wrapRef} className="admin-sidebar-scroll-wrap">
+      <div
+        className="fade-top"
+        style={{ opacity: showFadeTop ? 1 : 0 }}
+        aria-hidden
+      />
+      <div
+        ref={(node) => {
+          // Récupère la <nav> à l'intérieur du wrapper (mise à jour ref seule,
+          // pas de setState ici — l'useEffect s'occupe du calcul des fades)
+          navRef.current = node?.querySelector("nav") ?? null
+        }}
+        className="h-full"
+      >
+        {children}
+      </div>
+      <div
+        className="fade-bottom"
+        style={{ opacity: showFadeBottom ? 1 : 0 }}
+        aria-hidden
+      />
+    </div>
+  )
+}
+
+// ============================================================
 // Sidebar admin (desktop fixe + drawer mobile)
 // ============================================================
 
@@ -516,49 +584,57 @@ function ContenuSidebarAdmin({
   return (
     <div className="flex h-full flex-col">
       {/* Logo */}
-      <div className="flex shrink-0 items-center gap-2.5 px-5 py-5">
+      <div className="flex shrink-0 items-center gap-2.5 px-5 py-4">
         <img
           src="/logo-feedbackpro-transparent.png"
           alt="FeedbackPro"
-          className="h-10 w-auto brightness-0 invert"
+          className="h-9 w-auto brightness-0 invert"
         />
         <span className="text-xs text-white/70">Administration</span>
       </div>
 
-      {/* Navigation verticale — scrollable (19 onglets) */}
-      <nav
-        aria-label={t("common.navigationAdmin")}
-        className="admin-sidebar-nav flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto px-3 py-2"
-      >
-        {ONGLETS.map((o) => {
-          const Icone = o.icone
-          const actif = ongletActif === o.id
-          // Task 3c — badge compteur de messages non lus sur l'onglet Messages
-          const badge =
-            o.id === "messages" && messagesNonLus > 0 ? (
-              <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-bold text-white">
-                {messagesNonLus > 9 ? "9+" : messagesNonLus}
-              </span>
-            ) : null
-          return (
-            <button
-              key={o.id}
-              type="button"
-              onClick={() => onNaviguer(o.id)}
-              aria-current={actif ? "page" : undefined}
-              className={`flex h-11 shrink-0 items-center gap-3 rounded-2xl px-3.5 text-[11px] font-semibold uppercase tracking-wide transition-colors ${
-                actif
-                  ? "-mr-2 bg-white text-[#1E1E2E] shadow-[0_6px_18px_rgba(0,0,0,0.08)]"
-                  : "text-white/80 hover:bg-white/10 hover:text-white"
-              }`}
-            >
-              <Icone className="h-[18px] w-[18px] shrink-0" aria-hidden />
-              <span className="truncate">{t(o.labelKey)}</span>
-              {badge}
-            </button>
-          )
-        })}
-      </nav>
+      {/* Navigation verticale — scrollable avec indicateurs de défilement */}
+      <SidebarScrollWrap>
+        <nav
+          aria-label={t("common.navigationAdmin")}
+          className="admin-sidebar-nav h-full overflow-y-auto flex flex-col gap-0.5 px-2.5 py-2"
+        >
+          {ONGLETS.map((o) => {
+            const Icone = o.icone
+            const actif = ongletActif === o.id
+            // Task 3c — badge compteur de messages non lus sur l'onglet Messages
+            const badge =
+              o.id === "messages" && messagesNonLus > 0 ? (
+                <span className="ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-bold text-white">
+                  {messagesNonLus > 9 ? "9+" : messagesNonLus}
+                </span>
+              ) : null
+            return (
+              <button
+                key={o.id}
+                type="button"
+                onClick={() => onNaviguer(o.id)}
+                aria-current={actif ? "page" : undefined}
+                className={`flex h-10 shrink-0 items-center gap-2.5 rounded-xl px-3 text-[11px] font-semibold uppercase tracking-wide transition-colors ${
+                  actif
+                    ? "bg-white text-[#1E1E2E] shadow-[0_4px_14px_rgba(0,0,0,0.12)]"
+                    : "text-white/80 hover:bg-white/10 hover:text-white"
+                }`}
+              >
+                <Icone className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="truncate">{t(o.labelKey)}</span>
+                {badge}
+              </button>
+            )
+          })}
+          {/* Indicateur de fin de liste */}
+          <div className="flex shrink-0 items-center justify-center gap-1.5 py-3 text-[9px] font-bold uppercase tracking-widest text-white/30">
+            <span className="h-px flex-1 bg-white/10" />
+            <span>{ONGLETS.length} onglets</span>
+            <span className="h-px flex-1 bg-white/10" />
+          </div>
+        </nav>
+      </SidebarScrollWrap>
 
       {/* Bas de sidebar : email + déconnexion */}
       <div className="shrink-0 border-t border-white/10 p-3">
