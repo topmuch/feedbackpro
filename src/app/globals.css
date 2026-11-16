@@ -150,7 +150,7 @@
 }
 
 /* ---------- Scrollbar sidebar admin (fond navy #003399) ---------- */
-/* Scrollbar bien visible pour indiquer qu'on peut scroller (21 onglets) */
+/* Scrollbar bien visible (10px) pour indiquer qu'on peut scroller (21 onglets) */
 .admin-sidebar-nav::-webkit-scrollbar {
   width: 10px;
 }
@@ -173,32 +173,6 @@
 .admin-sidebar-nav {
   scrollbar-width: auto;
   scrollbar-color: rgba(255, 255, 255, 0.35) rgba(255, 255, 255, 0.08);
-}
-
-/* Conteneur avec gradient fade pour indiquer qu'il y a plus d'onglets */
-.admin-sidebar-scroll-wrap {
-  position: relative;
-  flex: 1 1 0%;
-  min-height: 0;
-  overflow: hidden;
-}
-.admin-sidebar-scroll-wrap > .fade-top,
-.admin-sidebar-scroll-wrap > .fade-bottom {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 20px;
-  pointer-events: none;
-  z-index: 5;
-  transition: opacity 0.2s;
-}
-.admin-sidebar-scroll-wrap > .fade-top {
-  top: 0;
-  background: linear-gradient(to bottom, #003399 30%, rgba(0, 51, 153, 0) 100%);
-}
-.admin-sidebar-scroll-wrap > .fade-bottom {
-  bottom: 0;
-  background: linear-gradient(to top, #003399 30%, rgba(0, 51, 153, 0) 100%);
 }
 
 /* Masque la scrollbar mais garde le scroll (mobile) */
