@@ -1,0 +1,88 @@
+// ============================================================
+// POST /api/setup/seed
+// Route PUBLIQUE pour initialiser la DB de production.
+// À appeler UNE SEULE FOIS après un déploiement avec DB vide.
+// ============================================================
+
+import { NextResponse } from "next/server"
+import { db } from "@/lib/db"
+import { hashPassword } from "@/lib/auth"
+
+export const runtime = "nodejs"
+export const dynamic = "force-dynamic"
+
+export async function POST() {
+  const results: string[] = []
+  try {
+    const existingUsers = await db.user.count()
+    if (existingUsers > 0) {
+      return NextResponse.json({ ok: true, message: `DB déjà initialisée (${existingUsers} users)` })
+    }
+
+    // Superadmin
+    await db.user.create({
+      data: { email: "admin@feedbackpro.fr", passwordHash: hashPassword("admin123"), role: "SUPERADMIN" },
+    })
+    results.push("✓ Superadmin: admin@feedbackpro.fr / admin123")
+
+    // Pro démo
+    await db.pro.create({
+      data: {
+        nomEtablissement: "Aéroport de Diass", typeEtablissement: "aeroport", ville: "Diass",
+        email: "demo@feedbackpro.fr", plan: "STARTER", suspendu: false, onboardingDone: true,
+        users: { create: { email: "demo@feedbackpro.fr", passwordHash: hashPassword("demo1234"), role: "PRO" } },
+      },
+    })
+    results.push("✓ Pro démo: demo@feedbackpro.fr / demo1234")
+
+    // Modules
+    const modules = [
+      { key: "surveys", nom: "Sondages", description: "Questionnaires", prix: 0, actif: true },
+      { key: "voice_ai", nom: "Coach Vocal IA", description: "Denise", prix: 49, actif: true },
+      { key: "trends", nom: "Analytics", description: "Tableaux de bord", prix: 29, actif: true },
+      { key: "nps", nom: "NPS", description: "Satisfaction", prix: 19, actif: true },
+      { key: "abonnement_multi_sites", nom: "Multi-Sites", description: "Multi-établissements", prix: 99, actif: true },
+      { key: "feedbackpro_plus", nom: "Plus", description: "Avancé", prix: 149, actif: true },
+      { key: "white_label", nom: "Marque Blanche", description: "Customisation", prix: 199, actif: true },
+    ]
+    for (const m of modules) await db.module.upsert({ where: { key: m.key }, create: m, update: m })
+    results.push(`✓ ${modules.length} modules`)
+
+    // Secteurs
+    const secteurs = [
+      { secteur: "restaurant", nomSecteur: "Restaurants", emoji: "🍽️", couleur: "#F59E0B" },
+      { secteur: "aeroport", nomSecteur: "Aéroports", emoji: "✈️", couleur: "#003399" },
+      { secteur: "hotel", nomSecteur: "Hôtels", emoji: "🏨", couleur: "#8B5CF6" },
+      { secteur: "pharmacie", nomSecteur: "Pharmacies", emoji: "💊", couleur: "#10B981" },
+      { secteur: "boutique", nomSecteur: "Boutiques", emoji: "🛍️", couleur: "#EC4899" },
+      { secteur: "garage", nomSecteur: "Garages", emoji: "🔧", couleur: "#6B7280" },
+      { secteur: "coiffure", nomSecteur: "Coiffure", emoji: "💇", couleur: "#F43F5E" },
+      { secteur: "spa", nomSecteur: "Spas", emoji: "🧖", couleur: "#06B6D4" },
+      { secteur: "vetement", nomSecteur: "Vêtements", emoji: "👔", couleur: "#7C3AED" },
+      { secteur: "electromenager", nomSecteur: "Électroménager", emoji: "🔌", couleur: "#F97316" },
+      { secteur: "fastfood", nomSecteur: "Fast-food", emoji: "🍔", couleur: "#EF4444" },
+      { secteur: "boulangerie", nomSecteur: "Boulangeries", emoji: "🥖", couleur: "#D97706" },
+      { secteur: "salle_sport", nomSecteur: "Sport", emoji: "🏋️", couleur: "#059669" },
+      { secteur: "clinique", nomSecteur: "Cliniques", emoji: "🏥", couleur: "#0EA5E9" },
+      { secteur: "ecole", nomSecteur: "Écoles", emoji: "🎓", couleur: "#6366F1" },
+    ]
+    for (const s of secteurs) await db.secteurConfig.upsert({ where: { secteur: s.secteur }, create: s, update: s })
+    results.push(`✓ ${secteurs.length} secteurs`)
+
+    // Settings
+    for (const s of [
+      { key: "site_name", value: "FeedbackPro" },
+      { key: "support_email", value: "support@feedbackpro.fr" },
+      { key: "default_language", value: "fr" },
+    ]) await db.setting.upsert({ where: { key: s.key }, create: s, update: s })
+    results.push("✓ 3 paramètres")
+
+    const stats = {
+      users: await db.user.count(), pros: await db.pro.count(),
+      modules: await db.module.count(), secteurs: await db.secteurConfig.count(),
+    }
+    return NextResponse.json({ ok: true, message: "DB initialisée", details: results, stats })
+  } catch (e) {
+    return NextResponse.json({ ok: false, error: String(e), partial: results }, { status: 500 })
+  }
+}
