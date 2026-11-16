@@ -374,7 +374,10 @@ function CreateCampaignSection() {
             activeTo: form.activeTo,
             pricePerCodeFcfa: parseInt(form.pricePerCodeFcfa, 10) || 0,
             status: form.status,
-            endDate: form.endDate || null,
+            // endDate: si l'utilisateur choisit une date, on la met à FIN de
+            // journée (23:59:59) pour éviter que la campagne expire à minuit
+            // (un date input "2026-11-16" → Date("2026-11-16") = 00:00:00 = passé).
+            endDate: form.endDate ? `${form.endDate}T23:59:59.999Z` : null,
           }),
         })
         const json = (await res.json()) as { ok: boolean; error?: string }
