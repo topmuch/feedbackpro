@@ -1,9 +1,8 @@
 "use client"
 
 // Force dynamic rendering — empêche Next.js de mettre en cache la page
+// NOTE: revalidate et fetchCache ne sont PAS valides sur les Client Components
 export const dynamic = 'force-dynamic'
-export const revalidate = 0
-export const fetchCache = 'force-no-store'
 
 // ============================================================
 // FeedbackPro - Application monopage (SPA)

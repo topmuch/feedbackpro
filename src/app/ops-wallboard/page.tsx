@@ -48,9 +48,10 @@
 
 // Force dynamic rendering — empêche Next.js de mettre en cache la page
 // (x-nextjs-cache: HIT avec s-maxage=31536000 sinon → ancienne version servie)
+// NOTE: revalidate et fetchCache ne sont PAS valides sur les Client Components
+// (Next.js interprète revalidate comme une fonction côté client). Seul
+// `dynamic = 'force-dynamic'` fonctionne sur les pages 'use client'.
 export const dynamic = 'force-dynamic'
-export const revalidate = 0
-export const fetchCache = 'force-no-store'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
