@@ -4,14 +4,16 @@
 // Flash Rewards — Cartes à gratter post-signalement
 // ------------------------------------------------------------
 // Composant admin SuperAdmin pour piloter les campagnes Flash
-// Rewards (cartes à gratter voyageurs). 4 sous-sections internes
+// Rewards (cartes à gratter voyageurs). 5 sous-sections internes
 // via Tabs :
 //
-//   A. Créer une campagne     — formulaire complet de création
-//   B. Codes générés          — table polling 15s, filtre campagne
-//   C. Statistiques           — cartes KPI + barres CSS (7 derniers
+//   A. Campagnes              — liste, édition, suppression,
+//                               pause/activation, prolongation
+//   B. Créer une campagne     — formulaire complet de création
+//   C. Codes générés          — table polling 15s, filtre campagne
+//   D. Statistiques           — cartes KPI + barres CSS (7 derniers
 //                               jours) par campagne
-//   D. Conversion annonceurs  — table groupée par annonceur
+//   E. Conversion annonceurs  — table groupée par annonceur
 //
 // Palette aéroport : navy #003399 + gold #FCD116 (distincte du
 // reste de l'app).
@@ -35,6 +37,11 @@ import {
   CheckCircle2,
   TrendingUp,
   ImagePlus,
+  Pencil,
+  Trash2,
+  Pause,
+  Play,
+  Clock,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -62,6 +69,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog"
 import { useToast } from "@/hooks/use-toast"
 import { AIRPORT_ZONES } from "@/lib/airport-config"
 import { formatDate } from "@/components/feedbackpro/shared"
@@ -180,6 +197,19 @@ const REWARD_UNIT_LABELS: Record<RewardTypeKey, string> = {
 // ---------- Composant principal ----------
 
 export function AdminFlashRewardsTab() {
+  const [activeTab, setActiveTab] = useState("campaigns")
+  const [editingCampaign, setEditingCampaign] = useState<FlashRewardCampaign | null>(null)
+
+  const handleEditCampaign = useCallback((c: FlashRewardCampaign) => {
+    setEditingCampaign(c)
+    setActiveTab("create")
+  }, [])
+
+  const handleCancelEdit = useCallback(() => {
+    setEditingCampaign(null)
+    setActiveTab("campaigns")
+  }, [])
+
   return (
     <div className="space-y-4">
       {/* En-tête */}
@@ -206,8 +236,12 @@ export function AdminFlashRewardsTab() {
         </CardContent>
       </Card>
 
-      <Tabs defaultValue="create" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="grid w-full grid-cols-5">
+          <TabsTrigger value="campaigns" className="gap-1.5">
+            <Gift className="h-4 w-4" aria-hidden />
+            <span className="hidden sm:inline">Campagnes</span>
+          </TabsTrigger>
           <TabsTrigger value="create" className="gap-1.5">
             <Plus className="h-4 w-4" aria-hidden />
             <span className="hidden sm:inline">Créer</span>
@@ -226,8 +260,14 @@ export function AdminFlashRewardsTab() {
           </TabsTrigger>
         </TabsList>
 
+        <TabsContent value="campaigns" className="mt-4">
+          <CampaignsListSection onEditCampaign={handleEditCampaign} />
+        </TabsContent>
         <TabsContent value="create" className="mt-4">
-          <CreateCampaignSection />
+          <CreateCampaignSection
+            editingCampaign={editingCampaign}
+            onCancelEdit={handleCancelEdit}
+          />
         </TabsContent>
         <TabsContent value="codes" className="mt-4">
           <CodesGeneratedSection />
@@ -247,7 +287,13 @@ export function AdminFlashRewardsTab() {
 // Section A — Créer une campagne
 // ============================================================
 
-function CreateCampaignSection() {
+function CreateCampaignSection({
+  editingCampaign,
+  onCancelEdit,
+}: {
+  editingCampaign?: FlashRewardCampaign | null
+  onCancelEdit?: () => void
+}) {
   const { toast } = useToast()
   const [advertisers, setAdvertisers] = useState<Advertiser[]>([])
   const [loadingAdv, setLoadingAdv] = useState(true)
@@ -279,6 +325,31 @@ function CreateCampaignSection() {
       cancelled = true
     }
   }, [])
+
+  // Pré-remplit le formulaire quand on édite une campagne existante.
+  // Convertit la campagne reçue de l'API en état de formulaire (les
+  // nombres redeviennent des strings pour les inputs contrôlés).
+  useEffect(() => {
+    if (!editingCampaign) return
+    setForm({
+      advertiserId: editingCampaign.advertiserId,
+      title: editingCampaign.title,
+      rewardType: (editingCampaign.rewardType as RewardTypeKey) || "percentage",
+      rewardValue: editingCampaign.rewardValue,
+      description: editingCampaign.description,
+      imageUrl: editingCampaign.imageUrl,
+      eligibleZones: editingCampaign.eligibleZones,
+      triggerIncidentTypes: editingCampaign.triggerIncidentTypes,
+      maxPerDay: String(editingCampaign.maxPerDay),
+      maxTotal: String(editingCampaign.maxTotal),
+      codeValidityHours: String(editingCampaign.codeValidityHours),
+      activeFrom: editingCampaign.activeFrom,
+      activeTo: editingCampaign.activeTo,
+      pricePerCodeFcfa: String(editingCampaign.pricePerCodeFcfa),
+      status: editingCampaign.status,
+      endDate: editingCampaign.endDate ? editingCampaign.endDate.slice(0, 10) : "",
+    })
+  }, [editingCampaign])
 
   const toggleZone = useCallback((code: string) => {
     setForm((f) => ({
@@ -353,10 +424,15 @@ function CreateCampaignSection() {
         toast({ title: "Valeur de récompense requise", variant: "destructive" })
         return
       }
+      const isEditing = !!editingCampaign
+      const url = isEditing
+        ? `/api/airport/flash-rewards/${editingCampaign!.id}`
+        : "/api/airport/flash-rewards"
+      const method = isEditing ? "PATCH" : "POST"
       setSaving(true)
       try {
-        const res = await fetch("/api/airport/flash-rewards", {
-          method: "POST",
+        const res = await fetch(url, {
+          method,
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             advertiserId: form.advertiserId,
@@ -382,16 +458,23 @@ function CreateCampaignSection() {
         })
         const json = (await res.json()) as { ok: boolean; error?: string }
         if (!res.ok || !json.ok) {
-          throw new Error(json.error || "Création impossible")
+          throw new Error(
+            json.error || (isEditing ? "Modification impossible" : "Création impossible"),
+          )
         }
         toast({
-          title: "Campagne créée ✓",
-          description: "La carte à gratter est active pour les voyageurs.",
+          title: isEditing ? "Campagne modifiée" : "Campagne créée",
+          description: isEditing
+            ? "Les modifications ont été enregistrées."
+            : "La carte à gratter est active pour les voyageurs.",
         })
         setForm({ ...EMPTY_FORM })
+        if (isEditing) {
+          onCancelEdit?.()
+        }
       } catch (err) {
         toast({
-          title: "Échec création",
+          title: isEditing ? "Échec modification" : "Échec création",
           description: err instanceof Error ? err.message : "Erreur inconnue",
           variant: "destructive",
         })
@@ -399,19 +482,24 @@ function CreateCampaignSection() {
         setSaving(false)
       }
     },
-    [form, toast],
+    [form, toast, editingCampaign, onCancelEdit],
   )
 
   return (
     <Card className="border-slate-200 shadow-sm">
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <Plus className="h-5 w-5" style={{ color: NAVY }} aria-hidden />
-          Créer une campagne Flash Reward
+          {editingCampaign ? (
+            <Pencil className="h-5 w-5" style={{ color: NAVY }} aria-hidden />
+          ) : (
+            <Plus className="h-5 w-5" style={{ color: NAVY }} aria-hidden />
+          )}
+          {editingCampaign ? "Modifier la campagne" : "Créer une campagne Flash Reward"}
         </CardTitle>
         <CardDescription>
-          Le voyageur signale un incident → une carte à gratter s&apos;affiche → il gratte et reçoit un code
-          unique. L&apos;annonceur paie uniquement les codes <strong>utilisés</strong>.
+          {editingCampaign
+            ? "Modifiez les champs puis enregistrez. Les modifications sont appliquées immédiatement."
+            : "Le voyageur signale un incident → une carte à gratter s'affiche → il gratte et reçoit un code unique. L'annonceur paie uniquement les codes utilisés."}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -693,8 +781,21 @@ function CreateCampaignSection() {
               ) : (
                 <Save className="h-4 w-4" aria-hidden />
               )}
-              Enregistrer
+              {editingCampaign ? "Enregistrer les modifications" : "Enregistrer"}
             </Button>
+            {editingCampaign && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setForm({ ...EMPTY_FORM })
+                  onCancelEdit?.()
+                }}
+                className="gap-1.5"
+              >
+                Annuler
+              </Button>
+            )}
             <Button
               type="button"
               variant="outline"
@@ -1271,6 +1372,488 @@ function ConversionAdvertiserSection() {
             </Table>
           </div>
         )}
+      </CardContent>
+    </Card>
+  )
+}
+
+// ============================================================
+// Section E — Campagnes (liste + gestion CRUD)
+// ------------------------------------------------------------
+// Liste toutes les campagnes (polling 30s) avec pour chacune :
+//   - visuel, titre, statut (active/paused/expired)
+//   - annonceur, récompense, zones, dates, prix/code
+//   - résumé stats (codes générés / utilisés / revenus)
+//   - actions : Modifier · Pause/Activer · Prolonger · Supprimer
+//
+// Modifier     → bascule sur l'onglet « Créer » avec le formulaire
+//                 pré-rempli (PATCH sur submit).
+// Pause/Activer→ PATCH { status: "paused" | "active" }.
+// Prolonger    → PATCH { endDate: null } (illimité) OU une nouvelle
+//                date via l'input date inline.
+// Supprimer    → DELETE avec confirmation AlertDialog.
+// ============================================================
+
+const CAMPAIGN_STATUS_BADGE: Record<string, { label: string; bg: string; color: string }> = {
+  active: { label: "Active", bg: "#10b981", color: "#fff" },
+  paused: { label: "En pause", bg: "#f59e0b", color: "#fff" },
+  expired: { label: "Expirée", bg: "#ef4444", color: "#fff" },
+}
+
+function CampaignsListSection({
+  onEditCampaign,
+}: {
+  onEditCampaign: (c: FlashRewardCampaign) => void
+}) {
+  const { toast } = useToast()
+  const [campaigns, setCampaigns] = useState<FlashRewardCampaign[]>([])
+  const [statsMap, setStatsMap] = useState<Map<string, CampaignStat>>(new Map())
+  const [loading, setLoading] = useState(true)
+  const [lastRefresh, setLastRefresh] = useState<Date>(new Date())
+  const [busyId, setBusyId] = useState<string | null>(null)
+  const [deleteTarget, setDeleteTarget] = useState<FlashRewardCampaign | null>(null)
+
+  // Charge les campagnes + stats agrégées (pour le résumé par campagne)
+  const load = useCallback(async () => {
+    try {
+      const [campsRes, statsRes] = await Promise.all([
+        fetch("/api/airport/flash-rewards", { cache: "no-store" }),
+        fetch("/api/airport/flash-rewards/stats", { cache: "no-store" }),
+      ])
+      const campsJson = (await campsRes.json()) as {
+        ok: boolean
+        data?: { campaigns: FlashRewardCampaign[] }
+      }
+      const statsJson = (await statsRes.json()) as {
+        ok: boolean
+        data?: { campaigns: CampaignStat[] }
+      }
+      if (campsJson.ok && campsJson.data) setCampaigns(campsJson.data.campaigns)
+      if (statsJson.ok && statsJson.data) {
+        const m = new Map<string, CampaignStat>()
+        for (const s of statsJson.data.campaigns) m.set(s.campaign.id, s)
+        setStatsMap(m)
+      }
+      setLastRefresh(new Date())
+    } catch {
+      /* ignore */
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void load()
+    // Polling 30s pour garder la liste fraîche
+    const id = setInterval(() => void load(), 30000)
+    return () => clearInterval(id)
+  }, [load])
+
+  // Bascule active ⇄ paused
+  const toggleStatus = useCallback(
+    async (c: FlashRewardCampaign) => {
+      const next = c.status === "active" ? "paused" : "active"
+      setBusyId(c.id)
+      try {
+        const res = await fetch(`/api/airport/flash-rewards/${c.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: next }),
+        })
+        const json = (await res.json()) as { ok: boolean; error?: string }
+        if (!res.ok || !json.ok) throw new Error(json.error || "Échec")
+        toast({
+          title: next === "active" ? "Campagne activée" : "Campagne mise en pause",
+        })
+        void load()
+      } catch (err) {
+        toast({
+          title: "Échec",
+          description: err instanceof Error ? err.message : "Erreur inconnue",
+          variant: "destructive",
+        })
+      } finally {
+        setBusyId(null)
+      }
+    },
+    [toast, load],
+  )
+
+  // Prolonge indéfiniment (retire la date de fin)
+  const prolongIndefinitely = useCallback(
+    async (c: FlashRewardCampaign) => {
+      setBusyId(c.id)
+      try {
+        const res = await fetch(`/api/airport/flash-rewards/${c.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ endDate: null }),
+        })
+        const json = (await res.json()) as { ok: boolean; error?: string }
+        if (!res.ok || !json.ok) throw new Error(json.error || "Échec")
+        toast({ title: "Campagne prolongée indéfiniment" })
+        void load()
+      } catch (err) {
+        toast({
+          title: "Échec",
+          description: err instanceof Error ? err.message : "Erreur inconnue",
+          variant: "destructive",
+        })
+      } finally {
+        setBusyId(null)
+      }
+    },
+    [toast, load],
+  )
+
+  // Définit une nouvelle date de fin (date input → ISO fin de journée)
+  const setEndDate = useCallback(
+    async (c: FlashRewardCampaign, dateStr: string) => {
+      if (!dateStr) {
+        toast({ title: "Sélectionnez une date", variant: "destructive" })
+        return
+      }
+      setBusyId(c.id)
+      try {
+        const res = await fetch(`/api/airport/flash-rewards/${c.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ endDate: `${dateStr}T23:59:59.999Z` }),
+        })
+        const json = (await res.json()) as { ok: boolean; error?: string }
+        if (!res.ok || !json.ok) throw new Error(json.error || "Échec")
+        toast({ title: "Date de fin mise à jour" })
+        void load()
+      } catch (err) {
+        toast({
+          title: "Échec",
+          description: err instanceof Error ? err.message : "Erreur inconnue",
+          variant: "destructive",
+        })
+      } finally {
+        setBusyId(null)
+      }
+    },
+    [toast, load],
+  )
+
+  // Suppression après confirmation
+  const confirmDelete = useCallback(async () => {
+    if (!deleteTarget) return
+    setBusyId(deleteTarget.id)
+    try {
+      const res = await fetch(`/api/airport/flash-rewards/${deleteTarget.id}`, {
+        method: "DELETE",
+      })
+      const json = (await res.json()) as { ok: boolean; error?: string }
+      if (!res.ok || !json.ok) throw new Error(json.error || "Échec suppression")
+      toast({ title: "Campagne supprimée" })
+      setDeleteTarget(null)
+      void load()
+    } catch (err) {
+      toast({
+        title: "Échec suppression",
+        description: err instanceof Error ? err.message : "Erreur inconnue",
+        variant: "destructive",
+      })
+    } finally {
+      setBusyId(null)
+    }
+  }, [deleteTarget, toast, load])
+
+  return (
+    <div className="space-y-4">
+      <Card className="border-slate-200 shadow-sm">
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <Gift className="h-5 w-5" style={{ color: NAVY }} aria-hidden />
+                Campagnes Flash Rewards
+              </CardTitle>
+              <CardDescription>
+                {campaigns.length} campagne(s) · polling 30s · dernier refresh :{" "}
+                {formatDate(lastRefresh)}
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => void load()}
+              disabled={loading}
+              className="gap-1.5"
+            >
+              <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} aria-hidden />
+              Rafraîchir
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          {loading && campaigns.length === 0 ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="h-6 w-6 animate-spin text-slate-400" aria-hidden />
+            </div>
+          ) : campaigns.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-3 py-16 text-center">
+              <div
+                className="flex h-14 w-14 items-center justify-center rounded-full"
+                style={{ backgroundColor: `${GOLD}33`, color: NAVY }}
+              >
+                <Gift className="h-7 w-7" aria-hidden />
+              </div>
+              <div>
+                <p className="text-sm font-medium text-slate-700">
+                  Aucune campagne Flash Reward.
+                </p>
+                <p className="text-xs text-slate-500">
+                  Créez votre première campagne dans l&apos;onglet « Créer ».
+                </p>
+              </div>
+            </div>
+          ) : (
+            <div className="max-h-[40rem] space-y-3 overflow-y-auto pr-1">
+              {campaigns.map((c) => (
+                <CampaignCard
+                  key={c.id}
+                  campaign={c}
+                  stat={statsMap.get(c.id)}
+                  busy={busyId === c.id}
+                  onEdit={() => onEditCampaign(c)}
+                  onDelete={() => setDeleteTarget(c)}
+                  onToggleStatus={() => void toggleStatus(c)}
+                  onProlongIndefinite={() => void prolongIndefinitely(c)}
+                  onSetEndDate={(date) => void setEndDate(c, date)}
+                />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Confirmation suppression */}
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(o) => !o && setDeleteTarget(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Supprimer la campagne ?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Cette action est irréversible. Tous les codes et statistiques associés
+              seront supprimés.
+              {deleteTarget ? ` Campagne : « ${deleteTarget.title} ».` : ""}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => void confirmDelete()}
+              className="bg-red-600 text-white hover:bg-red-700"
+            >
+              Supprimer définitivement
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div>
+  )
+}
+
+function CampaignCard({
+  campaign: c,
+  stat,
+  busy,
+  onEdit,
+  onDelete,
+  onToggleStatus,
+  onProlongIndefinite,
+  onSetEndDate,
+}: {
+  campaign: FlashRewardCampaign
+  stat?: CampaignStat
+  busy: boolean
+  onEdit: () => void
+  onDelete: () => void
+  onToggleStatus: () => void
+  onProlongIndefinite: () => void
+  onSetEndDate: (date: string) => void
+}) {
+  const [newEndDate, setNewEndDate] = useState("")
+
+  const statusInfo = CAMPAIGN_STATUS_BADGE[c.status] ?? {
+    label: c.status,
+    bg: "#94a3b8",
+    color: "#fff",
+  }
+  const rewardTypeKey = (c.rewardType as RewardTypeKey) || "percentage"
+  const rewardLabel =
+    c.rewardType === "percentage"
+      ? `Pourcentage ${c.rewardValue}%`
+      : c.rewardType === "fixed_amount"
+        ? `Montant fixe ${c.rewardValue} FCFA`
+        : `${REWARD_TYPE_LABELS[rewardTypeKey] ?? c.rewardType} ${c.rewardValue}`
+  const zonesLabel =
+    c.eligibleZones.length === 0 ? "Toutes" : c.eligibleZones.join(", ")
+
+  return (
+    <Card className={cn("border-slate-200 shadow-sm", busy && "opacity-60")}>
+      <CardContent className="p-4">
+        <div className="flex flex-col gap-4 sm:flex-row">
+          {/* Visuel (120×80) */}
+          {c.imageUrl && (
+            <div
+              className="shrink-0 overflow-hidden rounded-md border border-slate-200 bg-slate-50"
+              style={{ width: 120, height: 80 }}
+            >
+              <img
+                src={c.imageUrl}
+                alt={c.title}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            </div>
+          )}
+
+          {/* Infos + actions */}
+          <div className="flex-1 space-y-3">
+            {/* Titre + statut */}
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="min-w-0">
+                <h3
+                  className="truncate text-base font-black"
+                  style={{ color: NAVY }}
+                  title={c.title}
+                >
+                  {c.title}
+                </h3>
+                {c.advertiserName && (
+                  <p className="text-xs text-slate-500">{c.advertiserName}</p>
+                )}
+              </div>
+              <span
+                className="inline-flex shrink-0 rounded-full px-2.5 py-0.5 text-[11px] font-bold uppercase tracking-wider"
+                style={{ backgroundColor: statusInfo.bg, color: statusInfo.color }}
+              >
+                {statusInfo.label}
+              </span>
+            </div>
+
+            {/* Méta : récompense, zones, dates, prix */}
+            <div className="grid grid-cols-1 gap-1.5 text-xs sm:grid-cols-2">
+              <p>
+                <span className="text-slate-500">Récompense : </span>
+                <span className="font-medium text-slate-800">{rewardLabel}</span>
+              </p>
+              <p>
+                <span className="text-slate-500">Zones : </span>
+                <span className="font-medium text-slate-800">{zonesLabel}</span>
+              </p>
+              <p>
+                <span className="text-slate-500">Période : </span>
+                <span className="font-medium text-slate-800">
+                  {formatDate(c.startDate)}
+                  {c.endDate ? ` → ${formatDate(c.endDate)}` : " → Pas d'expiration"}
+                </span>
+              </p>
+              <p>
+                <span className="text-slate-500">Prix / code : </span>
+                <span className="font-bold" style={{ color: NAVY }}>
+                  {c.pricePerCodeFcfa.toLocaleString("fr-FR")} FCFA
+                </span>
+              </p>
+            </div>
+
+            {/* Résumé stats */}
+            {stat && (
+              <div className="flex flex-wrap gap-2 text-[11px]">
+                <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-slate-700">
+                  <Ticket className="h-3 w-3" aria-hidden />
+                  {stat.totalCodes} codes générés
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-emerald-700">
+                  <CheckCircle2 className="h-3 w-3" aria-hidden />
+                  {stat.totalUsed} utilisés
+                </span>
+                <span
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-1"
+                  style={{ backgroundColor: `${GOLD}33`, color: NAVY }}
+                >
+                  <TrendingUp className="h-3 w-3" aria-hidden />
+                  {stat.revenueFcfa.toLocaleString("fr-FR")} F de revenus
+                </span>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+              <Button size="sm" variant="outline" onClick={onEdit} className="gap-1.5">
+                <Pencil className="h-3 w-3" aria-hidden />
+                Modifier
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onToggleStatus}
+                disabled={busy}
+                className="gap-1.5"
+              >
+                {c.status === "active" ? (
+                  <>
+                    <Pause className="h-3 w-3" aria-hidden />
+                    Pause
+                  </>
+                ) : (
+                  <>
+                    <Play className="h-3 w-3" aria-hidden />
+                    Activer
+                  </>
+                )}
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onProlongIndefinite}
+                disabled={busy}
+                className="gap-1.5"
+              >
+                <Clock className="h-3 w-3" aria-hidden />
+                Prolonger
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={onDelete}
+                disabled={busy}
+                className="gap-1.5 border-red-200 text-red-600 hover:bg-red-50"
+              >
+                <Trash2 className="h-3 w-3" aria-hidden />
+                Supprimer
+              </Button>
+              {busy && (
+                <Loader2 className="h-4 w-4 animate-spin text-slate-400" aria-hidden />
+              )}
+
+              {/* Setter de date de fin (nouvelle date précise) */}
+              <div className="ml-auto flex items-center gap-1">
+                <Input
+                  type="date"
+                  value={newEndDate}
+                  onChange={(e) => setNewEndDate(e.target.value)}
+                  className="h-8 w-36 text-xs"
+                  aria-label="Nouvelle date de fin"
+                />
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => onSetEndDate(newEndDate)}
+                  disabled={!newEndDate || busy}
+                  className="h-8 px-2 text-xs"
+                >
+                  OK
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
       </CardContent>
     </Card>
   )
