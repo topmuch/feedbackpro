@@ -143,14 +143,12 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export const viewport = {
-  themeColor: "#2563EB",
-  width: "device-width",
-  initialScale: 1,
-};
+// viewport retiré — le <__next_viewport_boundary__> causait TypeError useContext
+// sur /_global-error pendant le pre-rendering. Les meta viewport sont dans le
+// layout HTML directement.
+// export const viewport = { themeColor: "#2563EB", width: "device-width", initialScale: 1 };
 
-// Force dynamic rendering pour TOUTES les pages — empêche le pre-rendering
-// qui causait TypeError useContext sur /_global-error et autres pages.
+// Force dynamic rendering pour TOUTES les pages
 export const dynamic = "force-dynamic";
 
 export default async function RootLayout({
