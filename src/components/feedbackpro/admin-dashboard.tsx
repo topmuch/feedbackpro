@@ -402,7 +402,7 @@ export function AdminDashboard() {
   const emailAdmin = session?.user?.email ?? ""
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-[#F5F5F5] lg:pl-72 lg:pr-3">
+    <div className="relative flex min-h-screen flex-col bg-[#F5F5F5] dark:bg-background lg:pl-72 lg:pr-3">
       {/* ---------- Pastilles décoratives floues (vert + indigo) ---------- */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <div className="absolute -left-32 -top-24 h-[28rem] w-[28rem] rounded-full bg-[#4CC96B]/15 blur-3xl" />
@@ -445,8 +445,8 @@ export function AdminDashboard() {
               <Menu className="h-5 w-5" aria-hidden />
             </Button>
             <div className="min-w-0">
-              <p className="truncate font-semibold text-[#1E1E2E]">{titreOnglet}</p>
-              <p className="hidden truncate text-xs text-[#9A9AAE] sm:block">{t("dashboard.titreAdmin")}</p>
+              <p className="truncate font-semibold text-[#1E1E2E] dark:text-foreground">{titreOnglet}</p>
+              <p className="hidden truncate text-xs text-[#9A9AAE] dark:text-muted-foreground sm:block">{t("dashboard.titreAdmin")}</p>
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
@@ -454,7 +454,7 @@ export function AdminDashboard() {
             <LanguageSelector tone="light" />
             <NotificationsBell tone="light" />
             <ThemeToggle />
-            <span className="hidden text-sm text-[#9A9AAE] md:block max-w-48 truncate">{emailAdmin}</span>
+            <span className="hidden text-sm text-[#9A9AAE] dark:text-muted-foreground md:block max-w-48 truncate">{emailAdmin}</span>
             <Button
               variant="ghost"
               size="icon"
