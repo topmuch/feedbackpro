@@ -52,7 +52,7 @@ export async function getCurrentUser() {
   if (!session) return null
   const user = await db.user.findUnique({
     where: { id: session.uid },
-    include: { etablissements: true },
+    include: { pro: true },
   })
   return user
 }

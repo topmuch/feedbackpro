@@ -10,20 +10,20 @@ export async function GET(req: Request) {
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
   const url = new URL(req.url)
   const etablissementId = url.searchParams.get('etablissementId')
-  const etabIds = user.etablissements.map((e) => e.id)
+  const etabIds = user.pro ? [user.pro.id] : []
   const filterId = etablissementId && etabIds.includes(etablissementId) ? etablissementId : etabIds[0]
   if (!filterId) return NextResponse.json({ recompense: null })
 
-  const etab = await db.etablissement.findUnique({ where: { id: filterId } })
+  const etab = await db.pro.findUnique({ where: { id: filterId } })
   if (!etab) return NextResponse.json({ recompense: null })
 
   return NextResponse.json({
     recompense: {
       active: etab.recompenseActive,
       type: etab.recompenseType,
-      texte: etab.recompenseTexte,
-      codePromo: etab.recompenseCodePromo,
-      whatsappActive: etab.whatsappActive,
+      texte: etab.recompense,
+      codePromo: etab.recompenseCode,
+      whatsappActive: Boolean(etab.whatsapp),
       whatsapp: etab.whatsapp,
     },
   })

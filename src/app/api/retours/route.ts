@@ -13,7 +13,7 @@ export async function GET(req: Request) {
   const url = new URL(req.url)
   const etablissementId = url.searchParams.get('etablissementId')
 
-  const etabIds = user.etablissements.map((e) => e.id)
+  const etabIds = user.pro ? [user.pro.id] : []
   const filterId = etablissementId && etabIds.includes(etablissementId) ? etablissementId : etabIds[0]
 
   if (!filterId) {
@@ -21,7 +21,7 @@ export async function GET(req: Request) {
   }
 
   const retours = await db.retour.findMany({
-    where: { etablissementId: filterId },
+    where: { proId: filterId },
     orderBy: { createdAt: 'desc' },
   })
 
@@ -30,21 +30,21 @@ export async function GET(req: Request) {
     id: r.id,
     nps: r.nps,
     tags: safeParse<string[]>(r.tags, []),
-    reponses: safeParse(r.reponses, null),
+    reponses: null,
     commentaire: r.commentaire,
-    zone: r.zone,
+    zone: r.zoneId,
     personnelMentionne: safeParse<string[]>(r.personnelMentionne, []),
     photoUrl: r.photoUrl,
-    clientEmail: r.clientEmail,
-    clientPhone: r.clientPhone,
+    clientEmail: r.emailClient,
+    clientPhone: null,
     statut: r.statut,
     actionPrise: safeParse(r.actionPrise, null),
-    recompenseAttribuee: r.recompenseAttribuee,
+    recompenseAttribuee: null,
     recompenseUtilisee: r.recompenseUtilisee,
-    dateRecompenseUtilisee: r.dateRecompenseUtilisee,
-    isRecidive: r.isRecidive,
-    reponseGerant: r.reponseGerant,
-    dateReponseGerant: r.dateReponseGerant,
+    dateRecompenseUtilisee: null,
+    isRecidive: null,
+    reponseGerant: r.reponsePro,
+    dateReponseGerant: null,
     createdAt: r.createdAt,
   }))
 
@@ -67,22 +67,21 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
   }
   const body = await req.json()
-  const etabIds = user.etablissements.map((e) => e.id)
+  const etabIds = user.pro ? [user.pro.id] : []
   const etablissementId = body?.etablissementId && etabIds.includes(body.etablissementId) ? body.etablissementId : etabIds[0]
   if (!etablissementId) return NextResponse.json({ error: 'Aucun établissement' }, { status: 400 })
 
   const r = await db.retour.create({
     data: {
-      etablissementId,
+      proId: etablissementId,
+      note: Number(body?.note ?? 3),
       nps: Number(body?.nps ?? 3),
       tags: JSON.stringify(Array.isArray(body?.tags) ? body.tags : []),
-      reponses: body?.reponses ? JSON.stringify(body.reponses) : null,
       commentaire: body?.commentaire ?? null,
-      zone: body?.zone ?? null,
+      zoneId: String(body?.zone ?? ''),
       personnelMentionne: body?.personnelMentionne ? JSON.stringify(body.personnelMentionne) : null,
       photoUrl: body?.photoUrl ?? null,
-      clientEmail: body?.clientEmail ?? null,
-      clientPhone: body?.clientPhone ?? null,
+      emailClient: body?.clientEmail ?? null,
     },
   })
   return NextResponse.json({ retour: r })

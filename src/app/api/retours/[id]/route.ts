@@ -10,10 +10,10 @@ export async function GET(_req: Request, { params }: Params) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
   const { id } = await params
-  const etabIds = user.etablissements.map((e) => e.id)
+  const etabIds = user.pro ? [user.pro.id] : []
 
   const r = await db.retour.findUnique({ where: { id } })
-  if (!r || !etabIds.includes(r.etablissementId)) {
+  if (!r || !etabIds.includes(r.proId)) {
     return NextResponse.json({ error: 'Introuvable' }, { status: 404 })
   }
 
@@ -22,21 +22,21 @@ export async function GET(_req: Request, { params }: Params) {
       id: r.id,
       nps: r.nps,
       tags: safeParse<string[]>(r.tags, []),
-      reponses: safeParse(r.reponses, null),
+      reponses: null,
       commentaire: r.commentaire,
-      zone: r.zone,
+      zone: r.zoneId,
       personnelMentionne: safeParse<string[]>(r.personnelMentionne, []),
       photoUrl: r.photoUrl,
-      clientEmail: r.clientEmail,
-      clientPhone: r.clientPhone,
+      clientEmail: r.emailClient,
+      clientPhone: null,
       statut: r.statut,
       actionPrise: safeParse(r.actionPrise, null),
-      recompenseAttribuee: r.recompenseAttribuee,
+      recompenseAttribuee: null,
       recompenseUtilisee: r.recompenseUtilisee,
-      dateRecompenseUtilisee: r.dateRecompenseUtilisee,
-      isRecidive: r.isRecidive,
-      reponseGerant: r.reponseGerant,
-      dateReponseGerant: r.dateReponseGerant,
+      dateRecompenseUtilisee: null,
+      isRecidive: null,
+      reponseGerant: r.reponsePro,
+      dateReponseGerant: null,
       createdAt: r.createdAt,
     },
   })
@@ -46,10 +46,10 @@ export async function PATCH(req: Request, { params }: Params) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
   const { id } = await params
-  const etabIds = user.etablissements.map((e) => e.id)
+  const etabIds = user.pro ? [user.pro.id] : []
 
   const existing = await db.retour.findUnique({ where: { id } })
-  if (!existing || !etabIds.includes(existing.etablissementId)) {
+  if (!existing || !etabIds.includes(existing.proId)) {
     return NextResponse.json({ error: 'Introuvable' }, { status: 404 })
   }
 
@@ -74,10 +74,10 @@ export async function DELETE(_req: Request, { params }: Params) {
   const user = await getCurrentUser()
   if (!user) return NextResponse.json({ error: 'Non authentifié' }, { status: 401 })
   const { id } = await params
-  const etabIds = user.etablissements.map((e) => e.id)
+  const etabIds = user.pro ? [user.pro.id] : []
 
   const existing = await db.retour.findUnique({ where: { id } })
-  if (!existing || !etabIds.includes(existing.etablissementId)) {
+  if (!existing || !etabIds.includes(existing.proId)) {
     return NextResponse.json({ error: 'Introuvable' }, { status: 404 })
   }
   await db.retour.delete({ where: { id } })

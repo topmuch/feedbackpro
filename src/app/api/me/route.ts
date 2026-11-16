@@ -12,12 +12,16 @@ export async function GET() {
     user: {
       id: user.id,
       email: user.email,
-      name: user.name,
-      etablissements: user.etablissements.map((e) => ({
-        id: e.id,
-        nom: e.nom,
-        type: e.type,
-      })),
+      name: user.email,
+      etablissements: user.pro
+        ? [
+            {
+              id: user.pro.id,
+              nom: user.pro.nomEtablissement,
+              type: user.pro.typeEtablissement,
+            },
+          ]
+        : [],
     },
   })
 }
