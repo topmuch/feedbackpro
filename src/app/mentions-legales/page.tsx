@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic"
+
 // ============================================================
 // FeedbackPro - Page légale : Mentions légales (Session 6 §4)
 // Route réelle : GET /mentions-legales

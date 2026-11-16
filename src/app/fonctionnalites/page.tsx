@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic"
+
 // ============================================================
 // FeedbackPro - Page Fonctionnalités (App Router)
 // ------------------------------------------------------------

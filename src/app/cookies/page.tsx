@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic"
+
 // ============================================================
 // FeedbackPro - Page légale : Politique cookies (Session 6 §4)
 // Route réelle : GET /cookies

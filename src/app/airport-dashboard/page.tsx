@@ -1,5 +1,7 @@
 "use client"
 
+export const dynamic = "force-dynamic"
+
 // ============================================================
 // Page /airport-dashboard — Dashboard Ops Aéroport
 // ------------------------------------------------------------

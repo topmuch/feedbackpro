@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic"
+
 // ============================================================
 // FeedbackPro - Page légale : Politique de confidentialité (RGPD)
 // Route réelle : GET /confidentialite (Session 6 §4)
