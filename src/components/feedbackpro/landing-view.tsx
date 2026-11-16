@@ -1630,16 +1630,14 @@ function AccueilPage({
           <Reveal delay={0.24}>
             <div className="mt-8 flex flex-col items-stretch gap-3 sm:flex-row sm:items-center">
               <CtaSignup
-                onSignup={() => navigate("restaurant")}
-                variant="warm"
-              >
-                Découvrir Restaurants
-              </CtaSignup>
-              <CtaSignup
-                onSignup={() => navigate("aeroport")}
+                onSignup={() => {
+                  // Scroll vers la section secteurs (pas de switch de dashboard)
+                  const el = document.getElementById("secteurs")
+                  el?.scrollIntoView({ behavior: "smooth", block: "start" })
+                }}
                 variant="tech"
               >
-                Découvrir Aéroports
+                Découvrir la plateforme
               </CtaSignup>
             </div>
           </Reveal>
@@ -1668,7 +1666,7 @@ function AccueilPage({
       </section>
 
       {/* UN MOTEUR, TOUS VOS TERRAINS — 6 sector cards */}
-      <section className="border-y border-black/5 bg-white py-24 sm:py-32">
+      <section id="secteurs" className="scroll-mt-20 border-y border-black/5 bg-white py-24 sm:py-32">
         <div className="mx-auto max-w-screen-2xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <Reveal>

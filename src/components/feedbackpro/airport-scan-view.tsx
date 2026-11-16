@@ -1094,35 +1094,45 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
 
     // Flash Rewards — on attend que Denise ait FINI de parler avant
     // d'afficher la carte à gratter. Le message de confirmation dure
-    // ~5-6 secondes. On utilise l'événement onend de l'utterance pour
-    // déclencher l'overlay EXACTEMENT quand la voix s'arrête, avec un
-    // fallback de 6500ms si l'événement ne se déclenche pas.
+    // ~5-6 secondes.
+    //
+    // IMPORTANT : on ne commence à vérifier speaking===false qu'après
+    // 1500ms, car parler() appelle speechSynthesis.cancel() avant speak(),
+    // créant un court instant où speaking===false AVANT que Denise
+    // commence. Sans ce délai, le polling détecterait ce faux "fin" et
+    // déclencherait la carte trop tôt.
     const triggerFlashReward = () => setShowFlashReward(true)
 
-    // Fallback : si onend ne se déclenche pas (navigateur weird), on
-    // déclenche quand même après 6500ms
-    const flashRewardFallback = setTimeout(triggerFlashReward, 6500)
+    // Fallback : si la détection échoue, déclencher après 8000ms
+    const flashRewardFallback = setTimeout(triggerFlashReward, 8000)
 
-    // Brancher onend sur l'utterance courante de Denise
-    if (typeof window !== "undefined" && window.speechSynthesis) {
-      // speechSynthesis n'expose pas directement l'utterance courante,
-      // mais on peut écouter l'événement global en attendant que la
-      // synthèse se termine (speaking === false)
-      const checkEnd = setInterval(() => {
+    let checkEnd: ReturnType<typeof setInterval> | null = null
+    const startPolling = setTimeout(() => {
+      if (typeof window === "undefined" || !window.speechSynthesis) {
+        clearTimeout(flashRewardFallback)
+        triggerFlashReward()
+        return
+      }
+      checkEnd = setInterval(() => {
         if (!window.speechSynthesis.speaking) {
-          clearInterval(checkEnd)
+          if (checkEnd) clearInterval(checkEnd)
           clearTimeout(flashRewardFallback)
-          // Petit délai de 500ms après la fin de la voix pour un effet
-          // naturel (la voix s'arrête, puis la carte apparaît)
-          setTimeout(triggerFlashReward, 500)
+          // 800ms après la fin de la voix → effet naturel
+          setTimeout(triggerFlashReward, 800)
         }
       }, 200)
-      // Safety : clear l'interval après 10s max
-      setTimeout(() => clearInterval(checkEnd), 10000)
-    }
+    }, 1500) // Délai avant de commencer à écouter la fin de la voix
+
+    // Safety : clear après 12s max
+    const safety = setTimeout(() => {
+      if (checkEnd) clearInterval(checkEnd)
+    }, 12000)
 
     return () => {
+      clearTimeout(startPolling)
       clearTimeout(flashRewardFallback)
+      clearTimeout(safety)
+      if (checkEnd) clearInterval(checkEnd)
     }
   }, [phase, reportResult])
 
