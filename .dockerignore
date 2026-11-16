@@ -1,0 +1,62 @@
+# Dépendances
+node_modules
+.pnp
+.pnp.js
+
+# Build de développement
+.next
+out
+build
+dist
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+dev.log
+server.log
+
+# Cache
+.cache
+.turbo
+.eslintcache
+
+# Environment & secrets
+.env
+.env.local
+.env.development
+.env.production
+.env.*.local
+
+# Base de données locale
+db/*.db
+db/*.db-journal
+db/*.db-wal
+db/*.db-shm
+
+# Git
+.git
+.gitignore
+
+# Docker
+Dockerfile
+.dockerignore
+docker-compose*
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Tests
+coverage
+__tests__
+
+# Contexte agent
+agent-ctx
