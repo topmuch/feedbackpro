@@ -192,6 +192,7 @@ export async function GET() {
         count_24h: 0,
         count_prev_24h: 0,
         count_en_attente: 0,
+        count_en_cours: 0,
         last_report_at: null,
       }
       zoneAggByCode.set(code, agg)
