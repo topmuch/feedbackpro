@@ -149,6 +149,10 @@ export const viewport = {
   initialScale: 1,
 };
 
+// Force dynamic rendering pour TOUTES les pages — empêche le pre-rendering
+// qui causait TypeError useContext sur /_global-error et autres pages.
+export const dynamic = "force-dynamic";
+
 export default async function RootLayout({
   children,
 }: Readonly<{
