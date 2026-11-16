@@ -1092,17 +1092,37 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
       `Votre signalement a bien été reçu. ${equipeLabel} a été alertée et intervient sur place. Merci pour votre contribution.`
     )
 
-    // Flash Rewards — après que Denise a parlé (~3 s de voix), on
-    // déclenche l'overlay carte à gratter. Le setTimeout de 3500ms
-    // laisse le temps à la voix de finir avant de surprendre le
-    // voyageur. L'overlay appellera /redeem et se fermera de lui-même
-    // si le voyageur n'est pas éligible (anti-bruit visuel).
-    const flashRewardTimer = setTimeout(() => {
-      setShowFlashReward(true)
-    }, 3500)
+    // Flash Rewards — on attend que Denise ait FINI de parler avant
+    // d'afficher la carte à gratter. Le message de confirmation dure
+    // ~5-6 secondes. On utilise l'événement onend de l'utterance pour
+    // déclencher l'overlay EXACTEMENT quand la voix s'arrête, avec un
+    // fallback de 6500ms si l'événement ne se déclenche pas.
+    const triggerFlashReward = () => setShowFlashReward(true)
+
+    // Fallback : si onend ne se déclenche pas (navigateur weird), on
+    // déclenche quand même après 6500ms
+    const flashRewardFallback = setTimeout(triggerFlashReward, 6500)
+
+    // Brancher onend sur l'utterance courante de Denise
+    if (typeof window !== "undefined" && window.speechSynthesis) {
+      // speechSynthesis n'expose pas directement l'utterance courante,
+      // mais on peut écouter l'événement global en attendant que la
+      // synthèse se termine (speaking === false)
+      const checkEnd = setInterval(() => {
+        if (!window.speechSynthesis.speaking) {
+          clearInterval(checkEnd)
+          clearTimeout(flashRewardFallback)
+          // Petit délai de 500ms après la fin de la voix pour un effet
+          // naturel (la voix s'arrête, puis la carte apparaît)
+          setTimeout(triggerFlashReward, 500)
+        }
+      }, 200)
+      // Safety : clear l'interval après 10s max
+      setTimeout(() => clearInterval(checkEnd), 10000)
+    }
 
     return () => {
-      clearTimeout(flashRewardTimer)
+      clearTimeout(flashRewardFallback)
     }
   }, [phase, reportResult])
 

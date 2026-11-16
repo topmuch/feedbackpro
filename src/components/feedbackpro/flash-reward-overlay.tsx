@@ -91,7 +91,10 @@ export function FlashRewardOverlay({
   // Ref pour éviter un double fetch en React StrictMode (dev)
   const fetchedRef = useRef(false)
 
-  // 1. Fetch redeem au mount
+  // 1. Fetch redeem au mount — SILENCIEUX : pas de spinner visible.
+  // L'overlay reste invisible (return null) pendant la vérification.
+  // Si pas éligible → onClose() sans jamais rien afficher (pas de flash).
+  // Si éligible → setData + setPhase("teasing") → la carte apparaît.
   useEffect(() => {
     if (fetchedRef.current) return
     fetchedRef.current = true
@@ -109,25 +112,26 @@ export function FlashRewardOverlay({
         })
         const json = (await res.json()) as { ok: boolean; data?: RedeemResponse }
         if (!res.ok || !json.ok || !json.data) {
-          // Pas éligible ou erreur → on ferme l'overlay sans bruit
+          // Pas éligible → fermer SANS afficher quoi que ce soit (pas de flash)
           onClose()
           return
         }
         if (!json.data.eligible) {
+          // Pas éligible → fermer SANS afficher quoi que ce soit
           onClose()
           return
         }
+        // Éligible ! → afficher la carte
         setData(json.data)
-        // 2. Phase "teasing" — 3 s de countdown avant la carte
         setPhase("teasing")
       } catch {
-        setError("Récompense indisponible pour le moment.")
-        // On laisse l'utilisateur fermer manuellement
+        // Erreur réseau → fermer sans bruit
+        onClose()
       }
     })()
   }, [reportId, zoneCode, problemType, onClose])
 
-  // 2. Countdown teasing → scratch
+  // 2. Countdown teasing → scratch (3s de suspense "votre cadeau vous attend")
   useEffect(() => {
     if (phase !== "teasing") return
     const id = setTimeout(() => setPhase("scratch"), 3000)
@@ -143,16 +147,10 @@ export function FlashRewardOverlay({
     return () => window.removeEventListener("keydown", onKey)
   }, [onClose])
 
-  // Si pas encore de data (loading ou error isolée) → spinner minimal
-  if (!data && !error) {
-    return (
-      <OverlayShell onClose={onClose}>
-        <div className="flex flex-col items-center gap-4 text-white">
-          <Loader2 className="h-10 w-10 animate-spin" style={{ color: GOLD }} aria-hidden />
-          <p className="text-sm font-medium text-white/80">Vérification de votre récompense…</p>
-        </div>
-      </OverlayShell>
-    )
+  // PENDANT LE LOADING : invisible (return null). Pas de spinner, pas de
+  // flash. L'overlay n'apparaît que si data est set (éligible=true).
+  if (!data) {
+    return null
   }
 
   if (error) {

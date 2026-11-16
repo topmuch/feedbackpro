@@ -27,7 +27,7 @@ import { ok } from '@/lib/session'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-const MAX_CODES_PER_IP_PER_DAY = 3
+const MAX_CODES_PER_IP_PER_DAY = 10
 
 // ---------- Helpers ----------
 function parseStringArray(raw: string): string[] {
