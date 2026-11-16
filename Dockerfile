@@ -2,43 +2,49 @@
 # Dockerfile — FeedbackPro Next.js 16 standalone production build
 # ------------------------------------------------------------
 # Build multi-étapes :
-#   1. deps    : installe les dépendances Node (bun)
+#   1. deps    : installe TOUTES les dépendances (incl. devDeps)
 #   2. builder : prisma generate + next build → standalone server
 #   3. runner  : image finale minimaliste, sert server.js sur 3000
 #
-# La base SQLite est persistée dans /app/db (volume Coolify).
-# Variables d'environnement requises :
-#   DATABASE_URL=file:/app/db/custom.db
-#   NEXTAUTH_URL=https://feedbackpro.qrtags.pro
-#   NEXTAUTH_SECRET=<généré>
+# IMPORTANT : NODE_ENV=development pendant le build pour ne pas
+# sauter les devDependencies (TypeScript, ESLint, next build tools).
+# Coolify injecte NODE_ENV=production au build → on force dev ici.
 # ============================================================
 
-# ---------- Stage 1 : deps ----------
+# ---------- Stage 1 : deps (toutes les dépendances) ----------
 FROM oven/bun:1 AS deps
 WORKDIR /app
+
+# Force NODE_ENV=development pour inclure les devDependencies
+# (next build a besoin de TypeScript, ESLint, webpack, etc.)
+ENV NODE_ENV=development
 
 # Copie uniquement les fichiers de dépendances pour profiter du cache Docker
 COPY package.json bun.lock* yarn.lock* package-lock.json* ./
 COPY prisma ./prisma
 
-# Installe les dépendances (prisma generate via postinstall)
+# Installe TOUTES les dépendances (incl. devDependencies)
 RUN bun install --frozen-lockfile 2>/dev/null || bun install
 
 # ---------- Stage 2 : builder ----------
 FROM oven/bun:1 AS builder
 WORKDIR /app
 
+# Force NODE_ENV=development pendant le build (next build a besoin des devDeps)
+ENV NODE_ENV=development
+
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
 # Build Next.js standalone : prisma generate + next build + copie static/public
-# Le build crée .next/standalone/server.js + .next/standalone/.next/static
+# Output: .next/standalone/server.js + .next/standalone/.next/static
 RUN bun run build
 
 # ---------- Stage 3 : runner (image finale) ----------
 FROM oven/bun:1 AS runner
 WORKDIR /app
 
+# Ici on passe en production pour le runtime
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
