@@ -2956,8 +2956,10 @@ export default function OpsWallboardPage() {
             )}
           </div>
 
-          {/* Familles de zones — panneaux colorés (design original restauré) */}
-          <div className="ops-scroll flex max-h-[calc(100vh-360px)] flex-col gap-4 overflow-y-auto pr-1">
+          {/* Familles de zones — panneaux colorés (design original restauré)
+              Pas de max-h ni overflow-y-auto : toutes les cartes sont visibles
+              sans scroll interne, la page défile naturellement. */}
+          <div className="flex flex-col gap-4">
             {families.map((fam) => {
               const famZones = zonesByFamily[fam] ?? []
               if (famZones.length === 0) return null
