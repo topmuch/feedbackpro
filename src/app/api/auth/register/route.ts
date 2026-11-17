@@ -12,7 +12,7 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server"
-import bcrypt from "bcryptjs"
+import crypto from "crypto"
 import { db } from "@/lib/db"
 import { createSession, attachSessionCookie, serializePro, getSessionUser } from "@/lib/session"
 import { registerSchema, firstError } from "@/lib/validation"
@@ -43,7 +43,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ ok: false, error: "Un compte existe déjà avec cet email" }, { status: 409 })
     }
 
-    const passwordHash = await bcrypt.hash(password, 10)
+    const passwordHash = crypto.createHash("sha256").update(password).digest("hex")
     const user = await db.user.create({
       data: { email, passwordHash, role: "PRO" },
     })

@@ -8,7 +8,7 @@
 // ============================================================
 
 import { NextRequest } from "next/server"
-import bcrypt from "bcryptjs"
+import crypto from "crypto"
 import { db } from "@/lib/db"
 import { ok, fail } from "@/lib/session"
 import { requireAdmin, unauthorized } from "@/lib/guards"
@@ -153,7 +153,7 @@ export async function POST(req: NextRequest) {
         // Génère un mdp temporaire (12 chars), le hash et l'enregistre,
         // puis envoie par email au commerçant (mode démo = log serveur).
         const password = genererMotDePasse(12)
-        const passwordHash = await bcrypt.hash(password, 10)
+        const passwordHash = crypto.createHash("sha256").update(password).digest("hex")
         await db.user.update({ where: { id: pro.userId }, data: { passwordHash } })
 
         const sujet = "Réinitialisation de votre mot de passe FeedbackPro"

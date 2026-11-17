@@ -14,7 +14,7 @@
 // ============================================================
 
 import { NextRequest } from "next/server"
-import bcrypt from "bcryptjs"
+import crypto from "crypto"
 import { z } from "zod"
 import { db } from "@/lib/db"
 import { ok, fail, serializePro } from "@/lib/session"
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
     const suffix = `+enfant-${Date.now().toString(36)}`
     const emailEnfant = `${localPart}${suffix}@${domain ?? "feedbackpro.fr"}`
 
-    const passwordHash = await bcrypt.hash(Math.random().toString(36).slice(2) + Date.now(), 10)
+    const passwordHash = crypto.createHash("sha256").update(Math.random().toString(36).slice(2) + Date.now()).digest("hex")
     const userEnfant = await db.user.create({
       data: { email: emailEnfant, passwordHash, role: "PRO" },
     })

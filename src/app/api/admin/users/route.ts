@@ -14,7 +14,7 @@
 // ============================================================
 
 import { NextRequest } from "next/server"
-import bcrypt from "bcryptjs"
+import crypto from "crypto"
 import { z } from "zod"
 import { db } from "@/lib/db"
 import { ok, fail } from "@/lib/session"
@@ -144,7 +144,7 @@ export async function POST(req: NextRequest) {
       const existant = await db.user.findUnique({ where: { email } })
       if (existant) return fail("Un compte existe déjà avec cet email", 409)
 
-      const passwordHash = await bcrypt.hash(password, 10)
+      const passwordHash = crypto.createHash("sha256").update(password).digest("hex")
       const user = await db.user.create({
         data: { email, passwordHash, role: roleCible },
       })
@@ -270,7 +270,7 @@ export async function POST(req: NextRequest) {
 
       case "resetPassword": {
         const password = genererMotDePasse(12)
-        const passwordHash = await bcrypt.hash(password, 10)
+        const passwordHash = crypto.createHash("sha256").update(password).digest("hex")
         await db.user.update({ where: { id }, data: { passwordHash } })
 
         // Envoi par email (mode démo = log serveur, renvoie true)
