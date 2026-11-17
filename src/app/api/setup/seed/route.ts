@@ -14,24 +14,24 @@ export const dynamic = "force-dynamic"
 export async function POST() {
   const results: string[] = []
   try {
-    const existingUsers = await db.user.count()
-    if (existingUsers > 0) {
-      return NextResponse.json({ ok: true, message: `DB déjà initialisée (${existingUsers} users)` })
-    }
-
-    // Superadmin
-    await db.user.create({
-      data: { email: "admin@feedbackpro.fr", passwordHash: hashPassword("admin123"), role: "SUPERADMIN" },
+    // Toujours upsert le superadmin — le seed du build utilise bcrypt
+    // mais le login utilise hashPassword (SHA256). On force le bon hash.
+    const admin = await db.user.upsert({
+      where: { email: "admin@feedbackpro.fr" },
+      create: { email: "admin@feedbackpro.fr", passwordHash: hashPassword("admin123"), role: "SUPERADMIN" },
+      update: { passwordHash: hashPassword("admin123"), role: "SUPERADMIN" },
     })
-    results.push("✓ Superadmin: admin@feedbackpro.fr / admin123")
+    results.push(`✓ Superadmin: ${admin.email} / admin123 (hash corrigé)`)
 
-    // Pro démo
-    await db.pro.create({
-      data: {
+    // Pro démo (upsert)
+    await db.pro.upsert({
+      where: { email: "demo@feedbackpro.fr" },
+      create: {
         nomEtablissement: "Aéroport de Diass", typeEtablissement: "aeroport", ville: "Diass",
         email: "demo@feedbackpro.fr", plan: "STARTER", suspendu: false, onboardingDone: true,
         users: { create: { email: "demo@feedbackpro.fr", passwordHash: hashPassword("demo1234"), role: "PRO" } },
       },
+      update: {},
     })
     results.push("✓ Pro démo: demo@feedbackpro.fr / demo1234")
 
