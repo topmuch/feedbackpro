@@ -35,9 +35,8 @@ export async function POST(req: NextRequest) {
     if (!parsed.success) {
       return NextResponse.json({ ok: false, error: firstError(parsed.error) }, { status: 400 })
     }
-    const { email, password, nomEtablissement, typeEtablissement, adresse, ville, whatsapp, logoUrl, zones } =
+    const { email, password, nomEtablissement, typeEtablissement, tenantType, adresse, ville, whatsapp, logoUrl, zones } =
       parsed.data
-    const tenantType = (parsed.data as { tenantType?: string }).tenantType ?? "classic"
 
     const existing = await db.user.findUnique({ where: { email } })
     if (existing) {
