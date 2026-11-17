@@ -39,4 +39,4 @@ COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/data ./data
 EXPOSE 3000
 VOLUME ["/app/data"]
-CMD ["bun", "server.js"]
+CMD ["node", "server.js"]
