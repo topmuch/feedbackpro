@@ -23,18 +23,6 @@ export async function POST() {
     })
     results.push(`✓ Superadmin: ${admin.email} / admin123 (hash corrigé)`)
 
-    // Pro démo (upsert)
-    await db.pro.upsert({
-      where: { email: "demo@feedbackpro.fr" },
-      create: {
-        nomEtablissement: "Aéroport de Diass", typeEtablissement: "aeroport", ville: "Diass",
-        email: "demo@feedbackpro.fr", plan: "STARTER", suspendu: false, onboardingDone: true,
-        users: { create: { email: "demo@feedbackpro.fr", passwordHash: hashPassword("demo1234"), role: "PRO" } },
-      },
-      update: {},
-    })
-    results.push("✓ Pro démo: demo@feedbackpro.fr / demo1234")
-
     // Modules
     const modules = [
       { key: "surveys", nom: "Sondages", description: "Questionnaires", prix: 0, actif: true },
