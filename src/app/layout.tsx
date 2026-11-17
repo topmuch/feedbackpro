@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
-import { ThemeProvider } from "@/components/theme-provider";
+// ThemeProvider retiré temporairement — next-themes causait useContext error
 
 // Retiré getSetting et generateMetadata — les requêtes DB pendant le
 // pre-rendering de /_global-error causent des erreurs. Métadonnées
@@ -110,10 +110,8 @@ export default async function RootLayout({
       <body
         className="antialiased bg-background text-foreground"
       >
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange storageKey="fp-theme">
-          {children}
-          <Toaster />
-        </ThemeProvider>
+        {children}
+        <Toaster />
       </body>
     </html>
   );
