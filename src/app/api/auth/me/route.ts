@@ -21,7 +21,18 @@ export async function GET(req: NextRequest) {
       if (p) pro = serializePro(p)
     }
 
-    return ok({ user: { id: user.id, email: user.email, role: user.role }, pro })
+    return ok({
+      user: {
+        id: user.id,
+        email: user.email,
+        role: user.role,
+        // TENANT-3 — Type de tenant pour le routage dashboard. Lecture
+        // défensive pour la migration (User.tenantType nouvellement ajouté).
+        tenantType:
+          (user as unknown as { tenantType?: string }).tenantType ?? 'classic',
+      },
+      pro,
+    })
   } catch (e) {
     console.error("me error", e)
     return fail("Erreur serveur", 500)

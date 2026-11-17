@@ -19,6 +19,8 @@ export type SessionUser = {
   nomEtablissement: string | null
   plan: string
   onboardingDone: boolean
+  // TENANT-3 — Type de tenant pour le routage dashboard
+  tenantType: string
 }
 
 /** Données Pro sérialisées renvoyées au frontend (même forme que ProData du store) */
@@ -160,6 +162,10 @@ export async function getSessionUser(req: NextRequest): Promise<SessionUser | nu
     nomEtablissement: u.pro?.nomEtablissement ?? null,
     plan: u.pro?.plan ?? "STARTER",
     onboardingDone: u.pro?.onboardingDone ?? false,
+    // TENANT-3 — Lecture défensive pour la migration (colonne User.tenantType
+    // nouvellement ajoutée). Fallback 'classic' si non renseigné.
+    tenantType:
+      (u as unknown as { tenantType?: string }).tenantType ?? 'classic',
   }
 }
 

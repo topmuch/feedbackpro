@@ -9,7 +9,7 @@
 
 import { create } from "zustand"
 
-export type View = "loading" | "landing" | "auth" | "dashboard" | "admin" | "scan" | "airport" | "airport-staff" | "airport-ops"
+export type View = "loading" | "landing" | "auth" | "dashboard" | "admin" | "scan" | "airport" | "airport-staff" | "airport-ops" | "airline" | "vip" | "onboarding-tenant"
 
 /** Établissement (Pro) tel que renvoyé par /api/auth/me et les routes de session */
 export type ProData = {
@@ -41,7 +41,7 @@ export type ProData = {
 }
 
 export type SessionData = {
-  user: { id: string; email: string; role: string }
+  user: { id: string; email: string; role: string; tenantType?: string }
   pro: ProData | null
 }
 
@@ -57,6 +57,12 @@ type AppState = {
   booted: boolean
   /** Pré-remplissage du formulaire de connexion (comptes de démo) */
   prefillLogin: { email: string; password: string } | null
+  /**
+   * TENANT-3 — Flag "vient de s'inscrire" : true après une inscription
+   * réussie pour déclencher l'étape de sélection du type d'établissement.
+   * Remis à false après choix du tenant ou login classique.
+   */
+  justRegistered: boolean
 
   setAuthMode: (mode: "login" | "signup") => void
   /** Bascule sur la vue Connexion avec identifiants pré-remplis (démo) */
@@ -74,20 +80,37 @@ type AppState = {
   refreshSession: () => Promise<void>
   logout: () => Promise<void>
   updatePro: (pro: ProData) => void
+  /** TENANT-3 — Bascule le flag justRegistered */
+  setJustRegistered: (v: boolean) => void
 }
 
-/** Détermine la vue à partir de la session (et du scan / airport / staff actif) */
-function deriveView(scanToken: string | null, airportTag: string | null, staffTag: string | null, session: SessionData | null): View {
+/**
+ * Détermine la vue à partir de la session (et du scan / airport / staff actif).
+ * TENANT-3 — Routage multi-tenant : si l'utilisateur vient de s'inscrire
+ * (`justRegistered`) et n'a pas encore choisi son type d'établissement,
+ * on affiche l'étape d'onboarding tenant. Sinon, on route vers le dashboard
+ * correspondant au tenantType :
+ *   - airport    → "dashboard" (ProDashboard, qui expose les onglets aéroport)
+ *   - airline    → "airline"
+ *   - vip_lounge → "vip"
+ *   - classic    → "dashboard"
+ */
+function deriveView(scanToken: string | null, airportTag: string | null, staffTag: string | null, session: SessionData | null, justRegistered: boolean): View {
   if (scanToken) return "scan"
   if (airportTag) return "airport"
   if (staffTag) return "airport-staff"
   if (!session) return "landing"
   if (session.user.role === "SUPERADMIN") return "admin"
-  // Tous les Pro (y compris Aéroport) vont sur le dashboard Pro classique.
-  // Les features aéroport (Wallboard, Zones aéroport, Signalements, Bot)
-  // sont accessibles via des onglets supplémentaires dans le ProDashboard,
-  // affichés uniquement si typeEtablissement === "Aéroport".
-  return "dashboard"
+  // TENANT-3 — Étape d'onboarding tenant uniquement après inscription.
+  // Les utilisateurs existants (login) vont directement à leur dashboard
+  // selon leur tenantType (classic par défaut → ProDashboard classique).
+  if (justRegistered) return "onboarding-tenant"
+  const tenant = session.user.tenantType ?? 'classic'
+  if (tenant === 'airline') return 'airline'
+  if (tenant === 'vip_lounge') return 'vip'
+  // airport et classic → dashboard Pro classique (les features aéroport
+  // sont accessibles via des onglets dans le ProDashboard).
+  return 'dashboard'
 }
 
 /**
@@ -134,6 +157,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   session: null,
   booted: false,
   prefillLogin: null,
+  justRegistered: false,
 
   setAuthMode: (mode) => set({ authMode: mode, view: "auth" }),
 
@@ -180,7 +204,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch {
       /* ignore */
     }
-    set({ view: deriveView(null, get().airportTag, get().staffTag, get().session) })
+    set({ view: deriveView(null, get().airportTag, get().staffTag, get().session, get().justRegistered) })
   },
 
   // Ouvre la PWA aéroport (depuis /aeroport/<tag> ou ?airport=<tag>)
@@ -212,7 +236,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch {
       /* ignore */
     }
-    set({ view: deriveView(get().scanToken, null, get().staffTag, get().session) })
+    set({ view: deriveView(get().scanToken, null, get().staffTag, get().session, get().justRegistered) })
   },
 
   // Ouvre la PWA Staff Only (QR employé scanné : ?staff=<tag>)
@@ -241,7 +265,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   setSession: (s) => {
-    set({ session: s, view: deriveView(get().scanToken, get().airportTag, get().staffTag, s), booted: true })
+    set({ session: s, view: deriveView(get().scanToken, get().airportTag, get().staffTag, s, get().justRegistered), booted: true })
   },
 
   // Charge la session courante depuis le serveur
@@ -253,7 +277,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch {
       set({ session: null })
     }
-    set({ booted: true, view: deriveView(get().scanToken, get().airportTag, get().staffTag, get().session) })
+    set({ booted: true, view: deriveView(get().scanToken, get().airportTag, get().staffTag, get().session, get().justRegistered) })
   },
 
   logout: async () => {
@@ -272,13 +296,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       /* ignore */
     }
     // Affiche la page de connexion (pas la landing)
-    set({ session: null, view: "auth", authMode: "login" })
+    set({ session: null, view: "auth", authMode: "login", justRegistered: false })
   },
 
   updatePro: (pro) => {
     const s = get().session
     if (!s) return
     const session = { ...s, pro }
-    set({ session, view: deriveView(get().scanToken, get().airportTag, get().staffTag, session) })
+    set({ session, view: deriveView(get().scanToken, get().airportTag, get().staffTag, session, get().justRegistered) })
   },
+
+  setJustRegistered: (v) => set({ justRegistered: v }),
 }))

@@ -153,7 +153,17 @@ export async function POST(req: NextRequest) {
     const res = NextResponse.json({
       ok: true,
       data: {
-        user: { id: user.id, email: user.email, role: user.role },
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          // TENANT-3 — Type de tenant par défaut 'classic' à la création.
+          // L'utilisateur choisira son type d'établissement dans l'étape
+          // suivante du wizard (Étape Tenant) et appellera /api/auth/tenant
+          // pour le persister. Lecture défensive pour la migration.
+          tenantType:
+            (user as unknown as { tenantType?: string }).tenantType ?? 'classic',
+        },
         pro: serializePro(pro),
       },
     })

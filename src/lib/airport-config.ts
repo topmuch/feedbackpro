@@ -42,11 +42,22 @@ export type AirportZoneConfig = {
    *  - false : zone protégée — interdiction absolue (SOS / URGENCE).
    *  Verrou #1 du triple verrou FeedbackPro. */
   isAdEligible?: boolean
+  /**
+   * TENANT-3 — Type de tenant propriétaire de la zone. Permet de filtrer
+   * les zones par module (airport | airline | vip_lounge | classic).
+   * - 'airport'    : infrastructure aéroport (wallboard, ops room)
+   * - 'airline'    : compagnie aérienne (escale & passagers)
+   * - 'vip_lounge' : salon VIP (luxe & discrétion)
+   * Les zones historiques (rétro-compat) n'ont pas de tenantType et sont
+   * affichées par défaut côté airport (fallback).
+   */
+  tenantType?: 'airport' | 'airline' | 'vip_lounge'
 }
 
 export const AIRPORT_ZONES: AirportZoneConfig[] = [
   // ===========================================================
   // ZONES HISTORIQUES (5) — conservées pour rétro-compat
+  // (pas de tenantType → affichées par défaut côté airport)
   // ===========================================================
   {
     code: 'bagages',
@@ -117,51 +128,54 @@ export const AIRPORT_ZONES: AirportZoneConfig[] = [
   },
 
   // ===========================================================
-  // EXTÉRIEUR (5 zones)
+  // EXTÉRIEUR (5 zones) — AIRPORT
   // ===========================================================
-  { code: 'ext_park_p1', nom: 'Parking P1 (Courte Durée)', emoji: '🅿️', description: 'Parking courte durée', tags: ['ext_park_p1_zone_a', 'ext_park_p1_zone_b', 'ext_park_p1_entree', 'ext_park_p1_sortie'], problemes: ['Barrière bloquée', 'Place introuvable', 'Tarif illisible', 'Insécurité'] },
-  { code: 'ext_park_p2', nom: 'Parking P2 (Longue Durée)', emoji: '🅿️', description: 'Parking longue durée', tags: ['ext_park_p2_zone_a', 'ext_park_p2_zone_b', 'ext_park_p2_navette', 'ext_park_p2_entree'], problemes: ['Navette absente', 'Véhicule sale ou endommagé', 'Éclairage HS', 'Insécurité'] },
-  { code: 'ext_depose_min', nom: 'Dépose-Minute / Kiss & Fly', emoji: '🚗', description: 'Zone dépose-minute', tags: ['ext_depose_min_1', 'ext_depose_min_2', 'ext_kiss_fly_1'], problemes: ['Congestion totale', 'Pas de place disponible', 'Agent verbalise injustement', 'Attente excessive'] },
-  { code: 'ext_taxi_off', nom: 'Station Taxis Officiels', emoji: '🚕', description: 'Station de taxis officiels', tags: ['ext_taxi_off_1', 'ext_taxi_off_2', 'ext_taxi_rank_1'], problemes: ['Chauffeur refuse compteur', 'Attente > 15 min', 'Comportement agressif', 'Tarif abusif'] },
-  { code: 'ext_transport_pub', nom: 'Arrêt Bus / VTC / Navette', emoji: '🚌', description: 'Transport public et navettes', tags: ['ext_bus_stop_1', 'ext_vtc_pickup_1', 'ext_navette_1', 'ext_transport_pub_1'], problemes: ['Retard navette', 'Information absente', 'Surcharge véhicule', 'Arrêt non accessible PMR'] },
+  { code: 'ext_park_p1', tenantType: 'airport', nom: 'Parking P1 (Courte Durée)', emoji: '🅿️', description: 'Parking courte durée', tags: ['ext_park_p1_zone_a', 'ext_park_p1_zone_b', 'ext_park_p1_entree', 'ext_park_p1_sortie'], problemes: ['Barrière bloquée', 'Place introuvable', 'Tarif illisible', 'Insécurité'] },
+  { code: 'ext_park_p2', tenantType: 'airport', nom: 'Parking P2 (Longue Durée)', emoji: '🅿️', description: 'Parking longue durée', tags: ['ext_park_p2_zone_a', 'ext_park_p2_zone_b', 'ext_park_p2_navette', 'ext_park_p2_entree'], problemes: ['Navette absente', 'Véhicule sale ou endommagé', 'Éclairage HS', 'Insécurité'] },
+  { code: 'ext_depose_min', tenantType: 'airport', nom: 'Dépose-Minute / Kiss & Fly', emoji: '🚗', description: 'Zone dépose-minute', tags: ['ext_depose_min_1', 'ext_depose_min_2', 'ext_kiss_fly_1'], problemes: ['Congestion totale', 'Pas de place disponible', 'Agent verbalise injustement', 'Attente excessive'] },
+  { code: 'ext_taxi_off', tenantType: 'airport', nom: 'Station Taxis Officiels', emoji: '🚕', description: 'Station de taxis officiels', tags: ['ext_taxi_off_1', 'ext_taxi_off_2', 'ext_taxi_rank_1'], problemes: ['Chauffeur refuse compteur', 'Attente > 15 min', 'Comportement agressif', 'Tarif abusif'] },
+  { code: 'ext_transport_pub', tenantType: 'airport', nom: 'Arrêt Bus / VTC / Navette', emoji: '🚌', description: 'Transport public et navettes', tags: ['ext_bus_stop_1', 'ext_vtc_pickup_1', 'ext_navette_1', 'ext_transport_pub_1'], problemes: ['Retard navette', 'Information absente', 'Surcharge véhicule', 'Arrêt non accessible PMR'] },
 
   // ===========================================================
-  // SÛRETÉ (3 zones)
+  // SÛRETÉ (3 zones) — AIRPORT
   // ===========================================================
-  { code: 'sec_filt_std', nom: 'Filtrage de Sûreté (Standard)', emoji: '🛡️', description: 'Filtrage sûreté standard', tags: ['sec_filt_std_1', 'sec_filt_std_2', 'sec_filt_std_a', 'sec_filt_std_b'], problemes: ['File trop lente (> 20 min)', 'Agent désagréable', 'Consignes floues', 'Bacs en plastique manquants'] },
-  { code: 'sec_filt_fast', nom: 'File Prioritaire / RAPIDE', emoji: '⚡', description: 'File prioritaire sûreté', tags: ['sec_filt_fast_1', 'sec_filt_fast_2', 'sec_priority_1'], problemes: ['Accès refusé injustifié', 'File aussi lente que standard', 'Pas de file prioritaire active', 'Information absente'] },
-  { code: 'sec_paf', nom: 'Police aux Frontières (PAF)', emoji: '🛂', description: 'Contrôle aux frontières PAF', tags: ['sec_paf_1', 'sec_paf_2', 'sec_paf_t1', 'sec_paf_t2'], problemes: ['Guichets fermés', 'Attente excessive', 'Contrôle brutal', 'Information absente'] },
+  { code: 'sec_filt_std', tenantType: 'airport', nom: 'Filtrage de Sûreté (Standard)', emoji: '🛡️', description: 'Filtrage sûreté standard', tags: ['sec_filt_std_1', 'sec_filt_std_2', 'sec_filt_std_a', 'sec_filt_std_b'], problemes: ['File trop lente (> 20 min)', 'Agent désagréable', 'Consignes floues', 'Bacs en plastique manquants'] },
+  { code: 'sec_filt_fast', tenantType: 'airport', nom: 'File Prioritaire / RAPIDE', emoji: '⚡', description: 'File prioritaire sûreté', tags: ['sec_filt_fast_1', 'sec_filt_fast_2', 'sec_priority_1'], problemes: ['Accès refusé injustifié', 'File aussi lente que standard', 'Pas de file prioritaire active', 'Information absente'] },
+  { code: 'sec_paf', tenantType: 'airport', nom: 'Police aux Frontières (PAF)', emoji: '🛂', description: 'Contrôle aux frontières PAF', tags: ['sec_paf_1', 'sec_paf_2', 'sec_paf_t1', 'sec_paf_t2'], problemes: ['Guichets fermés', 'Attente excessive', 'Contrôle brutal', 'Information absente'] },
 
   // ===========================================================
-  // TERMINAL (5 zones)
+  // TERMINAL — zones affectées à AIRLINE (term_checkin, term_embarq)
+  // Les autres restent AIRPORT.
   // ===========================================================
-  { code: 'term_embarq', nom: 'Salles d\'Embarquement (Gates)', emoji: '✈️', description: 'Portes d\'embarquement', tags: ['term_embarq_a12', 'term_embarq_b07', 'term_embarq_c03', 'term_gate_1'], problemes: ['Porte changée sans info', 'Retard non annoncé', 'Clim/Chauffage HS', 'Sièges cassés ou sales'] },
-  { code: 'term_bagages', nom: 'Livraison des Bagages', emoji: '🧳', description: 'Tapis bagages et récupération', tags: ['term_bagages_1', 'term_bagages_2', 'term_bagages_tapis_a', 'term_bagages_tapis_b'], problemes: ['Tapis arrêté', 'Valise abîmée', 'Attente > 30 min', 'Chariot HS'] },
-  { code: 'term_checkin', nom: 'Files d\'Attente (Check-in)', emoji: '📋', description: 'Comptoirs d\'enregistrement', tags: ['term_checkin_1', 'term_checkin_2', 'term_checkin_a', 'term_checkin_b'], problemes: ['Comptoir fermé', 'Hôtesse absente', 'Système en panne', 'Attente excessive'] },
-  { code: 'term_sanitaires', nom: 'Sanitaires Publics', emoji: '🚻', description: 'Toilettes publiques', tags: ['term_sanitaires_1', 'term_sanitaires_2', 'term_wc_hall_1', 'term_wc_t1_1'], problemes: ['Papier manquant', 'Sol mouillé ou sale', 'Chasse d\'eau HS', 'Odeur'] },
-  { code: 'term_san_pmr', nom: 'Toilettes PMR / Famille', emoji: '♿', description: 'Sanitaires accessibles PMR', tags: ['term_san_pmr_1', 'term_san_pmr_2', 'term_wc_pmr_1'], problemes: ['Occupé en permanence', 'Équipement bébé HS', 'Accès bloqué', 'Propreté insuffisante'] },
+  { code: 'term_embarq', tenantType: 'airline', nom: 'Salles d\'Embarquement (Gates)', emoji: '✈️', description: 'Portes d\'embarquement', tags: ['term_embarq_a12', 'term_embarq_b07', 'term_embarq_c03', 'term_gate_1'], problemes: ['Porte changée sans info', 'Retard non annoncé', 'Clim/Chauffage HS', 'Sièges cassés ou sales'] },
+  { code: 'term_bagages', tenantType: 'airport', nom: 'Livraison des Bagages', emoji: '🧳', description: 'Tapis bagages et récupération', tags: ['term_bagages_1', 'term_bagages_2', 'term_bagages_tapis_a', 'term_bagages_tapis_b'], problemes: ['Tapis arrêté', 'Valise abîmée', 'Attente > 30 min', 'Chariot HS'] },
+  { code: 'term_checkin', tenantType: 'airline', nom: 'Files d\'Attente (Check-in)', emoji: '📋', description: 'Comptoirs d\'enregistrement', tags: ['term_checkin_1', 'term_checkin_2', 'term_checkin_a', 'term_checkin_b'], problemes: ['Comptoir fermé', 'Hôtesse absente', 'Système en panne', 'Attente excessive'] },
+  { code: 'term_sanitaires', tenantType: 'airport', nom: 'Sanitaires Publics', emoji: '🚻', description: 'Toilettes publiques', tags: ['term_sanitaires_1', 'term_sanitaires_2', 'term_wc_hall_1', 'term_wc_t1_1'], problemes: ['Papier manquant', 'Sol mouillé ou sale', 'Chasse d\'eau HS', 'Odeur'] },
+  { code: 'term_san_pmr', tenantType: 'airport', nom: 'Toilettes PMR / Famille', emoji: '♿', description: 'Sanitaires accessibles PMR', tags: ['term_san_pmr_1', 'term_san_pmr_2', 'term_wc_pmr_1'], problemes: ['Occupé en permanence', 'Équipement bébé HS', 'Accès bloqué', 'Propreté insuffisante'] },
 
   // ===========================================================
-  // COMMERCIAL (3 zones)
+  // COMMERCIAL — com_lounge basculé vers VIP_LOUNGE.
+  // com_resto et com_dutyfree restent AIRPORT.
   // ===========================================================
-  { code: 'com_resto', nom: 'Restauration (Landside/Airside)', emoji: '🍽️', description: 'Restaurants et cafés', tags: ['com_resto_1', 'com_resto_2', 'com_resto_food_court', 'com_resto_cafe_1'], problemes: ['Service lent (> 15 min)', 'Plat froid ou frit', 'Table sale', 'Prix abusif'] },
-  { code: 'com_dutyfree', nom: 'Boutiques Duty-Free', emoji: '🛍️', description: 'Boutiques hors taxes', tags: ['com_dutyfree_1', 'com_dutyfree_2', 'com_dutyfree_a', 'com_dutyfree_b'], problemes: ['Produit indisponible', 'Prix non affiché', 'Staff ignoré', 'File excessive'] },
-  { code: 'com_lounge', nom: 'Salon VIP / Lounge', emoji: '🥂', description: 'Salons VIP et lounges', tags: ['com_lounge_1', 'com_lounge_2', 'com_lounge_t1', 'com_lounge_t2'], problemes: ['Accès refusé (bug système)', 'Surpeuplé', 'Nourriture froide', 'Wi-Fi inaccessible'] },
+  { code: 'com_resto', tenantType: 'airport', nom: 'Restauration (Landside/Airside)', emoji: '🍽️', description: 'Restaurants et cafés', tags: ['com_resto_1', 'com_resto_2', 'com_resto_food_court', 'com_resto_cafe_1'], problemes: ['Service lent (> 15 min)', 'Plat froid ou frit', 'Table sale', 'Prix abusif'] },
+  { code: 'com_dutyfree', tenantType: 'airport', nom: 'Boutiques Duty-Free', emoji: '🛍️', description: 'Boutiques hors taxes', tags: ['com_dutyfree_1', 'com_dutyfree_2', 'com_dutyfree_a', 'com_dutyfree_b'], problemes: ['Produit indisponible', 'Prix non affiché', 'Staff ignoré', 'File excessive'] },
+  { code: 'com_lounge', tenantType: 'vip_lounge', nom: 'Salon VIP / Lounge', emoji: '🥂', description: 'Salons VIP et lounges', tags: ['com_lounge_1', 'com_lounge_2', 'com_lounge_t1', 'com_lounge_t2'], problemes: ['Accès refusé (bug système)', 'Surpeuplé', 'Nourriture froide', 'Wi-Fi inaccessible'] },
 
   // ===========================================================
-  // SERVICE (3 zones)
+  // SERVICE (3 zones) — AIRPORT
   // ===========================================================
-  { code: 'srv_enfants', nom: 'Espace Enfants / Aire de Jeux', emoji: '🧸', description: 'Aire de jeux enfants', tags: ['srv_enfants_1', 'srv_enfants_2', 'srv_aire_jeux_1'], problemes: ['Jeu cassé ou dangereux', 'Propreté insuffisante', 'Non surveillé', 'Équipement HS'] },
-  { code: 'srv_priere', nom: 'Espace Prière / Confessionnal', emoji: '🕌', description: 'Espace de prière', tags: ['srv_priere_1', 'srv_priere_2', 'srv_mosque_1'], problemes: ['Tapis sale', 'Horaires non respectés', 'Manque d\'intimité', 'Propreté insuffisante'] },
-  { code: 'srv_medical', nom: 'Infirmerie / Secours', emoji: '🚑', description: 'Infirmerie et secours', tags: ['srv_medical_1', 'srv_medical_2', 'srv_infirmerie_1'], problemes: ['Personnel absent', 'Délai intervention long', 'Matériel manquant', 'Accès fermé'] },
+  { code: 'srv_enfants', tenantType: 'airport', nom: 'Espace Enfants / Aire de Jeux', emoji: '🧸', description: 'Aire de jeux enfants', tags: ['srv_enfants_1', 'srv_enfants_2', 'srv_aire_jeux_1'], problemes: ['Jeu cassé ou dangereux', 'Propreté insuffisante', 'Non surveillé', 'Équipement HS'] },
+  { code: 'srv_priere', tenantType: 'airport', nom: 'Espace Prière / Confessionnal', emoji: '🕌', description: 'Espace de prière', tags: ['srv_priere_1', 'srv_priere_2', 'srv_mosque_1'], problemes: ['Tapis sale', 'Horaires non respectés', 'Manque d\'intimité', 'Propreté insuffisante'] },
+  { code: 'srv_medical', tenantType: 'airport', nom: 'Infirmerie / Secours', emoji: '🚑', description: 'Infirmerie et secours', tags: ['srv_medical_1', 'srv_medical_2', 'srv_infirmerie_1'], problemes: ['Personnel absent', 'Délai intervention long', 'Matériel manquant', 'Accès fermé'] },
 
   // ===========================================================
-  // URGENCE (1 zone) — Bouton unique APPELER SECOURS
+  // URGENCE (1 zone) — AIRPORT — Bouton unique APPELER SECOURS
   // Task AD1 — Triple verrou #1 : isAdEligible: false (zone protégée,
   // interdiction absolue de publicité — sécurité publique).
   // ===========================================================
   {
     code: 'urg_sos',
+    tenantType: 'airport',
     nom: 'Point d\'Urgence / SOS',
     emoji: '🚨',
     description: 'Point d\'urgence — bouton unique APPELER SECOURS',
@@ -169,7 +183,123 @@ export const AIRPORT_ZONES: AirportZoneConfig[] = [
     problemes: ['APPELER SECOURS'],
     isAdEligible: false,
   },
+
+  // ===========================================================
+  // TENANT-3 — AIRLINE (2 nouvelles zones)
+  // Bureau litiges bagages + Salle d'attente compagnie.
+  // ===========================================================
+  {
+    code: 'airline_baggage_office',
+    tenantType: 'airline',
+    nom: 'Bureau Litiges Bagages',
+    emoji: '🧳',
+    description: 'Comptoir des réclamations bagages (PIR, dossier litige)',
+    tags: ['airline_baggage_office_1', 'airline_baggage_office_2', 'airline_litiges_bagages_1'],
+    problemes: [
+      'Bagage non livré (déclarer PIR)',
+      'Bagage endommagé',
+      'Attente excessive au comptoir',
+      'Personnel indisponible',
+    ],
+  },
+  {
+    code: 'airline_waiting_room',
+    tenantType: 'airline',
+    nom: 'Salle d\'Attente Compagnie',
+    emoji: '🛋️',
+    description: 'Espace d\'attente compagnie (retard vol, transfert)',
+    tags: ['airline_waiting_room_1', 'airline_waiting_room_2', 'airline_attente_1'],
+    problemes: [
+      'Information retard absente',
+      'Clim/Chauffage HS',
+      'Sièges sales ou cassés',
+      'Aucun rafraîchissement proposé',
+    ],
+  },
+
+  // ===========================================================
+  // TENANT-3 — VIP LOUNGE (5 nouvelles zones)
+  // Buffet, Détente, Douches, Réception, Salles de réunion.
+  // ===========================================================
+  {
+    code: 'vip_buffet',
+    tenantType: 'vip_lounge',
+    nom: 'Buffet / Bar',
+    emoji: '🥂',
+    description: 'Buffet gourmet et bar à cocktails',
+    tags: ['vip_buffet_1', 'vip_bar_1', 'vip_buffet_central'],
+    problemes: [
+      'Nourriture épuisée',
+      'Boissons chaudes indisponibles',
+      'Propreté insuffisante du buffet',
+      'Service lent',
+    ],
+  },
+  {
+    code: 'vip_relaxation',
+    tenantType: 'vip_lounge',
+    nom: 'Espace Détente',
+    emoji: '🧘',
+    description: 'Salon calme et fauteuils relax',
+    tags: ['vip_relaxation_1', 'vip_detente_1', 'vip_calme_1'],
+    problemes: [
+      'Niveau sonore élevé',
+      'Fauteuils sales ou occupés',
+      'Éclairage inadapté',
+      'Clim/Chauffage HS',
+    ],
+  },
+  {
+    code: 'vip_showers',
+    tenantType: 'vip_lounge',
+    nom: 'Douches / Toilettes privées',
+    emoji: '🚿',
+    description: 'Cabines de douche privées et toilettes VIP',
+    tags: ['vip_showers_1', 'vip_douches_1', 'vip_wc_prive_1'],
+    problemes: [
+      'Toutes les cabines occupées',
+      'Serviettes indisponibles',
+      'Propreté insuffisante',
+      'Eau chaude HS',
+    ],
+  },
+  {
+    code: 'vip_reception',
+    tenantType: 'vip_lounge',
+    nom: 'Réception / Conciergerie',
+    emoji: '🛎️',
+    description: 'Accueil VIP et conciergerie privée',
+    tags: ['vip_reception_1', 'vip_conciergerie_1', 'vip_accueil_1'],
+    problemes: [
+      'Attente à l\'accueil',
+      'Personnel indisponible',
+      'Réservation non trouvée',
+      'Demande spécifique non honorée',
+    ],
+  },
+  {
+    code: 'vip_meeting',
+    tenantType: 'vip_lounge',
+    nom: 'Salles de Réunion privées',
+    emoji: '💼',
+    description: 'Salles privées pour réunions business',
+    tags: ['vip_meeting_1', 'vip_reunion_1', 'vip_salle_privee_1'],
+    problemes: [
+      'Réservation absente',
+      'Équipement vidéo HS',
+      'Clim/Chauffage HS',
+      'Propreté insuffisante',
+    ],
+  },
 ]
+
+/**
+ * TENANT-3 — Retourne les zones associées à un type de tenant donné.
+ * Les zones sans tenantType (legacy) sont exclues du filtre strict.
+ */
+export function getZonesByTenant(tenantType: string): AirportZoneConfig[] {
+  return AIRPORT_ZONES.filter((z) => z.tenantType === tenantType)
+}
 
 /**
  * Mapping émoji par problématique (pour l'affichage PWA voyageur).
@@ -277,6 +407,21 @@ export const PROBLEM_EMOJIS: Record<string, string> = {
   'Accès fermé': '🔒',
   // --- URGENCE ---
   'APPELER SECOURS': '🆘',
+  // --- AIRLINE (TENANT-3) ---
+  'Bagage non livré (déclarer PIR)': '🧳',
+  'Information retard absente': '⏰',
+  'Aucun rafraîchissement proposé': '🥤',
+  // --- VIP LOUNGE (TENANT-3) ---
+  'Nourriture épuisée': '🍽️',
+  'Boissons chaudes indisponibles': '☕',
+  'Niveau sonore élevé': '🔊',
+  'Fauteuils sales ou occupés': '🪑',
+  'Toutes les cabines occupées': '🚿',
+  'Serviettes indisponibles': '🧖',
+  'Eau chaude HS': '🚿',
+  'Demande spécifique non honorée': '⭐',
+  'Réservation absente': '📅',
+  'Équipement vidéo HS': '📽️',
 }
 
 /** Retourne l'émoji associé à une problématique, ou un émoji générique */

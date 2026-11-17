@@ -12,6 +12,12 @@ model User {
   email             String         @unique
   passwordHash      String
   role              String         @default("PRO")
+  // TENANT-3 — Type d'établissement pour le système multi-tenant :
+  //   - airport    : infrastructure aéroport (wallboard, ops room)
+  //   - airline    : compagnie aérienne (escale & passagers)
+  //   - vip_lounge : salon VIP (luxe & discrétion)
+  //   - classic    : commerce classique (restaurant, hôtel…)
+  tenantType        String         @default("classic")
   suspendu          Boolean        @default(false)
   derniereConnexion DateTime?
   createdAt         DateTime       @default(now())
@@ -1190,4 +1196,46 @@ model FlashRewardStat {
   revenueFcfa Int      @default(0) // used × pricePerCodeFcfa
 
   @@index([campaignId, statDate])
+}
+
+// ============================================================
+// TENANT-3 — Module Compagnie Aérienne
+// ============================================================
+
+// Airline — Litiges bagages déclarés au bureau des réclamations
+model BaggageDispute {
+  id            String   @id @default(cuid())
+  flightNumber  String?
+  passengerName String?
+  description   String
+  photoUrl      String?
+  status        String   @default("open") // open | resolved | escalated
+  reportId      String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// ============================================================
+// TENANT-3 — Module Salon VIP
+// ============================================================
+
+// VIP — Statut des douches (en temps réel : libre / occupé / nettoyage)
+model ShowerStatus {
+  id            String   @id @default(cuid())
+  showerNumber  Int
+  status        String   @default("free") // free | occupied | cleaning
+  occupiedSince DateTime?
+  updatedAt     DateTime @updatedAt
+}
+
+// VIP — Checklist buffet (timer 30 min, niveau de remplissage %)
+model BuffetChecklist {
+  id          String   @id @default(cuid())
+  item        String   // "buffet_fill", "drinks_level", "cleanliness"
+  fillLevel   Int      @default(100) // percentage
+  lastCheck   DateTime @default(now())
+  nextCheck   DateTime
+  status      String   @default("ok") // ok | warning | critical
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

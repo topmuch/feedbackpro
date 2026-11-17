@@ -35,6 +35,8 @@ import {
   Sparkles,
   Star,
   Store,
+  Plane,
+  Wine,
 } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -290,6 +292,11 @@ function ConnexionForm() {
   const refreshSession = useAppStore((s) => s.refreshSession)
   const setView = useAppStore((s) => s.setView)
   const setAuthMode = useAppStore((s) => s.setAuthMode)
+  // TENANT-3 — Login classique : on ne déclenche PAS l'onboarding tenant.
+  // Les utilisateurs existants ont déjà choisi leur tenant (classic par
+  // défaut pour les comptes pré-TENANT-3) et vont directement à leur
+  // dashboard selon leur tenantType.
+  const setJustRegistered = useAppStore((s) => s.setJustRegistered)
 
   const [showPassword, setShowPassword] = useState(false)
   const [erreurApi, setErreurApi] = useState<string | null>(null)
@@ -358,6 +365,8 @@ function ConnexionForm() {
       }
       // Succès : refreshSession() appelle deriveView() qui calcule la bonne
       // vue selon le rôle (admin pour SUPERADMIN, dashboard pour les Pro).
+      // TENANT-3 — Login classique : justRegistered=false (pas d'étape tenant).
+      setJustRegistered(false)
       await refreshSession()
       // Safety net : si deriveView n'a pas changé la vue, on force au moins
       // la sortie de la vue "auth" vers le dashboard Pro classique.
@@ -535,6 +544,7 @@ function InscriptionForm() {
   const refreshSession = useAppStore((s) => s.refreshSession)
   const setView = useAppStore((s) => s.setView)
   const setAuthMode = useAppStore((s) => s.setAuthMode)
+  const setJustRegistered = useAppStore((s) => s.setJustRegistered)
   const { toast } = useToast()
 
   const [showPassword, setShowPassword] = useState(false)
@@ -583,18 +593,23 @@ function InscriptionForm() {
         setErreurApi(json?.error || "Impossible de créer votre compte. Réessayez dans un instant.")
         return
       }
-      // Succès : session fraîche + redirection dashboard Pro classique.
+      // TENANT-3 — Après inscription, on bascule le flag justRegistered
+      // pour que deriveView route vers l'étape "onboarding-tenant" (choix
+      // du type d'établissement) lors du refreshSession suivant.
+      setJustRegistered(true)
+      // Succès : session fraîche. deriveView détectera justRegistered=true
+      // et route vers "onboarding-tenant" (TenantSelectionStep).
       await refreshSession()
       toast({
         title: "Bienvenue sur FeedbackPro",
         description:
-          "Votre compte est créé. Complétez l'adresse et les zones dans les Paramètres pour activer vos QR codes.",
+          "Votre compte est créé. Choisissez votre type d'établissement pour accéder à votre dashboard.",
       })
-      // Safety net : si deriveView n'a pas changé la vue, on force le
-      // dashboard Pro classique.
+      // Safety net : si deriveView n'a pas changé la vue, on force
+      // l'étape d'onboarding tenant.
       const st = useAppStore.getState()
       if (st.view === "auth" || st.view === "loading") {
-        setView("dashboard")
+        setView("onboarding-tenant")
       }
     } catch {
       setErreurApi("Impossible de contacter le serveur. Vérifiez votre connexion.")
@@ -787,5 +802,195 @@ function ErreurChamp({ message }: { message?: string }) {
     <p className="text-xs text-rose-600" role="alert">
       {message}
     </p>
+  )
+}
+
+// ============================================================
+// TENANT-3 — Étape de sélection du type d'établissement
+// ------------------------------------------------------------
+// Affichée après inscription réussie (view === "onboarding-tenant").
+// L'utilisateur choisit son type d'établissement parmi 4 options :
+//   - Aéroport       (infrastructure & ops)
+//   - Compagnie      (escale & passager)
+//   - Salon VIP      (luxe & discrétion)
+//   - Commerce       (restaurant, hôtel, etc.)
+//
+// Au clic : POST /api/auth/tenant avec le tenantType choisi →
+// refreshSession() pour recharger la session avec le nouveau
+// tenantType → setJustRegistered(false) pour sortir de l'onboarding
+// → deriveView route vers le dashboard correspondant :
+//   - airport    → "dashboard" (ProDashboard + onglets aéroport)
+//   - airline    → "airline"
+//   - vip_lounge → "vip"
+//   - classic    → "dashboard"
+// ============================================================
+
+type TenantOption = {
+  value: "airport" | "airline" | "vip_lounge" | "classic"
+  emoji: string
+  titre: string
+  description: string
+  icon: typeof Plane
+  accent: string // classes tailwind pour le hover/border
+}
+
+const TENANT_OPTIONS: readonly TenantOption[] = [
+  {
+    value: "airport",
+    emoji: "✈️",
+    titre: "Aéroport",
+    description: "Infrastructure & ops — wallboard, salle de supervision",
+    icon: Plane,
+    accent: "hover:border-[#003399]/60 hover:bg-[#003399]/5",
+  },
+  {
+    value: "airline",
+    emoji: "🛫",
+    titre: "Compagnie Aérienne",
+    description: "Escale & passager — check-in, embarquement, litiges bagages",
+    icon: Plane,
+    accent: "hover:border-sky-500/60 hover:bg-sky-50",
+  },
+  {
+    value: "vip_lounge",
+    emoji: "🥂",
+    titre: "Salon VIP",
+    description: "Luxe & discrétion — buffet, douches, conciergerie",
+    icon: Wine,
+    accent: "hover:border-[#D4AF37]/60 hover:bg-[#D4AF37]/5",
+  },
+  {
+    value: "classic",
+    emoji: "🏪",
+    titre: "Commerce classique",
+    description: "Restaurant, hôtel, etc. — dashboard FeedbackPro standard",
+    icon: Store,
+    accent: "hover:border-slate-400 hover:bg-slate-50",
+  },
+] as const
+
+export function TenantSelectionStep() {
+  const refreshSession = useAppStore((s) => s.refreshSession)
+  const setJustRegistered = useAppStore((s) => s.setJustRegistered)
+  const setView = useAppStore((s) => s.setView)
+  const logout = useAppStore((s) => s.logout)
+  const { toast } = useToast()
+
+  const [selection, setSelection] = useState<TenantOption["value"] | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [erreurApi, setErreurApi] = useState<string | null>(null)
+
+  async function choisirTenant(value: TenantOption["value"]) {
+    setErreurApi(null)
+    setSelection(value)
+    setSubmitting(true)
+    try {
+      const res = await fetch("/api/auth/tenant", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tenantType: value }),
+      })
+      const json = await res.json().catch(() => null)
+      if (!res.ok || !json?.ok) {
+        setErreurApi(json?.error || "Impossible d'enregistrer votre choix. Réessayez.")
+        setSubmitting(false)
+        return
+      }
+      // Succès : on recharge la session avec le nouveau tenantType.
+      // setJustRegistered(false) avant refreshSession pour que deriveView
+      // route vers le dashboard final (pas vers onboarding-tenant).
+      setJustRegistered(false)
+      await refreshSession()
+      // Safety net : si deriveView n'a pas changé la vue, on force le
+      // dashboard Pro classique (compatible classic + airport).
+      const st = useAppStore.getState()
+      if (st.view === "onboarding-tenant") {
+        setView("dashboard")
+      }
+      toast({
+        title: "Type d'établissement enregistré",
+        description: "Votre dashboard est prêt.",
+      })
+    } catch {
+      setErreurApi("Impossible de contacter le serveur. Vérifiez votre connexion.")
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-[#F5F5F5] px-4 py-8 sm:px-6 lg:px-8">
+      <div className="w-full max-w-2xl space-y-6">
+        {/* Logo + retour */}
+        <div className="flex items-center justify-between">
+          <button
+            type="button"
+            onClick={() => logout()}
+            className="flex items-center gap-2 text-sm font-medium text-slate-500 transition-colors hover:text-[#003399]"
+            aria-label="Se déconnecter"
+          >
+            <img src="/logo-feedbackpro.png" alt="FeedbackPro" className="h-9" />
+          </button>
+          <button
+            type="button"
+            onClick={() => logout()}
+            className="text-xs font-medium text-slate-400 hover:text-[#003399]"
+          >
+            Se déconnecter
+          </button>
+        </div>
+
+        {/* Titre */}
+        <div className="space-y-2 text-center">
+          <h2 className="text-3xl font-bold tracking-tight text-slate-900">
+            Quel type d&apos;établissement gérez-vous ?
+          </h2>
+          <p className="text-sm text-slate-500">
+            Votre tableau de bord sera adapté à votre activité. Vous pourrez le modifier
+            plus tard dans les Paramètres.
+          </p>
+        </div>
+
+        {/* Grille 4 cartes (2x2 sur desktop, 1 colonne sur mobile) */}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          {TENANT_OPTIONS.map((opt) => {
+            const Icon = opt.icon
+            const actif = selection === opt.value
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => choisirTenant(opt.value)}
+                disabled={submitting}
+                aria-pressed={actif}
+                className={`group relative flex flex-col items-start gap-3 rounded-2xl border-2 border-slate-200 bg-white p-6 text-left transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-70 ${opt.accent} ${
+                  actif ? "border-[#003399] ring-2 ring-[#003399]/20" : ""
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl" aria-hidden>
+                    {opt.emoji}
+                  </span>
+                  <Icon className="h-6 w-6 text-slate-400 transition-colors group-hover:text-slate-700" aria-hidden />
+                </div>
+                <div className="space-y-1">
+                  <h3 className="text-lg font-bold text-slate-900">{opt.titre}</h3>
+                  <p className="text-sm leading-snug text-slate-500">{opt.description}</p>
+                </div>
+                {actif && submitting && (
+                  <Loader2 className="absolute right-4 top-4 h-4 w-4 animate-spin text-[#003399]" aria-hidden />
+                )}
+              </button>
+            )
+          })}
+        </div>
+
+        {erreurApi && <ErreurApi message={erreurApi} />}
+
+        {/* Lien bas */}
+        <p className="text-center text-xs text-slate-400">
+          FeedbackPro s&apos;adapte à votre métier — aéroport, compagnie, salon VIP ou commerce.
+        </p>
+      </div>
+    </div>
   )
 }

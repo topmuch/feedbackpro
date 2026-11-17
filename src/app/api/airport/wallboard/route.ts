@@ -42,6 +42,15 @@ import { AIRPORT_ZONES } from '@/lib/airport-config'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+// TENANT-3 — Le wallboard ops room ne doit afficher QUE les zones
+// d'infrastructure aéroport (tenantType === 'airport' ou sans tenantType
+// pour rétro-compat avec les zones historiques). Les zones airline et
+// vip_lounge appartiennent à d'autres modules et ne doivent pas polluer
+// l'affichage TV de la salle de supervision.
+const AIRPORT_ONLY_ZONES = AIRPORT_ZONES.filter(
+  (z) => z.tenantType === 'airport' || !z.tenantType,
+)
+
 type Statut = 'EN_ATTENTE' | 'EN_COURS' | 'RESOLU'
 
 type TeamKey = 'nettoyage' | 'maintenance' | 'securite' | 'accueil' | 'logistique' | 'other'
@@ -98,8 +107,9 @@ export async function GET() {
   })
 
   // --- Index zone metadata par code (fallback config si zone absente en BDD) ---
+  // TENANT-3 — On n'indexe que les zones airport (filtre anti airline/vip).
   const zoneMetaByCode = new Map<string, { code: string; nom: string; emoji: string }>()
-  for (const z of AIRPORT_ZONES) {
+  for (const z of AIRPORT_ONLY_ZONES) {
     zoneMetaByCode.set(z.code, { code: z.code, nom: z.nom, emoji: z.emoji })
   }
 
@@ -115,7 +125,9 @@ export async function GET() {
     last_report_at: number | null // ms epoch
   }
   const zoneAggByCode = new Map<string, ZoneAgg>()
-  for (const z of AIRPORT_ZONES) {
+  // TENANT-3 — Bucket initial uniquement sur les zones airport (les
+  // autres tenant types ne doivent jamais apparaître dans le wallboard).
+  for (const z of AIRPORT_ONLY_ZONES) {
     zoneAggByCode.set(z.code, {
       code: z.code,
       nom: z.nom,
@@ -143,7 +155,8 @@ export async function GET() {
     pendingBreaches: number
   }
   const slaByZone = new Map<string, SlaAgg>()
-  for (const z of AIRPORT_ZONES) {
+  // TENANT-3 — SLA uniquement pour les zones airport.
+  for (const z of AIRPORT_ONLY_ZONES) {
     slaByZone.set(z.code, {
       targetMinutes: null,
       resolvedCount: 0,
@@ -393,7 +406,8 @@ export async function GET() {
     slaCompliancePercent: number
     pendingBreaches: number
   }> = {}
-  for (const z of AIRPORT_ZONES) {
+  // TENANT-3 — Dictionnaire SLA final uniquement pour les zones airport.
+  for (const z of AIRPORT_ONLY_ZONES) {
     const agg = slaByZone.get(z.code)
     if (!agg) continue
     sla[z.code] = {

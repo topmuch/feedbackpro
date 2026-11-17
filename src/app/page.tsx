@@ -14,12 +14,14 @@ import React, { useEffect } from "react"
 import { Loader2 } from "lucide-react"
 import { useAppStore, tokenDepuisUrl, airportTagDepuisUrl } from "@/store/app-store"
 import { LandingView } from "@/components/feedbackpro/landing-view"
-import { AuthView } from "@/components/feedbackpro/auth-view"
+import { AuthView, TenantSelectionStep } from "@/components/feedbackpro/auth-view"
 import { ScanView } from "@/components/feedbackpro/scan-view"
 import { AirportScanView } from "@/components/feedbackpro/airport-scan-view"
 import { AirportStaffView } from "@/components/feedbackpro/airport-staff-view"
 import { ProDashboard } from "@/components/feedbackpro/pro-dashboard"
 import { AdminDashboard } from "@/components/feedbackpro/admin-dashboard"
+import AirlineDashboard from "@/components/feedbackpro/airline-dashboard"
+import VIPDashboard from "@/components/feedbackpro/vip-dashboard"
 import { AppFooter } from "@/components/feedbackpro/shared"
 
 
@@ -177,6 +179,31 @@ export default function Home() {
     )
   }
 
+  // ---------- TENANT-3 — Étape onboarding tenant (après inscription) ----------
+  if (view === "onboarding-tenant") {
+    return (
+      <main className="min-h-screen bg-background">
+        <TenantSelectionStep />
+      </main>
+    )
+  }
+
+  // ---------- TENANT-3 — Dashboards par type de tenant ----------
+  if (view === "airline") {
+    return (
+      <main className="min-h-screen bg-background">
+        <AirlineDashboard />
+      </main>
+    )
+  }
+  if (view === "vip") {
+    return (
+      <main className="min-h-screen bg-background">
+        <VIPDashboard />
+      </main>
+    )
+  }
+
   // ---------- Navigation ----------
   const nav = {
     login: () => setAuthMode("login"),
@@ -202,7 +229,7 @@ export default function Home() {
       </main>
       {/* Le pied de page global reste collé en bas (mt-auto) sur auth/dashboard.
           La landing possède son propre footer complet (liens légaux). */}
-      {view !== "scan" && view !== "airport" && view !== "landing" && <AppFooter />}
+      {view !== "scan" && view !== "airport" && view !== "landing" && view !== "airline" && view !== "vip" && view !== "onboarding-tenant" && <AppFooter />}
     </div>
     </ErrorBoundary>
   )

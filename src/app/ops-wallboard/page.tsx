@@ -69,6 +69,15 @@ import { AirportPredictionRadar } from '@/components/feedbackpro/airport-predict
 // (panneaux horizontaux colorés par famille, avec compteurs en attente + en cours).
 import { parler } from '@/lib/staff-tts'
 import { LiveScoreWidget } from '@/components/feedbackpro/live-score-widget'
+// TENANT-3 — Filtre des zones airport uniquement (le wallboard ops room
+// ne doit jamais afficher les zones airline ou vip_lounge).
+import { AIRPORT_ZONES } from '@/lib/airport-config'
+
+// Set des codes de zones autorisées sur le wallboard airport (tenantType
+// 'airport' ou sans tenantType pour rétro-compat avec les zones historiques).
+const AIRPORT_ZONE_CODES = new Set(
+  AIRPORT_ZONES.filter((z) => z.tenantType === 'airport' || !z.tenantType).map((z) => z.code),
+)
 
 // ---------------------------------------------------------------
 // Types — match exact du contrat /api/airport/wallboard
@@ -2132,6 +2141,10 @@ export default function OpsWallboardPage() {
     const groups: Partial<Record<Exclude<ZoneFamily, 'HISTORIQUE'>, ZoneAgg[]>> = {}
     if (!data) return groups
     for (const z of data.zones) {
+      // TENANT-3 — Defensive filter : n'afficher que les zones airport.
+      // L'API filtre déjà côté serveur mais on garde ce garde-fou client
+      // au cas où une zone airline/vip_lounge serait remontée par legacy.
+      if (!AIRPORT_ZONE_CODES.has(z.code)) continue
       const fam = zoneFamily(z.code)
       if (fam === 'HISTORIQUE') continue
       if (!groups[fam]) groups[fam] = []
