@@ -8,7 +8,7 @@ RUN npm install -g bun
 WORKDIR /app
 
 # Clone (--single-branch pour différer du cache précédent)
-RUN git clone --branch main --depth 1 https://github.com/topmuch/feedbackpro.git . && echo "build-v8"
+RUN git clone --branch main --depth 1 https://github.com/topmuch/feedbackpro.git . && echo "build-v9"
 
 RUN bun install
 RUN npx prisma generate
@@ -27,4 +27,4 @@ ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 ENV DATABASE_URL=file:/app/data/feedbackpro.db
 
-CMD sh -c "mkdir -p /app/data && export DATABASE_URL=file:/app/data/feedbackpro.db && npx prisma db push --skip-generate --accept-data-loss 2>/dev/null || true && node scripts/create-admin.cjs 2>/dev/null || true && if [ -n \"$Z_AI_CONFIG\" ]; then echo \"$Z_AI_CONFIG\" > /etc/.z-ai-config; fi && exec node .next/standalone/server.js"
+CMD sh -c "mkdir -p /app/data && export DATABASE_URL=file:/app/data/feedbackpro.db && npx prisma db push --skip-generate --accept-data-loss 2>/dev/null || true && node scripts/create-admin.cjs && if [ -n \"$Z_AI_CONFIG\" ]; then echo \"$Z_AI_CONFIG\" > /etc/.z-ai-config; fi && exec node .next/standalone/server.js"
