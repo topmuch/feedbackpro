@@ -1,18 +1,11 @@
 import type { Metadata } from "next";
-import dynamic from "next/dynamic";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { ThemeProvider } from "@/components/theme-provider";
 
-
-import { getSetting } from "@/lib/settings";
-
-// ThemeProvider en dynamic ssr:false — évite que next-themes utilise
-// useContext pendant le pre-rendering de /_global-error (qui est hors
-// layout et n'a pas accès au contexte React).
-const ThemeProvider = dynamic(
-  () => import("@/components/theme-provider").then((m) => m.ThemeProvider),
-  { ssr: false }
-);
+// Retiré getSetting et generateMetadata — les requêtes DB pendant le
+// pre-rendering de /_global-error causent des erreurs. Métadonnées
+// statiques à la place.
 
 // Typographie : Inter (conforme Session 1)
 // Retiré next/font/google — causait TypeError useContext sur /_global-error
@@ -44,110 +37,65 @@ const DEFAULT_KEYWORDS = [
   "fidélisation client",
 ];
 
-/**
- * Task 2 — Référencement SEO dynamique
- * ------------------------------------
- * Les métadonnées par défaut sont lues depuis la table `Setting`
- * (clés metaTitle, metaDescription, metaKeywords, ogTitle, ogDescription).
- * Le superadmin peut les éditer depuis l'onglet Paramètres → SEO.
- *
- * En cas d'échec BDD (mise à jour du schéma en dev, redémarrage…), on
- * retombe silencieusement sur les valeurs statiques par défaut ci-dessus.
- */
-export async function generateMetadata(): Promise<Metadata> {
-  let metaTitle = DEFAULT_META_TITLE;
-  let metaDescription = DEFAULT_META_DESCRIPTION;
-  let metaKeywords: string[] = DEFAULT_KEYWORDS;
-  let ogTitle = DEFAULT_META_TITLE;
-  let ogDescription =
-    "Chaque client réel devient un Client Mystère : scan QR, note, tags, et un rapport IA quotidien avec vos 3 priorités du jour. Pour restaurants, salons, boutiques.";
-
-  try {
-    const [t, d, k, ogt, ogd] = await Promise.all([
-      getSetting("metaTitle", ""),
-      getSetting("metaDescription", ""),
-      getSetting("metaKeywords", ""),
-      getSetting("ogTitle", ""),
-      getSetting("ogDescription", ""),
-    ]);
-    if (t) metaTitle = t;
-    if (d) metaDescription = d;
-    if (k) {
-      metaKeywords = k
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean);
-    }
-    if (ogt) ogTitle = ogt;
-    if (ogd) ogDescription = ogd;
-  } catch {
-    /* silencieux : fallback défauts */
-  }
-
-  return {
-    metadataBase: new URL(siteUrl),
-    title: {
-      default: metaTitle,
-      template: "%s | FeedbackPro",
-    },
-    description: metaDescription,
-    keywords: metaKeywords,
-    authors: [{ name: "FeedbackPro" }],
-    creator: "FeedbackPro",
-    publisher: "FeedbackPro",
-    applicationName: "FeedbackPro",
-    category: "Business",
-    formatDetection: { email: false, address: false, telephone: false },
-    alternates: {
-      canonical: siteUrl,
-    },
-    openGraph: {
-      title: ogTitle,
-      description: ogDescription,
-      siteName: "FeedbackPro",
-      type: "website",
-      locale: "fr_FR",
-      url: siteUrl,
-      images: [
-        {
-          url: "/og-image.png",
-          width: 1344,
-          height: 768,
-          alt: ogTitle,
-          type: "image/png",
-        },
-      ],
-    },
-    twitter: {
-      card: "summary_large_image",
-      title: ogTitle,
-      description: ogDescription,
-      images: ["/og-image.png"],
-    },
-    robots: {
+// Métadonnées statiques (pas de requête DB — évite les erreurs pre-rendering)
+export const metadata: Metadata = {
+  metadataBase: new URL(siteUrl),
+  title: {
+    default: DEFAULT_META_TITLE,
+    template: "%s | FeedbackPro",
+  },
+  description: DEFAULT_META_DESCRIPTION,
+  keywords: DEFAULT_KEYWORDS,
+  authors: [{ name: "FeedbackPro" }],
+  creator: "FeedbackPro",
+  publisher: "FeedbackPro",
+  applicationName: "FeedbackPro",
+  category: "Business",
+  formatDetection: { email: false, address: false, telephone: false },
+  alternates: {
+    canonical: siteUrl,
+  },
+  openGraph: {
+    title: DEFAULT_META_TITLE,
+    description: DEFAULT_META_DESCRIPTION,
+    siteName: "FeedbackPro",
+    type: "website",
+    locale: "fr_FR",
+    url: siteUrl,
+    images: [
+      {
+        url: "/og-image.png",
+        width: 1344,
+        height: 768,
+        alt: DEFAULT_META_TITLE,
+        type: "image/png",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: DEFAULT_META_TITLE,
+    description: DEFAULT_META_DESCRIPTION,
+    images: ["/og-image.png"],
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
       index: true,
       follow: true,
-      googleBot: {
-        index: true,
-        follow: true,
-        "max-image-preview": "large",
-        "max-snippet": -1,
-        "max-video-preview": -1,
-      },
+      "max-image-preview": "large",
+      "max-snippet": -1,
+      "max-video-preview": -1,
     },
-    icons: {
-      icon: "/logo-feedbackpro.png",
-      shortcut: "/logo-feedbackpro.png",
-      apple: "/logo-feedbackpro.png",
-    },
-    manifest: "/manifest.webmanifest",
-  };
-}
-
-// viewport retiré — le <__next_viewport_boundary__> causait TypeError useContext
-// sur /_global-error pendant le pre-rendering. Les meta viewport sont dans le
-// layout HTML directement.
-// export const viewport = { themeColor: "#2563EB", width: "device-width", initialScale: 1 };
+  },
+  icons: {
+    icon: "/logo-feedbackpro.png",
+    shortcut: "/logo-feedbackpro.png",
+    apple: "/logo-feedbackpro.png",
+  },
+  manifest: "/manifest.webmanifest",
+};
 
 // Force dynamic rendering pour TOUTES les pages
 export const dynamic = "force-dynamic";
