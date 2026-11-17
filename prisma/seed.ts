@@ -6,7 +6,13 @@
 // ============================================================
 
 import { PrismaClient } from "@prisma/client"
-import bcrypt from "bcryptjs"
+import crypto from "crypto"
+
+// IMPORTANT: utiliser SHA256 (hashPassword de src/lib/auth.ts)
+// PAS bcrypt — le login compare avec SHA256, pas bcrypt.
+function hashPassword(password: string): string {
+  return crypto.createHash('sha256').update(password).digest('hex')
+}
 
 const db = new PrismaClient()
 
@@ -83,8 +89,8 @@ async function main() {
   await db.user.deleteMany()
   await db.setting.deleteMany()
 
-  const passwordPro = await bcrypt.hash("demo1234", 10)
-  const passwordAdmin = await bcrypt.hash("admin123", 10)
+  const passwordPro = hashPassword("demo1234")
+  const passwordAdmin = hashPassword("admin123")
 
   // ---------- Superadmin (Session 1) ----------
   const admin = await db.user.create({
