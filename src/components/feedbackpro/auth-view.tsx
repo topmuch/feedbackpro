@@ -605,12 +605,8 @@ function InscriptionForm() {
         description:
           "Votre compte est créé. Choisissez votre type d'établissement pour accéder à votre dashboard.",
       })
-      // Safety net : si deriveView n'a pas changé la vue, on force
-      // l'étape d'onboarding tenant.
-      const st = useAppStore.getState()
-      if (st.view === "auth" || st.view === "loading") {
-        setView("onboarding-tenant")
-      }
+      // FORCE le tenant selection — peu importe ce que deriveView a retourné
+      setView("onboarding-tenant")
     } catch {
       setErreurApi("Impossible de contacter le serveur. Vérifiez votre connexion.")
     }
