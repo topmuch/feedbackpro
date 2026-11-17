@@ -1,45 +1,34 @@
 # ============================================================
-# Dockerfile — FeedbackPro Next.js 16 standalone production build
-# ------------------------------------------------------------
-# Utilise Node.js (pas Bun) pour le build — Bun causait un bug
-# TypeError useContext sur /_global-error pendant le pre-rendering.
+# Dockerfile — FeedbackPro Next.js 16 (Bun + standalone)
+# Revenir au setup qui fonctionnait (bun install + bun run build)
 # ============================================================
 
-# ---------- Stage 1 : deps ----------
-FROM node:22-alpine AS deps
-WORKDIR /app
-RUN apk add --no-cache libc6-compat
-
-COPY package.json package-lock.json* bun.lock* ./
-COPY prisma ./prisma
-
-RUN npm install --legacy-peer-deps 2>/dev/null || npm install
-
-# ---------- Stage 2 : builder ----------
 FROM node:22-alpine AS builder
 WORKDIR /app
-RUN apk add --no-cache libc6-compat
-
-COPY --from=deps /app/node_modules ./node_modules
+RUN apk add --no-cache git libc6-compat
+RUN npm install -g bun
+COPY bun.lock* package.json ./
+COPY prisma ./prisma
+RUN bun install --frozen-lockfile 2>/dev/null || bun install
 COPY . .
+RUN bunx prisma generate
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_ENV=production
+RUN bun run build
 
-# Build avec Node.js (pas Bun) — évite le bug useContext
-RUN npx prisma generate
-RUN npx next build
-RUN cp -r .next/static .next/standalone/.next/ 2>/dev/null || true
-RUN cp -r public .next/standalone/ 2>/dev/null || true
+# Pre-seed DB during build
+RUN mkdir -p /app/data
+RUN DATABASE_URL="file:/app/data/custom.db" bun run db:push --accept-data-loss 2>/dev/null || true
+RUN DATABASE_URL="file:/app/data/custom.db" bun run db:seed 2>/dev/null || true
 
-# ---------- Stage 3 : runner ----------
+# ---------- Runner ----------
 FROM node:22-alpine AS runner
 WORKDIR /app
-
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
-ENV DATABASE_URL=file:/app/db/custom.db
-
-RUN mkdir -p /app/db
-
+ENV DATABASE_URL=file:/app/data/custom.db
+RUN mkdir -p /app/data /app/db
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/standalone/.next/static ./.next/static
 COPY --from=builder /app/.next/standalone/public ./public
@@ -47,8 +36,7 @@ COPY --from=builder /app/prisma ./prisma
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/package.json ./package.json
-
+COPY --from=builder /app/data ./data
 EXPOSE 3000
-VOLUME ["/app/db"]
-
-CMD ["node", "server.js"]
+VOLUME ["/app/data"]
+CMD ["bun", "server.js"]
