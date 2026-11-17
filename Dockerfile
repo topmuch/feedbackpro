@@ -38,5 +38,5 @@ COPY --from=builder /app/node_modules/@prisma ./node_modules/@prisma
 COPY --from=builder /app/package.json ./package.json
 COPY --from=builder /app/data ./data
 EXPOSE 3000
-VOLUME ["/app/data"]
+# Pas de VOLUME — sinon le volume vide écrase la DB seedée pendant le build
 CMD ["node", "server.js"]
