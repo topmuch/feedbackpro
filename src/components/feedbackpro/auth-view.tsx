@@ -597,16 +597,17 @@ function InscriptionForm() {
       // pour que deriveView route vers l'étape "onboarding-tenant" (choix
       // du type d'établissement) lors du refreshSession suivant.
       setJustRegistered(true)
-      // Succès : session fraîche. deriveView détectera justRegistered=true
-      // et route vers "onboarding-tenant" (TenantSelectionStep).
-      await refreshSession()
+      // FORCE le tenant selection IMMÉDIATEMENT — avant refreshSession.
+      // Si refreshSession échoue, deriveView retourne "landing" (car !session
+      // est vérifié avant justRegistered) → écrase "onboarding-tenant".
+      // Solution : setView AVANT refreshSession, et refreshSession est
+      // appelée par TenantSelectionStep APRÈS le choix du tenant.
+      setView("onboarding-tenant")
       toast({
         title: "Bienvenue sur FeedbackPro",
         description:
           "Votre compte est créé. Choisissez votre type d'établissement pour accéder à votre dashboard.",
       })
-      // FORCE le tenant selection — peu importe ce que deriveView a retourné
-      setView("onboarding-tenant")
     } catch {
       setErreurApi("Impossible de contacter le serveur. Vérifiez votre connexion.")
     }
