@@ -25,13 +25,13 @@ export async function POST() {
 
     // Modules
     const modules = [
-      { key: "surveys", nom: "Sondages", description: "Questionnaires" actif: true },
-      { key: "voice_ai", nom: "Coach Vocal IA", description: "Denise" actif: true },
-      { key: "trends", nom: "Analytics", description: "Tableaux de bord" actif: true },
-      { key: "nps", nom: "NPS", description: "Satisfaction" actif: true },
-      { key: "abonnement_multi_sites", nom: "Multi-Sites", description: "Multi-établissements" actif: true },
-      { key: "feedbackpro_plus", nom: "Plus", description: "Avancé" actif: true },
-      { key: "white_label", nom: "Marque Blanche", description: "Customisation" actif: true },
+      { key: "surveys", nom: "Sondages", description: "Questionnaires", actif: true },
+      { key: "voice_ai", nom: "Coach Vocal IA", description: "Denise", actif: true },
+      { key: "trends", nom: "Analytics", description: "Tableaux de bord", actif: true },
+      { key: "nps", nom: "NPS", description: "Satisfaction", actif: true },
+      { key: "abonnement_multi_sites", nom: "Multi-Sites", description: "Multi-établissements", actif: true },
+      { key: "feedbackpro_plus", nom: "Plus", description: "Avancé", actif: true },
+      { key: "white_label", nom: "Marque Blanche", description: "Customisation", actif: true },
     ]
     for (const m of modules) await db.module.upsert({ where: { key: m.key }, create: m, update: m })
     results.push(`✓ ${modules.length} modules`)
