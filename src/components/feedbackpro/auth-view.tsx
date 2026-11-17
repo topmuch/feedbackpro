@@ -597,11 +597,8 @@ function InscriptionForm() {
       // pour que deriveView route vers l'étape "onboarding-tenant" (choix
       // du type d'établissement) lors du refreshSession suivant.
       setJustRegistered(true)
-      // FORCE le tenant selection IMMÉDIATEMENT — avant refreshSession.
-      // Si refreshSession échoue, deriveView retourne "landing" (car !session
-      // est vérifié avant justRegistered) → écrase "onboarding-tenant".
-      // Solution : setView AVANT refreshSession, et refreshSession est
-      // appelée par TenantSelectionStep APRÈS le choix du tenant.
+      // Persiste dans localStorage — survive aux boot/refreshSession
+      try { localStorage.setItem("fp_just_registered", "1") } catch {}
       setView("onboarding-tenant")
       toast({
         title: "Bienvenue sur FeedbackPro",
@@ -897,6 +894,7 @@ export function TenantSelectionStep() {
       // setJustRegistered(false) avant refreshSession pour que deriveView
       // route vers le dashboard final (pas vers onboarding-tenant).
       setJustRegistered(false)
+      try { localStorage.removeItem("fp_just_registered") } catch {}
       await refreshSession()
       // Safety net : si deriveView n'a pas changé la vue, on force le
       // dashboard Pro classique (compatible classic + airport).

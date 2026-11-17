@@ -114,18 +114,20 @@ function deriveView(scanToken: string | null, airportTag: string | null, staffTa
   if (scanToken) return "scan"
   if (airportTag) return "airport"
   if (staffTag) return "airport-staff"
+  // TENANT-3 — Vérifie localStorage EN PREMIER (avant !session) car
+  // refreshSession/boot peuvent écraser justRegistered. Le flag
+  // localStorage persiste entre les re-renders.
+  const lsFlag = typeof window !== "undefined" && localStorage.getItem("fp_just_registered") === "1"
+  if (justRegistered || lsFlag) {
+    // Si pas de session, on laisse passer (le tenant selection
+    // appellera refreshSession après le choix)
+    if (session) return "onboarding-tenant"
+  }
   if (!session) return "landing"
-  // TENANT-3 — Étape d'onboarding tenant. On vérifie justRegistered AVANT le
-  // rôle SUPERADMIN pour qu'un admin puisse tester ce flux depuis son
-  // dashboard (bouton "Changer de tenant" → setJustRegistered(true) +
-  // setView("onboarding-tenant") en safety net).
-  if (justRegistered) return "onboarding-tenant"
   if (session.user.role === "SUPERADMIN") return "admin"
   const tenant = (session.user.tenantType ?? 'classic').toLowerCase()
   if (tenant === 'airline') return 'airline'
   if (tenant === 'vip_lounge' || tenant === 'vip') return 'vip'
-  // airport, classic et toute valeur inconnue → dashboard Pro classique.
-  // Les features aéroport sont accessibles via des onglets dans le ProDashboard.
   return 'dashboard'
 }
 
