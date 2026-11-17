@@ -4,10 +4,15 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server"
-import bcrypt from "bcryptjs"
+import crypto from "crypto"
 import { db } from "@/lib/db"
 import { createSession, attachSessionCookie, serializePro } from "@/lib/session"
 import { loginSchema, firstError } from "@/lib/validation"
+
+// SHA256 — même algorithme que create-admin.cjs et prisma/seed.ts
+function hashPassword(password: string): string {
+  return crypto.createHash('sha256').update(password).digest('hex')
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -28,7 +33,7 @@ export async function POST(req: NextRequest) {
       include: { pro: true },
     })
 
-    if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+    if (!user || user.passwordHash !== hashPassword(password)) {
       return NextResponse.json({ ok: false, error: "Email ou mot de passe incorrect" }, { status: 401 })
     }
 
