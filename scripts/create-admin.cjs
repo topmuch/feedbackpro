@@ -53,26 +53,18 @@ async function main() {
   }
   console.log(`✓ ${modules.length} modules`)
 
-  // 3. Secteurs (upsert)
+  // 3. Secteurs (upsert — SecteurConfig a 'nom' @unique, pas 'secteur')
   const secteurs = [
-    { secteur: 'restaurant', nomSecteur: 'Restaurants', emoji: '🍽️', couleur: '#F59E0B' },
-    { secteur: 'aeroport', nomSecteur: 'Aéroports', emoji: '✈️', couleur: '#003399' },
-    { secteur: 'hotel', nomSecteur: 'Hôtels', emoji: '🏨', couleur: '#8B5CF6' },
-    { secteur: 'pharmacie', nomSecteur: 'Pharmacies', emoji: '💊', couleur: '#10B981' },
-    { secteur: 'boutique', nomSecteur: 'Boutiques', emoji: '🛍️', couleur: '#EC4899' },
-    { secteur: 'garage', nomSecteur: 'Garages', emoji: '🔧', couleur: '#6B7280' },
-    { secteur: 'coiffure', nomSecteur: 'Salons de coiffure', emoji: '💇', couleur: '#F43F5E' },
-    { secteur: 'spa', nomSecteur: 'Spas & Bien-être', emoji: '🧖', couleur: '#06B6D4' },
-    { secteur: 'vetement', nomSecteur: 'Boutiques de vêtements', emoji: '👔', couleur: '#7C3AED' },
-    { secteur: 'electromenager', nomSecteur: 'Électroménager', emoji: '🔌', couleur: '#F97316' },
-    { secteur: 'fastfood', nomSecteur: 'Fast-food', emoji: '🍔', couleur: '#EF4444' },
-    { secteur: 'boulangerie', nomSecteur: 'Boulangeries', emoji: '🥖', couleur: '#D97706' },
-    { secteur: 'salle_sport', nomSecteur: 'Salles de sport', emoji: '🏋️', couleur: '#059669' },
-    { secteur: 'clinique', nomSecteur: 'Cliniques', emoji: '🏥', couleur: '#0EA5E9' },
-    { secteur: 'ecole', nomSecteur: 'Écoles', emoji: '🎓', couleur: '#6366F1' },
+    'restaurant', 'aeroport', 'hotel', 'pharmacie', 'boutique', 'garage',
+    'coiffure', 'spa', 'vetement', 'electromenager', 'fastfood', 'boulangerie',
+    'salle_sport', 'clinique', 'ecole',
   ]
-  for (const s of secteurs) {
-    await db.secteurConfig.upsert({ where: { secteur: s.secteur }, create: s, update: s })
+  for (const nom of secteurs) {
+    await db.secteurConfig.upsert({
+      where: { nom },
+      create: { nom, zonesDefaut: '[]' },
+      update: {},
+    })
   }
   console.log(`✓ ${secteurs.length} secteurs`)
 
