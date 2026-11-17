@@ -549,6 +549,7 @@ function InscriptionForm() {
 
   const [showPassword, setShowPassword] = useState(false)
   const [erreurApi, setErreurApi] = useState<string | null>(null)
+  const [tenantChoice, setTenantChoice] = useState<string | null>(null)
 
   const {
     register,
@@ -567,6 +568,10 @@ function InscriptionForm() {
 
   async function aLaSoumission(valeurs: ValeursInscription) {
     setErreurApi(null)
+    if (!tenantChoice) {
+      setErreurApi("Veuillez choisir un type d'établissement ci-dessus.")
+      return
+    }
     try {
       const res = await fetch("/api/auth/register", {
         method: "POST",
@@ -576,11 +581,7 @@ function InscriptionForm() {
           password: valeurs.password,
           nomEtablissement: valeurs.nomEtablissement,
           typeEtablissement: valeurs.secteur,
-          // Champs non collectés dans le formulaire simplifié :
-          // l'API les exige (adresse min 5, ville min 2). On envoie
-          // des valeurs-joker que l'utilisateur complètera dans
-          // son dashboard (Paramètres → Établissement). Les zones
-          // par défaut du secteur sont appliquées côté serveur.
+          tenantType: tenantChoice,
           adresse: "À compléter dans les paramètres",
           ville: "À compléter",
           whatsapp: "",
@@ -593,22 +594,27 @@ function InscriptionForm() {
         setErreurApi(json?.error || "Impossible de créer votre compte. Réessayez dans un instant.")
         return
       }
-      // TENANT-3 — Après inscription, on bascule le flag justRegistered
-      // pour que deriveView route vers l'étape "onboarding-tenant" (choix
-      // du type d'établissement) lors du refreshSession suivant.
-      setJustRegistered(true)
-      // Persiste dans localStorage — survive aux boot/refreshSession
-      try { localStorage.setItem("fp_just_registered", "1") } catch {}
-      setView("onboarding-tenant")
+      // Le tenantType est déjà sauvé côté serveur. On refresh la session
+      // et deriveView route vers le bon dashboard selon le tenantType.
+      setJustRegistered(false)
+      try { localStorage.removeItem("fp_just_registered") } catch {}
+      await refreshSession()
       toast({
         title: "Bienvenue sur FeedbackPro",
-        description:
-          "Votre compte est créé. Choisissez votre type d'établissement pour accéder à votre dashboard.",
+        description: "Votre compte est créé. Votre dashboard est prêt.",
       })
     } catch {
       setErreurApi("Impossible de contacter le serveur. Vérifiez votre connexion.")
     }
   }
+
+  // 4 cartes tenant — remplace le select secteur
+  const TENANT_CARDS = [
+    { value: "airport", emoji: "✈️", titre: "Aéroport", desc: "Infrastructure & ops — wallboard, supervision", color: "hover:border-[#003399]/60 hover:bg-[#003399]/5" },
+    { value: "airline", emoji: "🛫", titre: "Compagnie Aérienne", desc: "Escale & passager — check-in, litiges bagages", color: "hover:border-sky-500/60 hover:bg-sky-50" },
+    { value: "vip_lounge", emoji: "🥂", titre: "Salon VIP", desc: "Luxe & discrétion — buffet, douches, conciergerie", color: "hover:border-[#D4AF37]/60 hover:bg-[#D4AF37]/5" },
+    { value: "classic", emoji: "🏪", titre: "Commerce classique", desc: "Restaurant, hôtel, boutique — dashboard standard", color: "hover:border-slate-400 hover:bg-slate-50" },
+  ]
 
   return (
     <form onSubmit={handleSubmit(aLaSoumission)} className="space-y-5" noValidate>
@@ -616,6 +622,40 @@ function InscriptionForm() {
       <div className="space-y-1">
         <h2 className="text-2xl font-bold tracking-tight text-slate-900">Créer un compte</h2>
         <p className="text-sm text-slate-500">5 minutes de setup. Pas de carte bancaire.</p>
+      </div>
+
+      {/* CHOIX DU TENANT — 4 cartes au début du formulaire */}
+      <div className="space-y-3">
+        <Label className="text-sm font-medium text-slate-700">
+          Quel type d&apos;établissement gérez-vous ?
+        </Label>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {TENANT_CARDS.map((card) => (
+            <button
+              key={card.value}
+              type="button"
+              onClick={() => setTenantChoice(card.value)}
+              aria-pressed={tenantChoice === card.value}
+              className={`group relative flex flex-col items-start gap-2 rounded-2xl border-2 p-4 text-left transition-all hover:scale-[1.02] ${card.color} ${
+                tenantChoice === card.value
+                  ? "border-[#003399] ring-2 ring-[#003399]/20 bg-white"
+                  : "border-slate-200 bg-white"
+              }`}
+            >
+              <span className="text-2xl" aria-hidden>{card.emoji}</span>
+              <div className="space-y-0.5">
+                <h3 className="text-sm font-bold text-slate-900">{card.titre}</h3>
+                <p className="text-xs leading-snug text-slate-500">{card.desc}</p>
+              </div>
+              {tenantChoice === card.value && (
+                <span className="absolute right-3 top-3 flex size-5 items-center justify-center rounded-full bg-[#003399] text-white text-xs font-bold">✓</span>
+              )}
+            </button>
+          ))}
+        </div>
+        {erreurApi && !tenantChoice && (
+          <p className="text-xs font-medium text-rose-500">{erreurApi}</p>
+        )}
       </div>
 
       {/* Nom de l'établissement */}

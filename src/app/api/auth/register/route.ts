@@ -37,6 +37,7 @@ export async function POST(req: NextRequest) {
     }
     const { email, password, nomEtablissement, typeEtablissement, adresse, ville, whatsapp, logoUrl, zones } =
       parsed.data
+    const tenantType = (parsed.data as { tenantType?: string }).tenantType ?? "classic"
 
     const existing = await db.user.findUnique({ where: { email } })
     if (existing) {
@@ -45,7 +46,7 @@ export async function POST(req: NextRequest) {
 
     const passwordHash = crypto.createHash("sha256").update(password).digest("hex")
     const user = await db.user.create({
-      data: { email, passwordHash, role: "PRO" },
+      data: { email, passwordHash, role: "PRO", tenantType },
     })
 
     // Task M4 — Rattache le Pro à sa fiche SecteurConfig (si elle existe en
