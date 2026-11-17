@@ -1,8 +1,10 @@
 import { NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { hashPassword, createSessionToken, SESSION_COOKIE } from '@/lib/auth'
+import { hashPassword } from '@/lib/auth'
+import { createSession, attachSessionCookie } from '@/lib/session'
 
 export const runtime = 'nodejs'
+export const dynamic = 'force-dynamic'
 
 export async function POST(req: Request) {
   try {
@@ -23,13 +25,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'Identifiants invalides.' }, { status: 401 })
     }
 
-    const token = createSessionToken(user.id)
+    // Crée une session en DB (pas un JWT) — getSessionUser peut la retrouver
+    const sessionId = await createSession(user.id)
     const res = NextResponse.json({
       ok: true,
       user: {
         id: user.id,
         email: user.email,
-        name: user.email,
+        role: user.role,
         etablissements: user.pro
           ? [
               {
@@ -41,14 +44,10 @@ export async function POST(req: Request) {
           : [],
       },
     })
-    res.cookies.set(SESSION_COOKIE, token, {
-      httpOnly: true,
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 60 * 60 * 24 * 7, // 7 jours
-    })
+    attachSessionCookie(res, sessionId)
     return res
   } catch (e) {
+    console.error('login error', e)
     return NextResponse.json({ error: 'Erreur serveur.' }, { status: 500 })
   }
 }

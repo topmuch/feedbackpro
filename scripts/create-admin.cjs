@@ -40,13 +40,13 @@ async function main() {
 
   // 2. Modules (upsert)
   const modules = [
-    { key: 'surveys', nom: 'Sondages & Questionnaires', description: 'Créer des questionnaires de satisfaction', prix: 0, actif: true },
-    { key: 'voice_ai', nom: 'Coach Vocal IA (Denise)', description: 'Assistante vocale temps réel', prix: 49, actif: true },
-    { key: 'trends', nom: 'Tendances & Analytics', description: 'Tableaux de bord et graphiques', prix: 29, actif: true },
-    { key: 'nps', nom: 'NPS & Satisfaction', description: 'Net Promoter Score automatisé', prix: 19, actif: true },
-    { key: 'abonnement_multi_sites', nom: 'Multi-Sites', description: 'Gérer plusieurs établissements', prix: 99, actif: true },
-    { key: 'feedbackpro_plus', nom: 'FeedbackPro Plus', description: 'Fonctionnalités avancées', prix: 149, actif: true },
-    { key: 'white_label', nom: 'Marque Blanche', description: 'Personnalisation aux couleurs de votre marque', prix: 199, actif: true },
+    { key: 'surveys', nom: 'Sondages & Questionnaires', description: 'Créer des questionnaires de satisfaction', actif: true },
+    { key: 'voice_ai', nom: 'Coach Vocal IA (Denise)', description: 'Assistante vocale temps réel', actif: true },
+    { key: 'trends', nom: 'Tendances & Analytics', description: 'Tableaux de bord et graphiques', actif: true },
+    { key: 'nps', nom: 'NPS & Satisfaction', description: 'Net Promoter Score automatisé', actif: true },
+    { key: 'abonnement_multi_sites', nom: 'Multi-Sites', description: 'Gérer plusieurs établissements', actif: true },
+    { key: 'feedbackpro_plus', nom: 'FeedbackPro Plus', description: 'Fonctionnalités avancées', actif: true },
+    { key: 'white_label', nom: 'Marque Blanche', description: 'Personnalisation aux couleurs de votre marque', actif: true },
   ]
   for (const m of modules) {
     await db.module.upsert({ where: { key: m.key }, create: m, update: m })
