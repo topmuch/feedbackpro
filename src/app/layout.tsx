@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -8,15 +7,9 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { getSetting } from "@/lib/settings";
 
 // Typographie : Inter (conforme Session 1)
-const interSans = Inter({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
-
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+// Retiré next/font/google — causait TypeError useContext sur /_global-error
+// pendant le pre-rendering (le contexte des fonts n'est pas disponible
+// hors layout). Utilisation de CSS @import dans globals.css à la place.
 
 const siteUrl = process.env.NEXT_PUBLIC_APP_URL || "https://feedbackpro.qrtags.pro";
 
@@ -159,7 +152,7 @@ export default async function RootLayout({
   return (
     <html lang="fr" suppressHydrationWarning>
       <body
-        className={`${interSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
+        className="antialiased bg-background text-foreground"
       >
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false} disableTransitionOnChange storageKey="fp-theme">
           {children}
