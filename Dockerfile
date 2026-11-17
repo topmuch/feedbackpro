@@ -8,8 +8,8 @@ RUN npm install -g bun
 
 WORKDIR /app
 
-# Clone the repository
-RUN git clone https://github.com/topmuch/feedbackpro.git .
+# Clone the repository (--branch main pour forcer le refresh du cache Docker)
+RUN git clone --branch main --depth 1 https://github.com/topmuch/feedbackpro.git .
 
 # Install dependencies
 RUN bun install
