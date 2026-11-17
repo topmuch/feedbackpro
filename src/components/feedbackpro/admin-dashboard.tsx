@@ -123,6 +123,11 @@ import {
 } from "@/lib/constants"
 import { generateCommandePdf, generateLabelsPdf } from "@/lib/pdf"
 import {
+  AIRPORT_ZONES,
+  getZonesByTenant,
+  type AirportZoneConfig,
+} from "@/lib/airport-config"
+import {
   ResponsiveContainer,
   PieChart,
   Pie,
@@ -333,7 +338,27 @@ export function AdminDashboard() {
   const [messagesNonLus, setMessagesNonLus] = useState(0)
   const session = useAppStore((s) => s.session)
   const logout = useAppStore((s) => s.logout)
+  const setJustRegistered = useAppStore((s) => s.setJustRegistered)
+  const setView = useAppStore((s) => s.setView)
   const { toast } = useToast()
+
+  /**
+   * TENANT-3 — Permet au superadmin de tester / déclencher l'étape de
+   * sélection du type d'établissement (TenantSelectionStep) depuis son
+   * dashboard. On pose `justRegistered=true` puis `setView("onboarding-tenant")`
+   * en safety net (deriveView route déjà vers cette vue quand justRegistered
+   * est vrai, peu importe le rôle SUPERADMIN — voir src/store/app-store.ts).
+   * Le superadmin peut alors choisir un nouveau tenantType via
+   * TenantSelectionStep → POST /api/auth/tenant → refreshSession().
+   */
+  function changerTenant() {
+    setJustRegistered(true)
+    setView("onboarding-tenant")
+    toast({
+      title: "Sélection du type d'établissement",
+      description: "Choisissez un tenant pour basculer de dashboard.",
+    })
+  }
 
   async function loadOverview() {
     try {
@@ -451,6 +476,20 @@ export function AdminDashboard() {
           </div>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
             <Badge variant="secondary" className="hidden sm:inline-flex">{t("nav.superadmin")}</Badge>
+            {/* TENANT-3 — Bouton "Changer de tenant" : permet au superadmin
+                de déclencher l'étape TenantSelectionStep pour basculer de
+                dashboard (airport / airline / vip / classic). */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={changerTenant}
+              className="hidden gap-1.5 sm:inline-flex"
+              aria-label="Changer de tenant"
+              title={`Type actuel : ${session?.user?.tenantType ?? "classic"}`}
+            >
+              <Building2 className="h-4 w-4" aria-hidden />
+              <span className="hidden md:inline">Changer de tenant</span>
+            </Button>
             <LanguageSelector tone="light" />
             <NotificationsBell tone="light" />
             <ThemeToggle />
@@ -4533,6 +4572,82 @@ function SecteursTab() {
         </Button>
       </div>
 
+      {/* ===========================================================
+          TENANT-3 — Section "Types d'établissement (Tenants)"
+          Affiche les 4 types de tenant et leurs zones associées :
+            - airport     (17 zones)  — Aéroport
+            - airline     (4 zones)   — Compagnie Aérienne
+            - vip_lounge  (6 zones)   — Salon VIP
+            - classic     (secteurs historiques — voir plus bas)
+          Pour chaque tenant : emoji, nom, nombre de zones, et la liste
+          détaillée des zones (code + nom). Un badge "déplacé" signale les
+          zones historiques reclassées (check-in / embarquement → airline,
+          com_lounge → vip_lounge).
+          Source de vérité : src/lib/airport-config.ts (AIRPORT_ZONES,
+          getZonesByTenant).
+         =========================================================== */}
+      <Card>
+        <CardHeader className="pb-4">
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Plane className="h-4 w-4 text-[#003399]" aria-hidden />
+            Types d&apos;établissement (Tenants)
+          </CardTitle>
+          <CardDescription className="text-xs">
+            Catalogue des zones par type d&apos;établissement. Chaque tenant route vers un dashboard dédié
+            (Airport → ProDashboard + onglets aéroport, Airline → AirlineDashboard, VIP → VIPDashboard,
+            Classic → ProDashboard standard). Les zones sans tenantType (legacy) restent côté airport par défaut.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <TenantZonesSection
+            tenant="airport"
+            emoji="✈️"
+            titre="Aéroport"
+            description="Infrastructure & ops — wallboard, salle de supervision"
+            accent="border-[#003399]/30 bg-[#003399]/5"
+          />
+          <TenantZonesSection
+            tenant="airline"
+            emoji="🛫"
+            titre="Compagnie Aérienne"
+            description="Escale & passager — check-in, embarquement, litiges bagages"
+            accent="border-sky-500/30 bg-sky-50 dark:bg-sky-950/30"
+          />
+          <TenantZonesSection
+            tenant="vip_lounge"
+            emoji="🥂"
+            titre="Salon VIP"
+            description="Luxe & discrétion — buffet, douches, conciergerie"
+            accent="border-[#D4AF37]/30 bg-[#D4AF37]/5"
+          />
+          {/* Commerce classique — pas de zones aéroport dédiées :
+              ce sont les secteurs historiques (restaurant, hôtel, etc.)
+              listés plus bas dans le sélecteur de secteurs. On affiche un
+              récapitulatif avec le nombre de secteurs chargés depuis l'API. */}
+          <div className={`rounded-2xl border p-4 ${secteurs.length > 0 ? "border-border bg-muted/30" : "border-amber-300 bg-amber-50 dark:bg-amber-950/30"}`}>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-3">
+                <span className="text-2xl" aria-hidden>🏪</span>
+                <div>
+                  <h4 className="text-sm font-semibold text-foreground">Commerce classique</h4>
+                  <p className="text-xs text-muted-foreground">
+                    Restaurant, hôtel, etc. — dashboard FeedbackPro standard
+                  </p>
+                </div>
+              </div>
+              <Badge variant="secondary" className="gap-1">
+                <ClipboardList className="h-3 w-3" aria-hidden />
+                {secteurs.length} secteur{secteurs.length > 1 ? "s" : ""} historique{secteurs.length > 1 ? "s" : ""}
+              </Badge>
+            </div>
+            <p className="mt-2 text-[11px] text-muted-foreground">
+              Les secteurs classiques (restaurant, aéroport, hôtel…) sont configurés via le sélecteur ci-dessous.
+              Ils ne disposent pas d&apos;un catalogue de zones dédié comme les tenants aéroportuaires.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+
       {loading ? (
         <Card>
           <CardContent className="flex items-center gap-3 py-12">
@@ -4680,6 +4795,110 @@ function SecteursTab() {
           )}
         </>
       )}
+    </div>
+  )
+}
+
+// ============================================================
+// TENANT-3 — Section "Zones par tenant" (sous-composant SecteursTab)
+// ------------------------------------------------------------
+// Affiche, pour un type de tenant donné (airport | airline | vip_lounge),
+// la liste des zones associées via getZonesByTenant() (src/lib/airport-config).
+//
+// Pour chaque zone : emoji + nom + code métier. Un badge "déplacé" signale
+// les zones reclassées depuis le catalogue historique :
+//   - term_checkin, term_embarq, airline_baggage_office, airline_waiting_room
+//     → airline
+//   - com_lounge, vip_* → vip_lounge
+//
+// Pas de fetch : tout est issu de AIRPORT_ZONES (config statique TypeScript).
+// ============================================================
+
+/** Zones historiques reclassées vers un autre tenant que "airport".
+ *  Permet d'afficher un badge "déplacé depuis airport" pour traçabilité. */
+const ZONES_DEPLACEES: Record<string, { from: string; to: string; label: string }> = {
+  term_checkin: { from: "airport", to: "airline", label: "déplacé vers Compagnie" },
+  term_embarq: { from: "airport", to: "airline", label: "déplacé vers Compagnie" },
+  com_lounge: { from: "airport", to: "vip_lounge", label: "déplacé vers Salon VIP" },
+  airline_baggage_office: { from: "airport", to: "airline", label: "nouveau Compagnie" },
+  airline_waiting_room: { from: "airport", to: "airline", label: "nouveau Compagnie" },
+  vip_buffet: { from: "airport", to: "vip_lounge", label: "nouveau Salon VIP" },
+  vip_relaxation: { from: "airport", to: "vip_lounge", label: "nouveau Salon VIP" },
+  vip_showers: { from: "airport", to: "vip_lounge", label: "nouveau Salon VIP" },
+  vip_reception: { from: "airport", to: "vip_lounge", label: "nouveau Salon VIP" },
+  vip_meeting: { from: "airport", to: "vip_lounge", label: "nouveau Salon VIP" },
+}
+
+function TenantZonesSection({
+  tenant,
+  emoji,
+  titre,
+  description,
+  accent,
+}: {
+  tenant: "airport" | "airline" | "vip_lounge"
+  emoji: string
+  titre: string
+  description: string
+  accent: string
+}) {
+  const zones: AirportZoneConfig[] = getZonesByTenant(tenant)
+  // Pour airport : on inclut aussi les zones legacy (sans tenantType) car
+  // elles s'affichent par défaut côté airport (rétro-compat config initiale).
+  const zonesLegacy = tenant === "airport"
+    ? AIRPORT_ZONES.filter((z) => !z.tenantType)
+    : []
+  const toutesLesZones = [...zones, ...zonesLegacy]
+
+  return (
+    <div className={`rounded-2xl border p-4 ${accent}`}>
+      {/* Header : emoji + titre + badge nombre de zones */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center gap-3">
+          <span className="text-2xl" aria-hidden>{emoji}</span>
+          <div>
+            <h4 className="text-sm font-semibold text-foreground">
+              {titre}
+              <span className="ml-1.5 text-[10px] font-normal uppercase tracking-wide text-muted-foreground">
+                ({tenant})
+              </span>
+            </h4>
+            <p className="text-xs text-muted-foreground">{description}</p>
+          </div>
+        </div>
+        <Badge variant="secondary" className="gap-1">
+          <MapPin className="h-3 w-3" aria-hidden />
+          {toutesLesZones.length} zone{toutesLesZones.length > 1 ? "s" : ""}
+        </Badge>
+      </div>
+
+      {/* Liste des zones — grille scrollable si > 12 zones */}
+      <div className="mt-3 grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-3 max-h-72 overflow-y-auto pr-1 admin-sidebar-nav">
+        {toutesLesZones.map((z) => {
+          const deplacee = ZONES_DEPLACEES[z.code]
+          return (
+            <div
+              key={z.code}
+              className="flex items-start gap-2 rounded-lg border border-border/60 bg-card/60 p-2"
+            >
+              <span className="text-base shrink-0" aria-hidden>{z.emoji}</span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-xs font-medium text-foreground">{z.nom}</p>
+                <p className="truncate text-[10px] font-mono text-muted-foreground">{z.code}</p>
+              </div>
+              {deplacee && (
+                <Badge
+                  variant="outline"
+                  className="ml-1 h-4 shrink-0 px-1 text-[9px] font-normal text-amber-700 dark:text-amber-300"
+                  title={`Origine : ${deplacee.from} → ${deplacee.to}`}
+                >
+                  {deplacee.label}
+                </Badge>
+              )}
+            </div>
+          )
+        })}
+      </div>
     </div>
   )
 }

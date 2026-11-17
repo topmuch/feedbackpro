@@ -94,22 +94,38 @@ type AppState = {
  *   - airline    → "airline"
  *   - vip_lounge → "vip"
  *   - classic    → "dashboard"
+ *
+ * IMPORTANT — Ordre des checks :
+ *   1. scanToken / airportTag / staffTag (PWA plein écran prioritaires)
+ *   2. !session → landing
+ *   3. justRegistered → "onboarding-tenant" (AVANT le rôle SUPERADMIN, pour
+ *      qu'un superadmin puisse tester la sélection de tenant depuis son
+ *      dashboard via le bouton "Changer de tenant" qui pose justRegistered=true)
+ *   4. SUPERADMIN → "admin"
+ *   5. tenantType → dashboard / airline / vip
+ *
+ * Tous les types de tenant sont pris en charge :
+ *   - airport, classic   → "dashboard" (ProDashboard + onglets aéroport)
+ *   - airline             → "airline"
+ *   - vip_lounge          → "vip"
+ *   - valeur inconnue     → "dashboard" (fallback sûr, évite un écran blanc)
  */
 function deriveView(scanToken: string | null, airportTag: string | null, staffTag: string | null, session: SessionData | null, justRegistered: boolean): View {
   if (scanToken) return "scan"
   if (airportTag) return "airport"
   if (staffTag) return "airport-staff"
   if (!session) return "landing"
-  if (session.user.role === "SUPERADMIN") return "admin"
-  // TENANT-3 — Étape d'onboarding tenant uniquement après inscription.
-  // Les utilisateurs existants (login) vont directement à leur dashboard
-  // selon leur tenantType (classic par défaut → ProDashboard classique).
+  // TENANT-3 — Étape d'onboarding tenant. On vérifie justRegistered AVANT le
+  // rôle SUPERADMIN pour qu'un admin puisse tester ce flux depuis son
+  // dashboard (bouton "Changer de tenant" → setJustRegistered(true) +
+  // setView("onboarding-tenant") en safety net).
   if (justRegistered) return "onboarding-tenant"
-  const tenant = session.user.tenantType ?? 'classic'
+  if (session.user.role === "SUPERADMIN") return "admin"
+  const tenant = (session.user.tenantType ?? 'classic').toLowerCase()
   if (tenant === 'airline') return 'airline'
-  if (tenant === 'vip_lounge') return 'vip'
-  // airport et classic → dashboard Pro classique (les features aéroport
-  // sont accessibles via des onglets dans le ProDashboard).
+  if (tenant === 'vip_lounge' || tenant === 'vip') return 'vip'
+  // airport, classic et toute valeur inconnue → dashboard Pro classique.
+  // Les features aéroport sont accessibles via des onglets dans le ProDashboard.
   return 'dashboard'
 }
 

@@ -13,6 +13,7 @@ export const dynamic = 'force-dynamic'
 import React, { useEffect } from "react"
 import { Loader2 } from "lucide-react"
 import { useAppStore, tokenDepuisUrl, airportTagDepuisUrl } from "@/store/app-store"
+import type { View } from "@/store/app-store"
 import { LandingView } from "@/components/feedbackpro/landing-view"
 import { AuthView, TenantSelectionStep } from "@/components/feedbackpro/auth-view"
 import { ScanView } from "@/components/feedbackpro/scan-view"
@@ -23,6 +24,20 @@ import { AdminDashboard } from "@/components/feedbackpro/admin-dashboard"
 import AirlineDashboard from "@/components/feedbackpro/airline-dashboard"
 import VIPDashboard from "@/components/feedbackpro/vip-dashboard"
 import { AppFooter } from "@/components/feedbackpro/shared"
+
+/**
+ * Vues qui doivent afficher le pied de page global (AppFooter).
+ * Les vues plein écran (scan, airport, airline, vip, onboarding-tenant)
+ * et la landing (footer dédié) en sont exclues. Cette liste explicite
+ * évite les comparaisons `view !== "..."` qui cassent le narrowing TS
+ * quand la View union s'enrichit de nouveaux types (airport-ops, etc.).
+ */
+const FOOTER_VIEWS: ReadonlySet<View> = new Set<View>([
+  "auth",
+  "dashboard",
+  "admin",
+  "airport-ops",
+])
 
 
 class ErrorBoundary extends React.Component<
@@ -228,8 +243,12 @@ export default function Home() {
         {view === "admin" && (session?.user.role === "SUPERADMIN" ? <AdminDashboard /> : <LandingView onLogin={nav.login} onSignup={nav.signup} />)}
       </main>
       {/* Le pied de page global reste collé en bas (mt-auto) sur auth/dashboard.
-          La landing possède son propre footer complet (liens légaux). */}
-      {view !== "scan" && view !== "airport" && view !== "landing" && view !== "airline" && view !== "vip" && view !== "onboarding-tenant" && <AppFooter />}
+          La landing possède son propre footer complet (liens légaux).
+          On affiche AppFooter uniquement sur les vues "avec chrome" :
+          auth, dashboard, admin et airport-ops (vue opérations). Les vues
+          full-screen (scan, airport, airline, vip, onboarding-tenant) et
+          la landing (footer dédié) ne reçoivent pas AppFooter. */}
+      {FOOTER_VIEWS.has(view) && <AppFooter />}
     </div>
     </ErrorBoundary>
   )

@@ -8,7 +8,7 @@ RUN npm install -g bun
 WORKDIR /app
 
 # Clone (--single-branch pour différer du cache précédent)
-RUN git clone --branch main --depth 1 https://github.com/topmuch/feedbackpro.git . && echo "build-v12"
+RUN git clone --branch main --depth 1 https://github.com/topmuch/feedbackpro.git . && echo "build-v13"
 
 RUN bun install
 RUN npx prisma generate

@@ -37,7 +37,7 @@
 //   - Pas de Radar Prediction
 // ============================================================
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Wine,
   LogOut,
@@ -261,7 +261,7 @@ export default function VIPDashboard() {
   // Alerte VIP : nouveau signalement non résolu → notification visuelle
   // (jamais de son — mode discrétion). On garde une liste de alerts
   // déjà notifiées pour éviter de revibrer à chaque poll.
-  const notifiedRef = useState<Set<string>>(() => new Set())[0]
+  const notifiedRef = useRef<Set<string>>(new Set())
   useEffect(() => {
     const nouveaux = incidents.filter(
       (i) => i.statut === 'EN_ATTENTE' && !notifiedRef.current.has(i.id),
