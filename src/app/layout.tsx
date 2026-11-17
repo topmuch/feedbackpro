@@ -1,10 +1,18 @@
 import type { Metadata } from "next";
+import dynamic from "next/dynamic";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
-import { ThemeProvider } from "@/components/theme-provider";
 
 
 import { getSetting } from "@/lib/settings";
+
+// ThemeProvider en dynamic ssr:false — évite que next-themes utilise
+// useContext pendant le pre-rendering de /_global-error (qui est hors
+// layout et n'a pas accès au contexte React).
+const ThemeProvider = dynamic(
+  () => import("@/components/theme-provider").then((m) => m.ThemeProvider),
+  { ssr: false }
+);
 
 // Typographie : Inter (conforme Session 1)
 // Retiré next/font/google — causait TypeError useContext sur /_global-error
