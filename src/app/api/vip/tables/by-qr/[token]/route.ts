@@ -52,11 +52,34 @@ export async function GET(
       zone: true,
       seats: true,
       status: true,
+      clientName: true,
+      clientVipLevel: true,
     },
   })
 
   if (!table) {
     return fail('Table introuvable pour ce QR code', 404)
+  }
+
+  // Détection VIP : si un client VIP est associé à la table, on remonte
+  // ses infos + préférences pour personnaliser l'accueil côté scan.
+  let vipClient: { name: string; vipLevel: string; preferences: string[]; airline: string | null } | null = null
+  if (table.clientName) {
+    // Recherche par nom dans VipClient (best-effort, non bloquant)
+    const client = await db.vipClient.findFirst({
+      where: { name: { contains: table.clientName } },
+      select: { name: true, vipLevel: true, preferences: true, airline: true },
+    })
+    if (client) {
+      let prefs: string[] = []
+      try { prefs = JSON.parse(client.preferences || '[]') } catch { prefs = [] }
+      vipClient = {
+        name: client.name,
+        vipLevel: client.vipLevel,
+        preferences: prefs,
+        airline: client.airline,
+      }
+    }
   }
 
   return ok({
@@ -65,5 +88,8 @@ export async function GET(
     zone: table.zone,
     seats: table.seats,
     status: table.status,
+    clientName: table.clientName,
+    clientVipLevel: table.clientVipLevel,
+    vipClient,
   })
 }

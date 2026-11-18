@@ -30,6 +30,18 @@ const TYPES_VALIDES = new Set([
 ])
 const STATUS_VALIDES = new Set(['pending', 'in_progress', 'done'])
 
+// Préfixes pour les numéros de suivi par type de demande
+const TRACKING_PREFIX: Record<string, string> = {
+  refreshment: 'CMD',
+  menu: 'MNU',
+  shower: 'DOU',
+  charger: 'CHG',
+  concierge: 'CON',
+  problem: 'SIG',
+  rating: 'NOT',
+  cleanup: 'CLE',
+}
+
 export async function GET(req: NextRequest) {
   const user = await getSessionUser(req)
   if (!user) return fail('Non authentifié', 401)
@@ -66,6 +78,8 @@ export async function GET(req: NextRequest) {
       table: r.table,
       type: r.type,
       message: r.message ?? null,
+      metadata: r.metadata ?? '{}',
+      trackingNumber: r.trackingNumber ?? null,
       status: r.status,
       staffName: r.staffName ?? null,
       createdAt: r.createdAt.toISOString(),
@@ -107,11 +121,31 @@ export async function POST(req: NextRequest) {
       ? body.message.trim().slice(0, 500)
       : null
 
+  // Métadonnées riches (JSON string) — tags problème, items commande, etc.
+  const metadata =
+    typeof body.metadata === 'string' && body.metadata.trim()
+      ? body.metadata.trim().slice(0, 2000)
+      : '{}'
+
+  // Génération du numéro de suivi unique (ex: CMD-2026-0847)
+  const prefix = TRACKING_PREFIX[body.type] || 'REQ'
+  const year = new Date().getFullYear()
+  // Boucle anti-collision (très peu probable mais @unique)
+  let trackingNumber: string = ''
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const seq = String(Math.floor(Math.random() * 9000) + 1000)
+    trackingNumber = `${prefix}-${year}-${seq}`
+    const exists = await db.vipTableRequest.findUnique({ where: { trackingNumber }, select: { id: true } })
+    if (!exists) break
+  }
+
   const created = await db.vipTableRequest.create({
     data: {
       tableId: table.id,
       type: body.type,
       message,
+      metadata,
+      trackingNumber,
     },
   })
 
@@ -127,6 +161,8 @@ export async function POST(req: NextRequest) {
       tableId: created.tableId,
       type: created.type,
       message: created.message,
+      metadata: created.metadata,
+      trackingNumber: created.trackingNumber,
       status: created.status,
       createdAt: created.createdAt.toISOString(),
       table: {

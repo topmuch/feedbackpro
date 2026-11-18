@@ -1282,15 +1282,22 @@ model VipClient {
 }
 
 model VipTableRequest {
-  id          String   @id @default(cuid())
-  tableId     String
-  table       VipTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
-  type        String                       // refreshment, menu, shower, charger, concierge, problem, rating, cleanup
-  message     String?
-  status      String   @default("pending") // pending, in_progress, done
-  staffName   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id              String   @id @default(cuid())
+  tableId         String
+  table           VipTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  type            String                       // refreshment, menu, shower, charger, concierge, problem, rating, cleanup
+  message         String?
+  // Numéro de suivi unique lisible (ex: CMD-2026-0847, SIG-2026-0234)
+  trackingNumber  String?  @unique
+  // Métadonnées riches au format JSON :
+  //   problem    → { tags: ["bruit","proprete"], description, photoUrl }
+  //   refreshment→ { items: [{name, qty, category}] }
+  //   concierge  → { requestType, details }
+  metadata        String   @default("{}")
+  status          String   @default("pending") // pending, in_progress, done
+  staffName       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([tableId, status])
   @@index([status])
