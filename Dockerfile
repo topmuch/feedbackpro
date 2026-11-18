@@ -7,8 +7,13 @@ RUN npm install -g bun
 
 WORKDIR /app
 
-# Clone (--single-branch pour différer du cache précédent)
-RUN git clone --branch main --depth 1 https://github.com/topmuch/feedbackpro.git . && echo "build-v25"
+# Téléchargement du code via tarball GitHub (jamais caché par Docker car
+# l'URL retourne un contenu différent à chaque commit). Plus fiable que
+# `git clone` dont le layer Docker peut être réutilisé tel quel même avec
+# un echo cache-bust.
+ADD https://github.com/topmuch/feedbackpro/archive/refs/heads/main.tar.gz /tmp/code.tar.gz
+RUN tar -xzf /tmp/code.tar.gz -C /app --strip-components=1 && rm /tmp/code.tar.gz && \
+    echo "build-v26" && git log --oneline -1 2>/dev/null || echo "no git log"
 
 RUN bun install
 RUN npx prisma generate
