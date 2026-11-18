@@ -14,7 +14,7 @@
 //   - Alert        #C97B63 (terracotta)
 //   - VIP badge    #6B4C9A (amethyst purple)
 //
-// Architecture : Sidebar fixe (260px) + 10 onglets.
+// Architecture : Sidebar fixe (260px) + 11 onglets.
 //   A. Vue d'ensemble      — KPI + alertes douces
 //   B. Signalements        — table incidents + actions
 //   C. Buffet & Bar        — checklist + timer MM:SS
@@ -24,7 +24,8 @@
 //   G. Équipe / Staff      — table + form + perf
 //   H. QR Codes            — 6 zones + QR staff
 //   I. Rapports            — KPI + bar chart CSS
-//   J. Paramètres          — général / Denise / buffet / douches / rewards
+//   J. Voix Denise         — matrice + horaire + historique + test + signalements
+//   K. Paramètres          — général / Denise / buffet / douches / rewards
 //
 // Mode Discrétion : TOUTES les notifications sont visuelles (aucun son).
 // Polling : /api/vip/incidents, /api/vip/showers, /api/vip/buffet toutes
@@ -115,6 +116,7 @@ import {
 } from '@/components/ui/dialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useToast } from '@/hooks/use-toast'
+import { AdminVoiceTab } from '@/components/feedbackpro/admin-voice-tab'
 
 // ============================================================
 // Types
@@ -232,6 +234,7 @@ type VipTab =
   | 'qr'
   | 'reports'
   | 'settings'
+  | 'denise'
 
 type VipSettings = {
   salonName: string
@@ -526,6 +529,7 @@ const NAV_ITEMS: Array<{ id: VipTab; label: string; Icon: typeof LayoutDashboard
   { id: 'staff', label: 'Équipe / Staff', Icon: UserCog },
   { id: 'qr', label: 'QR Codes', Icon: QrCode },
   { id: 'reports', label: 'Rapports', Icon: BarChart3 },
+  { id: 'denise', label: 'Voix Denise', Icon: Volume2 },
   { id: 'settings', label: 'Paramètres', Icon: Settings },
 ]
 
@@ -4163,6 +4167,11 @@ export default function VIPDashboard() {
           {tab === 'staff' && <StaffTab />}
           {tab === 'qr' && <QRTab />}
           {tab === 'reports' && <ReportsTab incidents={incidents} />}
+          {tab === 'denise' && (
+            <div className="rounded-2xl border border-[#EAE5DC] bg-white p-4 shadow-[0_4px_20px_rgba(201,169,97,0.06)] sm:p-6">
+              <AdminVoiceTab />
+            </div>
+          )}
           {tab === 'settings' && <SettingsTab />}
         </div>
       </main>
