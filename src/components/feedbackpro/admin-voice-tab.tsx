@@ -218,7 +218,7 @@ function modeLabel(mode: string): { label: string; color: string; description: s
 
 // ---------- Main component ----------
 
-export function AdminVoiceTab() {
+export function AdminVoiceTab({ defaultTab = "matrix" }: { defaultTab?: "matrix" | "time" | "logs" | "test" | "signalements" }) {
   const { toast } = useToast()
   const [loading, setLoading] = useState(true)
   const [rules, setRules] = useState<VoiceDecisionRule[]>([])
@@ -381,7 +381,7 @@ export function AdminVoiceTab() {
         </Button>
       </div>
 
-      <Tabs defaultValue="matrix" className="space-y-5">
+      <Tabs defaultValue={defaultTab} className="space-y-5">
         <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 lg:w-fit">
           <TabsTrigger value="matrix" className="gap-2">
             <Volume2 className="h-4 w-4" /> Matrice
@@ -1144,6 +1144,8 @@ type SignalementLigne = {
   statut: string
   createdAt: string
   resolvedAt: string | null
+  source: "airport" | "vip"
+  trackingNumber?: string | null
   zone?: {
     code: string
     nom: string
@@ -1155,6 +1157,21 @@ const STATUT_STYLES: Record<string, { label: string; color: string }> = {
   EN_ATTENTE: { label: "En attente", color: "bg-amber-100 text-amber-800 border-amber-300" },
   EN_COURS: { label: "En cours", color: "bg-sky-100 text-sky-800 border-sky-300" },
   RESOLU: { label: "Résolu", color: "bg-emerald-100 text-emerald-800 border-emerald-300" },
+  pending: { label: "En attente", color: "bg-amber-100 text-amber-800 border-amber-300" },
+  in_progress: { label: "En cours", color: "bg-sky-100 text-sky-800 border-sky-300" },
+  done: { label: "Résolu", color: "bg-emerald-100 text-emerald-800 border-emerald-300" },
+}
+
+// Libellés pour les types de demandes VIP
+const VIP_TYPE_LABELS: Record<string, string> = {
+  refreshment: "Commande rafraîchissement",
+  menu: "Demande menu",
+  shower: "Réservation douche",
+  charger: "Demande chargeur",
+  concierge: "Appel concierge",
+  problem: "Signalement problème",
+  rating: "Évaluation client",
+  cleanup: "Nettoyage table",
 }
 
 function formatTempsRelatifSignalement(iso: string): string {
@@ -1184,31 +1201,73 @@ function SignalementsDeniseSection() {
   const seenIdsRef = useRef<Set<string>>(new Set())
   const firstPollRef = useRef(true)
 
-  // Chargement + polling 15 s
+  // Chargement + polling 15 s — fetch BOTH airport reports AND VIP table requests
   const load = useCallback(async () => {
     try {
-      const res = await fetch("/api/airport/reports?limit=10", { cache: "no-store" })
-      const json = await res.json()
-      if (json.ok) {
-        const liste: SignalementLigne[] = json.data.reports ?? []
-        // Détection des nouveaux signalements (post-première-boucle) pour
-        // un éventuel effet visuel (flash ligne). Pour l'instant : juste
-        // peuple le seenIdsRef pour préparer une future animation.
-        if (firstPollRef.current) {
-          for (const r of liste) seenIdsRef.current.add(r.id)
-          firstPollRef.current = false
-        } else {
-          for (const r of liste) {
-            if (!seenIdsRef.current.has(r.id)) {
-              seenIdsRef.current.add(r.id)
-              // Nouveau signalement détecté — on peut hooker un son, etc.
-              // Ici, on se contente de mettre à jour la liste (le toast
-              // est déclenché côté AirportIncidentsBell déjà en place).
+      const [airportRes, vipRes] = await Promise.all([
+        fetch("/api/airport/reports?limit=10", { cache: "no-store" }).then((r) => r.json()).catch(() => null),
+        fetch("/api/vip/requests?limit=20", { cache: "no-store" }).then((r) => r.json()).catch(() => null),
+      ])
+
+      const airportListe: SignalementLigne[] = airportRes?.ok
+        ? (airportRes.data.reports ?? []).map((r: Record<string, unknown>) => ({
+            id: r.id as string,
+            problemType: r.problemType as string,
+            tagScanne: r.tagScanne as string,
+            statut: r.statut as string,
+            createdAt: r.createdAt as string,
+            resolvedAt: (r.resolvedAt as string) ?? null,
+            source: "airport" as const,
+            trackingNumber: null,
+            zone: (r.zone as { code: string; nom: string; emoji: string | null } | null) ?? null,
+          }))
+        : []
+
+      const vipListe: SignalementLigne[] = vipRes?.ok
+        ? (vipRes.data ?? []).map((r: Record<string, unknown>) => {
+            const table = r.table as { tableNumber?: string; zone?: string } | undefined
+            const zoneMap: Record<string, string> = {
+              main: "Espace Principal",
+              buffet: "Buffet & Bar",
+              relaxation: "Espace Détente",
+              meeting: "Salles de Réunion",
             }
+            return {
+              id: r.id as string,
+              problemType: VIP_TYPE_LABELS[r.type as string] ?? (r.type as string),
+              tagScanne: `Table ${table?.tableNumber ?? "?"}`,
+              statut: r.status as string,
+              createdAt: r.createdAt as string,
+              resolvedAt: null,
+              source: "vip" as const,
+              trackingNumber: (r.trackingNumber as string) ?? null,
+              zone: {
+                code: "vip",
+                nom: zoneMap[table?.zone ?? "main"] ?? "Salon VIP",
+                emoji: "🥂",
+              },
+            }
+          })
+        : []
+
+      // Merge + sort by createdAt desc
+      const all = [...airportListe, ...vipListe].sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      )
+      const liste = all.slice(0, 20) // Keep top 20
+
+      // Détection des nouveaux signalements
+      if (firstPollRef.current) {
+        for (const r of liste) seenIdsRef.current.add(r.id)
+        firstPollRef.current = false
+      } else {
+        for (const r of liste) {
+          if (!seenIdsRef.current.has(r.id)) {
+            seenIdsRef.current.add(r.id)
           }
         }
-        setReports(liste)
       }
+      setReports(liste)
     } catch {
       /* silencieux */
     } finally {
@@ -1242,36 +1301,46 @@ function SignalementsDeniseSection() {
     }
   }
 
-  /** Marque un signalement comme résolu (POST /api/airport/ops/resolve). */
+  /** Marque un signalement comme résolu. Airport → POST /api/airport/ops/resolve. VIP → PATCH /api/vip/requests/[id]. */
   async function resoudre(r: SignalementLigne) {
     setBusyId(r.id)
     try {
-      const res = await fetch("/api/airport/ops/resolve", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reportId: r.id }),
-      })
-      const json = await res.json()
-      if (json.ok) {
+      let okFlag = false
+      if (r.source === "vip") {
+        const res = await fetch(`/api/vip/requests/${encodeURIComponent(r.id)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "done" }),
+        })
+        const json = await res.json()
+        okFlag = !!json.ok
+        if (!okFlag) toast({ title: "Erreur", description: json.error ?? "Échec", variant: "destructive" })
+      } else {
+        const res = await fetch("/api/airport/ops/resolve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reportId: r.id }),
+        })
+        const json = await res.json()
+        okFlag = !!json.ok
+        if (!okFlag) toast({ title: "Erreur", description: json.error ?? "Échec", variant: "destructive" })
+      }
+      if (okFlag) {
         toast({
           title: "Signalement résolu ✓",
           description: `${r.problemType} (${r.zone?.nom ?? r.tagScanne})`,
         })
-        // Annonce vocale de résolution
         try {
           parler(`Signalement résolu. Zone ${r.zone?.nom ?? r.tagScanne}.`)
         } catch {
           /* non bloquant */
         }
-        // Met à jour la liste en local + re-poll complet
         setReports((prev) =>
           prev.map((x) =>
-            x.id === r.id ? { ...x, statut: "RESOLU", resolvedAt: new Date().toISOString() } : x,
+            x.id === r.id ? { ...x, statut: r.source === "vip" ? "done" : "RESOLU", resolvedAt: new Date().toISOString() } : x,
           ),
         )
         void load()
-      } else {
-        toast({ title: "Erreur", description: json.error ?? "Échec", variant: "destructive" })
       }
     } catch (e) {
       toast({
@@ -1284,33 +1353,44 @@ function SignalementsDeniseSection() {
     }
   }
 
-  /** Escalade un signalement → EN_COURS (POST /api/airport/ops/take-charge). */
+  /** Escalade un signalement → EN_COURS. Airport → POST /api/airport/ops/take-charge. VIP → PATCH /api/vip/requests/[id]. */
   async function escalader(r: SignalementLigne) {
     setBusyId(r.id)
     try {
-      const res = await fetch("/api/airport/ops/take-charge", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reportId: r.id }),
-      })
-      const json = await res.json()
-      if (json.ok) {
+      let okFlag = false
+      if (r.source === "vip") {
+        const res = await fetch(`/api/vip/requests/${encodeURIComponent(r.id)}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ status: "in_progress" }),
+        })
+        const json = await res.json()
+        okFlag = !!json.ok
+        if (!okFlag) toast({ title: "Erreur", description: json.error ?? "Échec", variant: "destructive" })
+      } else {
+        const res = await fetch("/api/airport/ops/take-charge", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reportId: r.id }),
+        })
+        const json = await res.json()
+        okFlag = !!json.ok
+        if (!okFlag) toast({ title: "Erreur", description: json.error ?? "Échec", variant: "destructive" })
+      }
+      if (okFlag) {
         toast({
           title: "Signalement escaladé",
           description: `${r.problemType} → EN_COURS`,
         })
-        // Annonce vocale d'escalade
         try {
           parler(`Escalade signalée. Zone ${r.zone?.nom ?? r.tagScanne}. Prise en charge ops.`)
         } catch {
           /* non bloquant */
         }
         setReports((prev) =>
-          prev.map((x) => (x.id === r.id ? { ...x, statut: "EN_COURS" } : x)),
+          prev.map((x) => (x.id === r.id ? { ...x, statut: r.source === "vip" ? "in_progress" : "EN_COURS" } : x)),
         )
         void load()
-      } else {
-        toast({ title: "Erreur", description: json.error ?? "Échec", variant: "destructive" })
       }
     } catch (e) {
       toast({
@@ -1323,11 +1403,15 @@ function SignalementsDeniseSection() {
     }
   }
 
-  // KPIs dérivés
+  // KPIs dérivés — compte les statuts normalisés (airport EN_ATTENTE + VIP pending, etc.)
+  const isAttente = (s: string) => s === "EN_ATTENTE" || s === "pending"
+  const isEnCours = (s: string) => s === "EN_COURS" || s === "in_progress"
+  const isResolu = (s: string) => s === "RESOLU" || s === "done"
+
   const total = reports.length
-  const enAttente = reports.filter((r) => r.statut === "EN_ATTENTE").length
-  const enCours = reports.filter((r) => r.statut === "EN_COURS").length
-  const resolus = reports.filter((r) => r.statut === "RESOLU").length
+  const enAttente = reports.filter((r) => isAttente(r.statut)).length
+  const enCours = reports.filter((r) => isEnCours(r.statut)).length
+  const resolus = reports.filter((r) => isResolu(r.statut)).length
 
   return (
     <div className="space-y-4">
@@ -1341,7 +1425,7 @@ function SignalementsDeniseSection() {
                 Gestion des Signalements
               </CardTitle>
               <CardDescription>
-                Command center Denise — feed temps réel (polling 15 s).
+                Command center Denise — feed temps réel (polling 15 s). Signalements Aéroport + Salon VIP.
                 « Annoncer » déclenche la voix Denise sur ce navigateur.
               </CardDescription>
             </div>
@@ -1376,7 +1460,7 @@ function SignalementsDeniseSection() {
       {/* Table des signalements */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm">10 derniers signalements aéroport</CardTitle>
+          <CardTitle className="text-sm">20 derniers signalements (Aéroport + Salon VIP)</CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
           {loading ? (
@@ -1391,7 +1475,7 @@ function SignalementsDeniseSection() {
               </span>
               <p className="text-sm font-medium">Aucun signalement pour le moment</p>
               <p className="text-xs text-muted-foreground">
-                Les incidents scannés par les voyageurs apparaîtront ici en temps réel.
+                Les incidents aéroport et demandes salon VIP apparaîtront ici en temps réel.
               </p>
             </div>
           ) : (
@@ -1413,18 +1497,31 @@ function SignalementsDeniseSection() {
                       color: "bg-zinc-100 text-zinc-700 border-zinc-300",
                     }
                     const isBusy = busyId === r.id
-                    const isResolu = r.statut === "RESOLU"
+                    const resolu = isResolu(r.statut)
                     return (
-                      <TableRow key={r.id} className={isResolu ? "opacity-60" : ""}>
+                      <TableRow key={`${r.source}-${r.id}`} className={resolu ? "opacity-60" : ""}>
                         <TableCell>
                           <div className="flex items-start gap-2">
                             <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-amber-100 text-sm" aria-hidden>
                               {r.zone?.emoji ?? "⚠"}
                             </span>
                             <div className="min-w-0">
-                              <p className="truncate text-sm font-medium leading-snug">{r.problemType}</p>
+                              <div className="flex items-center gap-1.5">
+                                <p className="truncate text-sm font-medium leading-snug">{r.problemType}</p>
+                                {/* Badge source */}
+                                <Badge
+                                  variant="outline"
+                                  className={`shrink-0 px-1 py-0 text-[9px] ${
+                                    r.source === "vip"
+                                      ? "border-[#C9A961]/40 bg-[#C9A961]/10 text-[#8B6F47]"
+                                      : "border-sky-300 bg-sky-50 text-sky-700"
+                                  }`}
+                                >
+                                  {r.source === "vip" ? "VIP" : "AÉRO"}
+                                </Badge>
+                              </div>
                               <p className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground" title={r.id}>
-                                #{r.id.slice(-8)} · {r.tagScanne}
+                                {r.trackingNumber ? `#${r.trackingNumber}` : `#${r.id.slice(-8)}`} · {r.tagScanne}
                               </p>
                             </div>
                           </div>
@@ -1458,7 +1555,7 @@ function SignalementsDeniseSection() {
                               size="sm"
                               variant="outline"
                               className="h-8 gap-1.5 border-amber-300 text-amber-700 hover:bg-amber-50"
-                              disabled={isBusy || isResolu}
+                              disabled={isBusy || resolu}
                               onClick={() => void escalader(r)}
                               aria-label={`Escalader ${r.problemType}`}
                               title="Marquer EN_COURS"
@@ -1469,7 +1566,7 @@ function SignalementsDeniseSection() {
                             <Button
                               size="sm"
                               className="h-8 gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700"
-                              disabled={isBusy || isResolu}
+                              disabled={isBusy || resolu}
                               onClick={() => void resoudre(r)}
                               aria-label={`Résoudre ${r.problemType}`}
                               title="Marquer RESOLU"

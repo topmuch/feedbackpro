@@ -4169,7 +4169,7 @@ export default function VIPDashboard() {
           {tab === 'reports' && <ReportsTab incidents={incidents} />}
           {tab === 'denise' && (
             <div className="rounded-2xl border border-[#EAE5DC] bg-white p-4 shadow-[0_4px_20px_rgba(201,169,97,0.06)] sm:p-6">
-              <AdminVoiceTab />
+              <AdminVoiceTab defaultTab="signalements" />
             </div>
           )}
           {tab === 'settings' && <SettingsTab />}
