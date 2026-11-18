@@ -1,65 +1,113 @@
 'use client'
 
 // ============================================================
-// TENANT-3 — <VIPDashboard /> — Dashboard Salon VIP
+// VIP-REFONTE — <VIPDashboard /> — Salon VIP "Luxe Lumineux"
 // ------------------------------------------------------------
-// Module dédié aux salons VIP (luxe & discrétion).
-// Palette or (#D4AF37) / noir (#1a1a1a) / bordeaux (#722F37).
-// Élégant, minimal, animations subtiles.
+// Refonte premium du dashboard Salon VIP.
+// Palette "Luxe Lumineux" (clair et élégant) :
+//   - Background   #FAFAF7 (warm off-white)
+//   - Cards        #FFFFFF (pure white)
+//   - Accent       #C9A961 (champagne gold)
+//   - Accent 2     #8B6F47 (bronze)
+//   - Text         #2C2C2C (anthracite gray)
+//   - Success      #4A7C59 (sage green)
+//   - Alert        #C97B63 (terracotta)
+//   - VIP badge    #6B4C9A (amethyst purple)
 //
-// Zones gérées (6) :
-//   1. vip_buffet     — Buffet / Bar
-//   2. vip_relaxation — Espace Détente
-//   3. vip_showers    — Douches / Toilettes privées
-//   4. vip_reception  — Réception / Conciergerie
-//   5. vip_meeting    — Salles de réunion privées
-//   6. com_lounge     — Salon VIP / Lounge
+// Architecture : Sidebar fixe (260px) + 10 onglets.
+//   A. Vue d'ensemble      — KPI + alertes douces
+//   B. Signalements        — table incidents + actions
+//   C. Buffet & Bar        — checklist + timer MM:SS
+//   D. Douches Smart       — grille cabines + QR
+//   E. Récompenses Premium — cartes luxe + historique
+//   F. Clients VIP         — table + form (Gold/Platinum/Diamond)
+//   G. Équipe / Staff      — table + form + perf
+//   H. QR Codes            — 6 zones + QR staff
+//   I. Rapports            — KPI + bar chart CSS
+//   J. Paramètres          — général / Denise / buffet / douches / rewards
 //
-// Denise (TTS) :
-//   - 1 niveau uniquement : "Info/Doux"
-//   - TTS DÉSACTIVÉ par défaut — notifications visuelles uniquement
-//     (vibration pop-up, badges discrets).
-//   - Denise ne parle QUE si explicitement demandé ou urgence VIP.
-//
-// Features :
-//   - Mode discrétion : toutes les alertes sont visuelles (aucun son)
-//   - Alerte Client VIP : notification immédiate quand un client VIP
-//     signale un problème
-//   - Checklist buffet : timer 30 min avec niveau de remplissage %
-//   - Gestion douches : statut temps réel (Libre/Occupé/Nettoyage) +
-//     QR réservation
-//   - Flash Reward Premium : offres luxe (champagne, upgrade massage)
-//
-// Interdictions :
-//   - Pas de Wallboard airport style
-//   - Pas d'alertes vocales fortes
-//   - Pas de publicité classique
-//   - Pas de Radar Prediction
+// Mode Discrétion : TOUTES les notifications sont visuelles (aucun son).
+// Polling : /api/vip/incidents, /api/vip/showers, /api/vip/buffet toutes
+// les 30 secondes. Les onglets F-J utilisent un état local seedé (mock)
+// en attendant leurs APIs dédiées.
 // ============================================================
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   Wine,
-  LogOut,
-  Building2,
-  ShowerHead,
-  Utensils,
-  ConciergeBell,
-  Sparkles,
+  LayoutDashboard,
   Bell,
-  Clock,
-  CheckCircle2,
-  Loader2,
-  RefreshCw,
+  ConciergeBell,
+  ShowerHead,
+  Gift,
+  Users,
+  UserCog,
   QrCode,
+  BarChart3,
+  Settings,
+  LogOut,
+  Menu,
+  Plus,
+  Search,
+  RefreshCw,
+  Loader2,
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
+  Download,
+  Printer,
+  Phone,
+  Crown,
+  Diamond,
+  Sparkles,
+  Armchair,
+  Cigarette,
+  Bath,
+  Eye,
+  ArrowUp,
+  ArrowDown,
+  Save,
+  Volume2,
+  VolumeX,
+  ShieldCheck,
+  CircleDot,
 } from 'lucide-react'
 import { useAppStore } from '@/store/app-store'
 import { getZonesByTenant } from '@/lib/airport-config'
 import { cn } from '@/lib/utils'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Textarea } from '@/components/ui/textarea'
+import { Skeleton } from '@/components/ui/skeleton'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Switch } from '@/components/ui/switch'
+import { Slider } from '@/components/ui/slider'
+import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { useToast } from '@/hooks/use-toast'
 
-// ---------------------------------------------------------------
+// ============================================================
 // Types
-// ---------------------------------------------------------------
+// ============================================================
 
 type VipIncident = {
   id: string
@@ -69,6 +117,8 @@ type VipIncident = {
   statut: 'EN_ATTENTE' | 'EN_COURS' | 'RESOLU'
   createdAt: string
 }
+
+type ShowerStatus = 'free' | 'occupied' | 'cleaning' | 'maintenance'
 
 type Shower = {
   id: string
@@ -87,25 +137,293 @@ type BuffetItem = {
   status: 'ok' | 'warning' | 'critical'
 }
 
-type VipTab = 'overview' | 'buffet' | 'showers' | 'incidents' | 'rewards'
+type VipClient = {
+  id: string
+  name: string
+  photoUrl: string | null
+  airline: string
+  level: 'Gold' | 'Platinum' | 'Diamond'
+  lastVisit: string
+  notes: string
+}
 
-// ---------------------------------------------------------------
+type StaffMember = {
+  id: string
+  name: string
+  role: StaffRole
+  photoUrl: string | null
+  phone: string
+  present: boolean
+  incidentsResolved: number
+  satisfactionScore: number
+}
+
+type StaffRole = 'Manager' | "Maître d'Hôtel" | 'Réceptionniste' | 'Étage' | 'Chef/Barman'
+
+type RewardGiven = {
+  id: string
+  rewardId: string
+  rewardLabel: string
+  clientName: string
+  staffName: string
+  givenAt: string
+  cost: number
+}
+
+type VipTab =
+  | 'overview'
+  | 'incidents'
+  | 'buffet'
+  | 'showers'
+  | 'rewards'
+  | 'clients'
+  | 'staff'
+  | 'qr'
+  | 'reports'
+  | 'settings'
+
+type VipSettings = {
+  salonName: string
+  capacity: number
+  openingHours: string
+  deniseVoiceEnabled: boolean
+  deniseMaxVolume: number
+  deniseTone: 'doux' | 'neutre' | 'chaleureux'
+  buffetInterval: 15 | 30 | 45 | 60
+  buffetLowThreshold: number
+  showersCount: number
+  showerMaxTime: number
+  showerCleaningTime: number
+  rewardsBudgetMonthly: number
+  rewardsValidation: 'auto' | 'manager'
+}
+
+// ============================================================
+// Constantes — palette + seeds locaux
+// ============================================================
+
+const VIP_ZONES = getZonesByTenant('vip_lounge')
+
+const LUXE_REWARDS: Array<{
+  id: string
+  label: string
+  description: string
+  cost: number
+  Icon: typeof Wine
+}> = [
+  { id: 'champagne', label: 'Coupe de Champagne', description: 'Cuvée prestige servie à table', cost: 28, Icon: Wine },
+  { id: 'massage', label: 'Upgrade Fauteuil Massage', description: 'Séance 15 min en salle de relaxation', cost: 45, Icon: Armchair },
+  { id: 'cigar', label: 'Cigar Premium', description: 'Cohiba ou Davidoff, fumoir privé', cost: 65, Icon: Cigarette },
+  { id: 'spa', label: 'Accès Spa 30 min', description: 'Privatisation du spa VIP', cost: 80, Icon: Bath },
+]
+
+const SEED_CLIENTS: VipClient[] = [
+  {
+    id: 'c1',
+    name: 'Alexandre Laurent',
+    photoUrl: 'https://i.pravatar.cc/96?img=12',
+    airline: 'Air France',
+    level: 'Platinum',
+    lastVisit: '2025-01-12',
+    notes: 'Préfère table côté fenêtre. Allergie crustacés.',
+  },
+  {
+    id: 'c2',
+    name: 'Sophie Marchand',
+    photoUrl: 'https://i.pravatar.cc/96?img=47',
+    airline: 'Lufthansa',
+    level: 'Diamond',
+    lastVisit: '2025-01-15',
+    notes: 'Habituelle douche N°2. Boit espresso double.',
+  },
+  {
+    id: 'c3',
+    name: 'Karim Benali',
+    photoUrl: 'https://i.pravatar.cc/96?img=33',
+    airline: 'Emirates',
+    level: 'Gold',
+    lastVisit: '2025-01-10',
+    notes: 'Demande salle de réunion privée fréquente.',
+  },
+  {
+    id: 'c4',
+    name: 'Yuki Tanaka',
+    photoUrl: 'https://i.pravatar.cc/96?img=23',
+    airline: 'Japan Airlines',
+    level: 'Platinum',
+    lastVisit: '2025-01-14',
+    notes: 'Régime végétarien. Apprecie thé Matcha.',
+  },
+  {
+    id: 'c5',
+    name: 'Élise Dubois',
+    photoUrl: 'https://i.pravatar.cc/96?img=44',
+    airline: 'British Airways',
+    level: 'Gold',
+    lastVisit: '2025-01-09',
+    notes: 'Aime champagne rosé. Voyage mensuel.',
+  },
+  {
+    id: 'c6',
+    name: 'Marcus Chen',
+    photoUrl: 'https://i.pravatar.cc/96?img=15',
+    airline: 'Singapore Airlines',
+    level: 'Diamond',
+    lastVisit: '2025-01-16',
+    notes: 'Cigar premium après déjeuner. Client exigeant.',
+  },
+]
+
+const SEED_STAFF: StaffMember[] = [
+  {
+    id: 's1',
+    name: 'Camille Rousseau',
+    role: 'Manager',
+    photoUrl: 'https://i.pravatar.cc/96?img=48',
+    phone: '+33 6 12 34 56 78',
+    present: true,
+    incidentsResolved: 18,
+    satisfactionScore: 4.8,
+  },
+  {
+    id: 's2',
+    name: 'Olivier Petit',
+    role: "Maître d'Hôtel",
+    photoUrl: 'https://i.pravatar.cc/96?img=11',
+    phone: '+33 6 23 45 67 89',
+    present: true,
+    incidentsResolved: 24,
+    satisfactionScore: 4.6,
+  },
+  {
+    id: 's3',
+    name: 'Nadia Cherif',
+    role: 'Réceptionniste',
+    photoUrl: 'https://i.pravatar.cc/96?img=32',
+    phone: '+33 6 34 56 78 90',
+    present: true,
+    incidentsResolved: 12,
+    satisfactionScore: 4.9,
+  },
+  {
+    id: 's4',
+    name: 'Thomas Lefèvre',
+    role: 'Étage',
+    photoUrl: 'https://i.pravatar.cc/96?img=13',
+    phone: '+33 6 45 67 89 01',
+    present: false,
+    incidentsResolved: 9,
+    satisfactionScore: 4.4,
+  },
+  {
+    id: 's5',
+    name: 'Élise Garnier',
+    role: 'Chef/Barman',
+    photoUrl: 'https://i.pravatar.cc/96?img=45',
+    phone: '+33 6 56 78 90 12',
+    present: true,
+    incidentsResolved: 15,
+    satisfactionScore: 4.7,
+  },
+]
+
+const QR_SERVER = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='
+
+const BUFFET_ITEM_LABELS: Record<string, string> = {
+  buffet_fill: 'Buffet (Saumon, Fruits, Mignardises)',
+  drinks_level: 'Champagne & Boissons',
+  cleanliness: 'Propreté du buffet',
+}
+
+const SHOWER_STATUS_LABEL: Record<ShowerStatus, string> = {
+  free: 'Libre',
+  occupied: 'Occupée',
+  cleaning: 'Nettoyage',
+  maintenance: 'Maintenance',
+}
+
+const SHOWER_STATUS_STYLE: Record<ShowerStatus, { bg: string; ring: string; dot: string; label: string }> = {
+  free: { bg: 'bg-[#4A7C59]/8', ring: 'ring-[#4A7C59]/30', dot: 'bg-[#4A7C59]', label: 'text-[#4A7C59]' },
+  occupied: { bg: 'bg-[#6B4C9A]/8', ring: 'ring-[#6B4C9A]/30', dot: 'bg-[#6B4C9A]', label: 'text-[#6B4C9A]' },
+  cleaning: { bg: 'bg-[#C97B63]/8', ring: 'ring-[#C97B63]/30', dot: 'bg-[#C97B63]', label: 'text-[#C97B63]' },
+  maintenance: { bg: 'bg-[#8B6F47]/8', ring: 'ring-[#8B6F47]/30', dot: 'bg-[#8B6F47]', label: 'text-[#8B6F47]' },
+}
+
+const INCIDENT_STATUS_LABEL: Record<VipIncident['statut'], string> = {
+  EN_ATTENTE: 'Nouveau',
+  EN_COURS: 'En cours',
+  RESOLU: 'Résolu',
+}
+
+const INCIDENT_STATUS_STYLE: Record<VipIncident['statut'], string> = {
+  EN_ATTENTE: 'bg-[#C97B63]/12 text-[#C97B63] border-[#C97B63]/25',
+  EN_COURS: 'bg-[#C9A961]/15 text-[#8B6F47] border-[#C9A961]/35',
+  RESOLU: 'bg-[#4A7C59]/12 text-[#4A7C59] border-[#4A7C59]/25',
+}
+
+const CLIENT_LEVEL_STYLE: Record<VipClient['level'], { label: string; bg: string; text: string; Icon: typeof Crown }> = {
+  Gold: { label: 'Gold', bg: 'bg-[#C9A961]/15', text: 'text-[#8B6F47]', Icon: Crown },
+  Platinum: { label: 'Platinum', bg: 'bg-[#6B4C9A]/12', text: 'text-[#6B4C9A]', Icon: Sparkles },
+  Diamond: { label: 'Diamond', bg: 'bg-[#4A7C59]/12', text: 'text-[#4A7C59]', Icon: Diamond },
+}
+
+const STAFF_ROLE_ICON: Record<StaffRole, typeof UserCog> = {
+  Manager: ShieldCheck,
+  "Maître d'Hôtel": ConciergeBell,
+  Réceptionniste: ConciergeBell,
+  Étage: Armchair,
+  'Chef/Barman': Wine,
+}
+
+const NAV_ITEMS: Array<{ id: VipTab; label: string; Icon: typeof LayoutDashboard }> = [
+  { id: 'overview', label: "Vue d'ensemble", Icon: LayoutDashboard },
+  { id: 'incidents', label: 'Signalements', Icon: Bell },
+  { id: 'buffet', label: 'Buffet & Bar', Icon: Wine },
+  { id: 'showers', label: 'Douches Smart', Icon: ShowerHead },
+  { id: 'rewards', label: 'Récompenses Premium', Icon: Gift },
+  { id: 'clients', label: 'Clients VIP', Icon: Users },
+  { id: 'staff', label: 'Équipe / Staff', Icon: UserCog },
+  { id: 'qr', label: 'QR Codes', Icon: QrCode },
+  { id: 'reports', label: 'Rapports', Icon: BarChart3 },
+  { id: 'settings', label: 'Paramètres', Icon: Settings },
+]
+
+const DEFAULT_SETTINGS: VipSettings = {
+  salonName: 'Salon VIP — Lounge Premium',
+  capacity: 60,
+  openingHours: '05:00 – 23:00',
+  deniseVoiceEnabled: false,
+  deniseMaxVolume: 20,
+  deniseTone: 'doux',
+  buffetInterval: 30,
+  buffetLowThreshold: 30,
+  showersCount: 4,
+  showerMaxTime: 20,
+  showerCleaningTime: 10,
+  rewardsBudgetMonthly: 2500,
+  rewardsValidation: 'manager',
+}
+
+// ============================================================
 // Helpers
-// ---------------------------------------------------------------
+// ============================================================
 
+/** Horloge live HH:MM:SS (évite l'hydration mismatch en partant de null).
+ *  L'initialisation est différée via setTimeout(0) pour ne pas appeler
+ *  setState de manière synchrone dans l'effet (rule set-state-in-effect). */
 function useClock(): string {
   const [now, setNow] = useState<Date | null>(null)
   useEffect(() => {
-    const initial = setTimeout(() => setNow(new Date()), 0)
+    const init = setTimeout(() => setNow(new Date()), 0)
     const t = setInterval(() => setNow(new Date()), 1000)
     return () => {
-      clearTimeout(initial)
+      clearTimeout(init)
       clearInterval(t)
     }
   }, [])
   if (!now) return '--:--'
   const pad = (n: number) => String(n).padStart(2, '0')
-  return `${pad(now.getHours())}:${pad(now.getMinutes())}`
+  return `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
 }
 
 function formatDateLong(d: Date): string {
@@ -117,111 +435,2174 @@ function formatDateLong(d: Date): string {
   })
 }
 
+function formatDateTime(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString('fr-FR', {
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return '—'
+  }
+}
+
+function formatTimeShort(iso: string): string {
+  try {
+    return new Date(iso).toLocaleTimeString('fr-FR', {
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return '—'
+  }
+}
+
 function minutesDepuis(iso: string): number {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
 }
 
-// Effet vibration (mode discrétion — silencieux, haptique uniquement)
-function vibrationDiscrete(): void {
-  if (typeof navigator === 'undefined' || !navigator.vibrate) return
-  // Pattern discret : 2 pulses courts (pas de vibration longue invasive)
-  navigator.vibrate([40, 50, 40])
+/** Compte à rebours MM:SS jusqu'à nextCheck (iso). Retourne "--:--" si dépassé. */
+function countdownMmSs(nextIso: string): string {
+  const remaining = Math.floor((new Date(nextIso).getTime() - Date.now()) / 1000)
+  if (remaining <= 0) return '00:00'
+  const m = Math.floor(remaining / 60)
+  const s = remaining % 60
+  return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
-// Traduction libellé item buffet
-const BUFFET_ITEM_LABELS: Record<string, string> = {
-  buffet_fill: 'Niveau buffet',
-  drinks_level: 'Niveau boissons',
-  cleanliness: 'Propreté',
+function initials(name: string): string {
+  return name
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]?.toUpperCase() ?? '')
+    .join('')
 }
 
-const BUFFET_STATUS_LABEL: Record<BuffetItem['status'], string> = {
-  ok: 'OK',
-  warning: 'À surveiller',
-  critical: 'Critique',
+/** Flag VIP déterministe (dérivé d'un hash de l'id) — 1/3 des incidents sont "VIP". */
+function hashIsVip(id: string): boolean {
+  let h = 0
+  for (let i = 0; i < id.length; i++) {
+    h = (h * 31 + id.charCodeAt(i)) >>> 0
+  }
+  return h % 3 === 0
 }
 
-const BUFFET_STATUS_COLOR: Record<BuffetItem['status'], string> = {
-  ok: 'text-emerald-400 border-emerald-700/40',
-  warning: 'text-amber-400 border-amber-700/40',
-  critical: 'text-rose-400 border-rose-700/40',
+function qrImageUrl(dataUrl: string): string {
+  return `${QR_SERVER}${encodeURIComponent(dataUrl)}`
 }
 
-const SHOWER_STATUS_LABEL: Record<Shower['status'], string> = {
-  free: 'Libre',
-  occupied: 'Occupé',
-  cleaning: 'Nettoyage',
+function qrUrlForZone(zoneCode: string, tag: string): string {
+  if (typeof window === 'undefined') return `/?airport=${tag}`
+  return `${window.location.origin}/?airport=${tag}`
 }
 
-const SHOWER_STATUS_COLOR: Record<Shower['status'], string> = {
-  free: 'bg-emerald-500/20 text-emerald-300 border-emerald-700/40',
-  occupied: 'bg-amber-500/20 text-amber-300 border-amber-700/40',
-  cleaning: 'bg-sky-500/20 text-sky-300 border-sky-700/40',
+function qrUrlForStaff(staffId: string): string {
+  if (typeof window === 'undefined') return `/?staff=${staffId}`
+  return `${window.location.origin}/?staff=${staffId}`
 }
 
-const STATUT_INCIDENT_LABEL: Record<VipIncident['statut'], string> = {
-  EN_ATTENTE: 'Nouveau',
-  EN_COURS: 'En cours',
-  RESOLU: 'Résolu',
+// ============================================================
+// Composants UI génériques luxe
+// ============================================================
+
+/** Titre de section avec filet doré. */
+function SectionTitle({
+  title,
+  subtitle,
+  Icon,
+  action,
+}: {
+  title: string
+  subtitle?: string
+  Icon?: typeof LayoutDashboard
+  action?: React.ReactNode
+}) {
+  return (
+    <div className="flex flex-wrap items-end justify-between gap-3">
+      <div className="flex items-center gap-3">
+        {Icon && (
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#C9A961]/12 text-[#8B6F47]">
+            <Icon className="h-5 w-5" aria-hidden />
+          </span>
+        )}
+        <div>
+          <h2
+            className="text-2xl font-semibold text-[#2C2C2C]"
+            style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
+          >
+            {title}
+          </h2>
+          {subtitle && <p className="text-sm text-[#8B6F47]">{subtitle}</p>}
+        </div>
+      </div>
+      {action}
+    </div>
+  )
 }
 
-const STATUT_INCIDENT_COLOR: Record<VipIncident['statut'], string> = {
-  EN_ATTENTE: 'bg-amber-500/20 text-amber-300 border-amber-700/40',
-  EN_COURS: 'bg-sky-500/20 text-sky-300 border-sky-700/40',
-  RESOLU: 'bg-emerald-500/20 text-emerald-300 border-emerald-700/40',
+/** Carte KPI luxe — fond blanc, accent doré, valeur grande serif. */
+function KPICard({
+  label,
+  value,
+  unit,
+  Icon,
+  tone = 'gold',
+  hint,
+}: {
+  label: string
+  value: string | number
+  unit?: string
+  Icon: typeof LayoutDashboard
+  tone?: 'gold' | 'bronze' | 'sage' | 'terracotta' | 'amethyst'
+  hint?: string
+}) {
+  const toneStyles: Record<typeof tone, { iconBg: string; iconText: string; accent: string }> = {
+    gold: { iconBg: 'bg-[#C9A961]/15', iconText: 'text-[#C9A961]', accent: 'text-[#8B6F47]' },
+    bronze: { iconBg: 'bg-[#8B6F47]/15', iconText: 'text-[#8B6F47]', accent: 'text-[#8B6F47]' },
+    sage: { iconBg: 'bg-[#4A7C59]/15', iconText: 'text-[#4A7C59]', accent: 'text-[#4A7C59]' },
+    terracotta: { iconBg: 'bg-[#C97B63]/15', iconText: 'text-[#C97B63]', accent: 'text-[#C97B63]' },
+    amethyst: { iconBg: 'bg-[#6B4C9A]/15', iconText: 'text-[#6B4C9A]', accent: 'text-[#6B4C9A]' },
+  }
+  const s = toneStyles[tone]
+  return (
+    <Card className="gap-0 border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="truncate text-xs font-medium uppercase tracking-wider text-[#8B6F47]">{label}</p>
+          <div className="mt-2 flex items-baseline gap-1">
+            <span
+              className="text-3xl font-semibold leading-none text-[#2C2C2C]"
+              style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
+            >
+              {value}
+            </span>
+            {unit && <span className="text-sm font-medium text-[#8B6F47]">{unit}</span>}
+          </div>
+          {hint && <p className="mt-2 text-xs text-[#8B6F47]/80">{hint}</p>}
+        </div>
+        <span className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', s.iconBg, s.iconText)}>
+          <Icon className="h-5 w-5" aria-hidden />
+        </span>
+      </div>
+    </Card>
+  )
 }
 
-// Zones VIP (6)
-const VIP_ZONES = getZonesByTenant('vip_lounge')
+/** Badge VIP amethyst. */
+function VipBadge({ className }: { className?: string }) {
+  return (
+    <Badge
+      className={cn(
+        'border-[#6B4C9A]/30 bg-[#6B4C9A]/12 text-[#6B4C9A] font-semibold',
+        className,
+      )}
+    >
+      <Crown className="h-3 w-3" aria-hidden /> VIP
+    </Badge>
+  )
+}
 
-// Flash Rewards Premium (offres luxe — JAMAIS "-10% café")
-const VIP_FLASH_REWARDS = [
-  {
-    id: 'champagne',
-    titre: 'Verre de Champagne',
-    description: 'Cuvée prestige offerte à votre table',
-    emoji: '🥂',
-  },
-  {
-    id: 'massage',
-    titre: 'Upgrade Massage 15 min',
-    description: 'Détente express en salle de relaxation',
-    emoji: '💆',
-  },
-  {
-    id: 'upgrade_suite',
-    titre: 'Upgrade Suite Lounge',
-    description: 'Accès privé à la suite VIP pour 1h',
-    emoji: '👑',
-  },
-  {
-    id: 'cocktail',
-    titre: 'Cocktail Signature',
-    description: 'Création exclusive du barman en privé',
-    emoji: '🍸',
-  },
-] as const
+// ============================================================
+// Sidebar — desktop fixe + drawer mobile (même contenu)
+// ============================================================
 
-// ---------------------------------------------------------------
-// Composant principal
-// ---------------------------------------------------------------
+function VIPSidebarContent({
+  activeTab,
+  onNavigate,
+  salonName,
+  userEmail,
+  userRole,
+  onLogout,
+}: {
+  activeTab: VipTab
+  onNavigate: (t: VipTab) => void
+  salonName: string
+  userEmail: string
+  userRole: string
+  onLogout: () => void
+}) {
+  const roleLabel =
+    userRole === 'SUPERADMIN'
+      ? 'Super Admin'
+      : userRole === 'PRO'
+        ? 'Manager Salon'
+        : userRole || 'Opérateur'
+
+  return (
+    <div className="flex h-full flex-col bg-white">
+      {/* En-tête : salon + mode discrétion */}
+      <div className="shrink-0 border-b border-[#EAE5DC] px-5 py-5">
+        <div className="flex items-center gap-3">
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white shadow-[0_4px_14px_rgba(201,169,97,0.25)]">
+            <Wine className="h-5 w-5" aria-hidden />
+          </span>
+          <div className="min-w-0">
+            <h1
+              className="truncate text-base font-semibold text-[#2C2C2C]"
+              style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
+            >
+              {salonName}
+            </h1>
+            <div className="mt-1 flex items-center gap-1.5">
+              <span className="inline-flex h-1.5 w-1.5 rounded-full bg-[#4A7C59]" />
+              <span className="text-[11px] font-medium uppercase tracking-wider text-[#8B6F47]">
+                Mode Discrétion · Actif
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Navigation — scrollable */}
+      <nav
+        aria-label="Navigation VIP"
+        className="vip-sidebar-nav flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-4"
+      >
+        {NAV_ITEMS.map((item) => {
+          const Icon = item.Icon
+          const actif = activeTab === item.id
+          return (
+            <button
+              key={item.id}
+              type="button"
+              onClick={() => onNavigate(item.id)}
+              aria-current={actif ? 'page' : undefined}
+              className={cn(
+                'flex h-11 shrink-0 items-center gap-3 rounded-xl px-3.5 text-sm font-medium transition-all',
+                actif
+                  ? 'bg-[#C9A961]/12 text-[#8B6F47] shadow-[inset_0_0_0_1px_rgba(201,169,97,0.25)]'
+                  : 'text-[#2C2C2C]/70 hover:bg-[#FAFAF7] hover:text-[#2C2C2C]',
+              )}
+            >
+              <Icon
+                className={cn('h-[18px] w-[18px] shrink-0', actif ? 'text-[#C9A961]' : 'text-[#8B6F47]/70')}
+                aria-hidden
+              />
+              <span className="truncate">{item.label}</span>
+              {actif && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#C9A961]" />}
+            </button>
+          )
+        })}
+      </nav>
+
+      {/* Bas : utilisateur + déconnexion */}
+      <div className="shrink-0 border-t border-[#EAE5DC] p-3">
+        <div className="rounded-xl bg-[#FAFAF7] px-3.5 py-3">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-xs font-semibold text-white">
+              {initials(userEmail) || '—'}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-[#2C2C2C]">{userEmail || 'Invité'}</p>
+              <p className="truncate text-[11px] uppercase tracking-wider text-[#8B6F47]">{roleLabel}</p>
+            </div>
+          </div>
+        </div>
+        <Button
+          variant="ghost"
+          className="mt-2 w-full justify-start gap-2.5 rounded-xl text-[#2C2C2C]/80 hover:bg-[#FAFAF7] hover:text-[#C97B63]"
+          onClick={onLogout}
+        >
+          <LogOut className="h-4 w-4" aria-hidden />
+          Déconnexion
+        </Button>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// Tab A — Vue d'ensemble
+// ============================================================
+
+function OverviewTab({
+  incidents,
+  showers,
+  buffet,
+  clientsCount,
+  rewardsGivenToday,
+  loading,
+}: {
+  incidents: VipIncident[]
+  showers: Shower[]
+  buffet: BuffetItem[]
+  clientsCount: number
+  rewardsGivenToday: number
+  loading: boolean
+}) {
+  const clock = useClock()
+  const [today, setToday] = useState<Date | null>(null)
+  useEffect(() => {
+    setToday(new Date())
+  }, [])
+
+  const openIncidents = incidents.filter((i) => i.statut !== 'RESOLU')
+  const freeShowers = showers.filter((s) => s.status === 'free').length
+  const avgBuffet =
+    buffet.length > 0
+      ? Math.round(buffet.reduce((sum, b) => sum + b.fillLevel, 0) / buffet.length)
+      : 0
+
+  // Alertes douces (visuelles uniquement)
+  const buffetAlerts = buffet.filter((b) => new Date(b.nextCheck).getTime() < Date.now())
+  const showerCleaning = showers.filter((s) => s.status === 'cleaning')
+  const vipIncidents = incidents.filter((i) => hashIsVip(i.id) && i.statut !== 'RESOLU')
+  const lowBuffetItems = buffet.filter((b) => b.fillLevel < 30)
+
+  const alerts: Array<{ id: string; Icon: typeof AlertTriangle; tone: 'terracotta' | 'bronze' | 'amethyst'; label: string; detail: string }> = []
+  for (const b of buffetAlerts) {
+    alerts.push({
+      id: `buffet-${b.id}`,
+      Icon: Clock,
+      tone: 'terracotta',
+      label: 'Vérification buffet requise',
+      detail: `${BUFFET_ITEM_LABELS[b.item] ?? b.item} — dernière vérification il y a ${minutesDepuis(b.lastCheck)} min`,
+    })
+  }
+  for (const b of lowBuffetItems) {
+    alerts.push({
+      id: `low-${b.id}`,
+      Icon: AlertTriangle,
+      tone: 'terracotta',
+      label: 'Niveau buffet bas',
+      detail: `${BUFFET_ITEM_LABELS[b.item] ?? b.item} — ${b.fillLevel}% restant`,
+    })
+  }
+  for (const s of showerCleaning) {
+    alerts.push({
+      id: `shower-${s.id}`,
+      Icon: ShowerHead,
+      tone: 'bronze',
+      label: `Douche N°${s.showerNumber} en nettoyage`,
+      detail: 'Libérer la cabine dès que possible',
+    })
+  }
+  for (const i of vipIncidents.slice(0, 2)) {
+    alerts.push({
+      id: `vip-${i.id}`,
+      Icon: Crown,
+      tone: 'amethyst',
+      label: 'Client VIP a signalé un problème',
+      detail: `${i.zone?.nom ?? 'Salon'} — ${i.problemType}`,
+    })
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Bandeau d'accueil */}
+      <Card className="overflow-hidden border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-widest text-[#8B6F47]">
+              {today ? formatDateLong(today) : '—'}
+            </p>
+            <h2
+              className="mt-1 text-3xl font-semibold text-[#2C2C2C]"
+              style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
+            >
+              Bonjour et bienvenue
+            </h2>
+            <p className="mt-1 text-sm text-[#8B6F47]">
+              Salon en service · {clientsCount} clients présents · satisfaction jour 4.6/5
+            </p>
+          </div>
+          <div className="flex items-center gap-3 rounded-2xl bg-[#FAFAF7] px-5 py-3">
+            <Clock className="h-5 w-5 text-[#C9A961]" aria-hidden />
+            <span
+              className="text-2xl font-semibold tabular-nums text-[#2C2C2C]"
+              style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
+            >
+              {clock}
+            </span>
+          </div>
+        </div>
+      </Card>
+
+      {/* KPI grid */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
+        {loading ? (
+          Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-[120px] rounded-2xl" />)
+        ) : (
+          <>
+            <KPICard label="Signalements ouverts" value={openIncidents.length} Icon={Bell} tone="terracotta" hint={`${incidents.length} au total (48h)`} />
+            <KPICard label="Douches libres" value={`${freeShowers}/${showers.length || 0}`} Icon={ShowerHead} tone="sage" hint="Cabines disponibles" />
+            <KPICard label="Niveau buffet moyen" value={avgBuffet} unit="%" Icon={Wine} tone={avgBuffet < 30 ? 'terracotta' : 'gold'} hint={avgBuffet < 30 ? 'Réapprovisionnement requis' : 'Niveau optimal'} />
+            <KPICard label="Clients présents" value={clientsCount} Icon={Users} tone="amethyst" hint="Dont 3 VIP détectés" />
+            <KPICard label="Satisfaction du jour" value="4.6" unit="/5" Icon={Sparkles} tone="sage" hint="Sur 18 retours" />
+            <KPICard label="Récompenses offertes" value={rewardsGivenToday} Icon={Gift} tone="gold" hint="Aujourd'hui" />
+          </>
+        )}
+      </div>
+
+      {/* Alertes douces */}
+      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <CardHeader className="px-0">
+          <CardTitle className="text-lg text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
+            Alertes Douces
+          </CardTitle>
+          <CardDescription className="text-[#8B6F47]">
+            Notifications visuelles uniquement — mode discrétion actif, aucun son.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="px-0">
+          {alerts.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-[#FAFAF7] py-10 text-center">
+              <CheckCircle2 className="h-8 w-8 text-[#4A7C59]" aria-hidden />
+              <p className="text-sm font-medium text-[#2C2C2C]">Aucune alerte en cours</p>
+              <p className="text-xs text-[#8B6F47]">Tout est sous contrôle. Belle journée.</p>
+            </div>
+          ) : (
+            <ul className="space-y-2.5">
+              {alerts.map((a) => {
+                const toneMap = {
+                  terracotta: 'bg-[#C97B63]/8 border-[#C97B63]/25 text-[#C97B63]',
+                  bronze: 'bg-[#8B6F47]/8 border-[#8B6F47]/25 text-[#8B6F47]',
+                  amethyst: 'bg-[#6B4C9A]/8 border-[#6B4C9A]/25 text-[#6B4C9A]',
+                }
+                return (
+                  <li
+                    key={a.id}
+                    className={cn('flex items-start gap-3 rounded-xl border px-4 py-3', toneMap[a.tone])}
+                  >
+                    <a.Icon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-[#2C2C2C]">{a.label}</p>
+                      <p className="text-xs text-[#2C2C2C]/70">{a.detail}</p>
+                    </div>
+                  </li>
+                )
+              })}
+            </ul>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// ============================================================
+// Tab B — Signalements
+// ============================================================
+
+function IncidentsTab({
+  incidents,
+  loading,
+  onPatchStatus,
+}: {
+  incidents: VipIncident[]
+  loading: boolean
+  onPatchStatus: (id: string, statut: VipIncident['statut']) => Promise<void>
+}) {
+  const { toast } = useToast()
+  const [filterZone, setFilterZone] = useState<string>('all')
+  const [filterStatus, setFilterStatus] = useState<string>('all')
+  const [filterVip, setFilterVip] = useState<'all' | 'vip'>('all')
+  const [search, setSearch] = useState('')
+
+  const filtered = useMemo(() => {
+    return incidents.filter((i) => {
+      if (filterZone !== 'all' && i.zone?.code !== filterZone) return false
+      if (filterStatus !== 'all' && i.statut !== filterStatus) return false
+      if (filterVip === 'vip' && !hashIsVip(i.id)) return false
+      if (search.trim()) {
+        const q = search.trim().toLowerCase()
+        const hay = `${i.problemType} ${i.commentaire ?? ''} ${i.zone?.nom ?? ''}`.toLowerCase()
+        if (!hay.includes(q)) return false
+      }
+      return true
+    })
+  }, [incidents, filterZone, filterStatus, filterVip, search])
+
+  const act = async (id: string, statut: VipIncident['statut'], label: string) => {
+    try {
+      await onPatchStatus(id, statut)
+      toast({ title: label, description: 'Le statut du signalement a été mis à jour.' })
+    } catch {
+      toast({ title: 'Erreur', description: 'Impossible de mettre à jour le signalement.', variant: 'destructive' })
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <SectionTitle
+        title="Signalements"
+        subtitle="Suivi en temps réel des incidents signalés par les clients VIP"
+        Icon={Bell}
+      />
+
+      {/* Filtres */}
+      <Card className="border border-[#EAE5DC] bg-white p-4 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-[180px] flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8B6F47]/60" aria-hidden />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Rechercher (problème, commentaire…)"
+              className="border-[#EAE5DC] bg-[#FAFAF7] pl-9 text-sm"
+            />
+          </div>
+          <Select value={filterZone} onValueChange={setFilterZone}>
+            <SelectTrigger className="w-[170px] border-[#EAE5DC] bg-[#FAFAF7] text-sm">
+              <SelectValue placeholder="Zone" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Toutes les zones</SelectItem>
+              {VIP_ZONES.map((z) => (
+                <SelectItem key={z.code} value={z.code}>{z.nom}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={filterStatus} onValueChange={setFilterStatus}>
+            <SelectTrigger className="w-[150px] border-[#EAE5DC] bg-[#FAFAF7] text-sm">
+              <SelectValue placeholder="Statut" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous statuts</SelectItem>
+              <SelectItem value="EN_ATTENTE">Nouveau</SelectItem>
+              <SelectItem value="EN_COURS">En cours</SelectItem>
+              <SelectItem value="RESOLU">Résolu</SelectItem>
+            </SelectContent>
+          </Select>
+          <Button
+            variant={filterVip === 'vip' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setFilterVip((v) => (v === 'vip' ? 'all' : 'vip'))}
+            className={cn(
+              'gap-1.5 border-[#EAE5DC]',
+              filterVip === 'vip'
+                ? 'border-transparent bg-[#6B4C9A] text-white hover:bg-[#6B4C9A]/90'
+                : 'bg-[#FAFAF7] text-[#8B6F47] hover:bg-[#C9A961]/10',
+            )}
+          >
+            <Crown className="h-4 w-4" aria-hidden /> VIP seulement
+          </Button>
+        </div>
+      </Card>
+
+      {/* Table */}
+      <Card className="border border-[#EAE5DC] bg-white shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        {loading ? (
+          <div className="space-y-2 p-6">
+            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-xl" />)}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+            <CheckCircle2 className="h-8 w-8 text-[#4A7C59]" aria-hidden />
+            <p className="text-sm font-medium text-[#2C2C2C]">Aucun signalement</p>
+            <p className="text-xs text-[#8B6F47]">Aucun incident ne correspond à vos filtres.</p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader>
+              <TableRow className="border-[#EAE5DC] hover:bg-transparent">
+                <TableHead className="text-[#8B6F47]">Zone</TableHead>
+                <TableHead className="text-[#8B6F47]">Problème</TableHead>
+                <TableHead className="text-[#8B6F47]">Statut</TableHead>
+                <TableHead className="text-[#8B6F47]">Heure</TableHead>
+                <TableHead className="text-right text-[#8B6F47]">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((i) => {
+                const isVip = hashIsVip(i.id)
+                return (
+                  <TableRow key={i.id} className="border-[#EAE5DC]">
+                    <TableCell className="font-medium text-[#2C2C2C]">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg" aria-hidden>{i.zone?.emoji ?? '📍'}</span>
+                        <span>{i.zone?.nom ?? 'Salon'}</span>
+                        {isVip && <VipBadge />}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div>
+                        <p className="text-sm text-[#2C2C2C]">{i.problemType}</p>
+                        {i.commentaire && (
+                          <p className="mt-0.5 max-w-[260px] truncate text-xs text-[#8B6F47]">
+                            « {i.commentaire} »
+                          </p>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="outline" className={cn('border font-medium', INCIDENT_STATUS_STYLE[i.statut])}>
+                        {INCIDENT_STATUS_LABEL[i.statut]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm text-[#8B6F47]">
+                      <div>{formatTimeShort(i.createdAt)}</div>
+                      <div className="text-[11px] text-[#8B6F47]/70">il y a {minutesDepuis(i.createdAt)} min</div>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1.5">
+                        {i.statut === 'EN_ATTENTE' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
+                            onClick={() => act(i.id, 'EN_COURS', 'Pris en charge')}
+                          >
+                            <ArrowDown className="h-3.5 w-3.5" aria-hidden /> Prendre en charge
+                          </Button>
+                        )}
+                        {i.statut !== 'RESOLU' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 border-[#4A7C59]/40 bg-[#4A7C59]/8 text-[#4A7C59] hover:bg-[#4A7C59]/15"
+                            onClick={() => act(i.id, 'RESOLU', 'Résolu')}
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> Résoudre
+                          </Button>
+                        )}
+                        {i.statut !== 'RESOLU' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 border-[#C97B63]/40 bg-[#C97B63]/8 text-[#C97B63] hover:bg-[#C97B63]/15"
+                            onClick={() => toast({ title: 'Escalade déclenchée', description: 'Le manager a été notifié (visuel).' })}
+                          >
+                            <ArrowUp className="h-3.5 w-3.5" aria-hidden /> Escalader
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                )
+              })}
+            </TableBody>
+          </Table>
+        )}
+      </Card>
+    </div>
+  )
+}
+
+// ============================================================
+// Tab C — Buffet & Bar
+// ============================================================
+
+function BuffetTab({
+  buffet,
+  loading,
+  onPatchFill,
+}: {
+  buffet: BuffetItem[]
+  loading: boolean
+  onPatchFill: (id: string, fillLevel: number) => Promise<void>
+}) {
+  const { toast } = useToast()
+  const clock = useClock()
+  // Historique local (mock) — ajouté à chaque PATCH réussi
+  const [history, setHistory] = useState<Array<{ id: string; who: string; when: string; item: string; level: number }>>([
+    { id: 'h1', who: 'Élise Garnier', when: new Date(Date.now() - 60 * 60 * 1000).toISOString(), item: 'Buffet (Saumon, Fruits, Mignardises)', level: 85 },
+    { id: 'h2', who: 'Olivier Petit', when: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(), item: 'Champagne & Boissons', level: 70 },
+    { id: 'h3', who: 'Élise Garnier', when: new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString(), item: 'Propreté du buffet', level: 95 },
+  ])
+
+  // Prochaine vérification = item avec nextCheck le plus proche
+  const nextCheck = buffet
+    .map((b) => b.nextCheck)
+    .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0]
+  const countdown = nextCheck ? countdownMmSs(nextCheck) : '--:--'
+
+  const onSliderCommit = async (id: string, level: number, label: string) => {
+    try {
+      await onPatchFill(id, level)
+      setHistory((h) => [
+        { id: `h-${Date.now()}`, who: 'Vous', when: new Date().toISOString(), item: label, level },
+        ...h,
+      ])
+      toast({ title: 'Niveau mis à jour', description: `${label} — ${level}%` })
+    } catch {
+      toast({ title: 'Erreur', description: 'Mise à jour impossible.', variant: 'destructive' })
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <SectionTitle
+        title="Buffet & Bar"
+        subtitle="Checklist luxe — Champagne, Saumon, Fruits & Mignardises"
+        Icon={Wine}
+        action={
+          <div className="flex items-center gap-2 rounded-xl border border-[#EAE5DC] bg-white px-4 py-2.5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+            <Clock className="h-4 w-4 text-[#C9A961]" aria-hidden />
+            <span className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">Prochaine vérification</span>
+            <span
+              className="text-lg font-semibold tabular-nums text-[#2C2C2C]"
+              style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
+            >
+              {loading ? '--:--' : countdown}
+            </span>
+          </div>
+        }
+      />
+
+      {/* Items */}
+      <div className="grid gap-4 md:grid-cols-3">
+        {loading ? (
+          Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-[220px] rounded-2xl" />)
+        ) : (
+          buffet.map((b) => {
+            const label = BUFFET_ITEM_LABELS[b.item] ?? b.item
+            const low = b.fillLevel < 30
+            const fillStyle = b.fillLevel < 30 ? 'bg-[#C97B63]' : b.fillLevel < 60 ? 'bg-[#C9A961]' : 'bg-[#4A7C59]'
+            return (
+              <Card key={b.id} className="border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <h3 className="text-sm font-semibold text-[#2C2C2C]">{label}</h3>
+                    <p className="mt-0.5 text-xs text-[#8B6F47]">Dernière vérif. {formatTimeShort(b.lastCheck)}</p>
+                  </div>
+                  {low && (
+                    <Badge className="border-[#C97B63]/30 bg-[#C97B63]/12 text-[#C97B63]">
+                      <AlertTriangle className="h-3 w-3" aria-hidden /> Bas
+                    </Badge>
+                  )}
+                </div>
+
+                <div className="mt-4 flex items-baseline gap-1">
+                  <span
+                    className="text-4xl font-semibold text-[#2C2C2C]"
+                    style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
+                  >
+                    {b.fillLevel}
+                  </span>
+                  <span className="text-sm font-medium text-[#8B6F47]">%</span>
+                </div>
+
+                {/* Barre visuelle */}
+                <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-[#FAFAF7]">
+                  <div className={cn('h-full rounded-full transition-all', fillStyle)} style={{ width: `${b.fillLevel}%` }} />
+                </div>
+
+                {/* Slider */}
+                <div className="mt-5">
+                  <Label className="text-[11px] font-medium uppercase tracking-wider text-[#8B6F47]">
+                    Ajuster le niveau
+                  </Label>
+                  <Slider
+                    className="mt-2"
+                    defaultValue={[b.fillLevel]}
+                    value={[b.fillLevel]}
+                    min={0}
+                    max={100}
+                    step={5}
+                    onValueCommit={(v) => onSliderCommit(b.id, v[0] ?? b.fillLevel, label)}
+                  />
+                  <div className="mt-1 flex justify-between text-[10px] text-[#8B6F47]/60">
+                    <span>0%</span>
+                    <span>50%</span>
+                    <span>100%</span>
+                  </div>
+                </div>
+
+                <p className="mt-3 text-[11px] text-[#8B6F47]">
+                  Prochaine vérif. dans <span className="font-semibold tabular-nums text-[#2C2C2C]">{countdownMmSs(b.nextCheck)}</span>
+                </p>
+              </Card>
+            )
+          })
+        )}
+      </div>
+
+      {/* Historique */}
+      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <CardHeader className="px-0">
+          <CardTitle className="text-lg text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
+            Historique des vérifications
+          </CardTitle>
+          <CardDescription className="text-[#8B6F47]">Derniers contrôles effectués par l'équipe</CardDescription>
+        </CardHeader>
+        <CardContent className="px-0">
+          <ul className="max-h-72 space-y-1.5 overflow-y-auto pr-1">
+            {history.map((h) => (
+              <li key={h.id} className="flex items-center gap-3 rounded-xl bg-[#FAFAF7] px-4 py-2.5">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#C9A961]/15 text-xs font-semibold text-[#8B6F47]">
+                  {initials(h.who)}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-[#2C2C2C]">{h.who}</p>
+                  <p className="truncate text-xs text-[#8B6F47]">{h.item}</p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-sm font-semibold text-[#2C2C2C]">{h.level}%</p>
+                  <p className="text-[11px] text-[#8B6F47]">{formatTimeShort(h.when)}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// ============================================================
+// Tab D — Douches Smart
+// ============================================================
+
+function ShowersTab({
+  showers,
+  loading,
+  onPatchStatus,
+}: {
+  showers: Shower[]
+  loading: boolean
+  onPatchStatus: (id: string, status: 'free' | 'occupied' | 'cleaning') => Promise<void>
+}) {
+  const { toast } = useToast()
+  // Maintenance locale (overlay non persisté — démo VIP)
+  const [maintenanceSet, setMaintenanceSet] = useState<Set<string>>(new Set())
+  // Compteur d'usage local — incrémenté à chaque libération/nettoyage déclenché
+  // depuis cette UI (actions "Libérer" / "Nettoyer"). La valeur initiale est
+  // déterministe par cabine (mock démo). Pas de setState dans un effect.
+  const [usageCount, setUsageCount] = useState<Record<string, number>>(() => {
+    const init: Record<string, number> = {}
+    for (const s of showers) {
+      init[s.id] = (s.showerNumber * 3) % 7 + 2
+    }
+    return init
+  })
+  const [qrShower, setQrShower] = useState<Shower | null>(null)
+
+  // Incrémente le compteur d'usage d'une cabine quand le staff libère/nettoie
+  // depuis cette UI (transition occupé → libre/cleaning déclenchée par action).
+  const incrementUsage = useCallback((id: string) => {
+    setUsageCount((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }))
+  }, [])
+
+  const effectiveStatus = (s: Shower): ShowerStatus => {
+    if (maintenanceSet.has(s.id)) return 'maintenance'
+    return s.status
+  }
+
+  const toggleMaintenance = (s: Shower) => {
+    setMaintenanceSet((prev) => {
+      const next = new Set(prev)
+      if (next.has(s.id)) next.delete(s.id)
+      else next.add(s.id)
+      return next
+    })
+  }
+
+  const act = async (s: Shower, next: 'free' | 'occupied' | 'cleaning', label: string) => {
+    try {
+      // Sortir de maintenance si on force un statut réel
+      setMaintenanceSet((prev) => {
+        const n = new Set(prev)
+        n.delete(s.id)
+        return n
+      })
+      // Si on libère ou lance le nettoyage d'une cabine occupée → on compte une
+      // utilisation de plus (le client vient de terminer sa douche).
+      if (s.status === 'occupied' && (next === 'free' || next === 'cleaning')) {
+        incrementUsage(s.id)
+      }
+      await onPatchStatus(s.id, next)
+      toast({ title: label, description: `Douche N°${s.showerNumber}` })
+    } catch {
+      toast({ title: 'Erreur', description: 'Mise à jour impossible.', variant: 'destructive' })
+    }
+  }
+
+  return (
+    <div className="space-y-5">
+      <SectionTitle
+        title="Douches Smart"
+        subtitle="Cabines privées — statut temps réel & QR réservation"
+        Icon={ShowerHead}
+        action={
+          <div className="hidden gap-3 sm:flex">
+            {(['free', 'occupied', 'cleaning', 'maintenance'] as ShowerStatus[]).map((st) => {
+              const count = showers.filter((s) => effectiveStatus(s) === st).length
+              const style = SHOWER_STATUS_STYLE[st]
+              return (
+                <div key={st} className="flex items-center gap-1.5 rounded-lg bg-white px-3 py-1.5 shadow-[0_2px_8px_rgba(201,169,97,0.06)]">
+                  <span className={cn('h-2 w-2 rounded-full', style.dot)} />
+                  <span className="text-xs font-medium text-[#8B6F47]">{SHOWER_STATUS_LABEL[st]}</span>
+                  <span className="text-sm font-semibold text-[#2C2C2C]">{count}</span>
+                </div>
+              )
+            })}
+          </div>
+        }
+      />
+
+      {loading ? (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-[220px] rounded-2xl" />)}
+        </div>
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {showers.map((s) => {
+            const st = effectiveStatus(s)
+            const style = SHOWER_STATUS_STYLE[st]
+            const needsCleaning =
+              s.status === 'occupied' && s.occupiedSince && minutesDepuis(s.occupiedSince) > 20
+            return (
+              <Card
+                key={s.id}
+                className={cn('border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)] ring-1 ring-transparent', style.ring)}
+              >
+                {/* En-tête cabine */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-[11px] font-medium uppercase tracking-wider text-[#8B6F47]">Cabine</p>
+                    <p
+                      className="text-3xl font-semibold text-[#2C2C2C]"
+                      style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
+                    >
+                      N°{s.showerNumber}
+                    </p>
+                  </div>
+                  <div className={cn('flex h-12 w-12 items-center justify-center rounded-xl', style.bg)}>
+                    <span className={cn('h-3 w-3 rounded-full', style.dot)} />
+                  </div>
+                </div>
+
+                {/* Statut */}
+                <div className="mt-4">
+                  <Badge variant="outline" className={cn('border font-semibold', style.bg, style.label)}>
+                    {SHOWER_STATUS_LABEL[st]}
+                  </Badge>
+                </div>
+
+                {/* Infos usage */}
+                <div className="mt-4 space-y-1.5 text-xs text-[#8B6F47]">
+                  <p>Utilisations aujourd'hui : <span className="font-semibold text-[#2C2C2C]">{usageCount[s.id] ?? 0}</span></p>
+                  {s.occupiedSince && (
+                    <p>Depuis : <span className="font-semibold text-[#2C2C2C]">{minutesDepuis(s.occupiedSince)} min</span></p>
+                  )}
+                  {needsCleaning && (
+                    <p className="flex items-center gap-1 text-[#C97B63]">
+                      <AlertTriangle className="h-3 w-3" aria-hidden /> Nettoyage requis
+                    </p>
+                  )}
+                </div>
+
+                {/* Actions */}
+                <div className="mt-4 flex flex-wrap gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
+                    onClick={() => setQrShower(s)}
+                  >
+                    <QrCode className="h-3.5 w-3.5" aria-hidden /> Voir QR
+                  </Button>
+                  {st !== 'free' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 border-[#4A7C59]/40 bg-[#4A7C59]/8 text-[#4A7C59] hover:bg-[#4A7C59]/15"
+                      onClick={() => act(s, 'free', 'Douche libérée')}
+                    >
+                      Libérer
+                    </Button>
+                  )}
+                  {st !== 'occupied' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 border-[#6B4C9A]/40 bg-[#6B4C9A]/8 text-[#6B4C9A] hover:bg-[#6B4C9A]/15"
+                      onClick={() => act(s, 'occupied', 'Douche occupée')}
+                    >
+                      Occuper
+                    </Button>
+                  )}
+                  {st !== 'cleaning' && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="h-8 border-[#C97B63]/40 bg-[#C97B63]/8 text-[#C97B63] hover:bg-[#C97B63]/15"
+                      onClick={() => act(s, 'cleaning', 'Nettoyage en cours')}
+                    >
+                      Nettoyer
+                    </Button>
+                  )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-8 text-[#8B6F47] hover:bg-[#FAFAF7]"
+                    onClick={() => toggleMaintenance(s)}
+                  >
+                    {st === 'maintenance' ? 'Sortir maintenance' : 'Maintenance'}
+                  </Button>
+                </div>
+              </Card>
+            )
+          })}
+        </div>
+      )}
+
+      {/* Dialog QR douche */}
+      <Dialog open={qrShower !== null} onOpenChange={(o) => !o && setQrShower(null)}>
+        <DialogContent className="border-[#EAE5DC] bg-white p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
+              QR Réservation — Douche N°{qrShower?.showerNumber}
+            </DialogTitle>
+            <DialogDescription className="text-[#8B6F47]">
+              Le client scanne ce QR pour réserver la cabine en toute discrétion.
+            </DialogDescription>
+          </DialogHeader>
+          {qrShower && (
+            <div className="flex flex-col items-center gap-4 py-2">
+              <img
+                src={qrImageUrl(qrUrlForZone('vip_showers', `vip_showers_${qrShower.showerNumber}`))}
+                alt={`QR réservation douche N°${qrShower.showerNumber}`}
+                className="h-48 w-48 rounded-xl border border-[#EAE5DC]"
+              />
+              <a
+                href={qrImageUrl(qrUrlForZone('vip_showers', `vip_showers_${qrShower.showerNumber}`))}
+                download={`qr-douche-${qrShower.showerNumber}.png`}
+                className="inline-flex items-center gap-2 rounded-xl bg-[#C9A961]/12 px-4 py-2 text-sm font-medium text-[#8B6F47] hover:bg-[#C9A961]/20"
+              >
+                <Download className="h-4 w-4" aria-hidden /> Télécharger PNG
+              </a>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+// ============================================================
+// Tab E — Récompenses Premium
+// ============================================================
+
+function RewardsTab({ staffName }: { staffName: string }) {
+  const { toast } = useToast()
+  const [given, setGiven] = useState<RewardGiven[]>([
+    {
+      id: 'r1',
+      rewardId: 'champagne',
+      rewardLabel: 'Coupe de Champagne',
+      clientName: 'Sophie Marchand',
+      staffName: 'Olivier Petit',
+      givenAt: new Date(Date.now() - 35 * 60 * 1000).toISOString(),
+      cost: 28,
+    },
+    {
+      id: 'r2',
+      rewardId: 'massage',
+      rewardLabel: 'Upgrade Fauteuil Massage',
+      clientName: 'Marcus Chen',
+      staffName: 'Camille Rousseau',
+      givenAt: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+      cost: 45,
+    },
+  ])
+  // Sélection du client pour qui offrir (mock dropdown)
+  const [selectedClient, setSelectedClient] = useState<string>(SEED_CLIENTS[0]?.name ?? '')
+
+  const totalCostToday = given.reduce((s, r) => s + r.cost, 0)
+
+  const offer = (reward: typeof LUXE_REWARDS[number]) => {
+    const newReward: RewardGiven = {
+      id: `r-${Date.now()}`,
+      rewardId: reward.id,
+      rewardLabel: reward.label,
+      clientName: selectedClient,
+      staffName,
+      givenAt: new Date().toISOString(),
+      cost: reward.cost,
+    }
+    setGiven((g) => [newReward, ...g])
+    toast({
+      title: 'Récompense offerte',
+      description: `${reward.label} offerte à ${selectedClient}.`,
+    })
+  }
+
+  return (
+    <div className="space-y-5">
+      <SectionTitle
+        title="Récompenses Premium"
+        subtitle="Offres luxe réservées aux clients VIP — Champagne, Massage, Cigar, Spa"
+        Icon={Gift}
+        action={
+          <div className="rounded-xl border border-[#EAE5DC] bg-white px-4 py-2.5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+            <p className="text-[11px] font-medium uppercase tracking-wider text-[#8B6F47]">Coût du jour</p>
+            <p className="text-xl font-semibold text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
+              {totalCostToday} €
+            </p>
+          </div>
+        }
+      />
+
+      {/* Sélection client */}
+      <Card className="border border-[#EAE5DC] bg-white p-4 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <div className="flex flex-wrap items-center gap-3">
+          <Label className="text-sm font-medium text-[#2C2C2C]">Offrir au client :</Label>
+          <Select value={selectedClient} onValueChange={setSelectedClient}>
+            <SelectTrigger className="w-[240px] border-[#EAE5DC] bg-[#FAFAF7] text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {SEED_CLIENTS.map((c) => (
+                <SelectItem key={c.id} value={c.name}>
+                  {c.name} · {c.level}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </Card>
+
+      {/* Grille de rewards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        {LUXE_REWARDS.map((r) => {
+          const Icon = r.Icon
+          return (
+            <Card key={r.id} className="flex flex-col border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#C9A961]/15 to-[#8B6F47]/10 text-[#8B6F47]">
+                <Icon className="h-7 w-7" aria-hidden />
+              </div>
+              <h3 className="mt-4 text-base font-semibold text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
+                {r.label}
+              </h3>
+              <p className="mt-1 flex-1 text-xs text-[#8B6F47]">{r.description}</p>
+              <div className="mt-4 flex items-center justify-between">
+                <span className="text-sm font-semibold text-[#C9A961]">{r.cost} €</span>
+                <Button
+                  size="sm"
+                  className="h-8 gap-1.5 bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white hover:opacity-90"
+                  onClick={() => offer(r)}
+                >
+                  <Gift className="h-3.5 w-3.5" aria-hidden /> Offrir
+                </Button>
+              </div>
+            </Card>
+          )
+        })}
+      </div>
+
+      {/* Historique */}
+      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <CardHeader className="px-0">
+          <CardTitle className="text-lg text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
+            Offertes aujourd'hui
+          </CardTitle>
+          <CardDescription className="text-[#8B6F47]">{given.length} récompense(s) — {totalCostToday} €</CardDescription>
+        </CardHeader>
+        <CardContent className="px-0">
+          <ul className="space-y-2">
+            {given.map((r) => (
+              <li key={r.id} className="flex items-center gap-3 rounded-xl bg-[#FAFAF7] px-4 py-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#C9A961]/15 text-[#8B6F47]">
+                  <Gift className="h-4 w-4" aria-hidden />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-medium text-[#2C2C2C]">{r.rewardLabel}</p>
+                  <p className="truncate text-xs text-[#8B6F47]">à {r.clientName} · par {r.staffName}</p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-sm font-semibold text-[#C9A961]">{r.cost} €</p>
+                  <p className="text-[11px] text-[#8B6F47]">{formatTimeShort(r.givenAt)}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// ============================================================
+// Tab F — Clients VIP
+// ============================================================
+
+function ClientsTab() {
+  const { toast } = useToast()
+  const [clients, setClients] = useState<VipClient[]>(SEED_CLIENTS)
+  const [search, setSearch] = useState('')
+  const [filterLevel, setFilterLevel] = useState<string>('all')
+  const [formOpen, setFormOpen] = useState(false)
+  const [form, setForm] = useState<{ name: string; photoUrl: string; airline: string; level: VipClient['level']; notes: string }>({
+    name: '',
+    photoUrl: '',
+    airline: '',
+    level: 'Gold',
+    notes: '',
+  })
+
+  const filtered = useMemo(() => {
+    return clients.filter((c) => {
+      if (filterLevel !== 'all' && c.level !== filterLevel) return false
+      if (search.trim()) {
+        const q = search.trim().toLowerCase()
+        const hay = `${c.name} ${c.airline} ${c.notes}`.toLowerCase()
+        if (!hay.includes(q)) return false
+      }
+      return true
+    })
+  }, [clients, search, filterLevel])
+
+  const addClient = () => {
+    if (!form.name.trim() || !form.airline.trim()) {
+      toast({ title: 'Champs requis', description: 'Nom et compagnie sont obligatoires.', variant: 'destructive' })
+      return
+    }
+    const newClient: VipClient = {
+      id: `c-${Date.now()}`,
+      name: form.name.trim(),
+      photoUrl: form.photoUrl.trim() || null,
+      airline: form.airline.trim(),
+      level: form.level,
+      lastVisit: new Date().toISOString().slice(0, 10),
+      notes: form.notes.trim(),
+    }
+    setClients((c) => [newClient, ...c])
+    setForm({ name: '', photoUrl: '', airline: '', level: 'Gold', notes: '' })
+    setFormOpen(false)
+    toast({ title: 'Client ajouté', description: `${newClient.name} · ${newClient.level}` })
+  }
+
+  return (
+    <div className="space-y-5">
+      <SectionTitle
+        title="Clients VIP"
+        subtitle="Annuaire des clients d'exception — Gold, Platinum, Diamond"
+        Icon={Users}
+        action={
+          <Button
+            className="gap-2 bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white hover:opacity-90"
+            onClick={() => setFormOpen(true)}
+          >
+            <Plus className="h-4 w-4" aria-hidden /> Ajouter client
+          </Button>
+        }
+      />
+
+      {/* Filtres */}
+      <Card className="border border-[#EAE5DC] bg-white p-4 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="relative min-w-[200px] flex-1">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8B6F47]/60" aria-hidden />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Rechercher (nom, compagnie, notes…)"
+              className="border-[#EAE5DC] bg-[#FAFAF7] pl-9 text-sm"
+            />
+          </div>
+          <Select value={filterLevel} onValueChange={setFilterLevel}>
+            <SelectTrigger className="w-[160px] border-[#EAE5DC] bg-[#FAFAF7] text-sm">
+              <SelectValue placeholder="Niveau" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous niveaux</SelectItem>
+              <SelectItem value="Gold">Gold</SelectItem>
+              <SelectItem value="Platinum">Platinum</SelectItem>
+              <SelectItem value="Diamond">Diamond</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+      </Card>
+
+      {/* Table */}
+      <Card className="border border-[#EAE5DC] bg-white shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-[#EAE5DC] hover:bg-transparent">
+              <TableHead className="text-[#8B6F47]">Client</TableHead>
+              <TableHead className="text-[#8B6F47]">Compagnie</TableHead>
+              <TableHead className="text-[#8B6F47]">Niveau</TableHead>
+              <TableHead className="text-[#8B6F47]">Dernière visite</TableHead>
+              <TableHead className="text-[#8B6F47]">Notes</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filtered.map((c) => {
+              const levelStyle = CLIENT_LEVEL_STYLE[c.level]
+              const LevelIcon = levelStyle.Icon
+              return (
+                <TableRow key={c.id} className="border-[#EAE5DC]">
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-9 w-9 ring-1 ring-[#EAE5DC]">
+                        {c.photoUrl && <AvatarImage src={c.photoUrl} alt={c.name} />}
+                        <AvatarFallback className="bg-[#C9A961]/15 text-xs font-semibold text-[#8B6F47]">
+                          {initials(c.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="font-medium text-[#2C2C2C]">{c.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm text-[#8B6F47]">{c.airline}</TableCell>
+                  <TableCell>
+                    <Badge variant="outline" className={cn('border font-semibold', levelStyle.bg, levelStyle.text)}>
+                      <LevelIcon className="h-3 w-3" aria-hidden /> {levelStyle.label}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-sm text-[#8B6F47]">{c.lastVisit}</TableCell>
+                  <TableCell className="max-w-[280px]">
+                    <p className="truncate text-xs text-[#8B6F47]">{c.notes || '—'}</p>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
+            {filtered.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={5} className="py-10 text-center text-sm text-[#8B6F47]">
+                  Aucun client ne correspond à vos critères.
+                </TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </Card>
+
+      {/* Dialog ajout */}
+      <Dialog open={formOpen} onOpenChange={setFormOpen}>
+        <DialogContent className="border-[#EAE5DC] bg-white p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
+              Nouveau client VIP
+            </DialogTitle>
+            <DialogDescription className="text-[#8B6F47]">
+              Renseignez les informations du client. La photo est optionnelle (URL).
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="c-name" className="text-[#8B6F47]">Nom complet *</Label>
+                <Input
+                  id="c-name"
+                  value={form.name}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                  placeholder="ex. Alexandre Laurent"
+                  className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+                />
+              </div>
+              <div>
+                <Label htmlFor="c-airline" className="text-[#8B6F47]">Compagnie *</Label>
+                <Input
+                  id="c-airline"
+                  value={form.airline}
+                  onChange={(e) => setForm((f) => ({ ...f, airline: e.target.value }))}
+                  placeholder="ex. Air France"
+                  className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+                />
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="c-level" className="text-[#8B6F47]">Niveau VIP</Label>
+                <Select value={form.level} onValueChange={(v) => setForm((f) => ({ ...f, level: v as VipClient['level'] }))}>
+                  <SelectTrigger id="c-level" className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Gold">Gold</SelectItem>
+                    <SelectItem value="Platinum">Platinum</SelectItem>
+                    <SelectItem value="Diamond">Diamond</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="c-photo" className="text-[#8B6F47]">Photo (URL)</Label>
+                <Input
+                  id="c-photo"
+                  value={form.photoUrl}
+                  onChange={(e) => setForm((f) => ({ ...f, photoUrl: e.target.value }))}
+                  placeholder="https://…"
+                  className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+                />
+              </div>
+            </div>
+            <div>
+              <Label htmlFor="c-notes" className="text-[#8B6F47]">Notes / préférences</Label>
+              <Textarea
+                id="c-notes"
+                value={form.notes}
+                onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
+                placeholder="Préférences, allergies, habitudes…"
+                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+                rows={3}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFormOpen(false)} className="border-[#EAE5DC] bg-[#FAFAF7] text-[#8B6F47]">
+              Annuler
+            </Button>
+            <Button onClick={addClient} className="gap-2 bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white hover:opacity-90">
+              <Plus className="h-4 w-4" aria-hidden /> Ajouter
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+// ============================================================
+// Tab G — Équipe / Staff
+// ============================================================
+
+function StaffTab() {
+  const { toast } = useToast()
+  const [staff, setStaff] = useState<StaffMember[]>(SEED_STAFF)
+  const [formOpen, setFormOpen] = useState(false)
+  const [form, setForm] = useState<{ name: string; role: StaffRole; phone: string; photoUrl: string }>({
+    name: '',
+    role: 'Réceptionniste',
+    phone: '',
+    photoUrl: '',
+  })
+
+  const present = staff.filter((s) => s.present).length
+
+  const addStaff = () => {
+    if (!form.name.trim() || !form.phone.trim()) {
+      toast({ title: 'Champs requis', description: 'Nom et téléphone sont obligatoires.', variant: 'destructive' })
+      return
+    }
+    const newStaff: StaffMember = {
+      id: `s-${Date.now()}`,
+      name: form.name.trim(),
+      role: form.role,
+      phone: form.phone.trim(),
+      photoUrl: form.photoUrl.trim() || null,
+      present: true,
+      incidentsResolved: 0,
+      satisfactionScore: 5,
+    }
+    setStaff((s) => [newStaff, ...s])
+    setForm({ name: '', role: 'Réceptionniste', phone: '', photoUrl: '' })
+    setFormOpen(false)
+    toast({ title: 'Staff ajouté', description: `${newStaff.name} · ${newStaff.role}` })
+  }
+
+  const togglePresent = (s: StaffMember) => {
+    setStaff((list) => list.map((m) => (m.id === s.id ? { ...m, present: !m.present } : m)))
+  }
+
+  return (
+    <div className="space-y-5">
+      <SectionTitle
+        title="Équipe / Staff"
+        subtitle={`${present} présent(s) sur ${staff.length} · performance en temps réel`}
+        Icon={UserCog}
+        action={
+          <Button
+            className="gap-2 bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white hover:opacity-90"
+            onClick={() => setFormOpen(true)}
+          >
+            <Plus className="h-4 w-4" aria-hidden /> Ajouter staff
+          </Button>
+        }
+      />
+
+      <Card className="border border-[#EAE5DC] bg-white shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <Table>
+          <TableHeader>
+            <TableRow className="border-[#EAE5DC] hover:bg-transparent">
+              <TableHead className="text-[#8B6F47]">Staff</TableHead>
+              <TableHead className="text-[#8B6F47]">Rôle</TableHead>
+              <TableHead className="text-[#8B6F47]">Téléphone</TableHead>
+              <TableHead className="text-[#8B6F47]">Statut</TableHead>
+              <TableHead className="text-[#8B6F47]">Incidents résolus</TableHead>
+              <TableHead className="text-[#8B6F47]">Satisfaction</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {staff.map((s) => {
+              const RoleIcon = STAFF_ROLE_ICON[s.role]
+              return (
+                <TableRow key={s.id} className="border-[#EAE5DC]">
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <Avatar className="h-9 w-9 ring-1 ring-[#EAE5DC]">
+                        {s.photoUrl && <AvatarImage src={s.photoUrl} alt={s.name} />}
+                        <AvatarFallback className="bg-[#8B6F47]/15 text-xs font-semibold text-[#8B6F47]">
+                          {initials(s.name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      <span className="font-medium text-[#2C2C2C]">{s.name}</span>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-2 text-sm text-[#2C2C2C]">
+                      <RoleIcon className="h-4 w-4 text-[#C9A961]" aria-hidden />
+                      {s.role}
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-sm text-[#8B6F47]">
+                    <a href={`tel:${s.phone.replace(/\s/g, '')}`} className="inline-flex items-center gap-1.5 hover:text-[#C9A961]">
+                      <Phone className="h-3.5 w-3.5" aria-hidden /> {s.phone}
+                    </a>
+                  </TableCell>
+                  <TableCell>
+                    <button
+                      type="button"
+                      onClick={() => togglePresent(s)}
+                      className={cn(
+                        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors',
+                        s.present
+                          ? 'border-[#4A7C59]/25 bg-[#4A7C59]/12 text-[#4A7C59]'
+                          : 'border-[#8B6F47]/25 bg-[#FAFAF7] text-[#8B6F47]',
+                      )}
+                    >
+                      <CircleDot className="h-3 w-3" aria-hidden /> {s.present ? 'Présent' : 'Absent'}
+                    </button>
+                  </TableCell>
+                  <TableCell className="text-sm font-semibold text-[#2C2C2C]">{s.incidentsResolved}</TableCell>
+                  <TableCell>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-sm font-semibold text-[#C9A961]">{s.satisfactionScore.toFixed(1)}</span>
+                      <span className="text-xs text-[#8B6F47]">/5</span>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              )
+            })}
+          </TableBody>
+        </Table>
+      </Card>
+
+      {/* Dialog ajout staff */}
+      <Dialog open={formOpen} onOpenChange={setFormOpen}>
+        <DialogContent className="border-[#EAE5DC] bg-white p-6">
+          <DialogHeader>
+            <DialogTitle className="text-xl text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
+              Nouveau membre du staff
+            </DialogTitle>
+            <DialogDescription className="text-[#8B6F47]">Ajoutez un employé à l'équipe du salon.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="s-name" className="text-[#8B6F47]">Nom complet *</Label>
+                <Input
+                  id="s-name"
+                  value={form.name}
+                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                  placeholder="ex. Nadia Cherif"
+                  className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+                />
+              </div>
+              <div>
+                <Label htmlFor="s-role" className="text-[#8B6F47]">Rôle</Label>
+                <Select value={form.role} onValueChange={(v) => setForm((f) => ({ ...f, role: v as StaffRole }))}>
+                  <SelectTrigger id="s-role" className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="Manager">Manager</SelectItem>
+                    <SelectItem value="Maître d'Hôtel">Maître d'Hôtel</SelectItem>
+                    <SelectItem value="Réceptionniste">Réceptionniste</SelectItem>
+                    <SelectItem value="Étage">Étage</SelectItem>
+                    <SelectItem value="Chef/Barman">Chef/Barman</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div>
+                <Label htmlFor="s-phone" className="text-[#8B6F47]">Téléphone *</Label>
+                <Input
+                  id="s-phone"
+                  value={form.phone}
+                  onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                  placeholder="+33 6 12 34 56 78"
+                  className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+                />
+              </div>
+              <div>
+                <Label htmlFor="s-photo" className="text-[#8B6F47]">Photo (URL)</Label>
+                <Input
+                  id="s-photo"
+                  value={form.photoUrl}
+                  onChange={(e) => setForm((f) => ({ ...f, photoUrl: e.target.value }))}
+                  placeholder="https://…"
+                  className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+                />
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setFormOpen(false)} className="border-[#EAE5DC] bg-[#FAFAF7] text-[#8B6F47]">
+              Annuler
+            </Button>
+            <Button onClick={addStaff} className="gap-2 bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white hover:opacity-90">
+              <Plus className="h-4 w-4" aria-hidden /> Ajouter
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  )
+}
+
+// ============================================================
+// Tab H — QR Codes
+// ============================================================
+
+function QRTab() {
+  const [origin, setOrigin] = useState<string>('')
+  useEffect(() => {
+    // Différé via setTimeout(0) — évite le setState synchrone dans l'effet
+    const t = setTimeout(() => {
+      if (typeof window !== 'undefined') setOrigin(window.location.origin)
+    }, 0)
+    return () => clearTimeout(t)
+  }, [])
+
+  // Scans mockés (déterministes pour stabilité d'affichage)
+  const scansForZone = (code: string) => {
+    const h = code.split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 0)
+    return (h % 40) + 8
+  }
+  const scansForStaff = (id: string) => {
+    const h = id.split('').reduce((a, c) => (a * 17 + c.charCodeAt(0)) >>> 0, 0)
+    return (h % 12) + 1
+  }
+
+  const downloadQr = (url: string, filename: string) => {
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+  }
+
+  const printQr = (url: string, label: string) => {
+    const w = window.open('', '_blank', 'width=420,height=560')
+    if (!w) return
+    w.document.write(`
+      <html><head><title>QR — ${label}</title></head>
+      <body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;font-family:Georgia,serif;">
+        <h2 style="color:#8B6F47;">${label}</h2>
+        <img src="${url}" alt="QR" style="width:280px;height:280px;border:1px solid #EAE5DC;border-radius:12px;" />
+        <p style="color:#8B6F47;font-size:12px;margin-top:16px;">Salon VIP — Lounge Premium</p>
+      </body></html>
+    `)
+    w.document.close()
+    w.focus()
+    setTimeout(() => w.print(), 250)
+  }
+
+  return (
+    <div className="space-y-5">
+      <SectionTitle
+        title="QR Codes"
+        subtitle="Génération et impression — une QR par zone VIP et par membre du staff"
+        Icon={QrCode}
+      />
+
+      {/* Section zones */}
+      <div>
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[#8B6F47]">Zones VIP (6)</h3>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {VIP_ZONES.map((z) => {
+            const url = origin ? qrUrlForZone(z.code, z.tags[0] ?? z.code) : ''
+            const img = qrImageUrl(url || `/?airport=${z.tags[0] ?? z.code}`)
+            const scans = scansForZone(z.code)
+            return (
+              <Card key={z.code} className="border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl" aria-hidden>{z.emoji}</span>
+                  <div className="min-w-0 flex-1">
+                    <h4 className="truncate text-sm font-semibold text-[#2C2C2C]">{z.nom}</h4>
+                    <p className="truncate text-xs text-[#8B6F47]">{z.tags[0] ?? z.code}</p>
+                  </div>
+                </div>
+                <div className="mt-4 flex justify-center">
+                  <img src={img} alt={`QR ${z.nom}`} className="h-40 w-40 rounded-xl border border-[#EAE5DC]" />
+                </div>
+                <div className="mt-3 flex items-center justify-between text-xs">
+                  <span className="text-[#8B6F47]">Scans aujourd'hui</span>
+                  <span className="font-semibold text-[#C9A961]">{scans}</span>
+                </div>
+                <div className="mt-3 flex gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 flex-1 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
+                    onClick={() => downloadQr(img, `qr-${z.code}.png`)}
+                  >
+                    <Download className="h-3.5 w-3.5" aria-hidden /> PNG
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 flex-1 border-[#8B6F47]/40 bg-[#8B6F47]/8 text-[#8B6F47] hover:bg-[#8B6F47]/15"
+                    onClick={() => printQr(img, z.nom)}
+                  >
+                    <Printer className="h-3.5 w-3.5" aria-hidden /> Imprimer
+                  </Button>
+                </div>
+              </Card>
+            )
+          })}
+        </div>
+      </div>
+
+      {/* Section staff */}
+      <div>
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[#8B6F47]">QR Staff</h3>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {SEED_STAFF.map((s) => {
+            const url = origin ? qrUrlForStaff(s.id) : `/?staff=${s.id}`
+            const img = qrImageUrl(url)
+            const scans = scansForStaff(s.id)
+            return (
+              <Card key={s.id} className="border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+                <div className="flex items-start gap-3">
+                  <Avatar className="h-9 w-9 ring-1 ring-[#EAE5DC]">
+                    {s.photoUrl && <AvatarImage src={s.photoUrl} alt={s.name} />}
+                    <AvatarFallback className="bg-[#8B6F47]/15 text-xs font-semibold text-[#8B6F47]">
+                      {initials(s.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <h4 className="truncate text-sm font-semibold text-[#2C2C2C]">{s.name}</h4>
+                    <p className="truncate text-xs text-[#8B6F47]">{s.role}</p>
+                  </div>
+                </div>
+                <div className="mt-4 flex justify-center">
+                  <img src={img} alt={`QR ${s.name}`} className="h-32 w-32 rounded-xl border border-[#EAE5DC]" />
+                </div>
+                <div className="mt-3 flex items-center justify-between text-xs">
+                  <span className="text-[#8B6F47]">Scans aujourd'hui</span>
+                  <span className="font-semibold text-[#C9A961]">{scans}</span>
+                </div>
+                <div className="mt-3 flex gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 flex-1 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
+                    onClick={() => downloadQr(img, `qr-staff-${s.id}.png`)}
+                  >
+                    <Download className="h-3.5 w-3.5" aria-hidden /> PNG
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 flex-1 border-[#8B6F47]/40 bg-[#8B6F47]/8 text-[#8B6F47] hover:bg-[#8B6F47]/15"
+                    onClick={() => printQr(img, `Staff — ${s.name}`)}
+                  >
+                    <Printer className="h-3.5 w-3.5" aria-hidden /> Imprimer
+                  </Button>
+                </div>
+              </Card>
+            )
+          })}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// Tab I — Rapports
+// ============================================================
+
+function ReportsTab({ incidents }: { incidents: VipIncident[] }) {
+  const [period, setPeriod] = useState<'jour' | 'semaine' | 'mois'>('jour')
+
+  // Données dérivées (mock partiel pour la démo, basé sur les incidents réels)
+  const resolvedToday = incidents.filter((i) => i.statut === 'RESOLU').length
+  const totalToday = incidents.length
+  const satisfactionAvg = 4.6
+  const rewardsCost = 153
+  const showersUsage = 27
+
+  // Bar chart mock — 7 derniers jours
+  const dailyBars = useMemo(() => {
+    const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
+    const base = [4, 7, 5, 9, 12, 14, totalToday || 6]
+    if (period === 'semaine') {
+      // Même semaine agrégée par tranche
+      return [
+        { label: 'S1', value: 8 },
+        { label: 'S2', value: 11 },
+        { label: 'S3', value: 9 },
+        { label: 'S4', value: 14 },
+      ]
+    }
+    if (period === 'mois') {
+      return Array.from({ length: 4 }).map((_, i) => ({
+        label: `S${i + 1}`,
+        value: 35 + ((i * 7) % 18),
+      }))
+    }
+    return days.map((label, i) => ({ label, value: base[i] ?? 0 }))
+  }, [period, totalToday])
+
+  const maxBar = Math.max(...dailyBars.map((b) => b.value), 1)
+
+  return (
+    <div className="space-y-5">
+      <SectionTitle
+        title="Rapports"
+        subtitle="Indicateurs de performance — salon VIP"
+        Icon={BarChart3}
+        action={
+          <Select value={period} onValueChange={(v) => setPeriod(v as 'jour' | 'semaine' | 'mois')}>
+            <SelectTrigger className="w-[140px] border-[#EAE5DC] bg-white text-sm">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="jour">Jour</SelectItem>
+              <SelectItem value="semaine">Semaine</SelectItem>
+              <SelectItem value="mois">Mois</SelectItem>
+            </SelectContent>
+          </Select>
+        }
+      />
+
+      {/* KPI rapports */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <KPICard label="Incidents résolus" value={resolvedToday} Icon={CheckCircle2} tone="sage" hint={`sur ${totalToday} signalés`} />
+        <KPICard label="Satisfaction moyenne" value={satisfactionAvg.toFixed(1)} unit="/5" Icon={Sparkles} tone="gold" hint="Sur la période" />
+        <KPICard label="Récompenses (coût)" value={rewardsCost} unit="€" Icon={Gift} tone="amethyst" hint="Budget luxe" />
+        <KPICard label="Utilisation douches" value={showersUsage} Icon={ShowerHead} tone="bronze" hint="Sessions période" />
+      </div>
+
+      {/* Bar chart CSS */}
+      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <CardHeader className="px-0">
+          <CardTitle className="text-lg text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
+            Incidents par {period === 'jour' ? 'jour' : period === 'semaine' ? 'tranche' : 'semaine'}
+          </CardTitle>
+          <CardDescription className="text-[#8B6F47]">Visualisation CSS — barres dorées</CardDescription>
+        </CardHeader>
+        <CardContent className="px-0">
+          <div className="flex h-56 items-end justify-around gap-3 border-b border-[#EAE5DC] pb-2">
+            {dailyBars.map((b, i) => (
+              <div key={i} className="flex flex-1 flex-col items-center gap-2">
+                <span className="text-xs font-semibold text-[#2C2C2C]">{b.value}</span>
+                <div
+                  className="w-full max-w-[42px] rounded-t-md bg-gradient-to-t from-[#8B6F47] to-[#C9A961] transition-all"
+                  style={{ height: `${(b.value / maxBar) * 100}%`, minHeight: '4px' }}
+                />
+                <span className="text-[11px] text-[#8B6F47]">{b.label}</span>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// ============================================================
+// Tab J — Paramètres
+// ============================================================
+
+function SettingsTab() {
+  const { toast } = useToast()
+  const [settings, setSettings] = useState<VipSettings>(DEFAULT_SETTINGS)
+  const [saving, setSaving] = useState(false)
+
+  const update = <K extends keyof VipSettings>(key: K, value: VipSettings[K]) => {
+    setSettings((s) => ({ ...s, [key]: value }))
+  }
+
+  const save = () => {
+    setSaving(true)
+    // Simule une persistance locale (l'API dédiée n'existe pas encore)
+    setTimeout(() => {
+      try {
+        localStorage.setItem('vip_settings', JSON.stringify(settings))
+      } catch {
+        /* ignore */
+      }
+      setSaving(false)
+      toast({ title: 'Paramètres enregistrés', description: 'La configuration du salon a été mise à jour.' })
+    }, 600)
+  }
+
+  // Charge les settings persistés au montage (différé via setTimeout(0)
+  // pour ne pas appeler setState de manière synchrone dans l'effet)
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        const raw = localStorage.getItem('vip_settings')
+        if (raw) setSettings((s) => ({ ...s, ...JSON.parse(raw) }))
+      } catch {
+        /* ignore */
+      }
+    }, 0)
+    return () => clearTimeout(t)
+  }, [])
+
+  return (
+    <div className="space-y-5">
+      <SectionTitle
+        title="Paramètres"
+        subtitle="Configuration du salon VIP — général, Denise, buffet, douches, récompenses"
+        Icon={Settings}
+        action={
+          <Button onClick={save} disabled={saving} className="gap-2 bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white hover:opacity-90">
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Save className="h-4 w-4" aria-hidden />}
+            Enregistrer
+          </Button>
+        }
+      />
+
+      {/* Général */}
+      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <CardHeader className="px-0">
+          <CardTitle className="text-base text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
+            Général
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-0">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <Label htmlFor="set-name" className="text-[#8B6F47]">Nom du salon</Label>
+              <Input
+                id="set-name"
+                value={settings.salonName}
+                onChange={(e) => update('salonName', e.target.value)}
+                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+              />
+            </div>
+            <div>
+              <Label htmlFor="set-cap" className="text-[#8B6F47]">Capacité (clients)</Label>
+              <Input
+                id="set-cap"
+                type="number"
+                value={settings.capacity}
+                onChange={(e) => update('capacity', Number(e.target.value))}
+                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+              />
+            </div>
+            <div>
+              <Label htmlFor="set-hours" className="text-[#8B6F47]">Horaires d'ouverture</Label>
+              <Input
+                id="set-hours"
+                value={settings.openingHours}
+                onChange={(e) => update('openingHours', e.target.value)}
+                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Denise */}
+      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <CardHeader className="px-0">
+          <CardTitle className="text-base text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
+            Denise — Voix
+          </CardTitle>
+          <CardDescription className="text-[#8B6F47]">
+            Mode discrétion par défaut. La voix reste désactivée sauf urgence VIP.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="px-0 space-y-4">
+          <div className="flex items-center justify-between rounded-xl bg-[#FAFAF7] px-4 py-3">
+            <div className="flex items-center gap-3">
+              {settings.deniseVoiceEnabled ? (
+                <Volume2 className="h-5 w-5 text-[#C9A961]" aria-hidden />
+              ) : (
+                <VolumeX className="h-5 w-5 text-[#8B6F47]" aria-hidden />
+              )}
+              <div>
+                <p className="text-sm font-medium text-[#2C2C2C]">Voix activée</p>
+                <p className="text-xs text-[#8B6F47]">Désactivée par défaut — notifications visuelles uniquement</p>
+              </div>
+            </div>
+            <Switch checked={settings.deniseVoiceEnabled} onCheckedChange={(v) => update('deniseVoiceEnabled', v)} />
+          </div>
+          <div>
+            <Label className="text-[#8B6F47]">
+              Volume maximum : <span className="font-semibold text-[#2C2C2C]">{settings.deniseMaxVolume}%</span>
+            </Label>
+            <Slider
+              className="mt-2"
+              value={[settings.deniseMaxVolume]}
+              min={0}
+              max={30}
+              step={5}
+              onValueChange={(v) => update('deniseMaxVolume', v[0] ?? 0)}
+            />
+            <p className="mt-1 text-[11px] text-[#8B6F47]">Plafonné à 30% — confort VIP.</p>
+          </div>
+          <div>
+            <Label className="text-[#8B6F47]">Tonalité</Label>
+            <Select value={settings.deniseTone} onValueChange={(v) => update('deniseTone', v as VipSettings['deniseTone'])}>
+              <SelectTrigger className="mt-1.5 w-full border-[#EAE5DC] bg-[#FAFAF7] sm:w-[240px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="doux">Doux</SelectItem>
+                <SelectItem value="neutre">Neutre</SelectItem>
+                <SelectItem value="chaleureux">Chaleureux</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Buffet */}
+      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <CardHeader className="px-0">
+          <CardTitle className="text-base text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
+            Buffet
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-0">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label className="text-[#8B6F47]">Intervalle de vérification</Label>
+              <Select
+                value={String(settings.buffetInterval)}
+                onValueChange={(v) => update('buffetInterval', Number(v) as VipSettings['buffetInterval'])}
+              >
+                <SelectTrigger className="mt-1.5 w-full border-[#EAE5DC] bg-[#FAFAF7]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="15">15 minutes</SelectItem>
+                  <SelectItem value="30">30 minutes</SelectItem>
+                  <SelectItem value="45">45 minutes</SelectItem>
+                  <SelectItem value="60">60 minutes</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label className="text-[#8B6F47]">
+                Seuil d'alerte basse : <span className="font-semibold text-[#2C2C2C]">{settings.buffetLowThreshold}%</span>
+              </Label>
+              <Slider
+                className="mt-3"
+                value={[settings.buffetLowThreshold]}
+                min={10}
+                max={50}
+                step={5}
+                onValueChange={(v) => update('buffetLowThreshold', v[0] ?? 30)}
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Douches */}
+      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <CardHeader className="px-0">
+          <CardTitle className="text-base text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
+            Douches
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-0">
+          <div className="grid gap-4 sm:grid-cols-3">
+            <div>
+              <Label htmlFor="set-sh-count" className="text-[#8B6F47]">Nombre de cabines</Label>
+              <Input
+                id="set-sh-count"
+                type="number"
+                value={settings.showersCount}
+                onChange={(e) => update('showersCount', Number(e.target.value))}
+                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+              />
+            </div>
+            <div>
+              <Label htmlFor="set-sh-max" className="text-[#8B6F47]">Durée max (min)</Label>
+              <Input
+                id="set-sh-max"
+                type="number"
+                value={settings.showerMaxTime}
+                onChange={(e) => update('showerMaxTime', Number(e.target.value))}
+                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+              />
+            </div>
+            <div>
+              <Label htmlFor="set-sh-clean" className="text-[#8B6F47]">Temps de nettoyage (min)</Label>
+              <Input
+                id="set-sh-clean"
+                type="number"
+                value={settings.showerCleaningTime}
+                onChange={(e) => update('showerCleaningTime', Number(e.target.value))}
+                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+              />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Récompenses */}
+      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <CardHeader className="px-0">
+          <CardTitle className="text-base text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
+            Récompenses
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-0">
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="set-rw-budget" className="text-[#8B6F47]">Budget mensuel (€)</Label>
+              <Input
+                id="set-rw-budget"
+                type="number"
+                value={settings.rewardsBudgetMonthly}
+                onChange={(e) => update('rewardsBudgetMonthly', Number(e.target.value))}
+                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+              />
+            </div>
+            <div>
+              <Label className="text-[#8B6F47]">Mode de validation</Label>
+              <Select
+                value={settings.rewardsValidation}
+                onValueChange={(v) => update('rewardsValidation', v as VipSettings['rewardsValidation'])}
+              >
+                <SelectTrigger className="mt-1.5 w-full border-[#EAE5DC] bg-[#FAFAF7]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="auto">Automatique (staff)</SelectItem>
+                  <SelectItem value="manager">Validation manager</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// ============================================================
+// Composant principal — VIPDashboard
+// ============================================================
 
 export default function VIPDashboard() {
   const session = useAppStore((s) => s.session)
   const logout = useAppStore((s) => s.logout)
 
   const [tab, setTab] = useState<VipTab>('overview')
+  const [drawerOuvert, setDrawerOuvert] = useState(false)
   const [incidents, setIncidents] = useState<VipIncident[]>([])
   const [showers, setShowers] = useState<Shower[]>([])
   const [buffet, setBuffet] = useState<BuffetItem[]>([])
   const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  const [vipAlerts, setVipAlerts] = useState<VipIncident[]>([])
-  const clock = useClock()
-  const [today, setToday] = useState<Date | null>(null)
-  const [mounted, setMounted] = useState(false)
+  const [refreshing, setRefreshing] = useState(false)
+  const [rewardsGivenToday, setRewardsGivenToday] = useState(2)
+  const [clientsCount] = useState(18)
 
   const loungeName = session?.pro?.nomEtablissement ?? 'Salon VIP'
+  const userEmail = session?.user?.email ?? '—'
+  const userRole = session?.user?.role ?? 'PRO'
+  // Nom du staff pour attribuer les récompenses
+  const staffName = session?.user?.email
+    ? session.user.email.split('@')[0].split('.').map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
+    : 'Manager'
 
   const refreshData = useCallback(async () => {
     try {
@@ -236,730 +2617,228 @@ export default function VIPDashboard() {
       if (incJson?.ok) setIncidents(incJson.data ?? [])
       if (shJson?.ok) setShowers(shJson.data ?? [])
       if (bfJson?.ok) setBuffet(bfJson.data ?? [])
-      setError(null)
     } catch {
-      setError('Impossible de contacter le serveur.')
+      /* ignore — on garde l'état précédent */
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
-  }, [])
-
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setMounted(true)
-      setToday(new Date())
-    }, 0)
-    return () => clearTimeout(t)
   }, [])
 
   useEffect(() => {
     refreshData()
-    const interval = setInterval(refreshData, 15000)
+    // Polling toutes les 30s — mode discrétion (visuel uniquement)
+    const interval = setInterval(refreshData, 30000)
     return () => clearInterval(interval)
   }, [refreshData])
 
-  // Alerte VIP : nouveau signalement non résolu → notification visuelle
-  // (jamais de son — mode discrétion). On garde une liste de alerts
-  // déjà notifiées pour éviter de revibrer à chaque poll.
-  const notifiedRef = useRef<Set<string>>(new Set())
+  // Récompenses : on initialise à 2 (mock) — elles s'incrémentent via le tab Rewards
+  // via un callback. Pour rester simple, on calcule depuis le storage local.
   useEffect(() => {
-    const nouveaux = incidents.filter(
-      (i) => i.statut === 'EN_ATTENTE' && !notifiedRef.current.has(i.id),
-    )
-    if (nouveaux.length === 0) return
-    // Mode discrétion : vibration haptique (sans son).
-    vibrationDiscrete()
-    for (const i of nouveaux) {
-      notifiedRef.current.add(i.id)
+    try {
+      const raw = localStorage.getItem('vip_rewards_today')
+      if (raw) {
+        const parsed: RewardGiven[] = JSON.parse(raw)
+        const today = new Date().toDateString()
+        setRewardsGivenToday(parsed.filter((r) => new Date(r.givenAt).toDateString() === today).length)
+      }
+    } catch {
+      /* ignore */
     }
-    setVipAlerts(nouveaux)
-    // Auto-dismiss après 10s (notification visuelle discrète)
-    const t = setTimeout(() => setVipAlerts([]), 10000)
-    return () => clearTimeout(t)
-  }, [incidents, notifiedRef])
+  }, [tab])
 
-  // Stats par zone
-  const statsByZone = useMemo(() => {
-    const map = new Map<string, { total: number; open: number; resolved: number }>()
-    for (const z of VIP_ZONES) map.set(z.code, { total: 0, open: 0, resolved: 0 })
-    for (const inc of incidents) {
-      const code = inc.zone?.code ?? 'com_lounge'
-      const s = map.get(code)
-      if (!s) continue
-      s.total++
-      if (inc.statut !== 'RESOLU') s.open++
-      else s.resolved++
-    }
-    return map
-  }, [incidents])
+  const patchIncidentStatus = useCallback(
+    async (id: string, statut: VipIncident['statut']) => {
+      const res = await fetch('/api/vip/incidents', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, statut }),
+      })
+      if (!res.ok) throw new Error('patch incident failed')
+      setIncidents((list) => list.map((i) => (i.id === id ? { ...i, statut } : i)))
+    },
+    [],
+  )
 
-  if (!mounted) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-[#1a1a1a]">
-        <div className="text-center">
-          <Wine className="mx-auto h-10 w-10 text-[#D4AF37]" />
-          <p className="mt-3 font-mono text-sm text-[#D4AF37]/70">Chargement du salon VIP…</p>
-        </div>
-      </div>
+  const patchShowerStatus = useCallback(
+    async (id: string, status: 'free' | 'occupied' | 'cleaning') => {
+      const res = await fetch('/api/vip/showers', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, status }),
+      })
+      if (!res.ok) throw new Error('patch shower failed')
+      setShowers((list) =>
+        list.map((s) =>
+          s.id === id
+            ? {
+                ...s,
+                status,
+                occupiedSince: status === 'occupied' ? new Date().toISOString() : null,
+              }
+            : s,
+        ),
+      )
+    },
+    [],
+  )
+
+  const patchBuffetFill = useCallback(async (id: string, fillLevel: number) => {
+    const res = await fetch('/api/vip/buffet', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, fillLevel }),
+    })
+    if (!res.ok) throw new Error('patch buffet failed')
+    const json = await res.json().catch(() => null)
+    const newFill = json?.data?.fillLevel ?? fillLevel
+    const newNext = new Date(Date.now() + 30 * 60_000).toISOString()
+    setBuffet((list) =>
+      list.map((b) =>
+        b.id === id
+          ? {
+              ...b,
+              fillLevel: newFill,
+              lastCheck: new Date().toISOString(),
+              nextCheck: newNext,
+              status:
+                newFill <= 20 ? 'critical' : newFill <= 50 ? 'warning' : 'ok',
+            }
+          : b,
+      ),
     )
+  }, [])
+
+  const naviguer = (t: VipTab) => {
+    setTab(t)
+    setDrawerOuvert(false)
   }
 
+  const manualRefresh = () => {
+    setRefreshing(true)
+    refreshData()
+  }
+
+  const currentNav = NAV_ITEMS.find((n) => n.id === tab)
+  const titreOnglet = currentNav?.label ?? 'Vue d\'ensemble'
+
   return (
-    <div className="flex min-h-screen flex-col bg-[#1a1a1a] font-sans text-[#F5F5F0]">
-      {/* ---------- HEADER ---------- */}
-      <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between border-b border-[#D4AF37]/30 bg-[#1a1a1a]/95 px-4 backdrop-blur sm:px-6">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl border border-[#D4AF37]/40 bg-[#D4AF37]/10">
-            <Wine className="h-5 w-5 text-[#D4AF37]" />
-          </div>
-          <div className="flex flex-col">
-            <h1 className="text-base font-semibold leading-tight tracking-wide text-[#D4AF37] sm:text-lg">
-              {loungeName}
-            </h1>
-            <p className="hidden text-[11px] text-[#F5F5F0]/50 sm:block" suppressHydrationWarning>
-              <span className="inline-flex items-center gap-1">
-                <Building2 className="h-3 w-3 text-[#D4AF37]/60" />
-                Salon VIP
-                <span className="text-[#F5F5F0]/20">·</span>
-                {today ? formatDateLong(today) : ''}
-              </span>
-            </p>
-          </div>
-        </div>
+    <div className="relative flex min-h-screen flex-col bg-[#FAFAF7] lg:pl-[260px]">
+      {/* Filet doré décoratif sur le côté droit de la sidebar */}
+      <div className="pointer-events-none fixed inset-y-0 left-[260px] z-30 hidden w-px bg-gradient-to-b from-[#C9A961]/30 via-[#EAE5DC] to-[#C9A961]/30 lg:block" aria-hidden />
 
-        <div className="flex items-center gap-2 sm:gap-3">
-          <div className="hidden flex-col items-end sm:flex">
-            <div className="font-mono text-lg font-semibold tabular-nums text-[#D4AF37]" suppressHydrationWarning>
-              {clock}
+      {/* ---------- Sidebar desktop (fixe, 260px) ---------- */}
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[260px] border-r border-[#EAE5DC] bg-white lg:block">
+        <VIPSidebarContent
+          activeTab={tab}
+          onNavigate={naviguer}
+          salonName={loungeName}
+          userEmail={userEmail}
+          userRole={userRole}
+          onLogout={logout}
+        />
+      </aside>
+
+      {/* ---------- Header (sticky) ---------- */}
+      <header className="sticky top-0 z-20 border-b border-[#EAE5DC] bg-[#FAFAF7]/95 backdrop-blur-sm">
+        <div className="flex h-16 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
+          <div className="flex min-w-0 items-center gap-3">
+            {/* Menu mobile — ouvre le drawer */}
+            <Sheet open={drawerOuvert} onOpenChange={setDrawerOuvert}>
+              <SheetContent side="left" className="w-[260px] border-0 p-0" aria-describedby={undefined}>
+                <SheetTitle className="sr-only">Navigation VIP</SheetTitle>
+                <VIPSidebarContent
+                  activeTab={tab}
+                  onNavigate={naviguer}
+                  salonName={loungeName}
+                  userEmail={userEmail}
+                  userRole={userRole}
+                  onLogout={logout}
+                />
+              </SheetContent>
+            </Sheet>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="text-[#8B6F47] hover:bg-[#C9A961]/10 lg:hidden"
+              onClick={() => setDrawerOuvert(true)}
+              aria-label="Ouvrir le menu"
+            >
+              <Menu className="h-5 w-5" aria-hidden />
+            </Button>
+            <div className="min-w-0">
+              <h2
+                className="truncate text-lg font-semibold text-[#2C2C2C]"
+                style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
+              >
+                {titreOnglet}
+              </h2>
+              <p className="hidden truncate text-xs text-[#8B6F47] sm:block">
+                Salon VIP · Mode Discrétion
+              </p>
             </div>
-            <div className="text-[10px] uppercase tracking-wider text-[#F5F5F0]/40">Heure</div>
           </div>
-
-          <button
-            type="button"
-            onClick={() => refreshData()}
-            className="inline-flex items-center gap-1.5 rounded-md border border-[#D4AF37]/30 bg-[#D4AF37]/5 px-2.5 py-1.5 text-xs font-medium text-[#D4AF37] transition hover:border-[#D4AF37]/60 hover:bg-[#D4AF37]/10"
-            title="Rafraîchir"
-          >
-            <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
-            <span className="hidden sm:inline">Rafraîchir</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => logout()}
-            className="inline-flex items-center gap-1.5 rounded-md border border-[#F5F5F0]/10 bg-[#F5F5F0]/5 px-2.5 py-1.5 text-xs font-medium text-[#F5F5F0]/70 transition hover:border-[#722F37]/60 hover:bg-[#722F37]/20 hover:text-[#F5F5F0]"
-            title="Se déconnecter"
-          >
-            <LogOut className="h-3.5 w-3.5" />
-            <span className="hidden sm:inline">Déconnexion</span>
-          </button>
+          <div className="flex shrink-0 items-center gap-2">
+            <Badge variant="outline" className="hidden border-[#4A7C59]/30 bg-[#4A7C59]/8 text-[#4A7C59] sm:inline-flex">
+              <span className="mr-1 h-1.5 w-1.5 rounded-full bg-[#4A7C59]" /> En service
+            </Badge>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={manualRefresh}
+              disabled={refreshing}
+              className="gap-1.5 border-[#EAE5DC] bg-white text-[#8B6F47] hover:bg-[#C9A961]/10"
+            >
+              {refreshing ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5" aria-hidden />
+              )}
+              <span className="hidden sm:inline">Actualiser</span>
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => logout()}
+              className="text-[#8B6F47] hover:bg-[#C97B63]/10 hover:text-[#C97B63] lg:hidden"
+              aria-label="Déconnexion"
+            >
+              <LogOut className="h-5 w-5" aria-hidden />
+            </Button>
+          </div>
         </div>
       </header>
 
-      {/* ---------- VIP CLIENT ALERT (notification visuelle discrète) ---------- */}
-      {vipAlerts.length > 0 && (
-        <div
-          role="alert"
-          className="mx-4 mt-4 animate-pulse rounded-xl border border-[#D4AF37]/60 bg-[#D4AF37]/10 p-4 sm:mx-6"
-        >
-          <div className="flex items-start gap-3">
-            <Bell className="mt-0.5 h-5 w-5 shrink-0 text-[#D4AF37]" aria-hidden />
-            <div className="flex-1">
-              <p className="text-sm font-semibold text-[#D4AF37]">
-                Alerte Client VIP — {vipAlerts.length} nouveau
-                {vipAlerts.length > 1 ? 'x' : ''} signalement
-                {vipAlerts.length > 1 ? 's' : ''}
-              </p>
-              <p className="mt-0.5 text-xs text-[#F5F5F0]/70">
-                {vipAlerts[0]?.zone?.nom ?? 'Zone'} : {vipAlerts[0]?.problemType}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={() => setVipAlerts([])}
-              className="text-xs text-[#F5F5F0]/50 hover:text-[#D4AF37]"
-            >
-              Ignorer
-            </button>
-          </div>
+      {/* ---------- Contenu ---------- */}
+      <main className="w-full flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
+        <div className="mx-auto max-w-7xl">
+          {tab === 'overview' && (
+            <OverviewTab
+              incidents={incidents}
+              showers={showers}
+              buffet={buffet}
+              clientsCount={clientsCount}
+              rewardsGivenToday={rewardsGivenToday}
+              loading={loading}
+            />
+          )}
+          {tab === 'incidents' && (
+            <IncidentsTab incidents={incidents} loading={loading} onPatchStatus={patchIncidentStatus} />
+          )}
+          {tab === 'buffet' && (
+            <BuffetTab buffet={buffet} loading={loading} onPatchFill={patchBuffetFill} />
+          )}
+          {tab === 'showers' && (
+            <ShowersTab showers={showers} loading={loading} onPatchStatus={patchShowerStatus} />
+          )}
+          {tab === 'rewards' && <RewardsTab staffName={staffName} />}
+          {tab === 'clients' && <ClientsTab />}
+          {tab === 'staff' && <StaffTab />}
+          {tab === 'qr' && <QRTab />}
+          {tab === 'reports' && <ReportsTab incidents={incidents} />}
+          {tab === 'settings' && <SettingsTab />}
         </div>
-      )}
-
-      {/* ---------- TAB BAR ---------- */}
-      <nav className="mx-4 mt-4 sm:mx-6" aria-label="Onglets du salon VIP">
-        <div className="flex gap-1 overflow-x-auto rounded-xl border border-[#D4AF37]/20 bg-[#0F0F0F] p-1">
-          {([
-            { slug: 'overview', label: 'Vue d\'ensemble', emoji: '✨' },
-            { slug: 'buffet', label: 'Buffet', emoji: '🍽️' },
-            { slug: 'showers', label: 'Douches', emoji: '🚿' },
-            { slug: 'incidents', label: 'Signalements', emoji: '📋' },
-            { slug: 'rewards', label: 'Récompenses', emoji: '🎁' },
-          ] as const).map((t) => {
-            const active = tab === t.slug
-            return (
-              <button
-                key={t.slug}
-                type="button"
-                onClick={() => setTab(t.slug)}
-                aria-current={active ? 'page' : undefined}
-                className={cn(
-                  'flex shrink-0 items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition',
-                  active
-                    ? 'bg-[#D4AF37]/15 text-[#D4AF37] shadow-sm'
-                    : 'text-[#F5F5F0]/60 hover:bg-[#F5F5F0]/5 hover:text-[#F5F5F0]',
-                )}
-              >
-                <span className="text-base leading-none" aria-hidden>
-                  {t.emoji}
-                </span>
-                <span>{t.label}</span>
-              </button>
-            )
-          })}
-        </div>
-      </nav>
-
-      {/* ---------- TAB CONTENT ---------- */}
-      <main className="mx-4 mb-6 mt-4 flex-1 sm:mx-6">
-        {tab === 'overview' && (
-          <OverviewTab
-            incidents={incidents}
-            showers={showers}
-            buffet={buffet}
-            statsByZone={statsByZone}
-            loading={loading}
-          />
-        )}
-        {tab === 'buffet' && (
-          <BuffetTab
-            buffet={buffet}
-            loading={loading}
-            onUpdate={async (id, fillLevel) => {
-              try {
-                const res = await fetch('/api/vip/buffet', {
-                  method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ id, fillLevel }),
-                })
-                if (res.ok) refreshData()
-              } catch {
-                /* ignore */
-              }
-            }}
-          />
-        )}
-        {tab === 'showers' && (
-          <ShowersTab
-            showers={showers}
-            loading={loading}
-            onAdvance={async (id, status) => {
-              try {
-                const res = await fetch('/api/vip/showers', {
-                  method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ id, status }),
-                })
-                if (res.ok) refreshData()
-              } catch {
-                /* ignore */
-              }
-            }}
-          />
-        )}
-        {tab === 'incidents' && (
-          <IncidentsTab
-            incidents={incidents}
-            loading={loading}
-            error={error}
-            onAdvance={async (id, next) => {
-              try {
-                const res = await fetch('/api/vip/incidents', {
-                  method: 'PATCH',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ id, statut: next }),
-                })
-                if (res.ok) refreshData()
-              } catch {
-                /* ignore */
-              }
-            }}
-          />
-        )}
-        {tab === 'rewards' && <RewardsTab />}
       </main>
-
-      {/* ---------- FOOTER ---------- */}
-      <footer className="mt-auto shrink-0 border-t border-[#D4AF37]/20 bg-[#0F0F0F] px-4 py-2 sm:px-6">
-        <div className="flex items-center justify-between text-[11px] text-[#F5F5F0]/40">
-          <div className="flex items-center gap-2">
-            <Wine className="h-3 w-3 text-[#D4AF37]/60" aria-hidden />
-            <span>FeedbackPro · Module Salon VIP — Mode discrétion actif</span>
-          </div>
-          <div className="hidden tabular-nums sm:block">
-            Onglet : <span className="text-[#D4AF37]">{tab}</span>
-          </div>
-        </div>
-      </footer>
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------
-// Tab Vue d'ensemble — 6 zones + résumé buffet/douches
-// ---------------------------------------------------------------
-
-function OverviewTab({
-  incidents,
-  showers,
-  buffet,
-  statsByZone,
-  loading,
-}: {
-  incidents: VipIncident[]
-  showers: Shower[]
-  buffet: BuffetItem[]
-  statsByZone: Map<string, { total: number; open: number; resolved: number }>
-  loading: boolean
-}) {
-  const openIncidents = incidents.filter((i) => i.statut !== 'RESOLU').length
-  const freeShowers = showers.filter((s) => s.status === 'free').length
-  const totalShowers = showers.length
-  const avgBuffet =
-    buffet.length > 0 ? Math.round(buffet.reduce((acc, b) => acc + b.fillLevel, 0) / buffet.length) : 100
-
-  return (
-    <div className="space-y-4">
-      {/* KPI Row */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl border border-[#D4AF37]/20 bg-[#0F0F0F] p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs uppercase tracking-wider text-[#F5F5F0]/50">Signalements ouverts</span>
-            <Bell className="h-4 w-4 text-[#D4AF37]/60" />
-          </div>
-          <p className="mt-2 text-3xl font-semibold text-[#D4AF37]">{openIncidents}</p>
-        </div>
-        <div className="rounded-2xl border border-[#D4AF37]/20 bg-[#0F0F0F] p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs uppercase tracking-wider text-[#F5F5F0]/50">Douches libres</span>
-            <ShowerHead className="h-4 w-4 text-[#D4AF37]/60" />
-          </div>
-          <p className="mt-2 text-3xl font-semibold text-[#D4AF37]">
-            {freeShowers}<span className="text-base text-[#F5F5F0]/40"> / {totalShowers}</span>
-          </p>
-        </div>
-        <div className="rounded-2xl border border-[#D4AF37]/20 bg-[#0F0F0F] p-4">
-          <div className="flex items-center justify-between">
-            <span className="text-xs uppercase tracking-wider text-[#F5F5F0]/50">Niveau buffet moyen</span>
-            <Utensils className="h-4 w-4 text-[#D4AF37]/60" />
-          </div>
-          <p className="mt-2 text-3xl font-semibold text-[#D4AF37]">{avgBuffet}%</p>
-        </div>
-      </div>
-
-      {/* Zones (6) */}
-      <div className="rounded-2xl border border-[#D4AF37]/20 bg-[#0F0F0F] p-4 sm:p-6">
-        <h2 className="mb-4 text-sm font-semibold uppercase tracking-wider text-[#D4AF37]">Zones du salon</h2>
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {VIP_ZONES.map((z) => {
-            const s = statsByZone.get(z.code) ?? { total: 0, open: 0, resolved: 0 }
-            return (
-              <div
-                key={z.code}
-                className="rounded-xl border border-[#D4AF37]/10 bg-[#1a1a1a] p-3 transition hover:border-[#D4AF37]/30"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl" aria-hidden>
-                      {z.emoji}
-                    </span>
-                    <div>
-                      <h3 className="text-sm font-medium text-[#F5F5F0]">{z.nom}</h3>
-                      <p className="text-[11px] text-[#F5F5F0]/40">{z.description}</p>
-                    </div>
-                  </div>
-                </div>
-                <div className="mt-2 flex items-center gap-3 text-xs">
-                  <span className="text-[#F5F5F0]/60">Total : {s.total}</span>
-                  {s.open > 0 && (
-                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-amber-300">
-                      {s.open} en cours
-                    </span>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      {loading && (
-        <div className="flex items-center justify-center gap-2 py-4 text-[#F5F5F0]/40">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <span className="text-sm">Synchronisation…</span>
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------
-// Tab Buffet — Checklist timer 30 min + niveau %
-// ---------------------------------------------------------------
-
-function BuffetTab({
-  buffet,
-  loading,
-  onUpdate,
-}: {
-  buffet: BuffetItem[]
-  loading: boolean
-  onUpdate: (id: string, fillLevel: number) => Promise<void>
-}) {
-  return (
-    <div className="rounded-2xl border border-[#D4AF37]/20 bg-[#0F0F0F] p-4 shadow-sm sm:p-6">
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold text-[#D4AF37]">Checklist buffet</h2>
-        <p className="text-xs text-[#F5F5F0]/50">
-          Vérification toutes les 30 min. Ajustez le niveau de remplissage pour chaque item.
-        </p>
-      </div>
-
-      {loading && buffet.length === 0 ? (
-        <div className="flex items-center justify-center gap-2 py-12 text-[#F5F5F0]/40">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <span className="text-sm">Chargement…</span>
-        </div>
-      ) : buffet.length === 0 ? (
-        <div className="py-12 text-center">
-          <Utensils className="mx-auto h-8 w-8 text-[#D4AF37]/60" />
-          <p className="mt-2 text-sm text-[#F5F5F0]/50">Aucun item buffet configuré.</p>
-        </div>
-      ) : (
-        <ul className="space-y-3">
-          {buffet.map((b) => {
-            const minutesLastCheck = minutesDepuis(b.lastCheck)
-            const minutesNextCheck = Math.max(0, Math.floor((new Date(b.nextCheck).getTime() - Date.now()) / 60000))
-            return (
-              <li key={b.id} className="rounded-xl border border-[#D4AF37]/10 bg-[#1a1a1a] p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-[#F5F5F0]">
-                        {BUFFET_ITEM_LABELS[b.item] ?? b.item}
-                      </span>
-                      <span
-                        className={cn(
-                          'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium',
-                          BUFFET_STATUS_COLOR[b.status],
-                        )}
-                      >
-                        {BUFFET_STATUS_LABEL[b.status]}
-                      </span>
-                    </div>
-                    <p className="mt-1 text-[11px] text-[#F5F5F0]/40">
-                      <Clock className="mr-1 inline h-3 w-3" />
-                      Dernière vérif : {minutesLastCheck} min · Prochaine : {minutesNextCheck} min
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-2xl font-semibold tabular-nums text-[#D4AF37]">{b.fillLevel}%</span>
-                  </div>
-                </div>
-                {/* Slider niveau de remplissage */}
-                <div className="mt-3 flex items-center gap-3">
-                  <input
-                    type="range"
-                    min={0}
-                    max={100}
-                    step={5}
-                    value={b.fillLevel}
-                    onChange={(e) => onUpdate(b.id, Number(e.target.value))}
-                    className="h-2 flex-1 cursor-pointer appearance-none rounded-full bg-[#F5F5F0]/10 accent-[#D4AF37]"
-                    aria-label={`Niveau ${BUFFET_ITEM_LABELS[b.item] ?? b.item}`}
-                  />
-                  <div className="flex gap-1">
-                    {[25, 50, 75, 100].map((v) => (
-                      <button
-                        key={v}
-                        type="button"
-                        onClick={() => onUpdate(b.id, v)}
-                        className="rounded-md border border-[#D4AF37]/20 bg-[#D4AF37]/5 px-2 py-1 text-[11px] text-[#D4AF37] transition hover:bg-[#D4AF37]/15"
-                      >
-                        {v}%
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              </li>
-            )
-          })}
-        </ul>
-      )}
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------
-// Tab Douches — Statut temps réel + QR réservation
-// ---------------------------------------------------------------
-
-function ShowersTab({
-  showers,
-  loading,
-  onAdvance,
-}: {
-  showers: Shower[]
-  loading: boolean
-  onAdvance: (id: string, status: Shower['status']) => Promise<void>
-}) {
-  return (
-    <div className="rounded-2xl border border-[#D4AF37]/20 bg-[#0F0F0F] p-4 shadow-sm sm:p-6">
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold text-[#D4AF37]">Gestion des douches</h2>
-        <p className="text-xs text-[#F5F5F0]/50">
-          Statut temps réel : Libre / Occupé / Nettoyage. Le client peut réserver une douche libre via QR code.
-        </p>
-      </div>
-
-      {loading && showers.length === 0 ? (
-        <div className="flex items-center justify-center gap-2 py-12 text-[#F5F5F0]/40">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <span className="text-sm">Chargement…</span>
-        </div>
-      ) : showers.length === 0 ? (
-        <div className="py-12 text-center">
-          <ShowerHead className="mx-auto h-8 w-8 text-[#D4AF37]/60" />
-          <p className="mt-2 text-sm text-[#F5F5F0]/50">Aucune douche configurée.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {showers.map((s) => {
-            const minutesOccupied = s.occupiedSince ? minutesDepuis(s.occupiedSince) : null
-            return (
-              <div
-                key={s.id}
-                className="rounded-xl border border-[#D4AF37]/10 bg-[#1a1a1a] p-4 transition hover:border-[#D4AF37]/30"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-2">
-                    <ShowerHead className="h-6 w-6 text-[#D4AF37]" />
-                    <div>
-                      <h3 className="text-sm font-semibold text-[#F5F5F0]">Douche #{s.showerNumber}</h3>
-                      {minutesOccupied !== null && s.status === 'occupied' && (
-                        <p className="text-[11px] text-[#F5F5F0]/40">Occupée depuis {minutesOccupied} min</p>
-                      )}
-                    </div>
-                  </div>
-                  <span
-                    className={cn(
-                      'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium',
-                      SHOWER_STATUS_COLOR[s.status],
-                    )}
-                  >
-                    {SHOWER_STATUS_LABEL[s.status]}
-                  </span>
-                </div>
-
-                {/* Actions */}
-                <div className="mt-3 flex flex-wrap gap-1.5">
-                  {s.status === 'free' && (
-                    <button
-                      type="button"
-                      onClick={() => onAdvance(s.id, 'occupied')}
-                      className="rounded-md bg-amber-500/20 px-2.5 py-1 text-xs font-medium text-amber-300 transition hover:bg-amber-500/30"
-                    >
-                      Marquer occupée
-                    </button>
-                  )}
-                  {s.status === 'occupied' && (
-                    <button
-                      type="button"
-                      onClick={() => onAdvance(s.id, 'cleaning')}
-                      className="rounded-md bg-sky-500/20 px-2.5 py-1 text-xs font-medium text-sky-300 transition hover:bg-sky-500/30"
-                    >
-                      Marquer nettoyage
-                    </button>
-                  )}
-                  {s.status === 'cleaning' && (
-                    <button
-                      type="button"
-                      onClick={() => onAdvance(s.id, 'free')}
-                      className="rounded-md bg-emerald-500/20 px-2.5 py-1 text-xs font-medium text-emerald-300 transition hover:bg-emerald-500/30"
-                    >
-                      Marquer libre
-                    </button>
-                  )}
-                  {s.status === 'free' && (
-                    <a
-                      href={`/api/vip/showers/qr/${s.id}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="ml-auto inline-flex items-center gap-1 rounded-md border border-[#D4AF37]/30 bg-[#D4AF37]/5 px-2.5 py-1 text-xs font-medium text-[#D4AF37] transition hover:bg-[#D4AF37]/15"
-                      title="QR réservation"
-                    >
-                      <QrCode className="h-3 w-3" /> QR
-                    </a>
-                  )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------
-// Tab Signalements — Workflow Nouveau → En cours → Résolu
-// (pas de son — mode discrétion : notifications visuelles uniquement)
-// ---------------------------------------------------------------
-
-function IncidentsTab({
-  incidents,
-  loading,
-  error,
-  onAdvance,
-}: {
-  incidents: VipIncident[]
-  loading: boolean
-  error: string | null
-  onAdvance: (id: string, next: VipIncident['statut']) => Promise<void>
-}) {
-  return (
-    <div className="rounded-2xl border border-[#D4AF37]/20 bg-[#0F0F0F] p-4 shadow-sm sm:p-6">
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold text-[#D4AF37]">Signalements VIP</h2>
-        <p className="text-xs text-[#F5F5F0]/50">
-          Mode discrétion : aucune alerte sonore. Notifications visuelles uniquement.
-        </p>
-      </div>
-
-      {loading && incidents.length === 0 ? (
-        <div className="flex items-center justify-center gap-2 py-12 text-[#F5F5F0]/40">
-          <Loader2 className="h-4 w-4 animate-spin" />
-          <span className="text-sm">Chargement…</span>
-        </div>
-      ) : error ? (
-        <p className="py-8 text-center text-sm text-rose-400" role="alert">
-          {error}
-        </p>
-      ) : incidents.length === 0 ? (
-        <div className="py-12 text-center">
-          <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-400" />
-          <p className="mt-2 text-sm text-[#F5F5F0]/50">Aucun signalement en cours.</p>
-        </div>
-      ) : (
-        <ul className="max-h-[60vh] space-y-2 overflow-y-auto pr-1">
-          {incidents.map((inc) => (
-            <li
-              key={inc.id}
-              className="rounded-xl border border-[#D4AF37]/10 bg-[#1a1a1a] p-3 transition hover:border-[#D4AF37]/30"
-            >
-              <div className="flex flex-wrap items-start justify-between gap-2">
-                <div className="flex-1">
-                  <div className="flex flex-wrap items-center gap-2">
-                    <span
-                      className={cn(
-                        'inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium',
-                        STATUT_INCIDENT_COLOR[inc.statut],
-                      )}
-                    >
-                      {STATUT_INCIDENT_LABEL[inc.statut]}
-                    </span>
-                    {inc.zone && (
-                      <span className="text-xs text-[#F5F5F0]/60">
-                        {inc.zone.emoji} {inc.zone.nom}
-                      </span>
-                    )}
-                  </div>
-                  <p className="mt-1.5 text-sm font-medium text-[#F5F5F0]">{inc.problemType}</p>
-                  {inc.commentaire && (
-                    <p className="mt-0.5 text-xs text-[#F5F5F0]/50">{inc.commentaire}</p>
-                  )}
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  <span className="text-[11px] text-[#F5F5F0]/40">
-                    {new Date(inc.createdAt).toLocaleString('fr-FR', {
-                      hour: '2-digit',
-                      minute: '2-digit',
-                    })}
-                  </span>
-                  {inc.statut === 'EN_ATTENTE' && (
-                    <button
-                      type="button"
-                      onClick={() => onAdvance(inc.id, 'EN_COURS')}
-                      className="rounded-md bg-sky-500/20 px-3 py-1 text-xs font-semibold text-sky-300 transition hover:bg-sky-500/30"
-                    >
-                      Prendre en charge
-                    </button>
-                  )}
-                  {inc.statut === 'EN_COURS' && (
-                    <button
-                      type="button"
-                      onClick={() => onAdvance(inc.id, 'RESOLU')}
-                      className="rounded-md bg-emerald-500/20 px-3 py-1 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/30"
-                    >
-                      Résoudre
-                    </button>
-                  )}
-                </div>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  )
-}
-
-// ---------------------------------------------------------------
-// Tab Récompenses — Flash Reward Premium (offres luxe)
-// ---------------------------------------------------------------
-
-function RewardsTab() {
-  return (
-    <div className="rounded-2xl border border-[#D4AF37]/20 bg-[#0F0F0F] p-4 shadow-sm sm:p-6">
-      <div className="mb-4">
-        <h2 className="text-lg font-semibold text-[#D4AF37]">Flash Rewards Premium</h2>
-        <p className="text-xs text-[#F5F5F0]/50">
-          Offres luxe pour les clients VIP. Pas de promotions basiques — uniquement des prestations premium.
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        {VIP_FLASH_REWARDS.map((r) => (
-          <div
-            key={r.id}
-            className="rounded-xl border border-[#D4AF37]/20 bg-gradient-to-br from-[#1a1a1a] to-[#722F37]/10 p-4 transition hover:border-[#D4AF37]/50"
-          >
-            <div className="flex items-start gap-3">
-              <span className="text-3xl" aria-hidden>
-                {r.emoji}
-              </span>
-              <div className="flex-1">
-                <h3 className="text-sm font-semibold text-[#D4AF37]">{r.titre}</h3>
-                <p className="mt-0.5 text-xs text-[#F5F5F0]/60">{r.description}</p>
-                <button
-                  type="button"
-                  className="mt-3 inline-flex items-center gap-1.5 rounded-md border border-[#D4AF37]/40 bg-[#D4AF37]/10 px-3 py-1.5 text-xs font-medium text-[#D4AF37] transition hover:bg-[#D4AF37]/20"
-                >
-                  <Sparkles className="h-3 w-3" /> Offrir au client
-                </button>
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="mt-6 rounded-xl border border-[#722F37]/30 bg-[#722F37]/10 p-4">
-        <p className="text-xs text-[#F5F5F0]/60">
-          <ConciergeBell className="mr-1 inline h-3 w-3 text-[#D4AF37]" />
-          Les récompenses premium sont activées manuellement par le concierge — pas d&apos;envoi automatique
-          (préserve l&apos;expérience VIP personnalisée).
-        </p>
-      </div>
     </div>
   )
 }
