@@ -50,11 +50,11 @@ if (process.env.NODE_ENV !== 'production' && dynamicRequire.cache) {
 const PrismaClientCtor: typeof import('@prisma/client').PrismaClient =
   dynamicRequire('@prisma/client').PrismaClient
 
-// Version bumpé à v24 (Flash Rewards) : 3 nouveaux modèles FlashRewardCampaign,
-// FlashRewardCode, FlashRewardStat (cartes à gratter post-signalement) + champ
-// back-relation flashRewardCampaigns sur Advertiser. Incrémenter la version
-// force la création d'une nouvelle instance PrismaClient qui connaît ces modèles.
-const PRISMA_CACHE_KEY = 'prisma_v24_flash_rewards'
+// Version bumpé à v25 (VIP modules — VipOrder.trackingNumber + auth-pin / 
+// shower-reservations / upsell-offers / orders / lost-found routes). Incrémenter 
+// la version force la création d'une nouvelle instance PrismaClient qui connaît 
+// le nouveau champ trackingNumber sur VipOrder.
+const PRISMA_CACHE_KEY = 'prisma_v25_vip_modules'
 
 const globalForPrisma = globalThis as unknown as {
   [key: string]: import('@prisma/client').PrismaClient | undefined

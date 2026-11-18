@@ -1302,3 +1302,110 @@ model VipTableRequest {
   @@index([tableId, status])
   @@index([status])
 }
+
+// ============================================================
+// MODULE 1 — COCKPIT MANAGER + MODULE 2 — COMPTOIR RÉCEPTION
+// Staff accounts avec auth Tél+PIN et permissions par rôle
+// ============================================================
+
+model StaffAccount {
+  id          String   @id @default(cuid())
+  name        String
+  phone       String   @unique              // numéro de téléphone (pré-enregistré)
+  pinHash     String                          // hash SHA256 du PIN 4 chiffres
+  role        String   @default("reception") // manager | maitre_dhotel | reception | etage | barman
+  avatarUrl   String?
+  active      Boolean  @default(true)
+  failedAttempts Int   @default(0)
+  lockedUntil DateTime?
+  lastLoginAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([phone])
+  @@index([role])
+}
+
+// ============================================================
+// MODULE 4 — SMART SHOWER QUEUE
+// Réservations FIFO avec ETA dynamique
+// ============================================================
+
+model ShowerReservation {
+  id          String   @id @default(cuid())
+  showerNumber Int                              // D-01, D-02 → showerNumber 1, 2
+  tableNumber String?                            // table du client qui réserve
+  clientName  String?
+  status      String   @default("queued")        // queued | ready | using | done | cancelled
+  reservedAt  DateTime @default(now())
+  readyAt     DateTime?                          // quand la douche est prête
+  usedAt      DateTime?                          // quand le client commence à utiliser
+  cleanedAt   DateTime?                          // quand le nettoyage est terminé
+  expiresAt   DateTime?                          // libération auto après 10 min si no-show
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([showerNumber, status])
+  @@index([status])
+}
+
+// ============================================================
+// MODULE 5 — UPSELLING & PARTENARIATS
+// Offres luxe + produits Duty-Free en livraison
+// ============================================================
+
+model UpsellOffer {
+  id          String   @id @default(cuid())
+  title       String                          // "Massage express 15 min", "Bouteille champagne millésimée"
+  description String?
+  priceFcfa   Int                             // prix en FCFA
+  type        String                          // upsell | dutyfree
+  category    String?                         // "spa", "champagne", "fasttrack", "souvenirs"
+  emoji       String?                         // 💆 🥂 ✈️ 🎁
+  stock       Int      @default(-1)           // -1 = illimité
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([type, active])
+}
+
+model VipOrder {
+  id              String   @id @default(cuid())
+  tableNumber     String?                     // table du client
+  clientName      String?
+  items           String   @default("[]")     // JSON: [{ offerId, title, priceFcfa, qty }]
+  totalFcfa       Int      @default(0)
+  status          String   @default("pending") // pending | paid | preparing | delivered | cancelled
+  paymentRef      String?                     // référence paiement Wave/Orange Money
+  paymentMethod   String?                     // wave | orange_money | cash
+  // Numéro de suivi lisible (ex: CMD-2026-0847) — unique, généré à la création
+  trackingNumber  String?  @unique
+  deliveredAt     DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+  @@index([tableNumber])
+}
+
+// ============================================================
+// MODULE 2 — LOST & FOUND (objets trouvés)
+// ============================================================
+
+model LostFoundItem {
+  id          String   @id @default(cuid())
+  title       String                          // "iPhone 15 noir", "Lunettes Ray-Ban"
+  description String?
+  category    String   @default("other")      // electronics, clothing, accessories, documents, other
+  tableNumber String?                         // table où trouvé
+  foundBy     String?                         // nom du staff
+  status      String   @default("found")      // found | claimed | returned
+  claimedBy   String?                         // nom du client qui a réclamé
+  returnedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([category])
+}

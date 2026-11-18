@@ -48,6 +48,7 @@ import {
   Trash2,
   ArrowLeft,
   RefreshCw,
+  Package,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -61,12 +62,13 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
+import { VipLostFound } from '@/components/feedbackpro/vip-lost-found'
 
 // ============================================================
 // Types
 // ============================================================
 
-type Screen = 'login' | 'feed' | 'resolve-confirm'
+type Screen = 'login' | 'feed' | 'resolve-confirm' | 'lost-found'
 
 interface VipStaffMember {
   id: string
@@ -627,15 +629,27 @@ export function VipStaffView({
                 </div>
               </div>
             </div>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={handleLogout}
-              className="border-[#EAE5DC] text-[#8B6F47] hover:bg-[#FAFAF7] hover:text-[#2C2C2C]"
-            >
-              <LogOut className="size-3.5" />
-              Déconnexion
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setScreen('lost-found')}
+                className="border-[#EAE5DC] text-[#8B6F47] hover:bg-[#FAFAF7] hover:text-[#2C2C2C] gap-1.5"
+                title="Objets trouvés"
+              >
+                <Package className="size-3.5" />
+                <span className="hidden xs:inline">Objets trouvés</span>
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={handleLogout}
+                className="border-[#EAE5DC] text-[#8B6F47] hover:bg-[#FAFAF7] hover:text-[#2C2C2C]"
+              >
+                <LogOut className="size-3.5" />
+                Déconnexion
+              </Button>
+            </div>
           </div>
         </header>
       )
@@ -1104,6 +1118,21 @@ export function VipStaffView({
           {screen === 'login' && renderLogin()}
           {screen === 'feed' && renderFeed()}
           {screen === 'resolve-confirm' && renderResolveConfirm()}
+          {screen === 'lost-found' && currentStaff && (
+            <div>
+              <div className="mb-4 flex items-center justify-between">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setScreen('feed')}
+                  className="gap-2 border-[#EAE5DC] bg-white text-[#8B6F47]"
+                >
+                  <ArrowLeft className="h-4 w-4" /> Retour au feed
+                </Button>
+              </div>
+              <VipLostFound staffName={currentStaff.name} />
+            </div>
+          )}
         </main>
       </div>
     </div>

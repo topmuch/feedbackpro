@@ -36,6 +36,8 @@ import {
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { VipUpsellCatalog } from '@/components/feedbackpro/vip-upsell-catalog'
+import { VipShowerReservation } from '@/components/feedbackpro/vip-shower-reservation'
 
 // ============================================================
 // Types
@@ -67,8 +69,9 @@ type RequestType =
   | 'concierge'
   | 'problem'
   | 'rating'
+  | 'upsell'
 
-type View = 'main' | 'problem' | 'refreshment' | 'concierge'
+type View = 'main' | 'problem' | 'refreshment' | 'concierge' | 'upsell' | 'shower-reservation'
 
 type Confirmation = {
   type: RequestType
@@ -85,7 +88,7 @@ type ActionDef = {
   description: string
   Icon: typeof Wine
   tone: 'gold' | 'bronze' | 'sage' | 'amethyst' | 'terracotta'
-  behavior: 'direct' | 'form:refreshment' | 'form:concierge' | 'form:problem'
+  behavior: 'direct' | 'form:refreshment' | 'form:concierge' | 'form:problem' | 'form:upsell' | 'form:shower-reservation'
 }
 
 // ============================================================
@@ -120,7 +123,7 @@ const ACTIONS: ActionDef[] = [
     description: `${SHOWER_AVAILABLE} cabines disponibles`,
     Icon: ShowerHead,
     tone: 'sage',
-    behavior: 'direct',
+    behavior: 'form:shower-reservation',
   },
   {
     type: 'charger',
@@ -130,6 +133,15 @@ const ACTIONS: ActionDef[] = [
     Icon: Plug,
     tone: 'bronze',
     behavior: 'direct',
+  },
+  {
+    type: 'upsell',
+    emoji: '✨',
+    label: "S'offrir un moment d'exception",
+    description: 'Massage, champagne, fast-track, boutique…',
+    Icon: Sparkles,
+    tone: 'gold',
+    behavior: 'form:upsell',
   },
   {
     type: 'concierge',
@@ -426,6 +438,10 @@ export function VipTableScan({
       setView('concierge')
     } else if (action.behavior === 'form:problem') {
       setView('problem')
+    } else if (action.behavior === 'form:upsell') {
+      setView('upsell')
+    } else if (action.behavior === 'form:shower-reservation') {
+      setView('shower-reservation')
     }
   }
 
@@ -1108,6 +1124,38 @@ export function VipTableScan({
               </div>
             )}
           </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ============================================================
+  // RENDU — Vue Upsell (Module 5 — Nathalie integration)
+  // ============================================================
+  if (view === 'upsell' && table) {
+    return (
+      <div className="min-h-screen bg-[#FAFAF7]">
+        <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
+          <VipUpsellCatalog
+            tableNumber={table.tableNumber}
+            onBack={() => setView('main')}
+          />
+        </div>
+      </div>
+    )
+  }
+
+  // ============================================================
+  // RENDU — Vue Réservation Douche (Module 4 — Smart Shower Queue)
+  // ============================================================
+  if (view === 'shower-reservation' && table) {
+    return (
+      <div className="min-h-screen bg-[#FAFAF7]">
+        <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
+          <VipShowerReservation
+            tableNumber={table.tableNumber}
+            onBack={() => setView('main')}
+          />
         </div>
       </div>
     )
