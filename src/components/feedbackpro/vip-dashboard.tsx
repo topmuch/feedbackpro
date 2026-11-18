@@ -4168,7 +4168,7 @@ export default function VIPDashboard() {
           {tab === 'qr' && <QRTab />}
           {tab === 'reports' && <ReportsTab incidents={incidents} />}
           {tab === 'wallboard' && (
-            <div className="relative min-h-0 w-full flex-1 overflow-hidden rounded-2xl border border-[#EAE5DC] shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+            <div className="relative h-[calc(100vh-200px)] min-h-[500px] w-full overflow-hidden rounded-2xl border border-[#EAE5DC] shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
               <iframe
                 src="/vip-wallboard"
                 className="absolute inset-0 h-full w-full border-0"

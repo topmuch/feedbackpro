@@ -47,6 +47,8 @@ import {
   Star,
   TrendingUp,
   Loader2,
+  Sun,
+  Moon,
 } from 'lucide-react'
 import { parler } from '@/lib/staff-tts'
 import { cn } from '@/lib/utils'
@@ -119,12 +121,27 @@ const COLORS = {
   border: '#EAE5DC',
 } as const
 
+// Palette mode sombre (pour affichage TV en salle ops sombre)
+const COLORS_DARK = {
+  bg: '#0F0F0F',
+  header: '#000000',
+  card: '#1A1A1A',
+  gold: '#C9A961',
+  bronze: '#8B6F47',
+  text: '#FAFAF7',
+  success: '#4A7C59',
+  alert: '#C97B63',
+  vip: '#9B7BC9',
+  border: '#333333',
+} as const
+
 const LATE_THRESHOLD_MIN = 10
 const REMINDER_INTERVAL_MIN = 5
 const POLL_INTERVAL_MS = 5000
 const CLOCK_INTERVAL_MS = 1000
 
 const SOUND_STORAGE_KEY = 'vip_wallboard_sound'
+const DARK_MODE_STORAGE_KEY = 'vip_wallboard_dark'
 
 // Ordre d'affichage des zones dans le plan du salon.
 const ZONE_ORDER = ['main', 'buffet', 'relaxation', 'meeting'] as const
@@ -339,16 +356,17 @@ function KpiCard({
  * couleur, le nom du client si occupée, et un badge du nombre de
  * demandes actives si > 0. Clic désactivé (wallboard = display only).
  */
-function TableCard({ t }: { t: WallboardData['tables'][number] }) {
+function TableCard({ t, darkMode }: { t: WallboardData['tables'][number]; darkMode: boolean }) {
+  const C = darkMode ? COLORS_DARK : COLORS
   const statusColor =
     t.status === 'free'
-      ? COLORS.success
+      ? C.success
       : t.status === 'occupied'
-        ? COLORS.vip
+        ? C.vip
         : t.status === 'problem'
-          ? COLORS.alert
+          ? C.alert
           : t.status === 'reserved'
-            ? COLORS.gold
+            ? C.gold
             : '#999999'
   const statusLabel =
     t.status === 'free'
@@ -365,7 +383,7 @@ function TableCard({ t }: { t: WallboardData['tables'][number] }) {
     <div
       className="relative flex flex-col rounded-xl border bg-white p-3"
       style={{
-        borderColor: COLORS.border,
+        borderColor: C.border,
         boxShadow: '0 2px 10px rgba(201,169,97,0.06)',
         minHeight: 96,
       }}
@@ -380,7 +398,7 @@ function TableCard({ t }: { t: WallboardData['tables'][number] }) {
       <div className="flex items-center justify-between pl-2">
         <span
           className="font-black"
-          style={{ fontSize: 18, color: COLORS.text }}
+          style={{ fontSize: 18, color: C.text }}
         >
           {t.tableNumber}
         </span>
@@ -412,17 +430,17 @@ function TableCard({ t }: { t: WallboardData['tables'][number] }) {
       {t.status === 'occupied' && t.clientName ? (
         <div
           className="mt-2 truncate pl-2"
-          style={{ fontSize: 11, color: COLORS.text }}
+          style={{ fontSize: 11, color: C.text }}
           title={t.clientName}
         >
-          <span style={{ color: COLORS.gold }}>★ </span>
+          <span style={{ color: C.gold }}>★ </span>
           {t.clientName}
           {t.clientVipLevel ? (
             <span
               className="ml-1 rounded px-1 py-px text-[9px] font-bold uppercase"
               style={{
-                backgroundColor: COLORS.vip + '22',
-                color: COLORS.vip,
+                backgroundColor: C.vip + '22',
+                color: C.vip,
               }}
             >
               {t.clientVipLevel}
@@ -434,7 +452,7 @@ function TableCard({ t }: { t: WallboardData['tables'][number] }) {
       {/* Badge demandes actives */}
       {t.activeRequests > 0 ? (
         <div className="absolute -right-1.5 -top-1.5 flex h-6 min-w-[24px] items-center justify-center rounded-full px-1.5 text-[11px] font-black text-white shadow-md"
-          style={{ backgroundColor: COLORS.alert }}
+          style={{ backgroundColor: C.alert }}
         >
           {t.activeRequests}
         </div>
@@ -455,16 +473,19 @@ function TableCard({ t }: { t: WallboardData['tables'][number] }) {
  */
 function AlertCard({
   incident,
+  darkMode,
 }: {
   incident: WallboardData['active_incidents'][number]
+  darkMode: boolean
 }) {
+  const C = darkMode ? COLORS_DARK : COLORS
   const isProblem = incident.type === 'problem'
   const borderColor = incident.isLate
-    ? COLORS.alert
+    ? C.alert
     : isProblem
-      ? COLORS.alert
-      : COLORS.gold
-  const bgTint = isProblem ? COLORS.alert + '0A' : COLORS.gold + '0A'
+      ? C.alert
+      : C.gold
+  const bgTint = isProblem ? C.alert + '0A' : C.gold + '0A'
 
   return (
     <div
@@ -483,10 +504,10 @@ function AlertCard({
       {/* Top : zone + tracking + retard badge */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex items-center gap-1.5 min-w-0">
-          <MapPin size={12} style={{ color: COLORS.bronze }} />
+          <MapPin size={12} style={{ color: C.bronze }} />
           <span
             className="truncate text-[11px] font-bold uppercase"
-            style={{ color: COLORS.bronze, letterSpacing: 1 }}
+            style={{ color: C.bronze, letterSpacing: 1 }}
           >
             {incident.zoneLabel || incident.tableZone || '—'}
           </span>
@@ -495,7 +516,7 @@ function AlertCard({
           {incident.isLate ? (
             <span
               className="flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black uppercase text-white"
-              style={{ backgroundColor: COLORS.alert, letterSpacing: 1 }}
+              style={{ backgroundColor: C.alert, letterSpacing: 1 }}
             >
               <AlertTriangle size={10} />
               En retard
@@ -506,7 +527,7 @@ function AlertCard({
               className="rounded px-1.5 py-0.5 text-[10px] font-mono"
               style={{
                 backgroundColor: '#F5F0E5',
-                color: COLORS.text,
+                color: C.text,
               }}
             >
               {incident.trackingNumber}
@@ -519,7 +540,7 @@ function AlertCard({
       <div className="mt-2">
         <div
           className="text-[13px] font-bold"
-          style={{ color: COLORS.text }}
+          style={{ color: C.text }}
         >
           {incident.typeLabel}
         </div>
@@ -541,7 +562,7 @@ function AlertCard({
           <Clock size={11} />
           {formatRelativeMin(incident.elapsedMin)}
         </span>
-        <span className="font-bold" style={{ color: COLORS.text }}>
+        <span className="font-bold" style={{ color: C.text }}>
           {incident.tableNumber || '—'}
         </span>
       </div>
@@ -555,40 +576,44 @@ function AlertCard({
 
 function ResolvedCard({
   r,
+  darkMode,
 }: {
   r: WallboardData['recently_resolved'][number]
+  darkMode: boolean
 }) {
+  const C = darkMode ? COLORS_DARK : COLORS
   return (
     <div
-      className="flex min-w-[220px] flex-col rounded-xl border bg-white p-3"
+      className="flex min-w-[220px] flex-col rounded-xl border p-3"
       style={{
-        borderColor: COLORS.border,
+        backgroundColor: C.card,
+        borderColor: C.border,
         boxShadow: '0 2px 10px rgba(74,124,89,0.08)',
       }}
     >
       <div className="flex items-center gap-1.5">
-        <CheckCircle2 size={14} style={{ color: COLORS.success }} />
+        <CheckCircle2 size={14} style={{ color: C.success }} />
         <span
           className="text-[11px] font-bold uppercase"
-          style={{ color: COLORS.success, letterSpacing: 1 }}
+          style={{ color: C.success, letterSpacing: 1 }}
         >
           Résolu
         </span>
       </div>
       <div
         className="mt-1.5 font-mono text-[12px] font-bold"
-        style={{ color: COLORS.text }}
+        style={{ color: C.text }}
       >
         {r.trackingNumber || r.id.slice(0, 8)}
       </div>
-      <div className="mt-1 text-[12px]" style={{ color: COLORS.text }}>
+      <div className="mt-1 text-[12px]" style={{ color: C.text }}>
         {r.typeLabel}
       </div>
       <div
         className="mt-1.5 flex items-center justify-between text-[11px]"
         style={{ color: '#8a8170' }}
       >
-        <span className="font-bold" style={{ color: COLORS.bronze }}>
+        <span className="font-bold" style={{ color: C.bronze }}>
           {r.tableNumber || '—'}
         </span>
         <span>résolu {formatRelativeMin(r.resolvedMinAgo)}</span>
@@ -606,9 +631,13 @@ export default function VipWallboardPage() {
   const [loading, setLoading] = useState(true)
   const [now, setNow] = useState<Date>(() => new Date())
   const [soundOn, setSoundOn] = useState(false)
+  const [darkMode, setDarkMode] = useState(false)
   const [showSoundBanner, setShowSoundBanner] = useState(false)
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // Palette active selon le mode sombre/clair
+  const C = darkMode ? COLORS_DARK : COLORS
 
   // --- Refs pour la déduplication des annonces ---
   // seenIdsRef : IDs des incidents déjà vus (évite de réannoncer au
@@ -781,15 +810,35 @@ export default function VipWallboardPage() {
       if (alreadyOn) {
         setSoundOn(true)
       } else {
-        // On affiche la bannière sonore pendant 15 s pour inviter
-        // l'ops à activer le son (les navigateurs bloquent l'AudioContext
-        // sans interaction utilisateur préalable).
         setShowSoundBanner(true)
         const dismiss = setTimeout(() => setShowSoundBanner(false), 15000)
         return () => clearTimeout(dismiss)
       }
     }, 0)
     return () => clearTimeout(t)
+  }, [])
+
+  // Préférence mode sombre/clair (localStorage)
+  // ---------------------------------------------------------------
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(DARK_MODE_STORAGE_KEY)
+      if (saved === '1') setDarkMode(true)
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  const toggleDarkMode = useCallback(() => {
+    setDarkMode((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem(DARK_MODE_STORAGE_KEY, next ? '1' : '0')
+      } catch {
+        /* ignore */
+      }
+      return next
+    })
   }, [])
 
   const toggleSound = useCallback(() => {
@@ -851,13 +900,13 @@ export default function VipWallboardPage() {
   return (
     <div
       className="min-h-screen w-full"
-      style={{ backgroundColor: COLORS.bg, color: COLORS.text }}
+      style={{ backgroundColor: C.bg, color: C.text }}
     >
       {/* ===== Header (sticky, anthracite) ===== */}
       <header
         className="sticky top-0 z-30 w-full"
         style={{
-          backgroundColor: COLORS.header,
+          backgroundColor: C.header,
           color: '#FFFFFF',
           boxShadow: '0 4px 20px rgba(0,0,0,0.18)',
         }}
@@ -868,8 +917,8 @@ export default function VipWallboardPage() {
             <div
               className="flex h-11 w-11 items-center justify-center rounded-lg text-2xl"
               style={{
-                backgroundColor: COLORS.gold,
-                color: COLORS.header,
+                backgroundColor: C.gold,
+                color: C.header,
                 boxShadow: '0 2px 8px rgba(201,169,97,0.30)',
               }}
             >
@@ -880,7 +929,7 @@ export default function VipWallboardPage() {
                 className="text-lg font-bold"
                 style={{
                   fontFamily: 'Georgia, "Playfair Display", serif',
-                  color: COLORS.gold,
+                  color: C.gold,
                   letterSpacing: 1,
                 }}
               >
@@ -907,8 +956,8 @@ export default function VipWallboardPage() {
               className="flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black uppercase"
               style={{
                 backgroundColor:
-                  alertCount > 0 ? COLORS.alert + '33' : COLORS.gold + '33',
-                color: alertCount > 0 ? COLORS.alert : COLORS.gold,
+                  alertCount > 0 ? C.alert + '33' : C.gold + '33',
+                color: alertCount > 0 ? C.alert : C.gold,
                 letterSpacing: 1,
               }}
             >
@@ -917,7 +966,7 @@ export default function VipWallboardPage() {
               {lateCount > 0 ? (
                 <span
                   className="ml-1 rounded-full px-1.5 py-px text-[10px] text-white"
-                  style={{ backgroundColor: COLORS.alert }}
+                  style={{ backgroundColor: C.alert }}
                 >
                   {lateCount} retard
                 </span>
@@ -933,12 +982,12 @@ export default function VipWallboardPage() {
               </div>
               <div
                 className="text-[10px] font-bold uppercase"
-                style={{ color: COLORS.gold, letterSpacing: 2 }}
+                style={{ color: C.gold, letterSpacing: 2 }}
               >
                 <span className="inline-flex items-center gap-1">
                   <span
                     className="inline-block h-1.5 w-1.5 rounded-full"
-                    style={{ backgroundColor: COLORS.success }}
+                    style={{ backgroundColor: C.success }}
                   />
                   Système OK
                 </span>
@@ -967,8 +1016,8 @@ export default function VipWallboardPage() {
             <div
               className="rounded-lg px-3 py-1.5 text-center"
               style={{
-                backgroundColor: COLORS.gold,
-                color: COLORS.header,
+                backgroundColor: C.gold,
+                color: C.header,
                 boxShadow: '0 2px 8px rgba(201,169,97,0.30)',
               }}
             >
@@ -994,15 +1043,35 @@ export default function VipWallboardPage() {
               title={soundOn ? 'Désactiver le son' : 'Activer le son'}
               className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold uppercase transition"
               style={{
-                backgroundColor: soundOn ? COLORS.gold + '33' : 'transparent',
-                color: soundOn ? COLORS.gold : '#FFFFFF',
-                border: `1px solid ${soundOn ? COLORS.gold : '#555'}`,
+                backgroundColor: soundOn ? C.gold + '33' : 'transparent',
+                color: soundOn ? C.gold : '#FFFFFF',
+                border: `1px solid ${soundOn ? C.gold : '#555'}`,
                 letterSpacing: 1,
               }}
             >
               {soundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}
               <span className="hidden sm:inline">
                 {soundOn ? 'Son ON' : 'Son OFF'}
+              </span>
+            </button>
+
+            {/* Toggle mode sombre/clair */}
+            <button
+              type="button"
+              onClick={toggleDarkMode}
+              aria-pressed={darkMode}
+              title={darkMode ? 'Passer en mode clair' : 'Passer en mode sombre'}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold uppercase transition"
+              style={{
+                backgroundColor: darkMode ? C.gold + '33' : 'transparent',
+                color: darkMode ? C.gold : '#FFFFFF',
+                border: `1px solid ${darkMode ? C.gold : '#555'}`,
+                letterSpacing: 1,
+              }}
+            >
+              {darkMode ? <Sun size={14} /> : <Moon size={14} />}
+              <span className="hidden sm:inline">
+                {darkMode ? 'Clair' : 'Sombre'}
               </span>
             </button>
           </div>
@@ -1013,7 +1082,7 @@ export default function VipWallboardPage() {
           <div
             className="flex w-full items-center justify-between gap-3 px-6 py-2"
             style={{
-              backgroundColor: COLORS.success,
+              backgroundColor: C.success,
               color: '#FFFFFF',
             }}
           >
@@ -1027,7 +1096,7 @@ export default function VipWallboardPage() {
               type="button"
               onClick={toggleSound}
               className="flex items-center gap-1.5 rounded-md bg-white px-3 py-1.5 text-xs font-black uppercase transition hover:bg-opacity-90"
-              style={{ color: COLORS.success, letterSpacing: 1 }}
+              style={{ color: C.success, letterSpacing: 1 }}
             >
               🔊 Activer le son
             </button>
@@ -1040,7 +1109,7 @@ export default function VipWallboardPage() {
         {/* === Indicateur de chargement initial === */}
         {loading && !data ? (
           <div className="flex flex-col items-center justify-center gap-3 py-20">
-            <Loader2 size={32} className="animate-spin" style={{ color: COLORS.gold }} />
+            <Loader2 size={32} className="animate-spin" style={{ color: C.gold }} />
             <div
               className="text-sm font-bold uppercase opacity-70"
               style={{ letterSpacing: 2 }}
@@ -1055,9 +1124,9 @@ export default function VipWallboardPage() {
           <div
             className="mb-4 rounded-xl border-2 px-4 py-2 text-sm font-bold"
             style={{
-              borderColor: COLORS.alert,
-              backgroundColor: COLORS.alert + '11',
-              color: COLORS.alert,
+              borderColor: C.alert,
+              backgroundColor: C.alert + '11',
+              color: C.alert,
             }}
           >
             ⚠ {error} — nouvelle tentative dans 5 s…
@@ -1072,7 +1141,7 @@ export default function VipWallboardPage() {
               <KpiCard
                 label="Score satisfaction"
                 value={`${data.kpis.satisfaction_score.toFixed(1)}/5`}
-                bg={COLORS.success}
+                bg={C.success}
                 fg="#FFFFFF"
                 badge={
                   <span
@@ -1098,7 +1167,7 @@ export default function VipWallboardPage() {
                 label="En attente"
                 value={data.kpis.pending}
                 bg='#F6C443'
-                fg={COLORS.header}
+                fg={C.header}
               />
 
               {/* 3. En cours */}
@@ -1121,7 +1190,7 @@ export default function VipWallboardPage() {
               <KpiCard
                 label="Temps moyen"
                 value={`${data.kpis.avg_resolution_min}min`}
-                bg={COLORS.header}
+                bg={C.header}
                 fg='#FFFFFF'
               />
 
@@ -1129,15 +1198,15 @@ export default function VipWallboardPage() {
               <KpiCard
                 label="Tables occupées"
                 value={`${data.kpis.tables_occupied}/${data.kpis.tables_total}`}
-                bg={COLORS.gold}
-                fg={COLORS.header}
+                bg={C.gold}
+                fg={C.header}
               />
 
               {/* 7. Total demandes */}
               <KpiCard
                 label="Demandes auj."
                 value={data.kpis.total_today}
-                bg={COLORS.bronze}
+                bg={C.bronze}
                 fg='#FFFFFF'
               />
             </section>
@@ -1148,7 +1217,7 @@ export default function VipWallboardPage() {
               <div
                 className="rounded-2xl border bg-white p-5"
                 style={{
-                  borderColor: COLORS.border,
+                  borderColor: C.border,
                   boxShadow: '0 4px 20px rgba(201,169,97,0.06)',
                 }}
               >
@@ -1157,7 +1226,7 @@ export default function VipWallboardPage() {
                     className="text-lg font-bold"
                     style={{
                       fontFamily: 'Georgia, "Playfair Display", serif',
-                      color: COLORS.text,
+                      color: C.text,
                     }}
                   >
                     🪑 Plan du Salon — Temps Réel
@@ -1186,7 +1255,7 @@ export default function VipWallboardPage() {
                           <span
                             className="text-[12px] font-bold uppercase"
                             style={{
-                              color: COLORS.bronze,
+                              color: C.bronze,
                               letterSpacing: 2,
                             }}
                           >
@@ -1199,13 +1268,13 @@ export default function VipWallboardPage() {
                           </span>
                           <div
                             className="ml-2 h-px flex-1"
-                            style={{ backgroundColor: COLORS.border }}
+                            style={{ backgroundColor: C.border }}
                           />
                         </div>
                         {/* Grille tables */}
                         <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-3 md:grid-cols-4 xl:grid-cols-5">
                           {zg.tables.map((t) => (
-                            <TableCard key={t.id} t={t} />
+                            <TableCard key={t.id} t={t} darkMode={darkMode} />
                           ))}
                         </div>
                       </div>
@@ -1217,16 +1286,16 @@ export default function VipWallboardPage() {
                 <div
                   className="mt-5 flex flex-wrap items-center gap-3 border-t pt-3 text-[10px] font-bold uppercase"
                   style={{
-                    borderColor: COLORS.border,
+                    borderColor: C.border,
                     color: '#8a8170',
                     letterSpacing: 1,
                   }}
                 >
                   <span>Légende :</span>
-                  <LegendDot color={COLORS.success} label='Libre' />
-                  <LegendDot color={COLORS.vip} label='Occupée' />
-                  <LegendDot color={COLORS.alert} label='Problème' />
-                  <LegendDot color={COLORS.gold} label='Réservée' />
+                  <LegendDot color={C.success} label='Libre' />
+                  <LegendDot color={C.vip} label='Occupée' />
+                  <LegendDot color={C.alert} label='Problème' />
+                  <LegendDot color={C.gold} label='Réservée' />
                 </div>
               </div>
 
@@ -1234,7 +1303,7 @@ export default function VipWallboardPage() {
               <div
                 className="rounded-2xl border bg-white p-5"
                 style={{
-                  borderColor: COLORS.border,
+                  borderColor: C.border,
                   boxShadow: '0 4px 20px rgba(201,169,97,0.06)',
                 }}
               >
@@ -1243,7 +1312,7 @@ export default function VipWallboardPage() {
                     className="text-lg font-bold"
                     style={{
                       fontFamily: 'Georgia, "Playfair Display", serif',
-                      color: COLORS.text,
+                      color: C.text,
                     }}
                   >
                     ⚠ Alertes Actives
@@ -1253,9 +1322,9 @@ export default function VipWallboardPage() {
                     style={{
                       backgroundColor:
                         alertCount > 0
-                          ? COLORS.alert + '22'
-                          : COLORS.success + '22',
-                      color: alertCount > 0 ? COLORS.alert : COLORS.success,
+                          ? C.alert + '22'
+                          : C.success + '22',
+                      color: alertCount > 0 ? C.alert : C.success,
                       letterSpacing: 1,
                     }}
                   >
@@ -1266,7 +1335,7 @@ export default function VipWallboardPage() {
                 {data.active_incidents.length === 0 ? (
                   <div
                     className="flex flex-col items-center justify-center gap-3 py-16 text-center"
-                    style={{ color: COLORS.success }}
+                    style={{ color: C.success }}
                   >
                     <CheckCircle2 size={48} />
                     <div>
@@ -1284,7 +1353,7 @@ export default function VipWallboardPage() {
                 ) : (
                   <div className="flex flex-col gap-2.5">
                     {data.active_incidents.map((inc) => (
-                      <AlertCard key={inc.id} incident={inc} />
+                      <AlertCard key={inc.id} incident={inc} darkMode={darkMode} />
                     ))}
                   </div>
                 )}
@@ -1296,7 +1365,7 @@ export default function VipWallboardPage() {
               <div
                 className="rounded-2xl border bg-white p-5"
                 style={{
-                  borderColor: COLORS.border,
+                  borderColor: C.border,
                   boxShadow: '0 4px 20px rgba(201,169,97,0.06)',
                 }}
               >
@@ -1305,7 +1374,7 @@ export default function VipWallboardPage() {
                     className="text-lg font-bold"
                     style={{
                       fontFamily: 'Georgia, "Playfair Display", serif',
-                      color: COLORS.text,
+                      color: C.text,
                     }}
                   >
                     ✓ Résolus Récemment
@@ -1325,7 +1394,7 @@ export default function VipWallboardPage() {
                 ) : (
                   <div className="flex gap-3 overflow-x-auto pb-2">
                     {data.recently_resolved.map((r) => (
-                      <ResolvedCard key={r.id} r={r} />
+                      <ResolvedCard key={r.id} r={r} darkMode={darkMode} />
                     ))}
                   </div>
                 )}
@@ -1339,7 +1408,7 @@ export default function VipWallboardPage() {
       <footer
         className="sticky bottom-0 z-20 w-full border-t"
         style={{
-          backgroundColor: COLORS.header,
+          backgroundColor: C.header,
           color: '#FFFFFF',
           borderColor: '#1a1a1a',
         }}
@@ -1348,17 +1417,17 @@ export default function VipWallboardPage() {
           <div className="flex items-center gap-2 text-[11px] font-bold uppercase opacity-80"
             style={{ letterSpacing: 2 }}
           >
-            <Plane size={12} style={{ color: COLORS.gold }} />
+            <Plane size={12} style={{ color: C.gold }} />
             FeedbackPro · Salon VIP Wallboard
           </div>
           <div className="flex items-center gap-4 text-[11px]">
             <span className="hidden items-center gap-1.5 opacity-70 sm:flex">
-              <TrendingUp size={12} style={{ color: COLORS.gold }} />
+              <TrendingUp size={12} style={{ color: C.gold }} />
               Live · MAJ {lastUpdate ? formatClockSec(lastUpdate) : '—'}
             </span>
             <span
               className="font-mono font-black tabular-nums"
-              style={{ color: COLORS.gold }}
+              style={{ color: C.gold }}
               suppressHydrationWarning
             >
               {formatClockSec(now)}
