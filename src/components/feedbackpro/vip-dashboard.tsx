@@ -379,6 +379,7 @@ const SEED_STAFF: StaffMember[] = [
 ]
 
 const QR_SERVER = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='
+const APP_URL = typeof window !== 'undefined' ? window.location.origin : 'https://feedback.qrbags.com'
 
 const BUFFET_ITEM_LABELS: Record<string, string> = {
   buffet_fill: 'Buffet (Saumon, Fruits, Mignardises)',
@@ -1091,7 +1092,7 @@ function TableDetailSheet({
             <h3 className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">QR Code de la table</h3>
             <div className="mt-2 flex items-center gap-4 rounded-2xl border border-[#EAE5DC] bg-[#FAFAF7] p-4">
               <img
-                src={qrImageUrl(`/?vipTable=${table.qrToken}`)}
+                src={qrImageUrl(`${APP_URL}/?vipTable=${table.qrToken}`)}
                 alt={`QR code table ${table.tableNumber}`}
                 width={96}
                 height={96}
@@ -3288,7 +3289,7 @@ function QRTab() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {VIP_ZONES.map((z) => {
             const url = origin ? qrUrlForZone(z.code, z.tags[0] ?? z.code) : ''
-            const img = qrImageUrl(url || `/?airport=${z.tags[0] ?? z.code}`)
+            const img = qrImageUrl(url || `${APP_URL}/?airport=${z.tags[0] ?? z.code}`)
             const scans = scansForZone(z.code)
             return (
               <Card key={z.code} className="border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
