@@ -213,7 +213,10 @@ function ongletDepuisUrl(): OngletAdmin {
       if (EST_ONGLET(t)) return t
       if (ALIAS_SLUGS[t]) return ALIAS_SLUGS[t]
     }
-    const m = window.location.pathname.match(/^\/superadmin\/([a-z-]+)\/?$/)
+    // BUGFIX : la regex [a-z-] ne matchait pas les underscores → les onglets
+    // flash_rewards, qr_analytics, crystal_ball, regie_pub n'étaient jamais
+    // résolus depuis l'URL /superadmin/<slug>. On ajoute _ dans la classe.
+    const m = window.location.pathname.match(/^\/superadmin\/([a-z_-]+)\/?$/)
     if (m) {
       if (EST_ONGLET(m[1])) return m[1]
       if (ALIAS_SLUGS[m[1]]) return ALIAS_SLUGS[m[1]]

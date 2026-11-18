@@ -379,7 +379,26 @@ const SEED_STAFF: StaffMember[] = [
 ]
 
 const QR_SERVER = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='
-const APP_URL = typeof window !== 'undefined' ? window.location.origin : 'https://feedback.qrbags.com'
+const FALLBACK_URL = 'https://feedback.qrbags.com'
+
+/**
+ * Renvoie l'URL absolue de l'app (origine) au moment de l'appel.
+ * - Côté client : window.location.origin (ex: https://feedback.qrbags.com)
+ * - Côté serveur (SSR) : fallback hardcoded vers le domaine de prod
+ *
+ * IMPORTANT : on utilise une FONCTION (pas une constante module-level) car
+ * une constante est évaluée une seule fois au chargement du module. En SSR,
+ * window est undefined → la constante valait le fallback ; en hydration client,
+ * elle valait window.location.origin. Selon le contexte (cache, navigation
+ * SPA, preview IP), cela pouvait produire un QR code sans nom de domaine
+ * (URL relative). La fonction garantit toujours une URL absolue.
+ */
+function appUrl(): string {
+  if (typeof window !== 'undefined' && window.location && window.location.origin) {
+    return window.location.origin
+  }
+  return FALLBACK_URL
+}
 
 const BUFFET_ITEM_LABELS: Record<string, string> = {
   buffet_fill: 'Buffet (Saumon, Fruits, Mignardises)',
@@ -628,14 +647,20 @@ function qrImageUrl(dataUrl: string): string {
   return `${QR_SERVER}${encodeURIComponent(dataUrl)}`
 }
 
+/**
+ * URL absolue pour un QR code de zone aéroport.
+ * Toujours préfixée par le domaine — jamais d'URL relative.
+ */
 function qrUrlForZone(zoneCode: string, tag: string): string {
-  if (typeof window === 'undefined') return `/?airport=${tag}`
-  return `${window.location.origin}/?airport=${tag}`
+  return `${appUrl()}/?airport=${tag}`
 }
 
+/**
+ * URL absolue pour un QR code staff.
+ * Toujours préfixée par le domaine — jamais d'URL relative.
+ */
 function qrUrlForStaff(staffId: string): string {
-  if (typeof window === 'undefined') return `/?staff=${staffId}`
-  return `${window.location.origin}/?staff=${staffId}`
+  return `${appUrl()}/?staff=${staffId}`
 }
 
 // ============================================================
@@ -1092,7 +1117,7 @@ function TableDetailSheet({
             <h3 className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">QR Code de la table</h3>
             <div className="mt-2 flex items-center gap-4 rounded-2xl border border-[#EAE5DC] bg-[#FAFAF7] p-4">
               <img
-                src={qrImageUrl(`${APP_URL}/?vipTable=${table.qrToken}`)}
+                src={qrImageUrl(`${appUrl()}/?vipTable=${table.qrToken}`)}
                 alt={`QR code table ${table.tableNumber}`}
                 width={96}
                 height={96}
@@ -3231,15 +3256,6 @@ function StaffTab() {
 // ============================================================
 
 function QRTab() {
-  const [origin, setOrigin] = useState<string>('')
-  useEffect(() => {
-    // Différé via setTimeout(0) — évite le setState synchrone dans l'effet
-    const t = setTimeout(() => {
-      if (typeof window !== 'undefined') setOrigin(window.location.origin)
-    }, 0)
-    return () => clearTimeout(t)
-  }, [])
-
   // Scans mockés (déterministes pour stabilité d'affichage)
   const scansForZone = (code: string) => {
     const h = code.split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 0)
@@ -3288,8 +3304,8 @@ function QRTab() {
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[#8B6F47]">Zones VIP (6)</h3>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {VIP_ZONES.map((z) => {
-            const url = origin ? qrUrlForZone(z.code, z.tags[0] ?? z.code) : ''
-            const img = qrImageUrl(url || `${APP_URL}/?airport=${z.tags[0] ?? z.code}`)
+            const url = qrUrlForZone(z.code, z.tags[0] ?? z.code)
+            const img = qrImageUrl(url)
             const scans = scansForZone(z.code)
             return (
               <Card key={z.code} className="border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
@@ -3336,7 +3352,7 @@ function QRTab() {
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[#8B6F47]">QR Staff</h3>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {SEED_STAFF.map((s) => {
-            const url = origin ? qrUrlForStaff(s.id) : `/?staff=${s.id}`
+            const url = qrUrlForStaff(s.id)
             const img = qrImageUrl(url)
             const scans = scansForStaff(s.id)
             return (
