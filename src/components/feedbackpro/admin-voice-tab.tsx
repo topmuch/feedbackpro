@@ -25,15 +25,24 @@
 //      message custom → TTS navigateur. Affiche aussi le mode
 //      horaire courant par secteur.
 //
+//   E. Gestion des Signalements (Feature 2 — FIX-4-FEATURES)
+//      Command center Denise : liste les 10 derniers signalements
+//      aéroport (polling 15s) avec boutons Annoncer / Résoudre /
+//      Escalader. « Annoncer » déclenche parler() côté navigateur
+//      (voix grave + débit rapide = « Denise »).
+//
 // Contrats :
 //   GET    /api/admin/voice/rules[?sector=]
 //   POST   /api/admin/voice/rules
 //   GET    /api/admin/voice/timemodes
 //   POST   /api/admin/voice/timemodes
 //   GET    /api/admin/voice/logs[?sector=&spoken=&eventType=]
+//   GET    /api/airport/reports?limit=10
+//   POST   /api/airport/ops/resolve      { reportId }
+//   POST   /api/airport/ops/take-charge  { reportId }  (escalade → EN_COURS)
 // ============================================================
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import {
   Volume2,
   Clock,
@@ -51,6 +60,9 @@ import {
   ShieldAlert,
   Utensils,
   Plane,
+  Megaphone,
+  CheckCheck,
+  TrendingUp,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -85,6 +97,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
+import { parler } from "@/lib/staff-tts"
 
 // ---------- Types (mirror API) ----------
 
@@ -369,7 +382,7 @@ export function AdminVoiceTab() {
       </div>
 
       <Tabs defaultValue="matrix" className="space-y-5">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 lg:w-fit">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 lg:w-fit">
           <TabsTrigger value="matrix" className="gap-2">
             <Volume2 className="h-4 w-4" /> Matrice
           </TabsTrigger>
@@ -381,6 +394,10 @@ export function AdminVoiceTab() {
           </TabsTrigger>
           <TabsTrigger value="test" className="gap-2">
             <TestTube2 className="h-4 w-4" /> Test
+          </TabsTrigger>
+          {/* Feature 2 — Gestion des Signalements (Denise command center) */}
+          <TabsTrigger value="signalements" className="gap-2">
+            <AlertTriangle className="h-4 w-4" /> Signalements
           </TabsTrigger>
         </TabsList>
 
@@ -620,6 +637,11 @@ export function AdminVoiceTab() {
         {/* ---------------- SECTION D : Test Denise ---------------- */}
         <TabsContent value="test">
           <TestDeniseSection timemodes={timemodes} />
+        </TabsContent>
+
+        {/* ---------------- SECTION E : Gestion des Signalements (Feature 2) ---------------- */}
+        <TabsContent value="signalements">
+          <SignalementsDeniseSection />
         </TabsContent>
       </Tabs>
 
@@ -1098,5 +1120,403 @@ function RuleEditDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
+  )
+}
+
+// ============================================================
+// Feature 2 — Sub-section : Gestion des Signalements (Denise)
+// ------------------------------------------------------------
+// Command center Denise pour piloter les signalements aéroport :
+//   - Liste les 10 derniers signalements (tous statuts confondus)
+//     via GET /api/airport/reports?limit=10
+//   - Polling 15 s pour afficher un feed temps réel
+//   - Boutons par ligne :
+//       • Annoncer   → parler() (TTS navigateur voix « Denise »)
+//       • Résoudre   → POST /api/airport/ops/resolve { reportId }
+//       • Escalader  → POST /api/airport/ops/take-charge { reportId }
+//   - KPIs en haut : total / en attente / en cours / résolus
+// ============================================================
+
+type SignalementLigne = {
+  id: string
+  problemType: string
+  tagScanne: string
+  statut: string
+  createdAt: string
+  resolvedAt: string | null
+  zone?: {
+    code: string
+    nom: string
+    emoji: string | null
+  } | null
+}
+
+const STATUT_STYLES: Record<string, { label: string; color: string }> = {
+  EN_ATTENTE: { label: "En attente", color: "bg-amber-100 text-amber-800 border-amber-300" },
+  EN_COURS: { label: "En cours", color: "bg-sky-100 text-sky-800 border-sky-300" },
+  RESOLU: { label: "Résolu", color: "bg-emerald-100 text-emerald-800 border-emerald-300" },
+}
+
+function formatTempsRelatifSignalement(iso: string): string {
+  try {
+    const d = new Date(iso)
+    const now = new Date()
+    const diff = Math.max(0, (now.getTime() - d.getTime()) / 1000)
+    if (diff < 60) return "à l'instant"
+    if (diff < 3600) return `il y a ${Math.floor(diff / 60)} min`
+    if (diff < 86400) return `il y a ${Math.floor(diff / 3600)} h`
+    return d.toLocaleDateString("fr-FR", { day: "2-digit", month: "short", hour: "2-digit", minute: "2-digit" })
+  } catch {
+    return ""
+  }
+}
+
+function SignalementsDeniseSection() {
+  const { toast } = useToast()
+  const [reports, setReports] = useState<SignalementLigne[]>([])
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  // IDs des signalements en cours d'action (Annoncer/Résoudre/Escalader)
+  // pour désactiver le bouton pendant la requête.
+  const [busyId, setBusyId] = useState<string | null>(null)
+  // Snapshot des IDs déjà vus pour détecter les nouveaux (feed live).
+  // Au premier chargement, on peuple le Set sans toast (sinon spam).
+  const seenIdsRef = useRef<Set<string>>(new Set())
+  const firstPollRef = useRef(true)
+
+  // Chargement + polling 15 s
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch("/api/airport/reports?limit=10", { cache: "no-store" })
+      const json = await res.json()
+      if (json.ok) {
+        const liste: SignalementLigne[] = json.data.reports ?? []
+        // Détection des nouveaux signalements (post-première-boucle) pour
+        // un éventuel effet visuel (flash ligne). Pour l'instant : juste
+        // peuple le seenIdsRef pour préparer une future animation.
+        if (firstPollRef.current) {
+          for (const r of liste) seenIdsRef.current.add(r.id)
+          firstPollRef.current = false
+        } else {
+          for (const r of liste) {
+            if (!seenIdsRef.current.has(r.id)) {
+              seenIdsRef.current.add(r.id)
+              // Nouveau signalement détecté — on peut hooker un son, etc.
+              // Ici, on se contente de mettre à jour la liste (le toast
+              // est déclenché côté AirportIncidentsBell déjà en place).
+            }
+          }
+        }
+        setReports(liste)
+      }
+    } catch {
+      /* silencieux */
+    } finally {
+      setLoading(false)
+      setRefreshing(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void load()
+    const t = setInterval(() => void load(), 15_000)
+    return () => clearInterval(t)
+  }, [load])
+
+  /** Annonce vocale via Denise (parler) — voix grave + débit rapide. */
+  function annoncer(r: SignalementLigne) {
+    const zoneNom = r.zone?.nom ?? r.tagScanne
+    const texte = `Nouveau signalement. Zone ${zoneNom}. ${r.problemType}.`
+    try {
+      parler(texte)
+      toast({
+        title: "Annonce Denise ✓",
+        description: texte,
+      })
+    } catch (e) {
+      toast({
+        title: "Erreur TTS",
+        description: e instanceof Error ? e.message : "Synthèse vocale indisponible",
+        variant: "destructive",
+      })
+    }
+  }
+
+  /** Marque un signalement comme résolu (POST /api/airport/ops/resolve). */
+  async function resoudre(r: SignalementLigne) {
+    setBusyId(r.id)
+    try {
+      const res = await fetch("/api/airport/ops/resolve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reportId: r.id }),
+      })
+      const json = await res.json()
+      if (json.ok) {
+        toast({
+          title: "Signalement résolu ✓",
+          description: `${r.problemType} (${r.zone?.nom ?? r.tagScanne})`,
+        })
+        // Annonce vocale de résolution
+        try {
+          parler(`Signalement résolu. Zone ${r.zone?.nom ?? r.tagScanne}.`)
+        } catch {
+          /* non bloquant */
+        }
+        // Met à jour la liste en local + re-poll complet
+        setReports((prev) =>
+          prev.map((x) =>
+            x.id === r.id ? { ...x, statut: "RESOLU", resolvedAt: new Date().toISOString() } : x,
+          ),
+        )
+        void load()
+      } else {
+        toast({ title: "Erreur", description: json.error ?? "Échec", variant: "destructive" })
+      }
+    } catch (e) {
+      toast({
+        title: "Erreur réseau",
+        description: e instanceof Error ? e.message : "Résolution impossible",
+        variant: "destructive",
+      })
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  /** Escalade un signalement → EN_COURS (POST /api/airport/ops/take-charge). */
+  async function escalader(r: SignalementLigne) {
+    setBusyId(r.id)
+    try {
+      const res = await fetch("/api/airport/ops/take-charge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reportId: r.id }),
+      })
+      const json = await res.json()
+      if (json.ok) {
+        toast({
+          title: "Signalement escaladé",
+          description: `${r.problemType} → EN_COURS`,
+        })
+        // Annonce vocale d'escalade
+        try {
+          parler(`Escalade signalée. Zone ${r.zone?.nom ?? r.tagScanne}. Prise en charge ops.`)
+        } catch {
+          /* non bloquant */
+        }
+        setReports((prev) =>
+          prev.map((x) => (x.id === r.id ? { ...x, statut: "EN_COURS" } : x)),
+        )
+        void load()
+      } else {
+        toast({ title: "Erreur", description: json.error ?? "Échec", variant: "destructive" })
+      }
+    } catch (e) {
+      toast({
+        title: "Erreur réseau",
+        description: e instanceof Error ? e.message : "Escalade impossible",
+        variant: "destructive",
+      })
+    } finally {
+      setBusyId(null)
+    }
+  }
+
+  // KPIs dérivés
+  const total = reports.length
+  const enAttente = reports.filter((r) => r.statut === "EN_ATTENTE").length
+  const enCours = reports.filter((r) => r.statut === "EN_COURS").length
+  const resolus = reports.filter((r) => r.statut === "RESOLU").length
+
+  return (
+    <div className="space-y-4">
+      {/* Bandeau KPIs + actions globales */}
+      <Card>
+        <CardHeader>
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2">
+                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                Gestion des Signalements
+              </CardTitle>
+              <CardDescription>
+                Command center Denise — feed temps réel (polling 15 s).
+                « Annoncer » déclenche la voix Denise sur ce navigateur.
+              </CardDescription>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={refreshing || loading}
+              onClick={() => {
+                setRefreshing(true)
+                void load()
+              }}
+            >
+              {refreshing ? (
+                <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <RefreshCw className="mr-1.5 h-4 w-4" aria-hidden />
+              )}
+              Rafraîchir
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <KpiPill label="Total" value={total} icon={<Plane className="h-3.5 w-3.5" />} color="bg-zinc-100 text-zinc-700" />
+            <KpiPill label="En attente" value={enAttente} icon={<AlertTriangle className="h-3.5 w-3.5" />} color="bg-amber-100 text-amber-800" />
+            <KpiPill label="En cours" value={enCours} icon={<TrendingUp className="h-3.5 w-3.5" />} color="bg-sky-100 text-sky-800" />
+            <KpiPill label="Résolus" value={resolus} icon={<CheckCircle2 className="h-3.5 w-3.5" />} color="bg-emerald-100 text-emerald-800" />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Table des signalements */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm">10 derniers signalements aéroport</CardTitle>
+        </CardHeader>
+        <CardContent className="pt-0">
+          {loading ? (
+            <div className="flex items-center justify-center gap-2 py-12 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              Chargement…
+            </div>
+          ) : reports.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-12 text-center">
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100" aria-hidden>
+                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              </span>
+              <p className="text-sm font-medium">Aucun signalement pour le moment</p>
+              <p className="text-xs text-muted-foreground">
+                Les incidents scannés par les voyageurs apparaîtront ici en temps réel.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead className="min-w-[220px]">Incident</TableHead>
+                    <TableHead className="min-w-[120px]">Zone</TableHead>
+                    <TableHead className="text-center">Statut</TableHead>
+                    <TableHead className="text-right min-w-[110px]">Signalé</TableHead>
+                    <TableHead className="text-right min-w-[260px]">Actions Denise</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {reports.map((r) => {
+                    const st = STATUT_STYLES[r.statut] ?? {
+                      label: r.statut,
+                      color: "bg-zinc-100 text-zinc-700 border-zinc-300",
+                    }
+                    const isBusy = busyId === r.id
+                    const isResolu = r.statut === "RESOLU"
+                    return (
+                      <TableRow key={r.id} className={isResolu ? "opacity-60" : ""}>
+                        <TableCell>
+                          <div className="flex items-start gap-2">
+                            <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-amber-100 text-sm" aria-hidden>
+                              {r.zone?.emoji ?? "⚠"}
+                            </span>
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-medium leading-snug">{r.problemType}</p>
+                              <p className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground" title={r.id}>
+                                #{r.id.slice(-8)} · {r.tagScanne}
+                              </p>
+                            </div>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm">{r.zone?.nom ?? r.tagScanne}</span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <Badge variant="outline" className={st.color}>
+                            {st.label}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right text-xs text-muted-foreground">
+                          {formatTempsRelatifSignalement(r.createdAt)}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex flex-wrap items-center justify-end gap-1.5">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 gap-1.5 border-violet-300 text-violet-700 hover:bg-violet-50"
+                              disabled={isBusy}
+                              onClick={() => annoncer(r)}
+                              aria-label={`Annoncer ${r.problemType}`}
+                              title="Denise parle (TTS)"
+                            >
+                              <Megaphone className="h-3.5 w-3.5" aria-hidden />
+                              Annoncer
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 gap-1.5 border-amber-300 text-amber-700 hover:bg-amber-50"
+                              disabled={isBusy || isResolu}
+                              onClick={() => void escalader(r)}
+                              aria-label={`Escalader ${r.problemType}`}
+                              title="Marquer EN_COURS"
+                            >
+                              <TrendingUp className="h-3.5 w-3.5" aria-hidden />
+                              Escalader
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="h-8 gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700"
+                              disabled={isBusy || isResolu}
+                              onClick={() => void resoudre(r)}
+                              aria-label={`Résoudre ${r.problemType}`}
+                              title="Marquer RESOLU"
+                            >
+                              {isBusy ? (
+                                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+                              ) : (
+                                <CheckCheck className="h-3.5 w-3.5" aria-hidden />
+                              )}
+                              Résoudre
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )
+                  })}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+/** Petite pastille KPI utilisée dans la section signalements. */
+function KpiPill({
+  label,
+  value,
+  icon,
+  color,
+}: {
+  label: string
+  value: number
+  icon: React.ReactNode
+  color: string
+}) {
+  return (
+    <div className={`flex items-center gap-2 rounded-lg ${color} px-3 py-2`}>
+      <span className="shrink-0" aria-hidden>
+        {icon}
+      </span>
+      <div className="min-w-0">
+        <p className="text-lg font-bold leading-none">{value}</p>
+        <p className="mt-0.5 text-[10px] uppercase tracking-wide opacity-80">{label}</p>
+      </div>
+    </div>
   )
 }

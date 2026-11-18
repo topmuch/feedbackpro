@@ -89,6 +89,10 @@ export async function GET(req: NextRequest) {
         brandColor: (p as unknown as { brandColor?: string | null }).brandColor ?? null,
         brandLogoUrl:
           (p as unknown as { brandLogoUrl?: string | null }).brandLogoUrl ?? null,
+        // Feature 4 — FIX-4-FEATURES : logo de l'établissement (Pro.logoUrl)
+        // affiché dans le header QR scan. Permet à l'admin de prévisualiser
+        // le logo actuellement configuré avant de le modifier.
+        logoUrl: p.logoUrl ?? null,
       })),
       total: pros.length,
     })
@@ -105,7 +109,7 @@ export async function POST(req: NextRequest) {
 
     const parse = adminProActionSchema.safeParse(await req.json().catch(() => null))
     if (!parse.success) return fail(firstError(parse.error), 400)
-    const { action, id, plan, whiteLabel, brandName, brandColor, brandLogoUrl } = parse.data
+    const { action, id, plan, whiteLabel, brandName, brandColor, brandLogoUrl, logoUrl } = parse.data
 
     const pro = await db.pro.findUnique({
       where: { id },
@@ -195,6 +199,36 @@ export async function POST(req: NextRequest) {
           brandName: updated.brandName,
           brandColor: updated.brandColor,
           brandLogoUrl: updated.brandLogoUrl,
+        })
+      }
+
+      case "setLogo": {
+        // Feature 4 — FIX-4-FEATURES : met à jour le logo de l'établissement
+        // (Pro.logoUrl) affiché dans le header QR scan. L'admin upload une
+        // image via /api/public/upload puis PATCH l'URL retournée ici.
+        // - logoUrl = ""    → on vide le logo (retour au fallback /logo-feedbackpro.png)
+        // - logoUrl = null  → on ne touche pas (non fourni dans le payload)
+        // - logoUrl = "/api/uploads/<uuid>.webp" → URL relative servie par Next
+        // - logoUrl = "https://…/logo.png"       → URL absolue (CDN, bucket S3, etc.)
+        if (logoUrl === undefined) {
+          return fail("logoUrl manquant (chaîne vide pour vider, URL pour mettre à jour)", 400)
+        }
+        const nextLogoUrl = logoUrl === "" ? null : logoUrl
+        const updated = await db.pro.update({
+          where: { id: pro.id },
+          data: { logoUrl: nextLogoUrl },
+          select: {
+            id: true,
+            nomEtablissement: true,
+            typeEtablissement: true,
+            logoUrl: true,
+          },
+        })
+        return ok({
+          id: updated.id,
+          nomEtablissement: updated.nomEtablissement,
+          typeEtablissement: updated.typeEtablissement,
+          logoUrl: updated.logoUrl,
         })
       }
     }

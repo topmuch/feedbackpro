@@ -151,24 +151,68 @@ type AirportAd = {
   ctaText: string
 }
 
-// ---------- Logo aéroport (affiché dans les headers) ----------
+// ---------- Logo aéroport (affiché dans les header QR scan) ----------
+// Feature 3 — FIX-4-FEATURES : le logo affiché dans le header du scan
+// QR provient soit du `logoUrl` du Pro « Aéroport » rattaché (renvoyé
+// par GET /api/airport/zone/[tag] dans `zoneData.airportLogo`), soit
+// du fallback `/logo-feedbackpro.png` (logo FeedbackPro par défaut).
+// On ne dégrade plus vers une icône Plane : le header doit toujours
+// afficher une identité visuelle (logo de l'aéroport ou logo FeedbackPro).
 function AirportLogo({ zoneData, size = "sm" }: { zoneData: ZoneData | null; size?: "sm" | "md" }) {
-  // Feature 3 — logo agrandi : sm 8 → 12, md 10 → 14, fallback Plane 4/5 → 6/7
+  // Feature 3 — logo agrandi : sm 8 → 12, md 10 → 14
   const sz = size === "md" ? "size-14" : "size-12"
-  if (zoneData?.airportLogo) {
-    return (
-      <img
-        src={zoneData.airportLogo}
-        alt={zoneData.airportName ?? "Aéroport"}
-        className={cn(sz, "rounded-lg object-cover bg-white/90 p-0.5 shadow-sm")}
-      />
-    )
-  }
+  // Feature 3 — FIX-4-FEATURES : logo Pro.logoUrl ou fallback /logo-feedbackpro.png
+  const logoSrc = zoneData?.airportLogo || "/logo-feedbackpro.png"
+  const logoAlt = zoneData?.airportName ?? "Aéroport"
   return (
-    <div className={cn("flex items-center justify-center rounded-lg bg-white/20 backdrop-blur-sm", sz)}>
-      <Plane className={cn(size === "md" ? "size-7" : "size-6", "text-white")} aria-hidden />
-    </div>
+    <img
+      src={logoSrc}
+      alt={logoAlt}
+      className={cn(sz, "rounded-lg object-cover bg-white/90 p-0.5 shadow-sm")}
+      // Fallback navigateur si l'image distante (Pro.logoUrl) est cassée :
+      // on bascule sur /logo-feedbackpro.png pour ne jamais casser le header.
+      onError={(e) => {
+        const img = e.currentTarget
+        if (img.src.endsWith("/logo-feedbackpro.png")) return
+        img.src = "/logo-feedbackpro.png"
+      }}
+    />
   )
+}
+
+// ---------- Horloge header (Feature 3 — FIX-4-FEATURES) ----------
+// Affiche l'heure courante HH:MM dans le header du scan QR (rafraîchie
+// toutes les 30 s — assez précis pour un header voyageur, et léger en
+// re-rendus). Format 24h FR. Le composant est auto-contenu : pas de
+// prop drilling depuis le parent.
+function HeaderClock({ tone = "light" }: { tone?: "light" | "dark" }) {
+  const [now, setNow] = useState<string>(() => formatHeureCourte(new Date()))
+  useEffect(() => {
+    const tick = () => setNow(formatHeureCourte(new Date()))
+    tick()
+    const t = setInterval(tick, 30_000)
+    return () => clearInterval(t)
+  }, [])
+  const cls = tone === "dark" ? "text-white/90" : "text-white/90"
+  return (
+    <span
+      className={cn("font-mono text-xs font-bold tabular-nums tracking-wider sm:text-sm", cls)}
+      aria-label={`Heure actuelle ${now}`}
+    >
+      {now}
+    </span>
+  )
+}
+
+/** Formate une date en HH:MM (24h, FR). */
+function formatHeureCourte(d: Date): string {
+  try {
+    return d.toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })
+  } catch {
+    const h = String(d.getHours()).padStart(2, "0")
+    const m = String(d.getMinutes()).padStart(2, "0")
+    return `${h}:${m}`
+  }
 }
 
 // ---------- Helpers fetch (enveloppe { ok, data | error }) ----------
@@ -1306,13 +1350,18 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
         <div className="pointer-events-none absolute bottom-0 right-1/4 h-56 w-56 rounded-full bg-sky-300/15 blur-3xl" />
 
         {/* Header — gradient vibrant avec glassmorphism */}
+        {/* Feature 3 — FIX-4-FEATURES : [Logo] [Nom établissement] [Heure] */}
         <header className="relative z-10 bg-gradient-to-r from-[#003399] via-[#003399] to-[#0044bb] text-white shadow-lg shadow-[#003399]/20">
           <div className="mx-auto flex max-w-md items-center justify-between px-4 py-3">
-            <div className="flex items-center gap-2">
+            <div className="flex min-w-0 items-center gap-2">
               <AirportLogo zoneData={zoneData} />
-              <span className="text-xs font-bold uppercase tracking-widest text-white/90">
-                {zoneData.airportName ?? "Aéroport"}
-              </span>
+              <div className="min-w-0 flex flex-col leading-tight">
+                <span className="truncate text-xs font-bold uppercase tracking-widest text-white/90 sm:text-sm">
+                  {zoneData.airportName ?? "Aéroport"}
+                </span>
+                {/* Feature 3 — Heure courante dans le header */}
+                <HeaderClock tone="dark" />
+              </div>
             </div>
             <button
               type="button"
@@ -1584,6 +1633,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
         <div className="pointer-events-none absolute bottom-0 -left-20 h-64 w-64 rounded-full bg-emerald-300/15 blur-3xl" />
 
         {/* Header gradient vibrant */}
+        {/* Feature 3 — FIX-4-FEATURES : logo + heure dans le header probleme_choisi */}
         <header className="sticky top-0 z-10 bg-gradient-to-r from-[#003399] via-[#003399] to-[#0044bb] text-white shadow-lg shadow-[#003399]/20">
           <div className="mx-auto flex max-w-md items-center justify-between gap-2 px-4 py-3">
             <button
@@ -1602,7 +1652,11 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
             <div className="flex min-w-0 items-center gap-2">
               <AirportLogo zoneData={zoneData} />
               <span className="text-xl" aria-hidden>{zoneData.emoji}</span>
-              <span className="truncate text-sm font-bold">{zoneData.nom}</span>
+              <div className="min-w-0 flex flex-col leading-tight">
+                <span className="truncate text-sm font-bold">{zoneData.nom}</span>
+                {/* Feature 3 — Heure courante */}
+                <HeaderClock tone="dark" />
+              </div>
             </div>
             <button
               type="button"

@@ -99,6 +99,7 @@ import { StatCard, formatDate } from "@/components/feedbackpro/shared"
 import { useAppStore } from "@/store/app-store"
 import { useToast } from "@/hooks/use-toast"
 import { NotificationsBell } from "@/components/feedbackpro/notifications-bell"
+import { AirportIncidentsBell } from "@/components/feedbackpro/airport-incidents-bell"
 import { AdminOperationsTab } from "@/components/feedbackpro/admin-operations-tab"
 import { AdminNotificationsTab } from "@/components/feedbackpro/admin-notifications-tab"
 import { AdminVoiceTab } from "@/components/feedbackpro/admin-voice-tab"
@@ -261,6 +262,9 @@ type ProLigne = {
   brandName?: string | null
   brandColor?: string | null
   brandLogoUrl?: string | null
+  // Feature 4 — FIX-4-FEATURES : logo de l'établissement (Pro.logoUrl)
+  // affiché dans le header QR scan. Renvoyé par GET /api/admin/pros.
+  logoUrl?: string | null
 }
 
 /** GET /api/admin/commandes → { commandes: [...] } */
@@ -492,6 +496,8 @@ export function AdminDashboard() {
             </Button>
             <LanguageSelector tone="light" />
             <NotificationsBell tone="light" />
+            {/* Feature 1 — Cloche dédiée aux signalements aéroport EN_ATTENTE */}
+            <AirportIncidentsBell tone="light" />
             <ThemeToggle />
             <span className="hidden text-sm text-[#9A9AAE] dark:text-muted-foreground md:block max-w-48 truncate">{emailAdmin}</span>
             <Button
@@ -3239,7 +3245,13 @@ function ParametresTab() {
   }
 
   return (
-    <form onSubmit={enregistrer} className="space-y-4 max-w-2xl">
+    <div className="space-y-4 max-w-2xl">
+      {/* Feature 4 — FIX-4-FEATURES : Logo de l'établissement (Pro.logoUrl)
+          affiché dans le header QR scan. Carte autonome (hors <form>)
+          car elle a son propre upload + PATCH /api/admin/pros setLogo. */}
+      <LogoEtablissementCard />
+
+      <form onSubmit={enregistrer} className="space-y-4">
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base sm:text-lg">Général</CardTitle>
@@ -3397,7 +3409,344 @@ function ParametresTab() {
           Enregistrer les paramètres
         </Button>
       </div>
-    </form>
+      </form>
+    </div>
+  )
+}
+
+// ============================================================
+// Feature 4 — FIX-4-FEATURES : Logo de l'établissement (Pro.logoUrl)
+// ------------------------------------------------------------
+// Carte autonome intégrée à l'onglet Paramètres (hors <form> principal
+// car elle a son propre upload + son propre endpoint PATCH /api/admin/pros
+// action=setLogo). Permet au superadmin de :
+//   - sélectionner un établissement (prefer those typeEtablissement='Aéroport'
+//     car leur logo est affiché dans le header QR scan voyageur, mais tous
+//     les Pros sont éligibles)
+//   - uploader une image (PNG/JPG/WebP ≤ 10Mo) via POST /api/public/upload
+//     (FormData champ "photo") → renvoie { url: "/api/uploads/<uuid>.webp" }
+//   - prévisualiser le logo actuel (Pro.logoUrl ou fallback /logo-feedbackpro.png)
+//   - sauvegarder via POST /api/admin/pros { action: "setLogo", id, logoUrl }
+//   - vider le logo (logoUrl = "" → fallback /logo-feedbackpro.png)
+// ============================================================
+
+function LogoEtablissementCard() {
+  const { toast } = useToast()
+  const [pros, setPros] = useState<ProLigne[]>([])
+  const [loadingPros, setLoadingPros] = useState(true)
+  const [selectedProId, setSelectedProId] = useState<string>("")
+  const [pendingLogoUrl, setPendingLogoUrl] = useState<string | null>(null)
+  const [uploading, setUploading] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Chargement de la liste des Pros (triés : Aéroport en premier)
+  useEffect(() => {
+    let cancelled = false
+    fetch("/api/admin/pros", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((j) => {
+        if (cancelled || !j.ok) return
+        const liste: ProLigne[] = (j.data.pros ?? []).map((p: ProLigne) => ({
+          id: p.id,
+          nomEtablissement: p.nomEtablissement,
+          typeEtablissement: p.typeEtablissement,
+          ville: p.ville,
+          email: p.email,
+          logoUrl: p.logoUrl ?? null,
+        }))
+        // Tri : Aéroport d'abord (leur logo est affiché dans le scan QR voyageur)
+        liste.sort((a, b) => {
+          if (a.typeEtablissement === "Aéroport" && b.typeEtablissement !== "Aéroport") return -1
+          if (a.typeEtablissement !== "Aéroport" && b.typeEtablissement === "Aéroport") return 1
+          return a.nomEtablissement.localeCompare(b.nomEtablissement)
+        })
+        setPros(liste)
+        // Pré-sélection du premier Pro « Aéroport » s'il y en a un
+        const airport = liste.find((p) => p.typeEtablissement === "Aéroport")
+        setSelectedProId(airport?.id ?? liste[0]?.id ?? "")
+      })
+      .catch(() => {
+        if (!cancelled) {
+          toast({ title: "Erreur", description: "Impossible de charger les établissements", variant: "destructive" })
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingPros(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [toast])
+
+  const selectedPro = pros.find((p) => p.id === selectedProId) ?? null
+  // Logo affiché : pendingLogoUrl (upload fraîchement fait) > Pro.logoUrl > fallback
+  const currentLogo =
+    pendingLogoUrl ?? selectedPro?.logoUrl ?? null
+
+  /** Upload de l'image via /api/public/upload (FormData champ "photo"). */
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!selectedProId) {
+      toast({ title: "Sélectionnez un établissement", description: "Choisissez d'abord un Pro dans la liste.", variant: "destructive" })
+      return
+    }
+    setUploading(true)
+    try {
+      const formData = new FormData()
+      formData.append("photo", file)
+      const res = await fetch("/api/public/upload", { method: "POST", body: formData })
+      const json = await res.json()
+      if (json.ok) {
+        const url: string = json.data.url
+        setPendingLogoUrl(url)
+        toast({
+          title: "Image uploadée ✓",
+          description: "Cliquez « Enregistrer le logo » pour l'appliquer.",
+        })
+      } else {
+        toast({ title: "Erreur upload", description: json.error ?? "Échec", variant: "destructive" })
+      }
+    } catch (err) {
+      toast({
+        title: "Erreur upload",
+        description: err instanceof Error ? err.message : "Réseau",
+        variant: "destructive",
+      })
+    } finally {
+      setUploading(false)
+      // Reset input pour permettre un re-upload du même fichier
+      if (fileInputRef.current) fileInputRef.current.value = ""
+    }
+  }
+
+  /** Enregistre le logo via POST /api/admin/pros action=setLogo. */
+  async function saveLogo() {
+    if (!selectedProId) {
+      toast({ title: "Sélectionnez un établissement", variant: "destructive" })
+      return
+    }
+    setSaving(true)
+    try {
+      const res = await fetch("/api/admin/pros", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "setLogo",
+          id: selectedProId,
+          logoUrl: pendingLogoUrl ?? "",
+        }),
+      })
+      const json = await res.json()
+      if (json.ok) {
+        // Met à jour la liste locale pour refléter le nouveau logo
+        setPros((prev) =>
+          prev.map((p) =>
+            p.id === selectedProId ? { ...p, logoUrl: json.data.logoUrl ?? null } : p,
+          ),
+        )
+        setPendingLogoUrl(null)
+        toast({
+          title: "Logo enregistré ✓",
+          description: `${selectedPro?.nomEtablissement ?? "Établissement"} — visible dans le header QR scan.`,
+        })
+      } else {
+        toast({ title: "Erreur", description: json.error ?? "Échec", variant: "destructive" })
+      }
+    } catch (err) {
+      toast({
+        title: "Erreur réseau",
+        description: err instanceof Error ? err.message : "Sauvegarde impossible",
+        variant: "destructive",
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  /** Vider le logo (retour au fallback /logo-feedbackpro.png). */
+  async function clearLogo() {
+    if (!selectedProId) return
+    setSaving(true)
+    try {
+      const res = await fetch("/api/admin/pros", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "setLogo",
+          id: selectedProId,
+          logoUrl: "",
+        }),
+      })
+      const json = await res.json()
+      if (json.ok) {
+        setPros((prev) =>
+          prev.map((p) => (p.id === selectedProId ? { ...p, logoUrl: null } : p)),
+        )
+        setPendingLogoUrl(null)
+        toast({
+          title: "Logo effacé ✓",
+          description: "Le header QR scan utilisera le logo FeedbackPro par défaut.",
+        })
+      } else {
+        toast({ title: "Erreur", description: json.error ?? "Échec", variant: "destructive" })
+      }
+    } catch (err) {
+      toast({
+        title: "Erreur réseau",
+        description: err instanceof Error ? err.message : "Échec",
+        variant: "destructive",
+      })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-2">
+        <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
+          <ImagePlus className="h-5 w-5 text-emerald-600" aria-hidden />
+          Logo de l&apos;établissement
+        </CardTitle>
+        <p className="text-sm text-muted-foreground">
+          Logo affiché dans le header QR scan (voyageur). Préféré pour les établissements
+          de type « Aéroport ». Si vide, le logo FeedbackPro par défaut est utilisé.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4 pt-2">
+        {/* Sélecteur d'établissement */}
+        <div className="space-y-1.5">
+          <Label htmlFor="logo-pro-select">Établissement</Label>
+          {loadingPros ? (
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              Chargement…
+            </div>
+          ) : pros.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Aucun établissement trouvé.</p>
+          ) : (
+            <Select value={selectedProId} onValueChange={(v) => { if (v) { setSelectedProId(v); setPendingLogoUrl(null) } }}>
+              <SelectTrigger id="logo-pro-select" className="h-10">
+                <SelectValue placeholder="Sélectionnez un établissement" />
+              </SelectTrigger>
+              <SelectContent>
+                {pros.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>
+                    <span className="inline-flex items-center gap-2">
+                      {p.typeEtablissement === "Aéroport" ? (
+                        <Plane className="h-3.5 w-3.5 text-sky-600" aria-hidden />
+                      ) : (
+                        <Building2 className="h-3.5 w-3.5 text-amber-600" aria-hidden />
+                      )}
+                      <span className="truncate">{p.nomEtablissement}</span>
+                      <span className="text-xs text-muted-foreground">· {p.typeEtablissement}</span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
+
+        {/* Aperçu du logo actuel */}
+        <div className="space-y-1.5">
+          <Label>Aperçu</Label>
+          <div className="flex flex-wrap items-center gap-4 rounded-xl border border-dashed bg-muted/30 p-4">
+            <div className="flex size-20 items-center justify-center overflow-hidden rounded-xl bg-white shadow-sm ring-1 ring-black/5">
+              {currentLogo ? (
+                <img
+                  src={currentLogo}
+                  alt={`Logo ${selectedPro?.nomEtablissement ?? ""}`}
+                  className="max-h-full max-w-full object-contain"
+                  onError={(e) => {
+                    // Bascule sur le fallback si l'image est cassée
+                    e.currentTarget.src = "/logo-feedbackpro.png"
+                  }}
+                />
+              ) : (
+                <img
+                  src="/logo-feedbackpro.png"
+                  alt="Logo FeedbackPro (par défaut)"
+                  className="max-h-full max-w-full object-contain opacity-80"
+                />
+              )}
+            </div>
+            <div className="min-w-0 flex-1 space-y-1">
+              <p className="text-sm font-medium">
+                {selectedPro?.nomEtablissement ?? "—"}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {currentLogo
+                  ? "Logo configuré — visible dans le header QR scan."
+                  : "Aucun logo configuré — fallback /logo-feedbackpro.png utilisé."}
+              </p>
+              {pendingLogoUrl && (
+                <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                  ⏳ Nouveau logo prêt — cliquez « Enregistrer le logo ».
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Upload + actions */}
+        <div className="flex flex-wrap items-center gap-2">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/png,image/jpeg,image/webp,image/gif"
+            onChange={(e) => void handleFileChange(e)}
+            className="hidden"
+            aria-hidden
+          />
+          <Button
+            type="button"
+            variant="outline"
+            disabled={uploading || saving || !selectedProId}
+            onClick={() => fileInputRef.current?.click()}
+            className="gap-2"
+          >
+            {uploading ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <ImagePlus className="h-4 w-4" aria-hidden />
+            )}
+            Uploader un logo
+          </Button>
+          <Button
+            type="button"
+            disabled={saving || !pendingLogoUrl || !selectedProId}
+            onClick={() => void saveLogo()}
+            className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
+          >
+            {saving ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <Save className="h-4 w-4" aria-hidden />
+            )}
+            Enregistrer le logo
+          </Button>
+          {selectedPro?.logoUrl && (
+            <Button
+              type="button"
+              variant="ghost"
+              disabled={saving || uploading}
+              onClick={() => void clearLogo()}
+              className="gap-2 text-rose-600 hover:bg-rose-50 hover:text-rose-700"
+            >
+              <Trash2 className="h-4 w-4" aria-hidden />
+              Effacer
+            </Button>
+          )}
+        </div>
+        <p className="text-[11px] text-muted-foreground">
+          Formats acceptés : PNG, JPG, WebP, GIF. Taille max : 10 Mo. L&apos;image est
+          redimensionnée par le navigateur dans le header QR scan (object-contain).
+        </p>
+      </CardContent>
+    </Card>
   )
 }
 

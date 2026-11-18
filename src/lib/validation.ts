@@ -302,7 +302,15 @@ export const alertePatchSchema = z
 
 export const adminProActionSchema = z.object({
   action: z.enum(
-    ["changerPlan", "suspendre", "reactiver", "supprimer", "resetPassword", "whiteLabel"],
+    [
+      "changerPlan",
+      "suspendre",
+      "reactiver",
+      "supprimer",
+      "resetPassword",
+      "whiteLabel",
+      "setLogo",
+    ],
     {
       message: "Action invalide",
     }
@@ -328,6 +336,24 @@ export const adminProActionSchema = z.object({
     .max(500, "URL trop longue")
     .refine(
       (v) => v === "" || /^https?:\/\/\S+$/i.test(v) || /^data:image\//.test(v),
+      "URL logo invalide"
+    )
+    .nullable()
+    .optional(),
+  // Feature 4 — FIX-4-FEATURES : URL du logo de l'établissement (Pro.logoUrl)
+  // affiché dans le header QR scan. Accepte les URLs absolues (https://…)
+  // et les URLs relatives servies par /api/uploads/* (issues de l'upload
+  // via /api/public/upload). On accepte aussi "" (vider le logo) et null.
+  logoUrl: z
+    .string()
+    .trim()
+    .max(500, "URL logo trop longue")
+    .refine(
+      (v) =>
+        v === "" ||
+        /^https?:\/\/\S+$/i.test(v) ||
+        /^\/(api\/uploads|uploads)\/[A-Za-z0-9._-]+$/.test(v) ||
+        /^data:image\//.test(v),
       "URL logo invalide"
     )
     .nullable()
