@@ -83,6 +83,7 @@ import {
   Timer,
   X,
   UserPlus,
+  Monitor,
 } from 'lucide-react'
 import { useAppStore } from '@/store/app-store'
 import { getZonesByTenant } from '@/lib/airport-config'
@@ -116,7 +117,6 @@ import {
 } from '@/components/ui/dialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useToast } from '@/hooks/use-toast'
-import { AdminVoiceTab } from '@/components/feedbackpro/admin-voice-tab'
 
 // ============================================================
 // Types
@@ -233,8 +233,8 @@ type VipTab =
   | 'staff'
   | 'qr'
   | 'reports'
+  | 'wallboard'
   | 'settings'
-  | 'denise'
 
 type VipSettings = {
   salonName: string
@@ -529,7 +529,7 @@ const NAV_ITEMS: Array<{ id: VipTab; label: string; Icon: typeof LayoutDashboard
   { id: 'staff', label: 'Équipe / Staff', Icon: UserCog },
   { id: 'qr', label: 'QR Codes', Icon: QrCode },
   { id: 'reports', label: 'Rapports', Icon: BarChart3 },
-  { id: 'denise', label: 'Voix Denise', Icon: Volume2 },
+  { id: 'wallboard', label: 'Wallboard', Icon: Monitor },
   { id: 'settings', label: 'Paramètres', Icon: Settings },
 ]
 
@@ -4167,9 +4167,13 @@ export default function VIPDashboard() {
           {tab === 'staff' && <StaffTab />}
           {tab === 'qr' && <QRTab />}
           {tab === 'reports' && <ReportsTab incidents={incidents} />}
-          {tab === 'denise' && (
-            <div className="rounded-2xl border border-[#EAE5DC] bg-white p-4 shadow-[0_4px_20px_rgba(201,169,97,0.06)] sm:p-6">
-              <AdminVoiceTab defaultTab="signalements" />
+          {tab === 'wallboard' && (
+            <div className="relative min-h-0 w-full flex-1 overflow-hidden rounded-2xl border border-[#EAE5DC] shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+              <iframe
+                src="/vip-wallboard"
+                className="absolute inset-0 h-full w-full border-0"
+                title="Wallboard Salon VIP"
+              />
             </div>
           )}
           {tab === 'settings' && <SettingsTab />}

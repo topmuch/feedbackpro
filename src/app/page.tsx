@@ -24,6 +24,7 @@ import { AdminDashboard } from "@/components/feedbackpro/admin-dashboard"
 import AirlineDashboard from "@/components/feedbackpro/airline-dashboard"
 import VIPDashboard from "@/components/feedbackpro/vip-dashboard"
 import { VipTableScan } from "@/components/feedbackpro/vip-table-scan"
+import { VipStaffView } from "@/components/feedbackpro/vip-staff-view"
 import { AppFooter } from "@/components/feedbackpro/shared"
 
 /**
@@ -79,6 +80,7 @@ export default function Home() {
   const openAirport = useAppStore((s) => s.openAirport)
   const openStaff = useAppStore((s) => s.openStaff)
   const openVipTable = useAppStore((s) => s.openVipTable)
+  const openVipStaff = useAppStore((s) => s.openVipStaff)
   const setAuthMode = useAppStore((s) => s.setAuthMode)
   const setView = useAppStore((s) => s.setView)
 
@@ -131,6 +133,9 @@ export default function Home() {
     // VIP-PHASE1 — QR table VIP scanné par un client : ?vipTable=<token>
     const vipTableTok = vipTableTokenDepuisUrl()
     if (vipTableTok) openVipTable(vipTableTok)
+    // VIP Staff PWA : ?vipStaff=<tag>
+    const vipStaffTag = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("vipStaff") : null
+    if (vipStaffTag) openVipStaff(vipStaffTag)
     refreshSession().then(() => {
       try {
         const chemin = window.location.pathname
@@ -143,7 +148,7 @@ export default function Home() {
         /* ignore */
       }
     })
-  }, [openScan, openAirport, openStaff, openVipTable, refreshSession, setAuthMode])
+  }, [openScan, openAirport, openStaff, openVipTable, openVipStaff, refreshSession, setAuthMode])
 
   // Bouton retour navigateur : resynchronise le token de scan ou le tag aéroport/staff
   useEffect(() => {
@@ -156,10 +161,12 @@ export default function Home() {
       if (stag) openStaff(stag)
       const vtag = vipTableTokenDepuisUrl()
       if (vtag) openVipTable(vtag)
+      const vsstag = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("vipStaff") : null
+      if (vsstag) openVipStaff(vsstag)
     }
     window.addEventListener("popstate", onPop)
     return () => window.removeEventListener("popstate", onPop)
-  }, [openScan, openAirport, openStaff, openVipTable, scanToken, airportTag])
+  }, [openScan, openAirport, openStaff, openVipTable, openVipStaff, scanToken, airportTag])
 
   // ---------- Écran de chargement initial ----------
   if (!booted || view === "loading") {
@@ -236,6 +243,16 @@ export default function Home() {
         </main>
       )
     }
+  }
+
+  // ---------- VIP Staff PWA (?vipStaff=<tag>) ----------
+  if (view === "vip-staff") {
+    const stag = useAppStore.getState().vipStaffTag ?? "login"
+    return (
+      <main className="min-h-screen bg-background">
+        <VipStaffView staffTag={stag} onExit={() => useAppStore.getState().closeVipStaff()} />
+      </main>
+    )
   }
 
   // ---------- Navigation ----------
