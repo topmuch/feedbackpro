@@ -9,7 +9,7 @@
 
 import { create } from "zustand"
 
-export type View = "loading" | "landing" | "auth" | "dashboard" | "admin" | "scan" | "airport" | "airport-staff" | "airport-ops" | "airline" | "vip" | "onboarding-tenant"
+export type View = "loading" | "landing" | "auth" | "dashboard" | "admin" | "scan" | "airport" | "airport-staff" | "airport-ops" | "airline" | "vip" | "vip-table" | "onboarding-tenant"
 
 /** Établissement (Pro) tel que renvoyé par /api/auth/me et les routes de session */
 export type ProData = {
@@ -53,6 +53,8 @@ type AppState = {
   airportTag: string | null
   /** Tag URL staff scanné (ex: "staff_nettoyage_T2") — QR Staff Only */
   staffTag: string | null
+  /** Token QR d'une table VIP scannée par un client (?vipTable=<token>) */
+  vipTableToken: string | null
   session: SessionData | null
   booted: boolean
   /** Pré-remplissage du formulaire de connexion (comptes de démo) */
@@ -76,6 +78,9 @@ type AppState = {
   /** Ouvre la PWA Staff Only (QR employé scanné : ?staff=<tag>) */
   openStaff: (tag: string) => void
   closeStaff: () => void
+  /** Ouvre la vue client VIP Table (scan QR table : ?vipTable=<token>) */
+  openVipTable: (token: string) => void
+  closeVipTable: () => void
   setSession: (s: SessionData | null) => void
   refreshSession: () => Promise<void>
   logout: () => Promise<void>
@@ -110,10 +115,11 @@ type AppState = {
  *   - vip_lounge          → "vip"
  *   - valeur inconnue     → "dashboard" (fallback sûr, évite un écran blanc)
  */
-function deriveView(scanToken: string | null, airportTag: string | null, staffTag: string | null, session: SessionData | null, justRegistered: boolean): View {
+function deriveView(scanToken: string | null, airportTag: string | null, staffTag: string | null, vipTableToken: string | null, session: SessionData | null, justRegistered: boolean): View {
   if (scanToken) return "scan"
   if (airportTag) return "airport"
   if (staffTag) return "airport-staff"
+  if (vipTableToken) return "vip-table"
   // TENANT-3 — Vérifie localStorage EN PREMIER (avant !session) car
   // refreshSession/boot peuvent écraser justRegistered. Le flag
   // localStorage persiste entre les re-renders.
@@ -166,12 +172,26 @@ export function airportTagDepuisUrl(): string | null {
   }
 }
 
+/**
+ * Extrait le token de table VIP de l'URL courante (?vipTable=<token>).
+ * Retourne null si absent.
+ */
+export function vipTableTokenDepuisUrl(): string | null {
+  if (typeof window === "undefined") return null
+  try {
+    return new URLSearchParams(window.location.search).get("vipTable")
+  } catch {
+    return null
+  }
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
   view: "loading",
   authMode: "login",
   scanToken: null,
   airportTag: null,
   staffTag: null,
+  vipTableToken: null,
   session: null,
   booted: false,
   prefillLogin: null,
@@ -222,7 +242,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch {
       /* ignore */
     }
-    set({ view: deriveView(null, get().airportTag, get().staffTag, get().session, get().justRegistered) })
+    set({ view: deriveView(null, get().airportTag, get().staffTag, get().vipTableToken, get().session, get().justRegistered) })
   },
 
   // Ouvre la PWA aéroport (depuis /aeroport/<tag> ou ?airport=<tag>)
@@ -254,7 +274,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch {
       /* ignore */
     }
-    set({ view: deriveView(get().scanToken, null, get().staffTag, get().session, get().justRegistered) })
+    set({ view: deriveView(get().scanToken, null, get().staffTag, get().vipTableToken, get().session, get().justRegistered) })
   },
 
   // Ouvre la PWA Staff Only (QR employé scanné : ?staff=<tag>)
@@ -282,8 +302,33 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ view: "auth", authMode: "login" })
   },
 
+  // Ouvre la vue client VIP Table (scan QR table : ?vipTable=<token>)
+  openVipTable: (token) => {
+    set({ vipTableToken: token, view: "vip-table" })
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.set("vipTable", token)
+      window.history.pushState({}, "", url.toString())
+    } catch {
+      /* ignore */
+    }
+  },
+
+  closeVipTable: () => {
+    set({ vipTableToken: null })
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.delete("vipTable")
+      window.history.replaceState({}, "", url.toString())
+    } catch {
+      /* ignore */
+    }
+    // Après fermeture du scan VIP Table → retour sur la landing
+    set({ view: deriveView(get().scanToken, get().airportTag, get().staffTag, null, get().session, get().justRegistered) })
+  },
+
   setSession: (s) => {
-    set({ session: s, view: deriveView(get().scanToken, get().airportTag, get().staffTag, s, get().justRegistered), booted: true })
+    set({ session: s, view: deriveView(get().scanToken, get().airportTag, get().staffTag, get().vipTableToken, s, get().justRegistered), booted: true })
   },
 
   // Charge la session courante depuis le serveur
@@ -295,7 +340,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch {
       set({ session: null })
     }
-    set({ booted: true, view: deriveView(get().scanToken, get().airportTag, get().staffTag, get().session, get().justRegistered) })
+    set({ booted: true, view: deriveView(get().scanToken, get().airportTag, get().staffTag, get().vipTableToken, get().session, get().justRegistered) })
   },
 
   logout: async () => {
@@ -321,7 +366,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const s = get().session
     if (!s) return
     const session = { ...s, pro }
-    set({ session, view: deriveView(get().scanToken, get().airportTag, get().staffTag, session, get().justRegistered) })
+    set({ session, view: deriveView(get().scanToken, get().airportTag, get().staffTag, get().vipTableToken, session, get().justRegistered) })
   },
 
   setJustRegistered: (v) => set({ justRegistered: v }),

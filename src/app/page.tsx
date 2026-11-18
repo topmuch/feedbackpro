@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic'
 
 import React, { useEffect } from "react"
 import { Loader2 } from "lucide-react"
-import { useAppStore, tokenDepuisUrl, airportTagDepuisUrl } from "@/store/app-store"
+import { useAppStore, tokenDepuisUrl, airportTagDepuisUrl, vipTableTokenDepuisUrl } from "@/store/app-store"
 import type { View } from "@/store/app-store"
 import { LandingView } from "@/components/feedbackpro/landing-view"
 import { AuthView, TenantSelectionStep } from "@/components/feedbackpro/auth-view"
@@ -23,6 +23,7 @@ import { ProDashboard } from "@/components/feedbackpro/pro-dashboard"
 import { AdminDashboard } from "@/components/feedbackpro/admin-dashboard"
 import AirlineDashboard from "@/components/feedbackpro/airline-dashboard"
 import VIPDashboard from "@/components/feedbackpro/vip-dashboard"
+import { VipTableScan } from "@/components/feedbackpro/vip-table-scan"
 import { AppFooter } from "@/components/feedbackpro/shared"
 
 /**
@@ -77,6 +78,7 @@ export default function Home() {
   const openScan = useAppStore((s) => s.openScan)
   const openAirport = useAppStore((s) => s.openAirport)
   const openStaff = useAppStore((s) => s.openStaff)
+  const openVipTable = useAppStore((s) => s.openVipTable)
   const setAuthMode = useAppStore((s) => s.setAuthMode)
   const setView = useAppStore((s) => s.setView)
 
@@ -126,6 +128,9 @@ export default function Home() {
     // QR Staff Only : ?staff=<tag>
     const staffTag = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("staff") : null
     if (staffTag) openStaff(staffTag)
+    // VIP-PHASE1 — QR table VIP scanné par un client : ?vipTable=<token>
+    const vipTableTok = vipTableTokenDepuisUrl()
+    if (vipTableTok) openVipTable(vipTableTok)
     refreshSession().then(() => {
       try {
         const chemin = window.location.pathname
@@ -138,7 +143,7 @@ export default function Home() {
         /* ignore */
       }
     })
-  }, [openScan, openAirport, openStaff, refreshSession, setAuthMode])
+  }, [openScan, openAirport, openStaff, openVipTable, refreshSession, setAuthMode])
 
   // Bouton retour navigateur : resynchronise le token de scan ou le tag aéroport/staff
   useEffect(() => {
@@ -149,10 +154,12 @@ export default function Home() {
       if (atag && atag !== airportTag) openAirport(atag)
       const stag = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("staff") : null
       if (stag) openStaff(stag)
+      const vtag = vipTableTokenDepuisUrl()
+      if (vtag) openVipTable(vtag)
     }
     window.addEventListener("popstate", onPop)
     return () => window.removeEventListener("popstate", onPop)
-  }, [openScan, openAirport, openStaff, scanToken, airportTag])
+  }, [openScan, openAirport, openStaff, openVipTable, scanToken, airportTag])
 
   // ---------- Écran de chargement initial ----------
   if (!booted || view === "loading") {
@@ -217,6 +224,18 @@ export default function Home() {
         <VIPDashboard />
       </main>
     )
+  }
+
+  // ---------- VIP-PHASE1 — Vue client (scan QR table VIP) ----------
+  if (view === "vip-table") {
+    const tok = useAppStore.getState().vipTableToken
+    if (tok) {
+      return (
+        <main className="min-h-screen bg-background">
+          <VipTableScan qrToken={tok} onExit={() => useAppStore.getState().closeVipTable()} />
+        </main>
+      )
+    }
   }
 
   // ---------- Navigation ----------

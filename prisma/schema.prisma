@@ -1239,3 +1239,59 @@ model BuffetChecklist {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }
+
+// ============================================================
+// VIP LOUNGE — Tables, Clients VIP, Commandes
+// ============================================================
+
+model VipTable {
+  id          String   @id @default(cuid())
+  tableNumber String   @unique         // "T-01", "T-02", etc.
+  zone        String   @default("main") // main, buffet, relaxation, meeting
+  seats       Int      @default(4)
+  status      String   @default("free") // free, occupied, problem, reserved
+  qrToken     String   @unique         // token unique pour le QR code
+  clientName  String?                  // nom du client assis (si identifié)
+  clientVipLevel String?               // gold, platinum, diamond
+  arrivedAt   DateTime?                // heure d'arrivée
+  activeRequests Int   @default(0)     // demandes en cours
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  requests    VipTableRequest[]
+
+  @@index([status])
+  @@index([zone])
+}
+
+model VipClient {
+  id          String   @id @default(cuid())
+  name        String
+  photo       String?
+  airline     String?
+  vipLevel    String   @default("gold") // gold, platinum, diamond
+  boardingPassId String?
+  preferences String   @default("[]")   // JSON: ["champagne rosé", "allergie arachides"]
+  visitCount  Int      @default(0)
+  lastVisit   DateTime?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([name])
+  @@index([vipLevel])
+}
+
+model VipTableRequest {
+  id          String   @id @default(cuid())
+  tableId     String
+  table       VipTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  type        String                       // refreshment, menu, shower, charger, concierge, problem, rating, cleanup
+  message     String?
+  status      String   @default("pending") // pending, in_progress, done
+  staffName   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tableId, status])
+  @@index([status])
+}

@@ -71,6 +71,17 @@ import {
   VolumeX,
   ShieldCheck,
   CircleDot,
+  Map,
+  Utensils,
+  Plug,
+  Star,
+  Trash2,
+  MapPin,
+  LayoutGrid,
+  Coffee,
+  Timer,
+  X,
+  UserPlus,
 } from 'lucide-react'
 import { useAppStore } from '@/store/app-store'
 import { getZonesByTenant } from '@/lib/airport-config'
@@ -158,6 +169,45 @@ type StaffMember = {
   satisfactionScore: number
 }
 
+// ---- Phase 1 — VipTable & VipTableRequest (from /api/vip/tables & /requests)
+type VipTableStatus = 'free' | 'occupied' | 'problem' | 'reserved'
+
+type VipTableRequestData = {
+  id: string
+  type: string  // refreshment, menu, shower, charger, concierge, problem, rating, cleanup
+  status: string  // pending, in_progress, done
+  message: string | null
+  createdAt: string
+  staffName: string | null
+}
+
+type VipTableData = {
+  id: string
+  tableNumber: string
+  zone: string  // main, buffet, relaxation, meeting
+  seats: number
+  status: VipTableStatus
+  qrToken: string
+  clientName: string | null
+  clientVipLevel: string | null  // gold, platinum, diamond
+  arrivedAt: string | null
+  activeRequests: number
+  requests: VipTableRequestData[]
+  createdAt: string
+  updatedAt: string
+}
+
+type VipRequestWithTable = VipTableRequestData & {
+  tableId: string
+  table: {
+    id: string
+    tableNumber: string
+    zone: string
+    clientName: string | null
+    clientVipLevel: string | null
+  }
+}
+
 type StaffRole = 'Manager' | "Maître d'Hôtel" | 'Réceptionniste' | 'Étage' | 'Chef/Barman'
 
 type RewardGiven = {
@@ -172,6 +222,7 @@ type RewardGiven = {
 
 type VipTab =
   | 'overview'
+  | 'plan'
   | 'incidents'
   | 'buffet'
   | 'showers'
@@ -375,8 +426,78 @@ const STAFF_ROLE_ICON: Record<StaffRole, typeof UserCog> = {
   'Chef/Barman': Wine,
 }
 
+// ---- Phase 1 — Table status styling (Plan Interactif 2D) ----
+const TABLE_STATUS_STYLE: Record<VipTableStatus, {
+  dot: string
+  ring: string
+  bg: string
+  text: string
+  label: string
+  border: string
+}> = {
+  free: {
+    dot: 'bg-[#4A7C59]',
+    ring: 'ring-[#4A7C59]/30',
+    bg: 'bg-[#4A7C59]/6',
+    text: 'text-[#4A7C59]',
+    label: 'Libre',
+    border: 'border-[#4A7C59]/25',
+  },
+  occupied: {
+    dot: 'bg-[#6B4C9A]',
+    ring: 'ring-[#6B4C9A]/30',
+    bg: 'bg-[#6B4C9A]/6',
+    text: 'text-[#6B4C9A]',
+    label: 'Occupée',
+    border: 'border-[#6B4C9A]/25',
+  },
+  problem: {
+    dot: 'bg-[#C97B63]',
+    ring: 'ring-[#C97B63]/30',
+    bg: 'bg-[#C97B63]/6',
+    text: 'text-[#C97B63]',
+    label: 'Problème',
+    border: 'border-[#C97B63]/25',
+  },
+  reserved: {
+    dot: 'bg-[#C9A961]',
+    ring: 'ring-[#C9A961]/30',
+    bg: 'bg-[#C9A961]/6',
+    text: 'text-[#8B6F47]',
+    label: 'Réservée',
+    border: 'border-[#C9A961]/30',
+  },
+}
+
+// ---- Phase 1 — Table zones (Plan du Salon) ----
+const TABLE_ZONE_META: Record<string, { label: string; emoji: string; accent: string }> = {
+  main: { label: 'Espace Principal', emoji: '🍽️', accent: '#C9A961' },
+  buffet: { label: 'Buffet & Bar', emoji: '🥂', accent: '#8B6F47' },
+  relaxation: { label: 'Espace Détente', emoji: '🧘', accent: '#4A7C59' },
+  meeting: { label: 'Salles de Réunion', emoji: '💼', accent: '#6B4C9A' },
+}
+
+// ---- Phase 1 — Request type metadata ----
+const REQUEST_TYPE_META: Record<string, { label: string; Icon: typeof Wine; tone: 'gold' | 'bronze' | 'sage' | 'terracotta' | 'amethyst' }> = {
+  refreshment: { label: 'Rafraîchissement', Icon: Wine, tone: 'gold' },
+  menu: { label: 'Menu du jour', Icon: Utensils, tone: 'bronze' },
+  shower: { label: 'Réservation douche', Icon: ShowerHead, tone: 'sage' },
+  charger: { label: 'Chargeur', Icon: Plug, tone: 'bronze' },
+  concierge: { label: 'Appeler concierge', Icon: ConciergeBell, tone: 'amethyst' },
+  problem: { label: 'Signaler un problème', Icon: AlertTriangle, tone: 'terracotta' },
+  rating: { label: 'Noter l\'expérience', Icon: Star, tone: 'gold' },
+  cleanup: { label: 'Nettoyage table', Icon: Trash2, tone: 'sage' },
+}
+
+const REQUEST_STATUS_META: Record<string, { label: string; style: string }> = {
+  pending: { label: 'En attente', style: 'bg-[#C97B63]/12 text-[#C97B63] border-[#C97B63]/25' },
+  in_progress: { label: 'En cours', style: 'bg-[#C9A961]/15 text-[#8B6F47] border-[#C9A961]/35' },
+  done: { label: 'Terminé', style: 'bg-[#4A7C59]/12 text-[#4A7C59] border-[#4A7C59]/25' },
+}
+
 const NAV_ITEMS: Array<{ id: VipTab; label: string; Icon: typeof LayoutDashboard }> = [
   { id: 'overview', label: "Vue d'ensemble", Icon: LayoutDashboard },
+  { id: 'plan', label: 'Plan du Salon', Icon: Map },
   { id: 'incidents', label: 'Signalements', Icon: Bell },
   { id: 'buffet', label: 'Buffet & Bar', Icon: Wine },
   { id: 'showers', label: 'Douches Smart', Icon: ShowerHead },
@@ -461,6 +582,18 @@ function formatTimeShort(iso: string): string {
 
 function minutesDepuis(iso: string): number {
   return Math.floor((Date.now() - new Date(iso).getTime()) / 60000)
+}
+
+/** Durée écoulée depuis une date ISO, formatée "1h 23min" ou "12min" ou "—". */
+function formatDurationHm(iso: string | null): string {
+  if (!iso) return '—'
+  const minutes = Math.max(0, minutesDepuis(iso))
+  if (minutes < 1) return '0min'
+  if (minutes < 60) return `${minutes}min`
+  const h = Math.floor(minutes / 60)
+  const m = minutes % 60
+  if (m === 0) return `${h}h`
+  return `${h}h ${String(m).padStart(2, '0')}min`
 }
 
 /** Compte à rebours MM:SS jusqu'à nextCheck (iso). Retourne "--:--" si dépassé. */
@@ -606,6 +739,472 @@ function VipBadge({ className }: { className?: string }) {
 }
 
 // ============================================================
+// Phase 1 — Sous-composants partagés (Plan du Salon & Vue d'ensemble)
+// ============================================================
+
+/** Étoiles de satisfaction (0..5, supporte demi-étoiles visuels). */
+function VipStarRating({ value, size = 14 }: { value: number; size?: number }) {
+  const v = Math.max(0, Math.min(5, value))
+  const full = Math.floor(v)
+  const hasHalf = v - full >= 0.5
+  return (
+    <span className="inline-flex items-center gap-0.5" aria-label={`${v.toFixed(1)} sur 5`}>
+      {Array.from({ length: 5 }).map((_, i) => {
+        const isFull = i < full
+        const isHalf = i === full && hasHalf
+        return (
+          <Star
+            key={i}
+            style={{ width: size, height: size }}
+            className={cn(
+              isFull
+                ? 'fill-[#C9A961] text-[#C9A961]'
+                : isHalf
+                  ? 'fill-[#C9A961]/50 text-[#C9A961]'
+                  : 'fill-transparent text-[#EAE5DC]',
+            )}
+            aria-hidden
+          />
+        )
+      })}
+    </span>
+  )
+}
+
+/** Carte d'une table pour le plan 2D (vue d'ensemble + plan du salon). */
+function TableCard({
+  table,
+  onClick,
+  compact = false,
+}: {
+  table: VipTableData
+  onClick?: () => void
+  compact?: boolean
+}) {
+  const st = TABLE_STATUS_STYLE[table.status] ?? TABLE_STATUS_STYLE.free
+  const zone = TABLE_ZONE_META[table.zone] ?? TABLE_ZONE_META.main
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'group relative flex w-full flex-col items-start gap-1.5 rounded-2xl border bg-white p-3.5 text-left shadow-[0_4px_20px_rgba(201,169,97,0.06)] transition-all hover:shadow-[0_6px_28px_rgba(201,169,97,0.12)] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A961]/40',
+        st.border,
+        compact ? 'min-h-[100px]' : 'min-h-[120px]',
+      )}
+      aria-label={`Table ${table.tableNumber} — ${st.label}`}
+    >
+      {/* Bandeau de couleur zone (left accent) */}
+      <span
+        className="absolute inset-y-0 left-0 w-1 rounded-l-2xl"
+        style={{ backgroundColor: zone.accent }}
+        aria-hidden
+      />
+      <div className="flex w-full items-start justify-between gap-2 pl-1.5">
+        <div className="min-w-0">
+          <p className="text-[10px] font-medium uppercase tracking-wider text-[#8B6F47]">
+            {zone.emoji} {zone.label.split(' ')[0]}
+          </p>
+          <p
+            className="mt-0.5 text-xl font-semibold leading-none text-[#2C2C2C]"
+            style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
+          >
+            {table.tableNumber}
+          </p>
+        </div>
+        <span className={cn('flex h-7 w-7 items-center justify-center rounded-full', st.bg)}>
+          <span className={cn('h-2.5 w-2.5 rounded-full', st.dot)} />
+        </span>
+      </div>
+
+      {/* Client + demandes */}
+      <div className="mt-1 w-full pl-1.5">
+        {table.clientName ? (
+          <p className="truncate text-sm font-medium text-[#2C2C2C]">{table.clientName}</p>
+        ) : (
+          <p className="truncate text-sm text-[#8B6F47]/70">—</p>
+        )}
+        <div className="mt-1 flex items-center gap-2 text-[11px] text-[#8B6F47]">
+          <span className="inline-flex items-center gap-1">
+            <Armchair className="h-3 w-3" aria-hidden /> {table.seats}
+          </span>
+          {table.activeRequests > 0 && (
+            <span className={cn('inline-flex items-center gap-1 font-medium', st.text)}>
+              <Bell className="h-3 w-3" aria-hidden /> {table.activeRequests}
+            </span>
+          )}
+          {table.clientVipLevel && (
+            <Badge
+              variant="outline"
+              className={cn(
+                'h-4 px-1.5 text-[10px] font-semibold capitalize',
+                table.clientVipLevel === 'diamond'
+                  ? 'border-[#4A7C59]/30 bg-[#4A7C59]/10 text-[#4A7C59]'
+                  : table.clientVipLevel === 'platinum'
+                    ? 'border-[#6B4C9A]/30 bg-[#6B4C9A]/10 text-[#6B4C9A]'
+                    : 'border-[#C9A961]/30 bg-[#C9A961]/12 text-[#8B6F47]',
+              )}
+            >
+              {table.clientVipLevel}
+            </Badge>
+          )}
+        </div>
+      </div>
+    </button>
+  )
+}
+
+/** Panneau de détail d'une table (Sheet latéral). Boutons d'action staff. */
+function TableDetailSheet({
+  table,
+  open,
+  onOpenChange,
+  onPatchTable,
+}: {
+  table: VipTableData | null
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  onPatchTable: (
+    id: string,
+    patch: {
+      status?: VipTableStatus
+      clientName?: string | null
+      clientVipLevel?: string | null
+    },
+  ) => Promise<void>
+}) {
+  const { toast } = useToast()
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false)
+  const [assignName, setAssignName] = useState('')
+  const [assignLevel, setAssignLevel] = useState<string>('gold')
+  const [busy, setBusy] = useState(false)
+
+  // Reset du formulaire d'assignation quand on ouvre le dialog
+  useEffect(() => {
+    if (assignDialogOpen && table) {
+      setAssignName(table.clientName ?? '')
+      setAssignLevel(table.clientVipLevel ?? 'gold')
+    }
+  }, [assignDialogOpen, table])
+
+  if (!table) {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="right" className="w-full sm:max-w-md border-0 p-0" aria-describedby={undefined}>
+          <SheetTitle className="sr-only">Détail de la table</SheetTitle>
+          <div className="p-6 text-sm text-[#8B6F47]">Aucune table sélectionnée.</div>
+        </SheetContent>
+      </Sheet>
+    )
+  }
+
+  const st = TABLE_STATUS_STYLE[table.status]
+  const zone = TABLE_ZONE_META[table.zone] ?? TABLE_ZONE_META.main
+
+  const act = async (
+    label: string,
+    patch: { status?: VipTableStatus; clientName?: string | null; clientVipLevel?: string | null },
+    okMsg: string,
+  ) => {
+    setBusy(true)
+    try {
+      await onPatchTable(table.id, patch)
+      toast({ title: label, description: okMsg })
+    } catch {
+      toast({ title: 'Erreur', description: 'Mise à jour impossible.', variant: 'destructive' })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const submitAssign = async () => {
+    const name = assignName.trim()
+    if (!name) {
+      toast({ title: 'Nom requis', description: 'Saisissez le nom du client.', variant: 'destructive' })
+      return
+    }
+    setBusy(true)
+    try {
+      await onPatchTable(table.id, {
+        status: 'occupied',
+        clientName: name,
+        clientVipLevel: assignLevel,
+      })
+      toast({
+        title: 'Client assigné',
+        description: `${name} est à la table ${table.tableNumber}.`,
+      })
+      setAssignDialogOpen(false)
+    } catch {
+      toast({ title: 'Erreur', description: 'Assignation impossible.', variant: 'destructive' })
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="w-full overflow-y-auto border-0 p-0 sm:max-w-md" aria-describedby={undefined}>
+        <SheetTitle className="sr-only">Détail de la table {table.tableNumber}</SheetTitle>
+        {/* En-tête coloré */}
+        <div
+          className="relative px-6 pb-5 pt-6"
+          style={{ background: `linear-gradient(135deg, ${zone.accent}18, ${zone.accent}06)` }}
+        >
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full bg-white/80 text-[#8B6F47] hover:bg-white"
+            aria-label="Fermer"
+          >
+            <X className="h-4 w-4" aria-hidden />
+          </button>
+          <div className="flex items-center gap-2">
+            <span
+              className="flex h-10 w-10 items-center justify-center rounded-xl text-white"
+              style={{ backgroundColor: zone.accent }}
+            >
+              <LayoutGrid className="h-5 w-5" aria-hidden />
+            </span>
+            <div>
+              <p className="text-[11px] font-medium uppercase tracking-wider text-[#8B6F47]">
+                {zone.emoji} {zone.label}
+              </p>
+              <p
+                className="text-2xl font-semibold text-[#2C2C2C]"
+                style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
+              >
+                Table {table.tableNumber}
+              </p>
+            </div>
+          </div>
+          <div className="mt-3 flex items-center gap-2">
+            <Badge variant="outline" className={cn('border font-semibold', st.bg, st.text, st.border)}>
+              <span className={cn('mr-1 h-1.5 w-1.5 rounded-full', st.dot)} /> {st.label}
+            </Badge>
+            <Badge variant="outline" className="border-[#EAE5DC] bg-[#FAFAF7] text-[#8B6F47]">
+              <Armchair className="mr-1 h-3 w-3" aria-hidden /> {table.seats} places
+            </Badge>
+          </div>
+        </div>
+
+        <div className="space-y-5 px-6 py-5">
+          {/* Client + durée */}
+          <section>
+            <h3 className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">Client</h3>
+            {table.clientName ? (
+              <div className="mt-2 rounded-2xl border border-[#EAE5DC] bg-[#FAFAF7] p-4">
+                <div className="flex items-center gap-3">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-xs font-semibold text-white">
+                    {initials(table.clientName) || '?'}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-[#2C2C2C]">{table.clientName}</p>
+                    {table.clientVipLevel && (
+                      <Badge
+                        variant="outline"
+                        className={cn(
+                          'mt-0.5 h-4 px-1.5 text-[10px] font-semibold capitalize',
+                          table.clientVipLevel === 'diamond'
+                            ? 'border-[#4A7C59]/30 bg-[#4A7C59]/10 text-[#4A7C59]'
+                            : table.clientVipLevel === 'platinum'
+                              ? 'border-[#6B4C9A]/30 bg-[#6B4C9A]/10 text-[#6B4C9A]'
+                              : 'border-[#C9A961]/30 bg-[#C9A961]/12 text-[#8B6F47]',
+                        )}
+                      >
+                        {table.clientVipLevel}
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+                {table.arrivedAt && (
+                  <div className="mt-3 flex items-center gap-2 text-xs text-[#8B6F47]">
+                    <Clock className="h-3.5 w-3.5" aria-hidden />
+                    <span>Arrivée : <span className="font-semibold text-[#2C2C2C]">{formatTimeShort(table.arrivedAt)}</span></span>
+                    <span className="text-[#8B6F47]/60">·</span>
+                    <span>Durée : <span className="font-semibold text-[#2C2C2C]">{formatDurationHm(table.arrivedAt)}</span></span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="mt-2 rounded-2xl border border-dashed border-[#EAE5DC] bg-[#FAFAF7] p-4 text-center">
+                <Users className="mx-auto h-6 w-6 text-[#8B6F47]/50" aria-hidden />
+                <p className="mt-1.5 text-sm text-[#8B6F47]">Aucun client assigné</p>
+              </div>
+            )}
+          </section>
+
+          {/* Demandes actives */}
+          <section>
+            <div className="flex items-center justify-between">
+              <h3 className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">Demandes à la table</h3>
+              {table.activeRequests > 0 && (
+                <Badge variant="outline" className="border-[#C9A961]/30 bg-[#C9A961]/12 text-[#8B6F47]">
+                  {table.activeRequests} active{table.activeRequests > 1 ? 's' : ''}
+                </Badge>
+              )}
+            </div>
+            {table.requests.length === 0 ? (
+              <div className="mt-2 rounded-2xl border border-dashed border-[#EAE5DC] bg-[#FAFAF7] p-4 text-center">
+                <CheckCircle2 className="mx-auto h-6 w-6 text-[#4A7C59]" aria-hidden />
+                <p className="mt-1.5 text-sm text-[#8B6F47]">Aucune demande en cours</p>
+              </div>
+            ) : (
+              <ul className="mt-2 max-h-56 space-y-2 overflow-y-auto pr-1">
+                {table.requests.map((r) => {
+                  const meta = REQUEST_TYPE_META[r.type] ?? {
+                    label: r.type,
+                    Icon: ConciergeBell,
+                  }
+                  const statusMeta = REQUEST_STATUS_META[r.status] ?? REQUEST_STATUS_META.pending
+                  const RIcon = meta.Icon
+                  return (
+                    <li key={r.id} className="rounded-xl border border-[#EAE5DC] bg-white p-3">
+                      <div className="flex items-start gap-2.5">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#C9A961]/10 text-[#8B6F47]">
+                          <RIcon className="h-4 w-4" aria-hidden />
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="truncate text-sm font-medium text-[#2C2C2C]">{meta.label}</p>
+                            <Badge variant="outline" className={cn('h-5 px-1.5 text-[10px] font-medium', statusMeta.style)}>
+                              {statusMeta.label}
+                            </Badge>
+                          </div>
+                          {r.message && (
+                            <p className="mt-0.5 truncate text-xs text-[#8B6F47]">« {r.message} »</p>
+                          )}
+                          <p className="mt-1 text-[11px] text-[#8B6F47]/80">
+                            {formatTimeShort(r.createdAt)} · il y a {minutesDepuis(r.createdAt)} min
+                          </p>
+                        </div>
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+            )}
+          </section>
+
+          {/* QR code */}
+          <section>
+            <h3 className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">QR Code de la table</h3>
+            <div className="mt-2 flex items-center gap-4 rounded-2xl border border-[#EAE5DC] bg-[#FAFAF7] p-4">
+              <img
+                src={qrImageUrl(`/?vipTable=${table.qrToken}`)}
+                alt={`QR code table ${table.tableNumber}`}
+                width={96}
+                height={96}
+                className="h-24 w-24 rounded-lg bg-white"
+              />
+              <div className="min-w-0">
+                <p className="text-xs text-[#8B6F47]">Token</p>
+                <p className="truncate font-mono text-xs text-[#2C2C2C]">{table.qrToken}</p>
+                <p className="mt-2 text-[11px] text-[#8B6F47]/80">
+                  Le client scanne ce QR pour appeler le service depuis sa table.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          {/* Actions staff */}
+          <section className="space-y-2 border-t border-[#EAE5DC] pt-4">
+            <h3 className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">Actions staff</h3>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={busy || table.status === 'free'}
+                onClick={() => act('Table libérée', { status: 'free', clientName: null, clientVipLevel: null }, `Table ${table.tableNumber} prête pour le prochain client.`)}
+                className="border-[#4A7C59]/40 bg-[#4A7C59]/8 text-[#4A7C59] hover:bg-[#4A7C59]/15"
+              >
+                <CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> Libérer
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={busy}
+                onClick={() => act('Problème signalé', { status: table.status === 'problem' ? 'occupied' : 'problem' }, `Table ${table.tableNumber} ${table.status === 'problem' ? 'rétablie' : 'marquée problème'}.`)}
+                className={cn(
+                  'border-[#C97B63]/40 text-[#C97B63] hover:bg-[#C97B63]/15',
+                  table.status === 'problem' ? 'bg-[#C97B63]/12' : 'bg-[#C97B63]/8',
+                )}
+              >
+                <AlertTriangle className="h-3.5 w-3.5" aria-hidden /> {table.status === 'problem' ? 'Rétablir' : 'Marquer problème'}
+              </Button>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={busy}
+              onClick={() => setAssignDialogOpen(true)}
+              className="w-full border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
+            >
+              <UserPlus className="h-3.5 w-3.5" aria-hidden /> Assigner client
+            </Button>
+          </section>
+        </div>
+      </SheetContent>
+
+      {/* Dialog assignation client */}
+      <Dialog open={assignDialogOpen} onOpenChange={setAssignDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assigner un client — Table {table.tableNumber}</DialogTitle>
+            <DialogDescription>
+              Saisissez le nom du client et son niveau VIP. La table passera en statut « Occupée ».
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <div className="space-y-2">
+              <Label htmlFor="client-name" className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">
+                Nom du client
+              </Label>
+              <Input
+                id="client-name"
+                value={assignName}
+                onChange={(e) => setAssignName(e.target.value)}
+                placeholder="ex. Alexandre Laurent"
+                className="border-[#EAE5DC] bg-[#FAFAF7]"
+                autoFocus
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="client-level" className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">
+                Niveau VIP
+              </Label>
+              <Select value={assignLevel} onValueChange={setAssignLevel}>
+                <SelectTrigger id="client-level" className="border-[#EAE5DC] bg-[#FAFAF7]">
+                  <SelectValue placeholder="Sélectionner un niveau" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="gold">Gold</SelectItem>
+                  <SelectItem value="platinum">Platinum</SelectItem>
+                  <SelectItem value="diamond">Diamond</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setAssignDialogOpen(false)} disabled={busy}>
+              Annuler
+            </Button>
+            <Button
+              onClick={submitAssign}
+              disabled={busy || !assignName.trim()}
+              className="bg-[#C9A961] text-white hover:bg-[#C9A961]/90"
+            >
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <UserPlus className="h-4 w-4" aria-hidden />}
+              Assigner
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </Sheet>
+  )
+}
+
+// ============================================================
 // Sidebar — desktop fixe + drawer mobile (même contenu)
 // ============================================================
 
@@ -722,19 +1321,31 @@ function OverviewTab({
   incidents,
   showers,
   buffet,
+  tables,
   clientsCount,
   rewardsGivenToday,
   loading,
+  onPatchTable,
 }: {
   incidents: VipIncident[]
   showers: Shower[]
   buffet: BuffetItem[]
+  tables: VipTableData[]
   clientsCount: number
   rewardsGivenToday: number
   loading: boolean
+  onPatchTable: (
+    id: string,
+    patch: {
+      status?: VipTableStatus
+      clientName?: string | null
+      clientVipLevel?: string | null
+    },
+  ) => Promise<void>
 }) {
   const clock = useClock()
   const [today, setToday] = useState<Date | null>(null)
+  const [selectedTableId, setSelectedTableId] = useState<string | null>(null)
   useEffect(() => {
     setToday(new Date())
   }, [])
@@ -746,13 +1357,40 @@ function OverviewTab({
       ? Math.round(buffet.reduce((sum, b) => sum + b.fillLevel, 0) / buffet.length)
       : 0
 
+  // ---- KPI Phase 1 ----
+  // Capacité : clients présents / capacité salon (25). Le % d'occupation.
+  const CAPACITE_SALON = 25
+  const capacitePct = Math.min(100, Math.round((clientsCount / CAPACITE_SALON) * 100))
+
+  // Séjour moyen : moyenne des durées des tables occupées
+  const occupiedTables = tables.filter((t) => t.status === 'occupied' && t.arrivedAt)
+  const avgStayMin =
+    occupiedTables.length > 0
+      ? Math.round(
+          occupiedTables.reduce((sum, t) => sum + minutesDepuis(t.arrivedAt!), 0) /
+            occupiedTables.length,
+        )
+      : 83 // fallback mock "1h 23min"
+  const avgStayH = Math.floor(avgStayMin / 60)
+  const avgStayM = avgStayMin % 60
+  const avgStayLabel =
+    avgStayH > 0 ? `${avgStayH}h ${String(avgStayM).padStart(2, '0')}min` : `${avgStayM}min`
+
+  // Signalements actifs : incidents ouverts + demandes pending/in_progress
+  const activeTableRequests = tables.reduce((s, t) => s + t.activeRequests, 0)
+  const totalSignalementsActifs = openIncidents.length + activeTableRequests
+
+  // Satisfaction : mock 4.8/5 (depuis derniers retours clients)
+  const satisfaction = 4.8
+
   // Alertes douces (visuelles uniquement)
   const buffetAlerts = buffet.filter((b) => new Date(b.nextCheck).getTime() < Date.now())
   const showerCleaning = showers.filter((s) => s.status === 'cleaning')
   const vipIncidents = incidents.filter((i) => hashIsVip(i.id) && i.statut !== 'RESOLU')
   const lowBuffetItems = buffet.filter((b) => b.fillLevel < 30)
 
-  const alerts: Array<{ id: string; Icon: typeof AlertTriangle; tone: 'terracotta' | 'bronze' | 'amethyst'; label: string; detail: string }> = []
+  type AlertTone = 'terracotta' | 'bronze' | 'amethyst' | 'gold'
+  const alerts: Array<{ id: string; Icon: typeof AlertTriangle; tone: AlertTone; label: string; detail: string }> = []
   for (const b of buffetAlerts) {
     alerts.push({
       id: `buffet-${b.id}`,
@@ -789,6 +1427,40 @@ function OverviewTab({
       detail: `${i.zone?.nom ?? 'Salon'} — ${i.problemType}`,
     })
   }
+  // Tables en problème
+  for (const t of tables.filter((t) => t.status === 'problem').slice(0, 3)) {
+    alerts.push({
+      id: `problem-${t.id}`,
+      Icon: AlertTriangle,
+      tone: 'terracotta',
+      label: `Table ${t.tableNumber} en problème`,
+      detail: t.clientName ? `Client : ${t.clientName}` : 'Aucun client assigné',
+    })
+  }
+  // Demandes à la table en attente
+  if (activeTableRequests > 0) {
+    alerts.push({
+      id: 'table-requests',
+      Icon: ConciergeBell,
+      tone: 'gold',
+      label: `${activeTableRequests} demande${activeTableRequests > 1 ? 's' : ''} à la table en attente`,
+      detail: 'Onglet Signalements pour prendre en charge',
+    })
+  }
+
+  const selectedTable = selectedTableId
+    ? tables.find((t) => t.id === selectedTableId) ?? null
+    : null
+
+  // Group tables by zone for the 2D plan
+  const tablesByZone = useMemo(() => {
+    const groups: Record<string, VipTableData[]> = { main: [], buffet: [], relaxation: [], meeting: [] }
+    for (const t of tables) {
+      if (!groups[t.zone]) groups[t.zone] = []
+      groups[t.zone].push(t)
+    }
+    return groups
+  }, [tables])
 
   return (
     <div className="space-y-6">
@@ -806,7 +1478,7 @@ function OverviewTab({
               Bonjour et bienvenue
             </h2>
             <p className="mt-1 text-sm text-[#8B6F47]">
-              Salon en service · {clientsCount} clients présents · satisfaction jour 4.6/5
+              Salon en service · {clientsCount} clients présents · satisfaction jour {satisfaction.toFixed(1)}/5
             </p>
           </div>
           <div className="flex items-center gap-3 rounded-2xl bg-[#FAFAF7] px-5 py-3">
@@ -821,21 +1493,141 @@ function OverviewTab({
         </div>
       </Card>
 
-      {/* KPI grid */}
+      {/* KPI row — 6 cartes Phase 1 */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
         {loading ? (
           Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-[120px] rounded-2xl" />)
         ) : (
           <>
-            <KPICard label="Signalements ouverts" value={openIncidents.length} Icon={Bell} tone="terracotta" hint={`${incidents.length} au total (48h)`} />
-            <KPICard label="Douches libres" value={`${freeShowers}/${showers.length || 0}`} Icon={ShowerHead} tone="sage" hint="Cabines disponibles" />
-            <KPICard label="Niveau buffet moyen" value={avgBuffet} unit="%" Icon={Wine} tone={avgBuffet < 30 ? 'terracotta' : 'gold'} hint={avgBuffet < 30 ? 'Réapprovisionnement requis' : 'Niveau optimal'} />
-            <KPICard label="Clients présents" value={clientsCount} Icon={Users} tone="amethyst" hint="Dont 3 VIP détectés" />
-            <KPICard label="Satisfaction du jour" value="4.6" unit="/5" Icon={Sparkles} tone="sage" hint="Sur 18 retours" />
+            <Card className="gap-0 border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-medium uppercase tracking-wider text-[#8B6F47]">Capacité</p>
+                  <div className="mt-2 flex items-baseline gap-1">
+                    <span
+                      className="text-2xl font-semibold leading-none text-[#2C2C2C]"
+                      style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
+                    >
+                      {clientsCount}
+                    </span>
+                    <span className="text-sm font-medium text-[#8B6F47]">/ {CAPACITE_SALON}</span>
+                    <span className="ml-1 text-xs text-[#8B6F47]">({capacitePct}%)</span>
+                  </div>
+                </div>
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#6B4C9A]/15 text-[#6B4C9A]">
+                  <Users className="h-4 w-4" aria-hidden />
+                </span>
+              </div>
+              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[#FAFAF7]">
+                <div
+                  className="h-full rounded-full bg-[#C9A961]"
+                  style={{ width: `${capacitePct}%` }}
+                />
+              </div>
+            </Card>
+
+            <KPICard label="Séjour moyen" value={avgStayLabel} Icon={Timer} tone="bronze" hint={`${occupiedTables.length} table${occupiedTables.length > 1 ? 's' : ''} occupée${occupiedTables.length > 1 ? 's' : ''}`} />
+            <Card className="gap-0 border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-medium uppercase tracking-wider text-[#8B6F47]">Satisfaction</p>
+                  <div className="mt-2 flex items-baseline gap-1">
+                    <span
+                      className="text-2xl font-semibold leading-none text-[#2C2C2C]"
+                      style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
+                    >
+                      {satisfaction.toFixed(1)}
+                    </span>
+                    <span className="text-sm font-medium text-[#8B6F47]">/5</span>
+                  </div>
+                  <div className="mt-1.5">
+                    <VipStarRating value={satisfaction} size={12} />
+                  </div>
+                </div>
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#4A7C59]/15 text-[#4A7C59]">
+                  <Star className="h-4 w-4" aria-hidden />
+                </span>
+              </div>
+            </Card>
+            <KPICard label="Signalements actifs" value={totalSignalementsActifs} Icon={Bell} tone="terracotta" hint={`${openIncidents.length} incidents · ${activeTableRequests} à la table`} />
             <KPICard label="Récompenses offertes" value={rewardsGivenToday} Icon={Gift} tone="gold" hint="Aujourd'hui" />
+            <KPICard label="Douches libres" value={`${freeShowers}/${showers.length || 0}`} Icon={ShowerHead} tone="sage" hint="Cabines disponibles" />
           </>
         )}
       </div>
+
+      {/* Plan Interactif 2D du Salon */}
+      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <CardHeader className="px-0">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle className="text-lg text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
+                Plan Interactif 2D du Salon
+              </CardTitle>
+              <CardDescription className="text-[#8B6F47]">
+                {tables.length} tables · cliquez sur une table pour le détail et les actions staff.
+              </CardDescription>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {(['free', 'occupied', 'problem', 'reserved'] as VipTableStatus[]).map((s) => {
+                const st = TABLE_STATUS_STYLE[s]
+                const count = tables.filter((t) => t.status === s).length
+                return (
+                  <div key={s} className="flex items-center gap-1.5 rounded-lg bg-[#FAFAF7] px-2.5 py-1.5">
+                    <span className={cn('h-2 w-2 rounded-full', st.dot)} />
+                    <span className="text-[11px] font-medium text-[#8B6F47]">{st.label}</span>
+                    <span className="text-xs font-semibold text-[#2C2C2C]">{count}</span>
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent className="px-0">
+          {loading ? (
+            <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+              {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-[120px] rounded-2xl" />)}
+            </div>
+          ) : tables.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-[#FAFAF7] py-10 text-center">
+              <LayoutGrid className="h-8 w-8 text-[#8B6F47]/50" aria-hidden />
+              <p className="text-sm font-medium text-[#2C2C2C]">Aucune table</p>
+              <p className="text-xs text-[#8B6F47]">Les tables apparaîtront ici une fois la base initialisée.</p>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {Object.entries(tablesByZone).map(([zoneKey, zoneTables]) => {
+                if (zoneTables.length === 0) return null
+                const zone = TABLE_ZONE_META[zoneKey] ?? TABLE_ZONE_META.main
+                return (
+                  <div key={zoneKey}>
+                    <div className="mb-2 flex items-center gap-2">
+                      <MapPin className="h-3.5 w-3.5" style={{ color: zone.accent }} aria-hidden />
+                      <h3
+                        className="text-sm font-semibold text-[#2C2C2C]"
+                        style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
+                      >
+                        {zone.emoji} {zone.label}
+                      </h3>
+                      <span className="text-[11px] text-[#8B6F47]">· {zoneTables.length} tables</span>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+                      {zoneTables.map((t) => (
+                        <TableCard
+                          key={t.id}
+                          table={t}
+                          compact
+                          onClick={() => setSelectedTableId(t.id)}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Alertes douces */}
       <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
@@ -857,10 +1649,11 @@ function OverviewTab({
           ) : (
             <ul className="space-y-2.5">
               {alerts.map((a) => {
-                const toneMap = {
+                const toneMap: Record<AlertTone, string> = {
                   terracotta: 'bg-[#C97B63]/8 border-[#C97B63]/25 text-[#C97B63]',
                   bronze: 'bg-[#8B6F47]/8 border-[#8B6F47]/25 text-[#8B6F47]',
                   amethyst: 'bg-[#6B4C9A]/8 border-[#6B4C9A]/25 text-[#6B4C9A]',
+                  gold: 'bg-[#C9A961]/10 border-[#C9A961]/30 text-[#8B6F47]',
                 }
                 return (
                   <li
@@ -879,6 +1672,249 @@ function OverviewTab({
           )}
         </CardContent>
       </Card>
+
+      <TableDetailSheet
+        table={selectedTable}
+        open={selectedTable !== null}
+        onOpenChange={(o) => {
+          if (!o) setSelectedTableId(null)
+        }}
+        onPatchTable={onPatchTable}
+      />
+    </div>
+  )
+}
+
+// ============================================================
+// Tab B-bis — Plan du Salon (vue plein écran)
+// ============================================================
+
+function FloorPlanTab({
+  tables,
+  loading,
+  onPatchTable,
+  onRefresh,
+}: {
+  tables: VipTableData[]
+  loading: boolean
+  onPatchTable: (
+    id: string,
+    patch: {
+      status?: VipTableStatus
+      clientName?: string | null
+      clientVipLevel?: string | null
+    },
+  ) => Promise<void>
+  onRefresh?: () => void
+}) {
+  const [selectedTableId, setSelectedTableId] = useState<string | null>(null)
+  const [filterStatus, setFilterStatus] = useState<string>('all')
+  const [showAddDialog, setShowAddDialog] = useState(false)
+  const [newTableNumber, setNewTableNumber] = useState('')
+  const [newZone, setNewZone] = useState('main')
+  const [newSeats, setNewSeats] = useState(4)
+  const [adding, setAdding] = useState(false)
+
+  const filtered = useMemo(() => {
+    if (filterStatus === 'all') return tables
+    return tables.filter((t) => t.status === filterStatus)
+  }, [tables, filterStatus])
+
+  const grouped = useMemo(() => {
+    const groups: Record<string, VipTableData[]> = { main: [], buffet: [], relaxation: [], meeting: [] }
+    for (const t of filtered) {
+      if (!groups[t.zone]) groups[t.zone] = []
+      groups[t.zone].push(t)
+    }
+    return groups
+  }, [filtered])
+
+  const selectedTable = selectedTableId ? tables.find((t) => t.id === selectedTableId) ?? null : null
+
+  async function ajouterTable() {
+    setAdding(true)
+    try {
+      await fetch('/api/vip/tables', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          tableNumber: newTableNumber || `T-${String(tables.length + 1).padStart(2, '0')}`,
+          zone: newZone,
+          seats: newSeats,
+        }),
+      })
+      setShowAddDialog(false)
+      setNewTableNumber('')
+      setNewZone('main')
+      setNewSeats(4)
+      onRefresh?.()
+    } catch {
+      /* ignore */
+    }
+    setAdding(false)
+  }
+
+  return (
+    <div className="space-y-5">
+      <SectionTitle
+        title="Plan du Salon"
+        subtitle="Vue interactive du salon — tables organisées par zone"
+        Icon={Map}
+        action={
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              className="gap-1.5 bg-[#C9A961] text-white hover:bg-[#B8975A]"
+              onClick={() => setShowAddDialog(true)}
+            >
+              <Plus className="h-4 w-4" />
+              Ajouter une table
+            </Button>
+            <Select value={filterStatus} onValueChange={setFilterStatus}>
+              <SelectTrigger className="w-[150px] border-[#EAE5DC] bg-white text-sm">
+                <SelectValue placeholder="Filtrer" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Toutes les tables</SelectItem>
+                <SelectItem value="free">Libres</SelectItem>
+                <SelectItem value="occupied">Occupées</SelectItem>
+                <SelectItem value="problem">Problème</SelectItem>
+                <SelectItem value="reserved">Réservées</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        }
+      />
+
+      {/* Légende */}
+      <Card className="border border-[#EAE5DC] bg-white p-4 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">Légende</span>
+          {(['free', 'occupied', 'problem', 'reserved'] as VipTableStatus[]).map((s) => {
+            const st = TABLE_STATUS_STYLE[s]
+            return (
+              <div key={s} className="flex items-center gap-1.5">
+                <span className={cn('h-2.5 w-2.5 rounded-full', st.dot)} />
+                <span className="text-xs text-[#8B6F47]">{st.label}</span>
+              </div>
+            )
+          })}
+          <span className="mx-1 h-4 w-px bg-[#EAE5DC]" />
+          {Object.entries(TABLE_ZONE_META).map(([k, z]) => (
+            <div key={k} className="flex items-center gap-1.5">
+              <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: z.accent }} />
+              <span className="text-xs text-[#8B6F47]">{z.label}</span>
+            </div>
+          ))}
+        </div>
+      </Card>
+
+      {/* Zones */}
+      {loading ? (
+        <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+          {Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} className="h-[130px] rounded-2xl" />)}
+        </div>
+      ) : tables.length === 0 ? (
+        <Card className="border border-[#EAE5DC] bg-white p-10 text-center shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+          <LayoutGrid className="mx-auto h-10 w-10 text-[#8B6F47]/40" aria-hidden />
+          <p className="mt-3 text-sm font-medium text-[#2C2C2C]">Aucune table en base</p>
+          <p className="mt-1 text-xs text-[#8B6F47]">La base de tables s'initialise automatiquement au premier appel API.</p>
+        </Card>
+      ) : (
+        <div className="space-y-6">
+          {Object.entries(grouped).map(([zoneKey, zoneTables]) => {
+            if (zoneTables.length === 0) return null
+            const zone = TABLE_ZONE_META[zoneKey] ?? TABLE_ZONE_META.main
+            return (
+              <Card
+                key={zoneKey}
+                className="overflow-hidden border border-[#EAE5DC] bg-white shadow-[0_4px_20px_rgba(201,169,97,0.06)]"
+              >
+                <div
+                  className="flex items-center justify-between px-5 py-3"
+                  style={{ background: `linear-gradient(135deg, ${zone.accent}18, ${zone.accent}06)` }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span
+                      className="flex h-8 w-8 items-center justify-center rounded-lg text-white"
+                      style={{ backgroundColor: zone.accent }}
+                    >
+                      <MapPin className="h-4 w-4" aria-hidden />
+                    </span>
+                    <div>
+                      <h3
+                        className="text-base font-semibold text-[#2C2C2C]"
+                        style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
+                      >
+                        {zone.emoji} {zone.label}
+                      </h3>
+                      <p className="text-[11px] text-[#8B6F47]">
+                        {zoneTables.length} table{zoneTables.length > 1 ? 's' : ''} · {zoneTables.filter((t) => t.status === 'occupied').length} occupée{zoneTables.filter((t) => t.status === 'occupied').length > 1 ? 's' : ''}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <div className="grid gap-3 p-5 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+                  {zoneTables.map((t) => (
+                    <TableCard
+                      key={t.id}
+                      table={t}
+                      onClick={() => setSelectedTableId(t.id)}
+                    />
+                  ))}
+                </div>
+              </Card>
+            )
+          })}
+        </div>
+      )}
+
+      <TableDetailSheet
+        table={selectedTable}
+        open={selectedTable !== null}
+        onOpenChange={(o) => {
+          if (!o) setSelectedTableId(null)
+        }}
+        onPatchTable={onPatchTable}
+      />
+
+      {/* Dialog Ajouter une table */}
+      {showAddDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowAddDialog(false)}>
+          <Card className="w-full max-w-md border border-[#EAE5DC] bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="mb-4 font-serif text-xl font-bold text-[#2C2C2C]">Ajouter une table</h3>
+            <div className="space-y-4">
+              <div>
+                <Label className="text-sm font-medium text-[#8B6F47]">Numéro de table</Label>
+                <Input placeholder={`T-${String(tables.length + 1).padStart(2, '0')}`} value={newTableNumber} onChange={(e) => setNewTableNumber(e.target.value)} className="mt-1 border-[#EAE5DC] bg-white" />
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-[#8B6F47]">Zone</Label>
+                <Select value={newZone} onValueChange={setNewZone}>
+                  <SelectTrigger className="mt-1 border-[#EAE5DC] bg-white"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="main">Main</SelectItem>
+                    <SelectItem value="buffet">Buffet</SelectItem>
+                    <SelectItem value="relaxation">Relaxation</SelectItem>
+                    <SelectItem value="meeting">Meeting</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label className="text-sm font-medium text-[#8B6F47]">Places</Label>
+                <Input type="number" min={1} max={12} value={newSeats} onChange={(e) => setNewSeats(parseInt(e.target.value) || 4)} className="mt-1 border-[#EAE5DC] bg-white" />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" size="sm" onClick={() => setShowAddDialog(false)}>Annuler</Button>
+                <Button size="sm" className="bg-[#C9A961] text-white hover:bg-[#B8975A]" disabled={adding} onClick={ajouterTable}>
+                  {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  Créer la table
+                </Button>
+              </div>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   )
 }
@@ -891,16 +1927,27 @@ function IncidentsTab({
   incidents,
   loading,
   onPatchStatus,
+  tableRequests,
+  requestsLoading,
+  onPatchRequest,
 }: {
   incidents: VipIncident[]
   loading: boolean
   onPatchStatus: (id: string, statut: VipIncident['statut']) => Promise<void>
+  tableRequests: VipRequestWithTable[]
+  requestsLoading: boolean
+  onPatchRequest: (
+    id: string,
+    patch: { status?: 'pending' | 'in_progress' | 'done'; staffName?: string | null },
+  ) => Promise<void>
 }) {
   const { toast } = useToast()
   const [filterZone, setFilterZone] = useState<string>('all')
   const [filterStatus, setFilterStatus] = useState<string>('all')
   const [filterVip, setFilterVip] = useState<'all' | 'vip'>('all')
   const [search, setSearch] = useState('')
+  // Phase 1 — filtre par type de demande à la table
+  const [filterRequestType, setFilterRequestType] = useState<string>('all')
 
   const filtered = useMemo(() => {
     return incidents.filter((i) => {
@@ -1077,6 +2124,138 @@ function IncidentsTab({
             </TableBody>
           </Table>
         )}
+      </Card>
+
+      {/* ---------- Phase 1 — Demandes à la table ---------- */}
+      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <CardHeader className="px-0">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-lg text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
+                <ConciergeBell className="h-5 w-5 text-[#C9A961]" aria-hidden /> Demandes à la table
+              </CardTitle>
+              <CardDescription className="text-[#8B6F47]">
+                Demandes envoyées par les clients depuis le QR code de leur table.
+              </CardDescription>
+            </div>
+            <Select value={filterRequestType} onValueChange={setFilterRequestType}>
+              <SelectTrigger className="w-[200px] border-[#EAE5DC] bg-[#FAFAF7] text-sm">
+                <SelectValue placeholder="Type de demande" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Tous les types</SelectItem>
+                {Object.entries(REQUEST_TYPE_META).map(([k, m]) => (
+                  <SelectItem key={k} value={k}>{m.label}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </CardHeader>
+        <CardContent className="px-0">
+          {requestsLoading ? (
+            <div className="space-y-2">
+              {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}
+            </div>
+          ) : tableRequests.length === 0 ? (
+            <div className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-[#FAFAF7] py-10 text-center">
+              <CheckCircle2 className="h-8 w-8 text-[#4A7C59]" aria-hidden />
+              <p className="text-sm font-medium text-[#2C2C2C]">Aucune demande à la table</p>
+              <p className="text-xs text-[#8B6F47]">Les demandes envoyées par les clients depuis leur QR table apparaîtront ici.</p>
+            </div>
+          ) : (
+            <ul className="max-h-[480px] space-y-2.5 overflow-y-auto pr-1">
+              {tableRequests
+                .filter((r) => filterRequestType === 'all' || r.type === filterRequestType)
+                .map((r) => {
+                  const meta = REQUEST_TYPE_META[r.type] ?? { label: r.type, Icon: ConciergeBell }
+                  const statusMeta = REQUEST_STATUS_META[r.status] ?? REQUEST_STATUS_META.pending
+                  const RIcon = meta.Icon
+                  return (
+                    <li
+                      key={r.id}
+                      className="flex flex-wrap items-center gap-3 rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-3"
+                    >
+                      {/* Type icon */}
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#C9A961]/12 text-[#8B6F47]">
+                        <RIcon className="h-5 w-5" aria-hidden />
+                      </span>
+
+                      {/* Table + type + message */}
+                      <div className="min-w-[200px] flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <Badge variant="outline" className="border-[#EAE5DC] bg-white font-mono text-xs font-semibold text-[#2C2C2C]">
+                            {r.table.tableNumber}
+                          </Badge>
+                          <p className="text-sm font-semibold text-[#2C2C2C]">{meta.label}</p>
+                          <Badge variant="outline" className={cn('h-5 px-1.5 text-[10px] font-medium', statusMeta.style)}>
+                            {statusMeta.label}
+                          </Badge>
+                        </div>
+                        {r.message && (
+                          <p className="mt-0.5 truncate text-xs text-[#8B6F47]">« {r.message} »</p>
+                        )}
+                        {r.table.clientName && (
+                          <p className="mt-0.5 text-[11px] text-[#8B6F47]/80">
+                            Client : <span className="font-medium text-[#2C2C2C]">{r.table.clientName}</span>
+                            {r.table.clientVipLevel && (
+                              <span className="ml-1 text-[#6B4C9A]">· {r.table.clientVipLevel}</span>
+                            )}
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Heure */}
+                      <div className="shrink-0 text-right text-xs text-[#8B6F47]">
+                        <div>{formatTimeShort(r.createdAt)}</div>
+                        <div className="text-[11px] text-[#8B6F47]/70">il y a {minutesDepuis(r.createdAt)} min</div>
+                      </div>
+
+                      {/* Actions */}
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        {r.status === 'pending' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
+                            onClick={async () => {
+                              try {
+                                await onPatchRequest(r.id, { status: 'in_progress' })
+                                toast({ title: 'Pris en charge', description: `Demande de ${r.table.tableNumber} — ${meta.label}` })
+                              } catch {
+                                toast({ title: 'Erreur', description: 'Mise à jour impossible.', variant: 'destructive' })
+                              }
+                            }}
+                          >
+                            <ArrowDown className="h-3.5 w-3.5" aria-hidden /> Prendre en charge
+                          </Button>
+                        )}
+                        {r.status !== 'done' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 border-[#4A7C59]/40 bg-[#4A7C59]/8 text-[#4A7C59] hover:bg-[#4A7C59]/15"
+                            onClick={async () => {
+                              try {
+                                await onPatchRequest(r.id, { status: 'done' })
+                                toast({ title: 'Terminé', description: `Demande de ${r.table.tableNumber} clôturée.` })
+                              } catch {
+                                toast({ title: 'Erreur', description: 'Mise à jour impossible.', variant: 'destructive' })
+                              }
+                            }}
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> Terminer
+                          </Button>
+                        )}
+                        {r.status === 'done' && (
+                          <span className="text-xs text-[#4A7C59]">Clôturée</span>
+                        )}
+                      </div>
+                    </li>
+                  )
+                })}
+            </ul>
+          )}
+        </CardContent>
       </Card>
     </div>
   )
@@ -2591,7 +3770,10 @@ export default function VIPDashboard() {
   const [incidents, setIncidents] = useState<VipIncident[]>([])
   const [showers, setShowers] = useState<Shower[]>([])
   const [buffet, setBuffet] = useState<BuffetItem[]>([])
+  const [tables, setTables] = useState<VipTableData[]>([])
+  const [tableRequests, setTableRequests] = useState<VipRequestWithTable[]>([])
   const [loading, setLoading] = useState(true)
+  const [requestsLoading, setRequestsLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [rewardsGivenToday, setRewardsGivenToday] = useState(2)
   const [clientsCount] = useState(18)
@@ -2606,21 +3788,33 @@ export default function VIPDashboard() {
 
   const refreshData = useCallback(async () => {
     try {
-      const [incRes, shRes, bfRes] = await Promise.all([
+      const [incRes, shRes, bfRes, tblRes, reqRes] = await Promise.all([
         fetch('/api/vip/incidents', { cache: 'no-store' }),
         fetch('/api/vip/showers', { cache: 'no-store' }),
         fetch('/api/vip/buffet', { cache: 'no-store' }),
+        fetch('/api/vip/tables', { cache: 'no-store' }),
+        fetch('/api/vip/requests', { cache: 'no-store' }),
       ])
       const incJson = await incRes.json().catch(() => null)
       const shJson = await shRes.json().catch(() => null)
       const bfJson = await bfRes.json().catch(() => null)
+      const tblJson = await tblRes.json().catch(() => null)
+      const reqJson = await reqRes.json().catch(() => null)
       if (incJson?.ok) setIncidents(incJson.data ?? [])
       if (shJson?.ok) setShowers(shJson.data ?? [])
       if (bfJson?.ok) setBuffet(bfJson.data ?? [])
+      if (tblJson?.ok) setTables(tblJson.data ?? [])
+      // Requests : on garde uniquement les demandes actives (pending + in_progress)
+      // pour le tableau de bord. Les done sont masqués côté UI.
+      if (reqJson?.ok) {
+        const all: VipRequestWithTable[] = reqJson.data ?? []
+        setTableRequests(all.filter((r: VipRequestWithTable) => r.status !== 'done'))
+      }
     } catch {
       /* ignore — on garde l'état précédent */
     } finally {
       setLoading(false)
+      setRequestsLoading(false)
       setRefreshing(false)
     }
   }, [])
@@ -2708,6 +3902,110 @@ export default function VIPDashboard() {
       ),
     )
   }, [])
+
+  // Phase 1 — PATCH VipTable (status, clientName, clientVipLevel)
+  const patchTable = useCallback(
+    async (
+      id: string,
+      patch: {
+        status?: VipTableStatus
+        clientName?: string | null
+        clientVipLevel?: string | null
+      },
+    ) => {
+      const res = await fetch(`/api/vip/tables/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      })
+      if (!res.ok) throw new Error('patch table failed')
+      const json = await res.json().catch(() => null)
+      const updated = json?.data
+      setTables((list) =>
+        list.map((t) => {
+          if (t.id !== id) return t
+          if (!updated) {
+            // Fallback optimistic — on applique localement
+            const next: VipTableData = { ...t, ...patch } as VipTableData
+            if (patch.status === 'free') {
+              next.clientName = null
+              next.clientVipLevel = null
+              next.arrivedAt = null
+              next.activeRequests = 0
+              next.requests = []
+            } else if (patch.status === 'occupied' && !t.arrivedAt) {
+              next.arrivedAt = new Date().toISOString()
+            }
+            return next
+          }
+          // Si la table a été libérée, on vide aussi ses demandes actives
+          const nextTable: VipTableData = {
+            ...t,
+            status: (updated.status as VipTableStatus) ?? t.status,
+            clientName: updated.clientName ?? null,
+            clientVipLevel: updated.clientVipLevel ?? null,
+            arrivedAt: updated.arrivedAt ?? null,
+            activeRequests: updated.activeRequests ?? t.activeRequests,
+            requests: updated.status === 'free' ? [] : t.requests,
+          }
+          return nextTable
+        }),
+      )
+    },
+    [],
+  )
+
+  // Phase 1 — PATCH VipTableRequest (status, staffName)
+  const patchRequest = useCallback(
+    async (
+      id: string,
+      patch: { status?: 'pending' | 'in_progress' | 'done'; staffName?: string | null },
+    ) => {
+      const res = await fetch(`/api/vip/requests/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      })
+      if (!res.ok) throw new Error('patch request failed')
+      const json = await res.json().catch(() => null)
+      const updated = json?.data
+      // Côté demandes : on retire les done de la liste active
+      setTableRequests((list) =>
+        list
+          .map((r) =>
+            r.id === id
+              ? {
+                  ...r,
+                  status: updated?.status ?? patch.status ?? r.status,
+                  staffName: updated?.staffName ?? patch.staffName ?? r.staffName,
+                }
+              : r,
+          )
+          .filter((r) => r.status !== 'done'),
+      )
+      // Côté tables : on met à jour les demandes actives + la liste embarquée
+      setTables((list) =>
+        list.map((t) => {
+          const req = t.requests.find((r) => r.id === id)
+          if (!req) return t
+          const updatedReq = {
+            ...req,
+            status: updated?.status ?? patch.status ?? req.status,
+            staffName: updated?.staffName ?? patch.staffName ?? req.staffName,
+          }
+          const nextRequests = patch.status === 'done'
+            ? t.requests.filter((r) => r.id !== id)
+            : t.requests.map((r) => (r.id === id ? updatedReq : r))
+          return {
+            ...t,
+            requests: nextRequests,
+            activeRequests: nextRequests.filter((r) => r.status !== 'done').length,
+          }
+        }),
+      )
+    },
+    [],
+  )
 
   const naviguer = (t: VipTab) => {
     setTab(t)
@@ -2817,13 +4115,25 @@ export default function VIPDashboard() {
               incidents={incidents}
               showers={showers}
               buffet={buffet}
+              tables={tables}
               clientsCount={clientsCount}
               rewardsGivenToday={rewardsGivenToday}
               loading={loading}
+              onPatchTable={patchTable}
             />
           )}
+          {tab === 'plan' && (
+            <FloorPlanTab tables={tables} loading={loading} onPatchTable={patchTable} onRefresh={refreshData} />
+          )}
           {tab === 'incidents' && (
-            <IncidentsTab incidents={incidents} loading={loading} onPatchStatus={patchIncidentStatus} />
+            <IncidentsTab
+              incidents={incidents}
+              loading={loading}
+              onPatchStatus={patchIncidentStatus}
+              tableRequests={tableRequests}
+              requestsLoading={requestsLoading}
+              onPatchRequest={patchRequest}
+            />
           )}
           {tab === 'buffet' && (
             <BuffetTab buffet={buffet} loading={loading} onPatchFill={patchBuffetFill} />
