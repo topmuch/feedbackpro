@@ -93,6 +93,12 @@ import { VipClientsTab } from '@/components/feedbackpro/vip-clients-tab'
 import { VipSettingsTab } from '@/components/feedbackpro/vip-settings-tab'
 import { VipReportsTab } from '@/components/feedbackpro/vip-reports-tab'
 import { VipGuestAlertBanner } from '@/components/feedbackpro/vip-guest-alert'
+import {
+  NathalieQrPlaque,
+  downloadPlaquePng,
+  printPlaque,
+  type PlaqueOptions,
+} from '@/components/feedbackpro/nathalie-qr-plaque'
 import type { VipLoungeConfig } from '@/lib/vip-clients'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -414,7 +420,7 @@ const SEED_STAFF: StaffMember[] = [
   },
 ]
 
-const QR_SERVER = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='
+// QR généré localement (paquet `qrcode`, build navigateur) via <NathalieQrPlaque />
 const FALLBACK_URL = 'https://feedback.qrbags.com'
 
 /**
@@ -694,10 +700,6 @@ function hashIsVip(id: string): boolean {
     h = (h * 31 + id.charCodeAt(i)) >>> 0
   }
   return h % 3 === 0
-}
-
-function qrImageUrl(dataUrl: string): string {
-  return `${QR_SERVER}${encodeURIComponent(dataUrl)}`
 }
 
 /**
@@ -1169,12 +1171,12 @@ function TableDetailSheet({
           <section>
             <h3 className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">QR Code de la table</h3>
             <div className="mt-2 flex items-center gap-4 rounded-2xl border border-[#EAE5DC] bg-[#FAFAF7] p-4">
-              <img
-                src={qrImageUrl(`${appUrl()}/?vipTable=${table.qrToken}`)}
-                alt={`QR code table ${table.tableNumber}`}
-                width={96}
-                height={96}
-                className="h-24 w-24 rounded-lg bg-white"
+              <NathalieQrPlaque
+                data={`${appUrl()}/?vipTable=${table.qrToken}`}
+                label={`Table ${table.tableNumber}`}
+                signature="NATHALIE · GUIDE PERSONNEL"
+                size="xs"
+                className="w-36 shrink-0"
               />
               <div className="min-w-0">
                 <p className="text-xs text-[#8B6F47]">Token</p>
@@ -2542,6 +2544,18 @@ function ShowersTab({
     return init
   })
   const [qrShower, setQrShower] = useState<Shower | null>(null)
+  const [qrPngBusy, setQrPngBusy] = useState(false)
+
+  /** Garde-fou anti double-clic pour les rendus PNG de plaque */
+  const runQrPng = async (fn: () => Promise<void>) => {
+    if (qrPngBusy) return
+    setQrPngBusy(true)
+    try {
+      await fn()
+    } finally {
+      setQrPngBusy(false)
+    }
+  }
 
   // Incrémente le compteur d'usage d'une cabine quand le staff libère/nettoie
   // depuis cette UI (transition occupé → libre/cleaning déclenchée par action).
@@ -2726,18 +2740,34 @@ function ShowersTab({
           </DialogHeader>
           {qrShower && (
             <div className="flex flex-col items-center gap-4 py-2">
-              <img
-                src={qrImageUrl(qrUrlForZone('vip_showers', `vip_showers_${qrShower.showerNumber}`))}
-                alt={`QR réservation douche N°${qrShower.showerNumber}`}
-                className="h-48 w-48 rounded-xl border border-[#EAE5DC]"
+              <NathalieQrPlaque
+                data={qrUrlForZone('vip_showers', `vip_showers_${qrShower.showerNumber}`)}
+                label={`Douche N°${qrShower.showerNumber}`}
+                signature="RÉSERVATION · EN TOUTE DISCRÉTION"
+                size="md"
+                className="w-full max-w-[280px]"
               />
-              <a
-                href={qrImageUrl(qrUrlForZone('vip_showers', `vip_showers_${qrShower.showerNumber}`))}
-                download={`qr-douche-${qrShower.showerNumber}.png`}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#C9A961]/12 px-4 py-2 text-sm font-medium text-[#8B6F47] hover:bg-[#C9A961]/20"
+              <Button
+                variant="outline"
+                disabled={qrPngBusy}
+                className="border-[#C9A961]/40 bg-[#C9A961]/10 text-[#8B6F47] hover:bg-[#C9A961]/20"
+                onClick={() =>
+                  runQrPng(() =>
+                    downloadPlaquePng(
+                      {
+                        data: qrUrlForZone('vip_showers', `vip_showers_${qrShower.showerNumber}`),
+                        label: `Douche N°${qrShower.showerNumber}`,
+                        signature: 'RÉSERVATION · EN TOUTE DISCRÉTION',
+                      },
+                      `chevalet-douche-${qrShower.showerNumber}.png`,
+                    ).then(() =>
+                      toast({ title: 'Plaque téléchargée', description: `chevalet-douche-${qrShower.showerNumber}.png` }),
+                    ),
+                  )
+                }
               >
-                <Download className="h-4 w-4" aria-hidden /> Télécharger PNG
-              </a>
+                <Download className="h-4 w-4" aria-hidden /> Télécharger la plaque PNG
+              </Button>
             </div>
           )}
         </DialogContent>
@@ -3111,30 +3141,39 @@ function QRTab() {
     return (h % 12) + 1
   }
 
-  const downloadQr = (url: string, filename: string) => {
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
+  const { toast } = useToast()
+  const [qrPngBusy, setQrPngBusy] = useState(false)
+
+  const runQrPng = async (fn: () => Promise<void>) => {
+    if (qrPngBusy) return
+    setQrPngBusy(true)
+    try {
+      await fn()
+    } finally {
+      setQrPngBusy(false)
+    }
   }
 
-  const printQr = (url: string, label: string) => {
-    const w = window.open('', '_blank', 'width=420,height=560')
-    if (!w) return
-    w.document.write(`
-      <html><head><title>QR — ${label}</title></head>
-      <body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;font-family:Georgia,serif;">
-        <h2 style="color:#8B6F47;">${label}</h2>
-        <img src="${url}" alt="QR" style="width:280px;height:280px;border:1px solid #EAE5DC;border-radius:12px;" />
-        <p style="color:#8B6F47;font-size:12px;margin-top:16px;">Salon VIP — Lounge Premium</p>
-      </body></html>
-    `)
-    w.document.close()
-    w.focus()
-    setTimeout(() => w.print(), 250)
+  // QR_ROUTING — QR d'ENTRÉE : ouvre Nathalie en mode global (sans table)
+  const entryUrl = `${appUrl()}/?qr_type=CLIENT_GLOBAL`
+  const entryOpts: PlaqueOptions = {
+    data: entryUrl,
+    label: 'Accueil du salon',
+    signature: 'NATHALIE · VOTRE GUIDE PERSONNEL',
   }
+
+  /** Télécharge la plaque luxe complète (marbre + aluminium + or) */
+  const downloadQr = (opts: PlaqueOptions, filename: string) =>
+    runQrPng(async () => {
+      await downloadPlaquePng(opts, filename)
+      toast({ title: 'Plaque téléchargée', description: filename })
+    })
+
+  /** Imprime la feuille chevalet luxe */
+  const printQr = (opts: PlaqueOptions, label: string) =>
+    runQrPng(async () => {
+      await printPlaque(opts, label)
+    })
 
   return (
     <div className="space-y-5">
@@ -3152,6 +3191,8 @@ function QRTab() {
           assignée (écran d'accueil global). Distinct des QR de
           table (?qr_type=CLIENT_ZONE&zone_id=<token>) qui ouvrent
           Nathalie en mode contextuel.
+          Rendu : plaque luxe Nathalie (marbre Nero Marquina,
+          aluminium noir anodisé, or champagne) + référence produit.
           ============================================================ */}
       <div>
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[#8B6F47]">
@@ -3167,11 +3208,7 @@ function QRTab() {
               </div>
             </div>
             <div className="mt-4 flex justify-center">
-              <img
-                src={qrImageUrl(`${appUrl()}/?qr_type=CLIENT_GLOBAL`)}
-                alt="QR d'entrée du salon (Nathalie mode global)"
-                className="h-40 w-40 rounded-xl border border-[#EAE5DC]"
-              />
+              <NathalieQrPlaque data={entryUrl} label={entryOpts.label} signature={entryOpts.signature} className="w-full max-w-[260px]" />
             </div>
             <p className="mt-3 text-[11px] leading-relaxed text-[#8B6F47]/80">
               À poser sur le chevalet d&apos;accueil : Nathalie accueille le
@@ -3182,19 +3219,50 @@ function QRTab() {
               <Button
                 size="sm"
                 variant="outline"
+                disabled={qrPngBusy}
                 className="h-8 flex-1 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
-                onClick={() => downloadQr(qrImageUrl(`${appUrl()}/?qr_type=CLIENT_GLOBAL`), 'qr-entree-salon.png')}
+                onClick={() => downloadQr(entryOpts, 'chevalet-entree-nathalie.png')}
               >
-                <Download className="h-3.5 w-3.5" aria-hidden /> PNG
+                <Download className="h-3.5 w-3.5" aria-hidden /> Plaque PNG
               </Button>
               <Button
                 size="sm"
                 variant="outline"
+                disabled={qrPngBusy}
                 className="h-8 flex-1 border-[#8B6F47]/40 bg-[#8B6F47]/8 text-[#8B6F47] hover:bg-[#8B6F47]/15"
-                onClick={() => printQr(qrImageUrl(`${appUrl()}/?qr_type=CLIENT_GLOBAL`), 'Entrée du salon — Nathalie')}
+                onClick={() => printQr(entryOpts, 'Entrée du salon — Nathalie')}
               >
                 <Printer className="h-3.5 w-3.5" aria-hidden /> Imprimer
               </Button>
+            </div>
+          </Card>
+
+          {/* Référence produit — rendu matière du chevalet */}
+          <Card className="overflow-hidden border border-[#EAE5DC] bg-white p-0 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+            <div className="relative h-52 w-full sm:h-56">
+              <img
+                src="/brand/nathalie-qr-stand.png"
+                alt="Chevalet d'accueil du salon VIP : plaque QR en aluminium noir anodisé et or champagne posée sur un socle en marbre Nero Marquina"
+                className="h-full w-full object-cover"
+              />
+              <span className="absolute left-3 top-3 rounded-full bg-[#131315]/70 px-2.5 py-1 text-[10px] uppercase tracking-[0.22em] text-[#C9A961] backdrop-blur">
+                Rendu matière
+              </span>
+            </div>
+            <div className="p-4">
+              <h4 className="text-sm font-semibold text-[#2C2C2C]">Chevalet d&apos;accueil — Référence matériau</h4>
+              <p className="mt-1.5 text-[11px] leading-relaxed text-[#8B6F47]/80">
+                Aluminium noir anodisé mat, filets d&apos;or champagne brossé,
+                socle en marbre Nero Marquina. QR gravé sur médaillon ivoire
+                (modules anthracite #2C2C2C, lisibilité scan optimale).
+              </p>
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                {['Noir anodisé', 'Or champagne', 'Nero Marquina', 'Médaillon ivoire'].map((m) => (
+                  <span key={m} className="rounded-full border border-[#C9A961]/35 bg-[#C9A961]/8 px-2 py-0.5 text-[10px] font-medium text-[#8B6F47]">
+                    {m}
+                  </span>
+                ))}
+              </div>
             </div>
           </Card>
         </div>
@@ -3206,7 +3274,11 @@ function QRTab() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {VIP_ZONES.map((z) => {
             const url = qrUrlForZone(z.code, z.tags[0] ?? z.code)
-            const img = qrImageUrl(url)
+            const opts: PlaqueOptions = {
+              data: url,
+              label: z.nom,
+              signature: 'NATHALIE · GUIDE PERSONNEL',
+            }
             const scans = scansForZone(z.code)
             return (
               <Card key={z.code} className="border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
@@ -3218,7 +3290,7 @@ function QRTab() {
                   </div>
                 </div>
                 <div className="mt-4 flex justify-center">
-                  <img src={img} alt={`QR ${z.nom}`} className="h-40 w-40 rounded-xl border border-[#EAE5DC]" />
+                  <NathalieQrPlaque {...opts} size="sm" className="w-full max-w-[210px]" />
                 </div>
                 <div className="mt-3 flex items-center justify-between text-xs">
                   <span className="text-[#8B6F47]">Scans aujourd'hui</span>
@@ -3228,16 +3300,18 @@ function QRTab() {
                   <Button
                     size="sm"
                     variant="outline"
+                    disabled={qrPngBusy}
                     className="h-8 flex-1 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
-                    onClick={() => downloadQr(img, `qr-${z.code}.png`)}
+                    onClick={() => downloadQr(opts, `chevalet-${z.code}.png`)}
                   >
-                    <Download className="h-3.5 w-3.5" aria-hidden /> PNG
+                    <Download className="h-3.5 w-3.5" aria-hidden /> Plaque
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
+                    disabled={qrPngBusy}
                     className="h-8 flex-1 border-[#8B6F47]/40 bg-[#8B6F47]/8 text-[#8B6F47] hover:bg-[#8B6F47]/15"
-                    onClick={() => printQr(img, z.nom)}
+                    onClick={() => printQr(opts, z.nom)}
                   >
                     <Printer className="h-3.5 w-3.5" aria-hidden /> Imprimer
                   </Button>
@@ -3254,7 +3328,11 @@ function QRTab() {
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {SEED_STAFF.map((s) => {
             const url = qrUrlForStaff(s.id)
-            const img = qrImageUrl(url)
+            const opts: PlaqueOptions = {
+              data: url,
+              label: s.name,
+              signature: 'ÉQUIPE · ACCÈS STAFF',
+            }
             const scans = scansForStaff(s.id)
             return (
               <Card key={s.id} className="border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
@@ -3271,7 +3349,7 @@ function QRTab() {
                   </div>
                 </div>
                 <div className="mt-4 flex justify-center">
-                  <img src={img} alt={`QR ${s.name}`} className="h-32 w-32 rounded-xl border border-[#EAE5DC]" />
+                  <NathalieQrPlaque {...opts} size="sm" className="w-full max-w-[210px]" />
                 </div>
                 <div className="mt-3 flex items-center justify-between text-xs">
                   <span className="text-[#8B6F47]">Scans aujourd'hui</span>
@@ -3281,16 +3359,18 @@ function QRTab() {
                   <Button
                     size="sm"
                     variant="outline"
+                    disabled={qrPngBusy}
                     className="h-8 flex-1 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
-                    onClick={() => downloadQr(img, `qr-staff-${s.id}.png`)}
+                    onClick={() => downloadQr(opts, `chevalet-staff-${s.id}.png`)}
                   >
-                    <Download className="h-3.5 w-3.5" aria-hidden /> PNG
+                    <Download className="h-3.5 w-3.5" aria-hidden /> Plaque
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
+                    disabled={qrPngBusy}
                     className="h-8 flex-1 border-[#8B6F47]/40 bg-[#8B6F47]/8 text-[#8B6F47] hover:bg-[#8B6F47]/15"
-                    onClick={() => printQr(img, `Staff — ${s.name}`)}
+                    onClick={() => printQr(opts, `Staff — ${s.name}`)}
                   >
                     <Printer className="h-3.5 w-3.5" aria-hidden /> Imprimer
                   </Button>
