@@ -37,6 +37,7 @@ import {
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import { Input } from '@/components/ui/input'
 import { VipUpsellCatalog } from '@/components/feedbackpro/vip-upsell-catalog'
 import { VipShowerReservation } from '@/components/feedbackpro/vip-shower-reservation'
 import { VipLoanCatalog } from '@/components/feedbackpro/vip-loan-catalog'
@@ -263,7 +264,46 @@ const ZONE_LABELS: Record<string, string> = {
   buffet: 'Buffet & Bar',
   relaxation: 'Espace Détente',
   meeting: 'Salles de Réunion',
+  // QR_ROUTING — zone proposée uniquement via la modale d'entrée
+  terrasse: 'Terrasse',
 }
+
+// ============================================================
+// QR_ROUTING — Mode CLIENT_GLOBAL (QR d'entrée du salon)
+// ============================================================
+// Le QR d'ENTRÉE (grand QR sur le chevalet d'accueil) ouvre
+// Nathalie SANS table assignée : current_zone = null. Ces
+// constantes pilotent l'écran d'accueil GLOBAL et la modale de
+// géolocalisation dynamique (« Où êtes-vous installé
+// actuellement ? »).
+// ============================================================
+
+// Nom par défaut (surchargé par /api/vip/lounge-info — config tenant)
+const DEFAULT_LOUNGE_NAME = 'Salon VIP'
+
+// Zones visuelles de la modale + champ libre « Numéro de fauteuil »
+const GLOBAL_ZONES: { id: string; label: string; emoji: string }[] = [
+  { id: 'buffet', label: 'Zone Buffet', emoji: '🍽️' },
+  { id: 'relaxation', label: 'Espace Détente', emoji: '🛋️' },
+  { id: 'terrasse', label: 'Terrasse', emoji: '🌿' },
+  { id: 'meeting', label: 'Salles de Réunion', emoji: '💼' },
+]
+
+// Actions qui nécessitent de savoir OÙ se trouve le client
+// (livraison ou intervention physique). En mode CLIENT_GLOBAL, la
+// PREMIÈRE de ces actions déclenche la modale ; l'emplacement est
+// ensuite stocké dans la session Nathalie. Les actions sans
+// localisation (douche : le client s'y rend lui-même — cf. Scénario
+// 1 de la spec ; rating : simple avis) ne la déclenchent JAMAIS.
+const ZONE_REQUIRED_TYPES = new Set<RequestType>([
+  'refreshment',
+  'menu',
+  'charger',
+  'loan',
+  'upsell',
+  'concierge',
+  'problem',
+])
 
 const CONFIRMATION_CONTENT: Record<RequestType, { title: string; subtitle: string }> = {
   refreshment: {
@@ -313,10 +353,28 @@ const SERIF = { fontFamily: 'Georgia, "Playfair Display", serif' } as const
 export function VipTableScan({
   qrToken,
   onExit,
+  // QR_ROUTING — type de QR scanné, lu depuis l'URL par page.tsx :
+  //   ?qr_type=CLIENT_GLOBAL            → Nathalie SANS table (entrée)
+  //   ?qr_type=CLIENT_ZONE&zone_id=<t>  → Nathalie AVEC la table (historique)
+  // Défaut 'CLIENT_ZONE' : tout appel existant sans prop garde le
+  // comportement contextuel d'origine (aucune régression).
+  qrType = 'CLIENT_ZONE',
 }: {
-  qrToken: string
+  qrToken: string | null
   onExit?: () => void
+  qrType?: 'CLIENT_GLOBAL' | 'CLIENT_ZONE'
 }) {
+  // ============================================================
+  // QR_ROUTING — ROUTAGE CONDITIONNEL (if/else sur qr_type)
+  // ============================================================
+  // isGlobal = true  → QR d'ENTRÉE : current_zone/table_id = NULL,
+  //                    écran d'accueil GLOBAL, zone demandée seulement
+  //                    quand une action en a besoin.
+  // isGlobal = false → QR de TABLE : current_zone = table scannée,
+  //                    accueil contextuel « Bienvenue à la Table T-xx ».
+  // ============================================================
+  const isGlobal = qrType === 'CLIENT_GLOBAL' && !qrToken
+
   const [table, setTable] = useState<ScanTable | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -324,6 +382,23 @@ export function VipTableScan({
   const [view, setView] = useState<View>('main')
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
   const [ratingStars, setRatingStars] = useState(0)
+
+  // ---- QR_ROUTING — État du mode CLIENT_GLOBAL (QR d'entrée) ----
+  // Nom du salon (config tenant, chargé via /api/vip/lounge-info)
+  const [loungeName, setLoungeName] = useState<string>(DEFAULT_LOUNGE_NAME)
+  // Message d'accueil officiel (messageBienvenue — paramètres Denise)
+  const [loungeWelcome, setLoungeWelcome] = useState<string>('')
+  // Vrai dès que /api/vip/lounge-info a répondu (déclenche la session)
+  const [loungeLoaded, setLoungeLoaded] = useState(false)
+  // Emplacement choisi dynamiquement par le client — STOCKÉ DANS LA
+  // SESSION Nathalie et réutilisé pour chaque demande jusqu'à
+  // modification (chip « Modifier »). Null à l'arrivée (QR global).
+  const [globalZone, setGlobalZone] = useState<string | null>(null)
+  // Modale « Où êtes-vous installé actuellement ? »
+  const [zoneModalOpen, setZoneModalOpen] = useState(false)
+  const [zoneFauteuil, setZoneFauteuil] = useState('')
+  // Action cliquée mise EN ATTENTE du choix de zone (ex: problem)
+  const [pendingAction, setPendingAction] = useState<ActionDef | null>(null)
 
   // ---- Module 3 — Détection langue + Module 11 — Session Nathalie ----
   const [detectedLang, setDetectedLang] = useState<string>('fr')
@@ -355,9 +430,47 @@ export function VipTableScan({
     return () => URL.revokeObjectURL(url)
   }, [problemPhoto])
 
-  // ---- Résolution du token → table ----
+  // ---- Résolution du QR scanné (QR_ROUTING — if/else sur le type) ----
   useEffect(() => {
     let cancelled = false
+
+    // ============================================================
+    // BRANCHE 1 — ?qr_type=CLIENT_GLOBAL (QR d'ENTRÉE sur le chevalet)
+    // ------------------------------------------------------------
+    // AUCUNE résolution de table : current_zone/table_id restent à
+    // NULL. Nathalie affiche l'écran d'accueil GLOBAL avec le nom du
+    // salon (config tenant — jamais codé en dur).
+    // ============================================================
+    if (isGlobal) {
+      setLoading(true)
+      setError(null)
+      fetch('/api/vip/lounge-info', { cache: 'no-store' })
+        .then((r) => r.json())
+        .then((json) => {
+          if (cancelled) return
+          if (json?.ok && json.data?.nom) setLoungeName(json.data.nom)
+          if (json?.ok && json.data?.messageBienvenue) {
+            setLoungeWelcome(json.data.messageBienvenue)
+          }
+          setLoading(false)
+          setLoungeLoaded(true)
+        })
+        .catch(() => {
+          if (cancelled) return
+          // L'accueil ne doit JAMAIS planter : les défauts
+          // (loungeName) sont déjà en place.
+          setLoading(false)
+          setLoungeLoaded(true)
+        })
+      return () => {
+        cancelled = true
+      }
+    }
+
+    // ============================================================
+    // BRANCHE 2 — ?qr_type=CLIENT_ZONE (QR de table, COMPORTEMENT
+    // HISTORIQUE CONSERVÉ à l'identique)
+    // ============================================================
     setLoading(true)
     setError(null)
     // deviceId persistant (localStorage) → reconnaissance "retour client"
@@ -372,7 +485,7 @@ export function VipTableScan({
       deviceId = null
     }
     const qs = deviceId ? `?deviceId=${encodeURIComponent(deviceId)}` : ''
-    fetch(`/api/vip/tables/by-qr/${encodeURIComponent(qrToken)}${qs}`, {
+    fetch(`/api/vip/tables/by-qr/${encodeURIComponent(qrToken ?? '')}${qs}`, {
       cache: 'no-store',
     })
       .then((r) => r.json())
@@ -384,15 +497,16 @@ export function VipTableScan({
           return
         }
         const d = json.data
+        // CLIENT_ZONE — current_zone = table scannée (contexte direct)
         setTable({
-          id: d.id ?? qrToken,
+          id: d.id ?? qrToken ?? '',
           tableNumber: d.tableNumber,
           zone: d.zone,
           seats: d.seats,
           status: d.status ?? 'occupied',
           clientName: d.clientName ?? null,
           clientVipLevel: d.clientVipLevel ?? null,
-          qrToken,
+          qrToken: qrToken ?? '',
           vipClient: d.vipClient ?? null,
         })
         setLoading(false)
@@ -405,7 +519,7 @@ export function VipTableScan({
     return () => {
       cancelled = true
     }
-  }, [qrToken])
+  }, [isGlobal, qrToken])
 
   // ---- Module 3 — Détection automatique de langue (FR/EN/AR/ES/DE/PT/WO) ----
   useEffect(() => {
@@ -418,8 +532,17 @@ export function VipTableScan({
   }, [])
 
   // ---- Module 11 — Session Nathalie (création/reprise, expiry 4h) ----
+  // QR_ROUTING — la session 4 h fonctionne pour LES DEUX types de QR
+  // (critère d'acceptation) :
+  //   CLIENT_GLOBAL → qrType 'CLIENT_GLOBAL', contextZone = null
+  //   CLIENT_ZONE   → qrType 'CLIENT_ZONE',  contextZone = n° de table
   useEffect(() => {
-    if (!table) return
+    // Attente du contexte : info salon (global) OU table résolue (zone)
+    if (isGlobal) {
+      if (!loungeLoaded) return
+    } else if (!table) {
+      return
+    }
     try {
       let deviceId = localStorage.getItem('fp_device_id')
       if (!deviceId) {
@@ -430,8 +553,10 @@ export function VipTableScan({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          qrType: 'CLIENT_ZONE',
-          contextZone: table.tableNumber,
+          // QR_ROUTING — le type de QR scanné est enregistré tel quel
+          qrType: isGlobal ? 'CLIENT_GLOBAL' : 'CLIENT_ZONE',
+          // CLIENT_GLOBAL → AUCUNE table assignée (null)
+          contextZone: isGlobal ? null : (table?.tableNumber ?? null),
           deviceId,
         }),
       })
@@ -445,7 +570,7 @@ export function VipTableScan({
     } catch {
       /* localStorage indisponible */
     }
-  }, [table])
+  }, [isGlobal, table, loungeLoaded])
 
   // ---- Helpers ----
   const safeParse = (s: string) => {
@@ -458,27 +583,56 @@ export function VipTableScan({
 
   const zoneLabel = (z: string) => ZONE_LABELS[z] ?? z
 
+  // QR_ROUTING — libellés d'emplacement selon le mode :
+  //   CLIENT_ZONE  → « Table T-05 » (contexte direct)
+  //   CLIENT_GLOBAL → « Zone Buffet » / « Fauteuil 12 » / « Salon VIP »
+  const locationLabel = isGlobal
+    ? globalZone ?? DEFAULT_LOUNGE_NAME
+    : table?.tableNumber ?? ''
+  // En-tête des vues secondaires (problème, commande, concierge…)
+  const headerLocation = isGlobal
+    ? globalZone
+      ? `Installé : ${globalZone}`
+      : 'Salon VIP'
+    : `Table ${table?.tableNumber ?? ''}`
+
   const cartCount = Object.values(cart).reduce((a, b) => a + b, 0)
   const cartItems = MENU_ITEMS.filter((m) => (cart[m.id] ?? 0) > 0)
 
   // ---- Envoi d'une demande via POST /api/vip/requests ----
   const sendRequest = async (
     type: RequestType,
-    opts?: { message?: string; metadata?: string },
+    opts?: { message?: string; metadata?: string; zone?: string },
   ) => {
-    if (!table) return
+    // CLIENT_ZONE → table requise ; CLIENT_GLOBAL → pas de table
+    if (!isGlobal && !table) return
     setSending(type)
     setError(null)
     try {
       const res = await fetch('/api/vip/requests', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          qrToken: table.qrToken,
-          type,
-          message: opts?.message,
-          metadata: opts?.metadata,
-        }),
+        body: JSON.stringify(
+          isGlobal
+            ? {
+                // QR_ROUTING — BRANCHE CLIENT_GLOBAL (QR d'entrée) :
+                // AUCUN qrToken/tableId. L'emplacement déclaré dans la
+                // session Nathalie (modale) accompagne la demande via
+                // contextZone. Pour 'rating' il peut rester null.
+                type,
+                message: opts?.message,
+                metadata: opts?.metadata,
+                contextZone: opts?.zone ?? globalZone ?? undefined,
+              }
+            : {
+                // QR_ROUTING — BRANCHE CLIENT_ZONE (QR de table,
+                // inchangé) : la commande part avec la mention Table.
+                qrToken: table?.qrToken,
+                type,
+                message: opts?.message,
+                metadata: opts?.metadata,
+              },
+        ),
       })
       const json = await res.json().catch(() => null)
       if (!res.ok || !json?.ok) {
@@ -488,7 +642,13 @@ export function VipTableScan({
       setConfirmation({
         type,
         trackingNumber: json.data?.trackingNumber ?? '—',
-        tableNumber: json.data?.table?.tableNumber ?? table.tableNumber,
+        // CLIENT_ZONE → n° de table · CLIENT_GLOBAL → emplacement choisi
+        tableNumber:
+          json.data?.table?.tableNumber ??
+          json.data?.contextZone ??
+          opts?.zone ??
+          globalZone ??
+          locationLabel,
         metadata: meta,
       })
       setView('main')
@@ -511,6 +671,21 @@ export function VipTableScan({
   // ---- Handlers d'action (cartes principales) ----
   const handleActionClick = (action: ActionDef) => {
     if (sending) return
+    // ============================================================
+    // QR_ROUTING — GÉOLOCALISATION DYNAMIQUE (mode CLIENT_GLOBAL)
+    // ------------------------------------------------------------
+    // Le client est entré par le QR du chevalet : il ne sait pas
+    // encore où il s'installera. Si l'action nécessite un emplacement
+    // (signalement, concierge, commande…) et qu'aucune zone n'est
+    // encore connue → modale élégante « Où êtes-vous installé
+    // actuellement ? ». Une fois la zone choisie, elle est stockée
+    // dans la session Nathalie et l'action reprend automatiquement.
+    // ============================================================
+    if (isGlobal && ZONE_REQUIRED_TYPES.has(action.type) && !globalZone) {
+      setPendingAction(action)
+      setZoneModalOpen(true)
+      return
+    }
     if (action.behavior === 'direct') {
       sendRequest(action.type)
     } else if (action.behavior === 'form:refreshment') {
@@ -529,6 +704,45 @@ export function VipTableScan({
     } else if (action.behavior === 'form:loan') {
       setView('loan')
     }
+  }
+
+  // ---- QR_ROUTING — Suite de l'action après choix de zone ----
+  // La zone est passée explicitement (le state globalZone n'est pas
+  // encore à jour dans ce tick) et stockée dans la session pour les
+  // demandes suivantes.
+  const confirmZoneSelection = (zone: string) => {
+    setGlobalZone(zone)
+    setZoneModalOpen(false)
+    setZoneFauteuil('')
+    const action = pendingAction
+    setPendingAction(null)
+    if (!action) return // simple changement d'emplacement (chip Modifier)
+    // Reprend l'action mise en attente
+    if (action.behavior === 'direct') {
+      sendRequest(action.type, { zone })
+    } else if (action.behavior === 'form:refreshment') {
+      setView('refreshment')
+    } else if (action.behavior === 'form:concierge') {
+      setView('concierge')
+    } else if (action.behavior === 'form:problem') {
+      setView('problem')
+    } else if (action.behavior === 'form:rating') {
+      setRatingStars(0)
+      setView('rating')
+    } else if (action.behavior === 'form:upsell') {
+      setView('upsell')
+    } else if (action.behavior === 'form:shower-reservation') {
+      setView('shower-reservation')
+    } else if (action.behavior === 'form:loan') {
+      setView('loan')
+    }
+  }
+
+  // Annulation de la modale : l'action en attente est abandonnée
+  const cancelZoneModal = () => {
+    setZoneModalOpen(false)
+    setZoneFauteuil('')
+    setPendingAction(null)
   }
 
   const handlePhotoChange = (e: ChangeEvent<HTMLInputElement>) => {
@@ -587,15 +801,19 @@ export function VipTableScan({
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#FAFAF7] px-6">
         <Loader2 className="h-8 w-8 animate-spin text-[#C9A961]" aria-hidden />
-        <p className="text-sm text-[#8B6F47]">Connexion à votre table…</p>
+        <p className="text-sm text-[#8B6F47]">
+          {/* QR_ROUTING — libellé adapté au type de QR scanné */}
+          {isGlobal ? 'Nathalie arrive…' : 'Connexion à votre table…'}
+        </p>
       </div>
     )
   }
 
   // ============================================================
-  // RENDU — Error (avant résolution de la table)
+  // RENDU — Error (avant résolution du QR — CLIENT_ZONE uniquement :
+  // en mode global l'info salon ne peut pas échouer bloquamment)
   // ============================================================
-  if (error && !table) {
+  if (error && !isGlobal && !table) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#FAFAF7] px-6 text-center">
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#C97B63]/10">
@@ -622,7 +840,9 @@ export function VipTableScan({
     )
   }
 
-  if (!table) return null
+  // QR_ROUTING — en mode CLIENT_GLOBAL il n'y a PAS de table : on ne
+  // bloque PAS le rendu sur table null. En mode zone, table est requis.
+  if (!isGlobal && !table) return null
 
   // ============================================================
   // RENDU — Confirmation (personnalisée par type)
@@ -685,6 +905,10 @@ export function VipTableScan({
         : confirmation.type === 'problem'
           ? 'Signalement'
           : 'Demande'
+    // QR_ROUTING — libellé de l'emplacement dans la carte de suivi :
+    //   CLIENT_ZONE  → « Table » + n° de table scannée
+    //   CLIENT_GLOBAL → « Emplacement » + zone choisie dans la session
+    const locationFieldLabel = isGlobal ? 'Emplacement' : 'Table'
 
     return (
       <div className="flex min-h-screen flex-col items-center justify-center gap-6 bg-[#FAFAF7] px-6 py-12 text-center">
@@ -718,7 +942,7 @@ export function VipTableScan({
           {detailsBox}
           <div className="mt-3 border-t border-[#EAE5DC] pt-3">
             <p className="text-[10px] font-medium uppercase tracking-widest text-[#8B6F47]">
-              Table
+              {locationFieldLabel}
             </p>
             <p className="mt-0.5 text-sm font-semibold text-[#2C2C2C]">
               {confirmation.tableNumber}
@@ -798,7 +1022,9 @@ export function VipTableScan({
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-xs font-medium uppercase tracking-widest text-[#8B6F47]">
-                Table {table.tableNumber}
+                {/* QR_ROUTING — « Table T-05 » en mode zone ·
+                    « Installé : Zone Buffet » / « Salon VIP » en global */}
+                {headerLocation}
               </p>
               <h1 className="mt-1 text-2xl font-semibold text-[#2C2C2C]" style={SERIF}>
                 ⭐ Noter mon expérience
@@ -875,7 +1101,9 @@ export function VipTableScan({
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-xs font-medium uppercase tracking-widest text-[#8B6F47]">
-                Table {table.tableNumber}
+                {/* QR_ROUTING — « Table T-05 » en mode zone ·
+                    « Installé : Zone Buffet » / « Salon VIP » en global */}
+                {headerLocation}
               </p>
               <h1 className="mt-1 text-2xl font-semibold text-[#2C2C2C]" style={SERIF}>
                 ⚠️ Signaler un problème
@@ -1033,7 +1261,9 @@ export function VipTableScan({
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-xs font-medium uppercase tracking-widest text-[#8B6F47]">
-                Table {table.tableNumber}
+                {/* QR_ROUTING — « Table T-05 » en mode zone ·
+                    « Installé : Zone Buffet » / « Salon VIP » en global */}
+                {headerLocation}
               </p>
               <h1 className="mt-1 text-2xl font-semibold text-[#2C2C2C]" style={SERIF}>
                 🍸 Commander un rafraîchissement
@@ -1190,7 +1420,9 @@ export function VipTableScan({
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-xs font-medium uppercase tracking-widest text-[#8B6F47]">
-                Table {table.tableNumber}
+                {/* QR_ROUTING — « Table T-05 » en mode zone ·
+                    « Installé : Zone Buffet » / « Salon VIP » en global */}
+                {headerLocation}
               </p>
               <h1 className="mt-1 text-2xl font-semibold text-[#2C2C2C]" style={SERIF}>
                 🛎️ Appeler le concierge
@@ -1292,13 +1524,15 @@ export function VipTableScan({
 
   // ============================================================
   // RENDU — Vue Upsell (Module 5 — Nathalie integration)
+  // QR_ROUTING — fonctionne dans les DEUX modes : tableNumber vaut
+  // le n° de table (zone) ou l'emplacement choisi (global).
   // ============================================================
-  if (view === 'upsell' && table) {
+  if (view === 'upsell') {
     return (
       <div className="min-h-screen bg-[#FAFAF7]">
         <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
           <VipUpsellCatalog
-            tableNumber={table.tableNumber}
+            tableNumber={locationLabel}
             onBack={() => setView('main')}
           />
         </div>
@@ -1308,13 +1542,15 @@ export function VipTableScan({
 
   // ============================================================
   // RENDU — Vue Réservation Douche (Module 4 — Smart Shower Queue)
+  // QR_ROUTING — Scénario 1 : depuis le QR d'entrée, le client
+  // réserve SANS qu'on lui demande sa zone (il ira à la douche).
   // ============================================================
-  if (view === 'shower-reservation' && table) {
+  if (view === 'shower-reservation') {
     return (
       <div className="min-h-screen bg-[#FAFAF7]">
         <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
           <VipShowerReservation
-            tableNumber={table.tableNumber}
+            tableNumber={locationLabel}
             onBack={() => setView('main')}
           />
         </div>
@@ -1325,12 +1561,12 @@ export function VipTableScan({
   // ============================================================
   // RENDU — Vue Prêt Express (Module 6 — Prêt gratuit)
   // ============================================================
-  if (view === 'loan' && table) {
+  if (view === 'loan') {
     return (
       <div className="min-h-screen bg-[#FAFAF7]">
         <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
           <VipLoanCatalog
-            tableNumber={table.tableNumber}
+            tableNumber={locationLabel}
             onBack={() => setView('main')}
           />
         </div>
@@ -1363,18 +1599,53 @@ export function VipTableScan({
             🥂
           </span>
           <p className="mt-3 text-xs font-medium uppercase tracking-widest text-[#8B6F47]">
-            Salon VIP · Lounge Premium
+            {/* QR_ROUTING — écran d'accueil GLOBAL (QR d'entrée) :
+                Nathalie se présente, AUCUNE mention de table. */}
+            {isGlobal
+              ? 'Nathalie · Votre guide personnel'
+              : 'Salon VIP · Lounge Premium'}
           </p>
           <h1 className="mt-2 text-2xl font-semibold text-[#2C2C2C]" style={SERIF}>
-            Bienvenue à la Table {table.tableNumber}
+            {isGlobal
+              ? // CLIENT_GLOBAL — « Bienvenue au Salon VIP [Nom du Salon] »
+                // (nom issu de la config tenant, jamais codé en dur)
+                loungeName.toLowerCase().includes('salon')
+                ? `Bienvenue au ${loungeName}`
+                : `Bienvenue au Salon VIP ${loungeName}`
+              : // CLIENT_ZONE — accueil contextuel historique conservé
+                `Bienvenue à la Table ${table?.tableNumber ?? ''}`}
           </h1>
           <p className="mt-2 text-sm text-[#8B6F47]">
-            Notre équipe est à votre service.
+            {isGlobal
+              ? loungeWelcome ||
+                'Je suis Nathalie, votre guide personnel. Comment puis-je vous aider ?'
+              : 'Notre équipe est à votre service.'}
           </p>
+
+          {/* QR_ROUTING — Chip d'emplacement (mode CLIENT_GLOBAL) :
+              visible dès que la zone est choisie, avec bouton Modifier */}
+          {isGlobal && globalZone && (
+            <div className="mt-4 inline-flex items-center gap-2 rounded-full border border-[#C9A961]/40 bg-[#C9A961]/8 px-4 py-2">
+              <span aria-hidden>📍</span>
+              <span className="text-xs font-medium text-[#8B6F47]">
+                Installé : {globalZone}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  setPendingAction(null)
+                  setZoneModalOpen(true)
+                }}
+                className="text-xs font-semibold text-[#C9A961] underline underline-offset-2 hover:text-[#8B6F47]"
+              >
+                Modifier
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Bannière de détection VIP */}
-        {table.vipClient && (
+        {/* Bannière de détection VIP (CLIENT_ZONE — détection au scan de table) */}
+        {!isGlobal && table?.vipClient && (
           <div className="mt-4 flex items-start gap-3 rounded-2xl border border-[#6B4C9A]/25 bg-[#6B4C9A]/8 px-4 py-4">
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#6B4C9A]/15">
               <Crown className="h-5 w-5 text-[#6B4C9A]" aria-hidden />
@@ -1489,8 +1760,13 @@ export function VipTableScan({
             confort d&apos;abord.
           </p>
           <p className="text-[11px] text-[#8B6F47]/70">
-            Table {table.tableNumber} · {table.seats} places ·{' '}
-            {zoneLabel(table.zone)}
+            {isGlobal
+              ? // QR_ROUTING — GLOBAL : aucune référence de table,
+                // on rappelle la session Nathalie (4 h, anti-abus)
+                `${loungeName} · Session Nathalie · 4 h`
+              : `Table ${table?.tableNumber} · ${table?.seats} places · ${
+                  zoneLabel(table?.zone ?? 'main')
+                }`}
           </p>
           {/* Module 3 — Indicateur langue détectée + Module 11 — Session Nathalie */}
           <div className="mt-2 flex items-center gap-3">
@@ -1523,6 +1799,133 @@ export function VipTableScan({
           </div>
         </div>
       </div>
+
+      {/* ============================================================
+          QR_ROUTING — MODALE « Où êtes-vous installé actuellement ? »
+          ------------------------------------------------------------
+          Mode CLIENT_GLOBAL uniquement (QR d'entrée). Affichée quand
+          une action nécessite un emplacement (signalement, concierge,
+          commande…). Design « Luxe Lumineux » : fond clair, filet
+          doré, cartes tactiles 44px+, aucun mode sombre.
+          ============================================================ */}
+      {isGlobal && zoneModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-end justify-center bg-[#2C2C2C]/40 p-4 backdrop-blur-sm sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="zone-modal-title"
+        >
+          <div className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl border border-[#EAE5DC] bg-white p-6 shadow-[0_16px_48px_rgba(201,169,97,0.18)] sm:p-8">
+            {/* Filet doré supérieur (signature Luxe Lumineux) */}
+            <div
+              className="pointer-events-none absolute inset-x-0 top-0 h-1 rounded-t-3xl bg-gradient-to-r from-[#C9A961] via-[#8B6F47] to-[#C9A961]"
+              aria-hidden
+            />
+
+            {/* Titre + fermeture */}
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-widest text-[#C9A961]">
+                  Nathalie
+                </p>
+                <h2
+                  id="zone-modal-title"
+                  className="mt-1 text-xl font-semibold text-[#2C2C2C]"
+                  style={SERIF}
+                >
+                  Où êtes-vous installé actuellement ?
+                </h2>
+                <p className="mt-1.5 text-sm text-[#8B6F47]">
+                  Nathalie transmettra votre emplacement avec votre demande.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={cancelZoneModal}
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#EAE5DC] bg-white text-[#8B6F47] transition hover:bg-[#EAE5DC]/40"
+                aria-label="Fermer la sélection d'emplacement"
+              >
+                <X className="h-4 w-4" aria-hidden />
+              </button>
+            </div>
+
+            {/* Boutons visuels de zone — sélection immédiate */}
+            <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {GLOBAL_ZONES.map((z) => (
+                <button
+                  key={z.id}
+                  type="button"
+                  onClick={() => confirmZoneSelection(z.label)}
+                  className={cn(
+                    'flex min-h-[52px] items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all',
+                    'border-[#EAE5DC] bg-[#FAFAF7] text-[#2C2C2C] hover:border-[#C9A961]/50 hover:bg-[#C9A961]/8',
+                  )}
+                >
+                  <span
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#C9A961]/10 text-lg"
+                    aria-hidden
+                  >
+                    {z.emoji}
+                  </span>
+                  {z.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Séparateur « ou » */}
+            <div className="my-5 flex items-center gap-3" aria-hidden>
+              <span className="h-px flex-1 bg-[#EAE5DC]" />
+              <span className="text-[10px] font-medium uppercase tracking-widest text-[#8B6F47]/70">
+                ou
+              </span>
+              <span className="h-px flex-1 bg-[#EAE5DC]" />
+            </div>
+
+            {/* Champ libre « Numéro de fauteuil » */}
+            <form
+              onSubmit={(e) => {
+                e.preventDefault()
+                const v = zoneFauteuil.trim()
+                if (!v) return
+                // Normalise « 12 » → « Fauteuil 12 » (déjà préfixé → tel quel)
+                const zone = /^fauteuil/i.test(v) ? v : `Fauteuil ${v}`
+                confirmZoneSelection(zone)
+              }}
+              className="space-y-3"
+            >
+              <div>
+                <label
+                  htmlFor="zone-fauteuil"
+                  className="text-sm font-medium text-[#2C2C2C]"
+                >
+                  Indiquez votre numéro de fauteuil
+                </label>
+                <Input
+                  id="zone-fauteuil"
+                  value={zoneFauteuil}
+                  onChange={(e) => setZoneFauteuil(e.target.value)}
+                  placeholder="Ex : Fauteuil 12"
+                  inputMode="text"
+                  className="mt-2 border-[#EAE5DC] bg-[#FAFAF7] text-sm text-[#2C2C2C] placeholder:text-[#8B6F47]/50 focus-visible:border-[#C9A961] focus-visible:ring-[#C9A961]/20"
+                />
+              </div>
+              <Button
+                type="submit"
+                disabled={!zoneFauteuil.trim()}
+                className="w-full gap-2 rounded-2xl border border-[#C9A961] bg-[#C9A961] text-white shadow-[0_4px_20px_rgba(201,169,97,0.18)] hover:bg-[#C9A961]/90"
+              >
+                <Check className="h-4 w-4" aria-hidden />
+                Valider mon emplacement
+              </Button>
+            </form>
+
+            <p className="mt-4 text-center text-[11px] text-[#8B6F47]/70">
+              Votre choix est mémorisé pour la session — modifiable à tout
+              moment.
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

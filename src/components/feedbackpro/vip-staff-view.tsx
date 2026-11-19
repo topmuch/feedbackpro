@@ -89,10 +89,21 @@ interface VipTable {
   clientVipLevel: string | null
 }
 
+interface VipTable {
+  id: string
+  tableNumber: string
+  zone: string
+  clientName: string | null
+  clientVipLevel: string | null
+}
+
 interface VipRequest {
   id: string
-  tableId: string
-  table: VipTable
+  // QR_ROUTING — une demande CLIENT_GLOBAL (QR d'entrée) n'a PAS de
+  // table : tableId/table null, contextZone renseigné à la place.
+  tableId: string | null
+  contextZone: string | null
+  table: VipTable | null
   type: string
   message: string | null
   metadata: string
@@ -101,6 +112,14 @@ interface VipRequest {
   staffName: string | null
   createdAt: string
   updatedAt: string
+}
+
+/**
+ * QR_ROUTING — Libellé d'emplacement d'une demande, null-safe :
+ * table scannée (CLIENT_ZONE) ou zone déclarée (CLIENT_GLOBAL).
+ */
+function requestLocationLabel(req: VipRequest): string {
+  return req.table?.tableNumber ?? req.contextZone ?? 'Salon VIP'
 }
 
 // ============================================================
@@ -847,7 +866,7 @@ export function VipStaffView({
                 {req.trackingNumber
                   ? `#${req.trackingNumber}`
                   : `#${req.id.slice(0, 8)}`}{' '}
-                · Table {req.table.tableNumber}
+                · {requestLocationLabel(req)}
               </p>
             </div>
           </div>
@@ -871,11 +890,11 @@ export function VipStaffView({
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#8B6F47]">
           <span className="inline-flex items-center gap-1">
             <IconCmp className="size-3" />
-            {getZoneLabel(req.table.zone)}
+            {req.table ? getZoneLabel(req.table.zone) : req.contextZone ?? 'Salon VIP'}
           </span>
           <span aria-hidden>·</span>
           <span>{formatElapsed(req.createdAt)}</span>
-          {req.table.clientName && (
+          {req.table?.clientName && (
             <>
               <span aria-hidden>·</span>
               <span className="text-[#6B4C9A]">
@@ -1048,7 +1067,7 @@ export function VipStaffView({
                 {resolveTarget.trackingNumber
                   ? `#${resolveTarget.trackingNumber}`
                   : `#${resolveTarget.id.slice(0, 8)}`}{' '}
-                · Table {resolveTarget.table.tableNumber}
+                · {requestLocationLabel(resolveTarget)}
               </p>
             </div>
           </div>
@@ -1058,7 +1077,9 @@ export function VipStaffView({
             <div className="flex items-center justify-between">
               <span className="text-[#8B6F47]">Zone</span>
               <span className="text-[#2C2C2C] font-medium">
-                {getZoneLabel(resolveTarget.table.zone)}
+                {resolveTarget.table
+                  ? getZoneLabel(resolveTarget.table.zone)
+                  : resolveTarget.contextZone ?? 'Salon VIP'}
               </span>
             </div>
             <div className="flex items-center justify-between">

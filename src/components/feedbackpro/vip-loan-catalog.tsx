@@ -150,6 +150,12 @@ function stockBadge(
 function formatTableLabel(tableNumber: string): string {
   const raw = (tableNumber ?? '').trim()
   if (!raw) return 'Table'
+  // QR_ROUTING — emplacement libre déclaré via le QR d'entrée
+  // ("Zone Buffet", "Fauteuil 12", "Salon VIP") → affiché tel quel,
+  // SANS préfixe « Table » ni normalisation "T-xx".
+  if (!/^t[-\s]?\d+/i.test(raw) && !/^table\b/i.test(raw) && !/^\d+$/.test(raw)) {
+    return raw
+  }
   // Si déjà préfixé "T-" ou "Table", on normalise.
   const digits = raw.replace(/[^0-9A-Za-z]/g, '').toUpperCase()
   if (/^T\d+$/i.test(digits)) return `Table ${digits}`

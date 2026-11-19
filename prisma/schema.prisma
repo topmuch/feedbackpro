@@ -1376,8 +1376,16 @@ model VipAuditTrail {
 
 model VipTableRequest {
   id              String   @id @default(cuid())
-  tableId         String
-  table           VipTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  // QR_GLOBAL : une demande créée depuis le QR d'entrée (chevalet
+  // d'accueil) n'est rattachée à AUCUNE table — le client choisit
+  // son emplacement dynamiquement. tableId devient nullable.
+  tableId         String?
+  table           VipTable? @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  // Emplacement libre saisi via la modale Nathalie en mode
+  // CLIENT_GLOBAL : "Zone Buffet", "Espace Détente", "Terrasse",
+  // "Salles de Réunion" ou "Fauteuil 12". Null pour CLIENT_ZONE
+  // (la table porte déjà l'information).
+  contextZone     String?
   type            String                       // refreshment, menu, shower, charger, concierge, problem, rating, cleanup
   message         String?
   // Numéro de suivi unique lisible (ex: CMD-2026-0847, SIG-2026-0234)

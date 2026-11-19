@@ -12,7 +12,7 @@ export const dynamic = 'force-dynamic'
 
 import React, { useEffect } from "react"
 import { Loader2 } from "lucide-react"
-import { useAppStore, tokenDepuisUrl, airportTagDepuisUrl, vipTableTokenDepuisUrl } from "@/store/app-store"
+import { useAppStore, tokenDepuisUrl, airportTagDepuisUrl, vipQrDepuisUrl } from "@/store/app-store"
 import type { View } from "@/store/app-store"
 import { LandingView } from "@/components/feedbackpro/landing-view"
 import { AuthView, TenantSelectionStep } from "@/components/feedbackpro/auth-view"
@@ -80,6 +80,8 @@ export default function Home() {
   const openAirport = useAppStore((s) => s.openAirport)
   const openStaff = useAppStore((s) => s.openStaff)
   const openVipTable = useAppStore((s) => s.openVipTable)
+  // QR_ROUTING — ouvre Nathalie en mode GLOBAL (QR d'entrée, sans table)
+  const openVipGlobal = useAppStore((s) => s.openVipGlobal)
   const openVipStaff = useAppStore((s) => s.openVipStaff)
   const setAuthMode = useAppStore((s) => s.setAuthMode)
   const setView = useAppStore((s) => s.setView)
@@ -130,9 +132,14 @@ export default function Home() {
     // QR Staff Only : ?staff=<tag>
     const staffTag = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("staff") : null
     if (staffTag) openStaff(staffTag)
-    // VIP-PHASE1 — QR table VIP scanné par un client : ?vipTable=<token>
-    const vipTableTok = vipTableTokenDepuisUrl()
-    if (vipTableTok) openVipTable(vipTableTok)
+    // QR_ROUTING — Nathalie : DEUX comportements selon le QR scanné.
+    //   - ?qr_type=CLIENT_GLOBAL            → QR d'ENTRÉE (chevalet) :
+    //     Nathalie s'ouvre SANS table assignée (current_zone = null).
+    //   - ?qr_type=CLIENT_ZONE&zone_id=<tok> → QR de TABLE contextuel.
+    //   - ?vipTable=<tok>                    → forme historique conservée.
+    const vipQr = vipQrDepuisUrl()
+    if (vipQr.qrType === "CLIENT_GLOBAL") openVipGlobal()
+    else if (vipQr.token) openVipTable(vipQr.token)
     // VIP Staff PWA : ?vipStaff=<tag>
     const vipStaffTag = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("vipStaff") : null
     if (vipStaffTag) openVipStaff(vipStaffTag)
@@ -148,7 +155,7 @@ export default function Home() {
         /* ignore */
       }
     })
-  }, [openScan, openAirport, openStaff, openVipTable, openVipStaff, refreshSession, setAuthMode])
+  }, [openScan, openAirport, openStaff, openVipTable, openVipGlobal, openVipStaff, refreshSession, setAuthMode])
 
   // Bouton retour navigateur : resynchronise le token de scan ou le tag aéroport/staff
   useEffect(() => {
@@ -159,14 +166,16 @@ export default function Home() {
       if (atag && atag !== airportTag) openAirport(atag)
       const stag = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("staff") : null
       if (stag) openStaff(stag)
-      const vtag = vipTableTokenDepuisUrl()
-      if (vtag) openVipTable(vtag)
+      // QR_ROUTING — resynchronisation Nathalie (global ou table) au retour navigateur
+      const vqr = vipQrDepuisUrl()
+      if (vqr.qrType === "CLIENT_GLOBAL") openVipGlobal()
+      else if (vqr.token) openVipTable(vqr.token)
       const vsstag = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("vipStaff") : null
       if (vsstag) openVipStaff(vsstag)
     }
     window.addEventListener("popstate", onPop)
     return () => window.removeEventListener("popstate", onPop)
-  }, [openScan, openAirport, openStaff, openVipTable, openVipStaff, scanToken, airportTag])
+  }, [openScan, openAirport, openStaff, openVipTable, openVipGlobal, openVipStaff, scanToken, airportTag])
 
   // ---------- Écran de chargement initial ----------
   if (!booted || view === "loading") {
@@ -233,13 +242,34 @@ export default function Home() {
     )
   }
 
-  // ---------- VIP-PHASE1 — Vue client (scan QR table VIP) ----------
+  // ---------- QR_ROUTING — Vue Nathalie (client salon VIP) ----------
+  // DEUX comportements distincts selon le QR scanné :
+  //   1. CLIENT_GLOBAL (QR d'entrée sur le chevalet) : qrToken = null →
+  //      Nathalie s'ouvre SANS table (écran d'accueil global).
+  //   2. CLIENT_ZONE (QR de table) : qrToken = <token> → Nathalie
+  //      s'ouvre AVEC la table assignée (comportement historique).
   if (view === "vip-table") {
+    const mode = useAppStore.getState().vipQrType
     const tok = useAppStore.getState().vipTableToken
+    if (mode === "CLIENT_GLOBAL") {
+      return (
+        <main className="min-h-screen bg-background">
+          <VipTableScan
+            qrToken={null}
+            qrType="CLIENT_GLOBAL"
+            onExit={() => useAppStore.getState().closeVipTable()}
+          />
+        </main>
+      )
+    }
     if (tok) {
       return (
         <main className="min-h-screen bg-background">
-          <VipTableScan qrToken={tok} onExit={() => useAppStore.getState().closeVipTable()} />
+          <VipTableScan
+            qrToken={tok}
+            qrType="CLIENT_ZONE"
+            onExit={() => useAppStore.getState().closeVipTable()}
+          />
         </main>
       )
     }

@@ -206,14 +206,25 @@ type VipTableData = {
 }
 
 type VipRequestWithTable = VipTableRequestData & {
-  tableId: string
+  // QR_ROUTING — une demande CLIENT_GLOBAL (QR d'entrée) n'a PAS de
+  // table : tableId/table null, contextZone renseigné à la place.
+  tableId: string | null
+  contextZone: string | null
   table: {
     id: string
     tableNumber: string
     zone: string
     clientName: string | null
     clientVipLevel: string | null
-  }
+  } | null
+}
+
+/**
+ * QR_ROUTING — Libellé d'emplacement d'une demande, null-safe :
+ * table scannée (CLIENT_ZONE) ou zone déclarée (CLIENT_GLOBAL).
+ */
+function requestLocationLabel(r: VipRequestWithTable): string {
+  return r.table?.tableNumber ?? r.contextZone ?? 'Salon VIP'
 }
 
 type StaffRole = 'Manager' | "Maître d'Hôtel" | 'Réceptionniste' | 'Étage' | 'Chef/Barman'
@@ -2265,7 +2276,8 @@ function IncidentsTab({
                       <div className="min-w-[200px] flex-1">
                         <div className="flex flex-wrap items-center gap-2">
                           <Badge variant="outline" className="border-[#EAE5DC] bg-white font-mono text-xs font-semibold text-[#2C2C2C]">
-                            {r.table.tableNumber}
+                            {/* QR_ROUTING — table scannée ou zone déclarée (QR d'entrée) */}
+                            {requestLocationLabel(r)}
                           </Badge>
                           <p className="text-sm font-semibold text-[#2C2C2C]">{meta.label}</p>
                           <Badge variant="outline" className={cn('h-5 px-1.5 text-[10px] font-medium', statusMeta.style)}>
@@ -2275,7 +2287,7 @@ function IncidentsTab({
                         {r.message && (
                           <p className="mt-0.5 truncate text-xs text-[#8B6F47]">« {r.message} »</p>
                         )}
-                        {r.table.clientName && (
+                        {r.table?.clientName && (
                           <p className="mt-0.5 text-[11px] text-[#8B6F47]/80">
                             Client : <span className="font-medium text-[#2C2C2C]">{r.table.clientName}</span>
                             {r.table.clientVipLevel && (
@@ -2301,7 +2313,7 @@ function IncidentsTab({
                             onClick={async () => {
                               try {
                                 await onPatchRequest(r.id, { status: 'in_progress' })
-                                toast({ title: 'Pris en charge', description: `Demande de ${r.table.tableNumber} — ${meta.label}` })
+                                toast({ title: 'Pris en charge', description: `Demande de ${requestLocationLabel(r)} — ${meta.label}` })
                               } catch {
                                 toast({ title: 'Erreur', description: 'Mise à jour impossible.', variant: 'destructive' })
                               }
@@ -2318,7 +2330,7 @@ function IncidentsTab({
                             onClick={async () => {
                               try {
                                 await onPatchRequest(r.id, { status: 'done' })
-                                toast({ title: 'Terminé', description: `Demande de ${r.table.tableNumber} clôturée.` })
+                                toast({ title: 'Terminé', description: `Demande de ${requestLocationLabel(r)} clôturée.` })
                               } catch {
                                 toast({ title: 'Erreur', description: 'Mise à jour impossible.', variant: 'destructive' })
                               }
@@ -3131,6 +3143,62 @@ function QRTab() {
         subtitle="Génération et impression — une QR par zone VIP et par membre du staff"
         Icon={QrCode}
       />
+
+      {/* ============================================================
+          QR_ROUTING — QR d'ENTRÉE (chevalet d'accueil)
+          ------------------------------------------------------------
+          Le grand QR placé à l'ENTRÉE du salon pointe vers
+          ?qr_type=CLIENT_GLOBAL : Nathalie s'ouvre SANS table
+          assignée (écran d'accueil global). Distinct des QR de
+          table (?qr_type=CLIENT_ZONE&zone_id=<token>) qui ouvrent
+          Nathalie en mode contextuel.
+          ============================================================ */}
+      <div>
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[#8B6F47]">
+          QR d&apos;Entrée — Chevalet d&apos;accueil
+        </h3>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Card className="border border-[#C9A961]/40 bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.10)]">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl" aria-hidden>🥂</span>
+              <div className="min-w-0 flex-1">
+                <h4 className="truncate text-sm font-semibold text-[#2C2C2C]">Accueil du salon</h4>
+                <p className="truncate font-mono text-xs text-[#8B6F47]">qr_type=CLIENT_GLOBAL</p>
+              </div>
+            </div>
+            <div className="mt-4 flex justify-center">
+              <img
+                src={qrImageUrl(`${appUrl()}/?qr_type=CLIENT_GLOBAL`)}
+                alt="QR d'entrée du salon (Nathalie mode global)"
+                className="h-40 w-40 rounded-xl border border-[#EAE5DC]"
+              />
+            </div>
+            <p className="mt-3 text-[11px] leading-relaxed text-[#8B6F47]/80">
+              À poser sur le chevalet d&apos;accueil : Nathalie accueille le
+              client SANS table assignée et lui demande son emplacement
+              uniquement si nécessaire (concierge, signalement…).
+            </p>
+            <div className="mt-3 flex gap-1.5">
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 flex-1 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
+                onClick={() => downloadQr(qrImageUrl(`${appUrl()}/?qr_type=CLIENT_GLOBAL`), 'qr-entree-salon.png')}
+              >
+                <Download className="h-3.5 w-3.5" aria-hidden /> PNG
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                className="h-8 flex-1 border-[#8B6F47]/40 bg-[#8B6F47]/8 text-[#8B6F47] hover:bg-[#8B6F47]/15"
+                onClick={() => printQr(qrImageUrl(`${appUrl()}/?qr_type=CLIENT_GLOBAL`), 'Entrée du salon — Nathalie')}
+              >
+                <Printer className="h-3.5 w-3.5" aria-hidden /> Imprimer
+              </Button>
+            </div>
+          </Card>
+        </div>
+      </div>
 
       {/* Section zones */}
       <div>

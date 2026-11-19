@@ -131,6 +131,18 @@ const PAYMENT_METHODS: Array<{
   },
 ]
 
+/**
+ * QR_ROUTING — Libellé d'emplacement affiché :
+ *   - n° de table ("T-05")  → « Table T-05 » (mode CLIENT_ZONE)
+ *   - zone/fauteuil ("Zone Buffet", "Fauteuil 12", "Salon VIP")
+ *     → affiché tel quel (mode CLIENT_GLOBAL, QR d'entrée).
+ */
+function displayLocation(t: string): string {
+  const raw = (t ?? '').trim()
+  if (!raw) return 'Salon VIP'
+  return /^t[-\s]?\d+/i.test(raw) ? `Table ${raw}` : raw
+}
+
 /** Formate un montant en FCFA avec séparateur de milliers (espace). */
 function formatFcfa(amount: number): string {
   const rounded = Math.round(amount)
@@ -343,7 +355,7 @@ function PaymentDialog({
             Paiement de votre réservation
           </DialogTitle>
           <DialogDescription className="text-[#6b6b6b]">
-            Table {tableNumber} · Choisissez votre moyen de paiement.
+            {displayLocation(tableNumber)} · Choisissez votre moyen de paiement.
           </DialogDescription>
         </DialogHeader>
 
@@ -685,7 +697,7 @@ export function VipUpsellCatalog({
                 Catalogue d'exception
               </h1>
               <p className="text-xs text-[#8B6F47]">
-                Table {tableNumber}
+                {displayLocation(tableNumber)}
               </p>
             </div>
           </div>

@@ -151,6 +151,18 @@ const STATUS_META: Record<
   },
 }
 
+/**
+ * QR_ROUTING — Libellé d'emplacement affiché :
+ *   - n° de table ("T-05")  → « Table T-05 » (mode CLIENT_ZONE)
+ *   - zone/fauteuil ("Zone Buffet", "Fauteuil 12", "Salon VIP")
+ *     → affiché tel quel (mode CLIENT_GLOBAL, QR d'entrée).
+ */
+function displayLocation(t: string): string {
+  const raw = (t ?? '').trim()
+  if (!raw) return 'Salon VIP'
+  return /^t[-\s]?\d+/i.test(raw) ? `Table ${raw}` : raw
+}
+
 /** Label formaté "D-01" pour un showerNumber 1..4. */
 function showerLabel(n: number): string {
   return `D-${String(n).padStart(2, '0')}`
@@ -754,7 +766,7 @@ export function VipShowerReservation({
               >
                 Réserver une douche
               </h1>
-              <p className="text-xs text-[#8B6F47]">Table {tableNumber}</p>
+              <p className="text-xs text-[#8B6F47]">{displayLocation(tableNumber)}</p>
             </div>
           </div>
 

@@ -55,11 +55,13 @@ export async function POST(req: NextRequest) {
   })
 
   // Adjust activeRequests counter on the table
+  // QR_ROUTING — une demande CLIENT_GLOBAL n'a pas de table : rien à
+  // décrémenter/incrementer dans ce cas.
   const wasActive = current.status === 'pending' || current.status === 'in_progress'
   const isNowActive = updated.status === 'pending' || updated.status === 'in_progress'
-  if (!wasActive && isNowActive) {
+  if (current.tableId && !wasActive && isNowActive) {
     await db.vipTable.update({ where: { id: current.tableId }, data: { activeRequests: { increment: 1 } } })
-  } else if (wasActive && !isNowActive) {
+  } else if (current.tableId && wasActive && !isNowActive) {
     await db.vipTable.update({ where: { id: current.tableId }, data: { activeRequests: { decrement: 1 } } })
   }
 
