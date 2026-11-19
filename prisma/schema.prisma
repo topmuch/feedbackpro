@@ -1409,3 +1409,139 @@ model LostFoundItem {
   @@index([status])
   @@index([category])
 }
+
+// ============================================================
+// MODULE 6 — PRÊT EXPRESS (objets en prêt gratuit)
+// ============================================================
+
+model LoanItem {
+  id                String   @id @default(cuid())
+  name              String                          // "Adaptateur USB-C", "Casque ANC", "Plaid cachemire"
+  category          String                          // charger, adapter, headphone, blanket, mask, press
+  emoji             String?
+  totalStock        Int      @default(5)
+  availableStock    Int      @default(5)
+  lowStockThreshold Int      @default(2)
+  active            Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  requests          LoanRequest[]
+
+  @@index([category, active])
+}
+
+model LoanRequest {
+  id          String   @id @default(cuid())
+  itemId      String
+  item        LoanItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  tableNumber String?
+  clientName  String?
+  qty         Int      @default(1)
+  status      String   @default("pending") // pending | delivered | returned
+  requestedAt DateTime @default(now())
+  deliveredAt DateTime?
+  returnedAt  DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([itemId])
+}
+
+// ============================================================
+// MODULE 7 — DÉBARRASSAGE PROACTIF (turnover basé sur vols)
+// ============================================================
+
+model FlightEvent {
+  id          String   @id @default(cuid())
+  flightNo    String                          // "AF123"
+  boardingAt  DateTime?                       // heure d'embarquement
+  status      String   @default("scheduled")  // scheduled | boarding | departed | delayed
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([flightNo])
+  @@index([status])
+}
+
+model TurnoverTask {
+  id              String   @id @default(cuid())
+  flightNo        String
+  boardingAt      DateTime?
+  zones           String   @default("[]")     // JSON: ["relaxation", "main"]
+  assignedStaff   String?
+  status          String   @default("pending") // pending | assigned | done | cancelled
+  doneAt          DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+}
+
+// ============================================================
+// MODULE 8 — BRIEFING PRISE DE POSTE
+// ============================================================
+
+model ShiftBriefing {
+  id          String   @id @default(cuid())
+  staffName   String
+  staffRole   String
+  content     String                          // texte du briefing
+  durationSec Int      @default(15)
+  listened    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+}
+
+// ============================================================
+// MODULE 10 — FLASH REWARDS PREMIUM (récompenses luxe)
+// ============================================================
+
+model PremiumReward {
+  id           String   @id @default(cuid())
+  title        String                          // "Coupe champagne", "Upgrade Massage 15 min"
+  description  String?
+  emoji        String?
+  costFcfa     Int      @default(0)
+  active       Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  grants      RewardGrant[]
+
+  @@index([active])
+}
+
+model RewardGrant {
+  id              String   @id @default(cuid())
+  rewardId        String
+  reward          PremiumReward @relation(fields: [rewardId], references: [id], onDelete: Cascade)
+  tableNumber     String?
+  clientName      String?
+  staffName       String?                     // qui a offert
+  triggeredBy     String   @default("manual")  // manual | vip_unhappy_resolved | incident_fast | long_stay | birthday
+  deliveredAt     DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([rewardId])
+  @@index([tableNumber])
+}
+
+// ============================================================
+// MODULE 11 — SESSION NATHALIE (tracking client)
+// ============================================================
+
+model ClientSession {
+  id            String   @id @default(cuid())
+  qrType        String   @default("CLIENT_ZONE") // CLIENT_GLOBAL | CLIENT_ZONE
+  contextZone   String?                          // table number or zone
+  deviceId      String?
+  vipClientId   String?
+  startedAt     DateTime @default(now())
+  expiresAt     DateTime
+  lastActiveAt  DateTime @default(now())
+  token         String   @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([token])
+  @@index([deviceId])
+}

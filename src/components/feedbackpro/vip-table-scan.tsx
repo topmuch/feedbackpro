@@ -32,12 +32,14 @@ import {
   X,
   Check,
   Send,
+  Package,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { VipUpsellCatalog } from '@/components/feedbackpro/vip-upsell-catalog'
 import { VipShowerReservation } from '@/components/feedbackpro/vip-shower-reservation'
+import { VipLoanCatalog } from '@/components/feedbackpro/vip-loan-catalog'
 
 // ============================================================
 // Types
@@ -70,8 +72,9 @@ type RequestType =
   | 'problem'
   | 'rating'
   | 'upsell'
+  | 'loan'
 
-type View = 'main' | 'problem' | 'refreshment' | 'concierge' | 'upsell' | 'shower-reservation'
+type View = 'main' | 'problem' | 'refreshment' | 'concierge' | 'upsell' | 'shower-reservation' | 'loan'
 
 type Confirmation = {
   type: RequestType
@@ -88,7 +91,7 @@ type ActionDef = {
   description: string
   Icon: typeof Wine
   tone: 'gold' | 'bronze' | 'sage' | 'amethyst' | 'terracotta'
-  behavior: 'direct' | 'form:refreshment' | 'form:concierge' | 'form:problem' | 'form:upsell' | 'form:shower-reservation'
+  behavior: 'direct' | 'form:refreshment' | 'form:concierge' | 'form:problem' | 'form:upsell' | 'form:shower-reservation' | 'form:loan'
 }
 
 // ============================================================
@@ -142,6 +145,15 @@ const ACTIONS: ActionDef[] = [
     Icon: Sparkles,
     tone: 'gold',
     behavior: 'form:upsell',
+  },
+  {
+    type: 'loan',
+    emoji: '📦',
+    label: 'Prêt gratuit',
+    description: 'Chargeurs, casques, plaids, presse…',
+    Icon: Package,
+    tone: 'sage',
+    behavior: 'form:loan',
   },
   {
     type: 'concierge',
@@ -442,6 +454,8 @@ export function VipTableScan({
       setView('upsell')
     } else if (action.behavior === 'form:shower-reservation') {
       setView('shower-reservation')
+    } else if (action.behavior === 'form:loan') {
+      setView('loan')
     }
   }
 
@@ -1153,6 +1167,22 @@ export function VipTableScan({
       <div className="min-h-screen bg-[#FAFAF7]">
         <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
           <VipShowerReservation
+            tableNumber={table.tableNumber}
+            onBack={() => setView('main')}
+          />
+        </div>
+      </div>
+    )
+  }
+
+  // ============================================================
+  // RENDU — Vue Prêt Express (Module 6 — Prêt gratuit)
+  // ============================================================
+  if (view === 'loan' && table) {
+    return (
+      <div className="min-h-screen bg-[#FAFAF7]">
+        <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
+          <VipLoanCatalog
             tableNumber={table.tableNumber}
             onBack={() => setView('main')}
           />

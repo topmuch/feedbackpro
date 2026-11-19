@@ -262,10 +262,11 @@ export function VipStaffView({
   // ----- State machine -----
   const [screen, setScreen] = useState<Screen>('login')
 
-  // ----- Staff -----
-  const [staffList, setStaffList] = useState<VipStaffMember[]>([])
-  const [staffLoading, setStaffLoading] = useState(false)
-  const [selectedStaffId, setSelectedStaffId] = useState<string>('')
+  // ----- Staff (auth Tél+PIN Module 1 — Cockpit Manager) -----
+  const [phoneInput, setPhoneInput] = useState('')
+  const [pinInput, setPinInput] = useState('')
+  const [loginError, setLoginError] = useState<string | null>(null)
+  const [loginBusy, setLoginBusy] = useState(false)
   const [currentStaff, setCurrentStaff] = useState<VipStaffMember | null>(null)
 
   // ----- Feed -----
@@ -292,58 +293,14 @@ export function VipStaffView({
   const isFirstFetchRef = useRef(true)
 
   // ============================================================
-  // Effet : au montage, on charge la liste du staff + on pré-
-  // sélectionne staffTag (s'il correspond à un id connu).
+  // Effet : au montage, si staffTag ressemble à un numéro de tél,
+  // on pré-remplit le champ téléphone.
   // ============================================================
   useEffect(() => {
-    let cancelled = false
-    setStaffLoading(true)
-    fetch('/api/vip/staff-auth', { credentials: 'include' })
-      .then((r) => r.json())
-      .then((body) => {
-        if (cancelled) return
-        if (body && body.ok && Array.isArray(body.data)) {
-          const list: VipStaffMember[] = body.data.map(
-            (s: VipStaffMember) => ({
-              id: String(s.id),
-              name: String(s.name),
-              role: String(s.role),
-              emoji: String(s.emoji || '👤'),
-            }),
-          )
-          setStaffList(list)
-          // Pré-sélection : si staffTag correspond à un id, on le choisit.
-          if (staffTag) {
-            const match = list.find(
-              (s) =>
-                s.id === staffTag ||
-                s.id.toLowerCase() === staffTag.toLowerCase(),
-            )
-            if (match) setSelectedStaffId(match.id)
-          }
-        } else {
-          toast({
-            title: 'Staff indisponible',
-            description: 'Impossible de charger la liste du personnel.',
-            variant: 'destructive',
-          })
-        }
-      })
-      .catch(() => {
-        if (cancelled) return
-        toast({
-          title: 'Erreur réseau',
-          description: 'Vérifiez votre connexion et réessayez.',
-          variant: 'destructive',
-        })
-      })
-      .finally(() => {
-        if (!cancelled) setStaffLoading(false)
-      })
-    return () => {
-      cancelled = true
+    if (staffTag && staffTag.startsWith('+')) {
+      setPhoneInput(staffTag)
     }
-  }, [staffTag, toast])
+  }, [staffTag])
 
   // ============================================================
   // Fetch requests : interroge les 3 statuts en parallèle.
@@ -450,30 +407,58 @@ export function VipStaffView({
   // Handlers
   // ============================================================
 
-  function handleLogin() {
-    if (!selectedStaffId) {
-      toast({
-        title: 'Sélection requise',
-        description: 'Choisissez votre profil avant de continuer.',
-        variant: 'destructive',
-      })
+  // ============================================================
+  // Login Tél+PIN — POST /api/vip/auth-pin { phone, pin }
+  // ============================================================
+  async function handleLogin() {
+    setLoginError(null)
+    const phone = phoneInput.trim()
+    const pin = pinInput.trim()
+    if (!phone || !pin) {
+      setLoginError('Numéro de téléphone et PIN requis.')
       return
     }
-    const staff = staffList.find((s) => s.id === selectedStaffId) || null
-    if (!staff) {
-      toast({
-        title: 'Profil introuvable',
-        description: 'Le profil sélectionné n’existe pas.',
-        variant: 'destructive',
-      })
+    if (pin.length !== 4) {
+      setLoginError('Le PIN doit comporter 4 chiffres.')
       return
     }
-    setCurrentStaff(staff)
-    setScreen('feed')
-    toast({
-      title: `Bienvenue, ${staff.name}`,
-      description: `${staff.role} · Service discret.`,
-    })
+    setLoginBusy(true)
+    try {
+      const res = await fetch('/api/vip/auth-pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone, pin }),
+      })
+      const json = await res.json()
+      if (!res.ok || !json?.ok) {
+        const msg = json?.error || "Erreur d'authentification."
+        setLoginError(msg)
+        if (res.status === 423) {
+          // Compte verrouillé
+          setPinInput('')
+        }
+        return
+      }
+      const d = json.data
+      const staff: VipStaffMember = {
+        id: d.id,
+        name: d.name,
+        role: d.role,
+        emoji: '👤',
+      }
+      setCurrentStaff(staff)
+      setScreen('feed')
+      setPhoneInput('')
+      setPinInput('')
+      toast({
+        title: `Bienvenue, ${staff.name}`,
+        description: `${staff.role} · Service discret.`,
+      })
+    } catch {
+      setLoginError('Erreur réseau. Vérifiez votre connexion.')
+    } finally {
+      setLoginBusy(false)
+    }
   }
 
   function handleLogout() {
@@ -669,60 +654,69 @@ export function VipStaffView({
     )
   }
 
-  // ----- Écran 1 : LOGIN -----
+  // ----- Écran 1 : LOGIN Tél+PIN (Module 1 — Cockpit Manager) -----
   function renderLogin() {
     return (
       <div className="px-6 pb-10">
         <div className="bg-white rounded-2xl border border-[#EAE5DC] shadow-[0_4px_20px_rgba(201,169,97,0.06)] p-5">
+          {/* Numéro de téléphone */}
           <label
             className="block text-xs font-medium uppercase tracking-wider text-[#8B6F47] mb-2"
-            htmlFor="vip-staff-select-trigger"
+            htmlFor="vip-staff-phone"
           >
-            Profil du personnel
+            Numéro de téléphone
           </label>
+          <input
+            id="vip-staff-phone"
+            type="tel"
+            inputMode="tel"
+            autoComplete="tel"
+            placeholder="+221 77 000 00 01"
+            value={phoneInput}
+            onChange={(e) => setPhoneInput(e.target.value)}
+            className="w-full h-11 rounded-md border border-[#EAE5DC] bg-[#FAFAF7] px-3 text-sm text-[#2C2C2C] placeholder:text-[#8B6F47]/40 focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/20"
+            disabled={loginBusy}
+          />
 
-          {staffLoading ? (
-            <div className="h-10 rounded-md bg-[#FAFAF7] border border-[#EAE5DC] flex items-center justify-center text-sm text-[#8B6F47]">
-              <Loader2 className="size-4 animate-spin mr-2" />
-              Chargement…
+          {/* PIN 4 chiffres */}
+          <label
+            className="block text-xs font-medium uppercase tracking-wider text-[#8B6F47] mb-2 mt-4"
+            htmlFor="vip-staff-pin"
+          >
+            PIN (4 chiffres)
+          </label>
+          <input
+            id="vip-staff-pin"
+            type="password"
+            inputMode="numeric"
+            autoComplete="off"
+            maxLength={4}
+            placeholder="••••"
+            value={pinInput}
+            onChange={(e) => {
+              const v = e.target.value.replace(/\D/g, '').slice(0, 4)
+              setPinInput(v)
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' && phoneInput && pinInput.length === 4) {
+                handleLogin()
+              }
+            }}
+            className="w-full h-11 rounded-md border border-[#EAE5DC] bg-[#FAFAF7] px-3 text-center text-lg font-mono tracking-[0.5em] text-[#2C2C2C] placeholder:text-[#8B6F47]/40 focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/20"
+            disabled={loginBusy}
+          />
+
+          {/* Erreur */}
+          {loginError && (
+            <div className="mt-3 rounded-md border border-[#C97B63]/30 bg-[#C97B63]/8 px-3 py-2 text-xs text-[#C97B63]">
+              {loginError}
             </div>
-          ) : (
-            <Select
-              value={selectedStaffId}
-              onValueChange={(v) => setSelectedStaffId(v)}
-            >
-              <SelectTrigger
-                id="vip-staff-select-trigger"
-                className="w-full h-11 border-[#EAE5DC] bg-[#FAFAF7] text-[#2C2C2C] focus-visible:border-[#C9A961] focus-visible:ring-[#C9A961]/20"
-              >
-                <SelectValue placeholder="— Sélectionnez —" />
-              </SelectTrigger>
-              <SelectContent
-                className="border-[#EAE5DC]"
-                align="start"
-              >
-                {staffList.map((s) => (
-                  <SelectItem
-                    key={s.id}
-                    value={s.id}
-                    className="text-[#2C2C2C] focus:bg-[#FAFAF7] focus:text-[#2C2C2C]"
-                  >
-                    <span className="mr-2" aria-hidden>
-                      {s.emoji}
-                    </span>
-                    <span className="font-medium">{s.name}</span>
-                    <span className="text-[#8B6F47] text-xs ml-2">
-                      · {s.role}
-                    </span>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           )}
 
+          {/* Bouton connexion */}
           <Button
             onClick={handleLogin}
-            disabled={!selectedStaffId || staffLoading}
+            disabled={loginBusy || !phoneInput.trim() || pinInput.length !== 4}
             className="mt-5 w-full h-11 rounded-md text-sm font-semibold tracking-wide"
             style={{
               backgroundColor: '#C9A961',
@@ -730,12 +724,26 @@ export function VipStaffView({
               boxShadow: '0 4px 14px rgba(201,169,97,0.25)',
             }}
           >
-            🔗 SE CONNECTER
+            {loginBusy ? (
+              <>
+                <Loader2 className="size-4 animate-spin mr-2" />
+                Connexion…
+              </>
+            ) : (
+              '🔗 SE CONNECTER'
+            )}
           </Button>
+
+          {/* Aide — comptes démo */}
+          <div className="mt-4 rounded-md bg-[#FAFAF7] border border-[#EAE5DC] px-3 py-2 text-[11px] text-[#8B6F47]/70">
+            <p className="font-medium text-[#8B6F47] mb-1">Comptes démo :</p>
+            <p>Amadou (Manager) — +221770000001 / PIN 1234</p>
+            <p>Fatou (Concierge) — +221770000002 / PIN 1234</p>
+          </div>
         </div>
 
         <p className="text-center text-xs text-[#8B6F47] mt-6 italic">
-          Service discret — votre confort d’abord
+          Service discret — votre confort d'abord
         </p>
       </div>
     )
