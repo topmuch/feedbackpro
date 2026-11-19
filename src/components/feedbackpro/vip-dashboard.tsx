@@ -43,6 +43,7 @@ import {
   Gift,
   Users,
   UserCog,
+  Plane,
   QrCode,
   BarChart3,
   Settings,
