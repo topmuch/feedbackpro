@@ -312,6 +312,10 @@ export function VipTableScan({
   const [view, setView] = useState<View>('main')
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
 
+  // ---- Module 3 — Détection langue + Module 11 — Session Nathalie ----
+  const [detectedLang, setDetectedLang] = useState<string>('fr')
+  const [sessionToken, setSessionToken] = useState<string | null>(null)
+
   // ---- États spécifiques aux formulaires ----
   // Problem
   const [problemTags, setProblemTags] = useState<string[]>([])
@@ -377,6 +381,46 @@ export function VipTableScan({
       cancelled = true
     }
   }, [qrToken])
+
+  // ---- Module 3 — Détection automatique de langue (FR/EN/AR/ES/DE/PT/WO) ----
+  useEffect(() => {
+    if (typeof navigator === 'undefined') return
+    const lang = navigator.language || (navigator.languages && navigator.languages[0]) || 'fr'
+    const code = lang.split('-')[0].toLowerCase()
+    if (['fr', 'en', 'ar', 'es', 'de', 'pt', 'it', 'zh', 'wo'].includes(code)) {
+      setDetectedLang(code)
+    }
+  }, [])
+
+  // ---- Module 11 — Session Nathalie (création/reprise, expiry 4h) ----
+  useEffect(() => {
+    if (!table) return
+    try {
+      let deviceId = localStorage.getItem('fp_device_id')
+      if (!deviceId) {
+        deviceId = `dev-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+        localStorage.setItem('fp_device_id', deviceId)
+      }
+      fetch('/api/vip/sessions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          qrType: 'CLIENT_ZONE',
+          contextZone: table.tableNumber,
+          deviceId,
+        }),
+      })
+        .then((r) => r.json())
+        .then((json) => {
+          if (json?.ok && json.data?.token) {
+            setSessionToken(json.data.token)
+          }
+        })
+        .catch(() => {})
+    } catch {
+      /* localStorage indisponible */
+    }
+  }, [table])
 
   // ---- Helpers ----
   const safeParse = (s: string) => {
@@ -1340,6 +1384,35 @@ export function VipTableScan({
             Table {table.tableNumber} · {table.seats} places ·{' '}
             {zoneLabel(table.zone)}
           </p>
+          {/* Module 3 — Indicateur langue détectée + Module 11 — Session Nathalie */}
+          <div className="mt-2 flex items-center gap-3">
+            {detectedLang !== 'fr' && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#C9A961]/8 px-2.5 py-1 text-[10px] font-medium text-[#8B6F47]">
+                🌐 {detectedLang.toUpperCase()}
+              </span>
+            )}
+            {sessionToken && (
+              <button
+                type="button"
+                onClick={() => {
+                  try {
+                    if (typeof navigator !== 'undefined' && navigator.share) {
+                      navigator.share({
+                        title: 'Nathalie — Salon VIP',
+                        text: 'Gardez Nathalie dans votre poche',
+                        url: window.location.href,
+                      }).catch(() => {})
+                    } else {
+                      navigator.clipboard?.writeText(window.location.href).catch(() => {})
+                    }
+                  } catch { /* ignore */ }
+                }}
+                className="inline-flex items-center gap-1 rounded-full border border-[#C9A961]/30 bg-white px-2.5 py-1 text-[10px] font-medium text-[#8B6F47] transition hover:bg-[#C9A961]/8"
+              >
+                📱 Garder Nathalie
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

@@ -49,6 +49,7 @@ import {
   ArrowLeft,
   RefreshCw,
   Package,
+  Gift,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import {
@@ -63,12 +64,14 @@ import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
 import { VipLostFound } from '@/components/feedbackpro/vip-lost-found'
+import { VipBriefing } from '@/components/feedbackpro/vip-briefing'
+import { VipFlashRewards } from '@/components/feedbackpro/vip-flash-rewards'
 
 // ============================================================
 // Types
 // ============================================================
 
-type Screen = 'login' | 'feed' | 'resolve-confirm' | 'lost-found'
+type Screen = 'login' | 'briefing' | 'feed' | 'resolve-confirm' | 'lost-found' | 'rewards'
 
 interface VipStaffMember {
   id: string
@@ -447,7 +450,7 @@ export function VipStaffView({
         emoji: '👤',
       }
       setCurrentStaff(staff)
-      setScreen('feed')
+      setScreen('briefing')
       setPhoneInput('')
       setPinInput('')
       toast({
@@ -615,16 +618,32 @@ export function VipStaffView({
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setScreen('lost-found')}
-                className="border-[#EAE5DC] text-[#8B6F47] hover:bg-[#FAFAF7] hover:text-[#2C2C2C] gap-1.5"
-                title="Objets trouvés"
-              >
-                <Package className="size-3.5" />
-                <span className="hidden xs:inline">Objets trouvés</span>
-              </Button>
+              {/* Module 2 — Permissions par rôle : Récompenses uniquement pour manager + maitre_dhotel */}
+              {(currentStaff.role === 'manager' || currentStaff.role === 'maitre_dhotel') && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setScreen('rewards')}
+                  className="border-[#C9A961]/40 text-[#8B6F47] hover:bg-[#C9A961]/8 hover:text-[#8B6F47] gap-1.5"
+                  title="Flash Rewards Premium"
+                >
+                  <Gift className="size-3.5" />
+                  <span className="hidden xs:inline">Récompenses</span>
+                </Button>
+              )}
+              {/* Module 2 — Lost & Found pour tous les rôles sauf barman */}
+              {currentStaff.role !== 'barman' && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setScreen('lost-found')}
+                  className="border-[#EAE5DC] text-[#8B6F47] hover:bg-[#FAFAF7] hover:text-[#2C2C2C] gap-1.5"
+                  title="Objets trouvés"
+                >
+                  <Package className="size-3.5" />
+                  <span className="hidden xs:inline">Objets trouvés</span>
+                </Button>
+              )}
               <Button
                 size="sm"
                 variant="outline"
@@ -1124,10 +1143,17 @@ export function VipStaffView({
         {renderHeader()}
         <main className="flex-1 flex flex-col">
           {screen === 'login' && renderLogin()}
+          {screen === 'briefing' && currentStaff && (
+            <VipBriefing
+              staffName={currentStaff.name}
+              staffRole={currentStaff.role}
+              onDismiss={() => setScreen('feed')}
+            />
+          )}
           {screen === 'feed' && renderFeed()}
           {screen === 'resolve-confirm' && renderResolveConfirm()}
           {screen === 'lost-found' && currentStaff && (
-            <div>
+            <div className="px-5 py-4">
               <div className="mb-4 flex items-center justify-between">
                 <Button
                   variant="outline"
@@ -1139,6 +1165,21 @@ export function VipStaffView({
                 </Button>
               </div>
               <VipLostFound staffName={currentStaff.name} />
+            </div>
+          )}
+          {screen === 'rewards' && currentStaff && (
+            <div className="px-5 py-4">
+              <div className="mb-4 flex items-center justify-between">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setScreen('feed')}
+                  className="gap-2 border-[#EAE5DC] bg-white text-[#8B6F47]"
+                >
+                  <ArrowLeft className="h-4 w-4" /> Retour au feed
+                </Button>
+              </div>
+              <VipFlashRewards staffName={currentStaff.name} staffRole={currentStaff.role} />
             </div>
           )}
         </main>
