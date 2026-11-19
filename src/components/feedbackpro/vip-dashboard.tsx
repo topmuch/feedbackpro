@@ -240,16 +240,32 @@ type VipSettings = {
   salonName: string
   capacity: number
   openingHours: string
+  salonAddress: string
+  salonLogoUrl: string | null
   deniseVoiceEnabled: boolean
   deniseMaxVolume: number
   deniseTone: 'doux' | 'neutre' | 'chaleureux'
+  deniseLanguages: string[]
+  deniseWelcomeMessage: string
+  vipAlertsEnabled: boolean
+  vipAlertsRecipient: string
+  vipAlertsDelaySec: number
   buffetInterval: 15 | 30 | 45 | 60
   buffetLowThreshold: number
   showersCount: number
   showerMaxTime: number
   showerCleaningTime: number
+  showerDeepCleanThreshold: number
   rewardsBudgetMonthly: number
   rewardsValidation: 'auto' | 'manager'
+  notifPushEnabled: boolean
+  notifEmailEnabled: boolean
+  notifSmsEnabled: boolean
+  notifWhatsappEnabled: boolean
+  notifDndStart: string
+  notifDndEnd: string
+  integrationFlightsApi: boolean
+  integrationVipImport: boolean
 }
 
 // ============================================================
@@ -537,16 +553,32 @@ const DEFAULT_SETTINGS: VipSettings = {
   salonName: 'Salon VIP — Lounge Premium',
   capacity: 60,
   openingHours: '05:00 – 23:00',
+  salonAddress: '',
+  salonLogoUrl: null,
   deniseVoiceEnabled: false,
   deniseMaxVolume: 20,
   deniseTone: 'doux',
+  deniseLanguages: ['fr'],
+  deniseWelcomeMessage: 'Bienvenue au salon VIP. Notre équipe est à votre service.',
+  vipAlertsEnabled: true,
+  vipAlertsRecipient: 'Maître d\'Hôtel',
+  vipAlertsDelaySec: 0,
   buffetInterval: 30,
   buffetLowThreshold: 30,
   showersCount: 4,
   showerMaxTime: 20,
   showerCleaningTime: 10,
+  showerDeepCleanThreshold: 10,
   rewardsBudgetMonthly: 2500,
   rewardsValidation: 'manager',
+  notifPushEnabled: true,
+  notifEmailEnabled: false,
+  notifSmsEnabled: false,
+  notifWhatsappEnabled: true,
+  notifDndStart: '23:00',
+  notifDndEnd: '05:00',
+  integrationFlightsApi: true,
+  integrationVipImport: false,
 }
 
 // ============================================================
@@ -3593,6 +3625,28 @@ function SettingsTab() {
               />
             </div>
           </div>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="set-addr" className="text-[#8B6F47]">Adresse</Label>
+              <Input
+                id="set-addr"
+                value={settings.salonAddress}
+                onChange={(e) => update('salonAddress', e.target.value)}
+                placeholder="Aéroport, Terminal 1, Dakar"
+                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+              />
+            </div>
+            <div>
+              <Label htmlFor="set-logo" className="text-[#8B6F47]">URL Logo</Label>
+              <Input
+                id="set-logo"
+                value={settings.salonLogoUrl ?? ''}
+                onChange={(e) => update('salonLogoUrl', e.target.value || null)}
+                placeholder="https://…/logo.png"
+                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+              />
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -3648,6 +3702,96 @@ function SettingsTab() {
               </SelectContent>
             </Select>
           </div>
+          <div>
+            <Label className="text-[#8B6F47]">Langues parlées par Denise</Label>
+            <div className="mt-2 flex flex-wrap gap-2">
+              {['fr', 'en', 'ar', 'es', 'de', 'pt', 'wo'].map((lang) => {
+                const active = settings.deniseLanguages.includes(lang)
+                return (
+                  <button
+                    key={lang}
+                    type="button"
+                    onClick={() => {
+                      const next = active
+                        ? settings.deniseLanguages.filter((l) => l !== lang)
+                        : [...settings.deniseLanguages, lang]
+                      update('deniseLanguages', next.length > 0 ? next : ['fr'])
+                    }}
+                    className={cn(
+                      'rounded-lg border px-3 py-1.5 text-xs font-medium uppercase transition',
+                      active
+                        ? 'border-[#C9A961] bg-[#C9A961]/12 text-[#8B6F47]'
+                        : 'border-[#EAE5DC] bg-[#FAFAF7] text-[#8B6F47]/60 hover:border-[#C9A961]/40',
+                    )}
+                  >
+                    {lang}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+          <div>
+            <Label htmlFor="set-welcome" className="text-[#8B6F47]">Message de bienvenue</Label>
+            <Textarea
+              id="set-welcome"
+              value={settings.deniseWelcomeMessage}
+              onChange={(e) => update('deniseWelcomeMessage', e.target.value)}
+              rows={2}
+              className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+            />
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Alertes VIP */}
+      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <CardHeader className="px-0">
+          <CardTitle className="text-base text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
+            Alertes VIP
+          </CardTitle>
+          <CardDescription className="text-[#8B6F47]">
+            Alerte immédiate au Maître d&apos;Hôtel si un client VIP signale un problème.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="px-0 space-y-4">
+          <div className="flex items-center justify-between rounded-xl bg-[#FAFAF7] px-4 py-3">
+            <div className="flex items-center gap-3">
+              <Crown className="h-5 w-5 text-[#6B4C9A]" aria-hidden />
+              <div>
+                <p className="text-sm font-medium text-[#2C2C2C]">Alertes VIP activées</p>
+                <p className="text-xs text-[#8B6F47]">Notification prioritaire si un VIP mécontent signale</p>
+              </div>
+            </div>
+            <Switch checked={settings.vipAlertsEnabled} onCheckedChange={(v) => update('vipAlertsEnabled', v)} />
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label className="text-[#8B6F47]">Destinataire</Label>
+              <Select value={settings.vipAlertsRecipient} onValueChange={(v) => update('vipAlertsRecipient', v)}>
+                <SelectTrigger className="mt-1.5 w-full border-[#EAE5DC] bg-[#FAFAF7]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Maître d'Hôtel">Maître d&apos;Hôtel</SelectItem>
+                  <SelectItem value="Manager">Manager</SelectItem>
+                  <SelectItem value="Réception">Réception</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="set-vip-delay" className="text-[#8B6F47]">Délai avant alerte (secondes)</Label>
+              <Input
+                id="set-vip-delay"
+                type="number"
+                min={0}
+                max={300}
+                value={settings.vipAlertsDelaySec}
+                onChange={(e) => update('vipAlertsDelaySec', Number(e.target.value))}
+                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+              />
+              <p className="mt-1 text-[11px] text-[#8B6F47]">0 = alerte immédiate</p>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
@@ -3702,7 +3846,7 @@ function SettingsTab() {
           </CardTitle>
         </CardHeader>
         <CardContent className="px-0">
-          <div className="grid gap-4 sm:grid-cols-3">
+          <div className="grid gap-4 sm:grid-cols-4">
             <div>
               <Label htmlFor="set-sh-count" className="text-[#8B6F47]">Nombre de cabines</Label>
               <Input
@@ -3724,7 +3868,7 @@ function SettingsTab() {
               />
             </div>
             <div>
-              <Label htmlFor="set-sh-clean" className="text-[#8B6F47]">Temps de nettoyage (min)</Label>
+              <Label htmlFor="set-sh-clean" className="text-[#8B6F47]">Temps nettoyage (min)</Label>
               <Input
                 id="set-sh-clean"
                 type="number"
@@ -3732,6 +3876,17 @@ function SettingsTab() {
                 onChange={(e) => update('showerCleaningTime', Number(e.target.value))}
                 className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
               />
+            </div>
+            <div>
+              <Label htmlFor="set-sh-deep" className="text-[#8B6F47]">Nettoyage profond après</Label>
+              <Input
+                id="set-sh-deep"
+                type="number"
+                value={settings.showerDeepCleanThreshold}
+                onChange={(e) => update('showerDeepCleanThreshold', Number(e.target.value))}
+                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+              />
+              <p className="mt-1 text-[11px] text-[#8B6F47]">utilisations</p>
             </div>
           </div>
         </CardContent>
@@ -3771,6 +3926,109 @@ function SettingsTab() {
                 </SelectContent>
               </Select>
             </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Notifications */}
+      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <CardHeader className="px-0">
+          <CardTitle className="text-base text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
+            Notifications
+          </CardTitle>
+          <CardDescription className="text-[#8B6F47]">
+            Canaux de notification et horaires de non-disturb (DND).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="px-0 space-y-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex items-center justify-between rounded-xl bg-[#FAFAF7] px-4 py-3">
+              <div className="flex items-center gap-3">
+                <Bell className="h-4 w-4 text-[#C9A961]" aria-hidden />
+                <p className="text-sm font-medium text-[#2C2C2C]">Push navigateur</p>
+              </div>
+              <Switch checked={settings.notifPushEnabled} onCheckedChange={(v) => update('notifPushEnabled', v)} />
+            </div>
+            <div className="flex items-center justify-between rounded-xl bg-[#FAFAF7] px-4 py-3">
+              <div className="flex items-center gap-3">
+                <Bell className="h-4 w-4 text-[#8B6F47]" aria-hidden />
+                <p className="text-sm font-medium text-[#2C2C2C]">Email</p>
+              </div>
+              <Switch checked={settings.notifEmailEnabled} onCheckedChange={(v) => update('notifEmailEnabled', v)} />
+            </div>
+            <div className="flex items-center justify-between rounded-xl bg-[#FAFAF7] px-4 py-3">
+              <div className="flex items-center gap-3">
+                <Bell className="h-4 w-4 text-[#8B6F47]" aria-hidden />
+                <p className="text-sm font-medium text-[#2C2C2C]">SMS</p>
+              </div>
+              <Switch checked={settings.notifSmsEnabled} onCheckedChange={(v) => update('notifSmsEnabled', v)} />
+            </div>
+            <div className="flex items-center justify-between rounded-xl bg-[#FAFAF7] px-4 py-3">
+              <div className="flex items-center gap-3">
+                <Bell className="h-4 w-4 text-[#4A7C59]" aria-hidden />
+                <p className="text-sm font-medium text-[#2C2C2C]">WhatsApp</p>
+              </div>
+              <Switch checked={settings.notifWhatsappEnabled} onCheckedChange={(v) => update('notifWhatsappEnabled', v)} />
+            </div>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="set-dnd-start" className="text-[#8B6F47]">Début DND (ne pas déranger)</Label>
+              <Input
+                id="set-dnd-start"
+                type="time"
+                value={settings.notifDndStart}
+                onChange={(e) => update('notifDndStart', e.target.value)}
+                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+              />
+            </div>
+            <div>
+              <Label htmlFor="set-dnd-end" className="text-[#8B6F47]">Fin DND</Label>
+              <Input
+                id="set-dnd-end"
+                type="time"
+                value={settings.notifDndEnd}
+                onChange={(e) => update('notifDndEnd', e.target.value)}
+                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+              />
+            </div>
+          </div>
+          <p className="text-[11px] text-[#8B6F47]">
+            Pendant la plage DND, seules les alertes critiques VIP sont envoyees. Les autres sont silencieuses.
+          </p>
+        </CardContent>
+      </Card>
+
+      {/* Integrations */}
+      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <CardHeader className="px-0">
+          <CardTitle className="text-base text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
+            Integrations
+          </CardTitle>
+          <CardDescription className="text-[#8B6F47]">
+            Connexions aux services externes (lecture seule).
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="px-0 space-y-4">
+          <div className="flex items-center justify-between rounded-xl bg-[#FAFAF7] px-4 py-3">
+            <div className="flex items-center gap-3">
+              <Plane className="h-5 w-5 text-[#C9A961]" aria-hidden />
+              <div>
+                <p className="text-sm font-medium text-[#2C2C2C]">API Vols (read-only)</p>
+                <p className="text-xs text-[#8B6F47]">Lecture des vols et embarquements pour le dbarrassage proactif</p>
+              </div>
+            </div>
+            <Switch checked={settings.integrationFlightsApi} onCheckedChange={(v) => update('integrationFlightsApi', v)} />
+          </div>
+          <div className="flex items-center justify-between rounded-xl bg-[#FAFAF7] px-4 py-3">
+            <div className="flex items-center gap-3">
+              <Users className="h-5 w-5 text-[#6B4C9A]" aria-hidden />
+              <div>
+                <p className="text-sm font-medium text-[#2C2C2C]">Import profils VIP</p>
+                <p className="text-xs text-[#8B6F47]">Synchronisation des clients VIP depuis le CRM externe</p>
+              </div>
+            </div>
+            <Switch checked={settings.integrationVipImport} onCheckedChange={(v) => update('integrationVipImport', v)} />
           </div>
         </CardContent>
       </Card>
