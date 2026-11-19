@@ -45,10 +45,14 @@ import { VipLoanCatalog } from '@/components/feedbackpro/vip-loan-catalog'
 // Types
 // ============================================================
 type VipClient = {
+  id?: string
   name: string
   vipLevel: string
   preferences: string[]
+  allergies?: string[]
+  photo?: string | null
   airline?: string | null
+  visitCount?: number
 }
 
 type ScanTable = {
@@ -74,7 +78,7 @@ type RequestType =
   | 'upsell'
   | 'loan'
 
-type View = 'main' | 'problem' | 'refreshment' | 'concierge' | 'upsell' | 'shower-reservation' | 'loan'
+type View = 'main' | 'problem' | 'refreshment' | 'concierge' | 'upsell' | 'shower-reservation' | 'loan' | 'rating'
 
 type Confirmation = {
   type: RequestType
@@ -91,7 +95,7 @@ type ActionDef = {
   description: string
   Icon: typeof Wine
   tone: 'gold' | 'bronze' | 'sage' | 'amethyst' | 'terracotta'
-  behavior: 'direct' | 'form:refreshment' | 'form:concierge' | 'form:problem' | 'form:upsell' | 'form:shower-reservation' | 'form:loan'
+  behavior: 'direct' | 'form:refreshment' | 'form:concierge' | 'form:problem' | 'form:upsell' | 'form:shower-reservation' | 'form:loan' | 'form:rating'
 }
 
 // ============================================================
@@ -180,7 +184,7 @@ const ACTIONS: ActionDef[] = [
     description: 'Aidez-nous à nous améliorer',
     Icon: Star,
     tone: 'gold',
-    behavior: 'direct',
+    behavior: 'form:rating',
   },
 ]
 
@@ -291,6 +295,14 @@ const CONFIRMATION_CONTENT: Record<RequestType, { title: string; subtitle: strin
     title: 'Merci pour votre retour',
     subtitle: 'Votre avis nous aide à parfaire le service.',
   },
+  upsell: {
+    title: 'Commande transmise',
+    subtitle: 'Notre équipe vous sert dans un instant.',
+  },
+  loan: {
+    title: 'Demande de prêt envoyée',
+    subtitle: 'Votre objet vous est apporté à table.',
+  },
 }
 
 const SERIF = { fontFamily: 'Georgia, "Playfair Display", serif' } as const
@@ -311,6 +323,7 @@ export function VipTableScan({
   const [sending, setSending] = useState<RequestType | null>(null)
   const [view, setView] = useState<View>('main')
   const [confirmation, setConfirmation] = useState<Confirmation | null>(null)
+  const [ratingStars, setRatingStars] = useState(0)
 
   // ---- Module 3 — Détection langue + Module 11 — Session Nathalie ----
   const [detectedLang, setDetectedLang] = useState<string>('fr')
@@ -347,7 +360,19 @@ export function VipTableScan({
     let cancelled = false
     setLoading(true)
     setError(null)
-    fetch(`/api/vip/tables/by-qr/${encodeURIComponent(qrToken)}`, {
+    // deviceId persistant (localStorage) → reconnaissance "retour client"
+    let deviceId: string | null = null
+    try {
+      deviceId = localStorage.getItem('fp_vip_device_id')
+      if (!deviceId) {
+        deviceId = `dev-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
+        localStorage.setItem('fp_vip_device_id', deviceId)
+      }
+    } catch {
+      deviceId = null
+    }
+    const qs = deviceId ? `?deviceId=${encodeURIComponent(deviceId)}` : ''
+    fetch(`/api/vip/tables/by-qr/${encodeURIComponent(qrToken)}${qs}`, {
       cache: 'no-store',
     })
       .then((r) => r.json())
@@ -494,6 +519,9 @@ export function VipTableScan({
       setView('concierge')
     } else if (action.behavior === 'form:problem') {
       setView('problem')
+    } else if (action.behavior === 'form:rating') {
+      setRatingStars(0)
+      setView('rating')
     } else if (action.behavior === 'form:upsell') {
       setView('upsell')
     } else if (action.behavior === 'form:shower-reservation') {
@@ -759,6 +787,81 @@ export function VipTableScan({
   }
 
   // ============================================================
+  // RENDU — Vue Notation (étoiles 1-5 → metadata.rating)
+  // Alimente la métrique Satisfaction du Rapport mensuel.
+  // ============================================================
+  if (view === 'rating') {
+    const LABELS = ['', 'Décevant', 'Correct', 'Bien', 'Excellent', 'Inoubliable']
+    return (
+      <div className="min-h-screen bg-[#FAFAF7]">
+        <div className="mx-auto max-w-xl px-4 py-8 sm:px-6 sm:py-12">
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs font-medium uppercase tracking-widest text-[#8B6F47]">
+                Table {table.tableNumber}
+              </p>
+              <h1 className="mt-1 text-2xl font-semibold text-[#2C2C2C]" style={SERIF}>
+                ⭐ Noter mon expérience
+              </h1>
+            </div>
+            <Button
+              variant="outline"
+              onClick={() => setView('main')}
+              className="gap-2 border-[#EAE5DC] bg-white text-[#8B6F47] hover:bg-[#EAE5DC]/40"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden /> Retour
+            </Button>
+          </div>
+
+          <div className="mt-8 rounded-2xl border border-[#EAE5DC] bg-white p-6 text-center shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+            <p className="text-sm text-[#8B6F47]">Comment s’est passée votre visite ?</p>
+            <div className="mt-4 flex items-center justify-center gap-3" role="radiogroup" aria-label="Note de 1 à 5 étoiles">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  role="radio"
+                  aria-checked={ratingStars === n}
+                  aria-label={`${n} étoile${n > 1 ? 's' : ''}`}
+                  onClick={() => setRatingStars(n)}
+                  className="p-1 transition-transform hover:scale-110"
+                >
+                  <Star
+                    className={cn(
+                      'h-9 w-9 transition-colors',
+                      n <= ratingStars ? 'fill-[#C9A961] text-[#C9A961]' : 'text-[#EAE5DC]',
+                    )}
+                    aria-hidden
+                  />
+                </button>
+              ))}
+            </div>
+            {ratingStars > 0 && (
+              <p className="mt-3 text-sm font-semibold text-[#8B6F47]" style={SERIF}>
+                {LABELS[ratingStars]}
+              </p>
+            )}
+            <Button
+              className="mt-6 w-full gap-2 bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white hover:opacity-90"
+              disabled={ratingStars === 0 || sending === 'rating'}
+              onClick={() =>
+                sendRequest('rating', { metadata: JSON.stringify({ rating: ratingStars }) })
+              }
+            >
+              {sending === 'rating' ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <Star className="h-4 w-4" aria-hidden />
+              )}
+              Envoyer ma note
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  // ============================================================
   // RENDU — Vue Problème (tags + description + photo)
   // ============================================================
   if (view === 'problem') {
@@ -852,7 +955,7 @@ export function VipTableScan({
               <div className="mt-3 flex items-center gap-3">
                 {photoPreviewUrl ? (
                   <div className="relative">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    { }
                     <img
                       src={photoPreviewUrl}
                       alt="Aperçu du signalement"
@@ -1289,6 +1392,11 @@ export function VipTableScan({
               {table.vipClient.preferences?.length > 0 && (
                 <p className="mt-1 text-xs text-[#8B6F47]">
                   Vos préférences : {table.vipClient.preferences.join(', ')}
+                </p>
+              )}
+              {(table.vipClient.allergies?.length ?? 0) > 0 && (
+                <p className="mt-1 text-xs font-medium text-[#C97B63]">
+                  Nous prenons en compte vos allergies : {table.vipClient.allergies?.join(', ')}
                 </p>
               )}
             </div>

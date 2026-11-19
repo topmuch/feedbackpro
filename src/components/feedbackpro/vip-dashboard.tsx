@@ -89,6 +89,11 @@ import {
 import { useAppStore } from '@/store/app-store'
 import { getZonesByTenant } from '@/lib/airport-config'
 import { cn } from '@/lib/utils'
+import { VipClientsTab } from '@/components/feedbackpro/vip-clients-tab'
+import { VipSettingsTab } from '@/components/feedbackpro/vip-settings-tab'
+import { VipReportsTab } from '@/components/feedbackpro/vip-reports-tab'
+import { VipGuestAlertBanner } from '@/components/feedbackpro/vip-guest-alert'
+import type { VipLoungeConfig } from '@/lib/vip-clients'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -1278,6 +1283,7 @@ function VIPSidebarContent({
   userEmail,
   userRole,
   onLogout,
+  modulesEnabled,
 }: {
   activeTab: VipTab
   onNavigate: (t: VipTab) => void
@@ -1285,7 +1291,19 @@ function VIPSidebarContent({
   userEmail: string
   userRole: string
   onLogout: () => void
+  modulesEnabled?: Partial<VipLoungeConfig['modulesEnabled']> | null
 }) {
+  // Modules optionnels désactivés → onglets masqués (Paramètres → Modules optionnels)
+  const TAB_MODULE_KEY: Partial<Record<VipTab, keyof VipLoungeConfig['modulesEnabled']>> = {
+    showers: 'smartShower',
+    rewards: 'flashRewards',
+  }
+  const navFiltre = modulesEnabled
+    ? NAV_ITEMS.filter((n) => {
+        const key = TAB_MODULE_KEY[n.id]
+        return !key || modulesEnabled[key] !== false
+      })
+    : NAV_ITEMS
   const roleLabel =
     userRole === 'SUPERADMIN'
       ? 'Super Admin'
@@ -1323,7 +1341,7 @@ function VIPSidebarContent({
         aria-label="Navigation VIP"
         className="vip-sidebar-nav flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-4"
       >
-        {NAV_ITEMS.map((item) => {
+        {navFiltre.map((item) => {
           const Icon = item.Icon
           const actif = activeTab === item.id
           return (
@@ -2864,468 +2882,7 @@ function RewardsTab({ staffName }: { staffName: string }) {
 // ============================================================
 
 function ClientsTab() {
-  const { toast } = useToast()
-  const [clients, setClients] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [search, setSearch] = useState('')
-  const [filterLevel, setFilterLevel] = useState<string>('all')
-  const [formOpen, setFormOpen] = useState(false)
-  const [form, setForm] = useState<{
-    name: string
-    photo: string
-    airline: string
-    vipLevel: 'gold' | 'platinum' | 'diamond'
-    preferences: string
-    allergies: string
-    notes: string
-    consent: boolean
-  }>({
-    name: '',
-    photo: '',
-    airline: '',
-    vipLevel: 'gold',
-    preferences: '',
-    allergies: '',
-    notes: '',
-    consent: false,
-  })
-
-  // Styles par niveau VIP (clés bas-cases, conformes au contrat API)
-  const LEVEL_STYLES: Record<
-    'gold' | 'platinum' | 'diamond',
-    { label: string; bg: string; text: string; Icon: typeof Crown }
-  > = {
-    gold: { label: 'Gold', bg: 'bg-[#C9A961]/15', text: 'text-[#8B6F47]', Icon: Crown },
-    platinum: { label: 'Platinum', bg: 'bg-[#6B4C9A]/12', text: 'text-[#6B4C9A]', Icon: Sparkles },
-    diamond: { label: 'Diamond', bg: 'bg-[#4A7C59]/12', text: 'text-[#4A7C59]', Icon: Diamond },
-  }
-
-  // ---- Fetch clients depuis l'API
-  const fetchClients = useCallback(async () => {
-    try {
-      setLoading(true)
-      const res = await fetch('/api/vip/clients', { cache: 'no-store' })
-      const json = await res.json().catch(() => null)
-      if (json?.ok) {
-        setClients(json.data ?? [])
-      } else {
-        toast({
-          title: 'Erreur',
-          description: "Impossible de charger les clients VIP.",
-          variant: 'destructive',
-        })
-      }
-    } catch {
-      toast({
-        title: 'Erreur réseau',
-        description: 'Vérifiez votre connexion.',
-        variant: 'destructive',
-      })
-    } finally {
-      setLoading(false)
-    }
-  }, [toast])
-
-  useEffect(() => {
-    fetchClients()
-  }, [fetchClients])
-
-  // ---- Helpers parsing préférences (stockées en JSON string côté API)
-  const parsePreferencesList = useCallback((raw: string | null | undefined): string[] => {
-    if (!raw) return []
-    try {
-      const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed)) return parsed.filter((x) => typeof x === 'string')
-      return []
-    } catch {
-      return []
-    }
-  }, [])
-
-  const buildPreferencesJson = (raw: string, allergies: string): string => {
-    const tags: string[] = raw
-      .split(',')
-      .map((t) => t.trim())
-      .filter(Boolean)
-    if (allergies.trim()) {
-      tags.push(`allergie: ${allergies.trim()}`)
-    }
-    return JSON.stringify(tags)
-  }
-
-  // ---- Filtrage
-  const filtered = useMemo(() => {
-    return clients.filter((c: any) => {
-      const levelKey = String(c?.vipLevel ?? 'gold').toLowerCase()
-      if (filterLevel !== 'all' && levelKey !== filterLevel) return false
-      if (search.trim()) {
-        const q = search.trim().toLowerCase()
-        const hay = `${c?.name ?? ''} ${c?.airline ?? ''} ${c?.notes ?? ''}`.toLowerCase()
-        if (!hay.includes(q)) return false
-      }
-      return true
-    })
-  }, [clients, search, filterLevel])
-
-  // ---- Ajout client via API
-  const addClient = useCallback(async () => {
-    if (!form.name.trim()) {
-      toast({
-        title: 'Champ requis',
-        description: 'Le nom du client est obligatoire.',
-        variant: 'destructive',
-      })
-      return
-    }
-    if (!form.consent) {
-      toast({
-        title: 'Consentement requis',
-        description: "Vous devez obtenir le consentement RGPD du client.",
-        variant: 'destructive',
-      })
-      return
-    }
-    try {
-      setSaving(true)
-      const payload = {
-        name: form.name.trim(),
-        photo: form.photo.trim() || null,
-        airline: form.airline.trim(),
-        vipLevel: form.vipLevel,
-        preferences: buildPreferencesJson(form.preferences, form.allergies),
-        notes: form.notes.trim(),
-      }
-      const res = await fetch('/api/vip/clients', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      const json = await res.json().catch(() => null)
-      if (json?.ok) {
-        toast({
-          title: 'Client ajouté',
-          description: `${payload.name} · ${LEVEL_STYLES[form.vipLevel].label}`,
-        })
-        setForm({
-          name: '',
-          photo: '',
-          airline: '',
-          vipLevel: 'gold',
-          preferences: '',
-          allergies: '',
-          notes: '',
-          consent: false,
-        })
-        setFormOpen(false)
-        fetchClients()
-      } else {
-        toast({
-          title: 'Erreur',
-          description: json?.error ?? 'Création impossible.',
-          variant: 'destructive',
-        })
-      }
-    } catch {
-      toast({
-        title: 'Erreur réseau',
-        description: 'Vérifiez votre connexion.',
-        variant: 'destructive',
-      })
-    } finally {
-      setSaving(false)
-    }
-  }, [form, toast, LEVEL_STYLES, fetchClients])
-
-  return (
-    <div className="space-y-5">
-      <SectionTitle
-        title="Clients VIP"
-        subtitle="Annuaire des clients d'exception — Gold, Platinum, Diamond"
-        Icon={Users}
-        action={
-          <Button
-            className="gap-2 bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white hover:opacity-90"
-            onClick={() => setFormOpen(true)}
-          >
-            <Plus className="h-4 w-4" aria-hidden /> Ajouter client
-          </Button>
-        }
-      />
-
-      {/* Note détection automatique VIP */}
-      <div className="flex items-center gap-2 rounded-lg border border-[#C9A961]/25 bg-[#C9A961]/8 px-3 py-2 text-xs text-[#8B6F47]">
-        <Sparkles className="h-3.5 w-3.5 shrink-0 text-[#C9A961]" aria-hidden />
-        <span>Les clients VIP sont automatiquement détectés au scan QR de la table.</span>
-      </div>
-
-      {/* Filtres */}
-      <Card className="border border-[#EAE5DC] bg-white p-4 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative min-w-[200px] flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8B6F47]/60" aria-hidden />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Rechercher (nom, compagnie, notes…)"
-              className="border-[#EAE5DC] bg-[#FAFAF7] pl-9 text-sm"
-            />
-          </div>
-          <Select value={filterLevel} onValueChange={setFilterLevel}>
-            <SelectTrigger className="w-[160px] border-[#EAE5DC] bg-[#FAFAF7] text-sm">
-              <SelectValue placeholder="Niveau" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous niveaux</SelectItem>
-              <SelectItem value="gold">Gold</SelectItem>
-              <SelectItem value="platinum">Platinum</SelectItem>
-              <SelectItem value="diamond">Diamond</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </Card>
-
-      {/* Loading */}
-      {loading && (
-        <div className="flex items-center justify-center py-12 text-[#8B6F47]">
-          <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-          <span className="ml-2 text-sm">Chargement des clients…</span>
-        </div>
-      )}
-
-      {/* Cartes clients */}
-      {!loading && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((c: any) => {
-            const levelKey = (String(c?.vipLevel ?? 'gold').toLowerCase() as
-              | 'gold'
-              | 'platinum'
-              | 'diamond')
-            const ls = LEVEL_STYLES[levelKey] ?? LEVEL_STYLES.gold
-            const LevelIcon = ls.Icon
-            const prefs = parsePreferencesList(c?.preferences)
-            const visitCount = Number(c?.visitCount ?? 0)
-            const lastVisit = c?.lastVisit ? new Date(c.lastVisit) : null
-            return (
-              <Card
-                key={c?.id ?? `${c?.name}-${Math.random()}`}
-                className="border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]"
-              >
-                <div className="flex items-start gap-3">
-                  <Avatar className="h-12 w-12 ring-1 ring-[#EAE5DC]">
-                    {c?.photo && <AvatarImage src={c.photo} alt={c?.name ?? 'Client'} />}
-                    <AvatarFallback className="bg-[#C9A961]/15 text-sm font-semibold text-[#8B6F47]">
-                      {initials(c?.name ?? '?')}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1">
-                    <h3
-                      className="truncate text-base font-semibold text-[#2C2C2C]"
-                      style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
-                    >
-                      {c?.name ?? 'Client'}
-                    </h3>
-                    {c?.airline && (
-                      <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-[#8B6F47]">
-                        <Plane className="h-3 w-3" aria-hidden /> {c.airline}
-                      </p>
-                    )}
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        'mt-1.5 inline-flex items-center gap-1 border font-semibold',
-                        ls.bg,
-                        ls.text,
-                      )}
-                    >
-                      <LevelIcon className="h-3 w-3" aria-hidden /> {ls.label}
-                    </Badge>
-                  </div>
-                </div>
-
-                {prefs.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {prefs.map((p, i) => {
-                      const isAllergy = p.toLowerCase().startsWith('allergie')
-                      return (
-                        <span
-                          key={`${p}-${i}`}
-                          className={cn(
-                            'rounded-full px-2 py-0.5 text-[11px] font-medium',
-                            isAllergy
-                              ? 'bg-[#C97B63]/12 text-[#C97B63]'
-                              : 'bg-[#C9A961]/10 text-[#8B6F47]',
-                          )}
-                        >
-                          {p}
-                        </span>
-                      )
-                    })}
-                  </div>
-                )}
-
-                {c?.notes && (
-                  <p className="mt-3 line-clamp-2 text-xs text-[#8B6F47]">{c.notes}</p>
-                )}
-
-                <div className="mt-3 flex items-center justify-between border-t border-[#EAE5DC] pt-3 text-xs text-[#8B6F47]">
-                  <span className="flex items-center gap-1">
-                    <Coffee className="h-3 w-3" aria-hidden /> {visitCount} visite{visitCount > 1 ? 's' : ''}
-                  </span>
-                  {lastVisit && (
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" aria-hidden />{' '}
-                      {lastVisit.toLocaleDateString('fr-FR')}
-                    </span>
-                  )}
-                </div>
-              </Card>
-            )
-          })}
-        </div>
-      )}
-
-      {!loading && filtered.length === 0 && (
-        <Card className="border border-[#EAE5DC] bg-white p-10 text-center shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-          <Users className="mx-auto h-8 w-8 text-[#8B6F47]/40" aria-hidden />
-          <p className="mt-3 text-sm text-[#8B6F47]">Aucun client ne correspond à vos critères.</p>
-        </Card>
-      )}
-
-      {/* Dialog ajout */}
-      <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="border-[#EAE5DC] bg-white p-6">
-          <DialogHeader>
-            <DialogTitle className="text-xl text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
-              Nouveau client VIP
-            </DialogTitle>
-            <DialogDescription className="text-[#8B6F47]">
-              Renseignez les informations du client. La photo est optionnelle (URL).
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="c-name" className="text-[#8B6F47]">Nom complet *</Label>
-                <Input
-                  id="c-name"
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  placeholder="ex. Alexandre Laurent"
-                  className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-                />
-              </div>
-              <div>
-                <Label htmlFor="c-airline" className="text-[#8B6F47]">Compagnie</Label>
-                <Input
-                  id="c-airline"
-                  value={form.airline}
-                  onChange={(e) => setForm((f) => ({ ...f, airline: e.target.value }))}
-                  placeholder="ex. Air France"
-                  className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-                />
-              </div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="c-level" className="text-[#8B6F47]">Niveau VIP</Label>
-                <Select
-                  value={form.vipLevel}
-                  onValueChange={(v) =>
-                    setForm((f) => ({ ...f, vipLevel: v as 'gold' | 'platinum' | 'diamond' }))
-                  }
-                >
-                  <SelectTrigger id="c-level" className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="gold">Gold</SelectItem>
-                    <SelectItem value="platinum">Platinum</SelectItem>
-                    <SelectItem value="diamond">Diamond</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="c-photo" className="text-[#8B6F47]">Photo (URL)</Label>
-                <Input
-                  id="c-photo"
-                  value={form.photo}
-                  onChange={(e) => setForm((f) => ({ ...f, photo: e.target.value }))}
-                  placeholder="https://…"
-                  className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-                />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="c-prefs" className="text-[#8B6F47]">
-                Préférences <span className="text-[#8B6F47]/60">(séparées par virgule)</span>
-              </Label>
-              <Input
-                id="c-prefs"
-                value={form.preferences}
-                onChange={(e) => setForm((f) => ({ ...f, preferences: e.target.value }))}
-                placeholder="ex. fenêtre, espresso double, thé matcha"
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-            </div>
-            <div>
-              <Label htmlFor="c-allergies" className="text-[#8B6F47]">Allergies</Label>
-              <Input
-                id="c-allergies"
-                value={form.allergies}
-                onChange={(e) => setForm((f) => ({ ...f, allergies: e.target.value }))}
-                placeholder="ex. crustacés, arachides"
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-            </div>
-            <div>
-              <Label htmlFor="c-notes" className="text-[#8B6F47]">Notes concierge</Label>
-              <Textarea
-                id="c-notes"
-                value={form.notes}
-                onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                placeholder="Habitudes, observations…"
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-                rows={3}
-              />
-            </div>
-            <label className="flex items-start gap-2 rounded-md border border-[#EAE5DC] bg-[#FAFAF7] p-3 text-xs text-[#2C2C2C]">
-              <input
-                type="checkbox"
-                checked={form.consent}
-                onChange={(e) => setForm((f) => ({ ...f, consent: e.target.checked }))}
-                className="mt-0.5 h-3.5 w-3.5 accent-[#C9A961]"
-              />
-              <span>
-                J&apos;ai obtenu le consentement du client pour la collecte de ses données (RGPD).
-              </span>
-            </label>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setFormOpen(false)}
-              className="border-[#EAE5DC] bg-[#FAFAF7] text-[#8B6F47]"
-            >
-              Annuler
-            </Button>
-            <Button
-              onClick={addClient}
-              disabled={!form.consent || saving}
-              className="gap-2 bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white hover:opacity-90"
-            >
-              {saving ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-              ) : (
-                <Plus className="h-4 w-4" aria-hidden />
-              )}
-              {saving ? 'Enregistrement…' : 'Ajouter'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  )
+  return <VipClientsTab />
 }
 
 // ============================================================
@@ -3683,281 +3240,8 @@ function QRTab() {
 // Tab I — Rapports
 // ============================================================
 
-function ReportsTab({ incidents }: { incidents: VipIncident[] }) {
-  const { toast } = useToast()
-  const [period, setPeriod] = useState<'jour' | 'semaine' | 'mois'>('jour')
-  const [data, setData] = useState<any | null>(null)
-  const [rewards, setRewards] = useState<any[]>([])
-  const [orders, setOrders] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-
-  // ---- Fetch asynchrone (wallboard + reward-grants + orders)
-  useEffect(() => {
-    let cancelled = false
-    Promise.all([
-      fetch('/api/vip/wallboard', { cache: 'no-store' })
-        .then((r) => r.json())
-        .catch(() => null),
-      fetch('/api/vip/reward-grants', { cache: 'no-store' })
-        .then((r) => r.json())
-        .catch(() => null),
-      fetch('/api/vip/orders', { cache: 'no-store' })
-        .then((r) => r.json())
-        .catch(() => null),
-    ]).then(([wb, rw, ord]) => {
-      if (cancelled) return
-      if (wb?.ok) setData(wb.data)
-      if (rw?.ok) setRewards(rw.data ?? [])
-      if (ord?.ok) setOrders(ord.data ?? [])
-      setLoading(false)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  // ---- Extraction tolérante des KPIs (plusieurs casse possibles)
-  const kpis = data?.kpis ?? {}
-  const activeIncidents: any[] =
-    data?.active_incidents ?? data?.activeIncidents ?? []
-  const recentlyResolved: any[] =
-    data?.recently_resolved ?? data?.recentlyResolved ?? []
-
-  const resolvedToday: number =
-    kpis.resolved_today ?? kpis.resolvedToday ?? recentlyResolved.length
-  const avgResolution: number =
-    kpis.avg_resolution_min ?? kpis.avgResolutionMin ?? 0
-  const satisfaction: number =
-    kpis.satisfaction_score ?? kpis.satisfactionScore ?? 4.6
-  const totalToday: number =
-    kpis.total_today ?? kpis.totalToday ?? incidents.length
-  const showersUsage = 27
-  const expressLoans = 15
-  const lostFound = 3
-
-  // Mock comparaison période précédente (+X%)
-  const comparePct = 12
-
-  // ---- Bar chart : données réelles groupées par jour (fallback mock)
-  const dailyBars = useMemo(() => {
-    const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
-    const base = [4, 7, 5, 9, 12, 14, totalToday || 6]
-
-    // Agrégation par jour de la semaine depuis active_incidents
-    const byDay: Record<string, number> = {}
-    activeIncidents.forEach((inc) => {
-      const ts = inc?.createdAt ?? inc?.created_at ?? inc?.givenAt
-      if (!ts) return
-      try {
-        const d = new Date(ts)
-        if (isNaN(d.getTime())) return
-        const idx = (d.getDay() + 6) % 7 // 0 = Lundi
-        const label = days[idx]
-        byDay[label] = (byDay[label] ?? 0) + 1
-      } catch {
-        /* ignore */
-      }
-    })
-
-    if (period === 'semaine') {
-      return [
-        { label: 'S1', value: 8 },
-        { label: 'S2', value: 11 },
-        { label: 'S3', value: 9 },
-        { label: 'S4', value: 14 },
-      ]
-    }
-    if (period === 'mois') {
-      return Array.from({ length: 4 }).map((_, i) => ({
-        label: `S${i + 1}`,
-        value: 35 + ((i * 7) % 18),
-      }))
-    }
-    // Jour : données réelles si suffisamment riches, sinon fallback mock
-    const filled = days.map((label, i) => ({
-      label,
-      value: byDay[label] ?? base[i] ?? 0,
-    }))
-    const realDays = filled.filter((d) => byDay[d.label]).length
-    return realDays >= 3 ? filled : days.map((label, i) => ({ label, value: base[i] ?? 0 }))
-  }, [period, totalToday, activeIncidents])
-
-  const maxBar = Math.max(...dailyBars.map((b) => b.value), 1)
-
-  // ---- Export CSV
-  const exportCSV = useCallback(() => {
-    const rows: Array<[string, string]> = [
-      ['Métrique', 'Valeur'],
-      ['Incidents résolus', String(resolvedToday)],
-      ['Temps moyen (min)', String(avgResolution)],
-      ['Satisfaction', `${satisfaction}/5`],
-      ['Récompenses', String(rewards.length)],
-      ['Upsells', String(orders.length)],
-      ['Douches', '27'],
-      ['Prêts Express', '15'],
-      ['Lost & Found', '3'],
-    ]
-    const csv = rows
-      .map((r) =>
-        r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','),
-      )
-      .join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `rapport-vip-${new Date().toISOString().slice(0, 10)}.csv`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-    toast({
-      title: 'Export CSV',
-      description: 'Le rapport a été téléchargé.',
-    })
-  }, [resolvedToday, avgResolution, satisfaction, rewards.length, orders.length, toast])
-
-  return (
-    <div className="space-y-5">
-      <SectionTitle
-        title="Rapports"
-        subtitle="Indicateurs de performance — salon VIP"
-        Icon={BarChart3}
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            <Select value={period} onValueChange={(v) => setPeriod(v as 'jour' | 'semaine' | 'mois')}>
-              <SelectTrigger className="w-[140px] border-[#EAE5DC] bg-white text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="jour">Jour</SelectItem>
-                <SelectItem value="semaine">Semaine</SelectItem>
-                <SelectItem value="mois">Mois</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              onClick={exportCSV}
-              variant="outline"
-              className="gap-2 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
-            >
-              <Download className="h-4 w-4" aria-hidden /> Exporter CSV
-            </Button>
-          </div>
-        }
-      />
-
-      {/* Loading */}
-      {loading && (
-        <div className="flex items-center justify-center py-8 text-[#8B6F47]">
-          <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-          <span className="ml-2 text-sm">Chargement des indicateurs…</span>
-        </div>
-      )}
-
-      {/* KPI rapports — 8 cartes */}
-      {!loading && (
-        <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <KPICard
-              label="Incidents résolus"
-              value={resolvedToday}
-              Icon={CheckCircle2}
-              tone="sage"
-              hint={`sur ${totalToday} signalés`}
-            />
-            <KPICard
-              label="Temps moyen résolution"
-              value={avgResolution}
-              unit="min"
-              Icon={Clock}
-              tone="bronze"
-              hint="Sur la période"
-            />
-            <KPICard
-              label="Satisfaction"
-              value={Number(satisfaction).toFixed(1)}
-              unit="/5"
-              Icon={Star}
-              tone="gold"
-              hint="Note moyenne"
-            />
-            <KPICard
-              label="Récompenses offertes"
-              value={rewards.length}
-              Icon={Gift}
-              tone="amethyst"
-              hint="Sur la période"
-            />
-            <KPICard
-              label="Upsells générés"
-              value={orders.length}
-              Icon={ArrowUp}
-              tone="gold"
-              hint="Ventes additionnelles"
-            />
-            <KPICard
-              label="Utilisation douches"
-              value={showersUsage}
-              Icon={ShowerHead}
-              tone="bronze"
-              hint="Sessions période"
-            />
-            <KPICard
-              label="Prêts Express"
-              value={expressLoans}
-              Icon={Plane}
-              tone="sage"
-              hint="Kits voyage prêtés"
-            />
-            <KPICard
-              label="Lost & Found"
-              value={lostFound}
-              Icon={AlertTriangle}
-              tone="terracotta"
-              hint="Objets trouvés"
-            />
-          </div>
-
-          {/* Comparaison période */}
-          <div className="flex items-center gap-1.5 text-xs text-[#8B6F47]">
-            <ArrowUp className="h-3 w-3 text-[#4A7C59]" aria-hidden />
-            <span>
-              vs période précédente : <span className="font-semibold text-[#4A7C59]">+{comparePct}%</span>
-            </span>
-          </div>
-        </>
-      )}
-
-      {/* Bar chart CSS */}
-      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-        <CardHeader className="px-0">
-          <CardTitle className="text-lg text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
-            Incidents par {period === 'jour' ? 'jour' : period === 'semaine' ? 'tranche' : 'semaine'}
-          </CardTitle>
-          <CardDescription className="text-[#8B6F47]">
-            Visualisation CSS — barres dorées
-            {activeIncidents.length > 0 && (
-              <span className="ml-1 text-[#4A7C59]">({activeIncidents.length} actifs)</span>
-            )}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-0">
-          <div className="flex h-56 items-end justify-around gap-3 border-b border-[#EAE5DC] pb-2">
-            {dailyBars.map((b, i) => (
-              <div key={i} className="flex flex-1 flex-col items-center gap-2">
-                <span className="text-xs font-semibold text-[#2C2C2C]">{b.value}</span>
-                <div
-                  className="w-full max-w-[42px] rounded-t-md bg-gradient-to-t from-[#8B6F47] to-[#C9A961] transition-all"
-                  style={{ height: `${(b.value / maxBar) * 100}%`, minHeight: '4px' }}
-                />
-                <span className="text-[11px] text-[#8B6F47]">{b.label}</span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
+function ReportsTab() {
+  return <VipReportsTab />
 }
 
 // ============================================================
@@ -3965,503 +3249,7 @@ function ReportsTab({ incidents }: { incidents: VipIncident[] }) {
 // ============================================================
 
 function SettingsTab() {
-  const { toast } = useToast()
-  const [settings, setSettings] = useState<VipSettings>(DEFAULT_SETTINGS)
-  const [saving, setSaving] = useState(false)
-
-  const update = <K extends keyof VipSettings>(key: K, value: VipSettings[K]) => {
-    setSettings((s) => ({ ...s, [key]: value }))
-  }
-
-  const save = () => {
-    setSaving(true)
-    // Simule une persistance locale (l'API dédiée n'existe pas encore)
-    setTimeout(() => {
-      try {
-        localStorage.setItem('vip_settings', JSON.stringify(settings))
-      } catch {
-        /* ignore */
-      }
-      setSaving(false)
-      toast({ title: 'Paramètres enregistrés', description: 'La configuration du salon a été mise à jour.' })
-    }, 600)
-  }
-
-  // Charge les settings persistés au montage (différé via setTimeout(0)
-  // pour ne pas appeler setState de manière synchrone dans l'effet)
-  useEffect(() => {
-    const t = setTimeout(() => {
-      try {
-        const raw = localStorage.getItem('vip_settings')
-        if (raw) setSettings((s) => ({ ...s, ...JSON.parse(raw) }))
-      } catch {
-        /* ignore */
-      }
-    }, 0)
-    return () => clearTimeout(t)
-  }, [])
-
-  return (
-    <div className="space-y-5">
-      <SectionTitle
-        title="Paramètres"
-        subtitle="Configuration du salon VIP — général, Denise, buffet, douches, récompenses"
-        Icon={Settings}
-        action={
-          <Button onClick={save} disabled={saving} className="gap-2 bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white hover:opacity-90">
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Save className="h-4 w-4" aria-hidden />}
-            Enregistrer
-          </Button>
-        }
-      />
-
-      {/* Général */}
-      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-        <CardHeader className="px-0">
-          <CardTitle className="text-base text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
-            Général
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-0">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div>
-              <Label htmlFor="set-name" className="text-[#8B6F47]">Nom du salon</Label>
-              <Input
-                id="set-name"
-                value={settings.salonName}
-                onChange={(e) => update('salonName', e.target.value)}
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-            </div>
-            <div>
-              <Label htmlFor="set-cap" className="text-[#8B6F47]">Capacité (clients)</Label>
-              <Input
-                id="set-cap"
-                type="number"
-                value={settings.capacity}
-                onChange={(e) => update('capacity', Number(e.target.value))}
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-            </div>
-            <div>
-              <Label htmlFor="set-hours" className="text-[#8B6F47]">Horaires d'ouverture</Label>
-              <Input
-                id="set-hours"
-                value={settings.openingHours}
-                onChange={(e) => update('openingHours', e.target.value)}
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-            </div>
-          </div>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="set-addr" className="text-[#8B6F47]">Adresse</Label>
-              <Input
-                id="set-addr"
-                value={settings.salonAddress}
-                onChange={(e) => update('salonAddress', e.target.value)}
-                placeholder="Aéroport, Terminal 1, Dakar"
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-            </div>
-            <div>
-              <Label htmlFor="set-logo" className="text-[#8B6F47]">URL Logo</Label>
-              <Input
-                id="set-logo"
-                value={settings.salonLogoUrl ?? ''}
-                onChange={(e) => update('salonLogoUrl', e.target.value || null)}
-                placeholder="https://…/logo.png"
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Denise */}
-      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-        <CardHeader className="px-0">
-          <CardTitle className="text-base text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
-            Denise — Voix
-          </CardTitle>
-          <CardDescription className="text-[#8B6F47]">
-            Mode discrétion par défaut. La voix reste désactivée sauf urgence VIP.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-0 space-y-4">
-          <div className="flex items-center justify-between rounded-xl bg-[#FAFAF7] px-4 py-3">
-            <div className="flex items-center gap-3">
-              {settings.deniseVoiceEnabled ? (
-                <Volume2 className="h-5 w-5 text-[#C9A961]" aria-hidden />
-              ) : (
-                <VolumeX className="h-5 w-5 text-[#8B6F47]" aria-hidden />
-              )}
-              <div>
-                <p className="text-sm font-medium text-[#2C2C2C]">Voix activée</p>
-                <p className="text-xs text-[#8B6F47]">Désactivée par défaut — notifications visuelles uniquement</p>
-              </div>
-            </div>
-            <Switch checked={settings.deniseVoiceEnabled} onCheckedChange={(v) => update('deniseVoiceEnabled', v)} />
-          </div>
-          <div>
-            <Label className="text-[#8B6F47]">
-              Volume maximum : <span className="font-semibold text-[#2C2C2C]">{settings.deniseMaxVolume}%</span>
-            </Label>
-            <Slider
-              className="mt-2"
-              value={[settings.deniseMaxVolume]}
-              min={0}
-              max={30}
-              step={5}
-              onValueChange={(v) => update('deniseMaxVolume', v[0] ?? 0)}
-            />
-            <p className="mt-1 text-[11px] text-[#8B6F47]">Plafonné à 30% — confort VIP.</p>
-          </div>
-          <div>
-            <Label className="text-[#8B6F47]">Tonalité</Label>
-            <Select value={settings.deniseTone} onValueChange={(v) => update('deniseTone', v as VipSettings['deniseTone'])}>
-              <SelectTrigger className="mt-1.5 w-full border-[#EAE5DC] bg-[#FAFAF7] sm:w-[240px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="doux">Doux</SelectItem>
-                <SelectItem value="neutre">Neutre</SelectItem>
-                <SelectItem value="chaleureux">Chaleureux</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-[#8B6F47]">Langues parlées par Denise</Label>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {['fr', 'en', 'ar', 'es', 'de', 'pt', 'wo'].map((lang) => {
-                const active = settings.deniseLanguages.includes(lang)
-                return (
-                  <button
-                    key={lang}
-                    type="button"
-                    onClick={() => {
-                      const next = active
-                        ? settings.deniseLanguages.filter((l) => l !== lang)
-                        : [...settings.deniseLanguages, lang]
-                      update('deniseLanguages', next.length > 0 ? next : ['fr'])
-                    }}
-                    className={cn(
-                      'rounded-lg border px-3 py-1.5 text-xs font-medium uppercase transition',
-                      active
-                        ? 'border-[#C9A961] bg-[#C9A961]/12 text-[#8B6F47]'
-                        : 'border-[#EAE5DC] bg-[#FAFAF7] text-[#8B6F47]/60 hover:border-[#C9A961]/40',
-                    )}
-                  >
-                    {lang}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-          <div>
-            <Label htmlFor="set-welcome" className="text-[#8B6F47]">Message de bienvenue</Label>
-            <Textarea
-              id="set-welcome"
-              value={settings.deniseWelcomeMessage}
-              onChange={(e) => update('deniseWelcomeMessage', e.target.value)}
-              rows={2}
-              className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Alertes VIP */}
-      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-        <CardHeader className="px-0">
-          <CardTitle className="text-base text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
-            Alertes VIP
-          </CardTitle>
-          <CardDescription className="text-[#8B6F47]">
-            Alerte immédiate au Maître d&apos;Hôtel si un client VIP signale un problème.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-0 space-y-4">
-          <div className="flex items-center justify-between rounded-xl bg-[#FAFAF7] px-4 py-3">
-            <div className="flex items-center gap-3">
-              <Crown className="h-5 w-5 text-[#6B4C9A]" aria-hidden />
-              <div>
-                <p className="text-sm font-medium text-[#2C2C2C]">Alertes VIP activées</p>
-                <p className="text-xs text-[#8B6F47]">Notification prioritaire si un VIP mécontent signale</p>
-              </div>
-            </div>
-            <Switch checked={settings.vipAlertsEnabled} onCheckedChange={(v) => update('vipAlertsEnabled', v)} />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label className="text-[#8B6F47]">Destinataire</Label>
-              <Select value={settings.vipAlertsRecipient} onValueChange={(v) => update('vipAlertsRecipient', v)}>
-                <SelectTrigger className="mt-1.5 w-full border-[#EAE5DC] bg-[#FAFAF7]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Maître d'Hôtel">Maître d&apos;Hôtel</SelectItem>
-                  <SelectItem value="Manager">Manager</SelectItem>
-                  <SelectItem value="Réception">Réception</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="set-vip-delay" className="text-[#8B6F47]">Délai avant alerte (secondes)</Label>
-              <Input
-                id="set-vip-delay"
-                type="number"
-                min={0}
-                max={300}
-                value={settings.vipAlertsDelaySec}
-                onChange={(e) => update('vipAlertsDelaySec', Number(e.target.value))}
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-              <p className="mt-1 text-[11px] text-[#8B6F47]">0 = alerte immédiate</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Buffet */}
-      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-        <CardHeader className="px-0">
-          <CardTitle className="text-base text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
-            Buffet
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-0">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label className="text-[#8B6F47]">Intervalle de vérification</Label>
-              <Select
-                value={String(settings.buffetInterval)}
-                onValueChange={(v) => update('buffetInterval', Number(v) as VipSettings['buffetInterval'])}
-              >
-                <SelectTrigger className="mt-1.5 w-full border-[#EAE5DC] bg-[#FAFAF7]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="15">15 minutes</SelectItem>
-                  <SelectItem value="30">30 minutes</SelectItem>
-                  <SelectItem value="45">45 minutes</SelectItem>
-                  <SelectItem value="60">60 minutes</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-[#8B6F47]">
-                Seuil d'alerte basse : <span className="font-semibold text-[#2C2C2C]">{settings.buffetLowThreshold}%</span>
-              </Label>
-              <Slider
-                className="mt-3"
-                value={[settings.buffetLowThreshold]}
-                min={10}
-                max={50}
-                step={5}
-                onValueChange={(v) => update('buffetLowThreshold', v[0] ?? 30)}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Douches */}
-      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-        <CardHeader className="px-0">
-          <CardTitle className="text-base text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
-            Douches
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-0">
-          <div className="grid gap-4 sm:grid-cols-4">
-            <div>
-              <Label htmlFor="set-sh-count" className="text-[#8B6F47]">Nombre de cabines</Label>
-              <Input
-                id="set-sh-count"
-                type="number"
-                value={settings.showersCount}
-                onChange={(e) => update('showersCount', Number(e.target.value))}
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-            </div>
-            <div>
-              <Label htmlFor="set-sh-max" className="text-[#8B6F47]">Durée max (min)</Label>
-              <Input
-                id="set-sh-max"
-                type="number"
-                value={settings.showerMaxTime}
-                onChange={(e) => update('showerMaxTime', Number(e.target.value))}
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-            </div>
-            <div>
-              <Label htmlFor="set-sh-clean" className="text-[#8B6F47]">Temps nettoyage (min)</Label>
-              <Input
-                id="set-sh-clean"
-                type="number"
-                value={settings.showerCleaningTime}
-                onChange={(e) => update('showerCleaningTime', Number(e.target.value))}
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-            </div>
-            <div>
-              <Label htmlFor="set-sh-deep" className="text-[#8B6F47]">Nettoyage profond après</Label>
-              <Input
-                id="set-sh-deep"
-                type="number"
-                value={settings.showerDeepCleanThreshold}
-                onChange={(e) => update('showerDeepCleanThreshold', Number(e.target.value))}
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-              <p className="mt-1 text-[11px] text-[#8B6F47]">utilisations</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Récompenses */}
-      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-        <CardHeader className="px-0">
-          <CardTitle className="text-base text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
-            Récompenses
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-0">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="set-rw-budget" className="text-[#8B6F47]">Budget mensuel (€)</Label>
-              <Input
-                id="set-rw-budget"
-                type="number"
-                value={settings.rewardsBudgetMonthly}
-                onChange={(e) => update('rewardsBudgetMonthly', Number(e.target.value))}
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-            </div>
-            <div>
-              <Label className="text-[#8B6F47]">Mode de validation</Label>
-              <Select
-                value={settings.rewardsValidation}
-                onValueChange={(v) => update('rewardsValidation', v as VipSettings['rewardsValidation'])}
-              >
-                <SelectTrigger className="mt-1.5 w-full border-[#EAE5DC] bg-[#FAFAF7]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="auto">Automatique (staff)</SelectItem>
-                  <SelectItem value="manager">Validation manager</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Notifications */}
-      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-        <CardHeader className="px-0">
-          <CardTitle className="text-base text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
-            Notifications
-          </CardTitle>
-          <CardDescription className="text-[#8B6F47]">
-            Canaux de notification et horaires de non-disturb (DND).
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-0 space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex items-center justify-between rounded-xl bg-[#FAFAF7] px-4 py-3">
-              <div className="flex items-center gap-3">
-                <Bell className="h-4 w-4 text-[#C9A961]" aria-hidden />
-                <p className="text-sm font-medium text-[#2C2C2C]">Push navigateur</p>
-              </div>
-              <Switch checked={settings.notifPushEnabled} onCheckedChange={(v) => update('notifPushEnabled', v)} />
-            </div>
-            <div className="flex items-center justify-between rounded-xl bg-[#FAFAF7] px-4 py-3">
-              <div className="flex items-center gap-3">
-                <Bell className="h-4 w-4 text-[#8B6F47]" aria-hidden />
-                <p className="text-sm font-medium text-[#2C2C2C]">Email</p>
-              </div>
-              <Switch checked={settings.notifEmailEnabled} onCheckedChange={(v) => update('notifEmailEnabled', v)} />
-            </div>
-            <div className="flex items-center justify-between rounded-xl bg-[#FAFAF7] px-4 py-3">
-              <div className="flex items-center gap-3">
-                <Bell className="h-4 w-4 text-[#8B6F47]" aria-hidden />
-                <p className="text-sm font-medium text-[#2C2C2C]">SMS</p>
-              </div>
-              <Switch checked={settings.notifSmsEnabled} onCheckedChange={(v) => update('notifSmsEnabled', v)} />
-            </div>
-            <div className="flex items-center justify-between rounded-xl bg-[#FAFAF7] px-4 py-3">
-              <div className="flex items-center gap-3">
-                <Bell className="h-4 w-4 text-[#4A7C59]" aria-hidden />
-                <p className="text-sm font-medium text-[#2C2C2C]">WhatsApp</p>
-              </div>
-              <Switch checked={settings.notifWhatsappEnabled} onCheckedChange={(v) => update('notifWhatsappEnabled', v)} />
-            </div>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="set-dnd-start" className="text-[#8B6F47]">Début DND (ne pas déranger)</Label>
-              <Input
-                id="set-dnd-start"
-                type="time"
-                value={settings.notifDndStart}
-                onChange={(e) => update('notifDndStart', e.target.value)}
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-            </div>
-            <div>
-              <Label htmlFor="set-dnd-end" className="text-[#8B6F47]">Fin DND</Label>
-              <Input
-                id="set-dnd-end"
-                type="time"
-                value={settings.notifDndEnd}
-                onChange={(e) => update('notifDndEnd', e.target.value)}
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-            </div>
-          </div>
-          <p className="text-[11px] text-[#8B6F47]">
-            Pendant la plage DND, seules les alertes critiques VIP sont envoyees. Les autres sont silencieuses.
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Integrations */}
-      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-        <CardHeader className="px-0">
-          <CardTitle className="text-base text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
-            Integrations
-          </CardTitle>
-          <CardDescription className="text-[#8B6F47]">
-            Connexions aux services externes (lecture seule).
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-0 space-y-4">
-          <div className="flex items-center justify-between rounded-xl bg-[#FAFAF7] px-4 py-3">
-            <div className="flex items-center gap-3">
-              <Plane className="h-5 w-5 text-[#C9A961]" aria-hidden />
-              <div>
-                <p className="text-sm font-medium text-[#2C2C2C]">API Vols (read-only)</p>
-                <p className="text-xs text-[#8B6F47]">Lecture des vols et embarquements pour le dbarrassage proactif</p>
-              </div>
-            </div>
-            <Switch checked={settings.integrationFlightsApi} onCheckedChange={(v) => update('integrationFlightsApi', v)} />
-          </div>
-          <div className="flex items-center justify-between rounded-xl bg-[#FAFAF7] px-4 py-3">
-            <div className="flex items-center gap-3">
-              <Users className="h-5 w-5 text-[#6B4C9A]" aria-hidden />
-              <div>
-                <p className="text-sm font-medium text-[#2C2C2C]">Import profils VIP</p>
-                <p className="text-xs text-[#8B6F47]">Synchronisation des clients VIP depuis le CRM externe</p>
-              </div>
-            </div>
-            <Switch checked={settings.integrationVipImport} onCheckedChange={(v) => update('integrationVipImport', v)} />
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
+  return <VipSettingsTab />
 }
 
 // ============================================================
@@ -4484,6 +3272,8 @@ export default function VIPDashboard() {
   const [refreshing, setRefreshing] = useState(false)
   const [rewardsGivenToday, setRewardsGivenToday] = useState(2)
   const [clientsCount] = useState(18)
+  // Configuration du tenant (modules optionnels, réglages lounge) — appliquée < 5s
+  const [loungeConfig, setLoungeConfig] = useState<VipLoungeConfig | null>(null)
 
   const loungeName = session?.pro?.nomEtablissement ?? 'Salon VIP'
   const userEmail = session?.user?.email ?? '—'
@@ -4532,6 +3322,30 @@ export default function VIPDashboard() {
     const interval = setInterval(refreshData, 30000)
     return () => clearInterval(interval)
   }, [refreshData])
+
+  // Config tenant lounge : chargement initial + refetch quand on revient
+  // sur les onglets (application des paramètres en < 5s)
+  useEffect(() => {
+    let cancelled = false
+    const chargerConfig = async () => {
+      try {
+        const res = await fetch('/api/vip/settings', { cache: 'no-store' })
+        const json = await res.json().catch(() => null)
+        if (!cancelled && json?.ok) setLoungeConfig(json.data.config)
+      } catch {
+        /* silencieux — défauts serveur */
+      }
+    }
+    chargerConfig()
+    const interval = setInterval(chargerConfig, 20000)
+    const onFocusTab = () => chargerConfig()
+    window.addEventListener('focus', onFocusTab)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+      window.removeEventListener('focus', onFocusTab)
+    }
+  }, [])
 
   // Récompenses : on initialise à 2 (mock) — elles s'incrémentent via le tab Rewards
   // via un callback. Pour rester simple, on calcule depuis le storage local.
@@ -4724,6 +3538,14 @@ export default function VIPDashboard() {
     refreshData()
   }
 
+  const TAB_MODULE_KEY_ROOT: Partial<Record<VipTab, keyof VipLoungeConfig['modulesEnabled']>> = {
+    showers: 'smartShower',
+    rewards: 'flashRewards',
+  }
+  useEffect(() => {
+    const key = TAB_MODULE_KEY_ROOT[tab]
+    if (key && loungeConfig && loungeConfig.modulesEnabled[key] === false) setTab('overview')
+  }, [tab, loungeConfig])
   const currentNav = NAV_ITEMS.find((n) => n.id === tab)
   const titreOnglet = currentNav?.label ?? 'Vue d\'ensemble'
 
@@ -4741,6 +3563,7 @@ export default function VIPDashboard() {
           userEmail={userEmail}
           userRole={userRole}
           onLogout={logout}
+          modulesEnabled={loungeConfig?.modulesEnabled ?? null}
         />
       </aside>
 
@@ -4759,6 +3582,7 @@ export default function VIPDashboard() {
                   userEmail={userEmail}
                   userRole={userRole}
                   onLogout={logout}
+                  modulesEnabled={loungeConfig?.modulesEnabled ?? null}
                 />
               </SheetContent>
             </Sheet>
@@ -4817,6 +3641,8 @@ export default function VIPDashboard() {
       {/* ---------- Contenu ---------- */}
       <main className="w-full flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
         <div className="mx-auto max-w-7xl">
+          {/* Alerte Maître d'Hôtel — détection VIP, 100% visuelle (mode discrétion) */}
+          <VipGuestAlertBanner />
           {tab === 'overview' && (
             <OverviewTab
               incidents={incidents}
@@ -4845,14 +3671,14 @@ export default function VIPDashboard() {
           {tab === 'buffet' && (
             <BuffetTab buffet={buffet} loading={loading} onPatchFill={patchBuffetFill} />
           )}
-          {tab === 'showers' && (
+          {tab === 'showers' && (loungeConfig?.modulesEnabled.smartShower ?? true) && (
             <ShowersTab showers={showers} loading={loading} onPatchStatus={patchShowerStatus} />
           )}
-          {tab === 'rewards' && <RewardsTab staffName={staffName} />}
+          {tab === 'rewards' && (loungeConfig?.modulesEnabled.flashRewards ?? true) && <RewardsTab staffName={staffName} />}
           {tab === 'clients' && <ClientsTab />}
           {tab === 'staff' && <StaffTab />}
           {tab === 'qr' && <QRTab />}
-          {tab === 'reports' && <ReportsTab incidents={incidents} />}
+          {tab === 'reports' && <ReportsTab />}
           {tab === 'wallboard' && (
             <div className="relative h-[calc(100vh-200px)] min-h-[500px] w-full overflow-hidden rounded-2xl border border-[#EAE5DC] shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
               <iframe

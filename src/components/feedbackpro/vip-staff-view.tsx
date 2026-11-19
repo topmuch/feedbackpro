@@ -62,6 +62,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
+import { VipGuestAlertBanner } from '@/components/feedbackpro/vip-guest-alert'
 import { cn } from '@/lib/utils'
 import { VipLostFound } from '@/components/feedbackpro/vip-lost-found'
 import { VipBriefing } from '@/components/feedbackpro/vip-briefing'
@@ -937,6 +938,11 @@ export function VipStaffView({
     return (
       <div className="flex flex-col h-full">
         {renderKpis()}
+
+        {/* Alerte Maître d'Hôtel — détection VIP, visuelle uniquement (discrétion) */}
+        <div className="px-5 pt-3">
+          <VipGuestAlertBanner />
+        </div>
 
         {/* Bandeau feed + refresh */}
         <div className="flex items-center justify-between px-5 py-3 border-b border-[#EAE5DC]">
