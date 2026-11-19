@@ -2865,49 +2865,177 @@ function RewardsTab({ staffName }: { staffName: string }) {
 
 function ClientsTab() {
   const { toast } = useToast()
-  const [clients, setClients] = useState<VipClient[]>(SEED_CLIENTS)
+  const [clients, setClients] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
   const [search, setSearch] = useState('')
   const [filterLevel, setFilterLevel] = useState<string>('all')
   const [formOpen, setFormOpen] = useState(false)
-  const [form, setForm] = useState<{ name: string; photoUrl: string; airline: string; level: VipClient['level']; notes: string }>({
+  const [form, setForm] = useState<{
+    name: string
+    photo: string
+    airline: string
+    vipLevel: 'gold' | 'platinum' | 'diamond'
+    preferences: string
+    allergies: string
+    notes: string
+    consent: boolean
+  }>({
     name: '',
-    photoUrl: '',
+    photo: '',
     airline: '',
-    level: 'Gold',
+    vipLevel: 'gold',
+    preferences: '',
+    allergies: '',
     notes: '',
+    consent: false,
   })
 
+  // Styles par niveau VIP (clés bas-cases, conformes au contrat API)
+  const LEVEL_STYLES: Record<
+    'gold' | 'platinum' | 'diamond',
+    { label: string; bg: string; text: string; Icon: typeof Crown }
+  > = {
+    gold: { label: 'Gold', bg: 'bg-[#C9A961]/15', text: 'text-[#8B6F47]', Icon: Crown },
+    platinum: { label: 'Platinum', bg: 'bg-[#6B4C9A]/12', text: 'text-[#6B4C9A]', Icon: Sparkles },
+    diamond: { label: 'Diamond', bg: 'bg-[#4A7C59]/12', text: 'text-[#4A7C59]', Icon: Diamond },
+  }
+
+  // ---- Fetch clients depuis l'API
+  const fetchClients = useCallback(async () => {
+    try {
+      setLoading(true)
+      const res = await fetch('/api/vip/clients', { cache: 'no-store' })
+      const json = await res.json().catch(() => null)
+      if (json?.ok) {
+        setClients(json.data ?? [])
+      } else {
+        toast({
+          title: 'Erreur',
+          description: "Impossible de charger les clients VIP.",
+          variant: 'destructive',
+        })
+      }
+    } catch {
+      toast({
+        title: 'Erreur réseau',
+        description: 'Vérifiez votre connexion.',
+        variant: 'destructive',
+      })
+    } finally {
+      setLoading(false)
+    }
+  }, [toast])
+
+  useEffect(() => {
+    fetchClients()
+  }, [fetchClients])
+
+  // ---- Helpers parsing préférences (stockées en JSON string côté API)
+  const parsePreferencesList = useCallback((raw: string | null | undefined): string[] => {
+    if (!raw) return []
+    try {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) return parsed.filter((x) => typeof x === 'string')
+      return []
+    } catch {
+      return []
+    }
+  }, [])
+
+  const buildPreferencesJson = (raw: string, allergies: string): string => {
+    const tags: string[] = raw
+      .split(',')
+      .map((t) => t.trim())
+      .filter(Boolean)
+    if (allergies.trim()) {
+      tags.push(`allergie: ${allergies.trim()}`)
+    }
+    return JSON.stringify(tags)
+  }
+
+  // ---- Filtrage
   const filtered = useMemo(() => {
-    return clients.filter((c) => {
-      if (filterLevel !== 'all' && c.level !== filterLevel) return false
+    return clients.filter((c: any) => {
+      const levelKey = String(c?.vipLevel ?? 'gold').toLowerCase()
+      if (filterLevel !== 'all' && levelKey !== filterLevel) return false
       if (search.trim()) {
         const q = search.trim().toLowerCase()
-        const hay = `${c.name} ${c.airline} ${c.notes}`.toLowerCase()
+        const hay = `${c?.name ?? ''} ${c?.airline ?? ''} ${c?.notes ?? ''}`.toLowerCase()
         if (!hay.includes(q)) return false
       }
       return true
     })
   }, [clients, search, filterLevel])
 
-  const addClient = () => {
-    if (!form.name.trim() || !form.airline.trim()) {
-      toast({ title: 'Champs requis', description: 'Nom et compagnie sont obligatoires.', variant: 'destructive' })
+  // ---- Ajout client via API
+  const addClient = useCallback(async () => {
+    if (!form.name.trim()) {
+      toast({
+        title: 'Champ requis',
+        description: 'Le nom du client est obligatoire.',
+        variant: 'destructive',
+      })
       return
     }
-    const newClient: VipClient = {
-      id: `c-${Date.now()}`,
-      name: form.name.trim(),
-      photoUrl: form.photoUrl.trim() || null,
-      airline: form.airline.trim(),
-      level: form.level,
-      lastVisit: new Date().toISOString().slice(0, 10),
-      notes: form.notes.trim(),
+    if (!form.consent) {
+      toast({
+        title: 'Consentement requis',
+        description: "Vous devez obtenir le consentement RGPD du client.",
+        variant: 'destructive',
+      })
+      return
     }
-    setClients((c) => [newClient, ...c])
-    setForm({ name: '', photoUrl: '', airline: '', level: 'Gold', notes: '' })
-    setFormOpen(false)
-    toast({ title: 'Client ajouté', description: `${newClient.name} · ${newClient.level}` })
-  }
+    try {
+      setSaving(true)
+      const payload = {
+        name: form.name.trim(),
+        photo: form.photo.trim() || null,
+        airline: form.airline.trim(),
+        vipLevel: form.vipLevel,
+        preferences: buildPreferencesJson(form.preferences, form.allergies),
+        notes: form.notes.trim(),
+      }
+      const res = await fetch('/api/vip/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      })
+      const json = await res.json().catch(() => null)
+      if (json?.ok) {
+        toast({
+          title: 'Client ajouté',
+          description: `${payload.name} · ${LEVEL_STYLES[form.vipLevel].label}`,
+        })
+        setForm({
+          name: '',
+          photo: '',
+          airline: '',
+          vipLevel: 'gold',
+          preferences: '',
+          allergies: '',
+          notes: '',
+          consent: false,
+        })
+        setFormOpen(false)
+        fetchClients()
+      } else {
+        toast({
+          title: 'Erreur',
+          description: json?.error ?? 'Création impossible.',
+          variant: 'destructive',
+        })
+      }
+    } catch {
+      toast({
+        title: 'Erreur réseau',
+        description: 'Vérifiez votre connexion.',
+        variant: 'destructive',
+      })
+    } finally {
+      setSaving(false)
+    }
+  }, [form, toast, LEVEL_STYLES, fetchClients])
 
   return (
     <div className="space-y-5">
@@ -2924,6 +3052,12 @@ function ClientsTab() {
           </Button>
         }
       />
+
+      {/* Note détection automatique VIP */}
+      <div className="flex items-center gap-2 rounded-lg border border-[#C9A961]/25 bg-[#C9A961]/8 px-3 py-2 text-xs text-[#8B6F47]">
+        <Sparkles className="h-3.5 w-3.5 shrink-0 text-[#C9A961]" aria-hidden />
+        <span>Les clients VIP sont automatiquement détectés au scan QR de la table.</span>
+      </div>
 
       {/* Filtres */}
       <Card className="border border-[#EAE5DC] bg-white p-4 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
@@ -2943,66 +3077,120 @@ function ClientsTab() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tous niveaux</SelectItem>
-              <SelectItem value="Gold">Gold</SelectItem>
-              <SelectItem value="Platinum">Platinum</SelectItem>
-              <SelectItem value="Diamond">Diamond</SelectItem>
+              <SelectItem value="gold">Gold</SelectItem>
+              <SelectItem value="platinum">Platinum</SelectItem>
+              <SelectItem value="diamond">Diamond</SelectItem>
             </SelectContent>
           </Select>
         </div>
       </Card>
 
-      {/* Table */}
-      <Card className="border border-[#EAE5DC] bg-white shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-        <Table>
-          <TableHeader>
-            <TableRow className="border-[#EAE5DC] hover:bg-transparent">
-              <TableHead className="text-[#8B6F47]">Client</TableHead>
-              <TableHead className="text-[#8B6F47]">Compagnie</TableHead>
-              <TableHead className="text-[#8B6F47]">Niveau</TableHead>
-              <TableHead className="text-[#8B6F47]">Dernière visite</TableHead>
-              <TableHead className="text-[#8B6F47]">Notes</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filtered.map((c) => {
-              const levelStyle = CLIENT_LEVEL_STYLE[c.level]
-              const LevelIcon = levelStyle.Icon
-              return (
-                <TableRow key={c.id} className="border-[#EAE5DC]">
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      <Avatar className="h-9 w-9 ring-1 ring-[#EAE5DC]">
-                        {c.photoUrl && <AvatarImage src={c.photoUrl} alt={c.name} />}
-                        <AvatarFallback className="bg-[#C9A961]/15 text-xs font-semibold text-[#8B6F47]">
-                          {initials(c.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <span className="font-medium text-[#2C2C2C]">{c.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell className="text-sm text-[#8B6F47]">{c.airline}</TableCell>
-                  <TableCell>
-                    <Badge variant="outline" className={cn('border font-semibold', levelStyle.bg, levelStyle.text)}>
-                      <LevelIcon className="h-3 w-3" aria-hidden /> {levelStyle.label}
+      {/* Loading */}
+      {loading && (
+        <div className="flex items-center justify-center py-12 text-[#8B6F47]">
+          <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+          <span className="ml-2 text-sm">Chargement des clients…</span>
+        </div>
+      )}
+
+      {/* Cartes clients */}
+      {!loading && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((c: any) => {
+            const levelKey = (String(c?.vipLevel ?? 'gold').toLowerCase() as
+              | 'gold'
+              | 'platinum'
+              | 'diamond')
+            const ls = LEVEL_STYLES[levelKey] ?? LEVEL_STYLES.gold
+            const LevelIcon = ls.Icon
+            const prefs = parsePreferencesList(c?.preferences)
+            const visitCount = Number(c?.visitCount ?? 0)
+            const lastVisit = c?.lastVisit ? new Date(c.lastVisit) : null
+            return (
+              <Card
+                key={c?.id ?? `${c?.name}-${Math.random()}`}
+                className="border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]"
+              >
+                <div className="flex items-start gap-3">
+                  <Avatar className="h-12 w-12 ring-1 ring-[#EAE5DC]">
+                    {c?.photo && <AvatarImage src={c.photo} alt={c?.name ?? 'Client'} />}
+                    <AvatarFallback className="bg-[#C9A961]/15 text-sm font-semibold text-[#8B6F47]">
+                      {initials(c?.name ?? '?')}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="min-w-0 flex-1">
+                    <h3
+                      className="truncate text-base font-semibold text-[#2C2C2C]"
+                      style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
+                    >
+                      {c?.name ?? 'Client'}
+                    </h3>
+                    {c?.airline && (
+                      <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-[#8B6F47]">
+                        <Plane className="h-3 w-3" aria-hidden /> {c.airline}
+                      </p>
+                    )}
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        'mt-1.5 inline-flex items-center gap-1 border font-semibold',
+                        ls.bg,
+                        ls.text,
+                      )}
+                    >
+                      <LevelIcon className="h-3 w-3" aria-hidden /> {ls.label}
                     </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm text-[#8B6F47]">{c.lastVisit}</TableCell>
-                  <TableCell className="max-w-[280px]">
-                    <p className="truncate text-xs text-[#8B6F47]">{c.notes || '—'}</p>
-                  </TableCell>
-                </TableRow>
-              )
-            })}
-            {filtered.length === 0 && (
-              <TableRow>
-                <TableCell colSpan={5} className="py-10 text-center text-sm text-[#8B6F47]">
-                  Aucun client ne correspond à vos critères.
-                </TableCell>
-              </TableRow>
-            )}
-          </TableBody>
-        </Table>
-      </Card>
+                  </div>
+                </div>
+
+                {prefs.length > 0 && (
+                  <div className="mt-3 flex flex-wrap gap-1.5">
+                    {prefs.map((p, i) => {
+                      const isAllergy = p.toLowerCase().startsWith('allergie')
+                      return (
+                        <span
+                          key={`${p}-${i}`}
+                          className={cn(
+                            'rounded-full px-2 py-0.5 text-[11px] font-medium',
+                            isAllergy
+                              ? 'bg-[#C97B63]/12 text-[#C97B63]'
+                              : 'bg-[#C9A961]/10 text-[#8B6F47]',
+                          )}
+                        >
+                          {p}
+                        </span>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {c?.notes && (
+                  <p className="mt-3 line-clamp-2 text-xs text-[#8B6F47]">{c.notes}</p>
+                )}
+
+                <div className="mt-3 flex items-center justify-between border-t border-[#EAE5DC] pt-3 text-xs text-[#8B6F47]">
+                  <span className="flex items-center gap-1">
+                    <Coffee className="h-3 w-3" aria-hidden /> {visitCount} visite{visitCount > 1 ? 's' : ''}
+                  </span>
+                  {lastVisit && (
+                    <span className="flex items-center gap-1">
+                      <Clock className="h-3 w-3" aria-hidden />{' '}
+                      {lastVisit.toLocaleDateString('fr-FR')}
+                    </span>
+                  )}
+                </div>
+              </Card>
+            )
+          })}
+        </div>
+      )}
+
+      {!loading && filtered.length === 0 && (
+        <Card className="border border-[#EAE5DC] bg-white p-10 text-center shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+          <Users className="mx-auto h-8 w-8 text-[#8B6F47]/40" aria-hidden />
+          <p className="mt-3 text-sm text-[#8B6F47]">Aucun client ne correspond à vos critères.</p>
+        </Card>
+      )}
 
       {/* Dialog ajout */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
@@ -3028,7 +3216,7 @@ function ClientsTab() {
                 />
               </div>
               <div>
-                <Label htmlFor="c-airline" className="text-[#8B6F47]">Compagnie *</Label>
+                <Label htmlFor="c-airline" className="text-[#8B6F47]">Compagnie</Label>
                 <Input
                   id="c-airline"
                   value={form.airline}
@@ -3041,14 +3229,19 @@ function ClientsTab() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <Label htmlFor="c-level" className="text-[#8B6F47]">Niveau VIP</Label>
-                <Select value={form.level} onValueChange={(v) => setForm((f) => ({ ...f, level: v as VipClient['level'] }))}>
+                <Select
+                  value={form.vipLevel}
+                  onValueChange={(v) =>
+                    setForm((f) => ({ ...f, vipLevel: v as 'gold' | 'platinum' | 'diamond' }))
+                  }
+                >
                   <SelectTrigger id="c-level" className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="Gold">Gold</SelectItem>
-                    <SelectItem value="Platinum">Platinum</SelectItem>
-                    <SelectItem value="Diamond">Diamond</SelectItem>
+                    <SelectItem value="gold">Gold</SelectItem>
+                    <SelectItem value="platinum">Platinum</SelectItem>
+                    <SelectItem value="diamond">Diamond</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -3056,31 +3249,77 @@ function ClientsTab() {
                 <Label htmlFor="c-photo" className="text-[#8B6F47]">Photo (URL)</Label>
                 <Input
                   id="c-photo"
-                  value={form.photoUrl}
-                  onChange={(e) => setForm((f) => ({ ...f, photoUrl: e.target.value }))}
+                  value={form.photo}
+                  onChange={(e) => setForm((f) => ({ ...f, photo: e.target.value }))}
                   placeholder="https://…"
                   className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
                 />
               </div>
             </div>
             <div>
-              <Label htmlFor="c-notes" className="text-[#8B6F47]">Notes / préférences</Label>
+              <Label htmlFor="c-prefs" className="text-[#8B6F47]">
+                Préférences <span className="text-[#8B6F47]/60">(séparées par virgule)</span>
+              </Label>
+              <Input
+                id="c-prefs"
+                value={form.preferences}
+                onChange={(e) => setForm((f) => ({ ...f, preferences: e.target.value }))}
+                placeholder="ex. fenêtre, espresso double, thé matcha"
+                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+              />
+            </div>
+            <div>
+              <Label htmlFor="c-allergies" className="text-[#8B6F47]">Allergies</Label>
+              <Input
+                id="c-allergies"
+                value={form.allergies}
+                onChange={(e) => setForm((f) => ({ ...f, allergies: e.target.value }))}
+                placeholder="ex. crustacés, arachides"
+                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+              />
+            </div>
+            <div>
+              <Label htmlFor="c-notes" className="text-[#8B6F47]">Notes concierge</Label>
               <Textarea
                 id="c-notes"
                 value={form.notes}
                 onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                placeholder="Préférences, allergies, habitudes…"
+                placeholder="Habitudes, observations…"
                 className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
                 rows={3}
               />
             </div>
+            <label className="flex items-start gap-2 rounded-md border border-[#EAE5DC] bg-[#FAFAF7] p-3 text-xs text-[#2C2C2C]">
+              <input
+                type="checkbox"
+                checked={form.consent}
+                onChange={(e) => setForm((f) => ({ ...f, consent: e.target.checked }))}
+                className="mt-0.5 h-3.5 w-3.5 accent-[#C9A961]"
+              />
+              <span>
+                J&apos;ai obtenu le consentement du client pour la collecte de ses données (RGPD).
+              </span>
+            </label>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setFormOpen(false)} className="border-[#EAE5DC] bg-[#FAFAF7] text-[#8B6F47]">
+            <Button
+              variant="outline"
+              onClick={() => setFormOpen(false)}
+              className="border-[#EAE5DC] bg-[#FAFAF7] text-[#8B6F47]"
+            >
               Annuler
             </Button>
-            <Button onClick={addClient} className="gap-2 bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white hover:opacity-90">
-              <Plus className="h-4 w-4" aria-hidden /> Ajouter
+            <Button
+              onClick={addClient}
+              disabled={!form.consent || saving}
+              className="gap-2 bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white hover:opacity-90"
+            >
+              {saving ? (
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <Plus className="h-4 w-4" aria-hidden />
+              )}
+              {saving ? 'Enregistrement…' : 'Ajouter'}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -3445,21 +3684,82 @@ function QRTab() {
 // ============================================================
 
 function ReportsTab({ incidents }: { incidents: VipIncident[] }) {
+  const { toast } = useToast()
   const [period, setPeriod] = useState<'jour' | 'semaine' | 'mois'>('jour')
+  const [data, setData] = useState<any | null>(null)
+  const [rewards, setRewards] = useState<any[]>([])
+  const [orders, setOrders] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  // Données dérivées (mock partiel pour la démo, basé sur les incidents réels)
-  const resolvedToday = incidents.filter((i) => i.statut === 'RESOLU').length
-  const totalToday = incidents.length
-  const satisfactionAvg = 4.6
-  const rewardsCost = 153
+  // ---- Fetch asynchrone (wallboard + reward-grants + orders)
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([
+      fetch('/api/vip/wallboard', { cache: 'no-store' })
+        .then((r) => r.json())
+        .catch(() => null),
+      fetch('/api/vip/reward-grants', { cache: 'no-store' })
+        .then((r) => r.json())
+        .catch(() => null),
+      fetch('/api/vip/orders', { cache: 'no-store' })
+        .then((r) => r.json())
+        .catch(() => null),
+    ]).then(([wb, rw, ord]) => {
+      if (cancelled) return
+      if (wb?.ok) setData(wb.data)
+      if (rw?.ok) setRewards(rw.data ?? [])
+      if (ord?.ok) setOrders(ord.data ?? [])
+      setLoading(false)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // ---- Extraction tolérante des KPIs (plusieurs casse possibles)
+  const kpis = data?.kpis ?? {}
+  const activeIncidents: any[] =
+    data?.active_incidents ?? data?.activeIncidents ?? []
+  const recentlyResolved: any[] =
+    data?.recently_resolved ?? data?.recentlyResolved ?? []
+
+  const resolvedToday: number =
+    kpis.resolved_today ?? kpis.resolvedToday ?? recentlyResolved.length
+  const avgResolution: number =
+    kpis.avg_resolution_min ?? kpis.avgResolutionMin ?? 0
+  const satisfaction: number =
+    kpis.satisfaction_score ?? kpis.satisfactionScore ?? 4.6
+  const totalToday: number =
+    kpis.total_today ?? kpis.totalToday ?? incidents.length
   const showersUsage = 27
+  const expressLoans = 15
+  const lostFound = 3
 
-  // Bar chart mock — 7 derniers jours
+  // Mock comparaison période précédente (+X%)
+  const comparePct = 12
+
+  // ---- Bar chart : données réelles groupées par jour (fallback mock)
   const dailyBars = useMemo(() => {
     const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
     const base = [4, 7, 5, 9, 12, 14, totalToday || 6]
+
+    // Agrégation par jour de la semaine depuis active_incidents
+    const byDay: Record<string, number> = {}
+    activeIncidents.forEach((inc) => {
+      const ts = inc?.createdAt ?? inc?.created_at ?? inc?.givenAt
+      if (!ts) return
+      try {
+        const d = new Date(ts)
+        if (isNaN(d.getTime())) return
+        const idx = (d.getDay() + 6) % 7 // 0 = Lundi
+        const label = days[idx]
+        byDay[label] = (byDay[label] ?? 0) + 1
+      } catch {
+        /* ignore */
+      }
+    })
+
     if (period === 'semaine') {
-      // Même semaine agrégée par tranche
       return [
         { label: 'S1', value: 8 },
         { label: 'S2', value: 11 },
@@ -3473,10 +3773,49 @@ function ReportsTab({ incidents }: { incidents: VipIncident[] }) {
         value: 35 + ((i * 7) % 18),
       }))
     }
-    return days.map((label, i) => ({ label, value: base[i] ?? 0 }))
-  }, [period, totalToday])
+    // Jour : données réelles si suffisamment riches, sinon fallback mock
+    const filled = days.map((label, i) => ({
+      label,
+      value: byDay[label] ?? base[i] ?? 0,
+    }))
+    const realDays = filled.filter((d) => byDay[d.label]).length
+    return realDays >= 3 ? filled : days.map((label, i) => ({ label, value: base[i] ?? 0 }))
+  }, [period, totalToday, activeIncidents])
 
   const maxBar = Math.max(...dailyBars.map((b) => b.value), 1)
+
+  // ---- Export CSV
+  const exportCSV = useCallback(() => {
+    const rows: Array<[string, string]> = [
+      ['Métrique', 'Valeur'],
+      ['Incidents résolus', String(resolvedToday)],
+      ['Temps moyen (min)', String(avgResolution)],
+      ['Satisfaction', `${satisfaction}/5`],
+      ['Récompenses', String(rewards.length)],
+      ['Upsells', String(orders.length)],
+      ['Douches', '27'],
+      ['Prêts Express', '15'],
+      ['Lost & Found', '3'],
+    ]
+    const csv = rows
+      .map((r) =>
+        r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','),
+      )
+      .join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `rapport-vip-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+    toast({
+      title: 'Export CSV',
+      description: 'Le rapport a été téléchargé.',
+    })
+  }, [resolvedToday, avgResolution, satisfaction, rewards.length, orders.length, toast])
 
   return (
     <div className="space-y-5">
@@ -3485,26 +3824,109 @@ function ReportsTab({ incidents }: { incidents: VipIncident[] }) {
         subtitle="Indicateurs de performance — salon VIP"
         Icon={BarChart3}
         action={
-          <Select value={period} onValueChange={(v) => setPeriod(v as 'jour' | 'semaine' | 'mois')}>
-            <SelectTrigger className="w-[140px] border-[#EAE5DC] bg-white text-sm">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="jour">Jour</SelectItem>
-              <SelectItem value="semaine">Semaine</SelectItem>
-              <SelectItem value="mois">Mois</SelectItem>
-            </SelectContent>
-          </Select>
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={period} onValueChange={(v) => setPeriod(v as 'jour' | 'semaine' | 'mois')}>
+              <SelectTrigger className="w-[140px] border-[#EAE5DC] bg-white text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="jour">Jour</SelectItem>
+                <SelectItem value="semaine">Semaine</SelectItem>
+                <SelectItem value="mois">Mois</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button
+              onClick={exportCSV}
+              variant="outline"
+              className="gap-2 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
+            >
+              <Download className="h-4 w-4" aria-hidden /> Exporter CSV
+            </Button>
+          </div>
         }
       />
 
-      {/* KPI rapports */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KPICard label="Incidents résolus" value={resolvedToday} Icon={CheckCircle2} tone="sage" hint={`sur ${totalToday} signalés`} />
-        <KPICard label="Satisfaction moyenne" value={satisfactionAvg.toFixed(1)} unit="/5" Icon={Sparkles} tone="gold" hint="Sur la période" />
-        <KPICard label="Récompenses (coût)" value={rewardsCost} unit="€" Icon={Gift} tone="amethyst" hint="Budget luxe" />
-        <KPICard label="Utilisation douches" value={showersUsage} Icon={ShowerHead} tone="bronze" hint="Sessions période" />
-      </div>
+      {/* Loading */}
+      {loading && (
+        <div className="flex items-center justify-center py-8 text-[#8B6F47]">
+          <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+          <span className="ml-2 text-sm">Chargement des indicateurs…</span>
+        </div>
+      )}
+
+      {/* KPI rapports — 8 cartes */}
+      {!loading && (
+        <>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <KPICard
+              label="Incidents résolus"
+              value={resolvedToday}
+              Icon={CheckCircle2}
+              tone="sage"
+              hint={`sur ${totalToday} signalés`}
+            />
+            <KPICard
+              label="Temps moyen résolution"
+              value={avgResolution}
+              unit="min"
+              Icon={Clock}
+              tone="bronze"
+              hint="Sur la période"
+            />
+            <KPICard
+              label="Satisfaction"
+              value={Number(satisfaction).toFixed(1)}
+              unit="/5"
+              Icon={Star}
+              tone="gold"
+              hint="Note moyenne"
+            />
+            <KPICard
+              label="Récompenses offertes"
+              value={rewards.length}
+              Icon={Gift}
+              tone="amethyst"
+              hint="Sur la période"
+            />
+            <KPICard
+              label="Upsells générés"
+              value={orders.length}
+              Icon={ArrowUp}
+              tone="gold"
+              hint="Ventes additionnelles"
+            />
+            <KPICard
+              label="Utilisation douches"
+              value={showersUsage}
+              Icon={ShowerHead}
+              tone="bronze"
+              hint="Sessions période"
+            />
+            <KPICard
+              label="Prêts Express"
+              value={expressLoans}
+              Icon={Plane}
+              tone="sage"
+              hint="Kits voyage prêtés"
+            />
+            <KPICard
+              label="Lost & Found"
+              value={lostFound}
+              Icon={AlertTriangle}
+              tone="terracotta"
+              hint="Objets trouvés"
+            />
+          </div>
+
+          {/* Comparaison période */}
+          <div className="flex items-center gap-1.5 text-xs text-[#8B6F47]">
+            <ArrowUp className="h-3 w-3 text-[#4A7C59]" aria-hidden />
+            <span>
+              vs période précédente : <span className="font-semibold text-[#4A7C59]">+{comparePct}%</span>
+            </span>
+          </div>
+        </>
+      )}
 
       {/* Bar chart CSS */}
       <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
@@ -3512,7 +3934,12 @@ function ReportsTab({ incidents }: { incidents: VipIncident[] }) {
           <CardTitle className="text-lg text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
             Incidents par {period === 'jour' ? 'jour' : period === 'semaine' ? 'tranche' : 'semaine'}
           </CardTitle>
-          <CardDescription className="text-[#8B6F47]">Visualisation CSS — barres dorées</CardDescription>
+          <CardDescription className="text-[#8B6F47]">
+            Visualisation CSS — barres dorées
+            {activeIncidents.length > 0 && (
+              <span className="ml-1 text-[#4A7C59]">({activeIncidents.length} actifs)</span>
+            )}
+          </CardDescription>
         </CardHeader>
         <CardContent className="px-0">
           <div className="flex h-56 items-end justify-around gap-3 border-b border-[#EAE5DC] pb-2">
