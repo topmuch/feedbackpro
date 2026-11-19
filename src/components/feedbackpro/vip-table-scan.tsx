@@ -1595,9 +1595,17 @@ export function VipTableScan({
             aria-hidden
           />
 
-          <span className="text-5xl" aria-hidden>
-            🥂
-          </span>
+          {/* SIGNATURE LUMINEUSE — Avatar de Nathalie (identité visuelle
+              de marque, généré selon le brief « présence élégante et
+              abstraite », pas de photo réaliste / uncanny valley).
+              Médailon circulaire, anneau champagne + halo doux — Luxe
+              Lumineux. Affiché pour LES DEUX modes (GLOBAL et ZONE) :
+              Nathalie est la même guide quel que soit le QR scanné. */}
+          <img
+            src="/brand/nathalie-avatar.png"
+            alt="Nathalie — votre guide personnel"
+            className="mx-auto h-20 w-20 rounded-full object-cover ring-2 ring-[#C9A961]/60 shadow-[0_4px_20px_rgba(201,169,97,0.35)]"
+          />
           <p className="mt-3 text-xs font-medium uppercase tracking-widest text-[#8B6F47]">
             {/* QR_ROUTING — écran d'accueil GLOBAL (QR d'entrée) :
                 Nathalie se présente, AUCUNE mention de table. */}
