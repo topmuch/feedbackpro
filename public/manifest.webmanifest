@@ -4,8 +4,8 @@
   "description": "Transformez vos clients en auditeurs qualité. Rapport IA quotidien avec 3 priorités pour améliorer votre service.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#2563EB",
+  "background_color": "#FAFAF7",
+  "theme_color": "#C9A961",
   "orientation": "portrait-primary",
   "icons": [
     {

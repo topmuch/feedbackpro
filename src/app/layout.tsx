@@ -15,6 +15,13 @@ export default function RootLayout({
   return (
     <html lang="fr" suppressHydrationWarning>
       <head>
+        {/* PWA — manifest lié au niveau du layout racine : c'est LA
+            condition manquante pour l'installabilité (Chrome exige un
+            <link rel="manifest"> dans le HTML pour émettre l'événement
+            beforeinstallprompt, utilisé par « Garder Nathalie »). */}
+        <link rel="manifest" href="/manifest.webmanifest" />
+        <meta name="theme-color" content="#C9A961" />
+        <link rel="apple-touch-icon" href="/icon-192.png" />
         {/* Typographie « Luxe Silencieux » — Playfair Display pour les
             titres (serif élégant, italique pour les accents) et Inter
             pour le corps de texte. Chargée en <link> (runtime) plutôt

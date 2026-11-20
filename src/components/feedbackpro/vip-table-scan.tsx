@@ -99,6 +99,15 @@ type Confirmation = {
   metadata?: any
 }
 
+// PWA — événement beforeinstallprompt (Chrome / Edge / Android).
+// Capturé tôt (preventDefault pour bloquer la mini-infobar Chrome),
+// il permet au bouton « Garder Nathalie » de lancer la VRAIE boîte
+// de dialogue d'installation native de la PWA.
+type BipEvent = Event & {
+  prompt: () => Promise<void>
+  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
+}
+
 // ÉCRAN 2 — Prêt Express : objet vedette affiché en vitrine
 // (le client voit « 2 disponibles » en vert sauge, comme en boutique)
 type QuickLoanItem = {
@@ -538,6 +547,12 @@ export function VipTableScan({
   // ---- « Luxe Silencieux » — micro-interactions ----
   // Wi-Fi : l'icône change au clic (Copy → Check, retour après 2 s)
   const [wifiCopied, setWifiCopied] = useState(false)
+  const wifiTimer = useRef<number | null>(null)
+  // Sélection de zone en cours : la carte cliquée passe en OR avec
+  // une coche ✓ pendant ~450 ms avant confirmation (feedback visible,
+  // demande directeur : « la zone sélectionnée doit devenir dorée »).
+  const [zoneChoisie, setZoneChoisie] = useState<string | null>(null)
+  const zoneTimer = useRef<number | null>(null)
   // Wi-Fi du salon — config tenant (Paramètres → Général). La carte
   // « Copier en 1 clic » n'apparaît QUE si le salon l'a renseigné.
   const [wifiNom, setWifiNom] = useState('')
@@ -565,6 +580,13 @@ export function VipTableScan({
 
   // ---- Mode Sombre Luxueux (toggle soleil/lune, persistance) ----
   const [modeSombre, setModeSombre] = useState(false)
+
+  // ---- PWA — « Garder Nathalie » (installation native) ----
+  // installEvt : événement beforeinstallprompt capturé au chargement.
+  // pwaInstalle : true si la PWA tourne déjà en standalone (on affiche
+  // alors « ✓ Nathalie est installée » au lieu du bouton d'install).
+  const [installEvt, setInstallEvt] = useState<BipEvent | null>(null)
+  const [pwaInstalle, setPwaInstalle] = useState(false)
 
   // ---- Toast élégant (jamais d'alert() brut) ----
   const [toast, setToast] = useState<{ msg: string; emoji: string } | null>(null)
@@ -629,6 +651,37 @@ export function VipTableScan({
       })
     return () => {
       cancelled = true
+    }
+  }, [])
+
+  // ---- PWA — capture beforeinstallprompt + détection « déjà installé » ----
+  // Chrome/Edge/Android : l'événement arrive après l'enregistrement du
+  // SW (page.tsx) si le manifest est déclaré — on l'intercepte pour
+  // brancher notre bouton « Garder Nathalie ». iOS/Safari ne l'émet
+  // JAMAIS → le bouton bascule sur le partage natif (repli).
+  useEffect(() => {
+    const onBip = (e: Event) => {
+      e.preventDefault()
+      setInstallEvt(e as BipEvent)
+    }
+    const onInstalled = () => {
+      setInstallEvt(null)
+      setPwaInstalle(true)
+    }
+    window.addEventListener('beforeinstallprompt', onBip)
+    window.addEventListener('appinstalled', onInstalled)
+    // Déjà installée (relance depuis l'icône d'accueil) ?
+    try {
+      const standalone =
+        window.matchMedia('(display-mode: standalone)').matches ||
+        (navigator as unknown as { standalone?: boolean }).standalone === true
+      if (standalone) setPwaInstalle(true)
+    } catch {
+      /* ignore */
+    }
+    return () => {
+      window.removeEventListener('beforeinstallprompt', onBip)
+      window.removeEventListener('appinstalled', onInstalled)
     }
   }, [])
 
@@ -1194,21 +1247,103 @@ export function VipTableScan({
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  // ---- ÉCRAN 1 — Wi-Fi « Copier en 1 clic » (icône qui change) ----
+  // ---- ÉCRAN 1 — Wi-Fi « Copier en 1 clic » : feedback TOUJOURS visible ----
+  // Demande directeur : après le clic, le bouton affiche « ✓ Copié ! »
+  // (fond vert sauge) pendant 2 s. Double stratégie de copie :
+  //   1. navigator.clipboard (https, navigateurs modernes)
+  //   2. repli universel textarea + execCommand (WebViews, iOS,
+  //      permissions restreintes) — l'échec silencieux qui laissait
+  //      l'utilisateur sans aucun retour est CORRIGÉ ici.
   const copierWifi = async () => {
+    const texte = wifiMotDePasse
+      ? `${wifiNom} — mot de passe : ${wifiMotDePasse}`
+      : wifiNom
+    let succes = false
     try {
-      await navigator.clipboard?.writeText(
-        wifiMotDePasse
-          ? `${wifiNom} — mot de passe : ${wifiMotDePasse}`
-          : wifiNom,
-      )
-      setWifiCopied(true)
-      afficherToast('Wi-Fi copié — connexion en un instant', '📶')
-      // L'icône revient à « Copier » après 2 s — feedback vivant,
-      // sans jamais crier (Mode Discrétion).
-      setTimeout(() => setWifiCopied(false), 2000)
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(texte)
+        succes = true
+      }
     } catch {
-      /* clipboard indisponible */
+      succes = false
+    }
+    if (!succes) {
+      try {
+        const ta = document.createElement('textarea')
+        ta.value = texte
+        ta.setAttribute('readonly', '')
+        ta.style.position = 'fixed'
+        ta.style.opacity = '0'
+        document.body.appendChild(ta)
+        ta.select()
+        succes = document.execCommand('copy')
+        document.body.removeChild(ta)
+      } catch {
+        succes = false
+      }
+    }
+    // Feedback garanti (même si le clipboard a échoué : le mot de
+    // passe reste affiché juste à côté, rien ne bloque le client).
+    if (wifiTimer.current) window.clearTimeout(wifiTimer.current)
+    setWifiCopied(true)
+    afficherToast(
+      succes
+        ? 'Wi-Fi copié — connexion en un instant'
+        : 'Mot de passe affiché — copiez-le manuellement',
+      '📶',
+    )
+    wifiTimer.current = window.setTimeout(() => setWifiCopied(false), 2000)
+  }
+
+  // ---- ÉCRAN 1 — Sélection de zone : feedback OR + ✓ avant confirmation ----
+  // La carte cliquée devient dorée avec une coche ✓ (~450 ms), PUIS la
+  // sélection est confirmée (chip « Installé : … » / fermeture modale).
+  // Le garde-fou zoneTimer évite les doubles confirmations de clic.
+  const choisirZone = (zone: string) => {
+    if (zoneTimer.current) return
+    setZoneChoisie(zone)
+    zoneTimer.current = window.setTimeout(() => {
+      zoneTimer.current = null
+      setZoneChoisie(null)
+      confirmZoneSelection(zone)
+    }, 450)
+  }
+
+  // ---- PWA — « Garder Nathalie » : installation native en 1 tap ----
+  //   · beforeinstallprompt capturé → prompt() natif (Chrome/Android)
+  //   · iOS Safari → partage natif (l'invité choisit « Sur l'écran
+  //     d'accueil ») ; à défaut, copie du lien + instructions toast.
+  const garderNathalie = async () => {
+    if (installEvt) {
+      try {
+        await installEvt.prompt()
+        const choix = await installEvt.userChoice
+        if (choix.outcome === 'accepted') {
+          setInstallEvt(null)
+          setPwaInstalle(true)
+          afficherToast("Nathalie est installée sur votre écran d'accueil", '📱')
+        }
+      } catch {
+        /* installation annulée */
+      }
+      return
+    }
+    try {
+      if (typeof navigator !== 'undefined' && navigator.share) {
+        await navigator.share({
+          title: 'Nathalie — Salon VIP',
+          text: "Gardez Nathalie : Partager → « Sur l'écran d'accueil »",
+          url: window.location.href,
+        })
+        return
+      }
+      await navigator.clipboard?.writeText(window.location.href)
+      afficherToast(
+        "Lien copié — menu Partager → « Sur l'écran d'accueil »",
+        '📱',
+      )
+    } catch {
+      /* partage annulé */
     }
   }
 
@@ -2343,37 +2478,31 @@ export function VipTableScan({
                 className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/30 to-black/65"
                 aria-hidden
               />
-              {/* Badge « Salon VIP » — pilule de verre (signature Waaahou) */}
-              <div className="absolute left-1/2 top-4 flex -translate-x-1/2 items-center gap-2 rounded-2xl border border-white/25 bg-black/35 px-3.5 py-2 backdrop-blur-md">
-                <span
-                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#E3C985] to-[#C9A961] text-base shadow-[0_4px_14px_rgba(201,169,97,0.45)]"
-                  aria-hidden
-                >
-                  👑
-                </span>
-                <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#F5F5F0]">
-                  Salon VIP
-                </span>
-              </div>
-              <div className="relative flex flex-col items-center justify-end px-6 pb-7 pt-16 text-center">
-                {/* LOGO DU SALON EN GRAND (Paramètres → Général → Logo) —
-                    la première chose que le client reconnaît. */}
+              {/* Badge « Salon VIP » — UN SEUL badge élégant en haut à
+                  gauche (demande directeur : fini les 3 éléments empilés
+                  badge central + logo carré + logo rond). Logo du salon
+                  gravé dans la pilule de verre quand il est configuré,
+                  sinon couronne or. */}
+              <div className="absolute left-4 top-4 flex items-center gap-2.5 rounded-2xl border border-[#C9A961]/40 bg-black/60 px-3 py-1.5 backdrop-blur-md">
                 {salonLogo ? (
                   <img
                     src={salonLogo}
                     alt="Logo du salon"
-                    className="h-24 w-24 rounded-2xl bg-[#FBF7EC]/95 object-contain p-2.5 shadow-[0_14px_36px_rgba(0,0,0,0.38)] ring-1 ring-[var(--fp-gold)]/70"
+                    className="h-7 w-7 rounded-md bg-[#FBF7EC]/95 object-contain p-0.5 ring-1 ring-[#C9A961]/60"
                   />
-                ) : null}
-
-                {/* Nathalie — médailon discret, la même guide quel que
-                    soit le QR scanné (identité de marque FeedbackPro). */}
-                <img
-                  src="/brand/nathalie-avatar.png"
-                  alt="Nathalie — votre guide personnel"
-                  className="mt-4 h-14 w-14 rounded-full object-cover shadow-[0_4px_20px_rgba(0,0,0,0.4)] ring-2 ring-[var(--fp-gold)]/70"
-                />
-
+                ) : (
+                  <span
+                    className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-[#E3C985] to-[#C9A961] text-sm shadow-[0_4px_14px_rgba(201,169,97,0.45)]"
+                    aria-hidden
+                  >
+                    👑
+                  </span>
+                )}
+                <span className="text-[9px] font-semibold uppercase tracking-[0.28em] text-[#F5F5F0]">
+                  Salon VIP
+                </span>
+              </div>
+              <div className="relative flex flex-col items-center justify-end px-6 pb-7 pt-16 text-center">
                 {/* Message dynamique — « Bonsoir, Cher Hôte. Je suis Nathalie. » */}
                 <p className="mt-3 text-[10px] font-medium uppercase tracking-[0.34em] text-[var(--fp-gold)]">
                   {salonLogo ? loungeName : 'Salon VIP'}
@@ -2424,9 +2553,9 @@ export function VipTableScan({
                   type="button"
                   onClick={copierWifi}
                   className={cn(
-                    'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-semibold transition-all',
+                    'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-2.5 text-xs font-semibold transition-all active:scale-[0.96]',
                     wifiCopied
-                      ? 'border-[#4A7C59]/40 bg-[#4A7C59]/10 text-[#4A7C59]'
+                      ? 'border-[#4A7C59] bg-[#4A7C59] text-white shadow-[0_8px_22px_-6px_rgba(74,124,89,0.55)]'
                       : 'border-[var(--fp-gold)]/40 bg-[var(--fp-gold)]/8 text-[var(--fp-muted)] hover:bg-[var(--fp-gold)]/15',
                   )}
                   aria-live="polite"
@@ -2436,7 +2565,7 @@ export function VipTableScan({
                   ) : (
                     <Copy className="h-3.5 w-3.5" aria-hidden />
                   )}
-                  {wifiCopied ? 'Copié' : 'Copier en 1 clic'}
+                  {wifiCopied ? 'Copié !' : 'Copier en 1 clic'}
                 </button>
               </motion.div>
             )}
@@ -2462,7 +2591,7 @@ export function VipTableScan({
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: 0.35 + idxService * 0.08, ease: 'easeOut' }}
                     onClick={() => handleActionClick(ACTIONS_BY_TYPE[card.actionType])}
-                    className="group relative rounded-[20px] border border-[var(--fp-gold)]/25 bg-[var(--fp-g1)] p-5 text-left shadow-[0_10px_30px_-10px_rgba(0,0,0,0.10)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-[3px] hover:border-[var(--fp-gold)]/60 hover:shadow-[0_22px_44px_-12px_rgba(201,169,97,0.38)]"
+                    className="group relative rounded-[20px] border border-[var(--fp-gold)]/25 bg-[var(--fp-g1)] p-5 text-left shadow-[0_10px_30px_-10px_rgba(0,0,0,0.10)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-[3px] hover:border-[var(--fp-gold)]/60 hover:shadow-[0_22px_44px_-12px_rgba(201,169,97,0.38)] active:scale-[0.98] active:border-[var(--fp-gold)]/60"
                     aria-label={card.label}
                   >
                     {/* Flèche d'action — apparaît au survol (invite tactile) */}
@@ -2510,7 +2639,7 @@ export function VipTableScan({
                   type="button"
                   disabled={!!sending}
                   onClick={() => handleActionClick(def)}
-                  className="inline-flex items-center gap-2 rounded-full border border-[var(--fp-border)] bg-[var(--fp-g2)] px-4 py-2.5 text-[13px] font-medium text-[var(--fp-text)] backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--fp-gold)] hover:bg-[var(--fp-gold)] hover:text-[#14110B] hover:shadow-[0_10px_26px_-8px_rgba(201,169,97,0.55)] disabled:opacity-60"
+                  className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-[var(--fp-border)] bg-[var(--fp-g2)] px-4 py-2 text-[13px] font-medium text-[var(--fp-text)] backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--fp-gold)] hover:bg-[var(--fp-gold)] hover:text-[#14110B] hover:shadow-[0_10px_26px_-8px_rgba(201,169,97,0.55)] active:scale-[0.96] disabled:opacity-60"
                   aria-label={def.label}
                 >
                   <span aria-hidden>{def.emoji}</span>
@@ -2536,23 +2665,39 @@ export function VipTableScan({
                   discret et sans effort.
                 </p>
                 <div className="mt-3.5 grid grid-cols-2 gap-2">
-                  {GLOBAL_ZONES.map((z) => (
-                    <button
-                      key={z.id}
-                      type="button"
-                      onClick={() => confirmZoneSelection(z.label)}
-                      className="flex min-h-[46px] items-center gap-2 rounded-xl border border-[var(--fp-border)] bg-[var(--fp-bg)] px-3 py-2.5 text-left text-xs font-medium text-[var(--fp-text)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--fp-gold)] hover:bg-[var(--fp-gold)] hover:text-[#14110B] hover:shadow-[0_10px_26px_-8px_rgba(201,169,97,0.55)]"
-                      aria-label={`Je suis : ${z.label}`}
-                    >
-                      <span
-                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--fp-gold)]/10 text-sm"
-                        aria-hidden
+                  {GLOBAL_ZONES.map((z) => {
+                    const estChoisie = zoneChoisie === z.label
+                    return (
+                      <button
+                        key={z.id}
+                        type="button"
+                        onClick={() => choisirZone(z.label)}
+                        className={cn(
+                          'relative flex min-h-[46px] items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-xs font-medium transition-all duration-300',
+                          estChoisie
+                            ? 'scale-[0.98] border-[var(--fp-gold)] bg-[var(--fp-gold)] text-[#14110B] shadow-[0_10px_26px_-8px_rgba(201,169,97,0.55)]'
+                            : 'border-[var(--fp-border)] bg-[var(--fp-bg)] text-[var(--fp-text)] hover:-translate-y-0.5 hover:border-[var(--fp-gold)] hover:bg-[var(--fp-gold)] hover:text-[#14110B] hover:shadow-[0_10px_26px_-8px_rgba(201,169,97,0.55)]',
+                        )}
+                        aria-label={`Je suis : ${z.label}`}
+                        aria-pressed={estChoisie}
                       >
-                        {z.emoji}
-                      </span>
-                      {z.label}
-                    </button>
-                  ))}
+                        <span
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--fp-gold)]/10 text-sm"
+                          aria-hidden
+                        >
+                          {z.emoji}
+                        </span>
+                        {z.label}
+                        {/* Coche ✓ — la zone sélectionnée devient dorée
+                            avec une coche visible (demande directeur) */}
+                        {estChoisie && (
+                          <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#14110B]/85 text-[10px] font-bold text-[var(--fp-gold)]" aria-hidden>
+                            ✓
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
                 </div>
 
                 {/* Ou préciser un fauteuil — même élégance, un seul champ */}
@@ -2923,32 +3068,30 @@ export function VipTableScan({
                   zoneLabel(table?.zone ?? 'main')
                 }`}
           </p>
-          {/* Module 3 — Indicateur langue détectée + Module 11 — Session Nathalie */}
-          <div className="mt-2 flex items-center gap-3">
+          {/* Module 3 — Indicateur langue détectée + PWA « Garder Nathalie » */}
+          <div className="mt-2 flex flex-col items-center gap-2.5">
             {detectedLang !== 'fr' && (
               <span className="inline-flex items-center gap-1 rounded-full bg-[var(--fp-gold)]/8 px-2.5 py-1 text-[10px] font-medium text-[var(--fp-muted)]">
                 🌐 {detectedLang.toUpperCase()}
               </span>
             )}
-            {sessionToken && (
+            {pwaInstalle ? (
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#4A7C59]/35 bg-[#4A7C59]/10 px-4 py-2 text-xs font-semibold text-[#4A7C59]">
+                ✓ Nathalie est installée
+              </span>
+            ) : (
+              /* PWA — bouton PROÉMINENT (min 48px, or champagne) qui
+                  déclenche la VRAIE installation PWA : prompt natif via
+                  beforeinstallprompt (Chrome/Android), partage natif
+                  iOS (« Sur l'écran d'accueil »), copie du lien sinon. */
               <button
                 type="button"
-                onClick={() => {
-                  try {
-                    if (typeof navigator !== 'undefined' && navigator.share) {
-                      navigator.share({
-                        title: 'Nathalie — Salon VIP',
-                        text: 'Gardez Nathalie dans votre poche',
-                        url: window.location.href,
-                      }).catch(() => {})
-                    } else {
-                      navigator.clipboard?.writeText(window.location.href).catch(() => {})
-                    }
-                  } catch { /* ignore */ }
-                }}
-                className="inline-flex items-center gap-1 rounded-full border border-[var(--fp-gold)]/30 bg-[var(--fp-card)] px-2.5 py-1 text-[10px] font-medium text-[var(--fp-muted)] transition hover:bg-[var(--fp-gold)]/8"
+                onClick={garderNathalie}
+                title="Installer Nathalie sur votre écran d'accueil"
+                className="btn-shimmer inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl border border-[var(--fp-gold)] bg-gradient-to-r from-[var(--fp-gold)] to-[#B8944D] px-6 py-3 text-sm font-semibold text-[#14110B] shadow-[0_10px_30px_-8px_rgba(201,169,97,0.55)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_14px_36px_-8px_rgba(201,169,97,0.65)] active:scale-[0.98]"
               >
-                📱 Garder Nathalie
+                <span aria-hidden>📱</span>
+                {installEvt ? 'Installer Nathalie' : 'Garder Nathalie'}
               </button>
             )}
           </div>
@@ -3004,27 +3147,38 @@ export function VipTableScan({
               </button>
             </div>
 
-            {/* Boutons visuels de zone — sélection immédiate */}
+            {/* Boutons visuels de zone — feedback OR + ✓ avant confirmation */}
             <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
-              {GLOBAL_ZONES.map((z) => (
-                <button
-                  key={z.id}
-                  type="button"
-                  onClick={() => confirmZoneSelection(z.label)}
-                  className={cn(
-                    'flex min-h-[52px] items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all',
-                    'border-[var(--fp-border)] bg-[var(--fp-bg)] text-[var(--fp-text)] hover:border-[var(--fp-gold)]/50 hover:bg-[var(--fp-gold)]/8',
-                  )}
-                >
-                  <span
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--fp-gold)]/10 text-lg"
-                    aria-hidden
+              {GLOBAL_ZONES.map((z) => {
+                const estChoisie = zoneChoisie === z.label
+                return (
+                  <button
+                    key={z.id}
+                    type="button"
+                    onClick={() => choisirZone(z.label)}
+                    className={cn(
+                      'relative flex min-h-[52px] items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all',
+                      estChoisie
+                        ? 'scale-[0.98] border-[var(--fp-gold)] bg-[var(--fp-gold)] text-[#14110B] shadow-[0_10px_26px_-8px_rgba(201,169,97,0.55)]'
+                        : 'border-[var(--fp-border)] bg-[var(--fp-bg)] text-[var(--fp-text)] hover:border-[var(--fp-gold)]/50 hover:bg-[var(--fp-gold)]/8',
+                    )}
+                    aria-pressed={estChoisie}
                   >
-                    {z.emoji}
-                  </span>
-                  {z.label}
-                </button>
-              ))}
+                    <span
+                      className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--fp-gold)]/10 text-lg"
+                      aria-hidden
+                    >
+                      {z.emoji}
+                    </span>
+                    {z.label}
+                    {estChoisie && (
+                      <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-[#14110B]/85 text-[10px] font-bold text-[var(--fp-gold)]" aria-hidden>
+                        ✓
+                      </span>
+                    )}
+                  </button>
+                )
+              })}
             </div>
 
             {/* Séparateur « ou » */}
