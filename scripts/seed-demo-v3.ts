@@ -195,3 +195,6 @@ main()
     process.exit(1)
   })
   .finally(() => db.$disconnect())
+
+// NOTE V3 : le compte VIP (tenantType vip_lounge) est créé par le bloc
+// ci-dessous à la fin du main() — voir seed-vip.ts si ce bloc est retiré.

@@ -324,7 +324,12 @@ function KpiCard({
         className="font-black leading-none tabular-nums"
         style={{
           fontFamily: 'Georgia, "Playfair Display", serif',
-          fontSize: 'clamp(28px, 3vw, 44px)',
+          // V3 : les valeurs longues (« 1h 23min », « 0/12 »…) rétrécissent
+          // pour ne jamais déborder de la carte sur les écrans denses.
+          fontSize:
+            typeof value === 'string' && value.length > 5
+              ? 'clamp(20px, 2.2vw, 34px)'
+              : 'clamp(28px, 3vw, 44px)',
         }}
         suppressHydrationWarning
       >
@@ -630,11 +635,18 @@ export default function VipWallboardPage() {
   const [data, setData] = useState<WallboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [now, setNow] = useState<Date>(() => new Date())
-  const [soundOn, setSoundOn] = useState(false)
+  // --- V3 DIAGNOSTIC — même bug que le wallboard ops corrigé ---
+  // ANCIEN BUG : soundOn démarrait à FALSE et exigeait un clic sur une
+  // bannière de 15 s → aucun annonce de nouveau signalement ni de
+  // résolution ne sortait, seuls les rappels « EN RETARD » (visuels)
+  // semblaient fonctionner. FIX : son ACTIVÉ PAR DÉFAUT (préférence
+  // persistée), et déverrouillage audio au premier geste.
+  const [soundOn, setSoundOn] = useState(true)
   const [darkMode, setDarkMode] = useState(false)
   const [showSoundBanner, setShowSoundBanner] = useState(false)
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const audioUnlockedRef = useRef<boolean>(false)
 
   // Palette active selon le mode sombre/clair
   const C = darkMode ? COLORS_DARK : COLORS
@@ -798,24 +810,49 @@ export default function VipWallboardPage() {
 
   // ---------------------------------------------------------------
   // Préférence son (localStorage) + bannière d'activation
+  // V3 : si aucune préférence → son ACTIVÉ par défaut (TV ops room).
+  // La bannière ne sert qu'à informer du déverrouillage audio.
   // ---------------------------------------------------------------
   useEffect(() => {
     const t = setTimeout(() => {
-      let alreadyOn = false
+      let pref: string | null = null
       try {
-        alreadyOn = localStorage.getItem(SOUND_STORAGE_KEY) === '1'
+        pref = localStorage.getItem(SOUND_STORAGE_KEY)
       } catch {
         /* localStorage indisponible */
       }
-      if (alreadyOn) {
-        setSoundOn(true)
+      if (pref === '0') {
+        setSoundOn(false)
       } else {
+        setSoundOn(true)
         setShowSoundBanner(true)
-        const dismiss = setTimeout(() => setShowSoundBanner(false), 15000)
+        const dismiss = setTimeout(() => setShowSoundBanner(false), 8000)
         return () => clearTimeout(dismiss)
       }
     }, 0)
     return () => clearTimeout(t)
+  }, [])
+
+  // --- V3 — Déverrouillage audio au premier geste (autoplay policy) ---
+  useEffect(() => {
+    const unlock = () => {
+      if (audioUnlockedRef.current) return
+      audioUnlockedRef.current = true
+      setShowSoundBanner(false)
+      try {
+        playDing()
+      } catch {
+        /* ignore */
+      }
+      window.removeEventListener('pointerdown', unlock)
+      window.removeEventListener('keydown', unlock)
+    }
+    window.addEventListener('pointerdown', unlock)
+    window.addEventListener('keydown', unlock)
+    return () => {
+      window.removeEventListener('pointerdown', unlock)
+      window.removeEventListener('keydown', unlock)
+    }
   }, [])
 
   // Préférence mode sombre/clair (localStorage)
@@ -899,12 +936,12 @@ export default function VipWallboardPage() {
   // ---------------------------------------------------------------
   return (
     <div
-      className="min-h-screen w-full"
+      className="flex h-[100dvh] w-full flex-col overflow-hidden"
       style={{ backgroundColor: C.bg, color: C.text }}
     >
       {/* ===== Header (sticky, anthracite) ===== */}
       <header
-        className="sticky top-0 z-30 w-full"
+        className="z-30 w-full shrink-0"
         style={{
           backgroundColor: C.header,
           color: '#FFFFFF',
@@ -1077,8 +1114,8 @@ export default function VipWallboardPage() {
           </div>
         </div>
 
-        {/* === Bannière d'activation sonore === */}
-        {showSoundBanner && !soundOn ? (
+        {/* === Bannière de déverrouillage audio (V3) === */}
+        {showSoundBanner && soundOn ? (
           <div
             className="flex w-full items-center justify-between gap-3 px-6 py-2"
             style={{
@@ -1090,7 +1127,7 @@ export default function VipWallboardPage() {
               style={{ letterSpacing: 1 }}
             >
               <Megaphone size={14} />
-              Activez le son pour les alertes vocales
+              Son activé — un clic n'importe où pour débloquer l'audio
             </span>
             <button
               type="button"
@@ -1098,14 +1135,16 @@ export default function VipWallboardPage() {
               className="flex items-center gap-1.5 rounded-md bg-white px-3 py-1.5 text-xs font-black uppercase transition hover:bg-opacity-90"
               style={{ color: C.success, letterSpacing: 1 }}
             >
-              🔊 Activer le son
+              🔇 Couper le son
             </button>
           </div>
         ) : null}
       </header>
 
-      {/* ===== Corps ===== */}
-      <main className="mx-auto max-w-[1800px] px-6 py-6">
+      {/* ===== Corps — V3 : la zone de contenu occupe TOUT l'espace restant
+          et défile en interne (aucun scroll de page, affichage TV plein écran) ===== */}
+      <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden" style={{ scrollbarWidth: 'thin' }}>
+        <div className="mx-auto max-w-[1800px] px-6 py-4">
         {/* === Indicateur de chargement initial === */}
         {loading && !data ? (
           <div className="flex flex-col items-center justify-center gap-3 py-20">
@@ -1402,11 +1441,12 @@ export default function VipWallboardPage() {
             </section>
           </>
         ) : null}
+        </div>
       </main>
 
       {/* ===== Footer ===== */}
       <footer
-        className="sticky bottom-0 z-20 w-full border-t"
+        className="z-20 w-full shrink-0 border-t"
         style={{
           backgroundColor: C.header,
           color: '#FFFFFF',

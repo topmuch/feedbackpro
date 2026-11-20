@@ -1325,23 +1325,23 @@ function VIPSidebarContent({
         : userRole || 'Opérateur'
 
   return (
-    <div className="flex h-full flex-col bg-white">
-      {/* En-tête : salon + mode discrétion */}
-      <div className="shrink-0 border-b border-[#EAE5DC] px-5 py-5">
+    <div className="flex h-full flex-col bg-[#0D0B09]">
+      {/* En-tête : salon + mode discrétion — NOIR profond + écriture MARRON */}
+      <div className="shrink-0 border-b border-white/10 px-5 py-5">
         <div className="flex items-center gap-3">
           <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white shadow-[0_4px_14px_rgba(201,169,97,0.25)]">
             <Wine className="h-5 w-5" aria-hidden />
           </span>
           <div className="min-w-0">
             <h1
-              className="truncate text-base font-semibold text-[#2C2C2C]"
+              className="truncate text-base font-semibold text-[#EDE6D4]"
               style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
             >
               {salonName}
             </h1>
             <div className="mt-1 flex items-center gap-1.5">
               <span className="inline-flex h-1.5 w-1.5 rounded-full bg-[#4A7C59]" />
-              <span className="text-[11px] font-medium uppercase tracking-wider text-[#8B6F47]">
+              <span className="text-[11px] font-medium uppercase tracking-wider text-[#B08D5F]">
                 Mode Discrétion · Actif
               </span>
             </div>
@@ -1349,7 +1349,7 @@ function VIPSidebarContent({
         </div>
       </div>
 
-      {/* Navigation — scrollable */}
+      {/* Navigation — scrollable (texte marron champagne sur noir) */}
       <nav
         aria-label="Navigation VIP"
         className="vip-sidebar-nav flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-4"
@@ -1366,12 +1366,12 @@ function VIPSidebarContent({
               className={cn(
                 'flex h-11 shrink-0 items-center gap-3 rounded-xl px-3.5 text-sm font-medium transition-all',
                 actif
-                  ? 'bg-[#C9A961]/12 text-[#8B6F47] shadow-[inset_0_0_0_1px_rgba(201,169,97,0.25)]'
-                  : 'text-[#2C2C2C]/70 hover:bg-[#FAFAF7] hover:text-[#2C2C2C]',
+                  ? 'bg-[#FAFAF7] text-[#5C4526] shadow-[0_6px_18px_rgba(0,0,0,0.45)]'
+                  : 'text-[#B08D5F]/85 hover:bg-white/[0.06] hover:text-[#E3C985]',
               )}
             >
               <Icon
-                className={cn('h-[18px] w-[18px] shrink-0', actif ? 'text-[#C9A961]' : 'text-[#8B6F47]/70')}
+                className={cn('h-[18px] w-[18px] shrink-0', actif ? 'text-[#8B6F47]' : 'text-[#B08D5F]/70')}
                 aria-hidden
               />
               <span className="truncate">{item.label}</span>
@@ -1382,21 +1382,21 @@ function VIPSidebarContent({
       </nav>
 
       {/* Bas : utilisateur + déconnexion */}
-      <div className="shrink-0 border-t border-[#EAE5DC] p-3">
-        <div className="rounded-xl bg-[#FAFAF7] px-3.5 py-3">
+      <div className="shrink-0 border-t border-white/10 p-3">
+        <div className="rounded-xl border border-white/10 bg-white/[0.05] px-3.5 py-3">
           <div className="flex items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-xs font-semibold text-white">
               {initials(userEmail) || '—'}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-[#2C2C2C]">{userEmail || 'Invité'}</p>
-              <p className="truncate text-[11px] uppercase tracking-wider text-[#8B6F47]">{roleLabel}</p>
+              <p className="truncate text-sm font-medium text-[#EDE6D4]">{userEmail || 'Invité'}</p>
+              <p className="truncate text-[11px] uppercase tracking-wider text-[#B08D5F]">{roleLabel}</p>
             </div>
           </div>
         </div>
         <Button
           variant="ghost"
-          className="mt-2 w-full justify-start gap-2.5 rounded-xl text-[#2C2C2C]/80 hover:bg-[#FAFAF7] hover:text-[#C97B63]"
+          className="mt-2 w-full justify-start gap-2.5 rounded-xl text-[#B08D5F]/85 hover:bg-white/[0.06] hover:text-[#C97B63]"
           onClick={onLogout}
         >
           <LogOut className="h-4 w-4" aria-hidden />
@@ -3208,7 +3208,7 @@ function QRTab({ tables }: { tables: VipTableData[] }) {
               </div>
             </div>
             <div className="mt-4 flex justify-center">
-              <NathalieQrPlaque data={entryUrl} label={entryOpts.label} signature={entryOpts.signature} className="w-full max-w-[260px]" />
+              <NathalieQrPlaque data={entryUrl} label={entryOpts.label} signature={entryOpts.signature} emoji="🥂" className="w-full max-w-[260px]" />
             </div>
             <p className="mt-3 text-[11px] leading-relaxed text-[#8B6F47]/80">
               À poser sur le chevalet d&apos;accueil : Nathalie accueille le
@@ -3277,6 +3277,9 @@ function QRTab({ tables }: { tables: VipTableData[] }) {
             const opts: PlaqueOptions = {
               data: url,
               label: z.nom,
+              // V3 — grande icône de rubrique gravée dans un médaillon d'or
+              // (harmonisation demandée sur TOUS les QR du salon).
+              emoji: z.emoji,
               signature: 'NATHALIE · GUIDE PERSONNEL',
             }
             const scans = scansForZone(z.code)
@@ -3339,6 +3342,7 @@ function QRTab({ tables }: { tables: VipTableData[] }) {
             const opts: PlaqueOptions = {
               data: url,
               label: `Table ${t.tableNumber}`,
+              emoji: '\u{1F37D}',
               signature: 'NATHALIE · GUIDE PERSONNEL',
             }
             const statusMeta: Record<string, { label: string; style: string }> = {
@@ -3774,10 +3778,10 @@ export default function VIPDashboard() {
   return (
     <div className="relative flex min-h-screen flex-col bg-[#FAFAF7] lg:pl-[260px]">
       {/* Filet doré décoratif sur le côté droit de la sidebar */}
-      <div className="pointer-events-none fixed inset-y-0 left-[260px] z-30 hidden w-px bg-gradient-to-b from-[#C9A961]/30 via-[#EAE5DC] to-[#C9A961]/30 lg:block" aria-hidden />
+      <div className="pointer-events-none fixed inset-y-0 left-[260px] z-30 hidden w-px bg-gradient-to-b from-[#C9A961]/40 via-white/10 to-[#C9A961]/40 lg:block" aria-hidden />
 
-      {/* ---------- Sidebar desktop (fixe, 260px) ---------- */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[260px] border-r border-[#EAE5DC] bg-white lg:block">
+      {/* ---------- Sidebar desktop (fixe, 260px) — NOIR + MARRON V3 ---------- */}
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[260px] border-r border-white/10 bg-[#0D0B09] lg:block">
         <VIPSidebarContent
           activeTab={tab}
           onNavigate={naviguer}
@@ -3795,7 +3799,7 @@ export default function VIPDashboard() {
           <div className="flex min-w-0 items-center gap-3">
             {/* Menu mobile — ouvre le drawer */}
             <Sheet open={drawerOuvert} onOpenChange={setDrawerOuvert}>
-              <SheetContent side="left" className="w-[260px] border-0 p-0" aria-describedby={undefined}>
+              <SheetContent side="left" className="w-[260px] border-0 bg-[#0D0B09] p-0" aria-describedby={undefined}>
                 <SheetTitle className="sr-only">Navigation VIP</SheetTitle>
                 <VIPSidebarContent
                   activeTab={tab}
@@ -3861,10 +3865,18 @@ export default function VIPDashboard() {
       </header>
 
       {/* ---------- Contenu ---------- */}
-      <main className="w-full flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <div className="mx-auto max-w-7xl">
-          {/* Alerte Maître d'Hôtel — détection VIP, 100% visuelle (mode discrétion) */}
-          <VipGuestAlertBanner />
+      <main
+        className={cn(
+          'w-full flex-1',
+          tab === 'wallboard'
+            ? 'flex min-h-0 flex-col px-4 pb-4 sm:px-6'
+            : 'px-4 py-6 sm:px-6 lg:px-8 lg:py-8',
+        )}
+      >
+        <div className={cn(tab === 'wallboard' ? 'flex min-h-0 w-full flex-1 flex-col' : 'mx-auto max-w-7xl')}>
+          {/* Alerte Maître d'Hôtel — détection VIP, 100% visuelle (mode discrétion).
+              Masquée sur l'onglet Wallboard pour un affichage TV plein cadre. */}
+          {tab !== 'wallboard' && <VipGuestAlertBanner />}
           {tab === 'overview' && (
             <OverviewTab
               incidents={incidents}
@@ -3902,7 +3914,7 @@ export default function VIPDashboard() {
           {tab === 'qr' && <QRTab tables={tables} />}
           {tab === 'reports' && <ReportsTab />}
           {tab === 'wallboard' && (
-            <div className="relative h-[calc(100vh-200px)] min-h-[500px] w-full overflow-hidden rounded-2xl border border-[#EAE5DC] shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+            <div className="relative h-[calc(100dvh-80px)] min-h-[560px] w-full flex-1 overflow-hidden rounded-2xl border border-white/10 shadow-[0_6px_30px_rgba(26,21,8,0.25)]">
               <iframe
                 src="/vip-wallboard"
                 className="absolute inset-0 h-full w-full border-0"
