@@ -448,7 +448,7 @@ const CONFIRMATION_CONTENT: Record<RequestType, { title: string; subtitle: strin
   },
 }
 
-const SERIF = { fontFamily: 'Georgia, "Playfair Display", serif' } as const
+const SERIF = { fontFamily: '"Playfair Display", Georgia, serif' } as const
 
 // ============================================================
 // Composant principal
@@ -2322,7 +2322,8 @@ export function VipTableScan({
                         {item.name}
                       </p>
                       <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-[#4A7C59]/10 px-2.5 py-0.5 text-[10px] font-semibold text-[#4A7C59]">
-                        {item.availableStock} disponibles
+                        {item.availableStock}{' '}
+                        {item.availableStock > 1 ? 'disponibles' : 'disponible'}
                       </span>
                       <Button
                         type="button"

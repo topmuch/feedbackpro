@@ -94,7 +94,7 @@ const SHEEN =
 /** Médaillon ivoire (support de gravure du QR) */
 const MEDALLION = 'linear-gradient(155deg, #FDFAF1 0%, #F6F0DF 55%, #EFE8D3 100%)'
 
-const SERIF: React.CSSProperties = { fontFamily: 'Georgia, "Playfair Display", serif' }
+const SERIF: React.CSSProperties = { fontFamily: '"Playfair Display", Georgia, serif' }
 
 // ------------------------------------------------------------
 // Génération QR locale (build navigateur de `qrcode`)
@@ -149,12 +149,13 @@ export type PlaqueOptions = {
 type PlaqueSize = 'xs' | 'sm' | 'md'
 
 // LOGO EN GRAND — demande du directeur : le logo du salon doit
-// s'imposer au centre du QR, lisible à distance. Calibrage
-// scannabilité : la puce ivoire (logo + padding + anneau) couvre
-// ≈ 38-40% du CÔTÉ du QR, soit ~14-16% de la surface de modules —
-// très en dessous des 30% de redondance ECC niveau H. Scannabilité
-// vérifiée par décodage automatisé (pyzbar) après génération.
-const SIZE_CFG: Record<PlaqueSize, { qr: string; px: number; kicker: string; label: string; signature: string; pad: string; medal: string; logo: string }> = {
+// s'imposer au centre du QR, lisible à distance. Calibrage PAR
+// DÉCODAGE RÉEL (pyzbar + OpenCV, 10 lectures avec flou et
+// échelles variées) : la puce ivoire = 34% du côté du QR avec
+// ~10-12% de marge ivoire autour du logo → 10/10 lectures
+// réussies. Au-delà de 36-38%, zbar devient instable. Le logo
+// reste ≈ 1,7× plus grand que la version d'origine (h-7).
+const SIZE_CFG: Record<PlaqueSize, { qr: string; px: number; kicker: string; label: string; signature: string; pad: string; medal: string; logo: string; chip: string }> = {
   md: {
     qr: 'h-44 w-44',
     px: 512,
@@ -163,7 +164,8 @@ const SIZE_CFG: Record<PlaqueSize, { qr: string; px: number; kicker: string; lab
     signature: 'text-[8px] tracking-[0.34em]',
     pad: 'px-4 pb-4 pt-5',
     medal: 'p-2.5 mt-3.5',
-    logo: 'h-16 w-16',
+    logo: 'h-11 w-11',
+    chip: 'p-[6px]',
   },
   sm: {
     qr: 'h-32 w-32',
@@ -173,7 +175,8 @@ const SIZE_CFG: Record<PlaqueSize, { qr: string; px: number; kicker: string; lab
     signature: 'text-[7px] tracking-[0.3em]',
     pad: 'px-3.5 pb-3.5 pt-4',
     medal: 'p-2 mt-3',
-    logo: 'h-12 w-12',
+    logo: 'h-8 w-8',
+    chip: 'p-[4px]',
   },
   xs: {
     qr: 'h-24 w-24',
@@ -183,7 +186,8 @@ const SIZE_CFG: Record<PlaqueSize, { qr: string; px: number; kicker: string; lab
     signature: 'text-[6.5px] tracking-[0.26em]',
     pad: 'px-3 pb-3 pt-3.5',
     medal: 'p-1.5 mt-2.5',
-    logo: 'h-9 w-9',
+    logo: 'h-5 w-5',
+    chip: 'p-[4px]',
   },
 }
 
@@ -247,13 +251,17 @@ export function NathalieQrPlaque({
               <div className={cn('animate-pulse rounded bg-[#2C2C2C]/10', cfg.qr)} />
             )}
             {/* Logo du salon — gravé EN GRAND au centre du médaillon
-                (chip ivoire + anneau or, ≈ 38% du côté du QR) */}
+                (puce ivoire 34% du côté du QR + anneau or — calibré
+                par décodage réel : 10/10 lectures, ECC H) */}
             {qr && logo ? (
               <span
-                className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-[9px] bg-[#FBF7EC] p-[4px] shadow-[0_2px_12px_rgba(0,0,0,0.32)] ring-[1.5px] ring-[#C9A961]/70"
+                className={cn(
+                  'absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-[9px] bg-[#FBF7EC] shadow-[0_2px_12px_rgba(0,0,0,0.32)] ring-[1.5px] ring-[#C9A961]/70',
+                  cfg.chip,
+                )}
                 aria-hidden
               >
-                <img src={logo} alt="" className={cn('block rounded-[6px] object-contain', cfg.logo)} />
+                <img src={logo} alt="" className={cn('block rounded-[5px] object-contain', cfg.logo)} />
               </span>
             ) : null}
             {/* Crochets d'or de l'emblème */}
@@ -291,7 +299,7 @@ export function NathalieQrPlaque({
 
 const W = 640
 const H = 920
-const FONT_STACK = 'Georgia, Playfair Display, serif'
+const FONT_STACK = 'Playfair Display, Georgia, serif'
 
 type SvgOpts = PlaqueOptions & { qrPng: string; logoPng?: string | null }
 
@@ -307,17 +315,19 @@ export function plaqueSvgString({ data, label, kicker = 'SALON VIP', signature =
   const veins = `<g fill='none' stroke='#f2efe6' stroke-opacity='0.075' stroke-width='1.6'><path d='M-20 130 C 140 100 260 220 660 160'/><path d='M-20 380 C 160 350 300 470 660 360'/><path d='M-20 610 C 180 580 320 680 660 600'/><path d='M-20 830 C 160 800 300 900 660 820'/></g><g fill='none' stroke='#f2efe6' stroke-opacity='0.05' stroke-width='1.1'><path d='M170 -20 C 210 170 110 360 220 940'/><path d='M500 -20 C 540 160 430 380 550 940'/><path d='M340 -20 C 370 110 310 260 380 940'/></g>`
 
   // Logo du salon gravé EN GRAND au centre du médaillon
-  // (pad ivoire + filet or) — puce ≈ 38% du CÔTÉ du QR
-  // (~14% de la surface), safe avec ECC niveau H (30% de redondance)
+  // (puce ivoire + filet or) — puce = 34% du CÔTÉ du QR, marge
+  // ivoire 12% autour du logo : calibré par décodage réel
+  // (pyzbar + OpenCV, 10/10 lectures — voir scripts/fiabilite_qr_logo.py)
   let logoSvg = ''
   if (logoPng) {
-    const lp = Math.round(s * 0.38)
+    const lp = Math.round(s * 0.34)
     const lx = x + s / 2 - lp / 2
     const ly = y + s / 2 - lp / 2
+    const inset = Math.round(lp * 0.12)
     logoSvg = `
   <!-- logo du salon gravé (grand) -->
   <rect x="${lx}" y="${ly}" width="${lp}" height="${lp}" rx="${Math.round(lp * 0.14)}" fill="url(#medal)" stroke="#C9A961" stroke-opacity="0.7" stroke-width="2"/>
-  <image href="${logoPng}" x="${lx + Math.round(lp * 0.08)}" y="${ly + Math.round(lp * 0.08)}" width="${lp - Math.round(lp * 0.16)}" height="${lp - Math.round(lp * 0.16)}" preserveAspectRatio="xMidYMid meet"/>`
+  <image href="${logoPng}" x="${lx + inset}" y="${ly + inset}" width="${lp - inset * 2}" height="${lp - inset * 2}" preserveAspectRatio="xMidYMid meet"/>`
   }
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
