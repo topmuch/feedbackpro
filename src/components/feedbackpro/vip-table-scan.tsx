@@ -13,12 +13,12 @@
 //    Prêt Express façon vitrine avec coche dorée qui se dessine.
 //  ÉCRAN 3 — La Confirmation « WAAHOU » : prénom, promesse, réf.
 //    élégante, barre de progression douce.
-// Palette « Or & Soie » : #FAFAF7 / #C9A961 / #1A1A1A /
+// Palette « Or & Soie » : #FAFAF7 / var(--fp-gold) / #1A1A1A /
 // #4A7C59 / #C97B63. Playfair Display (titres) + Inter (corps).
 // ============================================================
 
 import { useEffect, useState, useRef, type ChangeEvent } from 'react'
-import { motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import {
   Armchair,
   Copy,
@@ -32,6 +32,9 @@ import {
   Star,
   Loader2,
   ArrowLeft,
+  ArrowRight,
+  Moon,
+  Sun,
   Sparkles,
   Camera,
   Crown,
@@ -211,16 +214,16 @@ const TONE_STYLE: Record<
   { bg: string; ring: string; iconText: string; hover: string }
 > = {
   gold: {
-    bg: 'bg-[#C9A961]/8',
-    ring: 'ring-[#C9A961]/30',
-    iconText: 'text-[#C9A961]',
-    hover: 'hover:bg-[#C9A961]/12 hover:ring-[#C9A961]/40',
+    bg: 'bg-[var(--fp-gold)]/8',
+    ring: 'ring-[var(--fp-gold)]/30',
+    iconText: 'text-[var(--fp-gold)]',
+    hover: 'hover:bg-[var(--fp-gold)]/12 hover:ring-[var(--fp-gold)]/40',
   },
   bronze: {
-    bg: 'bg-[#8B6F47]/8',
-    ring: 'ring-[#8B6F47]/30',
-    iconText: 'text-[#8B6F47]',
-    hover: 'hover:bg-[#8B6F47]/12 hover:ring-[#8B6F47]/40',
+    bg: 'bg-[var(--fp-muted)]/8',
+    ring: 'ring-[var(--fp-muted)]/30',
+    iconText: 'text-[var(--fp-muted)]',
+    hover: 'hover:bg-[var(--fp-muted)]/12 hover:ring-[var(--fp-muted)]/40',
   },
   sage: {
     bg: 'bg-[#4A7C59]/8',
@@ -451,6 +454,31 @@ const CONFIRMATION_CONTENT: Record<RequestType, { title: string; subtitle: strin
 const SERIF = { fontFamily: '"Playfair Display", Georgia, serif' } as const
 
 // ============================================================
+// « Option C » — Audio Préchargé + Mode Sombre Luxueux
+// ------------------------------------------------------------
+// Deux palettes gérées par variables CSS :
+//   · Luxe Lumineux — ivoire #FAFAF7, or champagne #C9A961
+//   · Luxe Sombre   — #0F0F0F (jamais noir pur), or lumineux
+//     #D4AF37, texte crème #F5F5F0, cartes verre assombries
+// Transition douce 600 ms entre les deux modes, choix du client
+// mémorisé (localStorage). Le :where() laisse les utilitaires
+// Tailwind garder la priorité sur les micro-interactions.
+// ============================================================
+const NATHALIE_CSS = `
+.nathalie-root{--fp-bg:#FAFAF7;--fp-card:#FFFFFF;--fp-g1:rgba(255,255,255,0.60);--fp-g2:rgba(255,255,255,0.72);--fp-g3:rgba(255,255,255,0.82);--fp-text:#2C2C2C;--fp-muted:#8B6F47;--fp-border:#EAE5DC;--fp-gold:#C9A961;transition:background-color .6s ease,color .6s ease}
+:where(.nathalie-root) :where(*){transition-property:background-color,border-color,color,fill,stroke;transition-duration:600ms;transition-timing-function:ease}
+.nathalie-sombre{--fp-bg:#0F0F0F;--fp-card:#161619;--fp-g1:rgba(255,255,255,0.055);--fp-g2:rgba(255,255,255,0.075);--fp-g3:rgba(255,255,255,0.10);--fp-text:#F5F5F0;--fp-muted:#BFAD92;--fp-border:rgba(212,175,55,0.20);--fp-gold:#D4AF37}
+@keyframes haloOr{0%{box-shadow:0 0 0 0 rgba(212,175,55,0.45)}70%{box-shadow:0 0 0 26px rgba(212,175,55,0)}100%{box-shadow:0 0 0 0 rgba(212,175,55,0)}}
+.halo-or{animation:haloOr 2.6s ease-out infinite}
+@keyframes ondeBarre{0%,100%{transform:scaleY(0.35)}50%{transform:scaleY(1)}}
+.onde-barre{transform-origin:bottom;animation:ondeBarre 1.05s ease-in-out infinite}
+@keyframes brillance{0%{transform:translateX(-130%)}100%{transform:translateX(130%)}}
+.btn-shimmer{position:relative;overflow:hidden}
+.btn-shimmer::after{content:'';position:absolute;inset:0;background:linear-gradient(110deg,transparent 25%,rgba(255,255,255,0.32) 50%,transparent 75%);transform:translateX(-130%)}
+.btn-shimmer:hover::after{animation:brillance 0.9s ease}
+`
+
+// ============================================================
 // Composant principal
 // ============================================================
 export function VipTableScan({
@@ -521,6 +549,30 @@ export function VipTableScan({
   const [quickLoans, setQuickLoans] = useState<QuickLoanItem[]>([])
   // Animation « coche dorée qui se dessine » lors d'un Me l'apporter
   const [loanDraw, setLoanDraw] = useState<string | null>(null)
+
+  // ---- « Option C » — Écran d'entrée + audio préchargé (Denise) ----
+  // Le navigateur interdit tout son sans geste utilisateur : UN SEUL
+  // bouton « Entrer dans le salon » débloque l'audio, lance le
+  // message d'accueil de Denise, puis l'écran d'entrée s'efface en
+  // fondu (800 ms). Après ce message : SILENCE TOTAL — Denise ne
+  // reparle JAMAIS (Mode Discrétion).
+  const [entree, setEntree] = useState(false)
+  const [gateFondu, setGateFondu] = useState(false)
+  const deniseDejaParle = useRef(false)
+  const deniseTimers = useRef<number[]>([])
+  const [deniseEtat, setDeniseEtat] = useState<'idle' | 'parle' | 'fini'>('idle')
+  const [deniseTexte, setDeniseTexte] = useState('')
+
+  // ---- Mode Sombre Luxueux (toggle soleil/lune, persistance) ----
+  const [modeSombre, setModeSombre] = useState(false)
+
+  // ---- Toast élégant (jamais d'alert() brut) ----
+  const [toast, setToast] = useState<{ msg: string; emoji: string } | null>(null)
+  const toastTimer = useRef<number | null>(null)
+
+  // ---- Timer de session EN TEMPS RÉEL (4 h, pied de page) ----
+  const [sessionFin, setSessionFin] = useState<number | null>(null)
+  const [sessionRestant, setSessionRestant] = useState('4 h 00')
 
   // ---- Module 3 — Détection langue + Module 11 — Session Nathalie ----
   const [detectedLang, setDetectedLang] = useState<string>('fr')
@@ -728,6 +780,170 @@ export function VipTableScan({
     setSalutation(h < 12 ? 'Bonjour' : h < 18 ? 'Bon après-midi' : 'Bonsoir')
   }, [])
 
+  // ---- Mode Sombre — choix du client mémorisé (localStorage) ----
+  // « Le choix du client est respecté » : relu à chaque visite.
+  useEffect(() => {
+    try {
+      setModeSombre(window.localStorage.getItem('nathalie-mode') === 'sombre')
+    } catch {
+      /* localStorage indisponible */
+    }
+  }, [])
+
+  const basculerMode = () => {
+    setModeSombre((v) => {
+      const suivant = !v
+      try {
+        window.localStorage.setItem('nathalie-mode', suivant ? 'sombre' : 'lumineux')
+      } catch {
+        /* ignore */
+      }
+      return suivant
+    })
+  }
+
+  // ---- Toast élégant ----
+  const afficherToast = (msg: string, emoji = '✨') => {
+    setToast({ msg, emoji })
+    if (toastTimer.current) window.clearTimeout(toastTimer.current)
+    toastTimer.current = window.setTimeout(() => setToast(null), 2600)
+  }
+
+  // ---- Timer de session 4 h — décompte temps réel (pied de page) ----
+  useEffect(() => {
+    if (!sessionToken) return
+    setSessionFin(Date.now() + 4 * 60 * 60 * 1000)
+  }, [sessionToken])
+
+  useEffect(() => {
+    if (!sessionFin) return
+    const tic = () => {
+      const ms = sessionFin - Date.now()
+      if (ms <= 0) {
+        setSessionRestant('0 h 00')
+        return
+      }
+      const h = Math.floor(ms / 3600000)
+      const m = Math.floor((ms % 3600000) / 60000)
+      setSessionRestant(`${h} h ${String(m).padStart(2, '0')}`)
+    }
+    tic()
+    const id = window.setInterval(tic, 10000)
+    return () => window.clearInterval(id)
+  }, [sessionFin])
+
+  // ---- Denise — message d'accueil vocal (UNE SEULE fois) ----
+  // Composé depuis la config tenant : salutation selon l'heure +
+  // nom du salon + messageBienvenue (Paramètres → Denise).
+  const messageDenise = () => {
+    const nom = loungeName || DEFAULT_LOUNGE_NAME
+    const suite =
+      loungeWelcome?.trim() ||
+      'Nathalie, votre guide personnel, est à votre entière disposition.'
+    return `${salutation}. Je suis Denise. Bienvenue au ${nom}. ${suite} Belle escale.`
+  }
+
+  const terminerDenise = () => {
+    setDeniseTexte(messageDenise())
+    deniseTimers.current.push(window.setTimeout(() => setDeniseEtat('fini'), 450))
+    deniseTimers.current.push(window.setTimeout(() => setDeniseEtat('idle'), 1500))
+  }
+
+  const lancerDenise = () => {
+    // Verrou éternel : Denise ne se présente qu'UNE fois par session —
+    // ensuite, silence de cathédrale (Mode Discrétion).
+    if (deniseDejaParle.current) return
+    deniseDejaParle.current = true
+    const texte = messageDenise()
+    const mots = texte.split(/\s+/)
+    setDeniseEtat('parle')
+    setDeniseTexte('')
+    // Révélation du texte mot à mot — cadence douce (~330 ms/mot)
+    let idx = 0
+    const idReveal = window.setInterval(() => {
+      idx += 1
+      setDeniseTexte(mots.slice(0, idx).join(' '))
+      if (idx >= mots.length) window.clearInterval(idReveal)
+    }, 330)
+    deniseTimers.current.push(idReveal)
+    try {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        const synth = window.speechSynthesis
+        synth.cancel()
+        const u = new SpeechSynthesisUtterance(texte)
+        u.lang = 'fr-FR'
+        u.rate = 0.95 // ton doux, posé
+        u.pitch = 1.05
+        u.volume = 0.9
+        const voix =
+          synth
+            .getVoices()
+            .find(
+              (v) =>
+                v.lang?.toLowerCase().startsWith('fr') &&
+                /(google|amélie|amelie|audrey|thomas|marie|denise|virginie)/i.test(v.name),
+            ) ??
+          synth.getVoices().find((v) => v.lang?.toLowerCase().startsWith('fr')) ??
+          null
+        if (voix) u.voice = voix
+        // Synchro fine quand le navigateur publie les bornes de mots
+        u.onboundary = (e) => {
+          const ci = e.charIndex ?? 0
+          let cum = 0
+          let n = 0
+          for (const m of mots) {
+            if (cum > ci) break
+            cum += m.length + 1
+            n += 1
+          }
+          if (n > idx) {
+            idx = n
+            setDeniseTexte(mots.slice(0, n).join(' '))
+          }
+        }
+        u.onend = terminerDenise
+        u.onerror = terminerDenise
+        synth.speak(u)
+        // Filet de sécurité : si aucune voix ne démarre (voix absente,
+        // navigateur muet), le texte déroule seul puis la barre s'efface.
+        deniseTimers.current.push(
+          window.setTimeout(() => {
+            if (!synth.speaking) terminerDenise()
+          }, 2600),
+        )
+      } else {
+        // Pas de TTS : le texte défile seul, puis silence complet.
+        deniseTimers.current.push(
+          window.setTimeout(terminerDenise, mots.length * 330 + 900),
+        )
+      }
+    } catch {
+      terminerDenise()
+    }
+  }
+
+  // Denise — nettoyage complet au démontage (jamais de voix orpheline)
+  useEffect(() => {
+    return () => {
+      deniseTimers.current.forEach((t) => window.clearTimeout(t))
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel()
+      }
+    }
+  }, [])
+
+  // ---- « Option C » — Entrée dans le salon (débloque l'audio) ----
+  const entrerDansLeSalon = () => {
+    if (entree || gateFondu) return
+    lancerDenise() // le geste utilisateur = la clé du son (policy)
+    setGateFondu(true) // fondu de sortie 800 ms
+    deniseTimers.current.push(
+      window.setTimeout(() => {
+        setEntree(true) // Nathalie apparaît (fade-in + cascade)
+      }, 850),
+    )
+  }
+
   // ---- ÉCRAN 2 — Prêt Express : 2 objets vedettes (casques & plaids
   // priorisés selon le brief DA), stock temps réel du catalogue ----
   useEffect(() => {
@@ -792,6 +1008,13 @@ export function VipTableScan({
 
   const cartCount = Object.values(cart).reduce((a, b) => a + b, 0)
   const cartItems = MENU_ITEMS.filter((m) => (cart[m.id] ?? 0) > 0)
+
+  // Racines d'écrans — thème Nathalie (lumineux/sombre) + transition douce
+  // Le fond fait partie de la racine : chaque vue hérite de la palette.
+  const racineCls = cn(
+    'nathalie-root min-h-screen bg-[var(--fp-bg)]',
+    modeSombre && 'nathalie-sombre',
+  )
 
   // ---- Envoi d'une demande via POST /api/vip/requests ----
   const sendRequest = async (
@@ -908,6 +1131,7 @@ export function VipTableScan({
     setGlobalZone(zone)
     setZoneModalOpen(false)
     setZoneFauteuil('')
+    afficherToast(`Installé : ${zone} — Nathalie est informée`, '📍')
     const action = pendingAction
     setPendingAction(null)
     if (!action) return // simple changement d'emplacement (chip Modifier)
@@ -958,6 +1182,7 @@ export function VipTableScan({
           : wifiNom,
       )
       setWifiCopied(true)
+      afficherToast('Wi-Fi copié — connexion en un instant', '📶')
       // L'icône revient à « Copier » après 2 s — feedback vivant,
       // sans jamais crier (Mode Discrétion).
       setTimeout(() => setWifiCopied(false), 2000)
@@ -1055,19 +1280,20 @@ export function VipTableScan({
       // « L'écran ne charge pas brutalement » — Nathalie se
       // matérialise dans son médailon, halo champagne, aucune
       // brutalité (Mode Discrétion).
-      <div className="flex min-h-screen flex-col items-center justify-center gap-5 bg-[#FAFAF7] px-6">
+      <div className={cn(racineCls, 'flex flex-col items-center justify-center gap-5 px-6')}>
+        <style dangerouslySetInnerHTML={{ __html: NATHALIE_CSS }} />
         <div className="relative flex h-24 w-24 items-center justify-center">
           <div
-            className="absolute inset-0 animate-pulse rounded-full bg-[#C9A961]/20 blur-md"
+            className="absolute inset-0 animate-pulse rounded-full bg-[var(--fp-gold)]/20 blur-md"
             aria-hidden
           />
           <img
             src="/brand/nathalie-avatar.png"
             alt="Nathalie"
-            className="relative h-20 w-20 rounded-full object-cover shadow-[0_4px_20px_rgba(201,169,97,0.30)] ring-2 ring-[#C9A961]/60"
+            className="relative h-20 w-20 rounded-full object-cover shadow-[0_4px_20px_rgba(201,169,97,0.30)] ring-2 ring-[var(--fp-gold)]/60"
           />
         </div>
-        <p className="text-sm italic text-[#8B6F47]" style={SERIF}>
+        <p className="text-sm italic text-[var(--fp-muted)]" style={SERIF}>
           {/* QR_ROUTING — libellé adapté au type de QR scanné */}
           {isGlobal ? 'Nathalie arrive…' : 'Connexion à votre table…'}
         </p>
@@ -1081,15 +1307,16 @@ export function VipTableScan({
   // ============================================================
   if (error && !isGlobal && !table) {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-[#FAFAF7] px-6 text-center">
+      <div className={cn(racineCls, 'flex flex-col items-center justify-center gap-4 px-6 text-center')}>
+        <style dangerouslySetInnerHTML={{ __html: NATHALIE_CSS }} />
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#C97B63]/10">
           <AlertTriangle className="h-7 w-7 text-[#C97B63]" aria-hidden />
         </div>
-        <h1 className="text-2xl font-semibold text-[#2C2C2C]" style={SERIF}>
+        <h1 className="text-2xl font-semibold text-[var(--fp-text)]" style={SERIF}>
           Oups, ce QR code est introuvable
         </h1>
-        <p className="max-w-sm text-sm text-[#8B6F47]">{error}</p>
-        <p className="text-xs text-[#8B6F47]/70">
+        <p className="max-w-sm text-sm text-[var(--fp-muted)]">{error}</p>
+        <p className="text-xs text-[var(--fp-muted)]/70">
           Demandez à l&apos;hôte du salon de vérifier le QR code affiché sur
           votre table.
         </p>
@@ -1097,7 +1324,7 @@ export function VipTableScan({
           <Button
             variant="outline"
             onClick={onExit}
-            className="mt-2 gap-2 border-[#EAE5DC] bg-white text-[#8B6F47]"
+            className="mt-2 gap-2 border-[var(--fp-border)] bg-[var(--fp-card)] text-[var(--fp-muted)]"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden /> Retour
           </Button>
@@ -1111,6 +1338,87 @@ export function VipTableScan({
   if (!isGlobal && !table) return null
 
   // ============================================================
+  // RENDU — « Option C » : ÉCRAN D'ENTRÉE (audio préchargé)
+  // ------------------------------------------------------------
+  // Fond dégradé sombre, logo pulsant doré, UN SEUL bouton :
+  // l'interaction débloque le son du navigateur, lance le message
+  // de Denise, puis l'écran d'entrée s'efface en fondu (800 ms).
+  // ============================================================
+  if (!entree) {
+    return (
+      <div
+        className={cn(
+          'nathalie-root flex min-h-screen flex-col items-center justify-center px-6 text-center transition-opacity duration-[800ms] ease-out',
+          gateFondu && 'pointer-events-none opacity-0',
+        )}
+        style={{
+          background:
+            'radial-gradient(130% 90% at 50% 0%, #201B12 0%, #14110B 48%, #0F0F0F 100%)',
+        }}
+        aria-label="Écran d'entrée du salon"
+      >
+        <style dangerouslySetInnerHTML={{ __html: NATHALIE_CSS }} />
+
+        {/* Logo du salon — pulsation dorée (halo qui respire) */}
+        <div className="relative flex h-28 w-28 items-center justify-center">
+          <span className="halo-or absolute inset-0 rounded-[28px]" aria-hidden />
+          {salonLogo ? (
+            <img
+              src={salonLogo}
+              alt="Logo du salon"
+              className="relative h-24 w-24 rounded-[22px] bg-[#FBF7EC] object-contain p-3 shadow-[0_18px_50px_rgba(0,0,0,0.55)] ring-1 ring-[var(--fp-gold)]/60"
+            />
+          ) : (
+            <img
+              src="/brand/nathalie-avatar.png"
+              alt="Nathalie — votre guide personnel"
+              className="relative h-24 w-24 rounded-full object-cover shadow-[0_18px_50px_rgba(0,0,0,0.55)] ring-2 ring-[var(--fp-gold)]/60"
+            />
+          )}
+        </div>
+
+        <p className="mt-8 text-[10px] font-medium uppercase tracking-[0.42em] text-[var(--fp-gold)]">
+          Bienvenue
+        </p>
+        <h1 className="mt-3 text-4xl font-semibold text-[#F5F1E6]" style={SERIF}>
+          {loungeName}
+        </h1>
+        <p
+          className="mt-3 max-w-xs text-[15px] italic leading-relaxed text-[#E3C985]"
+          style={SERIF}
+        >
+          Nathalie, votre guide personnel, est à votre entière disposition.
+        </p>
+
+        {/* UN SEUL bouton — remplissage or au survol + shimmer */}
+        <button
+          type="button"
+          onClick={entrerDansLeSalon}
+          className="btn-shimmer group relative mt-10 inline-flex min-h-[56px] items-center gap-3 overflow-hidden rounded-full border border-[var(--fp-gold)]/60 bg-[var(--fp-gold)]/10 px-9 transition-all duration-300 hover:border-[var(--fp-gold)] hover:shadow-[0_14px_44px_rgba(212,175,55,0.28)]"
+          aria-label="Entrer dans le salon"
+        >
+          {/* remplissage or — montée douce au survol */}
+          <span
+            className="absolute inset-0 origin-bottom scale-y-0 bg-gradient-to-t from-[var(--fp-gold)] via-[var(--fp-gold)] to-[#E3C985] transition-transform duration-500 ease-out group-hover:scale-y-100"
+            aria-hidden
+          />
+          <span className="relative z-10 text-[15px] font-medium text-[#F5F1E6] transition-colors duration-300 group-hover:text-[#1A1A1A]">
+            Entrer dans le salon
+          </span>
+          <ArrowRight
+            className="relative z-10 h-4 w-4 text-[var(--fp-gold)] transition-all duration-300 group-hover:translate-x-1.5 group-hover:text-[#1A1A1A]"
+            aria-hidden
+          />
+        </button>
+
+        <p className="mt-6 text-[11px] text-[#F5F1E6]/45">
+          Une voix douce vous accueillera — votre entrée active le son.
+        </p>
+      </div>
+    )
+  }
+
+  // ============================================================
   // RENDU — Confirmation (personnalisée par type)
   // ============================================================
   if (confirmation) {
@@ -1121,9 +1429,9 @@ export function VipTableScan({
     let detailsBox: any = null
     if (confirmation.type === 'refreshment' && meta?.items?.length) {
       detailsBox = (
-        <div className="mt-3 space-y-1 border-t border-[#EAE5DC] pt-3 text-left">
+        <div className="mt-3 space-y-1 border-t border-[var(--fp-border)] pt-3 text-left">
           {meta.items.map((it: any, i: number) => (
-            <p key={i} className="text-sm text-[#2C2C2C]">
+            <p key={i} className="text-sm text-[var(--fp-text)]">
               • {it.name} × {it.qty}
             </p>
           ))}
@@ -1134,12 +1442,12 @@ export function VipTableScan({
         CONCIERGE_TYPES.find((t) => t.id === meta.requestType)?.label ??
         meta.requestType
       detailsBox = (
-        <div className="mt-3 space-y-1 border-t border-[#EAE5DC] pt-3 text-left">
-          <p className="text-sm text-[#2C2C2C]">• Demande : {tLabel}</p>
+        <div className="mt-3 space-y-1 border-t border-[var(--fp-border)] pt-3 text-left">
+          <p className="text-sm text-[var(--fp-text)]">• Demande : {tLabel}</p>
           {meta.details && (
-            <p className="text-sm text-[#2C2C2C]">• Détails : {meta.details}</p>
+            <p className="text-sm text-[var(--fp-text)]">• Détails : {meta.details}</p>
           )}
-          <p className="text-sm text-[#2C2C2C]">
+          <p className="text-sm text-[var(--fp-text)]">
             • Concierge : {CONCIERGE_NAME}
           </p>
         </div>
@@ -1150,14 +1458,14 @@ export function VipTableScan({
         return t ? `${t.emoji} ${t.label}` : id
       })
       detailsBox = (
-        <div className="mt-3 space-y-1 border-t border-[#EAE5DC] pt-3 text-left">
-          <p className="text-sm text-[#2C2C2C]">
+        <div className="mt-3 space-y-1 border-t border-[var(--fp-border)] pt-3 text-left">
+          <p className="text-sm text-[var(--fp-text)]">
             • Types : {tagLabels.join(', ') || 'Signalement'}
           </p>
           {meta.description && (
-            <p className="text-sm text-[#2C2C2C]">• {meta.description}</p>
+            <p className="text-sm text-[var(--fp-text)]">• {meta.description}</p>
           )}
-          <p className="text-sm text-[#8B6F47]">
+          <p className="text-sm text-[var(--fp-muted)]">
             • Pris en charge : il y a quelques sec
           </p>
         </div>
@@ -1213,12 +1521,13 @@ export function VipTableScan({
     const estimateLabel = ESTIMATE_LABELS[confirmation.type] ?? ''
 
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-[#FAFAF7] px-6 py-12 text-center">
+      <div className={cn(racineCls, 'flex flex-col items-center justify-center px-6 py-12 text-center')}>
+        <style dangerouslySetInnerHTML={{ __html: NATHALIE_CSS }} />
         {/* Coche dorée qui se dessine — le cercle se trace, la coche
             s'écrit. Halo champagne diffus : vivant, jamais clignotant. */}
         <div className="relative flex h-28 w-28 items-center justify-center">
           <div
-            className="absolute inset-0 rounded-full bg-gradient-to-br from-[#C9A961]/25 via-[#C9A961]/8 to-[#4A7C59]/15 blur-md"
+            className="absolute inset-0 rounded-full bg-gradient-to-br from-[var(--fp-gold)]/25 via-[var(--fp-gold)]/8 to-[#4A7C59]/15 blur-md"
             aria-hidden
           />
           <motion.svg viewBox="0 0 64 64" className="relative h-20 w-20" aria-hidden>
@@ -1250,12 +1559,12 @@ export function VipTableScan({
         {/* Titre + promesse — la voix de Nathalie, serif italique */}
         <div className="mt-5">
           <h1
-            className="text-[26px] font-semibold leading-snug text-[#2C2C2C]"
+            className="text-[26px] font-semibold leading-snug text-[var(--fp-text)]"
             style={SERIF}
           >
             C&apos;est noté{prenom ? `, ${prenom}` : ''}.
           </h1>
-          <p className="mt-2 max-w-sm text-sm leading-relaxed text-[#8B6F47]">
+          <p className="mt-2 max-w-sm text-sm leading-relaxed text-[var(--fp-muted)]">
             <span className="italic" style={SERIF}>
               {promesse}
             </span>
@@ -1267,39 +1576,39 @@ export function VipTableScan({
             à rebours agressif. */}
         {estimateLabel && (
           <div className="mt-6 w-full max-w-xs">
-            <div className="h-[3px] w-full overflow-hidden rounded-full bg-[#EAE5DC]">
+            <div className="h-[3px] w-full overflow-hidden rounded-full bg-[var(--fp-border)]">
               <motion.div
-                className="h-full rounded-full bg-gradient-to-r from-[#C9A961]/50 via-[#C9A961] to-[#8B6F47]"
+                className="h-full rounded-full bg-gradient-to-r from-[var(--fp-gold)]/50 via-[var(--fp-gold)] to-[var(--fp-muted)]"
                 initial={{ width: '6%' }}
                 animate={{ width: '92%' }}
                 transition={{ duration: 7, ease: [0.22, 0.61, 0.36, 1] }}
               />
             </div>
-            <p className="mt-2.5 text-[11px] font-medium uppercase tracking-[0.22em] text-[#8B6F47]/80">
+            <p className="mt-2.5 text-[11px] font-medium uppercase tracking-[0.22em] text-[var(--fp-muted)]/80">
               {estimateLabel}
             </p>
           </div>
         )}
 
         {/* Référence + emplacement — carte ivoire, verre dépoli */}
-        <div className="mt-7 w-full max-w-sm rounded-2xl border border-[#EAE5DC] bg-white/80 px-5 py-4 text-left shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] backdrop-blur">
+        <div className="mt-7 w-full max-w-sm rounded-2xl border border-[var(--fp-border)] bg-[var(--fp-g3)] px-5 py-4 text-left shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] backdrop-blur">
           <div className="flex items-center justify-between">
-            <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-[#C9A961]">
+            <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-[var(--fp-gold)]">
               {refLabel}
             </p>
             <span className="text-[11px] font-medium text-[#4A7C59]">
               Pris en charge
             </span>
           </div>
-          <p className="mt-1 text-sm font-semibold tracking-wide text-[#2C2C2C]">
+          <p className="mt-1 text-sm font-semibold tracking-wide text-[var(--fp-text)]">
             #{confirmation.trackingNumber}
           </p>
           {detailsBox}
-          <div className="mt-3 border-t border-[#EAE5DC] pt-3">
-            <p className="text-[10px] font-medium uppercase tracking-widest text-[#8B6F47]">
+          <div className="mt-3 border-t border-[var(--fp-border)] pt-3">
+            <p className="text-[10px] font-medium uppercase tracking-widest text-[var(--fp-muted)]">
               {locationFieldLabel}
             </p>
-            <p className="mt-0.5 text-sm font-semibold text-[#2C2C2C]">
+            <p className="mt-0.5 text-sm font-semibold text-[var(--fp-text)]">
               {confirmation.tableNumber}
             </p>
           </div>
@@ -1312,7 +1621,7 @@ export function VipTableScan({
               variant="outline"
               disabled={!!sending}
               onClick={() => sendRequest('menu')}
-              className="gap-2 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
+              className="gap-2 border-[var(--fp-gold)]/40 bg-[var(--fp-gold)]/8 text-[var(--fp-muted)] hover:bg-[var(--fp-gold)]/15"
             >
               {sending === 'menu' ? (
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -1327,7 +1636,7 @@ export function VipTableScan({
               variant="outline"
               disabled={!!sending}
               onClick={() => sendRequest('rating')}
-              className="gap-2 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
+              className="gap-2 border-[var(--fp-gold)]/40 bg-[var(--fp-gold)]/8 text-[var(--fp-muted)] hover:bg-[var(--fp-gold)]/15"
             >
               {sending === 'rating' ? (
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -1341,7 +1650,7 @@ export function VipTableScan({
             variant="outline"
             disabled={!!sending}
             onClick={() => setConfirmation(null)}
-            className="gap-2 border-[#EAE5DC] bg-white text-[#8B6F47] hover:bg-[#EAE5DC]/40"
+            className="gap-2 border-[var(--fp-border)] bg-[var(--fp-card)] text-[var(--fp-muted)] hover:bg-[var(--fp-border)]/40"
           >
             <ConciergeBell className="h-4 w-4" aria-hidden /> Autre demande
           </Button>
@@ -1372,30 +1681,31 @@ export function VipTableScan({
   if (view === 'rating') {
     const LABELS = ['', 'Décevant', 'Correct', 'Bien', 'Excellent', 'Inoubliable']
     return (
-      <div className="min-h-screen bg-[#FAFAF7]">
+      <div className={racineCls}>
+        <style dangerouslySetInnerHTML={{ __html: NATHALIE_CSS }} />
         <div className="mx-auto max-w-xl px-4 py-8 sm:px-6 sm:py-12">
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-xs font-medium uppercase tracking-widest text-[#8B6F47]">
+              <p className="text-xs font-medium uppercase tracking-widest text-[var(--fp-muted)]">
                 {/* QR_ROUTING — « Table T-05 » en mode zone ·
                     « Installé : Zone Buffet » / « Salon VIP » en global */}
                 {headerLocation}
               </p>
-              <h1 className="mt-1 text-2xl font-semibold text-[#2C2C2C]" style={SERIF}>
+              <h1 className="mt-1 text-2xl font-semibold text-[var(--fp-text)]" style={SERIF}>
                 ⭐ Noter mon expérience
               </h1>
             </div>
             <Button
               variant="outline"
               onClick={() => setView('main')}
-              className="gap-2 border-[#EAE5DC] bg-white text-[#8B6F47] hover:bg-[#EAE5DC]/40"
+              className="gap-2 border-[var(--fp-border)] bg-[var(--fp-card)] text-[var(--fp-muted)] hover:bg-[var(--fp-border)]/40"
             >
               <ArrowLeft className="h-4 w-4" aria-hidden /> Retour
             </Button>
           </div>
 
-          <div className="mt-8 rounded-2xl border border-[#EAE5DC] bg-white p-6 text-center shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-            <p className="text-sm text-[#8B6F47]">Comment s’est passée votre visite ?</p>
+          <div className="mt-8 rounded-2xl border border-[var(--fp-border)] bg-[var(--fp-card)] p-6 text-center shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+            <p className="text-sm text-[var(--fp-muted)]">Comment s’est passée votre visite ?</p>
             <div className="mt-4 flex items-center justify-center gap-3" role="radiogroup" aria-label="Note de 1 à 5 étoiles">
               {[1, 2, 3, 4, 5].map((n) => (
                 <button
@@ -1410,7 +1720,7 @@ export function VipTableScan({
                   <Star
                     className={cn(
                       'h-9 w-9 transition-colors',
-                      n <= ratingStars ? 'fill-[#C9A961] text-[#C9A961]' : 'text-[#EAE5DC]',
+                      n <= ratingStars ? 'fill-[var(--fp-gold)] text-[var(--fp-gold)]' : 'text-[var(--fp-border)]',
                     )}
                     aria-hidden
                   />
@@ -1418,12 +1728,12 @@ export function VipTableScan({
               ))}
             </div>
             {ratingStars > 0 && (
-              <p className="mt-3 text-sm font-semibold text-[#8B6F47]" style={SERIF}>
+              <p className="mt-3 text-sm font-semibold text-[var(--fp-muted)]" style={SERIF}>
                 {LABELS[ratingStars]}
               </p>
             )}
             <Button
-              className="mt-6 w-full gap-2 bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white hover:opacity-90"
+              className="mt-6 w-full gap-2 bg-gradient-to-br from-[var(--fp-gold)] to-[var(--fp-muted)] text-white hover:opacity-90"
               disabled={ratingStars === 0 || sending === 'rating'}
               onClick={() =>
                 sendRequest('rating', { metadata: JSON.stringify({ rating: ratingStars }) })
@@ -1450,33 +1760,34 @@ export function VipTableScan({
       problemTags.length > 0 || problemDescription.trim().length > 0
 
     return (
-      <div className="min-h-screen bg-[#FAFAF7]">
+      <div className={racineCls}>
+        <style dangerouslySetInnerHTML={{ __html: NATHALIE_CSS }} />
         <div className="mx-auto max-w-xl px-4 py-8 sm:px-6 sm:py-12">
           {/* Header */}
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-xs font-medium uppercase tracking-widest text-[#8B6F47]">
+              <p className="text-xs font-medium uppercase tracking-widest text-[var(--fp-muted)]">
                 {/* QR_ROUTING — « Table T-05 » en mode zone ·
                     « Installé : Zone Buffet » / « Salon VIP » en global */}
                 {headerLocation}
               </p>
-              <h1 className="mt-1 text-2xl font-semibold text-[#2C2C2C]" style={SERIF}>
+              <h1 className="mt-1 text-2xl font-semibold text-[var(--fp-text)]" style={SERIF}>
                 ⚠️ Signaler un problème
               </h1>
             </div>
             <Button
               variant="outline"
               onClick={() => setView('main')}
-              className="gap-2 border-[#EAE5DC] bg-white text-[#8B6F47] hover:bg-[#EAE5DC]/40"
+              className="gap-2 border-[var(--fp-border)] bg-[var(--fp-card)] text-[var(--fp-muted)] hover:bg-[var(--fp-border)]/40"
             >
               <ArrowLeft className="h-4 w-4" aria-hidden /> Retour
             </Button>
           </div>
 
-          <div className="mt-6 space-y-6 rounded-3xl border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+          <div className="mt-6 space-y-6 rounded-3xl border border-[var(--fp-border)] bg-[var(--fp-card)] p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
             {/* Tags multi-select */}
             <div>
-              <p className="text-sm font-medium text-[#2C2C2C]">
+              <p className="text-sm font-medium text-[var(--fp-text)]">
                 Quel type de problème ?
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -1497,7 +1808,7 @@ export function VipTableScan({
                         'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all',
                         selected
                           ? 'border-[#C97B63] bg-[#C97B63]/12 text-[#C97B63]'
-                          : 'border-[#EAE5DC] bg-white text-[#8B6F47] hover:border-[#C97B63]/40 hover:bg-[#C97B63]/8',
+                          : 'border-[var(--fp-border)] bg-[var(--fp-card)] text-[var(--fp-muted)] hover:border-[#C97B63]/40 hover:bg-[#C97B63]/8',
                       )}
                     >
                       <span aria-hidden>{t.emoji}</span>
@@ -1511,20 +1822,20 @@ export function VipTableScan({
 
             {/* Description */}
             <div>
-              <p className="text-sm font-medium text-[#2C2C2C]">
+              <p className="text-sm font-medium text-[var(--fp-text)]">
                 Décrivez brièvement :
               </p>
               <Textarea
                 value={problemDescription}
                 onChange={(e) => setProblemDescription(e.target.value)}
                 placeholder="La table à côté…"
-                className="mt-2 min-h-24 resize-none border-[#EAE5DC] bg-[#FAFAF7] text-sm text-[#2C2C2C] placeholder:text-[#8B6F47]/50 focus-visible:border-[#C9A961] focus-visible:ring-[#C9A961]/20"
+                className="mt-2 min-h-24 resize-none border-[var(--fp-border)] bg-[var(--fp-bg)] text-sm text-[var(--fp-text)] placeholder:text-[var(--fp-muted)]/50 focus-visible:border-[var(--fp-gold)] focus-visible:ring-[var(--fp-gold)]/20"
               />
             </div>
 
             {/* Photo optionnelle */}
             <div>
-              <p className="text-sm font-medium text-[#2C2C2C]">
+              <p className="text-sm font-medium text-[var(--fp-text)]">
                 📸 Ajouter une photo (optionnel)
               </p>
               <input
@@ -1542,12 +1853,12 @@ export function VipTableScan({
                     <img
                       src={photoPreviewUrl}
                       alt="Aperçu du signalement"
-                      className="h-20 w-20 rounded-xl border border-[#EAE5DC] object-cover"
+                      className="h-20 w-20 rounded-xl border border-[var(--fp-border)] object-cover"
                     />
                     <button
                       type="button"
                       onClick={removePhoto}
-                      className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-[#EAE5DC] bg-white text-[#8B6F47] shadow"
+                      className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-[var(--fp-border)] bg-[var(--fp-card)] text-[var(--fp-muted)] shadow"
                       aria-label="Retirer la photo"
                     >
                       <X className="h-3 w-3" aria-hidden />
@@ -1557,9 +1868,9 @@ export function VipTableScan({
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-2 rounded-xl border border-dashed border-[#C9A961]/40 bg-[#C9A961]/6 px-4 py-3 text-xs font-medium text-[#8B6F47] hover:bg-[#C9A961]/12"
+                    className="inline-flex items-center gap-2 rounded-xl border border-dashed border-[var(--fp-gold)]/40 bg-[var(--fp-gold)]/6 px-4 py-3 text-xs font-medium text-[var(--fp-muted)] hover:bg-[var(--fp-gold)]/12"
                   >
-                    <Camera className="h-4 w-4 text-[#C9A961]" aria-hidden />{' '}
+                    <Camera className="h-4 w-4 text-[var(--fp-gold)]" aria-hidden />{' '}
                     Prendre une photo
                   </button>
                 )}
@@ -1572,7 +1883,7 @@ export function VipTableScan({
                 type="button"
                 disabled={!!sending || !canSubmit}
                 onClick={submitProblem}
-                className="w-full gap-2 rounded-2xl border border-[#C9A961] bg-[#C9A961] text-white shadow-[0_4px_20px_rgba(201,169,97,0.18)] hover:bg-[#C9A961]/90"
+                className="w-full gap-2 rounded-2xl border border-[var(--fp-gold)] bg-[var(--fp-gold)] text-white shadow-[0_4px_20px_rgba(201,169,97,0.18)] hover:bg-[var(--fp-gold)]/90"
               >
                 {sending === 'problem' ? (
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -1581,7 +1892,7 @@ export function VipTableScan({
                 )}
                 TRANSMETTRE DISCRÈTEMENT
               </Button>
-              <p className="text-center text-xs text-[#8B6F47]">
+              <p className="text-center text-xs text-[var(--fp-muted)]">
                 🔒 Votre signalement est confidentiel.
               </p>
             </div>
@@ -1610,34 +1921,35 @@ export function VipTableScan({
   // ============================================================
   if (view === 'refreshment') {
     return (
-      <div className="min-h-screen bg-[#FAFAF7]">
+      <div className={racineCls}>
+        <style dangerouslySetInnerHTML={{ __html: NATHALIE_CSS }} />
         <div className="mx-auto max-w-xl px-4 py-8 sm:px-6 sm:py-12">
           {/* Header */}
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-xs font-medium uppercase tracking-widest text-[#8B6F47]">
+              <p className="text-xs font-medium uppercase tracking-widest text-[var(--fp-muted)]">
                 {/* QR_ROUTING — « Table T-05 » en mode zone ·
                     « Installé : Zone Buffet » / « Salon VIP » en global */}
                 {headerLocation}
               </p>
-              <h1 className="mt-1 text-2xl font-semibold text-[#2C2C2C]" style={SERIF}>
+              <h1 className="mt-1 text-2xl font-semibold text-[var(--fp-text)]" style={SERIF}>
                 🍸 Commander un rafraîchissement
               </h1>
             </div>
             <Button
               variant="outline"
               onClick={() => setView('main')}
-              className="gap-2 border-[#EAE5DC] bg-white text-[#8B6F47] hover:bg-[#EAE5DC]/40"
+              className="gap-2 border-[var(--fp-border)] bg-[var(--fp-card)] text-[var(--fp-muted)] hover:bg-[var(--fp-border)]/40"
             >
               <ArrowLeft className="h-4 w-4" aria-hidden /> Retour
             </Button>
           </div>
 
-          <div className="mt-6 space-y-6 rounded-3xl border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+          <div className="mt-6 space-y-6 rounded-3xl border border-[var(--fp-border)] bg-[var(--fp-card)] p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
             {/* Menu groupé par catégorie */}
             {MENU_CATEGORIES.map((cat) => (
               <div key={cat}>
-                <p className="text-[11px] font-semibold uppercase tracking-widest text-[#8B6F47]">
+                <p className="text-[11px] font-semibold uppercase tracking-widest text-[var(--fp-muted)]">
                   {cat}
                 </p>
                 <div className="mt-3 space-y-2">
@@ -1646,12 +1958,12 @@ export function VipTableScan({
                     return (
                       <div
                         key={m.id}
-                        className="flex items-center gap-3 rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2"
+                        className="flex items-center gap-3 rounded-xl border border-[var(--fp-border)] bg-[var(--fp-bg)] px-3 py-2"
                       >
                         <span className="text-xl" aria-hidden>
                           {m.emoji}
                         </span>
-                        <span className="flex-1 text-sm font-medium text-[#2C2C2C]">
+                        <span className="flex-1 text-sm font-medium text-[var(--fp-text)]">
                           {m.name}
                         </span>
                         {qty > 0 ? (
@@ -1664,12 +1976,12 @@ export function VipTableScan({
                                   [m.id]: Math.max(0, qty - 1),
                                 }))
                               }
-                              className="flex h-7 w-7 items-center justify-center rounded-full border border-[#EAE5DC] bg-white text-[#8B6F47]"
+                              className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--fp-border)] bg-[var(--fp-card)] text-[var(--fp-muted)]"
                               aria-label={`Retirer ${m.name}`}
                             >
                               −
                             </button>
-                            <span className="min-w-[1.5rem] text-center text-sm font-semibold text-[#2C2C2C]">
+                            <span className="min-w-[1.5rem] text-center text-sm font-semibold text-[var(--fp-text)]">
                               {qty}
                             </span>
                             <button
@@ -1677,7 +1989,7 @@ export function VipTableScan({
                               onClick={() =>
                                 setCart((p) => ({ ...p, [m.id]: qty + 1 }))
                               }
-                              className="flex h-7 w-7 items-center justify-center rounded-full border border-[#C9A961] bg-[#C9A961]/12 text-[#C9A961]"
+                              className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--fp-gold)] bg-[var(--fp-gold)]/12 text-[var(--fp-gold)]"
                               aria-label={`Ajouter ${m.name}`}
                             >
                               +
@@ -1689,7 +2001,7 @@ export function VipTableScan({
                             onClick={() =>
                               setCart((p) => ({ ...p, [m.id]: 1 }))
                             }
-                            className="rounded-full border border-[#C9A961]/40 bg-[#C9A961]/8 px-3 py-1 text-xs font-medium text-[#8B6F47] hover:bg-[#C9A961]/15"
+                            className="rounded-full border border-[var(--fp-gold)]/40 bg-[var(--fp-gold)]/8 px-3 py-1 text-xs font-medium text-[var(--fp-muted)] hover:bg-[var(--fp-gold)]/15"
                           >
                             Ajouter
                           </button>
@@ -1702,22 +2014,22 @@ export function VipTableScan({
             ))}
 
             {/* Panier */}
-            <div className="rounded-2xl border border-[#C9A961]/25 bg-[#C9A961]/6 p-4">
+            <div className="rounded-2xl border border-[var(--fp-gold)]/25 bg-[var(--fp-gold)]/6 p-4">
               <div className="flex items-center gap-2">
                 <span aria-hidden>🛒</span>
-                <p className="text-sm font-semibold text-[#2C2C2C]">
+                <p className="text-sm font-semibold text-[var(--fp-text)]">
                   Votre commande ({cartCount}{' '}
                   {cartCount > 1 ? 'articles' : 'article'})
                 </p>
               </div>
               {cartCount === 0 ? (
-                <p className="mt-2 text-xs text-[#8B6F47]">
+                <p className="mt-2 text-xs text-[var(--fp-muted)]">
                   Sélectionnez une boisson ci-dessus.
                 </p>
               ) : (
                 <ul className="mt-2 space-y-1">
                   {cartItems.map((m) => (
-                    <li key={m.id} className="text-sm text-[#2C2C2C]">
+                    <li key={m.id} className="text-sm text-[var(--fp-text)]">
                       • {m.name} × {cart[m.id]}
                     </li>
                   ))}
@@ -1731,7 +2043,7 @@ export function VipTableScan({
                 type="button"
                 disabled={!!sending || cartCount === 0}
                 onClick={submitRefreshment}
-                className="w-full gap-2 rounded-2xl border border-[#C9A961] bg-[#C9A961] text-white shadow-[0_4px_20px_rgba(201,169,97,0.18)] hover:bg-[#C9A961]/90"
+                className="w-full gap-2 rounded-2xl border border-[var(--fp-gold)] bg-[var(--fp-gold)] text-white shadow-[0_4px_20px_rgba(201,169,97,0.18)] hover:bg-[var(--fp-gold)]/90"
               >
                 {sending === 'refreshment' ? (
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -1740,7 +2052,7 @@ export function VipTableScan({
                 )}
                 ENVOYER LA COMMANDE
               </Button>
-              <p className="text-center text-xs text-[#8B6F47]">
+              <p className="text-center text-xs text-[var(--fp-muted)]">
                 ⏱️ Temps estimé : 3-5 minutes
               </p>
             </div>
@@ -1769,33 +2081,34 @@ export function VipTableScan({
   // ============================================================
   if (view === 'concierge') {
     return (
-      <div className="min-h-screen bg-[#FAFAF7]">
+      <div className={racineCls}>
+        <style dangerouslySetInnerHTML={{ __html: NATHALIE_CSS }} />
         <div className="mx-auto max-w-xl px-4 py-8 sm:px-6 sm:py-12">
           {/* Header */}
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-xs font-medium uppercase tracking-widest text-[#8B6F47]">
+              <p className="text-xs font-medium uppercase tracking-widest text-[var(--fp-muted)]">
                 {/* QR_ROUTING — « Table T-05 » en mode zone ·
                     « Installé : Zone Buffet » / « Salon VIP » en global */}
                 {headerLocation}
               </p>
-              <h1 className="mt-1 text-2xl font-semibold text-[#2C2C2C]" style={SERIF}>
+              <h1 className="mt-1 text-2xl font-semibold text-[var(--fp-text)]" style={SERIF}>
                 🛎️ Appeler le concierge
               </h1>
             </div>
             <Button
               variant="outline"
               onClick={() => setView('main')}
-              className="gap-2 border-[#EAE5DC] bg-white text-[#8B6F47] hover:bg-[#EAE5DC]/40"
+              className="gap-2 border-[var(--fp-border)] bg-[var(--fp-card)] text-[var(--fp-muted)] hover:bg-[var(--fp-border)]/40"
             >
               <ArrowLeft className="h-4 w-4" aria-hidden /> Retour
             </Button>
           </div>
 
-          <div className="mt-6 space-y-6 rounded-3xl border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+          <div className="mt-6 space-y-6 rounded-3xl border border-[var(--fp-border)] bg-[var(--fp-card)] p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
             {/* Sélecteur de demande (single-select) */}
             <div>
-              <p className="text-sm font-medium text-[#2C2C2C]">
+              <p className="text-sm font-medium text-[var(--fp-text)]">
                 Comment pouvons-nous vous aider ?
               </p>
               <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -1810,7 +2123,7 @@ export function VipTableScan({
                         'flex items-center gap-2 rounded-xl border px-3 py-3 text-left text-sm font-medium transition-all',
                         selected
                           ? 'border-[#6B4C9A] bg-[#6B4C9A]/10 text-[#6B4C9A]'
-                          : 'border-[#EAE5DC] bg-[#FAFAF7] text-[#8B6F47] hover:border-[#6B4C9A]/40 hover:bg-[#6B4C9A]/6',
+                          : 'border-[var(--fp-border)] bg-[var(--fp-bg)] text-[var(--fp-muted)] hover:border-[#6B4C9A]/40 hover:bg-[#6B4C9A]/6',
                       )}
                     >
                       <span className="text-xl" aria-hidden>
@@ -1826,14 +2139,14 @@ export function VipTableScan({
 
             {/* Détails optionnels */}
             <div>
-              <p className="text-sm font-medium text-[#2C2C2C]">
+              <p className="text-sm font-medium text-[var(--fp-text)]">
                 Détails (optionnel) :
               </p>
               <Textarea
                 value={conciergeDetails}
                 onChange={(e) => setConciergeDetails(e.target.value)}
                 placeholder="Je souhaite un taxi pour 18h…"
-                className="mt-2 min-h-24 resize-none border-[#EAE5DC] bg-[#FAFAF7] text-sm text-[#2C2C2C] placeholder:text-[#8B6F47]/50 focus-visible:border-[#6B4C9A] focus-visible:ring-[#6B4C9A]/20"
+                className="mt-2 min-h-24 resize-none border-[var(--fp-border)] bg-[var(--fp-bg)] text-sm text-[var(--fp-text)] placeholder:text-[var(--fp-muted)]/50 focus-visible:border-[#6B4C9A] focus-visible:ring-[#6B4C9A]/20"
               />
             </div>
 
@@ -1852,7 +2165,7 @@ export function VipTableScan({
                 )}
                 TRANSMETTRE AU CONCIERGE
               </Button>
-              <p className="inline-flex items-center justify-center gap-1.5 text-center text-xs text-[#8B6F47]">
+              <p className="inline-flex items-center justify-center gap-1.5 text-center text-xs text-[var(--fp-muted)]">
                 <Phone className="h-3 w-3" aria-hidden /> Concierge disponible :{' '}
                 {CONCIERGE_NAME}
               </p>
@@ -1884,7 +2197,8 @@ export function VipTableScan({
   // ============================================================
   if (view === 'upsell') {
     return (
-      <div className="min-h-screen bg-[#FAFAF7]">
+      <div className={racineCls}>
+        <style dangerouslySetInnerHTML={{ __html: NATHALIE_CSS }} />
         <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
           <VipUpsellCatalog
             tableNumber={locationLabel}
@@ -1902,7 +2216,8 @@ export function VipTableScan({
   // ============================================================
   if (view === 'shower-reservation') {
     return (
-      <div className="min-h-screen bg-[#FAFAF7]">
+      <div className={racineCls}>
+        <style dangerouslySetInnerHTML={{ __html: NATHALIE_CSS }} />
         <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
           <VipShowerReservation
             tableNumber={locationLabel}
@@ -1918,7 +2233,8 @@ export function VipTableScan({
   // ============================================================
   if (view === 'loan') {
     return (
-      <div className="min-h-screen bg-[#FAFAF7]">
+      <div className={racineCls}>
+        <style dangerouslySetInnerHTML={{ __html: NATHALIE_CSS }} />
         <div className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
           <VipLoanCatalog
             tableNumber={locationLabel}
@@ -1933,9 +2249,32 @@ export function VipTableScan({
   // RENDU — Vue principale (bandeau + bannière VIP + cartes)
   // ============================================================
   return (
-    <div className="min-h-screen bg-[#FAFAF7]">
-      <div className="mx-auto max-w-xl px-4 py-8 sm:px-6 sm:py-12">
-        {/* ============================================================
+    <div className={racineCls}>
+      <style dangerouslySetInnerHTML={{ __html: NATHALIE_CSS }} />
+
+      {/* Mode Sombre Luxueux — toggle discret (icône soleil/lune),
+          choix du client mémorisé dans localStorage */}
+      <button
+        type="button"
+        onClick={basculerMode}
+        aria-label={modeSombre ? 'Passer en mode clair' : 'Passer en mode sombre'}
+        title={modeSombre ? 'Mode clair' : 'Mode sombre'}
+        className="fixed right-4 top-4 z-[70] flex h-11 w-11 items-center justify-center rounded-full border border-[var(--fp-gold)]/40 bg-[var(--fp-g2)] shadow-[0_6px_24px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:scale-105 hover:border-[var(--fp-gold)]"
+      >
+        {modeSombre ? (
+          <Sun className="h-5 w-5 text-[var(--fp-gold)]" aria-hidden />
+        ) : (
+          <Moon className="h-5 w-5 text-[var(--fp-muted)]" aria-hidden />
+        )}
+      </button>
+
+      {/* Nathalie apparaît — fondu d'entrée doux (700 ms) */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.7, ease: 'easeOut' }}
+        className="mx-auto max-w-xl px-4 py-8 sm:px-6 sm:py-12"
+      >  {/* ============================================================
             ROUTAGE DES ÉCRANS —
             ÉCRAN 1 : L'Accueil Magique (QR d'entrée CLIENT_GLOBAL)
             ÉCRAN 2 : L'Expérience Table (QR de table CLIENT_ZONE)
@@ -1962,7 +2301,7 @@ export function VipTableScan({
                   <img
                     src={salonLogo}
                     alt="Logo du salon"
-                    className="h-24 w-24 rounded-2xl bg-[#FBF7EC]/95 object-contain p-2.5 shadow-[0_14px_36px_rgba(0,0,0,0.38)] ring-1 ring-[#C9A961]/70"
+                    className="h-24 w-24 rounded-2xl bg-[#FBF7EC]/95 object-contain p-2.5 shadow-[0_14px_36px_rgba(0,0,0,0.38)] ring-1 ring-[var(--fp-gold)]/70"
                   />
                 ) : null}
 
@@ -1971,11 +2310,11 @@ export function VipTableScan({
                 <img
                   src="/brand/nathalie-avatar.png"
                   alt="Nathalie — votre guide personnel"
-                  className="mt-4 h-14 w-14 rounded-full object-cover shadow-[0_4px_20px_rgba(0,0,0,0.4)] ring-2 ring-[#C9A961]/70"
+                  className="mt-4 h-14 w-14 rounded-full object-cover shadow-[0_4px_20px_rgba(0,0,0,0.4)] ring-2 ring-[var(--fp-gold)]/70"
                 />
 
                 {/* Message dynamique — « Bonsoir, Cher Hôte. Je suis Nathalie. » */}
-                <p className="mt-4 text-[10px] font-medium uppercase tracking-[0.34em] text-[#C9A961]">
+                <p className="mt-4 text-[10px] font-medium uppercase tracking-[0.34em] text-[var(--fp-gold)]">
                   {salonLogo ? loungeName : 'Salon VIP'}
                 </p>
                 <h1
@@ -2000,18 +2339,23 @@ export function VipTableScan({
                 donne le sentiment que « tout répond ». Affiché SEULEMENT
                 si le salon a configuré son réseau (Paramètres). */}
             {wifiNom && (
-              <div className="mt-4 flex items-center gap-4 rounded-2xl border border-[#C9A961]/25 bg-white/70 px-4 py-3.5 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] backdrop-blur-xl">
-                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#C9A961]/10 ring-1 ring-[#C9A961]/30">
-                  <Wifi className="h-5 w-5 text-[#C9A961]" aria-hidden />
+              <motion.div
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.25, ease: 'easeOut' }}
+                className="mt-4 flex items-center gap-4 rounded-2xl border border-[var(--fp-gold)]/25 bg-[var(--fp-g2)] px-4 py-3.5 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] backdrop-blur-xl"
+              >
+                <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[var(--fp-gold)]/10 ring-1 ring-[var(--fp-gold)]/30">
+                  <Wifi className="h-5 w-5 text-[var(--fp-gold)]" aria-hidden />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-[#C9A961]">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-[var(--fp-gold)]">
                     Wi-Fi du salon
                   </p>
-                  <p className="mt-0.5 truncate text-sm font-medium text-[#2C2C2C]">
+                  <p className="mt-0.5 truncate text-sm font-medium text-[var(--fp-text)]">
                     {wifiNom}
                     {wifiMotDePasse && (
-                      <span className="text-[#8B6F47]"> · {wifiMotDePasse}</span>
+                      <span className="text-[var(--fp-muted)]"> · {wifiMotDePasse}</span>
                     )}
                   </p>
                 </div>
@@ -2022,7 +2366,7 @@ export function VipTableScan({
                     'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-2 text-xs font-semibold transition-all',
                     wifiCopied
                       ? 'border-[#4A7C59]/40 bg-[#4A7C59]/10 text-[#4A7C59]'
-                      : 'border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15',
+                      : 'border-[var(--fp-gold)]/40 bg-[var(--fp-gold)]/8 text-[var(--fp-muted)] hover:bg-[var(--fp-gold)]/15',
                   )}
                   aria-live="polite"
                 >
@@ -2033,64 +2377,82 @@ export function VipTableScan({
                   )}
                   {wifiCopied ? 'Copié' : 'Copier en 1 clic'}
                 </button>
-              </div>
+              </motion.div>
             )}
 
             {/* Cartes de Service — verre dépoli, icônes fines Or
                 Champagne. Chaque carte est une invitation. */}
-            <p className="mt-8 text-[10px] font-medium uppercase tracking-[0.34em] text-[#8B6F47]">
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.6, delay: 0.3 }}
+              className="mt-8 text-[10px] font-medium uppercase tracking-[0.34em] text-[var(--fp-muted)]"
+            >
               À votre entière disposition
-            </p>
+            </motion.p>
             <div className="mt-3 grid grid-cols-2 gap-3">
-              {SERVICE_CARDS.map((card) => {
+              {SERVICE_CARDS.map((card, idxService) => {
                 const Icon = card.Icon
                 return (
-                  <button
+                  <motion.button
                     key={card.id}
                     type="button"
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.5, delay: 0.35 + idxService * 0.08, ease: 'easeOut' }}
                     onClick={() => handleActionClick(ACTIONS_BY_TYPE[card.actionType])}
-                    className="group rounded-[20px] border border-[#C9A961]/25 bg-white/60 p-5 text-left shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:border-[#C9A961]/45 hover:shadow-[0_20px_40px_-10px_rgba(201,169,97,0.22)]"
+                    className="group rounded-[20px] border border-[var(--fp-gold)]/25 bg-[var(--fp-g1)] p-5 text-left shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--fp-gold)]/45 hover:shadow-[0_20px_40px_-10px_rgba(201,169,97,0.22)]"
                     aria-label={card.label}
                   >
-                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[#C9A961]/10 ring-1 ring-[#C9A961]/30 transition-colors group-hover:bg-[#C9A961]/18">
-                      <Icon className="h-5 w-5 text-[#C9A961]" aria-hidden />
+                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--fp-gold)]/10 ring-1 ring-[var(--fp-gold)]/30 transition-colors group-hover:bg-[var(--fp-gold)]/18">
+                      <Icon className="h-5 w-5 text-[var(--fp-gold)]" aria-hidden />
                     </span>
-                    <p className="mt-3 text-sm font-semibold text-[#2C2C2C]" style={SERIF}>
+                    <p className="mt-3 text-sm font-semibold text-[var(--fp-text)]" style={SERIF}>
                       {card.label}
                     </p>
-                    <p className="mt-1 text-xs leading-relaxed text-[#8B6F47]">
+                    <p className="mt-1 text-xs leading-relaxed text-[var(--fp-muted)]">
                       {card.desc}
                     </p>
-                  </button>
+                  </motion.button>
                 )
               })}
             </div>
 
             {/* Autres attentions — pilules fines, jamais un menu liste */}
-            <div className="mt-4 flex flex-wrap gap-2">
+            <motion.div
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5, delay: 0.55, ease: 'easeOut' }}
+              className="mt-4 flex flex-wrap gap-2"
+            >
               {OTHER_ACTIONS.map(({ def, short }) => (
                 <button
                   key={def.type}
                   type="button"
                   disabled={!!sending}
                   onClick={() => handleActionClick(def)}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-[#EAE5DC] bg-white/70 px-3.5 py-2 text-xs font-medium text-[#8B6F47] backdrop-blur transition-all hover:border-[#C9A961]/45 hover:bg-[#C9A961]/8 disabled:opacity-60"
+                  className="inline-flex items-center gap-1.5 rounded-full border border-[var(--fp-border)] bg-[var(--fp-g2)] px-3.5 py-2 text-xs font-medium text-[var(--fp-muted)] backdrop-blur transition-all hover:border-[var(--fp-gold)]/45 hover:bg-[var(--fp-gold)]/8 disabled:opacity-60"
                   aria-label={def.label}
                 >
                   <span aria-hidden>{def.emoji}</span>
                   {short}
                 </button>
               ))}
-            </div>
+            </motion.div>
 
             {/* « Où vous trouvez-vous actuellement ? » — sélecteurs
                 visuels (petites cartes ivoire), jamais de dropdown. */}
             {!globalZone ? (
-              <div className="mt-8 rounded-[24px] border border-[#EAE5DC] bg-white/80 p-6 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] backdrop-blur-xl">
-                <p className="text-base font-semibold text-[#2C2C2C]" style={SERIF}>
+              <motion.div
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.55, delay: 0.65, ease: 'easeOut' }}
+                className="mt-8 rounded-[24px] border border-[var(--fp-border)] bg-[var(--fp-g3)] p-6 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] backdrop-blur-xl"
+              >
+                <p className="text-base font-semibold text-[var(--fp-text)]" style={SERIF}>
                   Où vous trouvez-vous actuellement ?
                 </p>
-                <p className="mt-1 text-xs leading-relaxed text-[#8B6F47]">
+                <p className="mt-1 text-xs leading-relaxed text-[var(--fp-muted)]">
                   Nathalie transmet votre emplacement avec chaque demande —
                   discret et sans effort.
                 </p>
@@ -2100,11 +2462,11 @@ export function VipTableScan({
                       key={z.id}
                       type="button"
                       onClick={() => confirmZoneSelection(z.label)}
-                      className="flex min-h-[56px] items-center gap-2.5 rounded-2xl border border-[#EAE5DC] bg-[#FAFAF7] px-3.5 py-3 text-left text-[13px] font-medium text-[#2C2C2C] transition-all hover:border-[#C9A961]/50 hover:bg-[#C9A961]/8"
+                      className="flex min-h-[56px] items-center gap-2.5 rounded-2xl border border-[var(--fp-border)] bg-[var(--fp-bg)] px-3.5 py-3 text-left text-[13px] font-medium text-[var(--fp-text)] transition-all hover:border-[var(--fp-gold)]/50 hover:bg-[var(--fp-gold)]/8"
                       aria-label={`Je suis : ${z.label}`}
                     >
                       <span
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#C9A961]/10 text-base"
+                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--fp-gold)]/10 text-base"
                         aria-hidden
                       >
                         {z.emoji}
@@ -2116,11 +2478,11 @@ export function VipTableScan({
 
                 {/* Ou préciser un fauteuil — même élégance, un seul champ */}
                 <div className="my-4 flex items-center gap-3" aria-hidden>
-                  <span className="h-px flex-1 bg-[#EAE5DC]" />
-                  <span className="text-[9px] font-medium uppercase tracking-[0.28em] text-[#8B6F47]/70">
+                  <span className="h-px flex-1 bg-[var(--fp-border)]" />
+                  <span className="text-[9px] font-medium uppercase tracking-[0.28em] text-[var(--fp-muted)]/70">
                     ou
                   </span>
-                  <span className="h-px flex-1 bg-[#EAE5DC]" />
+                  <span className="h-px flex-1 bg-[var(--fp-border)]" />
                 </div>
                 <form
                   onSubmit={(e) => {
@@ -2137,24 +2499,24 @@ export function VipTableScan({
                     onChange={(e) => setZoneFauteuil(e.target.value)}
                     placeholder="Ex : Fauteuil 12"
                     aria-label="Numéro de fauteuil"
-                    className="border-[#EAE5DC] bg-[#FAFAF7] text-sm text-[#2C2C2C] placeholder:text-[#8B6F47]/50 focus-visible:border-[#C9A961] focus-visible:ring-[#C9A961]/20"
+                    className="border-[var(--fp-border)] bg-[var(--fp-bg)] text-sm text-[var(--fp-text)] placeholder:text-[var(--fp-muted)]/50 focus-visible:border-[var(--fp-gold)] focus-visible:ring-[var(--fp-gold)]/20"
                   />
                   <Button
                     type="submit"
                     disabled={!zoneFauteuil.trim()}
-                    className="shrink-0 rounded-2xl border border-[#C9A961] bg-[#C9A961] text-white shadow-[0_4px_20px_rgba(201,169,97,0.18)] hover:bg-[#C9A961]/90"
+                    className="shrink-0 rounded-2xl border border-[var(--fp-gold)] bg-[var(--fp-gold)] text-white shadow-[0_4px_20px_rgba(201,169,97,0.18)] hover:bg-[var(--fp-gold)]/90"
                   >
                     <Check className="h-4 w-4" aria-hidden />
                     <span className="sr-only">Valider mon emplacement</span>
                   </Button>
                 </form>
-              </div>
+              </motion.div>
             ) : (
               /* Emplacement mémorisé — chip + Modifier */
               <div className="mt-6 flex justify-center">
-                <div className="inline-flex items-center gap-2 rounded-full border border-[#C9A961]/40 bg-[#C9A961]/8 px-4 py-2">
+                <div className="inline-flex items-center gap-2 rounded-full border border-[var(--fp-gold)]/40 bg-[var(--fp-gold)]/8 px-4 py-2">
                   <span aria-hidden>📍</span>
-                  <span className="text-xs font-medium text-[#8B6F47]">
+                  <span className="text-xs font-medium text-[var(--fp-muted)]">
                     Installé : {globalZone}
                   </span>
                   <button
@@ -2163,7 +2525,7 @@ export function VipTableScan({
                       setPendingAction(null)
                       setZoneModalOpen(true)
                     }}
-                    className="text-xs font-semibold text-[#C9A961] underline underline-offset-2 hover:text-[#8B6F47]"
+                    className="text-xs font-semibold text-[var(--fp-gold)] underline underline-offset-2 hover:text-[var(--fp-muted)]"
                   >
                     Modifier
                   </button>
@@ -2192,9 +2554,14 @@ export function VipTableScan({
                 ÉCRAN 2 — L'EXPÉRIENCE TABLE (QR Zone T-01)
                 Le client est assis : l'écran SAIT déjà où il est.
                 ============================================================ */}
-            <div className="relative overflow-hidden rounded-[28px] border border-[#EAE5DC] bg-white px-6 pb-6 pt-7 text-center shadow-[0_20px_40px_-10px_rgba(0,0,0,0.06)]">
+            <motion.div
+              initial={{ opacity: 0, y: 14 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.55, delay: 0.1, ease: 'easeOut' }}
+              className="relative overflow-hidden rounded-[28px] border border-[var(--fp-border)] bg-[var(--fp-card)] px-6 pb-6 pt-7 text-center shadow-[0_20px_40px_-10px_rgba(0,0,0,0.06)]"
+            >
               <div
-                className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#C9A961] via-[#8B6F47] to-[#C9A961]"
+                className="pointer-events-none absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[var(--fp-gold)] via-[var(--fp-muted)] to-[var(--fp-gold)]"
                 aria-hidden
               />
               {/* LOGO DU SALON EN GRAND (Paramètres → Général → Logo) */}
@@ -2202,22 +2569,22 @@ export function VipTableScan({
                 <img
                   src={salonLogo}
                   alt="Logo du salon"
-                  className="mx-auto h-16 w-16 rounded-xl bg-[#FBF7EC] object-contain p-2 shadow-[0_6px_20px_rgba(201,169,97,0.30)] ring-1 ring-[#C9A961]/55"
+                  className="mx-auto h-16 w-16 rounded-xl bg-[#FBF7EC] object-contain p-2 shadow-[0_6px_20px_rgba(201,169,97,0.30)] ring-1 ring-[var(--fp-gold)]/55"
                 />
               ) : null}
-              <p className="mt-3 text-[10px] font-medium uppercase tracking-[0.34em] text-[#C9A961]">
+              <p className="mt-3 text-[10px] font-medium uppercase tracking-[0.34em] text-[var(--fp-gold)]">
                 Votre Table
               </p>
-              <h1 className="mt-1.5 text-3xl font-semibold text-[#2C2C2C]" style={SERIF}>
+              <h1 className="mt-1.5 text-3xl font-semibold text-[var(--fp-text)]" style={SERIF}>
                 Table {table?.tableNumber ?? ''}
               </h1>
-              <p className="mt-1 text-sm italic text-[#8B6F47]" style={SERIF}>
+              <p className="mt-1 text-sm italic text-[var(--fp-muted)]" style={SERIF}>
                 {ZONE_VIEWS[table?.zone ?? ''] ?? 'Vue sur le tarmac'}
               </p>
-              <p className="mt-2 text-xs text-[#8B6F47]/80">
+              <p className="mt-2 text-xs text-[var(--fp-muted)]/80">
                 {table?.seats} places · {zoneLabel(table?.zone ?? 'main')}
               </p>
-            </div>
+            </motion.div>
 
             {/* Conciergerie — carte proéminente, Amadou en personne.
                 Pourquoi un fond anthracite ? Le contraste fait de cette
@@ -2235,10 +2602,10 @@ export function VipTableScan({
                 <img
                   src="/brand/amadou-concierge.png"
                   alt="Amadou, votre concierge privé"
-                  className="h-14 w-14 rounded-full object-cover shadow-[0_4px_16px_rgba(0,0,0,0.4)] ring-2 ring-[#C9A961]/70"
+                  className="h-14 w-14 rounded-full object-cover shadow-[0_4px_16px_rgba(0,0,0,0.4)] ring-2 ring-[var(--fp-gold)]/70"
                 />
                 <div className="min-w-0 flex-1">
-                  <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-[#C9A961]">
+                  <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-[var(--fp-gold)]">
                     Conciergerie Privée
                   </p>
                   <p className="mt-0.5 text-sm font-medium text-white/90">
@@ -2249,7 +2616,7 @@ export function VipTableScan({
               <Button
                 type="button"
                 onClick={() => setView('concierge')}
-                className="relative mt-4 w-full gap-2 rounded-2xl bg-[#C9A961] font-semibold text-[#1A1A1A] shadow-[0_8px_24px_rgba(201,169,97,0.35)] hover:bg-[#C9A961]/90"
+                className="relative mt-4 w-full gap-2 rounded-2xl bg-[var(--fp-gold)] font-semibold text-[#1A1A1A] shadow-[0_8px_24px_rgba(201,169,97,0.35)] hover:bg-[var(--fp-gold)]/90"
               >
                 <ConciergeBell className="h-4 w-4" aria-hidden />
                 Appeler votre Concierge
@@ -2260,15 +2627,15 @@ export function VipTableScan({
                 médaillon ivoire, badge vert sauge « X disponibles »,
                 « Me l'apporter » → coche dorée qui se dessine. */}
             {quickLoans.length > 0 && (
-              <div className="mt-4 rounded-[24px] border border-[#EAE5DC] bg-white p-5 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)]">
+              <div className="mt-4 rounded-[24px] border border-[var(--fp-border)] bg-[var(--fp-card)] p-5 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)]">
                 <div className="flex items-center justify-between">
-                  <p className="text-base font-semibold text-[#2C2C2C]" style={SERIF}>
+                  <p className="text-base font-semibold text-[var(--fp-text)]" style={SERIF}>
                     Prêt Express
                   </p>
                   <button
                     type="button"
                     onClick={() => setView('loan')}
-                    className="text-xs font-semibold text-[#C9A961] underline-offset-2 hover:underline"
+                    className="text-xs font-semibold text-[var(--fp-gold)] underline-offset-2 hover:underline"
                   >
                     Voir tout
                   </button>
@@ -2277,14 +2644,14 @@ export function VipTableScan({
                   {quickLoans.map((item) => (
                     <div
                       key={item.id}
-                      className="relative overflow-hidden rounded-2xl border border-[#EAE5DC] bg-[#FAFAF7] p-4 text-center"
+                      className="relative overflow-hidden rounded-2xl border border-[var(--fp-border)] bg-[var(--fp-bg)] p-4 text-center"
                     >
                       {/* Coche dorée qui se dessine — confirmation élégante */}
                       {loanDraw === item.id && (
                         <motion.div
                           initial={{ opacity: 0 }}
                           animate={{ opacity: 1 }}
-                          className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[#FAFAF7]/95"
+                          className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-[var(--fp-bg)]/95"
                         >
                           <svg viewBox="0 0 64 64" className="h-14 w-14" aria-hidden>
                             <circle
@@ -2307,18 +2674,18 @@ export function VipTableScan({
                               transition={{ duration: 0.55, ease: 'easeOut' }}
                             />
                           </svg>
-                          <p className="mt-1.5 text-xs font-medium text-[#8B6F47]">
+                          <p className="mt-1.5 text-xs font-medium text-[var(--fp-muted)]">
                             C&apos;est noté
                           </p>
                         </motion.div>
                       )}
                       <span
-                        className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-white text-xl ring-1 ring-[#C9A961]/30"
+                        className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-[var(--fp-card)] text-xl ring-1 ring-[var(--fp-gold)]/30"
                         aria-hidden
                       >
                         {item.emoji ?? '📦'}
                       </span>
-                      <p className="mt-2 truncate text-sm font-medium text-[#2C2C2C]">
+                      <p className="mt-2 truncate text-sm font-medium text-[var(--fp-text)]">
                         {item.name}
                       </p>
                       <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-[#4A7C59]/10 px-2.5 py-0.5 text-[10px] font-semibold text-[#4A7C59]">
@@ -2330,7 +2697,7 @@ export function VipTableScan({
                         size="sm"
                         disabled={!!loanDraw || !!sending}
                         onClick={() => apporterQuick(item)}
-                        className="mt-3 w-full gap-1.5 rounded-xl border border-[#C9A961]/50 bg-[#C9A961]/10 text-xs font-semibold text-[#8B6F47] hover:bg-[#C9A961]/20"
+                        className="mt-3 w-full gap-1.5 rounded-xl border border-[var(--fp-gold)]/50 bg-[var(--fp-gold)]/10 text-xs font-semibold text-[var(--fp-muted)] hover:bg-[var(--fp-gold)]/20"
                       >
                         <Package className="h-3.5 w-3.5" aria-hidden />
                         Me l&apos;apporter
@@ -2354,11 +2721,11 @@ export function VipTableScan({
               >
                 🥂 Bienvenue, {table.vipClient.name}
               </p>
-              <p className="mt-0.5 text-sm text-[#2C2C2C]">
+              <p className="mt-0.5 text-sm text-[var(--fp-text)]">
                 Nous sommes honorés de vous accueillir.
               </p>
               {table.vipClient.preferences?.length > 0 && (
-                <p className="mt-1 text-xs text-[#8B6F47]">
+                <p className="mt-1 text-xs text-[var(--fp-muted)]">
                   Vos préférences : {table.vipClient.preferences.join(', ')}
                 </p>
               )}
@@ -2405,7 +2772,7 @@ export function VipTableScan({
                 disabled={!!sending}
                 onClick={() => handleActionClick(action)}
                 className={cn(
-                  'group flex w-full items-center gap-4 rounded-2xl border border-[#EAE5DC] bg-white p-4 text-left shadow-[0_4px_20px_rgba(201,169,97,0.06)] ring-1 ring-transparent transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_28px_rgba(201,169,97,0.12)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0',
+                  'group flex w-full items-center gap-4 rounded-2xl border border-[var(--fp-border)] bg-[var(--fp-card)] p-4 text-left shadow-[0_4px_20px_rgba(201,169,97,0.06)] ring-1 ring-transparent transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_28px_rgba(201,169,97,0.12)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0',
                   tone.hover,
                 )}
                 aria-label={action.label}
@@ -2424,10 +2791,10 @@ export function VipTableScan({
 
                 {/* Texte */}
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-[#2C2C2C]">
+                  <p className="text-sm font-semibold text-[var(--fp-text)]">
                     {action.label}
                   </p>
-                  <p className="mt-0.5 text-xs text-[#8B6F47]">
+                  <p className="mt-0.5 text-xs text-[var(--fp-muted)]">
                     {action.description}
                   </p>
                 </div>
@@ -2460,15 +2827,15 @@ export function VipTableScan({
 
         {/* Pied de page */}
         <div className="mt-8 flex flex-col items-center gap-2 text-center">
-          <p className="inline-flex items-center gap-1.5 text-[11px] text-[#8B6F47]">
+          <p className="inline-flex items-center gap-1.5 text-[11px] text-[var(--fp-muted)]">
             <Sparkles className="h-3 w-3" aria-hidden /> Service discret — votre
             confort d&apos;abord.
           </p>
-          <p className="text-[11px] text-[#8B6F47]/70">
+          <p className="text-[11px] text-[var(--fp-muted)]/70">
             {isGlobal
-              ? // QR_ROUTING — GLOBAL : aucune référence de table,
-                // on rappelle la session Nathalie (4 h, anti-abus)
-                `${loungeName} · Session Nathalie · 4 h`
+              ? // QR_ROUTING — GLOBAL : aucune référence de table.
+                // Timer de session EN TEMPS RÉEL (4 h — décompte vivant)
+                `${loungeName} · Session Nathalie · ${sessionRestant}`
               : `Table ${table?.tableNumber} · ${table?.seats} places · ${
                   zoneLabel(table?.zone ?? 'main')
                 }`}
@@ -2476,7 +2843,7 @@ export function VipTableScan({
           {/* Module 3 — Indicateur langue détectée + Module 11 — Session Nathalie */}
           <div className="mt-2 flex items-center gap-3">
             {detectedLang !== 'fr' && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-[#C9A961]/8 px-2.5 py-1 text-[10px] font-medium text-[#8B6F47]">
+              <span className="inline-flex items-center gap-1 rounded-full bg-[var(--fp-gold)]/8 px-2.5 py-1 text-[10px] font-medium text-[var(--fp-muted)]">
                 🌐 {detectedLang.toUpperCase()}
               </span>
             )}
@@ -2496,14 +2863,14 @@ export function VipTableScan({
                     }
                   } catch { /* ignore */ }
                 }}
-                className="inline-flex items-center gap-1 rounded-full border border-[#C9A961]/30 bg-white px-2.5 py-1 text-[10px] font-medium text-[#8B6F47] transition hover:bg-[#C9A961]/8"
+                className="inline-flex items-center gap-1 rounded-full border border-[var(--fp-gold)]/30 bg-[var(--fp-card)] px-2.5 py-1 text-[10px] font-medium text-[var(--fp-muted)] transition hover:bg-[var(--fp-gold)]/8"
               >
                 📱 Garder Nathalie
               </button>
             )}
           </div>
         </div>
-      </div>
+      </motion.div>
 
       {/* ============================================================
           QR_ROUTING — MODALE « Où êtes-vous installé actuellement ? »
@@ -2520,34 +2887,34 @@ export function VipTableScan({
           aria-modal="true"
           aria-labelledby="zone-modal-title"
         >
-          <div className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl border border-[#EAE5DC] bg-white p-6 shadow-[0_16px_48px_rgba(201,169,97,0.18)] sm:p-8">
+          <div className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl border border-[var(--fp-border)] bg-[var(--fp-card)] p-6 shadow-[0_16px_48px_rgba(201,169,97,0.18)] sm:p-8">
             {/* Filet doré supérieur (signature Luxe Lumineux) */}
             <div
-              className="pointer-events-none absolute inset-x-0 top-0 h-1 rounded-t-3xl bg-gradient-to-r from-[#C9A961] via-[#8B6F47] to-[#C9A961]"
+              className="pointer-events-none absolute inset-x-0 top-0 h-1 rounded-t-3xl bg-gradient-to-r from-[var(--fp-gold)] via-[var(--fp-muted)] to-[var(--fp-gold)]"
               aria-hidden
             />
 
             {/* Titre + fermeture */}
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-xs font-medium uppercase tracking-widest text-[#C9A961]">
+                <p className="text-xs font-medium uppercase tracking-widest text-[var(--fp-gold)]">
                   Nathalie
                 </p>
                 <h2
                   id="zone-modal-title"
-                  className="mt-1 text-xl font-semibold text-[#2C2C2C]"
+                  className="mt-1 text-xl font-semibold text-[var(--fp-text)]"
                   style={SERIF}
                 >
                   Où êtes-vous installé actuellement ?
                 </h2>
-                <p className="mt-1.5 text-sm text-[#8B6F47]">
+                <p className="mt-1.5 text-sm text-[var(--fp-muted)]">
                   Nathalie transmettra votre emplacement avec votre demande.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={cancelZoneModal}
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[#EAE5DC] bg-white text-[#8B6F47] transition hover:bg-[#EAE5DC]/40"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--fp-border)] bg-[var(--fp-card)] text-[var(--fp-muted)] transition hover:bg-[var(--fp-border)]/40"
                 aria-label="Fermer la sélection d'emplacement"
               >
                 <X className="h-4 w-4" aria-hidden />
@@ -2563,11 +2930,11 @@ export function VipTableScan({
                   onClick={() => confirmZoneSelection(z.label)}
                   className={cn(
                     'flex min-h-[52px] items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all',
-                    'border-[#EAE5DC] bg-[#FAFAF7] text-[#2C2C2C] hover:border-[#C9A961]/50 hover:bg-[#C9A961]/8',
+                    'border-[var(--fp-border)] bg-[var(--fp-bg)] text-[var(--fp-text)] hover:border-[var(--fp-gold)]/50 hover:bg-[var(--fp-gold)]/8',
                   )}
                 >
                   <span
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#C9A961]/10 text-lg"
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--fp-gold)]/10 text-lg"
                     aria-hidden
                   >
                     {z.emoji}
@@ -2579,11 +2946,11 @@ export function VipTableScan({
 
             {/* Séparateur « ou » */}
             <div className="my-5 flex items-center gap-3" aria-hidden>
-              <span className="h-px flex-1 bg-[#EAE5DC]" />
-              <span className="text-[10px] font-medium uppercase tracking-widest text-[#8B6F47]/70">
+              <span className="h-px flex-1 bg-[var(--fp-border)]" />
+              <span className="text-[10px] font-medium uppercase tracking-widest text-[var(--fp-muted)]/70">
                 ou
               </span>
-              <span className="h-px flex-1 bg-[#EAE5DC]" />
+              <span className="h-px flex-1 bg-[var(--fp-border)]" />
             </div>
 
             {/* Champ libre « Numéro de fauteuil » */}
@@ -2601,7 +2968,7 @@ export function VipTableScan({
               <div>
                 <label
                   htmlFor="zone-fauteuil"
-                  className="text-sm font-medium text-[#2C2C2C]"
+                  className="text-sm font-medium text-[var(--fp-text)]"
                 >
                   Indiquez votre numéro de fauteuil
                 </label>
@@ -2611,26 +2978,94 @@ export function VipTableScan({
                   onChange={(e) => setZoneFauteuil(e.target.value)}
                   placeholder="Ex : Fauteuil 12"
                   inputMode="text"
-                  className="mt-2 border-[#EAE5DC] bg-[#FAFAF7] text-sm text-[#2C2C2C] placeholder:text-[#8B6F47]/50 focus-visible:border-[#C9A961] focus-visible:ring-[#C9A961]/20"
+                  className="mt-2 border-[var(--fp-border)] bg-[var(--fp-bg)] text-sm text-[var(--fp-text)] placeholder:text-[var(--fp-muted)]/50 focus-visible:border-[var(--fp-gold)] focus-visible:ring-[var(--fp-gold)]/20"
                 />
               </div>
               <Button
                 type="submit"
                 disabled={!zoneFauteuil.trim()}
-                className="w-full gap-2 rounded-2xl border border-[#C9A961] bg-[#C9A961] text-white shadow-[0_4px_20px_rgba(201,169,97,0.18)] hover:bg-[#C9A961]/90"
+                className="w-full gap-2 rounded-2xl border border-[var(--fp-gold)] bg-[var(--fp-gold)] text-white shadow-[0_4px_20px_rgba(201,169,97,0.18)] hover:bg-[var(--fp-gold)]/90"
               >
                 <Check className="h-4 w-4" aria-hidden />
                 Valider mon emplacement
               </Button>
             </form>
 
-            <p className="mt-4 text-center text-[11px] text-[#8B6F47]/70">
+            <p className="mt-4 text-center text-[11px] text-[var(--fp-muted)]/70">
               Votre choix est mémorisé pour la session — modifiable à tout
               moment.
             </p>
           </div>
         </div>
       )}
+
+      {/* ============================================================
+          Denise — indicateur vocal (barre dorée + onde sonore +
+          texte du message en temps réel). Après le message :
+          SILENCE TOTAL — Denise ne reparle jamais (Mode Discrétion).
+          ============================================================ */}
+      <AnimatePresence>
+        {deniseEtat !== 'idle' && (
+          <motion.div
+            key="denise"
+            initial={{ y: -70, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: -70, opacity: 0 }}
+            transition={{ duration: 0.45, ease: 'easeOut' }}
+            className="fixed inset-x-0 top-0 z-[90]"
+          >
+            <div className="mx-auto max-w-xl px-4 pt-3 sm:px-6">
+              <div
+                className="flex items-center gap-3 rounded-2xl border border-[#E3C985]/60 px-4 py-3 shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
+                style={{
+                  background:
+                    'linear-gradient(100deg, rgba(227,201,133,0.97) 0%, rgba(201,169,97,0.97) 55%, rgba(227,201,133,0.97) 100%)',
+                }}
+                role="status"
+                aria-live="polite"
+              >
+                <span className="flex h-5 items-end gap-[3px]" aria-hidden>
+                  {[0, 1, 2, 3, 4].map((i) => (
+                    <span
+                      key={i}
+                      className="onde-barre h-[14px] w-[3px] rounded-full bg-[#3A2E1A]"
+                      style={{ animationDelay: `${i * 0.12}s` }}
+                    />
+                  ))}
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[9px] font-semibold uppercase tracking-[0.3em] text-[#3A2E1A]/80">
+                    Denise · Accueil vocal
+                  </p>
+                  <p className="mt-0.5 truncate text-[13px] font-medium text-[#1A1A1A]">
+                    {deniseTexte || '…'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Toast élégant — jamais d'alert() brut */}
+      <div className="pointer-events-none fixed inset-x-0 bottom-7 z-[85] flex justify-center px-4">
+        <AnimatePresence>
+          {toast && (
+            <motion.div
+              key={toast.msg + toast.emoji}
+              initial={{ y: 24, opacity: 0, scale: 0.96 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 24, opacity: 0, scale: 0.96 }}
+              transition={{ duration: 0.3, ease: 'easeOut' }}
+              className="flex items-center gap-2.5 rounded-full border border-[var(--fp-gold)]/45 bg-[#14110B]/95 px-5 py-3 shadow-[0_14px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl"
+              role="status"
+            >
+              <span aria-hidden>{toast.emoji}</span>
+              <p className="text-[13px] font-medium text-[#F5F1E6]">{toast.msg}</p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
     </div>
   )
 }
