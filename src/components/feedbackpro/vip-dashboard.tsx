@@ -2760,9 +2760,9 @@ function ShowersTab({
                         signature: 'RÉSERVATION · EN TOUTE DISCRÉTION',
                       },
                       `chevalet-douche-${qrShower.showerNumber}.png`,
-                    ).then(() =>
-                      toast({ title: 'Plaque téléchargée', description: `chevalet-douche-${qrShower.showerNumber}.png` }),
-                    ),
+                    ).then(() => {
+                      toast({ title: 'Plaque téléchargée', description: `chevalet-douche-${qrShower.showerNumber}.png` })
+                    }),
                   )
                 }
               >
@@ -3130,7 +3130,7 @@ function StaffTab() {
 // Tab H — QR Codes
 // ============================================================
 
-function QRTab() {
+function QRTab({ tables }: { tables: VipTableData[] }) {
   // Scans mockés (déterministes pour stabilité d'affichage)
   const scansForZone = (code: string) => {
     const h = code.split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 0)
@@ -3319,6 +3319,80 @@ function QRTab() {
               </Card>
             )
           })}
+        </div>
+      </div>
+
+      {/* ============================================================
+          QR DES TABLES — une plaque luxe Nathalie par table du salon.
+          URL scannée : ?vipTable=<token> → Nathalie s'ouvre en mode
+          CLIENT_ZONE contextuel (écran d'accueil « Table N°X »).
+          Le logo du salon (Paramètres → Général) est gravé au centre
+          de chaque médaillon, en DOM comme dans les exports PNG/impression.
+          ============================================================ */}
+      <div>
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[#8B6F47]">
+          QR des Tables ({tables.length})
+        </h3>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {tables.map((t) => {
+            const url = `${appUrl()}/?vipTable=${t.qrToken}`
+            const opts: PlaqueOptions = {
+              data: url,
+              label: `Table ${t.tableNumber}`,
+              signature: 'NATHALIE · GUIDE PERSONNEL',
+            }
+            const statusMeta: Record<string, { label: string; style: string }> = {
+              free: { label: 'Libre', style: 'border-[#4A7C59]/40 bg-[#4A7C59]/10 text-[#4A7C59]' },
+              occupied: { label: 'Occupée', style: 'border-[#C9A961]/40 bg-[#C9A961]/12 text-[#8B6F47]' },
+              reserved: { label: 'Réservée', style: 'border-[#6B4C9A]/40 bg-[#6B4C9A]/10 text-[#6B4C9A]' },
+              problem: { label: 'Problème', style: 'border-[#C97B63]/40 bg-[#C97B63]/12 text-[#C97B63]' },
+            }
+            const sm = statusMeta[t.status] ?? statusMeta.free
+            return (
+              <Card key={t.id} className="border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl" aria-hidden>🍽️</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h4 className="truncate text-sm font-semibold text-[#2C2C2C]">Table {t.tableNumber}</h4>
+                      <Badge variant="outline" className={cn('h-5 px-1.5 text-[10px] font-medium', sm.style)}>
+                        {sm.label}
+                      </Badge>
+                    </div>
+                    <p className="truncate text-xs text-[#8B6F47]">{t.zone} · {t.seats} places</p>
+                  </div>
+                </div>
+                <div className="mt-4 flex justify-center">
+                  <NathalieQrPlaque {...opts} size="sm" className="w-full max-w-[210px]" />
+                </div>
+                <div className="mt-3 flex gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={qrPngBusy}
+                    className="h-8 flex-1 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
+                    onClick={() => downloadQr(opts, `chevalet-table-${t.tableNumber}.png`)}
+                  >
+                    <Download className="h-3.5 w-3.5" aria-hidden /> Plaque
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={qrPngBusy}
+                    className="h-8 flex-1 border-[#8B6F47]/40 bg-[#8B6F47]/8 text-[#8B6F47] hover:bg-[#8B6F47]/15"
+                    onClick={() => printQr(opts, `Table ${t.tableNumber}`)}
+                  >
+                    <Printer className="h-3.5 w-3.5" aria-hidden /> Imprimer
+                  </Button>
+                </div>
+              </Card>
+            )
+          })}
+          {tables.length === 0 && (
+            <Card className="border border-dashed border-[#C9A961]/40 bg-[#FAFAF7] p-6 text-center sm:col-span-2 lg:col-span-3">
+              <p className="text-sm text-[#8B6F47]">Aucune table enregistrée — les QR des tables apparaîtront ici dès leur création.</p>
+            </Card>
+          )}
         </div>
       </div>
 
@@ -3825,7 +3899,7 @@ export default function VIPDashboard() {
           {tab === 'rewards' && (loungeConfig?.modulesEnabled.flashRewards ?? true) && <RewardsTab staffName={staffName} />}
           {tab === 'clients' && <ClientsTab />}
           {tab === 'staff' && <StaffTab />}
-          {tab === 'qr' && <QRTab />}
+          {tab === 'qr' && <QRTab tables={tables} />}
           {tab === 'reports' && <ReportsTab />}
           {tab === 'wallboard' && (
             <div className="relative h-[calc(100vh-200px)] min-h-[500px] w-full overflow-hidden rounded-2xl border border-[#EAE5DC] shadow-[0_4px_20px_rgba(201,169,97,0.06)]">

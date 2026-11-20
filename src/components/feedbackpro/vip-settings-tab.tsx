@@ -15,7 +15,7 @@
 // pas de migration DB à chaque option).
 // ============================================================
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ChangeEvent } from 'react'
 import {
   Settings as SettingsIcon,
   Building2,
@@ -32,6 +32,8 @@ import {
   Info,
   Moon,
   ShieldCheck,
+  Upload,
+  Trash2,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
@@ -50,9 +52,61 @@ import {
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import { cn } from '@/lib/utils'
+import { invalidateSalonLogoCache } from '@/components/feedbackpro/nathalie-qr-plaque'
 
 const SERIF = { fontFamily: 'Georgia, "Playfair Display", serif' } as const
 const VOLUME_MAX = 30 // PLAFOND DUR — aligné avec le clamp serveur
+
+// ------------------------------------------------------------
+// Upload du logo du salon — redimensionnement client (canvas)
+// → data URL PNG/JPEG compacte, stockée dans config.general.logo
+// (validée par validerConfig : data:image/* ≤ 200k caractères).
+// ------------------------------------------------------------
+const LOGO_TAILLE_MAX_PX = 512
+const LOGO_DATA_URL_MAX = 180_000 // marge sous le plafond serveur (200k)
+
+async function redimensionnerLogo(file: File): Promise<string> {
+  const dataUrlBrut = await new Promise<string>((resolve, reject) => {
+    const fr = new FileReader()
+    fr.onload = () => resolve(String(fr.result))
+    fr.onerror = () => reject(new Error('Lecture du fichier impossible'))
+    fr.readAsDataURL(file)
+  })
+  const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+    const image = new Image()
+    image.onload = () => resolve(image)
+    image.onerror = () => reject(new Error('Image invalide'))
+    image.src = dataUrlBrut
+  })
+  // Garde le ratio, plus grand côté = 512px
+  const ratio = Math.min(1, LOGO_TAILLE_MAX_PX / Math.max(img.width || 1, img.height || 1))
+  const w = Math.max(1, Math.round((img.width || LOGO_TAILLE_MAX_PX) * ratio))
+  const h = Math.max(1, Math.round((img.height || LOGO_TAILLE_MAX_PX) * ratio))
+  const canvas = document.createElement('canvas')
+  canvas.width = w
+  canvas.height = h
+  const ctx = canvas.getContext('2d')
+  if (!ctx) throw new Error('Canvas indisponible')
+  ctx.imageSmoothingQuality = 'high'
+  ctx.drawImage(img, 0, 0, w, h)
+  // PNG (transparence préservée) pour png/webp/svg, sinon JPEG
+  const garderAlpha = /png|webp|svg/i.test(file.type)
+  const quality = 0.85
+  let out = garderAlpha
+    ? canvas.toDataURL('image/png')
+    : canvas.toDataURL('image/jpeg', quality)
+  // Compression dégradée si la data URL dépasse la marge serveur
+  if (out.length > LOGO_DATA_URL_MAX) out = canvas.toDataURL('image/jpeg', 0.7)
+  if (out.length > LOGO_DATA_URL_MAX) out = canvas.toDataURL('image/jpeg', 0.5)
+  if (out.length > LOGO_DATA_URL_MAX) {
+    canvas.width = Math.round(w * 0.75)
+    canvas.height = Math.round(h * 0.75)
+    canvas.getContext('2d')?.drawImage(img, 0, 0, canvas.width, canvas.height)
+    out = canvas.toDataURL('image/jpeg', 0.5)
+  }
+  if (out.length > LOGO_DATA_URL_MAX) throw new Error('Logo trop volumineux après compression')
+  return out
+}
 
 interface LoungeConfig {
   general: { nom: string; logo: string | null; adresse: string; horaires: string; capaciteMax: number }
@@ -129,6 +183,38 @@ export function VipSettingsTab() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [volumeFlash, setVolumeFlash] = useState(false)
+  const [logoBusy, setLogoBusy] = useState(false)
+  const logoFileRef = useRef<HTMLInputElement>(null)
+
+  /** Upload du logo du salon → redimensionnement client → config.general.logo.
+   *  Préviewe immédiatement ; appliqué en base au prochain « Enregistrer tout ». */
+  const onLogoFile = useCallback(
+    async (e: ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0]
+      e.target.value = '' // permet de re-téléverser le même fichier
+      if (!file) return
+      if (!file.type.startsWith('image/')) {
+        toast({ title: 'Format non supporté', description: 'Choisissez une image (PNG, JPG, WebP, SVG).', variant: 'destructive' })
+        return
+      }
+      if (file.size > 4_000_000) {
+        toast({ title: 'Image trop lourde', description: 'Maximum 4 Mo.', variant: 'destructive' })
+        return
+      }
+      setLogoBusy(true)
+      try {
+        const dataUrl = await redimensionnerLogo(file)
+        setConfig((c) => (c ? { ...c, general: { ...c.general, logo: dataUrl } } : c))
+        invalidateSalonLogoCache()
+        toast({ title: 'Logo chargé', description: 'Cliquez « Enregistrer tout » pour l’appliquer au salon.' })
+      } catch {
+        toast({ title: 'Erreur', description: 'Impossible de traiter ce logo.', variant: 'destructive' })
+      } finally {
+        setLogoBusy(false)
+      }
+    },
+    [toast],
+  )
 
   const charger = useCallback(async () => {
     try {
@@ -236,8 +322,64 @@ export function VipSettingsTab() {
               <Input id="st-nom" value={config.general.nom} onChange={(e) => patchConfig('general', { nom: e.target.value })} className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]" />
             </div>
             <div>
-              <Label htmlFor="st-logo" className="text-[#8B6F47]">Logo (URL)</Label>
-              <Input id="st-logo" value={config.general.logo ?? ''} onChange={(e) => patchConfig('general', { logo: e.target.value || null })} placeholder="https://…" className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]" />
+              <Label htmlFor="st-logo-file" className="text-[#8B6F47]">Logo du salon</Label>
+              <div className="mt-1.5 flex items-center gap-3">
+                {config.general.logo ? (
+                  <img
+                    src={config.general.logo}
+                    alt="Logo du salon"
+                    className="h-14 w-14 shrink-0 rounded-xl border border-[#EAE5DC] bg-[#FBF7EC] object-contain p-1.5 shadow-[0_2px_10px_rgba(201,169,97,0.15)]"
+                  />
+                ) : (
+                  <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl border border-dashed border-[#C9A961]/50 bg-[#FAFAF7] text-[#C9A961]" aria-hidden>
+                    <Upload className="h-5 w-5" />
+                  </div>
+                )}
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <Input
+                    ref={logoFileRef}
+                    id="st-logo-file"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                    className="hidden"
+                    onChange={onLogoFile}
+                  />
+                  <div className="flex flex-wrap gap-1.5">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      disabled={logoBusy}
+                      className="h-8 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
+                      onClick={() => logoFileRef.current?.click()}
+                    >
+                      {logoBusy ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <Upload className="h-3.5 w-3.5" aria-hidden />}
+                      Téléverser
+                    </Button>
+                    {config.general.logo && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 text-[#C97B63] hover:bg-[#C97B63]/10"
+                        onClick={() => patchConfig('general', { logo: null })}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" aria-hidden /> Retirer
+                      </Button>
+                    )}
+                  </div>
+                  <Input
+                    value={config.general.logo && !config.general.logo.startsWith('data:') ? config.general.logo : ''}
+                    onChange={(e) => patchConfig('general', { logo: e.target.value || null })}
+                    placeholder="…ou collez une URL https"
+                    className="border-[#EAE5DC] bg-[#FAFAF7] text-xs"
+                  />
+                </div>
+              </div>
+              <p className="mt-1.5 text-[11px] leading-relaxed text-[#8B6F47]/70">
+                PNG, JPG, WebP ou SVG — redimensionné automatiquement (512px max).
+                Affiché dans le scanner et gravé au centre des plaques QR du salon.
+              </p>
             </div>
           </div>
           <div>

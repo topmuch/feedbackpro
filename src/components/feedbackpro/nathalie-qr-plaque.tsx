@@ -23,6 +23,59 @@ import QRCode from 'qrcode'
 import { cn } from '@/lib/utils'
 
 // ------------------------------------------------------------
+// Logo du salon — cache module + hook (chargé depuis la config
+// tenant /api/vip/settings, endpoint public en lecture).
+// Le logo est gravé au centre du médaillon de chaque plaque
+// (ECC niveau Q → 25% de redondance, un logo ≈ 20% de la
+// surface reste 100% scannable).
+// ------------------------------------------------------------
+
+let _logoCache: string | null | undefined = undefined
+let _logoInflight: Promise<string | null> | null = null
+
+async function fetchSalonLogo(): Promise<string | null> {
+  if (_logoCache !== undefined) return _logoCache
+  if (!_logoInflight) {
+    _logoInflight = fetch('/api/vip/settings', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        const logo = json?.data?.config?.general?.logo
+        const v = typeof logo === 'string' && logo.length > 0 ? logo : null
+        _logoCache = v
+        return v
+      })
+      .catch(() => {
+        _logoCache = null
+        return null
+      })
+      .finally(() => {
+        _logoInflight = null
+      })
+  }
+  return _logoInflight
+}
+
+/** Invalide le cache logo (après un upload dans les Paramètres). */
+export function invalidateSalonLogoCache(): void {
+  _logoCache = undefined
+}
+
+/** Logo du salon — auto-chargé depuis la config tenant (cache module). */
+export function useSalonLogo(): string | null {
+  const [logo, setLogo] = useState<string | null>(_logoCache ?? null)
+  useEffect(() => {
+    let alive = true
+    fetchSalonLogo().then((l) => {
+      if (alive) setLogo(l)
+    })
+    return () => {
+      alive = false
+    }
+  }, [])
+  return logo
+}
+
+// ------------------------------------------------------------
 // Matières (CSS)
 // ------------------------------------------------------------
 
@@ -86,11 +139,14 @@ export type PlaqueOptions = {
   kicker?: string
   /** Typographie du bas (défaut : NATHALIE · VOTRE GUIDE PERSONNEL) */
   signature?: string
+  /** Logo du salon gravé au centre du médaillon.
+   *  undefined → auto (config tenant) · null → jamais · string → forcé */
+  logoUrl?: string | null
 }
 
 type PlaqueSize = 'xs' | 'sm' | 'md'
 
-const SIZE_CFG: Record<PlaqueSize, { qr: string; px: number; kicker: string; label: string; signature: string; pad: string; medal: string }> = {
+const SIZE_CFG: Record<PlaqueSize, { qr: string; px: number; kicker: string; label: string; signature: string; pad: string; medal: string; logo: string }> = {
   md: {
     qr: 'h-44 w-44',
     px: 512,
@@ -99,6 +155,7 @@ const SIZE_CFG: Record<PlaqueSize, { qr: string; px: number; kicker: string; lab
     signature: 'text-[8px] tracking-[0.34em]',
     pad: 'px-4 pb-4 pt-5',
     medal: 'p-2.5 mt-3.5',
+    logo: 'h-7 w-7',
   },
   sm: {
     qr: 'h-32 w-32',
@@ -108,6 +165,7 @@ const SIZE_CFG: Record<PlaqueSize, { qr: string; px: number; kicker: string; lab
     signature: 'text-[7px] tracking-[0.3em]',
     pad: 'px-3.5 pb-3.5 pt-4',
     medal: 'p-2 mt-3',
+    logo: 'h-6 w-6',
   },
   xs: {
     qr: 'h-24 w-24',
@@ -117,6 +175,7 @@ const SIZE_CFG: Record<PlaqueSize, { qr: string; px: number; kicker: string; lab
     signature: 'text-[6.5px] tracking-[0.26em]',
     pad: 'px-3 pb-3 pt-3.5',
     medal: 'p-1.5 mt-2.5',
+    logo: 'h-4 w-4',
   },
 }
 
@@ -127,9 +186,13 @@ export function NathalieQrPlaque({
   signature = 'NATHALIE · VOTRE GUIDE PERSONNEL',
   size = 'md',
   className,
+  logoUrl,
 }: PlaqueOptions & { size?: PlaqueSize; className?: string }) {
   const cfg = SIZE_CFG[size]
   const qr = useQrPng(data, cfg.px)
+  const autoLogo = useSalonLogo()
+  // undefined → auto (config tenant) · null → explicitement sans logo
+  const logo = logoUrl === undefined ? autoLogo : logoUrl
 
   return (
     <div
@@ -175,6 +238,15 @@ export function NathalieQrPlaque({
             ) : (
               <div className={cn('animate-pulse rounded bg-[#2C2C2C]/10', cfg.qr)} />
             )}
+            {/* Logo du salon — gravé au centre du médaillon */}
+            {qr && logo ? (
+              <span
+                className="absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-[6px] bg-[#FBF7EC] p-[3px] shadow-[0_1px_5px_rgba(0,0,0,0.28)] ring-1 ring-[#C9A961]/60"
+                aria-hidden
+              >
+                <img src={logo} alt="" className={cn('block rounded-[3px] object-contain', cfg.logo)} />
+              </span>
+            ) : null}
             {/* Crochets d'or de l'emblème */}
             <span className="absolute -left-1.5 -top-1.5 h-3.5 w-3.5 border-l-2 border-t-2 border-[#C9A961]" />
             <span className="absolute -right-1.5 -top-1.5 h-3.5 w-3.5 border-r-2 border-t-2 border-[#C9A961]" />
@@ -212,10 +284,10 @@ const W = 640
 const H = 920
 const FONT_STACK = 'Georgia, Playfair Display, serif'
 
-type SvgOpts = PlaqueOptions & { qrPng: string }
+type SvgOpts = PlaqueOptions & { qrPng: string; logoPng?: string | null }
 
 /** SVG autoportant (aucune ressource externe) — rasterisable en canvas */
-export function plaqueSvgString({ data, label, kicker = 'SALON VIP', signature = 'NATHALIE · VOTRE GUIDE PERSONNEL', qrPng }: SvgOpts): string {
+export function plaqueSvgString({ data, label, kicker = 'SALON VIP', signature = 'NATHALIE · VOTRE GUIDE PERSONNEL', qrPng, logoPng }: SvgOpts): string {
   // QR fraîchement généré en haute définition pour l'export
   const plate = { x: 160, y: 208, s: 320 } // médaillon ivoire
   const br = 12 // dépassement des crochets
@@ -224,6 +296,19 @@ export function plaqueSvgString({ data, label, kicker = 'SALON VIP', signature =
   const y1 = y + s
 
   const veins = `<g fill='none' stroke='#f2efe6' stroke-opacity='0.075' stroke-width='1.6'><path d='M-20 130 C 140 100 260 220 660 160'/><path d='M-20 380 C 160 350 300 470 660 360'/><path d='M-20 610 C 180 580 320 680 660 600'/><path d='M-20 830 C 160 800 300 900 660 820'/></g><g fill='none' stroke='#f2efe6' stroke-opacity='0.05' stroke-width='1.1'><path d='M170 -20 C 210 170 110 360 220 940'/><path d='M500 -20 C 540 160 430 380 550 940'/><path d='M340 -20 C 370 110 310 260 380 940'/></g>`
+
+  // Logo du salon gravé au centre du médaillon (pad ivoire + filet or)
+  // — ≈ 21% de la surface du QR, safe avec ECC niveau Q
+  let logoSvg = ''
+  if (logoPng) {
+    const lp = Math.round(s * 0.21)
+    const lx = x + s / 2 - lp / 2
+    const ly = y + s / 2 - lp / 2
+    logoSvg = `
+  <!-- logo du salon gravé -->
+  <rect x="${lx}" y="${ly}" width="${lp}" height="${lp}" rx="${Math.round(lp * 0.16)}" fill="url(#medal)" stroke="#C9A961" stroke-opacity="0.6" stroke-width="1.3"/>
+  <image href="${logoPng}" x="${lx + Math.round(lp * 0.09)}" y="${ly + Math.round(lp * 0.09)}" width="${lp - Math.round(lp * 0.18)}" height="${lp - Math.round(lp * 0.18)}" preserveAspectRatio="xMidYMid meet"/>`
+  }
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
   <defs>
@@ -264,6 +349,7 @@ export function plaqueSvgString({ data, label, kicker = 'SALON VIP', signature =
   <!-- emblème : médaillon ivoire + crochets d'or -->
   <rect x="${x}" y="${y}" width="${s}" height="${s}" rx="8" fill="url(#medal)" stroke="#C9A961" stroke-opacity="0.55" stroke-width="1.4"/>
   <image href="${qrPng}" x="${x + 14}" y="${y + 14}" width="${s - 28}" height="${s - 28}"/>
+  ${logoSvg}
   <g stroke="url(#or)" stroke-width="5" fill="none" stroke-linecap="square">
     <path d="M ${x - br} ${y + 46} L ${x - br} ${y - br} L ${x + 46} ${y - br}"/>
     <path d="M ${x1 - 46} ${y - br} L ${x1 + br} ${y - br} L ${x1 + br} ${y + 46}"/>
@@ -286,10 +372,31 @@ function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 }
 
+/** Convertit une source image (URL http(s) ou data:) en data URL —
+ *  indispensable pour l'export SVG→canvas (les URLs externes ne sont
+ *  pas rasterisables dans le SVG autoportant). */
+async function versDataUrl(src: string): Promise<string> {
+  if (src.startsWith('data:')) return src
+  const res = await fetch(src, { cache: 'force-cache' })
+  if (!res.ok) throw new Error('Logo introuvable')
+  const blob = await res.blob()
+  return await new Promise<string>((resolve, reject) => {
+    const fr = new FileReader()
+    fr.onload = () => resolve(String(fr.result))
+    fr.onerror = () => reject(new Error('Lecture logo impossible'))
+    fr.readAsDataURL(blob)
+  })
+}
+
 /** PNG haute résolution de la plaque (échelle ×2 par défaut → 1280×1840) */
 export async function plaquePngDataUrl(opts: PlaqueOptions, scale = 2): Promise<string> {
   const qrPng = await qrLocalDataUrl(opts.data, 1184)
-  const svg = plaqueSvgString({ ...opts, qrPng })
+  let logoPng: string | null = null
+  if (opts.logoUrl) {
+    // Le logo ne doit jamais bloquer l'export de la plaque
+    logoPng = await versDataUrl(opts.logoUrl).catch(() => null)
+  }
+  const svg = plaqueSvgString({ ...opts, qrPng, logoPng })
   const img = new Image()
   img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`
   await new Promise<void>((res, rej) => {

@@ -386,6 +386,10 @@ export function VipTableScan({
   // ---- QR_ROUTING — État du mode CLIENT_GLOBAL (QR d'entrée) ----
   // Nom du salon (config tenant, chargé via /api/vip/lounge-info)
   const [loungeName, setLoungeName] = useState<string>(DEFAULT_LOUNGE_NAME)
+  // Logo du salon (config tenant — /api/vip/lounge-info, public).
+  // Affiché dans la carte d'accueil du scanner (les deux modes) : le
+  // client reconnaît instantanément le salon qu'il vient de scanner.
+  const [salonLogo, setSalonLogo] = useState<string | null>(null)
   // Message d'accueil officiel (messageBienvenue — paramètres Denise)
   const [loungeWelcome, setLoungeWelcome] = useState<string>('')
   // Vrai dès que /api/vip/lounge-info a répondu (déclenche la session)
@@ -429,6 +433,27 @@ export function VipTableScan({
     setPhotoPreviewUrl(url)
     return () => URL.revokeObjectURL(url)
   }, [problemPhoto])
+
+  // ---- Config tenant : logo + nom du salon (LES DEUX modes) ----
+  // Le QR de table (CLIENT_ZONE) doit afficher le logo du salon au
+  // même titre que le QR d'entrée (CLIENT_GLOBAL) : fetch public,
+  // indépendant de la résolution de table, jamais bloquant.
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/vip/lounge-info', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((json) => {
+        if (cancelled) return
+        if (json?.ok && json.data?.logo) setSalonLogo(json.data.logo)
+        if (json?.ok && json.data?.nom) setLoungeName(json.data.nom)
+      })
+      .catch(() => {
+        /* silencieux : le scanner doit toujours s'afficher */
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
 
   // ---- Résolution du QR scanné (QR_ROUTING — if/else sur le type) ----
   useEffect(() => {
@@ -1594,6 +1619,18 @@ export function VipTableScan({
             className="pointer-events-none absolute -bottom-12 -left-12 h-32 w-32 rounded-full bg-[#6B4C9A]/8"
             aria-hidden
           />
+
+          {/* LOGO DU SALON — config tenant (Paramètres → Général → Logo).
+              Chip ivoire + anneau champagne, cohérent Luxe Lumineux.
+              Affiché pour LES DEUX modes (GLOBAL et ZONE), au-dessus du
+              médaillon Nathalie. Jamais rendu si aucun logo configuré. */}
+          {salonLogo ? (
+            <img
+              src={salonLogo}
+              alt="Logo du salon"
+              className="mx-auto mb-4 h-14 w-14 rounded-xl bg-[#FBF7EC] object-contain p-1.5 shadow-[0_2px_14px_rgba(201,169,97,0.28)] ring-1 ring-[#C9A961]/50"
+            />
+          ) : null}
 
           {/* SIGNATURE LUMINEUSE — Avatar de Nathalie (identité visuelle
               de marque, généré selon le brief « présence élégante et

@@ -45,7 +45,16 @@ export function validerConfig(patch: unknown, base: VipLoungeConfig): VipLoungeC
   if (p.general && typeof p.general === 'object') {
     const g = p.general as Record<string, unknown>
     if (typeof g.nom === 'string' && g.nom.trim()) out.general.nom = g.nom.trim().slice(0, 120)
-    if (g.logo === null || typeof g.logo === 'string') out.general.logo = g.logo ? String(g.logo).slice(0, 500) : null
+    // Logo du salon : soit une URL https (500 car max), soit une data URL
+    // image uploadée dans les Paramètres (redimensionnée côté client,
+    // plafonnée à 200k caractères ≈ 150 ko — le reste du JSON config
+    // tient sans problème dans la colonne TEXT de VipTenantConfig).
+    if (g.logo === null || typeof g.logo === 'string') {
+      const raw = g.logo ? String(g.logo) : null
+      if (!raw) out.general.logo = null
+      else if (raw.startsWith('data:image/')) out.general.logo = raw.length <= 200_000 ? raw : null
+      else out.general.logo = raw.slice(0, 500)
+    }
     if (typeof g.adresse === 'string') out.general.adresse = g.adresse.slice(0, 300)
     if (typeof g.horaires === 'string') out.general.horaires = g.horaires.slice(0, 80)
     out.general.capaciteMax = clampInt(g.capaciteMax, 1, 2000, base.general.capaciteMax)
