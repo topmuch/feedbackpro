@@ -255,37 +255,48 @@ const TONE_STYLE: Record<
 }
 
 const PROBLEM_TAGS = [
-  { id: 'bruit', label: 'Bruit excessif', emoji: '🔊' },
-  { id: 'proprete', label: 'Propreté', emoji: '🧹' },
-  { id: 'confort', label: 'Confort', emoji: '🛋️' },
-  { id: 'temperature', label: 'Température', emoji: '❄️' },
-  { id: 'service', label: 'Service lent', emoji: '⏱️' },
-  { id: 'equipement', label: 'Équipement HS', emoji: '🔌' },
-  { id: 'autre', label: 'Autre', emoji: '✏️' },
+  { id: 'bruit', label: 'Bruit excessif', labelEn: 'Excessive noise', emoji: '🔊' },
+  { id: 'proprete', label: 'Propreté', labelEn: 'Cleanliness', emoji: '🧹' },
+  { id: 'confort', label: 'Confort', labelEn: 'Comfort', emoji: '🛋️' },
+  { id: 'temperature', label: 'Température', labelEn: 'Temperature', emoji: '❄️' },
+  { id: 'service', label: 'Service lent', labelEn: 'Slow service', emoji: '⏱️' },
+  { id: 'equipement', label: 'Équipement HS', labelEn: 'Broken equipment', emoji: '🔌' },
+  { id: 'autre', label: 'Autre', labelEn: 'Other', emoji: '✏️' },
 ] as const
 
-type MenuItem = { id: string; name: string; emoji: string; category: string }
+type MenuItem = {
+  id: string
+  name: string
+  /** Nom anglais (sélecteur FR/EN — le nom transmis au staff reste FR) */
+  nameEn: string
+  emoji: string
+  category: string
+}
 
 const MENU_ITEMS: MenuItem[] = [
-  { id: 'cafe', name: 'Café crème', emoji: '☕', category: 'Boissons chaudes' },
-  { id: 'the', name: 'Thé vert', emoji: '🍵', category: 'Boissons chaudes' },
-  { id: 'chocolat', name: 'Chocolat chaud', emoji: '🥛', category: 'Boissons chaudes' },
-  { id: 'jus', name: "Jus d'orange", emoji: '🥤', category: 'Boissons fraîches' },
-  { id: 'eau', name: 'Eau minérale', emoji: '💧', category: 'Boissons fraîches' },
-  { id: 'soda', name: 'Soda', emoji: '🥤', category: 'Boissons fraîches' },
-  { id: 'champagne', name: 'Coupe de champagne', emoji: '🥂', category: 'Alcool & Champagne' },
-  { id: 'cocktail', name: 'Cocktail maison', emoji: '🍸', category: 'Alcool & Champagne' },
-  { id: 'vin', name: 'Verre de vin', emoji: '🍷', category: 'Alcool & Champagne' },
+  { id: 'cafe', name: 'Café crème', nameEn: 'Coffee with cream', emoji: '☕', category: 'Boissons chaudes' },
+  { id: 'the', name: 'Thé vert', nameEn: 'Green tea', emoji: '🍵', category: 'Boissons chaudes' },
+  { id: 'chocolat', name: 'Chocolat chaud', nameEn: 'Hot chocolate', emoji: '🥛', category: 'Boissons chaudes' },
+  { id: 'jus', name: "Jus d'orange", nameEn: 'Orange juice', emoji: '🥤', category: 'Boissons fraîches' },
+  { id: 'eau', name: 'Eau minérale', nameEn: 'Mineral water', emoji: '💧', category: 'Boissons fraîches' },
+  { id: 'soda', name: 'Soda', nameEn: 'Soda', emoji: '🥤', category: 'Boissons fraîches' },
+  { id: 'champagne', name: 'Coupe de champagne', nameEn: 'Glass of champagne', emoji: '🥂', category: 'Alcool & Champagne' },
+  { id: 'cocktail', name: 'Cocktail maison', nameEn: 'House cocktail', emoji: '🍸', category: 'Alcool & Champagne' },
+  { id: 'vin', name: 'Verre de vin', nameEn: 'Glass of wine', emoji: '🍷', category: 'Alcool & Champagne' },
 ]
 
-const MENU_CATEGORIES = ['Boissons chaudes', 'Boissons fraîches', 'Alcool & Champagne']
+const MENU_CATEGORIES: { fr: string; en: string }[] = [
+  { fr: 'Boissons chaudes', en: 'Hot drinks' },
+  { fr: 'Boissons fraîches', en: 'Cold drinks' },
+  { fr: 'Alcool & Champagne', en: 'Alcohol & Champagne' },
+]
 
 const CONCIERGE_TYPES = [
-  { id: 'taxi', label: 'Réserver un taxi', emoji: '🚕' },
-  { id: 'vol', label: 'Info sur mon vol', emoji: '✈️' },
-  { id: 'appel', label: 'Appel téléphonique', emoji: '📞' },
-  { id: 'reunion', label: 'Salle de réunion', emoji: '💼' },
-  { id: 'autre', label: 'Autre demande', emoji: '🎁' },
+  { id: 'taxi', label: 'Réserver un taxi', labelEn: 'Book a taxi', emoji: '🚕' },
+  { id: 'vol', label: 'Info sur mon vol', labelEn: 'Flight information', emoji: '✈️' },
+  { id: 'appel', label: 'Appel téléphonique', labelEn: 'Phone call', emoji: '📞' },
+  { id: 'reunion', label: 'Salle de réunion', labelEn: 'Meeting room', emoji: '💼' },
+  { id: 'autre', label: 'Autre demande', labelEn: 'Other request', emoji: '🎁' },
 ] as const
 
 const ZONE_LABELS: Record<string, string> = {
@@ -382,16 +393,16 @@ const OTHER_ACTIONS: { def: ActionDef; short: string; shortEn: string }[] = [
 
 // ÉCRAN 3 — Estimations du temps, formulées comme une promesse
 // (jamais un compte à rebours agressif).
-const ESTIMATE_LABELS: Partial<Record<RequestType, string>> = {
-  refreshment: 'Livraison estimée · 3–5 min',
-  charger: 'Livraison estimée · 2–4 min',
-  loan: 'Livraison estimée · 3–6 min',
-  concierge: 'Amadou arrive · 1–3 min',
-  problem: 'Intervention · 5–10 min',
-  shower: 'Votre cabine est prête',
-  menu: 'La carte arrive · quelques secondes',
-  upsell: 'Préparation · 5–8 min',
-  rating: '',
+const ESTIMATE_LABELS: Partial<Record<RequestType, { fr: string; en: string }>> = {
+  refreshment: { fr: 'Livraison estimée · 3–5 min', en: 'Estimated delivery · 3–5 min' },
+  charger: { fr: 'Livraison estimée · 2–4 min', en: 'Estimated delivery · 2–4 min' },
+  loan: { fr: 'Livraison estimée · 3–6 min', en: 'Estimated delivery · 3–6 min' },
+  concierge: { fr: 'Amadou arrive · 1–3 min', en: 'Amadou is on his way · 1–3 min' },
+  problem: { fr: 'Intervention · 5–10 min', en: 'Intervention · 5–10 min' },
+  shower: { fr: 'Votre cabine est prête', en: 'Your cabin is ready' },
+  menu: { fr: 'La carte arrive · quelques secondes', en: 'The menu is on its way · seconds away' },
+  upsell: { fr: 'Préparation · 5–8 min', en: 'Preparation · 5–8 min' },
+  rating: { fr: '', en: '' },
 }
 
 // ============================================================
@@ -431,43 +442,64 @@ const ZONE_REQUIRED_TYPES = new Set<RequestType>([
   'problem',
 ])
 
-const CONFIRMATION_CONTENT: Record<RequestType, { title: string; subtitle: string }> = {
+const CONFIRMATION_CONTENT: Record<
+  RequestType,
+  { title: string; subtitle: string; titleEn: string; subtitleEn: string }
+> = {
   refreshment: {
     title: 'Commande envoyée au bar',
     subtitle: 'Le barman prépare votre demande. Livraison estimée : 3-5 min',
+    titleEn: 'Order sent to the bar',
+    subtitleEn: 'The bartender is preparing your request. Estimated delivery: 3-5 min',
   },
   menu: {
     title: 'Menu envoyé',
     subtitle: 'Le chef vous présente la carte du jour.',
+    titleEn: 'Menu sent',
+    subtitleEn: "The chef presents today's menu.",
   },
   shower: {
     title: 'Douche réservée',
     subtitle: 'Votre cabine vous attend. Le staff vous guide.',
+    titleEn: 'Shower reserved',
+    subtitleEn: 'Your cabin awaits. Our staff will guide you.',
   },
   charger: {
     title: 'Chargeur en route',
     subtitle: "Un membre du staff vous l'apporte.",
+    titleEn: 'Charger on its way',
+    subtitleEn: 'A member of our staff will bring it to you.',
   },
   concierge: {
     title: 'Le concierge arrive',
     subtitle: 'Il vous accompagne dans un instant.',
+    titleEn: 'The concierge is on his way',
+    subtitleEn: 'He will assist you in a moment.',
   },
   problem: {
     title: 'Signalement transmis',
     subtitle:
       'Notre équipe intervient dans un instant. Votre confort est notre priorité.',
+    titleEn: 'Report received',
+    subtitleEn: 'Our team is on its way. Your comfort is our priority.',
   },
   rating: {
     title: 'Merci pour votre retour',
     subtitle: 'Votre avis nous aide à parfaire le service.',
+    titleEn: 'Thank you for your feedback',
+    subtitleEn: 'Your feedback helps us perfect our service.',
   },
   upsell: {
     title: 'Commande transmise',
     subtitle: 'Notre équipe vous sert dans un instant.',
+    titleEn: 'Order received',
+    subtitleEn: 'Our team will serve you in a moment.',
   },
   loan: {
     title: 'Demande de prêt envoyée',
     subtitle: 'Votre objet vous est apporté à table.',
+    titleEn: 'Loan request sent',
+    subtitleEn: 'Your item will be brought to your table.',
   },
 }
 
@@ -909,11 +941,30 @@ export function VipTableScan({
       : salutation
   // Libellé de zone mémorisée affiché dans la langue courante — la
   // valeur stockée (et transmise au staff) reste en français.
+  // « Fauteuil 12 » (saisie libre) → « Seat 12 » en anglais.
   const afficherZone = (label: string) => {
     if (langue !== 'en') return label
     const z = GLOBAL_ZONES.find((x) => x.label === label)
-    return z?.labelEn ?? label
+    if (z?.labelEn) return z.labelEn
+    const fauteuil = label.match(/^Fauteuil\s+(.+)$/i)
+    return fauteuil ? `Seat ${fauteuil[1]}` : label
   }
+  // ---- Formulaires (signalement / rafraîchissement / conciergerie) :
+  // libellés AFFICHÉS dans la langue courante. Les valeurs ENVOYÉES au
+  // staff (tags, noms du menu, types de demande) restent françaises —
+  // seule la couche affichée est traduite.
+  const libelleTag = (id: string) => {
+    const t = PROBLEM_TAGS.find((x) => x.id === id)
+    if (!t) return id
+    return langue === 'en' ? t.labelEn : t.label
+  }
+  const libelleConcierge = (id: string) => {
+    const t = CONCIERGE_TYPES.find((x) => x.id === id)
+    if (!t) return id
+    return langue === 'en' ? t.labelEn : t.label
+  }
+  const nomMenu = (m: { name: string; nameEn?: string }) =>
+    langue === 'en' && m.nameEn ? m.nameEn : m.name
   // ---- Sélecteur FR/EN — pilule discrète assortie au toggle thème
   // (verre + or). Deux segments cliquables, actif = remplissage or.
   const selecteurLangue = (position: string) => (
@@ -1163,12 +1214,15 @@ export function VipTableScan({
   const locationLabel = isGlobal
     ? globalZone ?? DEFAULT_LOUNGE_NAME
     : table?.tableNumber ?? ''
-  // En-tête des vues secondaires (problème, commande, concierge…)
+  // En-tête des vues secondaires (problème, commande, concierge…) —
+  // affiché dans la langue courante, la valeur stockée reste française.
   const headerLocation = isGlobal
     ? globalZone
-      ? `Installé : ${globalZone}`
-      : 'Salon VIP'
-    : `Table ${table?.tableNumber ?? ''}`
+      ? langue === 'en'
+        ? `Seated: ${afficherZone(globalZone)}`
+        : `Installé : ${globalZone}`
+      : T('Salon VIP', 'VIP Lounge')
+    : `${T('Table', 'Table')} ${table?.tableNumber ?? ''}`
 
   const cartCount = Object.values(cart).reduce((a, b) => a + b, 0)
   const cartItems = MENU_ITEMS.filter((m) => (cart[m.id] ?? 0) > 0)
@@ -1242,7 +1296,10 @@ export function VipTableScan({
       setConciergeDetails('')
     } catch {
       setError(
-        "Impossible d'envoyer votre demande. Réessayez dans un instant.",
+        T(
+          "Impossible d'envoyer votre demande. Réessayez dans un instant.",
+          'Unable to send your request. Please try again in a moment.',
+        ),
       )
     } finally {
       setSending(null)
@@ -1501,7 +1558,12 @@ export function VipTableScan({
       }, 900)
     } catch {
       setLoanDraw(null)
-      setError("Impossible d'envoyer votre demande. Réessayez dans un instant.")
+      setError(
+        T(
+          "Impossible d'envoyer votre demande. Réessayez dans un instant.",
+          'Unable to send your request. Please try again in a moment.',
+        ),
+      )
     }
   }
 
@@ -1598,7 +1660,7 @@ export function VipTableScan({
             onClick={onExit}
             className="mt-2 gap-2 border-[var(--fp-border)] bg-[var(--fp-card)] text-[var(--fp-muted)]"
           >
-            <ArrowLeft className="h-4 w-4" aria-hidden /> Retour
+            <ArrowLeft className="h-4 w-4" aria-hidden /> {T('Retour', 'Back')}
           </Button>
         )}
       </div>
@@ -1715,41 +1777,43 @@ export function VipTableScan({
         <div className="mt-3 space-y-1 border-t border-[var(--fp-border)] pt-3 text-left">
           {meta.items.map((it: any, i: number) => (
             <p key={i} className="text-sm text-[var(--fp-text)]">
-              • {it.name} × {it.qty}
+              • {nomMenu(it)} × {it.qty}
             </p>
           ))}
         </div>
       )
     } else if (confirmation.type === 'concierge' && meta) {
-      const tLabel =
-        CONCIERGE_TYPES.find((t) => t.id === meta.requestType)?.label ??
-        meta.requestType
+      const tLabel = libelleConcierge(meta.requestType ?? '')
       detailsBox = (
         <div className="mt-3 space-y-1 border-t border-[var(--fp-border)] pt-3 text-left">
-          <p className="text-sm text-[var(--fp-text)]">• Demande : {tLabel}</p>
+          <p className="text-sm text-[var(--fp-text)]">
+            • {T('Demande', 'Request')} : {tLabel}
+          </p>
           {meta.details && (
-            <p className="text-sm text-[var(--fp-text)]">• Détails : {meta.details}</p>
+            <p className="text-sm text-[var(--fp-text)]">
+              • {T('Détails', 'Details')} : {meta.details}
+            </p>
           )}
           <p className="text-sm text-[var(--fp-text)]">
-            • Concierge : {CONCIERGE_NAME}
+            • {T('Concierge', 'Concierge')} : {CONCIERGE_NAME}
           </p>
         </div>
       )
     } else if (confirmation.type === 'problem' && meta) {
       const tagLabels = (meta.tags ?? []).map((id: string) => {
         const t = PROBLEM_TAGS.find((p) => p.id === id)
-        return t ? `${t.emoji} ${t.label}` : id
+        return t ? `${t.emoji} ${libelleTag(id)}` : id
       })
       detailsBox = (
         <div className="mt-3 space-y-1 border-t border-[var(--fp-border)] pt-3 text-left">
           <p className="text-sm text-[var(--fp-text)]">
-            • Types : {tagLabels.join(', ') || 'Signalement'}
+            • {T('Types', 'Types')} : {tagLabels.join(', ') || T('Signalement', 'Report')}
           </p>
           {meta.description && (
             <p className="text-sm text-[var(--fp-text)]">• {meta.description}</p>
           )}
           <p className="text-sm text-[var(--fp-muted)]">
-            • Pris en charge : il y a quelques sec
+            • {T('Pris en charge', 'Being handled')} : {T('il y a quelques sec', 'a few seconds ago')}
           </p>
         </div>
       )
@@ -1757,14 +1821,16 @@ export function VipTableScan({
 
     const trackingLabel =
       confirmation.type === 'refreshment'
-        ? 'Commande'
+        ? T('Commande', 'Order')
         : confirmation.type === 'problem'
-          ? 'Signalement'
-          : 'Demande'
+          ? T('Signalement', 'Report')
+          : T('Demande', 'Request')
     // QR_ROUTING — libellé de l'emplacement dans la carte de suivi :
     //   CLIENT_ZONE  → « Table » + n° de table scannée
     //   CLIENT_GLOBAL → « Emplacement » + zone choisie dans la session
-    const locationFieldLabel = isGlobal ? 'Emplacement' : 'Table'
+    const locationFieldLabel = isGlobal
+      ? T('Emplacement', 'Location')
+      : T('Table', 'Table')
 
     // ============================================================
     // ÉCRAN 3 — LA CONFIRMATION « WAAHOU »
@@ -1779,29 +1845,44 @@ export function VipTableScan({
     // La promesse — le verbe du service, jamais le jargon technique
     const promesse =
       confirmation.type === 'loan'
-        ? `${CONCIERGE_NAME} vous apporte ${
-            meta?.loanItem
-              ? `votre ${String(meta.loanItem).toLowerCase()}`
-              : 'votre demande'
-          } dans un instant.`
+        ? langue === 'en'
+          ? `${CONCIERGE_NAME} is bringing ${
+              meta?.loanItem
+                ? `your ${String(meta.loanItem).toLowerCase()}`
+                : 'your request'
+            } in a moment.`
+          : `${CONCIERGE_NAME} vous apporte ${
+              meta?.loanItem
+                ? `votre ${String(meta.loanItem).toLowerCase()}`
+                : 'votre demande'
+            } dans un instant.`
         : confirmation.type === 'refreshment'
-          ? 'Le barman compose votre commande — servie à votre place.'
+          ? langue === 'en'
+            ? 'The bartender is composing your order — served at your seat.'
+            : 'Le barman compose votre commande — servie à votre place.'
           : confirmation.type === 'concierge'
-            ? `${CONCIERGE_NAME} arrive pour vous accompagner.`
-            : conf.subtitle
+            ? langue === 'en'
+              ? `${CONCIERGE_NAME} is coming to assist you.`
+              : `${CONCIERGE_NAME} arrive pour vous accompagner.`
+            : langue === 'en'
+              ? conf.subtitleEn
+              : conf.subtitle
 
     // Référence élégante — formulée comme un savoir-faire maison
     const refLabel =
       confirmation.type === 'refreshment'
-        ? 'Réf. Bar'
+        ? T('Réf. Bar', 'Bar ref.')
         : confirmation.type === 'problem'
-          ? 'Réf. Intervention'
+          ? T('Réf. Intervention', 'Intervention ref.')
           : confirmation.type === 'rating'
-            ? 'Réf. Avis'
-            : 'Réf. Conciergerie'
+            ? T('Réf. Avis', 'Review ref.')
+            : T('Réf. Conciergerie', 'Concierge ref.')
 
     // Estimation du temps — une promesse, pas un chrono
-    const estimateLabel = ESTIMATE_LABELS[confirmation.type] ?? ''
+    const estimateLabel =
+      (langue === 'en'
+        ? ESTIMATE_LABELS[confirmation.type]?.en
+        : ESTIMATE_LABELS[confirmation.type]?.fr) ?? ''
 
     return (
       <div className={cn(racineCls, 'flex flex-col items-center justify-center px-6 py-12 text-center')}>
@@ -1845,7 +1926,7 @@ export function VipTableScan({
             className="text-[26px] font-semibold leading-snug text-[var(--fp-text)]"
             style={SERIF}
           >
-            C&apos;est noté{prenom ? `, ${prenom}` : ''}.
+            {T('C’est noté', 'Noted')}{prenom ? `, ${prenom}` : ''}.
           </h1>
           <p className="mt-2 max-w-sm text-sm leading-relaxed text-[var(--fp-muted)]">
             <span className="italic" style={SERIF}>
@@ -1880,7 +1961,7 @@ export function VipTableScan({
               {refLabel}
             </p>
             <span className="text-[11px] font-medium text-[#4A7C59]">
-              Pris en charge
+              {T('Pris en charge', 'Being handled')}
             </span>
           </div>
           <p className="mt-1 text-sm font-semibold tracking-wide text-[var(--fp-text)]">
@@ -1911,7 +1992,7 @@ export function VipTableScan({
               ) : (
                 <Utensils className="h-4 w-4" aria-hidden />
               )}
-              Voir le menu
+              {T('Voir le menu', 'View the menu')}
             </Button>
           )}
           {confirmation.type === 'problem' && (
@@ -1926,7 +2007,7 @@ export function VipTableScan({
               ) : (
                 <Star className="h-4 w-4" aria-hidden />
               )}
-              Noter l&apos;intervention
+              {T("Noter l'intervention", 'Rate the intervention')}
             </Button>
           )}
           <Button
@@ -1935,7 +2016,8 @@ export function VipTableScan({
             onClick={() => setConfirmation(null)}
             className="gap-2 border-[var(--fp-border)] bg-[var(--fp-card)] text-[var(--fp-muted)] hover:bg-[var(--fp-border)]/40"
           >
-            <ConciergeBell className="h-4 w-4" aria-hidden /> Autre demande
+            <ConciergeBell className="h-4 w-4" aria-hidden />{' '}
+            {T('Autre demande', 'New request')}
           </Button>
         </div>
 
@@ -1949,7 +2031,7 @@ export function VipTableScan({
               onClick={() => setError(null)}
               className="text-xs font-medium underline"
             >
-              Fermer
+              {T('Fermer', 'Close')}
             </button>
           </div>
         )}
@@ -1983,7 +2065,7 @@ export function VipTableScan({
               onClick={() => setView('main')}
               className="gap-2 border-[var(--fp-border)] bg-[var(--fp-card)] text-[var(--fp-muted)] hover:bg-[var(--fp-border)]/40"
             >
-              <ArrowLeft className="h-4 w-4" aria-hidden /> Retour
+              <ArrowLeft className="h-4 w-4" aria-hidden /> {T('Retour', 'Back')}
             </Button>
           </div>
 
@@ -2052,14 +2134,14 @@ export function VipTableScan({
             <button
               type="button"
               onClick={() => setView('main')}
-              aria-label="Retour à Nathalie"
+              aria-label={T('Retour à Nathalie', 'Back to Nathalie')}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--fp-border)] bg-[var(--fp-card)] text-[var(--fp-text)] shadow-[0_4px_16px_rgba(0,0,0,0.06)] backdrop-blur transition-all duration-300 hover:scale-105 hover:border-[var(--fp-gold)] active:scale-95"
             >
               <ArrowLeft className="h-4 w-4" aria-hidden />
             </button>
             <div className="min-w-0">
               <h1 className="text-xl font-semibold text-[var(--fp-text)]" style={SERIF}>
-                Signaler un besoin
+                {T('Signaler un besoin', 'Report a need')}
               </h1>
               <p className="truncate text-[10px] font-medium uppercase tracking-[0.22em] text-[var(--fp-muted)]">
                 {headerLocation}
@@ -2072,8 +2154,10 @@ export function VipTableScan({
             className="mt-1 text-[13px] italic leading-relaxed text-[var(--fp-muted)]"
             style={SERIF}
           >
-            « Votre confort est notre priorité absolue. Chaque signalement
-            est traité avec la plus grande discrétion. »
+            {T(
+              '« Votre confort est notre priorité absolue. Chaque signalement est traité avec la plus grande discrétion. »',
+              '“Your comfort is our absolute priority. Every report is handled with the utmost discretion.”',
+            )}
           </p>
 
           <div className="mt-5 space-y-6 rounded-3xl border border-[var(--fp-border)] bg-[var(--fp-card)] p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
@@ -2081,7 +2165,7 @@ export function VipTableScan({
                 (un clic, la tuile devient or — prototype directeur) */}
             <div>
               <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.3em] text-[var(--fp-muted)]">
-                Type de besoin
+                {T('Type de besoin', 'Type of need')}
               </p>
               <div className="grid grid-cols-2 gap-2">
                 {PROBLEM_TAGS.map((t) => {
@@ -2108,7 +2192,7 @@ export function VipTableScan({
                         {t.emoji}
                       </span>
                       <span className="min-w-0 flex-1 text-left leading-tight">
-                        {t.label}
+                        {langue === 'en' ? t.labelEn : t.label}
                       </span>
                       {selected && <Check className="h-3.5 w-3.5 shrink-0" aria-hidden />}
                     </button>
@@ -2120,12 +2204,12 @@ export function VipTableScan({
             {/* Détails (optionnel) */}
             <div>
               <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.3em] text-[var(--fp-muted)]">
-                Détails (optionnel)
+                {T('Détails (optionnel)', 'Details (optional)')}
               </p>
               <Textarea
                 value={problemDescription}
                 onChange={(e) => setProblemDescription(e.target.value)}
-                placeholder="La table à côté…"
+                placeholder={T('La table à côté…', 'The table next to me…')}
                 className="mt-2 min-h-24 resize-none border-[var(--fp-border)] bg-[var(--fp-card)] text-sm text-[var(--fp-text)] placeholder:text-[var(--fp-muted)]/50 focus-visible:border-[var(--fp-gold)] focus-visible:ring-[var(--fp-gold)]/20"
               />
             </div>
@@ -2133,7 +2217,7 @@ export function VipTableScan({
             {/* Photo (optionnel) — zone de dépôt en pointillés, large */}
             <div>
               <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.3em] text-[var(--fp-muted)]">
-                Photo (optionnel)
+                {T('Photo (optionnel)', 'Photo (optional)')}
               </p>
               <input
                 ref={fileInputRef}
@@ -2149,14 +2233,14 @@ export function VipTableScan({
                     { }
                     <img
                       src={photoPreviewUrl}
-                      alt="Aperçu du signalement"
+                      alt={T('Aperçu du signalement', 'Report photo preview')}
                       className="h-20 w-20 rounded-xl border border-[var(--fp-border)] object-cover"
                     />
                     <button
                       type="button"
                       onClick={removePhoto}
                       className="absolute -right-2 -top-2 flex h-6 w-6 items-center justify-center rounded-full border border-[var(--fp-border)] bg-[var(--fp-card)] text-[var(--fp-muted)] shadow"
-                      aria-label="Retirer la photo"
+                      aria-label={T('Retirer la photo', 'Remove photo')}
                     >
                       <X className="h-3 w-3" aria-hidden />
                     </button>
@@ -2168,7 +2252,7 @@ export function VipTableScan({
                     className="flex w-full flex-col items-center gap-1.5 rounded-2xl border border-dashed border-[var(--fp-gold)]/40 bg-[var(--fp-gold)]/6 px-4 py-6 text-xs font-medium text-[var(--fp-muted)] transition-all duration-300 hover:border-[var(--fp-gold)] hover:bg-[var(--fp-gold)]/10"
                   >
                     <Camera className="h-6 w-6 text-[var(--fp-gold)]" aria-hidden />
-                    Ajouter une photo
+                    {T('Ajouter une photo', 'Add a photo')}
                   </button>
                 )}
               </div>
@@ -2187,10 +2271,10 @@ export function VipTableScan({
                 ) : (
                   <Send className="h-4 w-4" aria-hidden />
                 )}
-                Transmettre discrètement
+                {T('Transmettre discrètement', 'Send discreetly')}
               </Button>
               <p className="text-center text-xs text-[var(--fp-muted)]">
-                🔒 Votre signalement est confidentiel.
+                {T('🔒 Votre signalement est confidentiel.', '🔒 Your report is confidential.')}
               </p>
             </div>
 
@@ -2203,7 +2287,7 @@ export function VipTableScan({
                   onClick={() => setError(null)}
                   className="text-xs font-medium underline"
                 >
-                  Fermer
+                  {T('Fermer', 'Close')}
                 </button>
               </div>
             )}
@@ -2227,14 +2311,14 @@ export function VipTableScan({
             <button
               type="button"
               onClick={() => setView('main')}
-              aria-label="Retour à Nathalie"
+              aria-label={T('Retour à Nathalie', 'Back to Nathalie')}
               className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--fp-border)] bg-[var(--fp-card)] text-[var(--fp-text)] shadow-[0_4px_16px_rgba(0,0,0,0.06)] backdrop-blur transition-all duration-300 hover:scale-105 hover:border-[var(--fp-gold)] active:scale-95"
             >
               <ArrowLeft className="h-4 w-4" aria-hidden />
             </button>
             <div className="min-w-0">
               <h1 className="text-xl font-semibold text-[var(--fp-text)]" style={SERIF}>
-                Gastronomie &amp; Bar
+                {T('Gastronomie & Bar', 'Gastronomy & Bar')}
               </h1>
               <p className="truncate text-[10px] font-medium uppercase tracking-[0.22em] text-[var(--fp-muted)]">
                 {headerLocation}
@@ -2246,7 +2330,7 @@ export function VipTableScan({
             {/* Menu groupé par catégorie — titre serif + barre d'or
                 (prototype directeur : catégories élégantes) */}
             {MENU_CATEGORIES.map((cat) => (
-              <div key={cat}>
+              <div key={cat.fr}>
                 <p
                   className="flex items-center gap-2 text-[17px] font-semibold text-[var(--fp-text)]"
                   style={SERIF}
@@ -2255,10 +2339,10 @@ export function VipTableScan({
                     className="h-4 w-1 rounded-full bg-[var(--fp-gold)]"
                     aria-hidden
                   />
-                  {cat}
+                  {langue === 'en' ? cat.en : cat.fr}
                 </p>
                 <div className="mt-3 space-y-2.5">
-                  {MENU_ITEMS.filter((m) => m.category === cat).map((m) => {
+                  {MENU_ITEMS.filter((m) => m.category === cat.fr).map((m) => {
                     const qty = cart[m.id] ?? 0
                     return (
                       <div
@@ -2269,7 +2353,7 @@ export function VipTableScan({
                           {m.emoji}
                         </span>
                         <span className="flex-1 text-sm font-medium text-[var(--fp-text)]">
-                          {m.name}
+                          {nomMenu(m)}
                         </span>
                         {qty > 0 ? (
                           <div className="flex items-center gap-2">
@@ -2282,7 +2366,7 @@ export function VipTableScan({
                                 }))
                               }
                               className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--fp-border)] bg-[var(--fp-card)] text-[var(--fp-muted)]"
-                              aria-label={`Retirer ${m.name}`}
+                              aria-label={`${T('Retirer', 'Remove')} ${nomMenu(m)}`}
                             >
                               −
                             </button>
@@ -2295,7 +2379,7 @@ export function VipTableScan({
                                 setCart((p) => ({ ...p, [m.id]: qty + 1 }))
                               }
                               className="flex h-7 w-7 items-center justify-center rounded-full border border-[var(--fp-gold)] bg-[var(--fp-gold)]/12 text-[var(--fp-gold)]"
-                              aria-label={`Ajouter ${m.name}`}
+                              aria-label={`${T('Ajouter', 'Add')} ${nomMenu(m)}`}
                             >
                               +
                             </button>
@@ -2307,7 +2391,7 @@ export function VipTableScan({
                               setCart((p) => ({ ...p, [m.id]: 1 }))
                             }
                             className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--fp-gold)] bg-transparent text-lg leading-none text-[var(--fp-gold)] transition-all duration-300 hover:scale-110 hover:bg-[var(--fp-gold)] hover:text-[#14110B] active:scale-95"
-                            aria-label={`Ajouter ${m.name}`}
+                            aria-label={`${T('Ajouter', 'Add')} ${nomMenu(m)}`}
                           >
                             +
                           </button>
@@ -2323,7 +2407,10 @@ export function VipTableScan({
                 vit désormais dans la pilule FLOTTANTE en bas d'écran */}
             {cartCount === 0 ? (
               <p className="pb-1 text-center text-xs text-[var(--fp-muted)]">
-                Sélectionnez vos boissons — Nathalie s&apos;occupe du reste.
+                {T(
+                  'Sélectionnez vos boissons — Nathalie s’occupe du reste.',
+                  'Select your drinks — Nathalie takes care of the rest.',
+                )}
               </p>
             ) : null}
 
@@ -2336,7 +2423,7 @@ export function VipTableScan({
                   onClick={() => setError(null)}
                   className="text-xs font-medium underline"
                 >
-                  Fermer
+                  {T('Fermer', 'Close')}
                 </button>
               </div>
             )}
@@ -2359,10 +2446,11 @@ export function VipTableScan({
               <div className="flex w-full max-w-md items-center justify-between gap-3 rounded-full border border-[var(--fp-gold)]/35 bg-[#14110B]/95 px-5 py-3 shadow-[0_20px_44px_rgba(0,0,0,0.45)] backdrop-blur-xl">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-[#F5F1E6]">
-                    {cartCount} article{cartCount > 1 ? 's' : ''}
+                    {cartCount} {T('article', 'item')}
+                    {cartCount > 1 ? 's' : ''}
                   </p>
                   <p className="text-[11px] text-[#F5F1E6]/65">
-                    ⏱️ Livraison ~ 3 min
+                    {T('⏱️ Livraison ~ 3 min', '⏱️ Delivery ~ 3 min')}
                   </p>
                 </div>
                 <Button
@@ -2376,7 +2464,7 @@ export function VipTableScan({
                   ) : (
                     <Send className="h-4 w-4" aria-hidden />
                   )}
-                  Commander
+                  {T('Commander', 'Order')}
                 </Button>
               </div>
             </motion.div>
@@ -2403,7 +2491,7 @@ export function VipTableScan({
                 {headerLocation}
               </p>
               <h1 className="mt-1 text-2xl font-semibold text-[var(--fp-text)]" style={SERIF}>
-                🛎️ Appeler le concierge
+                {T('🛎️ Appeler le concierge', '🛎️ Call the concierge')}
               </h1>
             </div>
             <Button
@@ -2411,7 +2499,7 @@ export function VipTableScan({
               onClick={() => setView('main')}
               className="gap-2 border-[var(--fp-border)] bg-[var(--fp-card)] text-[var(--fp-muted)] hover:bg-[var(--fp-border)]/40"
             >
-              <ArrowLeft className="h-4 w-4" aria-hidden /> Retour
+              <ArrowLeft className="h-4 w-4" aria-hidden /> {T('Retour', 'Back')}
             </Button>
           </div>
 
@@ -2419,7 +2507,7 @@ export function VipTableScan({
             {/* Sélecteur de demande (single-select) */}
             <div>
               <p className="text-sm font-medium text-[var(--fp-text)]">
-                Comment pouvons-nous vous aider ?
+                {T('Comment pouvons-nous vous aider ?', 'How may we assist you?')}
               </p>
               <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
                 {CONCIERGE_TYPES.map((t) => {
@@ -2439,7 +2527,7 @@ export function VipTableScan({
                       <span className="text-xl" aria-hidden>
                         {t.emoji}
                       </span>
-                      <span className="flex-1">{t.label}</span>
+                      <span className="flex-1">{langue === 'en' ? t.labelEn : t.label}</span>
                       {selected && <Check className="h-4 w-4" aria-hidden />}
                     </button>
                   )
@@ -2450,12 +2538,12 @@ export function VipTableScan({
             {/* Détails optionnels */}
             <div>
               <p className="text-sm font-medium text-[var(--fp-text)]">
-                Détails (optionnel) :
+                {T('Détails (optionnel)', 'Details (optional)')} :
               </p>
               <Textarea
                 value={conciergeDetails}
                 onChange={(e) => setConciergeDetails(e.target.value)}
-                placeholder="Je souhaite un taxi pour 18h…"
+                placeholder={T('Je souhaite un taxi pour 18h…', 'I would like a taxi for 6 pm…')}
                 className="mt-2 min-h-24 resize-none border-[var(--fp-border)] bg-[var(--fp-bg)] text-sm text-[var(--fp-text)] placeholder:text-[var(--fp-muted)]/50 focus-visible:border-[#6B4C9A] focus-visible:ring-[#6B4C9A]/20"
               />
             </div>
@@ -2473,10 +2561,11 @@ export function VipTableScan({
                 ) : (
                   <Send className="h-4 w-4" aria-hidden />
                 )}
-                TRANSMETTRE AU CONCIERGE
+                {T('TRANSMETTRE AU CONCIERGE', 'SEND TO THE CONCIERGE')}
               </Button>
               <p className="inline-flex items-center justify-center gap-1.5 text-center text-xs text-[var(--fp-muted)]">
-                <Phone className="h-3 w-3" aria-hidden /> Concierge disponible :{' '}
+                <Phone className="h-3 w-3" aria-hidden />{' '}
+                {T('Concierge disponible :', 'Concierge on duty:')}{' '}
                 {CONCIERGE_NAME}
               </p>
             </div>
@@ -2490,7 +2579,7 @@ export function VipTableScan({
                   onClick={() => setError(null)}
                   className="text-xs font-medium underline"
                 >
-                  Fermer
+                  {T('Fermer', 'Close')}
                 </button>
               </div>
             )}
@@ -2852,7 +2941,11 @@ export function VipTableScan({
                     e.preventDefault()
                     const v = zoneFauteuil.trim()
                     if (!v) return
-                    const zone = /^fauteuil/i.test(v) ? v : `Fauteuil ${v}`
+                    // Normalise « 12 » / « Seat 12 » → « Fauteuil 12 »
+                    // (valeur staff française ; affichage traduit par
+                    // afficherZone).
+                    const brut = v.replace(/^(seat|fauteuil)\s*/i, '')
+                    const zone = brut ? `Fauteuil ${brut}` : v
                     confirmZoneSelection(zone)
                   }}
                   className="flex gap-2"
@@ -2870,7 +2963,7 @@ export function VipTableScan({
                     className="shrink-0 rounded-2xl border border-[var(--fp-gold)] bg-[var(--fp-gold)] text-white shadow-[0_4px_20px_rgba(201,169,97,0.18)] hover:bg-[var(--fp-gold)]/90"
                   >
                     <Check className="h-4 w-4" aria-hidden />
-                    <span className="sr-only">Valider mon emplacement</span>
+                    <span className="sr-only">{T('Valider mon emplacement', 'Confirm my location')}</span>
                   </Button>
                 </form>
               </motion.div>
@@ -2906,7 +2999,7 @@ export function VipTableScan({
                   onClick={() => setError(null)}
                   className="text-xs font-medium underline"
                 >
-                  Fermer
+                  {T('Fermer', 'Close')}
                 </button>
               </div>
             )}
@@ -3111,7 +3204,7 @@ export function VipTableScan({
               onClick={() => setError(null)}
               className="text-xs font-medium underline"
             >
-              Fermer
+              {T('Fermer', 'Close')}
             </button>
           </div>
         )}
@@ -3275,17 +3368,20 @@ export function VipTableScan({
                   className="mt-1 text-xl font-semibold text-[var(--fp-text)]"
                   style={SERIF}
                 >
-                  Où êtes-vous installé actuellement ?
+                  {T('Où êtes-vous installé actuellement ?', 'Where are you currently seated?')}
                 </h2>
                 <p className="mt-1.5 text-sm text-[var(--fp-muted)]">
-                  Nathalie transmettra votre emplacement avec votre demande.
+                  {T(
+                    'Nathalie transmettra votre emplacement avec votre demande.',
+                    'Nathalie will share your location with your request.',
+                  )}
                 </p>
               </div>
               <button
                 type="button"
                 onClick={cancelZoneModal}
                 className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--fp-border)] bg-[var(--fp-card)] text-[var(--fp-muted)] transition hover:bg-[var(--fp-border)]/40"
-                aria-label="Fermer la sélection d'emplacement"
+                aria-label={T("Fermer la sélection d'emplacement", 'Close location selection')}
               >
                 <X className="h-4 w-4" aria-hidden />
               </button>
@@ -3314,7 +3410,7 @@ export function VipTableScan({
                     >
                       {z.emoji}
                     </span>
-                    {z.label}
+                    {langue === 'en' ? z.labelEn : z.label}
                     {estChoisie && (
                       <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-[#14110B]/85 text-[10px] font-bold text-[var(--fp-gold)]" aria-hidden>
                         ✓
@@ -3329,7 +3425,7 @@ export function VipTableScan({
             <div className="my-5 flex items-center gap-3" aria-hidden>
               <span className="h-px flex-1 bg-[var(--fp-border)]" />
               <span className="text-[10px] font-medium uppercase tracking-widest text-[var(--fp-muted)]/70">
-                ou
+                {T('ou', 'or')}
               </span>
               <span className="h-px flex-1 bg-[var(--fp-border)]" />
             </div>
@@ -3340,8 +3436,11 @@ export function VipTableScan({
                 e.preventDefault()
                 const v = zoneFauteuil.trim()
                 if (!v) return
-                // Normalise « 12 » → « Fauteuil 12 » (déjà préfixé → tel quel)
-                const zone = /^fauteuil/i.test(v) ? v : `Fauteuil ${v}`
+                // Normalise « 12 » → « Fauteuil 12 » (valeur stockée côté
+                // staff, toujours française) — « Seat 12 » (EN) est aussi
+                // reconnu. L'affichage est traduit par afficherZone().
+                const brut = v.replace(/^(seat|fauteuil)\s*/i, '')
+                const zone = brut ? `Fauteuil ${brut}` : v
                 confirmZoneSelection(zone)
               }}
               className="space-y-3"
@@ -3351,13 +3450,13 @@ export function VipTableScan({
                   htmlFor="zone-fauteuil"
                   className="text-sm font-medium text-[var(--fp-text)]"
                 >
-                  Indiquez votre numéro de fauteuil
+                  {T('Indiquez votre numéro de fauteuil', 'Enter your seat number')}
                 </label>
                 <Input
                   id="zone-fauteuil"
                   value={zoneFauteuil}
                   onChange={(e) => setZoneFauteuil(e.target.value)}
-                  placeholder="Ex : Fauteuil 12"
+                  placeholder={T('Ex : Fauteuil 12', 'e.g. Seat 12')}
                   inputMode="text"
                   className="mt-2 border-[var(--fp-border)] bg-[var(--fp-bg)] text-sm text-[var(--fp-text)] placeholder:text-[var(--fp-muted)]/50 focus-visible:border-[var(--fp-gold)] focus-visible:ring-[var(--fp-gold)]/20"
                 />
@@ -3368,13 +3467,15 @@ export function VipTableScan({
                 className="w-full gap-2 rounded-2xl border border-[var(--fp-gold)] bg-[var(--fp-gold)] text-white shadow-[0_4px_20px_rgba(201,169,97,0.18)] hover:bg-[var(--fp-gold)]/90"
               >
                 <Check className="h-4 w-4" aria-hidden />
-                Valider mon emplacement
+                {T('Valider mon emplacement', 'Confirm my location')}
               </Button>
             </form>
 
             <p className="mt-4 text-center text-[11px] text-[var(--fp-muted)]/70">
-              Votre choix est mémorisé pour la session — modifiable à tout
-              moment.
+              {T(
+                'Votre choix est mémorisé pour la session — modifiable à tout moment.',
+                'Your choice is remembered for the session — change it anytime.',
+              )}
             </p>
           </div>
         </div>
