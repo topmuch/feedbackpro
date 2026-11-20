@@ -1,5 +1,6 @@
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { ThemeProvider } from "@/components/theme-provider";
 
 export const dynamic = "force-dynamic";
 
@@ -32,8 +33,19 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased bg-background text-foreground">
-        {children}
-        <Toaster />
+        {/* next-themes — le bouton mode sombre/clair des dashboards (ThemeToggle)
+            ne fonctionne QUE si le provider est monté ici. attribute="class" →
+            la classe .dark est posée sur <html> (définie dans globals.css).
+            defaultTheme="light" : le mode clair reste le défaut FeedbackPro. */}
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="light"
+          enableSystem={false}
+          disableTransitionOnChange
+        >
+          {children}
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

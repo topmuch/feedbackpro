@@ -144,6 +144,10 @@ export type PlaqueOptions = {
   /** Logo du salon gravé au centre du médaillon.
    *  undefined → auto (config tenant) · null → jamais · string → forcé */
   logoUrl?: string | null
+  /** Grande icône de la RUBRIQUE (ex. "\uD83E\uDD42" Salon VIP, "\uD83C\uDF78" Buffet/Bar…).
+   *  Demandée par le directeur : chaque QR de rubrique porte une icône GRANDE
+   *  et élégante, gravée dans un médaillon or entre le titre et le QR. */
+  emoji?: string | null
 }
 
 type PlaqueSize = 'xs' | 'sm' | 'md'
@@ -155,7 +159,7 @@ type PlaqueSize = 'xs' | 'sm' | 'md'
 // ~10-12% de marge ivoire autour du logo → 10/10 lectures
 // réussies. Au-delà de 36-38%, zbar devient instable. Le logo
 // reste ≈ 1,7× plus grand que la version d'origine (h-7).
-const SIZE_CFG: Record<PlaqueSize, { qr: string; px: number; kicker: string; label: string; signature: string; pad: string; medal: string; logo: string; chip: string }> = {
+const SIZE_CFG: Record<PlaqueSize, { qr: string; px: number; kicker: string; label: string; signature: string; pad: string; medal: string; logo: string; chip: string; emoji: string }> = {
   md: {
     qr: 'h-44 w-44',
     px: 512,
@@ -163,9 +167,11 @@ const SIZE_CFG: Record<PlaqueSize, { qr: string; px: number; kicker: string; lab
     label: 'text-[15px]',
     signature: 'text-[8px] tracking-[0.34em]',
     pad: 'px-4 pb-4 pt-5',
-    medal: 'p-2.5 mt-3.5',
+    medal: 'p-2.5 mt-2',
     logo: 'h-11 w-11',
     chip: 'p-[6px]',
+    // Icône de rubrique EN GRAND (médaillon or 56px, emoji 30px)
+    emoji: 'h-14 w-14 text-[30px]',
   },
   sm: {
     qr: 'h-32 w-32',
@@ -174,9 +180,10 @@ const SIZE_CFG: Record<PlaqueSize, { qr: string; px: number; kicker: string; lab
     label: 'text-[13px]',
     signature: 'text-[7px] tracking-[0.3em]',
     pad: 'px-3.5 pb-3.5 pt-4',
-    medal: 'p-2 mt-3',
+    medal: 'p-2 mt-2',
     logo: 'h-8 w-8',
     chip: 'p-[4px]',
+    emoji: 'h-11 w-11 text-[22px]',
   },
   xs: {
     qr: 'h-24 w-24',
@@ -185,9 +192,10 @@ const SIZE_CFG: Record<PlaqueSize, { qr: string; px: number; kicker: string; lab
     label: 'text-[12px]',
     signature: 'text-[6.5px] tracking-[0.26em]',
     pad: 'px-3 pb-3 pt-3.5',
-    medal: 'p-1.5 mt-2.5',
+    medal: 'p-1.5 mt-2',
     logo: 'h-5 w-5',
     chip: 'p-[4px]',
+    emoji: 'h-8 w-8 text-[16px]',
   },
 }
 
@@ -199,6 +207,7 @@ export function NathalieQrPlaque({
   size = 'md',
   className,
   logoUrl,
+  emoji,
 }: PlaqueOptions & { size?: PlaqueSize; className?: string }) {
   const cfg = SIZE_CFG[size]
   const qr = useQrPng(data, cfg.px)
@@ -238,6 +247,24 @@ export function NathalieQrPlaque({
         >
           {kicker}
         </p>
+
+        {/* Médaillon d'OR de la RUBRIQUE — grande icône élégante entre le
+            titre et le QR (demande directeur : rubriques mises en évidence
+            avec de jolies et GRANDES icônes, harmonisées sur tous les QR). */}
+        {emoji ? (
+          <div className="relative mx-auto mt-2.5 w-fit">
+            <span
+              className={cn(
+                'flex items-center justify-center rounded-full border-2 border-[#C9A961]/70 bg-gradient-to-br from-[#2E2A22] via-[#1E1B15] to-[#14120D]',
+                'shadow-[0_3px_14px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.08)]',
+                cfg.emoji,
+              )}
+              aria-hidden
+            >
+              {emoji}
+            </span>
+          </div>
+        ) : null}
 
         {/* Emblème géométrique : médaillon ivoire + crochets d'or */}
         <div className="relative mx-auto w-fit">
@@ -304,7 +331,7 @@ const FONT_STACK = 'Playfair Display, Georgia, serif'
 type SvgOpts = PlaqueOptions & { qrPng: string; logoPng?: string | null }
 
 /** SVG autoportant (aucune ressource externe) — rasterisable en canvas */
-export function plaqueSvgString({ data, label, kicker = 'SALON VIP', signature = 'NATHALIE · VOTRE GUIDE PERSONNEL', qrPng, logoPng }: SvgOpts): string {
+export function plaqueSvgString({ data, label, kicker = 'SALON VIP', signature = 'NATHALIE · VOTRE GUIDE PERSONNEL', qrPng, logoPng, emoji }: SvgOpts): string {
   // QR fraîchement généré en haute définition pour l'export
   const plate = { x: 160, y: 208, s: 320 } // médaillon ivoire
   const br = 12 // dépassement des crochets
@@ -327,7 +354,22 @@ export function plaqueSvgString({ data, label, kicker = 'SALON VIP', signature =
     logoSvg = `
   <!-- logo du salon gravé (grand) -->
   <rect x="${lx}" y="${ly}" width="${lp}" height="${lp}" rx="${Math.round(lp * 0.14)}" fill="url(#medal)" stroke="#C9A961" stroke-opacity="0.7" stroke-width="2"/>
-  <image href="${logoPng}" x="${lx + inset}" y="${ly + inset}" width="${lp - inset * 2}" height="${lp - inset * 2}" preserveAspectRatio="xMidYMid meet"/>`
+  <image href="${logoPng}" x="${lx + inset}" y="${ly + inset}" width="${lp - inset * 2}" height="${lp - inset * 2}" preserveAspectRatio="xMidYMid meet"/>
+`
+  }
+
+  // Médaillon d'or de la RUBRIQUE — grande icône entre le titre (y=140)
+  // et le médaillon QR (y=208) : cercle or + emoji gravé au centre.
+  let emojiSvg = ''
+  if (emoji) {
+    const cy = 176
+    const r = 26
+    emojiSvg = `
+  <!-- icône de la rubrique (grande, médaillon or) -->
+  <circle cx="${W / 2}" cy="${cy}" r="${r}" fill="url(#medalOmbre)" stroke="url(#or)" stroke-width="2"/>
+  <circle cx="${W / 2}" cy="${cy}" r="${r - 4}" fill="none" stroke="#C9A961" stroke-opacity="0.35" stroke-width="0.8"/>
+  <text x="${W / 2}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="28" font-family="'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif">${esc(emoji)}</text>
+`
   }
 
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
@@ -347,6 +389,11 @@ export function plaqueSvgString({ data, label, kicker = 'SALON VIP', signature =
       <stop offset="0.5" stop-color="#C9A961"/>
       <stop offset="1" stop-color="#A98B4B"/>
     </linearGradient>
+    <radialGradient id="medalOmbre" cx="0.35" cy="0.3" r="1">
+      <stop offset="0" stop-color="#3A342A"/>
+      <stop offset="0.6" stop-color="#241F18"/>
+      <stop offset="1" stop-color="#14120D"/>
+    </radialGradient>
   </defs>
 
   <!-- socle marbre Nero Marquina -->
@@ -365,6 +412,7 @@ export function plaqueSvgString({ data, label, kicker = 'SALON VIP', signature =
 
   <!-- typographie haut -->
   <text x="${W / 2}" y="140" text-anchor="middle" font-family="${FONT_STACK}" font-size="24" letter-spacing="12" fill="#C9A961" font-weight="600">${esc(kicker.toUpperCase())}</text>
+  ${emojiSvg}
 
   <!-- emblème : médaillon ivoire + crochets d'or -->
   <rect x="${x}" y="${y}" width="${s}" height="${s}" rx="8" fill="url(#medal)" stroke="#C9A961" stroke-opacity="0.55" stroke-width="1.4"/>

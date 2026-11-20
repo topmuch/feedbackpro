@@ -15,7 +15,6 @@ import {
   Printer,
   Copy,
   Check,
-  MapPin,
   MessageSquare,
   ShoppingCart,
   Loader2,
@@ -41,6 +40,7 @@ import {
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/app-store"
 import { logoVersDataUrl } from "@/lib/qr"
+import { NathalieQrPlaque, downloadPlaquePng } from "@/components/feedbackpro/nathalie-qr-plaque"
 import { sousTitreZone } from "@/lib/pdf"
 import { SUPPORTS } from "@/lib/constants"
 import { cn } from "@/lib/utils"
@@ -86,6 +86,37 @@ function slugifier(s: string): string {
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "") || "zone"
   )
+}
+
+// ---------- Icônes des RUBRIQUES (demande du directeur V3) ----------
+// Chaque QR de rubrique porte une GRANDE icône élégante, harmonisée sur
+// toutes les plaques : Salon VIP 🥂 · Buffet/Bar 🍸 · Espace Détente 🧘
+// · Douches 🚿 · Réception/Conciergerie 🛎️ · Salles de Réunion 💼 …
+const ICONES_RUBRIQUES: Array<[RegExp, string]> = [
+  [/salon|lounge|vip/i, "\u{1F942}"],
+  [/buffet|bar(?!e)/i, "\u{1F378}"],
+  [/d[eé]tente|relax|calme/i, "\u{1F9D8}"],
+  [/douche|toilette|sanitaire|\bwc\b|priv[eé]es?\s*(?:de\s*)?(?:toilettes|douches)/i, "\u{1F6BF}"],
+  [/r[eé]ception|conciergerie|accueil/i, "\u{1F6CD}"],
+  [/r[eé]union|meeting|salle/i, "\u{1F4BC}"],
+  [/spa|massage|bien-?atre|soin/i, "\u{1F486}"],
+  [/piscine|jacuzzi/i, "\u{1F3CA}"],
+  [/restaurant|resto|food|cuisine/i, "\u{1F37D}"],
+  [/caf[eé]|coffee/i, "\u{2615}"],
+  [/boutique|shop|magasin|duty/i, "\u{1F6CD}"],
+  [/parking|valet/i, "\u{1F17F}"],
+  [/bagage|valise/i, "\u{1F9F3}"],
+  [/check-?in|enregistrement/i, "\u{1F4CB}"],
+  [/petit[- ]d[eé]jeuner|breakfast/i, "\u{1F95E}"],
+]
+
+/** Icône (emoji) d'une rubrique/zone — correspondance par mots-clés du nom.
+ *  Repli élégant : épingle de lieu. */
+function iconeRubrique(nom: string): string {
+  for (const [re, ic] of ICONES_RUBRIQUES) {
+    if (re.test(nom)) return ic
+  }
+  return "\u{1F4CD}"
 }
 
 /** Télécharge une image PNG (dataURL) sous forme de fichier */
@@ -468,7 +499,19 @@ function CarteZone({
       const qr = await chargerQrComplet()
       if (!qr) return
       if (type === "png") {
-        telechargerPng(qr, `qr-${slugifier(zone.nom)}-1000x1000.png`)
+        // V3 — téléchargement au design luxe harmonisé : la plaque Nathalie
+        // complète (marbre + or + grande icône de rubrique + logo gravé).
+        await downloadPlaquePng(
+          {
+            data: lienScan || `${window.location.origin}/r/${zone.qrToken}`,
+            label: zone.nom,
+            kicker: nomEtablissement.toUpperCase().slice(0, 20),
+            emoji: iconeRubrique(zone.nom),
+            logoUrl: logoDataUrl,
+          },
+          `plaque-qr-${slugifier(zone.nom)}.png`,
+        )
+        toast({ title: "Plaque QR téléchargée ✓", description: "Design luxe Nathalie (marbre & or)" })
       } else if (type === "a4") {
         genererAffichePdf(qr, nomEtablissement, zone.nom, logoDataUrl)
       } else if (type === "etiquettes") {
@@ -524,15 +567,20 @@ function CarteZone({
       )}
     >
       <CardContent className="flex flex-1 flex-col gap-4 p-4">
-        {/* En-tête : nom + stats de la zone */}
+        {/* En-tête : grande icône de rubrique + nom + stats de la zone.
+            V3 : icône EN GRAND dans un médaillon doré (mise en évidence
+            demandée par le directeur) au lieu d'une simple épingle. */}
         <div className="flex items-start justify-between gap-2">
           <div className="flex min-w-0 items-start gap-2.5">
-            <div className="shrink-0 rounded-lg bg-primary/10 p-2" aria-hidden>
-              <MapPin className="h-4 w-4 text-primary" />
+            <div
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#C9A961]/50 bg-gradient-to-br from-[#1E1B15] to-[#0D0B09] text-2xl shadow-[0_4px_12px_rgba(0,0,0,0.25)]"
+              aria-hidden
+            >
+              {iconeRubrique(zone.nom)}
             </div>
             <div className="min-w-0">
               <p className="truncate font-semibold leading-tight">{zone.nom}</p>
-              <p className="text-xs text-muted-foreground">{nomEtablissement}</p>
+              <p className="truncate text-xs text-muted-foreground">{nomEtablissement}</p>
             </div>
           </div>
           <div className="flex shrink-0 flex-col items-end gap-1">
@@ -549,30 +597,27 @@ function CarteZone({
           </div>
         </div>
 
-        {/* Aperçu du QR code (220×220) + bouton Agrandir + Copier le lien */}
+        {/* PLAQUE LUXE NATHALIE (V3 harmonisée) — le même design premium
+            (marbre Nero Marquina, filets or champagne, médaillon ivoire,
+            logo gravé EN GRAND + grande icône de rubrique) sur TOUTES les
+            cartes QR du dashboard : Salon VIP, Buffet/Bar, Espace Détente,
+            Douches, Réception, Salles de Réunion… */}
         <div className="flex flex-col items-center gap-2">
-          <div className="group relative w-56 rounded-xl border-2 border-primary/20 bg-white p-2 shadow-sm">
-            {apercu ? (
-              <img
-                src={apercu}
-                alt={`QR code de la zone ${zone.nom}`}
-                className="w-full rounded-md"
-              />
-            ) : (
-              <Skeleton className="aspect-square w-full" />
-            )}
-            {/* Bouton Agrandir (icône Maximize2) survolant le QR en haut à droite */}
-            <button
-              type="button"
-              onClick={onAgrandir}
-              disabled={!apercu}
-              aria-label={`Agrandir le QR code de la zone ${zone.nom}`}
-              title="Agrandir en plein écran"
-              className="absolute right-1.5 top-1.5 flex h-8 w-8 items-center justify-center rounded-md border bg-background/90 text-foreground opacity-0 shadow-sm transition-opacity hover:bg-background hover:text-primary focus-visible:opacity-100 group-hover:opacity-100 disabled:pointer-events-none disabled:opacity-0"
-            >
-              <Maximize2 className="h-4 w-4" aria-hidden />
-            </button>
-          </div>
+          {lienScan ? (
+            <NathalieQrPlaque
+              data={lienScan}
+              label={zone.nom}
+              kicker={nomEtablissement.toUpperCase().slice(0, 20)}
+              emoji={iconeRubrique(zone.nom)}
+              logoUrl={logoDataUrl ?? null}
+              size="sm"
+              className="w-full max-w-[240px]"
+            />
+          ) : (
+            <div className="flex aspect-[3/4] w-full max-w-[240px] items-center justify-center rounded-[20px] bg-[#131315]">
+              <Loader2 className="h-6 w-6 animate-spin text-[#C9A961]" aria-hidden />
+            </div>
+          )}
 
           {/* Statut d'impression : si une commande existe pour cette zone */}
           {derniereCommande && (
@@ -585,23 +630,37 @@ function CarteZone({
             </p>
           )}
 
-          {/* Bouton « Copier le lien » (remplace l'URL brute) avec feedback toast */}
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={copierLien}
-            disabled={!lienScan}
-            className="h-8 gap-1.5 text-xs"
-            aria-label={`Copier le lien de scan de la zone ${zone.nom}`}
-          >
-            {copied ? (
-              <Check className="h-3.5 w-3.5 text-primary" aria-hidden />
-            ) : (
-              <Copy className="h-3.5 w-3.5" aria-hidden />
-            )}
-            {copied ? "Lien copié !" : "Copier le lien"}
-          </Button>
+          {/* Bouton « Agrandir » + « Copier le lien » (feedback toast) */}
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onAgrandir}
+              disabled={!lienScan}
+              className="h-8 gap-1.5 text-xs"
+              aria-label={`Agrandir le QR code de la zone ${zone.nom}`}
+            >
+              <Maximize2 className="h-3.5 w-3.5" aria-hidden />
+              Agrandir
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={copierLien}
+              disabled={!lienScan}
+              className="h-8 gap-1.5 text-xs"
+              aria-label={`Copier le lien de scan de la zone ${zone.nom}`}
+            >
+              {copied ? (
+                <Check className="h-3.5 w-3.5 text-primary" aria-hidden />
+              ) : (
+                <Copy className="h-3.5 w-3.5" aria-hidden />
+              )}
+              {copied ? "Lien copié !" : "Copier le lien"}
+            </Button>
+          </div>
         </div>
 
         {/* 6 actions (grid 2×3) */}
@@ -609,8 +668,8 @@ function CarteZone({
           <BoutonAction
             icone={telechargement === "png" ? Loader2 : Download}
             tourne={telechargement === "png"}
-            label="PNG"
-            sousTitre="1000×1000 + logo"
+            label="PNG plaque"
+            sousTitre="Design luxe + logo"
             onClick={() => telecharger("png")}
             disabled={telechargement !== null || !apercu}
           />
@@ -853,29 +912,31 @@ function DialogQrAgrandi({
   onClose: () => void
 }) {
   const { toast } = useToast()
-  const [qr, setQr] = useState<string | null>(null)
-  const [lien, setLien] = useState<string>("")
   const [chargement, setChargement] = useState(true)
   const [telechargement, setTelechargement] = useState(false)
   const [copied, setCopied] = useState(false)
+  const [erreur, setErreur] = useState(false)
+  const [recharge, setRecharge] = useState(0)
+  const [lien, setLien] = useState<string>("")
 
-  // Charge le QR 1000×1000 (pleine résolution) à l'ouverture du dialogue
+  // Charge le lien de scan (et le QR serveur) à l'ouverture du dialogue
   useEffect(() => {
     if (!zone) return
     let annule = false
     setChargement(true)
-    setQr(null)
+    setErreur(false)
     fetch(`/api/pro/qrcode?zoneId=${encodeURIComponent(zone.id)}`, { cache: "no-store" })
       .then((r) => r.json())
       .then((j) => {
         if (annule) return
         if (j?.ok) {
-          setQr(j.data.pngDataUrl)
           setLien(j.data.urlScan ?? "")
+        } else {
+          setErreur(true)
         }
       })
       .catch(() => {
-        /* silencieux */
+        if (!annule) setErreur(true)
       })
       .finally(() => {
         if (!annule) setChargement(false)
@@ -883,14 +944,23 @@ function DialogQrAgrandi({
     return () => {
       annule = true
     }
-  }, [zone])
+  }, [zone, recharge])
 
   function telechargerPngLocal() {
-    if (!qr || !zone || telechargement) return
+    if (!zone || !lien || telechargement) return
     setTelechargement(true)
     try {
-      telechargerPng(qr, `qr-${slugifier(zone.nom)}-1000x1000.png`)
-      toast({ title: "PNG téléchargé ✓" })
+      // V3 — la plaque luxe Nathalie (marbre + or + icône rubrique + logo)
+      void downloadPlaquePng(
+        {
+          data: lien,
+          label: zone.nom,
+          kicker: nomEtablissement.toUpperCase().slice(0, 20),
+          emoji: iconeRubrique(zone.nom),
+          logoUrl: logoDataUrl,
+        },
+        `plaque-qr-${slugifier(zone.nom)}.png`,
+      ).then(() => toast({ title: "Plaque QR téléchargée ✓" }))
     } finally {
       setTelechargement(false)
     }
@@ -928,38 +998,45 @@ function DialogQrAgrandi({
             </DialogHeader>
 
             <div className="flex flex-col items-center gap-4 py-2">
-              <div className="rounded-xl border-2 border-primary/20 bg-white p-3 shadow-sm">
-                {chargement ? (
-                  <div className="flex h-[420px] w-[420px] max-w-full items-center justify-center">
-                    <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden />
-                  </div>
-                ) : qr ? (
-                  <img
-                    src={qr}
-                    alt={`QR code grand format de la zone ${zone.nom}`}
-                    className="h-[420px] w-[420px] max-w-full rounded-md"
-                  />
-                ) : (
-                  <div className="flex h-[420px] w-[420px] max-w-full items-center justify-center text-sm text-muted-foreground">
-                    QR indisponible
-                  </div>
-                )}
-              </div>
-              {logoDataUrl && (
-                <p className="text-xs text-muted-foreground">
-                  Le logo de l&apos;établissement sera intégré au téléchargement PNG.
-                </p>
+              {/* V3 — plaque Nathalie grand format (design harmonisé sur toutes
+                  les rubriques) avec grande icône + logo gravé au centre du QR. */}
+              {chargement || !lien ? (
+                <div className="flex h-[520px] w-[420px] max-w-full flex-col items-center justify-center gap-3 rounded-[20px] bg-[#131315]">
+                  {chargement ? (
+                    <Loader2 className="h-8 w-8 animate-spin text-[#C9A961]" aria-hidden />
+                  ) : (
+                    <>
+                      <p className="px-6 text-center text-sm text-[#EDE6D4]">
+                        QR indisponible pour le moment (erreur réseau).
+                      </p>
+                      <Button variant="outline" size="sm" onClick={() => setRecharge((r) => r + 1)}>
+                        <Loader2 className={cn("mr-2 h-4 w-4", chargement && "animate-spin")} aria-hidden />
+                        Réessayer
+                      </Button>
+                    </>
+                  )}
+                </div>
+              ) : (
+                <NathalieQrPlaque
+                  data={lien}
+                  label={zone.nom}
+                  kicker={nomEtablissement.toUpperCase().slice(0, 20)}
+                  emoji={iconeRubrique(zone.nom)}
+                  logoUrl={logoDataUrl ?? null}
+                  size="md"
+                  className="w-full max-w-[400px]"
+                />
               )}
             </div>
 
             <DialogFooter className="flex-col gap-2 sm:flex-row sm:justify-center">
-              <Button onClick={telechargerPngLocal} disabled={!qr || telechargement} className="gap-1.5">
+              <Button onClick={telechargerPngLocal} disabled={!lien || telechargement} className="gap-1.5">
                 {telechargement ? (
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
                 ) : (
                   <Download className="h-4 w-4" aria-hidden />
                 )}
-                Télécharger PNG
+                Télécharger la plaque
               </Button>
               <Button variant="outline" onClick={copierLienLocal} disabled={!lien} className="gap-1.5">
                 {copied ? (

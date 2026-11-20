@@ -83,6 +83,19 @@ const AIRPORT_ZONE_CODES = new Set(
 // Types — match exact du contrat /api/airport/wallboard
 // ---------------------------------------------------------------
 type Statut = 'EN_ATTENTE' | 'EN_COURS' | 'RESOLU'
+
+// --- V3 — Notifications VISUELLES du wallboard (demande du directeur) ---
+// Chaque événement opérationnel (nouveau signalement, SOS, résolution,
+// retard) déclenche une carte overlay premium en haut à droite — visible
+// même si le son est coupé. Auto-dismiss 9 s, pile de 4 cartes max.
+type OverlayKind = 'nouveau' | 'sos' | 'resolu' | 'retard'
+type OverlayNotif = {
+  id: string
+  kind: OverlayKind
+  titre: string
+  detail: string
+  meta: string
+}
 type Trend = 'up' | 'down' | 'stable'
 type TeamKey = 'nettoyage' | 'maintenance' | 'securite' | 'accueil' | 'logistique' | 'other'
 
@@ -762,6 +775,55 @@ function ZonePanel({
         →
       </span>
     </button>
+  )
+}
+
+// ============================================================
+// V3 — Carte overlay de notification (haut-droite, pile)
+// ------------------------------------------------------------
+// Nouveau signalement (orange), SOS (rouge), résolution (vert),
+// retard/alerte critique (rouge pulsé). Premium : coins arrondis,
+// barre latérale colorée, entrée animée opsFlapIn.
+// ============================================================
+
+const OVERLAY_META: Record<OverlayKind, { emoji: string; barre: string; bg: string; texte: string; meta: string }> = {
+  nouveau: { emoji: '⚠', barre: ORANGE, bg: '#FFF4E5', texte: '#7A3E00', meta: 'rgba(122,62,0,0.75)' },
+  sos: { emoji: '🆘', barre: ROUGE, bg: '#FFE5E7', texte: '#7A0613', meta: 'rgba(122,6,19,0.75)' },
+  resolu: { emoji: '✓', barre: VERT, bg: '#E3F7E9', texte: '#03531F', meta: 'rgba(3,83,31,0.7)' },
+  retard: { emoji: '⏰', barre: ROUGE, bg: '#FFE5E7', texte: '#7A0613', meta: 'rgba(122,6,19,0.75)' },
+}
+
+function OverlayNotifCard({ n }: { n: OverlayNotif }) {
+  const meta = OVERLAY_META[n.kind]
+  return (
+    <div
+      role="status"
+      className="ops-flap-in pointer-events-auto flex items-stretch gap-3 overflow-hidden rounded-[14px] pr-4"
+      style={{
+        backgroundColor: meta.bg,
+        boxShadow: '0 10px 30px rgba(0,0,0,0.28)',
+        borderLeft: `6px solid ${meta.barre}`,
+      }}
+    >
+      <span
+        className="flex w-12 shrink-0 items-center justify-center self-stretch font-black"
+        style={{ backgroundColor: meta.barre, color: '#FFFFFF', fontSize: '20px' }}
+        aria-hidden
+      >
+        {meta.emoji}
+      </span>
+      <span className="flex min-w-0 flex-col justify-center gap-0.5 py-2.5">
+        <span className="font-black uppercase" style={{ fontSize: '13px', letterSpacing: '1.5px', color: meta.texte }}>
+          {n.titre}
+        </span>
+        <span className="truncate font-bold" style={{ fontSize: '12px', letterSpacing: '0.5px', color: '#111111' }}>
+          {n.detail}
+        </span>
+        <span className="truncate font-bold uppercase" style={{ fontSize: '9.5px', letterSpacing: '1px', color: meta.meta }}>
+          {n.meta}
+        </span>
+      </span>
+    </div>
   )
 }
 
@@ -1495,13 +1557,33 @@ export default function OpsWallboardPage() {
   const alertedLateRef = useRef<Set<string>>(new Set())
   const escalationStartedRef = useRef<boolean>(false)
 
-  const [soundOn, setSoundOn] = useState<boolean>(false)
+  // --- DIAGNOSTIC V3 — Annonces vocales du wallboard ---
+  // ANCIEN BUG (rapporté par le directeur) : soundOn démarrait à FALSE et la
+  // bannière « Activer le son » ne s'affichait que 10 s au chargement. Si
+  // personne ne cliquait à temps, AUCUNE annonce de nouveau signalement ni
+  // de résolution n'était diffusée — seuls les rappels « EN RETARD »
+  // (badges rouges visuels, indépendants du son) semblaient fonctionner.
+  // FIX : le son est désormais ACTIVÉ PAR DÉFAUT (ops room = TV dédiée),
+  // désactivable via le bouton haut-droite (préférence persistée), et un
+  // premier clic/touche n'importe où déverrouille l'audio (autoplay policy).
+  const [soundOn, setSoundOn] = useState<boolean>(true)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const announcedAlertsRef = useRef<Set<string>>(new Set())
+  const audioUnlockedRef = useRef<boolean>(false)
   const [showSoundBanner, setShowSoundBanner] = useState<boolean>(false)
 
   const [alerts, setAlerts] = useState<TriggeredAlert[]>([])
   const [alertsError, setAlertsError] = useState<string | null>(null)
+
+  // --- V3 — pile des notifications visuelles (overlays haut-droite) ---
+  const [overlayNotifs, setOverlayNotifs] = useState<OverlayNotif[]>([])
+  const pushOverlay = useCallback((n: Omit<OverlayNotif, 'id'>) => {
+    const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+    setOverlayNotifs((prev) => [{ ...n, id }, ...prev].slice(0, 4))
+    setTimeout(() => {
+      setOverlayNotifs((prev) => prev.filter((o) => o.id !== id))
+    }, 9000)
+  }, [])
 
   const [filterZone, setFilterZone] = useState<string | null>(null)
   const [crisisMode, setCrisisMode] = useState<boolean>(false)
@@ -1555,7 +1637,7 @@ export default function OpsWallboardPage() {
         setFreshIds(newFresh)
         if (newFresh.size > 0) {
           setTimeout(() => setFreshIds(new Set()), 1500)
-          if (soundOn && newReports.length > 0) {
+          if (newReports.length > 0) {
             const latest = newReports[0]
             playSound(SOUND_NORMAL, audioRef)
             const zoneNom = latest.zone?.nom ?? latest.tagScanne
@@ -1574,17 +1656,39 @@ export default function OpsWallboardPage() {
             const annonce = latest.isHelpRequest
               ? `Demande d'aide SOS voyageur. ${zoneNom}. ${latest.problemType}. En attente depuis ${tempsMin} minute${tempsMin > 1 ? 's' : ''}.${origineLabel}`
               : `Nouvel incident signalé. ${zoneNom}. Type: ${latest.problemType}.${equipeLabel} En attente depuis ${tempsMin} minute${tempsMin > 1 ? 's' : ''}.${origineLabel}`
+            // V3 — annonce vocale TOUJOURS tentée (le son n'est coupable que
+            // d'un choix explicite de l'opérateur via le bouton haut-droite).
             setTimeout(() => speak(annonce, soundOn), 300)
+            // V3 — notification VISUELLE pour chaque nouveau signalement
+            // (jusqu'à 3 par cycle) : carte overlay premium, indépendante du son.
+            for (const r of newReports.slice(0, 3)) {
+              const znom = r.zone?.nom ?? r.tagScanne
+              pushOverlay({
+                kind: r.isHelpRequest ? 'sos' : 'nouveau',
+                titre: r.isHelpRequest ? 'SOS VOYAGEUR' : 'NOUVEAU SIGNALEMENT',
+                detail: `${znom} — ${r.problemType}`,
+                meta: r.isHelpRequest ? 'Demande d\'aide · Appuyez sur Appeler' : team ? `Équipe ${team} · en attente ${tempsMin} min` : `En attente ${tempsMin} min`,
+              })
+            }
           }
         }
       }
 
-      if (soundOn && d.recently_resolved && d.recently_resolved.length > 0) {
+      // --- Annonce de RÉSOLUTION (Issue 6 + demande directeur V3) ---
+      // « Le signalement déclaré résolu doit s'annoncer dans le wallboard » :
+      // son resolved.wav + voix Denise + carte verte overlay systématiques.
+      if (d.recently_resolved && d.recently_resolved.length > 0) {
         for (const r of d.recently_resolved) {
           if (!announcedResolvedRef.current.has(r.id)) {
             announcedResolvedRef.current.add(r.id)
-            playSound(SOUND_RESOLVED, audioRef)
             const zoneNom = r.zone?.nom ?? r.tagScanne
+            pushOverlay({
+              kind: 'resolu',
+              titre: 'SIGNALEMENT RÉSOLU',
+              detail: `${zoneNom} — ${r.problemType}`,
+              meta: 'Intervention terminée · Merci à l\'équipe',
+            })
+            playSound(SOUND_RESOLVED, audioRef)
             setTimeout(
               () => speak(`Signalement résolu. ${zoneNom}. ${r.problemType}. Bien fait.`, soundOn),
               400,
@@ -1608,7 +1712,7 @@ export default function OpsWallboardPage() {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'erreur inconnue')
     }
-  }, [soundOn])
+  }, [soundOn, pushOverlay])
 
   useEffect(() => {
     const initial = setTimeout(() => void poll(), 0)
@@ -1623,27 +1727,33 @@ export default function OpsWallboardPage() {
   const pollAlerts = useCallback(async () => {
     try {
       const a = await fetchAlerts()
-      if (soundOn) {
-        for (const alert of a) {
-          const alertKey = `${alert.thresholdId}-${alert.type}`
-          if (!announcedAlertsRef.current.has(alertKey) && alert.severity === 'critical') {
-            announcedAlertsRef.current.add(alertKey)
-            playSound(SOUND_CRITICAL, audioRef)
-            setTimeout(() => speak(`Alerte critique. ${alert.message}`, soundOn), 500)
-            break
-          }
+      // V3 — les alertes critiques s'annoncent TOUJOURS (son + voix + carte
+      // overlay), indépendamment du bouton mute (sécurité ops room).
+      for (const alert of a) {
+        const alertKey = `${alert.thresholdId}-${alert.type}`
+        if (!announcedAlertsRef.current.has(alertKey) && alert.severity === 'critical') {
+          announcedAlertsRef.current.add(alertKey)
+          pushOverlay({
+            kind: 'retard',
+            titre: 'ALERTE CRITIQUE',
+            detail: alert.message,
+            meta: 'Seuil franchi · Action immédiate',
+          })
+          playSound(SOUND_CRITICAL, audioRef)
+          setTimeout(() => speak(`Alerte critique. ${alert.message}`, soundOn), 500)
+          break
         }
-        const activeKeys = new Set(a.map((al) => `${al.thresholdId}-${al.type}`))
-        for (const k of [...announcedAlertsRef.current]) {
-          if (!activeKeys.has(k)) announcedAlertsRef.current.delete(k)
-        }
+      }
+      const activeKeys = new Set(a.map((al) => `${al.thresholdId}-${al.type}`))
+      for (const k of [...announcedAlertsRef.current]) {
+        if (!activeKeys.has(k)) announcedAlertsRef.current.delete(k)
       }
       setAlerts(a)
       setAlertsError(null)
     } catch (e) {
       setAlertsError(e instanceof Error ? e.message : 'erreur alertes')
     }
-  }, [soundOn])
+  }, [soundOn, pushOverlay])
 
   useEffect(() => {
     const initial = setTimeout(() => void pollAlerts(), 1500)
@@ -1891,9 +2001,16 @@ export default function OpsWallboardPage() {
         const key = `${r.id}-${t}min`
         if (!alertedLateRef.current.has(key)) {
           alertedLateRef.current.add(key)
-          if (soundOn && !isFirstCheck) {
+          if (!isFirstCheck) {
             playEscalationDing()
             const zoneNom = r.zone?.nom ?? r.tagScanne
+            // V3 — notification visuelle de retard + annonce vocale
+            pushOverlay({
+              kind: 'retard',
+              titre: 'SIGNALEMENT EN RETARD',
+              detail: `${zoneNom} — ${r.problemType}`,
+              meta: `${elapsedMin} minutes écoulées · Intervention requise`,
+            })
             setTimeout(
               () =>
                 speak(
@@ -1914,7 +2031,7 @@ export default function OpsWallboardPage() {
         alertedLateRef.current.delete(key)
       }
     }
-  }, [now, data, soundOn])
+  }, [now, data, soundOn, pushOverlay])
 
   // --- Horloge 1s ---
   useEffect(() => {
@@ -1923,23 +2040,57 @@ export default function OpsWallboardPage() {
   }, [])
 
   // --- Chargement de la préférence son (localStorage) ---
+  // V3 : si aucune préférence n'existe → son ACTIVÉ (comportement attendu
+  // d'un wallboard TV). La bannière d'activation reste visible jusqu'au
+  // premier clic (déverrouillage audio navigateur), sans timeout agressif.
   useEffect(() => {
     const t = setTimeout(() => {
-      let alreadyOn = false
+      let pref: string | null = null
       try {
-        alreadyOn = localStorage.getItem('wallboard_sound') === '1'
+        pref = localStorage.getItem('wallboard_sound')
       } catch {
         /* localStorage indisponible */
       }
-      if (alreadyOn) {
-        setSoundOn(true)
+      if (pref === '0') {
+        setSoundOn(false)
       } else {
+        // pref === '1' ou absent → son activé + bannière de déverrouillage
+        // (auto-dismiss 8 s : elle ne doit pas manger de la place sur la TV)
+        setSoundOn(true)
         setShowSoundBanner(true)
-        const dismiss = setTimeout(() => setShowSoundBanner(false), 10000)
-        return () => clearTimeout(dismiss)
+        setTimeout(() => setShowSoundBanner(false), 8000)
       }
     }, 0)
     return () => clearTimeout(t)
+  }, [])
+
+  // --- Déverrouillage audio au premier geste (autoplay policy navigateur) ---
+  // Un simple clic n'importe où sur le wallboard (ou une touche) joue le ding
+  // d'accueil une unique fois : les <audio> et le TTS deviennent autorisés.
+  useEffect(() => {
+    const unlock = () => {
+      if (audioUnlockedRef.current) return
+      audioUnlockedRef.current = true
+      setShowSoundBanner(false)
+      try {
+        const a = audioRef.current
+        if (a) {
+          a.src = SOUND_NORMAL
+          a.volume = 0.35
+          a.play().catch(() => {})
+        }
+      } catch {
+        /* ignore */
+      }
+      window.removeEventListener('pointerdown', unlock)
+      window.removeEventListener('keydown', unlock)
+    }
+    window.addEventListener('pointerdown', unlock)
+    window.addEventListener('keydown', unlock)
+    return () => {
+      window.removeEventListener('pointerdown', unlock)
+      window.removeEventListener('keydown', unlock)
+    }
   }, [])
 
   const toggleSound = useCallback(() => {
@@ -2227,7 +2378,7 @@ export default function OpsWallboardPage() {
 
   return (
     <div
-      className="flex min-h-screen flex-col overflow-x-hidden uppercase"
+      className="flex h-[100dvh] flex-col overflow-hidden uppercase"
       style={{
         backgroundColor: PAGE_BG,
         fontFamily: "'Roboto Condensed', Arial, sans-serif",
@@ -2290,10 +2441,24 @@ export default function OpsWallboardPage() {
       <audio ref={audioRef} preload="auto" />
 
       {/* ============================================================
+          V3 — PILE DES NOTIFICATIONS VISUELLES (haut-droite)
+          Nouveau signalement / SOS / résolution / retard — visible même
+          son coupé. aria-live pour les lecteurs d'écran.
+          ============================================================ */}
+      <div
+        className="pointer-events-none fixed right-6 top-28 z-[70] flex w-[360px] max-w-[calc(100vw-60px)] flex-col gap-2.5"
+        aria-live="polite"
+      >
+        {overlayNotifs.map((n) => (
+          <OverlayNotifCard key={n.id} n={n} />
+        ))}
+      </div>
+
+      {/* ============================================================
           1. HEADER — bandeau BLEU avec logo JAUNE + horloge JAUNE
           ============================================================ */}
       <header
-        className="flex shrink-0 flex-wrap items-center justify-between gap-4 px-[30px] py-5 text-white"
+        className="flex shrink-0 flex-wrap items-center justify-between gap-4 px-[30px] py-3 text-white"
         style={{
           backgroundColor: BLEU,
           borderRadius: '0 0 20px 20px',
@@ -2501,8 +2666,11 @@ export default function OpsWallboardPage() {
         </div>
       )}
 
-      {/* ---------- BANNIÈRE D'ACTIVATION DU SON ---------- */}
-      {showSoundBanner && !soundOn && (
+      {/* ---------- BANNIÈRE DE DÉVERROUILLAGE AUDIO (V3) ----------
+          Le son est ON par défaut : cette bannière informe simplement que le
+          navigateur exige UN clic pour autoriser l'audio. Elle disparaît au
+          premier geste (listener global) ou via le bouton. */}
+      {showSoundBanner && soundOn && (
         <div
           className="mx-[30px] mt-4 flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-[15px] px-5 py-3"
           style={{ backgroundColor: BLANC, boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
@@ -2510,7 +2678,7 @@ export default function OpsWallboardPage() {
           <div className="flex items-center gap-3">
             <span
               className="ops-pulse size-2.5 rounded-full"
-              style={{ backgroundColor: ROUGE }}
+              style={{ backgroundColor: VERT }}
               aria-hidden
             />
             <div className="flex flex-col">
@@ -2518,13 +2686,13 @@ export default function OpsWallboardPage() {
                 className="font-black uppercase text-black"
                 style={{ fontSize: '13px', letterSpacing: '1px' }}
               >
-                ACTIVEZ LE SON POUR LES ALERTES VOCALES
+                SON ACTIVÉ — UN CLIC N'IMPORTE OÙ POUR DÉBLOQUER L'AUDIO
               </p>
               <p
                 className="font-bold text-black"
                 style={{ fontSize: '10px', letterSpacing: '1px', opacity: 0.6 }}
               >
-                DING + ANNONCES VOCALES À CHAQUE NOUVEAU SIGNALEMENT
+                DING + ANNONCES VOCALES À CHAQUE NOUVEAU SIGNALEMENT, RÉSOLUTION ET RETARD
               </p>
             </div>
           </div>
@@ -2532,11 +2700,11 @@ export default function OpsWallboardPage() {
             <button
               type="button"
               onClick={toggleSound}
-              className="flex items-center gap-1.5 rounded-[10px] bg-[#00A651] px-4 py-2 font-black uppercase text-white transition-opacity hover:opacity-90"
+              className="flex items-center gap-1.5 rounded-[10px] bg-[#E30613] px-4 py-2 font-black uppercase text-white transition-opacity hover:opacity-90"
               style={{ fontSize: '11px', letterSpacing: '1px' }}
             >
-              <Volume2 className="size-4" aria-hidden />
-              ACTIVER LE SON
+              <VolumeX className="size-4" aria-hidden />
+              COUPER LE SON
             </button>
             <button
               type="button"
@@ -2599,7 +2767,7 @@ export default function OpsWallboardPage() {
           ============================================================ */}
       <section
         aria-label="KPI temps réel"
-        className="grid shrink-0 gap-[15px] px-[30px] py-5"
+        className="grid shrink-0 gap-[15px] px-[30px] py-3"
         style={{ gridTemplateColumns: 'repeat(8, 1fr)' }}
       >
         {/* Live Score — hero temps réel, occupe 2 colonnes (prominent) */}
@@ -2763,194 +2931,127 @@ export default function OpsWallboardPage() {
       )}
 
       {/* ============================================================
-          Feature F3 — CLASSEMENT (compétition d'équipes + top performer + série SLA)
+          Feature F3 — CLASSEMENT (V3 : bandeau compact sur UNE ligne)
           ============================================================ */}
       <section
         aria-label="Classement staff et achievements"
-        className="px-[30px] pb-5"
+        className="shrink-0 px-[30px] pb-2"
       >
         <div
-          className="rounded-[20px] bg-white p-[25px]"
+          className="flex flex-wrap items-center gap-x-6 gap-y-1.5 rounded-[16px] bg-white px-5 py-2.5"
           style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
         >
           <h2
-            className="mb-4 font-black uppercase leading-none"
-            style={{ fontSize: 'clamp(16px, 1.8vw, 20px)', letterSpacing: '3px', color: BLEU }}
+            className="shrink-0 font-black uppercase leading-none"
+            style={{ fontSize: '13px', letterSpacing: '2px', color: BLEU }}
           >
             🏆 CLASSEMENT
           </h2>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            {/* --- Compétition d'équipes (24h) --- */}
-            <div className="rounded-[15px] bg-[#F5F5F5] p-4">
-              <p
-                className="mb-3 font-black uppercase text-black"
-                style={{ fontSize: '11px', letterSpacing: '2px' }}
-              >
-                COMPÉTITION D'ÉQUIPES (24H)
-              </p>
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex flex-col items-center">
-                  <span
-                    className="font-black tabular-nums leading-none text-[#003399]"
-                    style={{ fontSize: '28px' }}
-                    suppressHydrationWarning
-                  >
-                    {competition?.morning ?? 0}
-                  </span>
-                  <span
-                    className="mt-1 font-black uppercase"
-                    style={{ fontSize: '10px', letterSpacing: '1px' }}
-                  >
-                    MATIN
-                  </span>
-                </div>
-                <span className="font-black text-black" style={{ fontSize: '16px', opacity: 0.3 }}>
-                  |
-                </span>
-                <div className="flex flex-col items-center">
-                  <span
-                    className="font-black tabular-nums leading-none text-[#FF6B00]"
-                    style={{ fontSize: '28px' }}
-                    suppressHydrationWarning
-                  >
-                    {competition?.evening ?? 0}
-                  </span>
-                  <span
-                    className="mt-1 font-black uppercase"
-                    style={{ fontSize: '10px', letterSpacing: '1px' }}
-                  >
-                    SOIR
-                  </span>
-                </div>
-                <span className="font-black text-black" style={{ fontSize: '16px', opacity: 0.3 }}>
-                  |
-                </span>
-                <div className="flex flex-col items-center">
-                  <span
-                    className="font-black tabular-nums leading-none text-[#003399]"
-                    style={{ fontSize: '28px' }}
-                    suppressHydrationWarning
-                  >
-                    {competition?.night ?? 0}
-                  </span>
-                  <span
-                    className="mt-1 font-black uppercase"
-                    style={{ fontSize: '10px', letterSpacing: '1px' }}
-                  >
-                    NUIT
-                  </span>
-                </div>
-              </div>
-            </div>
 
-            {/* --- Top performer + badges --- */}
-            <div className="rounded-[15px] bg-[#F5F5F5] p-4">
-              <p
-                className="mb-3 font-black uppercase text-black"
-                style={{ fontSize: '11px', letterSpacing: '2px' }}
-              >
-                TOP PERFORMER
-              </p>
-              {topPerformer ? (
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span
-                      className="truncate font-black uppercase text-black"
-                      style={{ fontSize: '15px', letterSpacing: '1px' }}
-                    >
-                      🥇 {truncateName(topPerformer.staffName, 18)}
-                    </span>
-                    <span
-                      className="shrink-0 font-black tabular-nums text-[#003399]"
-                      style={{ fontSize: '20px' }}
-                    >
-                      {topPerformer.points}pts
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {topPerformer.achievements.length > 0 ? (
-                      topPerformer.achievements.map((a) => (
-                        <span
-                          key={a.id}
-                          title={a.meta ? `${a.description} — ${a.meta}` : a.description}
-                          className="inline-flex items-center gap-1 rounded-[8px] bg-[#FCD116] px-2 py-1 font-black uppercase text-black"
-                          style={{ fontSize: '10px', letterSpacing: '1px' }}
-                        >
-                          {a.emoji} {a.label}
-                        </span>
-                      ))
-                    ) : (
-                      <span
-                        className="font-bold uppercase text-black"
-                        style={{ fontSize: '10px', letterSpacing: '1px', opacity: 0.5 }}
-                      >
-                        AUCUN BADGE ENCORE
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <span
-                  className="font-bold uppercase text-black"
-                  style={{ fontSize: '11px', letterSpacing: '1px', opacity: 0.5 }}
-                >
-                  AUCUN CLASSEMENT CE MOIS-CI
-                </span>
-              )}
-            </div>
+          {/* --- Compétition d'équipes (24h) — inline --- */}
+          <div className="flex items-center gap-2">
+            <span
+              className="font-black uppercase text-black"
+              style={{ fontSize: '9.5px', letterSpacing: '1px', opacity: 0.55 }}
+            >
+              ÉQUIPES 24H
+            </span>
+            <span className="font-black tabular-nums text-[#003399]" style={{ fontSize: '15px' }} suppressHydrationWarning>
+              {competition?.morning ?? 0}
+              <span className="ml-0.5 font-black uppercase text-black" style={{ fontSize: '9px', opacity: 0.6 }}>MAT</span>
+            </span>
+            <span className="font-black text-black" style={{ fontSize: '11px', opacity: 0.3 }} aria-hidden>|</span>
+            <span className="font-black tabular-nums text-[#FF6B00]" style={{ fontSize: '15px' }} suppressHydrationWarning>
+              {competition?.evening ?? 0}
+              <span className="ml-0.5 font-black uppercase text-black" style={{ fontSize: '9px', opacity: 0.6 }}>SOIR</span>
+            </span>
+            <span className="font-black text-black" style={{ fontSize: '11px', opacity: 0.3 }} aria-hidden>|</span>
+            <span className="font-black tabular-nums text-[#003399]" style={{ fontSize: '15px' }} suppressHydrationWarning>
+              {competition?.night ?? 0}
+              <span className="ml-0.5 font-black uppercase text-black" style={{ fontSize: '9px', opacity: 0.6 }}>NUIT</span>
+            </span>
+          </div>
 
-            {/* --- Série SLA --- */}
-            <div className="rounded-[15px] bg-[#F5F5F5] p-4">
-              <p
-                className="mb-3 font-black uppercase text-black"
-                style={{ fontSize: '11px', letterSpacing: '2px' }}
-              >
-                SÉRIE SLA
-              </p>
-              <div className="flex items-center gap-2">
-                <span className="font-black" style={{ fontSize: '28px', lineHeight: 1 }} aria-hidden>
-                  🔥
-                </span>
+          {/* --- Top performer — inline --- */}
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span
+              className="font-black uppercase text-black"
+              style={{ fontSize: '9.5px', letterSpacing: '1px', opacity: 0.55 }}
+            >
+              TOP
+            </span>
+            {topPerformer ? (
+              <span className="flex min-w-0 items-center gap-1.5">
                 <span
-                  className="font-black tabular-nums leading-none text-[#E30613]"
-                  style={{ fontSize: '28px' }}
-                  suppressHydrationWarning
+                  className="truncate font-black uppercase text-black"
+                  style={{ fontSize: '13px', letterSpacing: '1px' }}
                 >
-                  {streakDays}
+                  🥇 {truncateName(topPerformer.staffName, 16)}
                 </span>
-                <span
-                  className="font-black uppercase text-black"
-                  style={{ fontSize: '11px', letterSpacing: '1px' }}
-                >
-                  JOURS SLA {'>'} 90%
+                <span className="shrink-0 font-black tabular-nums text-[#003399]" style={{ fontSize: '13px' }}>
+                  {topPerformer.points}pts
                 </span>
-              </div>
-              <p
-                className="mt-2 font-bold uppercase text-black"
-                style={{ fontSize: '10px', letterSpacing: '1px', opacity: 0.6 }}
+                {topPerformer.achievements.slice(0, 2).map((a) => (
+                  <span
+                    key={a.id}
+                    title={a.meta ? `${a.description} — ${a.meta}` : a.description}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-[8px] bg-[#FCD116] px-1.5 py-0.5 font-black uppercase text-black"
+                    style={{ fontSize: '9px', letterSpacing: '1px' }}
+                  >
+                    {a.emoji} {a.label}
+                  </span>
+                ))}
+              </span>
+            ) : (
+              <span
+                className="font-bold uppercase text-black"
+                style={{ fontSize: '10px', letterSpacing: '1px', opacity: 0.5 }}
               >
-                SLA GLOBAL: {streakSlaPct}%
-              </p>
-            </div>
+                AUCUN CLASSEMENT CE MOIS-CI
+              </span>
+            )}
+          </div>
+
+          {/* --- Série SLA — inline --- */}
+          <div className="ml-auto flex items-center gap-1.5">
+            <span style={{ fontSize: '16px', lineHeight: 1 }} aria-hidden>🔥</span>
+            <span className="font-black tabular-nums leading-none text-[#E30613]" style={{ fontSize: '15px' }} suppressHydrationWarning>
+              {streakDays}
+            </span>
+            <span
+              className="font-black uppercase text-black"
+              style={{ fontSize: '9.5px', letterSpacing: '1px', opacity: 0.7 }}
+            >
+              JOURS SLA {'>'} 90%
+            </span>
+            <span
+              className="font-bold uppercase text-black"
+              style={{ fontSize: '9.5px', letterSpacing: '1px', opacity: 0.45 }}
+            >
+              (GLOBAL {streakSlaPct}%)
+            </span>
           </div>
         </div>
       </section>
 
       {/* ============================================================
           3. MAIN LAYOUT — 2 colonnes (2fr zones | 1fr alertes)
+             V3 PLEIN ÉCRAN : la grille occupe tout l'espace restant
+             (flex-1 min-h-0) et les DEUX panneaux scrollent en interne —
+             plus aucun scroll de page.
           ============================================================ */}
       <div
-        className={`grid shrink-0 gap-5 px-[30px] pb-5 ${crisisMode ? 'ops-crisis-overlay' : ''}`}
+        className={`grid min-h-0 flex-1 gap-4 px-[30px] pb-3 ${crisisMode ? 'ops-crisis-overlay' : ''}`}
         style={{ gridTemplateColumns: '2fr 1fr' }}
       >
         {/* ---------- LEFT : Zones section ---------- */}
         <section
           aria-label="Carte zones temps réel"
-          className="rounded-[20px] bg-white p-[25px]"
+          className="flex min-h-0 flex-col overflow-hidden rounded-[20px] bg-white p-[20px]"
           style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
         >
           {/* Section title */}
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2">
             <h2
               className="font-black uppercase leading-none"
               style={{ fontSize: 'clamp(18px, 2vw, 24px)', letterSpacing: '3px', color: BLEU }}
@@ -2970,9 +3071,9 @@ export default function OpsWallboardPage() {
           </div>
 
           {/* Familles de zones — panneaux colorés (design original restauré)
-              Pas de max-h ni overflow-y-auto : toutes les cartes sont visibles
-              sans scroll interne, la page défile naturellement. */}
-          <div className="flex flex-col gap-4">
+              V3 : scroll INTERNE stylé (ops-scroll) — le wallboard tient sur
+              un seul écran sans jamais scroller la page. */}
+          <div className="ops-scroll flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-1">
             {families.map((fam) => {
               const famZones = zonesByFamily[fam] ?? []
               if (famZones.length === 0) return null
@@ -3077,16 +3178,16 @@ export default function OpsWallboardPage() {
         {/* ---------- RIGHT : Alertes section ---------- */}
         <section
           aria-label="Alertes actives"
-          className="flex max-h-[calc(100vh-300px)] flex-col rounded-[20px] bg-white p-[25px]"
+          className="flex min-h-0 flex-col rounded-[20px] bg-white p-[20px]"
           style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
         >
           <h2
-            className="mb-4 font-black uppercase leading-none"
+            className="mb-3 shrink-0 font-black uppercase leading-none"
             style={{ fontSize: 'clamp(16px, 1.8vw, 20px)', letterSpacing: '3px', color: BLEU }}
           >
             ⚠ ALERTES ACTIVES
           </h2>
-          <div className="ops-scroll flex flex-1 flex-col overflow-y-auto pr-1">
+          <div className="ops-scroll flex min-h-0 flex-1 flex-col overflow-y-auto pr-1">
             {topAlerts.map((a, idx) => (
               <AlertCard key={`alert-${a.thresholdId}-${a.zoneCode}-${idx}`} alert={a} />
             ))}
@@ -3118,19 +3219,23 @@ export default function OpsWallboardPage() {
       </div>
 
       {/* ============================================================
-          4. INCIDENTS TABLE — lignes séparées avec coins arrondis
+          4-6. BLOC BAS V3 — INCIDENTS | RADAR + SLA/CHARGE sur UNE ligne
+          Hauteur bornée (min(288px, 30vh)) : tout tient à l'écran,
+          scroll interne uniquement — plus de scroll de page.
           ============================================================ */}
-      <section
-        aria-label="Incidents du jour"
-        className="px-[30px] pb-5"
+      <div
+        className="grid h-[min(264px,28vh)] shrink-0 gap-4 px-[30px]"
+        style={{ gridTemplateColumns: '3fr 2fr' }}
       >
-        <div
-          className="rounded-[20px] bg-white p-[25px]"
+        {/* ---------- INCIDENTS DU JOUR ---------- */}
+        <section
+          aria-label="Incidents du jour"
+          className="flex min-h-0 flex-col rounded-[20px] bg-white p-[18px]"
           style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
         >
           <h2
-            className="mb-4 font-black uppercase leading-none"
-            style={{ fontSize: 'clamp(18px, 2vw, 24px)', letterSpacing: '3px', color: BLEU }}
+            className="mb-3 shrink-0 font-black uppercase leading-none"
+            style={{ fontSize: 'clamp(16px, 1.6vw, 20px)', letterSpacing: '3px', color: BLEU }}
           >
             📋 INCIDENTS DU JOUR
           </h2>
@@ -3138,7 +3243,7 @@ export default function OpsWallboardPage() {
           {/* En-tête table — bg bleu, coins arrondis haut */}
           <div
             role="row"
-            className="mb-2 flex items-center gap-2 rounded-[10px_10px_0_0] px-5 py-3.5 text-white"
+            className="mb-2 flex shrink-0 items-center gap-2 rounded-[10px_10px_0_0] px-4 py-2.5 text-white"
             style={{ backgroundColor: BLEU }}
           >
             <div
@@ -3185,8 +3290,8 @@ export default function OpsWallboardPage() {
             </div>
           </div>
 
-          {/* Lignes — séparées par gap (margin-bottom sur chaque ligne) */}
-          <div className="flex flex-col gap-2">
+          {/* Lignes — séparées par gap ; scroll INTERNE (V3 plein écran) */}
+          <div className="ops-scroll flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
             {data ? (
               filledRows.length > 0 ? (
                 <>
@@ -3233,87 +3338,78 @@ export default function OpsWallboardPage() {
               </div>
             </div>
           )}
-        </div>
-      </section>
+        </section>
 
-      {/* ============================================================
-          5. RADAR PRÉDICTION — wrapper premium blanc
-          ============================================================ */}
-      <section
-        aria-label="Radar prédiction des pics de plaintes"
-        className="px-[30px] pb-5"
-      >
-        <div
-          className="rounded-[20px] bg-white p-[25px]"
-          style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
-        >
-          <h2
-            className="mb-4 font-black uppercase leading-none"
-            style={{ fontSize: 'clamp(16px, 1.8vw, 20px)', letterSpacing: '3px', color: BLEU }}
+        {/* ---------- COLONNE DROITE : RADAR + SLA / CHARGE ---------- */}
+        <div className="flex min-h-0 flex-col gap-3">
+          {/* RADAR PRÉDICTION — compact */}
+          <div
+            className="flex shrink-0 flex-col rounded-[16px] bg-white px-4 py-2.5"
+            style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
           >
-            🔮 RADAR PRÉDICTION — ÇA VA PÉTER DANS 20 MIN ?
-          </h2>
-          <div className="rounded-[15px] bg-[#F5F5F5] p-3">
-            <AirportPredictionRadar className="w-full" />
+            <h2
+              className="shrink-0 font-black uppercase leading-none"
+              style={{ fontSize: '12px', letterSpacing: '2px', color: BLEU }}
+            >
+              🔮 RADAR PRÉDICTION · 20 MIN
+            </h2>
+            <div className="mt-1 min-h-0 overflow-hidden rounded-[10px] bg-[#F5F5F5] p-1">
+              <AirportPredictionRadar className="h-[96px] w-full" />
+            </div>
+          </div>
+
+          {/* SLA + CHARGE — 2 mini-colonnes, scroll interne */}
+          <div className="grid min-h-0 flex-1 grid-cols-2 gap-3">
+            <div
+              className="flex min-h-0 flex-col rounded-[16px] bg-white p-[14px]"
+              style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
+            >
+              <h2
+                className="mb-2 shrink-0 font-black uppercase leading-none"
+                style={{ fontSize: '11px', letterSpacing: '2px', color: BLEU }}
+              >
+                📊 SLA PAR ZONE
+              </h2>
+              <div className="ops-scroll flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto pr-1">
+                {data ? (
+                  data.zones.slice(0, 6).map((z) => (
+                    <SlaRow key={`sla-${z.code}`} zone={z} sla={data.sla?.[z.code]} />
+                  ))
+                ) : (
+                  Array.from({ length: 4 }).map((_, i) => <MiniRowSkeleton key={i} />)
+                )}
+              </div>
+            </div>
+
+            <div
+              className="flex min-h-0 flex-col rounded-[16px] bg-white p-[14px]"
+              style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
+            >
+              <h2
+                className="mb-2 shrink-0 font-black uppercase leading-none"
+                style={{ fontSize: '11px', letterSpacing: '2px', color: BLEU }}
+              >
+                ⚡ CHARGE PAR ZONE
+              </h2>
+              <div className="ops-scroll flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto pr-1">
+                {data ? (
+                  data.zones.slice(0, 6).map((z) => (
+                    <ChargeRow key={`chg-${z.code}`} zone={z} max={maxEnAttente} />
+                  ))
+                ) : (
+                  Array.from({ length: 4 }).map((_, i) => <MiniRowSkeleton key={i} />)
+                )}
+              </div>
+            </div>
           </div>
         </div>
-      </section>
+      </div>
 
       {/* ============================================================
-          6. BOTTOM STRIP — SLA + Charge par zone (2 colonnes)
-          ============================================================ */}
-      <section
-        aria-label="Synthèse SLA et charge par zone"
-        className="grid gap-5 px-[30px] pb-5 lg:grid-cols-2"
-      >
-        <div
-          className="rounded-[20px] bg-white p-[20px]"
-          style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
-        >
-          <h2
-            className="mb-3 font-black uppercase leading-none"
-            style={{ fontSize: '14px', letterSpacing: '2px', color: BLEU }}
-          >
-            📊 SLA PAR ZONE
-          </h2>
-          <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-            {data ? (
-              data.zones.slice(0, 6).map((z) => (
-                <SlaRow key={`sla-${z.code}`} zone={z} sla={data.sla?.[z.code]} />
-              ))
-            ) : (
-              Array.from({ length: 6 }).map((_, i) => <MiniRowSkeleton key={i} />)
-            )}
-          </div>
-        </div>
-
-        <div
-          className="rounded-[20px] bg-white p-[20px]"
-          style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
-        >
-          <h2
-            className="mb-3 font-black uppercase leading-none"
-            style={{ fontSize: '14px', letterSpacing: '2px', color: BLEU }}
-          >
-            ⚡ CHARGE PAR ZONE · EN ATTENTE
-          </h2>
-          <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-            {data ? (
-              data.zones.slice(0, 6).map((z) => (
-                <ChargeRow key={`chg-${z.code}`} zone={z} max={maxEnAttente} />
-              ))
-            ) : (
-              Array.from({ length: 6 }).map((_, i) => <MiniRowSkeleton key={i} />)
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* ============================================================
-          7. LEGEND BAR — white card avec box colors + hint
+          7. LEGEND BAR — compacte, collée en bas (V3 plein écran)
           ============================================================ */}
       <div
-        className="mx-[30px] mb-5 flex shrink-0 flex-wrap items-center gap-8 rounded-[15px] px-[30px] py-5"
+        className="mx-[30px] mb-3 flex shrink-0 flex-wrap items-center gap-6 rounded-[15px] px-[24px] py-3"
         style={{ backgroundColor: BLANC, boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
       >
         <span className="flex items-center gap-2">

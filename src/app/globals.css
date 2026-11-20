@@ -71,17 +71,18 @@
   --chart-3: oklch(0.554 0.046 257.417);
   --chart-4: oklch(0.809 0.105 251.813);
   --chart-5: oklch(0.623 0.214 259.815);
-  /* Sidebar bleu aéroport #003399 (V2.0) en mode clair.
-     Le sidebar est volontairement bleu foncé (pas blanc comme shadcn par défaut)
-     — c'est la signature visuelle FeedbackPro V2.0. Le texte dessus est blanc. */
-  --sidebar: #003399;
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.985 0 0);
-  --sidebar-primary-foreground: oklch(0.20 0.03 264);
-  --sidebar-accent: #002288;
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 12%);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* Sidebar NOIR profond + écriture MARRON (demande du directeur V3).
+     Le sidebar n'est plus bleu aéroport : fond noir chaud (#0D0B09)
+     et texte marron doré (#B08D5F) — signature « Luxe Silencieux ».
+     Les accents actifs utilisent un marron plus saturé (#C9A961 champagne). */
+  --sidebar: #0d0b09;
+  --sidebar-foreground: #b08d5f;
+  --sidebar-primary: #c9a961;
+  --sidebar-primary-foreground: #1a1508;
+  --sidebar-accent: #241d14;
+  --sidebar-accent-foreground: #d4b47f;
+  --sidebar-border: rgba(201, 169, 97, 0.18);
+  --sidebar-ring: rgba(201, 169, 97, 0.5);
 }
 
 .dark {
@@ -112,14 +113,15 @@
   --chart-3: oklch(0.554 0.046 257.417);
   --chart-4: oklch(0.809 0.105 251.813);
   --chart-5: oklch(0.623 0.214 259.815);
-  --sidebar: oklch(0.20 0.03 264);
-  --sidebar-foreground: oklch(0.96 0.01 240);
-  --sidebar-primary: oklch(0.55 0.18 264);
-  --sidebar-primary-foreground: oklch(0.96 0.01 240);
-  --sidebar-accent: oklch(0.28 0.03 264);
-  --sidebar-accent-foreground: oklch(0.96 0.01 240);
-  --sidebar-border: oklch(0.35 0.03 264 / 50%);
-  --sidebar-ring: oklch(0.60 0.18 264);
+  /* Sidebar noir + marron identique en mode sombre (cohérence V3) */
+  --sidebar: oklch(0.14 0.008 80);
+  --sidebar-foreground: #b08d5f;
+  --sidebar-primary: #c9a961;
+  --sidebar-primary-foreground: #1a1508;
+  --sidebar-accent: oklch(0.24 0.02 80);
+  --sidebar-accent-foreground: #d4b47f;
+  --sidebar-border: rgba(201, 169, 97, 0.22);
+  --sidebar-ring: rgba(201, 169, 97, 0.5);
 }
 
 @layer base {
@@ -129,6 +131,24 @@
   body {
     @apply bg-background text-foreground;
   }
+}
+
+/* ---------- Notification visuelle (badges Wallboard / Signalements) ----------
+   Halo pulsé autour des badges rouges de la sidebar : capte l'œil des ops
+   dès qu'un nouveau signalement arrive, sans criarde ni clignotement agressif. */
+@keyframes notificationPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(192, 57, 43, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(192, 57, 43, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(192, 57, 43, 0);
+  }
+}
+.notification-pulse {
+  animation: notificationPulse 1.8s ease-out infinite;
 }
 
 /* ---------- Scrollbar personnalisée FeedbackPro ---------- */

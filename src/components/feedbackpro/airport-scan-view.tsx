@@ -1535,7 +1535,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                       onClick={() => choisirProbleme(probleme)}
                       aria-label={`Signaler : ${probleme}`}
                       className={cn(
-                        "group relative flex flex-col items-center gap-2.5 overflow-hidden rounded-2xl p-4 text-center transition-all duration-300 min-h-[130px]",
+                        "group relative flex flex-col items-center gap-3 overflow-hidden rounded-2xl p-4 text-center transition-all duration-300 min-h-[150px] sm:min-h-[168px]",
                         "hover:-translate-y-1",
                         isSelected
                           ? cn("border-2 ring-2 shadow-lg", colors.selBorder, colors.selBg, colors.selRing, colors.glow)
@@ -1549,14 +1549,16 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                         isSelected ? "opacity-100" : "opacity-0 group-hover:opacity-100"
                       )} />
 
-                      {/* Émoji dans un cercle coloré */}
+                      {/* Émoji dans un cercle coloré — V3 : icône EN GRAND
+                          (cercle 64-72px, emoji 36-40px) pour mettre chaque
+                          rubrique bien en évidence, harmonisé sur tous les QR. */}
                       <div className={cn(
-                        "flex size-14 items-center justify-center rounded-2xl transition-all duration-300 group-hover:scale-110 group-hover:rotate-3",
+                        "flex size-16 items-center justify-center rounded-2xl transition-all duration-300 group-hover:scale-110 group-hover:rotate-3 sm:size-[4.5rem]",
                         isSelected
                           ? cn("bg-gradient-to-br text-white shadow-lg", colors.bg)
                           : "bg-gradient-to-br from-slate-100 to-slate-200 group-hover:" + colors.bg.replace('from-', 'from-').replace('to-', 'to-')
                       )}>
-                        <span className="text-2xl leading-none" aria-hidden>
+                        <span className="text-4xl leading-none sm:text-[2.5rem]" aria-hidden>
                           {emoji}
                         </span>
                       </div>
@@ -1564,7 +1566,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                       {/* Texte du problème */}
                       <span
                         className={cn(
-                          "text-xs font-bold leading-snug sm:text-[13px]",
+                          "text-[13px] font-bold leading-snug sm:text-sm",
                           isSelected ? colors.selText : "text-slate-700"
                         )}
                       >
@@ -2080,22 +2082,22 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                   type="button"
                   onClick={() => setSosTag(tag.label)}
                   className={cn(
-                    "group relative flex flex-col items-center gap-3 overflow-hidden rounded-2xl p-5 text-center transition-all duration-300 min-h-[130px]",
+                    "group relative flex flex-col items-center gap-3 overflow-hidden rounded-2xl p-5 text-center transition-all duration-300 min-h-[150px] sm:min-h-[168px]",
                     isSelected
                       ? cn("border-2 ring-2 shadow-lg", "border-rose-400 bg-rose-50 ring-rose-200 shadow-rose-300/50")
                       : "border-2 border-white bg-white/70 backdrop-blur-md shadow-md hover:shadow-xl ring-1 ring-white/60",
                   )}
                 >
                   <div className={cn(
-                    "flex size-14 items-center justify-center rounded-2xl transition-all duration-300 group-hover:scale-110",
+                    "flex size-16 items-center justify-center rounded-2xl transition-all duration-300 group-hover:scale-110 sm:size-[4.5rem]",
                     isSelected
                       ? cn("bg-gradient-to-br text-white shadow-lg", tag.color)
                       : "bg-gradient-to-br from-slate-100 to-slate-200",
                   )}>
-                    <span className="text-2xl leading-none" aria-hidden>{tag.icon}</span>
+                    <span className="text-4xl leading-none sm:text-[2.5rem]" aria-hidden>{tag.icon}</span>
                   </div>
                   <span className={cn(
-                    "text-xs font-bold leading-snug sm:text-[13px]",
+                    "text-[13px] font-bold leading-snug sm:text-sm",
                     isSelected ? "text-rose-900" : "text-slate-700",
                   )}>
                     {tag.label}

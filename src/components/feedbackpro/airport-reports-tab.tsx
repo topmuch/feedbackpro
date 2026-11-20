@@ -348,6 +348,15 @@ export default function AirportReportsTab() {
   // Ref pour éviter un poll en cours
   const pollingRef = useRef<boolean>(false)
 
+  // --- V3 — NOTIFICATIONS VISUELLES des nouveaux signalements ---
+  // Diff par Set d'ids (même pattern que la cloche de notifications) : au
+  // premier chargement on amorce silencieusement, ensuite tout report
+  // EN_ATTENTE inconnu déclenche un toast + surlignage de la ligne 9 s.
+  const idsVusRef = useRef<Set<string>>(new Set())
+  const premierChargementRef = useRef<boolean>(true)
+  const [nouveauxIds, setNouveauxIds] = useState<Set<string>>(new Set())
+  const [nouveauxCount, setNouveauxCount] = useState<number>(0)
+
   // --- Chargement initial des zones (pour le filtre) ---
   useEffect(() => {
     let cancelled = false
@@ -383,6 +392,33 @@ export default function AirportReportsTab() {
     setError(null)
     try {
       const r = await fetchReports(zoneFilter, statutFilter, 100)
+      // V3 — détection des NOUVEAUX signalements (poll 10 s)
+      const nouveaux: Report[] = []
+      for (const rep of r) {
+        if (!idsVusRef.current.has(rep.id)) {
+          idsVusRef.current.add(rep.id)
+          if (!premierChargementRef.current && rep.statut === 'EN_ATTENTE') {
+            nouveaux.push(rep)
+          }
+        }
+      }
+      premierChargementRef.current = false
+      if (nouveaux.length > 0) {
+        setNouveauxIds(new Set(nouveaux.map((x) => x.id)))
+        setNouveauxCount(nouveaux.length)
+        setTimeout(() => {
+          setNouveauxIds(new Set())
+          setNouveauxCount(0)
+        }, 9000)
+        const first = nouveaux[0]
+        toast({
+          title:
+            nouveaux.length === 1
+              ? '🚨 Nouveau signalement'
+              : `🚨 ${nouveaux.length} nouveaux signalements`,
+          description: `${first.zone?.nom ?? 'Zone'} — ${first.problemType}`,
+        })
+      }
       setReports(r)
       setLastFetch(new Date())
     } catch (e) {
@@ -550,8 +586,16 @@ export default function AirportReportsTab() {
             <span className="ml-1.5 hidden sm:inline">Exporter CSV</span>
           </Button>
 
-          {/* Compteur + last fetch */}
+          {/* Compteur + pill NOUVEAUX (V3) + last fetch */}
           <div className="ml-auto flex items-center gap-2 text-[11px] text-muted-foreground/70">
+            {nouveauxCount > 0 && (
+              <span
+                className="notification-pulse inline-flex items-center gap-1 rounded-full bg-[#C0392B] px-2.5 py-1 font-bold text-white"
+                aria-live="polite"
+              >
+                🔔 {nouveauxCount} NOUVEAU{nouveauxCount > 1 ? 'X' : ''}
+              </span>
+            )}
             <span className="tabular-nums">
               {filteredReports.length} signalement{filteredReports.length > 1 ? 's' : ''}
             </span>
@@ -603,6 +647,7 @@ export default function AirportReportsTab() {
                 report={r}
                 onResolve={handleResolve}
                 resolving={resolvingId === r.id}
+                fresh={nouveauxIds.has(r.id)}
               />
             ))}
           </div>
@@ -620,9 +665,11 @@ type ReportRowProps = {
   report: Report
   onResolve: (id: string) => void
   resolving: boolean
+  /** V3 — signalé comme NOUVEAU (poll 10 s) → surlignage animé */
+  fresh?: boolean
 }
 
-function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
+function ReportRow({ report, onResolve, resolving, fresh }: ReportRowProps) {
   const s = statutMeta(report.statut)
   const team = teamMeta(report.routedTeam)
   const isResolved = report.statut === 'RESOLU'
@@ -638,7 +685,12 @@ function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
   const [detailsOpen, setDetailsOpen] = useState<boolean>(false)
 
   return (
-    <div className="px-4 py-3 transition hover:bg-card/40 sm:px-6">
+    <div
+      className={cn(
+        'px-4 py-3 transition hover:bg-card/40 sm:px-6',
+        fresh && 'notification-pulse bg-[#C0392B]/[0.07]',
+      )}
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
         {/* Photo thumbnail (si présente) */}
         <div className="shrink-0 sm:order-1">

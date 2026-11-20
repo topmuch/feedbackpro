@@ -410,7 +410,7 @@ export function ProDashboard() {
           <div className="absolute -left-32 -top-24 h-[28rem] w-[28rem] rounded-full bg-emerald-500/15 blur-3xl" />
           <div className="absolute -right-24 -top-16 h-[24rem] w-[24rem] rounded-full bg-primary/10 blur-3xl" />
         </div>
-        <aside className="fixed inset-y-4 left-4 z-40 hidden max-h-[calc(100vh-2rem)] w-64 flex-col rounded-3xl bg-[#003399] text-sidebar-foreground shadow-[0_10px_30px_rgba(0,0,0,0.06)] lg:flex">
+        <aside className="fixed inset-y-4 left-4 z-40 hidden max-h-[calc(100vh-2rem)] w-64 flex-col rounded-3xl border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-[0_10px_30px_rgba(0,0,0,0.35)] lg:flex">
           <div className="flex shrink-0 items-center gap-2.5 px-5 py-5">
             <Skeleton className="h-10 w-10 rounded-xl bg-sidebar-foreground/20" />
             <div className="flex-1 space-y-2">
@@ -457,6 +457,7 @@ export function ProDashboard() {
         <div className="absolute -right-24 -top-16 h-[24rem] w-[24rem] rounded-full bg-primary/10 blur-3xl" />
       </div>
       {/* ---------- Sidebar détachée (desktop lg+) ----------
+          NOIR profond + écriture MARRON dorée (V3 « Luxe Silencieux »).
           max-h-[calc(100vh-2rem)] : contraint la sidebar dans le viewport
           (hauteur = 100vh - 2rem, identique à inset-y-4). Le <nav> interne
           a flex-1 + overflow-y-auto + min-h-0 pour scroller verticalement
@@ -464,7 +465,7 @@ export function ProDashboard() {
           débordent — typiquement sur écran 11" (1366×768) où 22×44px ≈ 968px
           > 768px viewport. Le header (logo) et le footer (promesse) restent
           visibles grâce à shrink-0 / mt-auto. */}
-      <aside className="fixed inset-y-4 left-4 z-40 hidden max-h-[calc(100vh-2rem)] w-64 flex-col rounded-3xl bg-[#003399] text-sidebar-foreground shadow-[0_10px_30px_rgba(0,0,0,0.06)] lg:flex">
+      <aside className="fixed inset-y-4 left-4 z-40 hidden max-h-[calc(100vh-2rem)] w-64 flex-col rounded-3xl border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-[0_18px_50px_rgba(0,0,0,0.45)] lg:flex">
         <ContenuSidebar ongletActif={onglet} onNaviguer={naviguer} retoursNonLus={retoursNonLus} estAeroport={typeEtablissement === "Aéroport"} airportEnAttente={airportEnAttente} />
       </aside>
 
@@ -485,7 +486,7 @@ export function ProDashboard() {
                   <Menu className="h-5 w-5" aria-hidden />
                 </Button>
               </SheetTrigger>
-              <SheetContent side="left" className="w-72 border-0 bg-[#003399] p-0 text-sidebar-foreground" aria-describedby={undefined}>
+              <SheetContent side="left" className="w-72 border-0 bg-sidebar p-0 text-sidebar-foreground" aria-describedby={undefined}>
                 <SheetTitle className="sr-only">{t("common.navigationDashboard")}</SheetTitle>
                 <ContenuSidebar
                   ongletActif={onglet}
@@ -670,14 +671,14 @@ function BoutonOnglet({
       className={cn(
         "relative mx-3 flex h-11 shrink-0 items-center gap-3 rounded-2xl px-3.5 text-[11px] font-semibold uppercase tracking-wide transition-colors",
         actif
-          ? "-mr-2 bg-background text-foreground shadow-[0_6px_18px_rgba(0,0,0,0.08)]"
-          : "text-sidebar-foreground/80 hover:bg-sidebar-foreground/10 hover:text-sidebar-foreground"
+          ? "-mr-2 bg-[#FAFAF7] text-[#5C4526] shadow-[0_8px_22px_rgba(0,0,0,0.45)]"
+          : "text-sidebar-foreground/85 hover:bg-white/[0.06] hover:text-[#E3C985]"
       )}
     >
       <Icon className="h-[18px] w-[18px] shrink-0" aria-hidden />
       <span className="truncate">{t(entree.labelKey)}</span>
       {entree.badge && entree.badge > 0 ? (
-        <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1.5 text-[10px] font-bold text-white shadow-sm">
+        <span className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-[#C0392B] px-1.5 text-[10px] font-bold text-white shadow-[0_0_0_0_rgba(192,57,43,0.6)] notification-pulse">
           {entree.badge > 99 ? "99+" : entree.badge}
         </span>
       ) : null}
@@ -704,15 +705,15 @@ function ContenuSidebar({
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* Logo — shrink-0 pour rester visible en haut quand le nav scroll */}
-      <div className="flex shrink-0 items-center gap-2.5 px-5 py-5">
-        <div className="rounded-lg bg-white px-2 py-1 shadow-sm">
+      <div className="flex shrink-0 items-center gap-2.5 border-b border-sidebar-border px-5 py-5">
+        <div className="rounded-lg bg-[#FAFAF7] px-2 py-1 shadow-[0_2px_10px_rgba(0,0,0,0.4)]">
           <img
             src="/logo-feedbackpro-transparent.png"
             alt="FeedbackPro"
             className="h-8 w-auto"
           />
         </div>
-        <span className="text-xs text-sidebar-foreground/70">
+        <span className="text-xs font-medium text-sidebar-foreground/75">
           {estAeroport ? "Aéroport Ops" : "Coach qualité continu"}
         </span>
       </div>
@@ -725,7 +726,7 @@ function ContenuSidebar({
           /* --- Dashboard AÉROPORT dédié : uniquement les onglets aéroport --- */
           <>
             <p
-              className="px-6 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-[#E8B54D]"
+              className="px-6 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-[#C9A961]"
               role="presentation"
             >
               {t("nav.aeroport")}
@@ -777,7 +778,7 @@ function ContenuSidebar({
       {/* Bas de sidebar : rappel de la promesse produit — shrink-0 pour
           rester ancré en bas quand le nav scroll au-dessus. */}
       <div className="mt-auto shrink-0 border-t border-sidebar-border p-4">
-        <p className="text-[11px] leading-relaxed text-sidebar-foreground/60">
+        <p className="text-[11px] leading-relaxed text-sidebar-foreground/65">
           {t("common.promesseCoach")}
         </p>
       </div>
