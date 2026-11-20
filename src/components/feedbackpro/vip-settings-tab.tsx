@@ -109,7 +109,7 @@ async function redimensionnerLogo(file: File): Promise<string> {
 }
 
 interface LoungeConfig {
-  general: { nom: string; logo: string | null; adresse: string; horaires: string; capaciteMax: number }
+  general: { nom: string; logo: string | null; adresse: string; horaires: string; capaciteMax: number; wifiNom: string; wifiMotDePasse: string }
   alertesVip: { enabled: boolean; destinataire: string; delaiSecondes: number }
   buffet: { intervalleMinutes: number; seuilBas: number; items: string[] }
   douches: { nombre: number; tempsUtilisationMinutes: number; tempsNettoyageMinutes: number; nettoyageProfondJour: string }
@@ -396,6 +396,22 @@ export function VipSettingsTab() {
               <Input id="st-cap" type="number" min={1} value={config.general.capaciteMax} onChange={(e) => patchConfig('general', { capaciteMax: parseInt(e.target.value, 10) || 1 })} className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]" />
             </div>
           </div>
+          {/* Wi-Fi du salon — carte « Copier en 1 clic » à l'accueil Nathalie.
+              Vide → la carte est masquée côté client. */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <Label htmlFor="st-wifi-nom" className="text-[#8B6F47]">Wi-Fi — nom du réseau (SSID)</Label>
+              <Input id="st-wifi-nom" value={config.general.wifiNom} onChange={(e) => patchConfig('general', { wifiNom: e.target.value })} placeholder="Ex : SalonVIP-Guest" className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]" />
+            </div>
+            <div>
+              <Label htmlFor="st-wifi-mdp" className="text-[#8B6F47]">Wi-Fi — mot de passe</Label>
+              <Input id="st-wifi-mdp" value={config.general.wifiMotDePasse} onChange={(e) => patchConfig('general', { wifiMotDePasse: e.target.value })} placeholder="Laisser vide si réseau libre" className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]" />
+            </div>
+          </div>
+          <p className="text-[11px] leading-relaxed text-[#8B6F47]/70">
+            Le Wi-Fi s’affiche à l’accueil des clients (Écran d’entrée Nathalie) avec un bouton
+            « Copier en 1 clic ». Laisser vide pour ne rien afficher.
+          </p>
         </Section>
 
         {/* ---------- Denise Discrétion ---------- */}

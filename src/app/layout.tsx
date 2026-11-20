@@ -13,6 +13,24 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="fr" suppressHydrationWarning>
+      <head>
+        {/* Typographie « Luxe Silencieux » — Playfair Display pour les
+            titres (serif élégant, italique pour les accents) et Inter
+            pour le corps de texte. Chargée en <link> (runtime) plutôt
+            qu'en next/font : aucun téléchargement au build, donc le
+            déploiement Coolify ne dépend jamais de fonts.google.com.
+            En cas d'indisponibilité, le fallback Georgia reste élégant. */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        {/* Link runtime (pas next/font) : le build Coolify ne dépend
+            jamais de fonts.google.com. Faux positif de la règle pages/ :
+            en App Router, ce layout racine s'applique à TOUTES les pages. */}
+        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
+        <link
+          href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500;1,600&family=Inter:wght@400;500;600&display=swap"
+          rel="stylesheet"
+        />
+      </head>
       <body className="antialiased bg-background text-foreground">
         {children}
         <Toaster />

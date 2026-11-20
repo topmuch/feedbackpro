@@ -58,6 +58,10 @@ export function validerConfig(patch: unknown, base: VipLoungeConfig): VipLoungeC
     if (typeof g.adresse === 'string') out.general.adresse = g.adresse.slice(0, 300)
     if (typeof g.horaires === 'string') out.general.horaires = g.horaires.slice(0, 80)
     out.general.capaciteMax = clampInt(g.capaciteMax, 1, 2000, base.general.capaciteMax)
+    // Wi-Fi du salon (Écran 1 Nathalie — carte « Copier en 1 clic »).
+    // Champ vide → la carte Wi-Fi est masquée côté client.
+    if (typeof g.wifiNom === 'string') out.general.wifiNom = g.wifiNom.trim().slice(0, 64)
+    if (typeof g.wifiMotDePasse === 'string') out.general.wifiMotDePasse = g.wifiMotDePasse.trim().slice(0, 64)
   }
 
   // Alertes VIP

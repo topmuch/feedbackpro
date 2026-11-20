@@ -69,6 +69,11 @@ export interface VipLoungeConfig {
     adresse: string
     horaires: string
     capaciteMax: number
+    // Wi-Fi du salon — affiché à l'accueil Nathalie (Écran 1) avec
+    // « Copier en 1 clic ». Champs vides par défaut : la carte Wi-Fi
+    // n'apparaît au client QUE si le salon l'a configurée.
+    wifiNom: string
+    wifiMotDePasse: string
   }
   alertesVip: {
     enabled: boolean
@@ -122,7 +127,7 @@ export interface VipDeniseSettings {
 }
 
 export const DEFAUT_CONFIG: VipLoungeConfig = {
-  general: { nom: 'Salon VIP', logo: null, adresse: '', horaires: '06:00 — 23:00', capaciteMax: 120 },
+  general: { nom: 'Salon VIP', logo: null, adresse: '', horaires: '06:00 — 23:00', capaciteMax: 120, wifiNom: '', wifiMotDePasse: '' },
   alertesVip: { enabled: true, destinataire: 'maitre_dhotel', delaiSecondes: 30 },
   buffet: { intervalleMinutes: 30, seuilBas: 40, items: ['buffet_fill', 'drinks_level', 'cleanliness'] },
   douches: { nombre: 4, tempsUtilisationMinutes: 30, tempsNettoyageMinutes: 15, nettoyageProfondJour: 'dimanche' },
