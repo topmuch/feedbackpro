@@ -1784,34 +1784,44 @@ export function VipTableScan({
       <div className={racineCls}>
         <style dangerouslySetInnerHTML={{ __html: NATHALIE_CSS }} />
         <div className="mx-auto max-w-xl px-4 py-8 sm:px-6 sm:py-12">
-          {/* Header */}
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-widest text-[var(--fp-muted)]">
-                {/* QR_ROUTING — « Table T-05 » en mode zone ·
-                    « Installé : Zone Buffet » / « Salon VIP » en global */}
+          {/* Header Waaahou — bouton circulaire de verre + titre serif,
+              navigation unifiée avec la vue Menu (prototype directeur) */}
+          <div className="flex items-center gap-3 py-2">
+            <button
+              type="button"
+              onClick={() => setView('main')}
+              aria-label="Retour à Nathalie"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--fp-border)] bg-[var(--fp-card)] text-[var(--fp-text)] shadow-[0_4px_16px_rgba(0,0,0,0.06)] backdrop-blur transition-all duration-300 hover:scale-105 hover:border-[var(--fp-gold)] active:scale-95"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden />
+            </button>
+            <div className="min-w-0">
+              <h1 className="text-xl font-semibold text-[var(--fp-text)]" style={SERIF}>
+                Signaler un besoin
+              </h1>
+              <p className="truncate text-[10px] font-medium uppercase tracking-[0.22em] text-[var(--fp-muted)]">
                 {headerLocation}
               </p>
-              <h1 className="mt-1 text-2xl font-semibold text-[var(--fp-text)]" style={SERIF}>
-                ⚠️ Signaler un problème
-              </h1>
             </div>
-            <Button
-              variant="outline"
-              onClick={() => setView('main')}
-              className="gap-2 border-[var(--fp-border)] bg-[var(--fp-card)] text-[var(--fp-muted)] hover:bg-[var(--fp-border)]/40"
-            >
-              <ArrowLeft className="h-4 w-4" aria-hidden /> Retour
-            </Button>
           </div>
 
-          <div className="mt-6 space-y-6 rounded-3xl border border-[var(--fp-border)] bg-[var(--fp-card)] p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-            {/* Tags multi-select */}
+          {/* Promesse de discrétion — la voix de Nathalie, en italique */}
+          <p
+            className="mt-1 text-[13px] italic leading-relaxed text-[var(--fp-muted)]"
+            style={SERIF}
+          >
+            « Votre confort est notre priorité absolue. Chaque signalement
+            est traité avec la plus grande discrétion. »
+          </p>
+
+          <div className="mt-5 space-y-6 rounded-3xl border border-[var(--fp-border)] bg-[var(--fp-card)] p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+            {/* Type de besoin — grille 2 colonnes, sélection dorée
+                (un clic, la tuile devient or — prototype directeur) */}
             <div>
-              <p className="text-sm font-medium text-[var(--fp-text)]">
-                Quel type de problème ?
+              <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.3em] text-[var(--fp-muted)]">
+                Type de besoin
               </p>
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {PROBLEM_TAGS.map((t) => {
                   const selected = problemTags.includes(t.id)
                   return (
@@ -1826,25 +1836,29 @@ export function VipTableScan({
                         )
                       }
                       className={cn(
-                        'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all',
+                        'flex min-h-[46px] items-center gap-2 rounded-xl border px-3 text-[13px] font-medium transition-all duration-300',
                         selected
-                          ? 'border-[#C97B63] bg-[#C97B63]/12 text-[#C97B63]'
-                          : 'border-[var(--fp-border)] bg-[var(--fp-card)] text-[var(--fp-muted)] hover:border-[#C97B63]/40 hover:bg-[#C97B63]/8',
+                          ? 'border-[var(--fp-gold)] bg-[var(--fp-gold)] text-[#14110B] shadow-[0_10px_26px_-8px_rgba(201,169,97,0.55)]'
+                          : 'border-[var(--fp-border)] bg-[var(--fp-bg)] text-[var(--fp-text)] hover:-translate-y-0.5 hover:border-[var(--fp-gold)]/60',
                       )}
                     >
-                      <span aria-hidden>{t.emoji}</span>
-                      {t.label}
-                      {selected && <Check className="h-3 w-3" aria-hidden />}
+                      <span className="text-base" aria-hidden>
+                        {t.emoji}
+                      </span>
+                      <span className="min-w-0 flex-1 text-left leading-tight">
+                        {t.label}
+                      </span>
+                      {selected && <Check className="h-3.5 w-3.5 shrink-0" aria-hidden />}
                     </button>
                   )
                 })}
               </div>
             </div>
 
-            {/* Description */}
+            {/* Détails (optionnel) */}
             <div>
-              <p className="text-sm font-medium text-[var(--fp-text)]">
-                Décrivez brièvement :
+              <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.3em] text-[var(--fp-muted)]">
+                Détails (optionnel)
               </p>
               <Textarea
                 value={problemDescription}
@@ -1854,10 +1868,10 @@ export function VipTableScan({
               />
             </div>
 
-            {/* Photo optionnelle */}
+            {/* Photo (optionnel) — zone de dépôt en pointillés, large */}
             <div>
-              <p className="text-sm font-medium text-[var(--fp-text)]">
-                📸 Ajouter une photo (optionnel)
+              <p className="mb-2.5 text-[10px] font-semibold uppercase tracking-[0.3em] text-[var(--fp-muted)]">
+                Photo (optionnel)
               </p>
               <input
                 ref={fileInputRef}
@@ -1889,10 +1903,10 @@ export function VipTableScan({
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="inline-flex items-center gap-2 rounded-xl border border-dashed border-[var(--fp-gold)]/40 bg-[var(--fp-gold)]/6 px-4 py-3 text-xs font-medium text-[var(--fp-muted)] hover:bg-[var(--fp-gold)]/12"
+                    className="flex w-full flex-col items-center gap-1.5 rounded-2xl border border-dashed border-[var(--fp-gold)]/40 bg-[var(--fp-gold)]/6 px-4 py-6 text-xs font-medium text-[var(--fp-muted)] transition-all duration-300 hover:border-[var(--fp-gold)] hover:bg-[var(--fp-gold)]/10"
                   >
-                    <Camera className="h-4 w-4 text-[var(--fp-gold)]" aria-hidden />{' '}
-                    Prendre une photo
+                    <Camera className="h-6 w-6 text-[var(--fp-gold)]" aria-hidden />
+                    Ajouter une photo
                   </button>
                 )}
               </div>
@@ -1904,14 +1918,14 @@ export function VipTableScan({
                 type="button"
                 disabled={!!sending || !canSubmit}
                 onClick={submitProblem}
-                className="w-full gap-2 rounded-2xl border border-[var(--fp-gold)] bg-[var(--fp-gold)] text-white shadow-[0_4px_20px_rgba(201,169,97,0.18)] hover:bg-[var(--fp-gold)]/90"
+                className="w-full gap-2 rounded-2xl border border-transparent bg-[#14110B] text-[#F5F1E6] shadow-[0_14px_36px_-10px_rgba(20,17,11,0.5)] transition-all duration-300 hover:border-[var(--fp-gold)] hover:bg-[var(--fp-gold)] hover:text-[#14110B]"
               >
                 {sending === 'problem' ? (
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
                 ) : (
                   <Send className="h-4 w-4" aria-hidden />
                 )}
-                TRANSMETTRE DISCRÈTEMENT
+                Transmettre discrètement
               </Button>
               <p className="text-center text-xs text-[var(--fp-muted)]">
                 🔒 Votre signalement est confidentiel.
@@ -1944,42 +1958,50 @@ export function VipTableScan({
     return (
       <div className={racineCls}>
         <style dangerouslySetInnerHTML={{ __html: NATHALIE_CSS }} />
-        <div className="mx-auto max-w-xl px-4 py-8 sm:px-6 sm:py-12">
-          {/* Header */}
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-xs font-medium uppercase tracking-widest text-[var(--fp-muted)]">
-                {/* QR_ROUTING — « Table T-05 » en mode zone ·
-                    « Installé : Zone Buffet » / « Salon VIP » en global */}
+        <div className="mx-auto max-w-xl px-4 pb-36 pt-8 sm:px-6 sm:pb-40 sm:pt-12">
+          {/* Header Waaahou — bouton circulaire de verre + titre serif,
+              navigation unifiée avec la vue Signaler */}
+          <div className="flex items-center gap-3 py-2">
+            <button
+              type="button"
+              onClick={() => setView('main')}
+              aria-label="Retour à Nathalie"
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-[var(--fp-border)] bg-[var(--fp-card)] text-[var(--fp-text)] shadow-[0_4px_16px_rgba(0,0,0,0.06)] backdrop-blur transition-all duration-300 hover:scale-105 hover:border-[var(--fp-gold)] active:scale-95"
+            >
+              <ArrowLeft className="h-4 w-4" aria-hidden />
+            </button>
+            <div className="min-w-0">
+              <h1 className="text-xl font-semibold text-[var(--fp-text)]" style={SERIF}>
+                Gastronomie &amp; Bar
+              </h1>
+              <p className="truncate text-[10px] font-medium uppercase tracking-[0.22em] text-[var(--fp-muted)]">
                 {headerLocation}
               </p>
-              <h1 className="mt-1 text-2xl font-semibold text-[var(--fp-text)]" style={SERIF}>
-                🍸 Commander un rafraîchissement
-              </h1>
             </div>
-            <Button
-              variant="outline"
-              onClick={() => setView('main')}
-              className="gap-2 border-[var(--fp-border)] bg-[var(--fp-card)] text-[var(--fp-muted)] hover:bg-[var(--fp-border)]/40"
-            >
-              <ArrowLeft className="h-4 w-4" aria-hidden /> Retour
-            </Button>
           </div>
 
-          <div className="mt-6 space-y-6 rounded-3xl border border-[var(--fp-border)] bg-[var(--fp-card)] p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-            {/* Menu groupé par catégorie */}
+          <div className="mt-5 space-y-7 rounded-3xl border border-[var(--fp-border)] bg-[var(--fp-card)] p-5 pb-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+            {/* Menu groupé par catégorie — titre serif + barre d'or
+                (prototype directeur : catégories élégantes) */}
             {MENU_CATEGORIES.map((cat) => (
               <div key={cat}>
-                <p className="text-[11px] font-semibold uppercase tracking-widest text-[var(--fp-muted)]">
+                <p
+                  className="flex items-center gap-2 text-[17px] font-semibold text-[var(--fp-text)]"
+                  style={SERIF}
+                >
+                  <span
+                    className="h-4 w-1 rounded-full bg-[var(--fp-gold)]"
+                    aria-hidden
+                  />
                   {cat}
                 </p>
-                <div className="mt-3 space-y-2">
+                <div className="mt-3 space-y-2.5">
                   {MENU_ITEMS.filter((m) => m.category === cat).map((m) => {
                     const qty = cart[m.id] ?? 0
                     return (
                       <div
                         key={m.id}
-                        className="flex items-center gap-3 rounded-xl border border-[var(--fp-border)] bg-[var(--fp-bg)] px-3 py-2"
+                        className="flex items-center gap-3 rounded-2xl border border-[var(--fp-border)] bg-[var(--fp-bg)] px-3.5 py-3 transition-all duration-300 hover:border-[var(--fp-gold)]/40"
                       >
                         <span className="text-xl" aria-hidden>
                           {m.emoji}
@@ -2022,9 +2044,10 @@ export function VipTableScan({
                             onClick={() =>
                               setCart((p) => ({ ...p, [m.id]: 1 }))
                             }
-                            className="rounded-full border border-[var(--fp-gold)]/40 bg-[var(--fp-gold)]/8 px-3 py-1 text-xs font-medium text-[var(--fp-muted)] hover:bg-[var(--fp-gold)]/15"
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--fp-gold)] bg-transparent text-lg leading-none text-[var(--fp-gold)] transition-all duration-300 hover:scale-110 hover:bg-[var(--fp-gold)] hover:text-[#14110B] active:scale-95"
+                            aria-label={`Ajouter ${m.name}`}
                           >
-                            Ajouter
+                            +
                           </button>
                         )}
                       </div>
@@ -2034,49 +2057,13 @@ export function VipTableScan({
               </div>
             ))}
 
-            {/* Panier */}
-            <div className="rounded-2xl border border-[var(--fp-gold)]/25 bg-[var(--fp-gold)]/6 p-4">
-              <div className="flex items-center gap-2">
-                <span aria-hidden>🛒</span>
-                <p className="text-sm font-semibold text-[var(--fp-text)]">
-                  Votre commande ({cartCount}{' '}
-                  {cartCount > 1 ? 'articles' : 'article'})
-                </p>
-              </div>
-              {cartCount === 0 ? (
-                <p className="mt-2 text-xs text-[var(--fp-muted)]">
-                  Sélectionnez une boisson ci-dessus.
-                </p>
-              ) : (
-                <ul className="mt-2 space-y-1">
-                  {cartItems.map((m) => (
-                    <li key={m.id} className="text-sm text-[var(--fp-text)]">
-                      • {m.name} × {cart[m.id]}
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            {/* Submit */}
-            <div className="space-y-2">
-              <Button
-                type="button"
-                disabled={!!sending || cartCount === 0}
-                onClick={submitRefreshment}
-                className="w-full gap-2 rounded-2xl border border-[var(--fp-gold)] bg-[var(--fp-gold)] text-white shadow-[0_4px_20px_rgba(201,169,97,0.18)] hover:bg-[var(--fp-gold)]/90"
-              >
-                {sending === 'refreshment' ? (
-                  <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                ) : (
-                  <Send className="h-4 w-4" aria-hidden />
-                )}
-                ENVOYER LA COMMANDE
-              </Button>
-              <p className="text-center text-xs text-[var(--fp-muted)]">
-                ⏱️ Temps estimé : 3-5 minutes
+            {/* Invite discrète quand le panier est vide — le vrai panier
+                vit désormais dans la pilule FLOTTANTE en bas d'écran */}
+            {cartCount === 0 ? (
+              <p className="pb-1 text-center text-xs text-[var(--fp-muted)]">
+                Sélectionnez vos boissons — Nathalie s&apos;occupe du reste.
               </p>
-            </div>
+            ) : null}
 
             {error && (
               <div className="flex items-start gap-3 rounded-2xl border border-[#C97B63]/25 bg-[#C97B63]/8 px-4 py-3 text-sm text-[#C97B63]">
@@ -2093,6 +2080,46 @@ export function VipTableScan({
             )}
           </div>
         </div>
+
+        {/* Panier FLOTTANT — pilule de verre anthracite, glisse depuis
+            le bas dès qu'un article est choisi (prototype directeur).
+            La commande part vers le vrai endpoint /api/vip/requests. */}
+        <AnimatePresence>
+          {cartCount > 0 && (
+            <motion.div
+              key="cart-flottant"
+              initial={{ y: 90, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 90, opacity: 0 }}
+              transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
+              className="fixed inset-x-0 bottom-6 z-[80] flex justify-center px-4"
+            >
+              <div className="flex w-full max-w-md items-center justify-between gap-3 rounded-full border border-[var(--fp-gold)]/35 bg-[#14110B]/95 px-5 py-3 shadow-[0_20px_44px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+                <div className="min-w-0">
+                  <p className="text-sm font-semibold text-[#F5F1E6]">
+                    {cartCount} article{cartCount > 1 ? 's' : ''}
+                  </p>
+                  <p className="text-[11px] text-[#F5F1E6]/65">
+                    ⏱️ Livraison ~ 3 min
+                  </p>
+                </div>
+                <Button
+                  type="button"
+                  disabled={!!sending}
+                  onClick={submitRefreshment}
+                  className="shrink-0 gap-2 rounded-full border border-[var(--fp-gold)] bg-[var(--fp-gold)] px-5 py-2.5 text-[13px] font-bold text-[#14110B] shadow-[0_8px_22px_-6px_rgba(201,169,97,0.6)] transition-all duration-300 hover:bg-[#E3C985]"
+                >
+                  {sending === 'refreshment' ? (
+                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                  ) : (
+                    <Send className="h-4 w-4" aria-hidden />
+                  )}
+                  Commander
+                </Button>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     )
   }
