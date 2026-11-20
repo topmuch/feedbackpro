@@ -7,16 +7,20 @@
 //   2. Cache-first (TTL 1h) pour /api/zone/[qrToken] (configs restaurant)
 //   2b. Network-first (repli cache) pour /api/airport/zone/* (configs aéroport)
 //   3. Network-first pour la page de scan /r/[qrToken]
+//   3b. Network-first pour TOUTE navigation HTML (/, /?qr_type=…, etc.)
+//       → les visiteurs voient toujours la dernière version déployée
+//         (repli cache uniquement hors ligne)
 //   4. Stale-while-revalidate pour les assets same-origin
 //
 // Fichier PLAIN JAVASCRIPT (aucune annotation TypeScript — un SW est
 // servi tel quel par Next.js sans compilation).
 // ============================================================
 
-// CACHE_NAME bumpé v3 → v4 (feedbackpro-airport-v4) pour forcer le
-// refresh du shell suite à l'ajout du handler push (Task P1 —
-// notifications always-on via Service Worker + Push API).
-const CACHE_NAME = "feedbackpro-airport-v4"
+// CACHE_NAME bumpé v4 → v5 (feedbackpro-airport-v5) : purge forcée du
+// shell en cache chez tous les visiteurs existants. Correction du bug
+// « ancien design servi après un déploiement » — les navigations HTML
+// passent désormais en NETWORK-FIRST (voir règle 3b du fetch).
+const CACHE_NAME = "feedbackpro-airport-v5"
 const CACHE_API = "feedbackpro-api-v2"
 // Cache dédié aux réponses GET /api/airport/zone/* (network-first, pas de
 // TTL : on veut toujours la version réseau si disponible, le cache n'est
@@ -269,7 +273,38 @@ self.addEventListener("fetch", (event) => {
     return
   }
 
+  // 3b) NETWORK-FIRST pour toute navigation (pages HTML : /, /?qr_type=…,
+  // /aeroport/…, /auth…). Chaque visiteur reçoit TOUJOURS la version à
+  // jour servie par le serveur ; le cache n'est qu'un repli hors ligne.
+  // (Avant : les navigations tombaient dans la règle 4 stale-while-
+  // revalidate → l'ancien shell restait affiché après chaque déploiement.)
+  if (req.mode === "navigate" || req.destination === "document") {
+    event.respondWith(
+      (async () => {
+        try {
+          const res = await fetch(req)
+          if (res && res.status === 200 && res.type === "basic") {
+            const copy = res.clone()
+            caches
+              .open(CACHE_NAME)
+              .then((cache) => cache.put(req, copy))
+              .catch(() => undefined)
+          }
+          return res
+        } catch {
+          // Hors ligne : repli sur le shell en cache (PWA utilisable)
+          const cached = await caches.match(req)
+          if (cached) return cached
+          const shell = await caches.match("/")
+          return shell ?? new Response("Offline", { status: 503 })
+        }
+      })()
+    )
+    return
+  }
+
   // 4) Stale-while-revalidate pour les assets statiques same-origin
+  // (JS/CSS/images — noms hashés, donc jamais obsolètes en pratique)
   if (url.origin === self.location.origin) {
     event.respondWith(
       (async () => {
