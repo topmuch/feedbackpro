@@ -867,7 +867,11 @@ export function VipTableScan({
     }, 330)
     deniseTimers.current.push(idReveal)
     try {
-      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      // « hasTTS » dans une variable : évite le narrowing TS « never »
+      // sur `window` dans la branche else ('speechSynthesis' in window).
+      const hasTTS =
+        typeof window !== 'undefined' && 'speechSynthesis' in window
+      if (hasTTS) {
         const synth = window.speechSynthesis
         synth.cancel()
         const u = new SpeechSynthesisUtterance(texte)
@@ -942,6 +946,23 @@ export function VipTableScan({
         setEntree(true) // Nathalie apparaît (fade-in + cascade)
       }, 850),
     )
+  }
+
+  // ---- Denise — « Passer » : le client coupe le message vocal d'un
+  // geste discret (barre + voix + révélation mot à mot s'arrêtent
+  // net). Denise ne reparle jamais ensuite (Mode Discrétion).
+  const passerDenise = () => {
+    deniseTimers.current.forEach((t) => window.clearTimeout(t))
+    deniseTimers.current = []
+    try {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel()
+      }
+    } catch {
+      /* ignore */
+    }
+    setDeniseEtat('fini')
+    deniseTimers.current.push(window.setTimeout(() => setDeniseEtat('idle'), 350))
   }
 
   // ---- ÉCRAN 2 — Prêt Express : 2 objets vedettes (casques & plaids
@@ -2259,7 +2280,7 @@ export function VipTableScan({
         onClick={basculerMode}
         aria-label={modeSombre ? 'Passer en mode clair' : 'Passer en mode sombre'}
         title={modeSombre ? 'Mode clair' : 'Mode sombre'}
-        className="fixed right-4 top-4 z-[70] flex h-11 w-11 items-center justify-center rounded-full border border-[var(--fp-gold)]/40 bg-[var(--fp-g2)] shadow-[0_6px_24px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:scale-105 hover:border-[var(--fp-gold)]"
+        className="fixed right-4 top-4 z-[70] flex h-11 w-11 items-center justify-center rounded-full border border-[var(--fp-gold)]/40 bg-[var(--fp-g2)] shadow-[0_6px_24px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:rotate-12 hover:scale-105 hover:border-[var(--fp-gold)] active:scale-95"
       >
         {modeSombre ? (
           <Sun className="h-5 w-5 text-[var(--fp-gold)]" aria-hidden />
@@ -2281,20 +2302,33 @@ export function VipTableScan({
             ============================================================ */}
         {isGlobal ? (
           <div>
-            {/* HERO — Pourquoi un voile sombre sur la photo ? Il fait
-                ressortir l'or champagne et le logo, créant une entrée
-                en scène douce (jamais blanche ni agressive). */}
-            <div className="relative overflow-hidden rounded-[28px] shadow-[0_20px_40px_-10px_rgba(0,0,0,0.10)]">
+            {/* HERO — WAAAHOU v2 : la photo du salon est VISIBLE
+                (voile léger 25→60 %, luminosité 88 %) — fini l'ambiance
+                « triste ». Badge « Salon VIP » en verre en haut, texte
+                ancré en bas : la composition respire. */}
+            <div className="relative overflow-hidden rounded-[28px] shadow-[0_20px_40px_-10px_rgba(0,0,0,0.12)]">
               <img
                 src="/brand/salon-hero.png"
                 alt="L'intérieur du salon"
-                className="absolute inset-0 h-full w-full object-cover"
+                className="absolute inset-0 h-full w-full object-cover brightness-[0.88]"
               />
               <div
-                className="absolute inset-0 bg-gradient-to-b from-[#1A1A1A]/72 via-[#1A1A1A]/55 to-[#1A1A1A]/82"
+                className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/30 to-black/65"
                 aria-hidden
               />
-              <div className="relative flex flex-col items-center px-6 pb-8 pt-10 text-center">
+              {/* Badge « Salon VIP » — pilule de verre (signature Waaahou) */}
+              <div className="absolute left-1/2 top-4 flex -translate-x-1/2 items-center gap-2 rounded-2xl border border-white/25 bg-black/35 px-3.5 py-2 backdrop-blur-md">
+                <span
+                  className="flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-[#E3C985] to-[#C9A961] text-base shadow-[0_4px_14px_rgba(201,169,97,0.45)]"
+                  aria-hidden
+                >
+                  👑
+                </span>
+                <span className="text-[10px] font-semibold uppercase tracking-[0.3em] text-[#F5F5F0]">
+                  Salon VIP
+                </span>
+              </div>
+              <div className="relative flex flex-col items-center justify-end px-6 pb-7 pt-16 text-center">
                 {/* LOGO DU SALON EN GRAND (Paramètres → Général → Logo) —
                     la première chose que le client reconnaît. */}
                 {salonLogo ? (
@@ -2314,11 +2348,11 @@ export function VipTableScan({
                 />
 
                 {/* Message dynamique — « Bonsoir, Cher Hôte. Je suis Nathalie. » */}
-                <p className="mt-4 text-[10px] font-medium uppercase tracking-[0.34em] text-[var(--fp-gold)]">
+                <p className="mt-3 text-[10px] font-medium uppercase tracking-[0.34em] text-[var(--fp-gold)]">
                   {salonLogo ? loungeName : 'Salon VIP'}
                 </p>
                 <h1
-                  className="mt-2 text-[28px] font-semibold leading-tight text-white"
+                  className="mt-2 text-[28px] font-semibold leading-tight text-white [text-shadow:0_2px_12px_rgba(0,0,0,0.45)]"
                   style={SERIF}
                 >
                   {salutation},{' '}
@@ -2401,18 +2435,36 @@ export function VipTableScan({
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.5, delay: 0.35 + idxService * 0.08, ease: 'easeOut' }}
                     onClick={() => handleActionClick(ACTIONS_BY_TYPE[card.actionType])}
-                    className="group rounded-[20px] border border-[var(--fp-gold)]/25 bg-[var(--fp-g1)] p-5 text-left shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--fp-gold)]/45 hover:shadow-[0_20px_40px_-10px_rgba(201,169,97,0.22)]"
+                    className="group relative rounded-[20px] border border-[var(--fp-gold)]/25 bg-[var(--fp-g1)] p-5 text-left shadow-[0_10px_30px_-10px_rgba(0,0,0,0.10)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-[3px] hover:border-[var(--fp-gold)]/60 hover:shadow-[0_22px_44px_-12px_rgba(201,169,97,0.38)]"
                     aria-label={card.label}
                   >
-                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--fp-gold)]/10 ring-1 ring-[var(--fp-gold)]/30 transition-colors group-hover:bg-[var(--fp-gold)]/18">
+                    {/* Flèche d'action — apparaît au survol (invite tactile) */}
+                    <span
+                      className="absolute right-4 top-4 -translate-x-1 text-lg text-[var(--fp-gold)] opacity-0 transition-all duration-300 group-hover:translate-x-0 group-hover:opacity-80"
+                      aria-hidden
+                    >
+                      →
+                    </span>
+                    <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[var(--fp-gold)]/20 to-[var(--fp-gold)]/6 ring-1 ring-[var(--fp-gold)]/30 transition-colors group-hover:from-[var(--fp-gold)]/30 group-hover:to-[var(--fp-gold)]/10">
                       <Icon className="h-5 w-5 text-[var(--fp-gold)]" aria-hidden />
                     </span>
                     <p className="mt-3 text-sm font-semibold text-[var(--fp-text)]" style={SERIF}>
                       {card.label}
                     </p>
-                    <p className="mt-1 text-xs leading-relaxed text-[var(--fp-muted)]">
-                      {card.desc}
-                    </p>
+                    {card.id === 'concierge' ? (
+                      <p className="mt-1 flex items-center gap-1.5 text-xs leading-relaxed text-[var(--fp-muted)]">
+                        <img
+                          src="/brand/amadou-concierge.png"
+                          alt="Amadou — concierge privé"
+                          className="h-5 w-5 rounded-full object-cover ring-1 ring-[var(--fp-gold)]/50"
+                        />
+                        {card.desc}
+                      </p>
+                    ) : (
+                      <p className="mt-1 text-xs leading-relaxed text-[var(--fp-muted)]">
+                        {card.desc}
+                      </p>
+                    )}
                   </motion.button>
                 )
               })}
@@ -2431,7 +2483,7 @@ export function VipTableScan({
                   type="button"
                   disabled={!!sending}
                   onClick={() => handleActionClick(def)}
-                  className="inline-flex items-center gap-1.5 rounded-full border border-[var(--fp-border)] bg-[var(--fp-g2)] px-3.5 py-2 text-xs font-medium text-[var(--fp-muted)] backdrop-blur transition-all hover:border-[var(--fp-gold)]/45 hover:bg-[var(--fp-gold)]/8 disabled:opacity-60"
+                  className="inline-flex items-center gap-2 rounded-full border border-[var(--fp-border)] bg-[var(--fp-g2)] px-4 py-2.5 text-[13px] font-medium text-[var(--fp-text)] backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--fp-gold)] hover:bg-[var(--fp-gold)] hover:text-[#14110B] hover:shadow-[0_10px_26px_-8px_rgba(201,169,97,0.55)] disabled:opacity-60"
                   aria-label={def.label}
                 >
                   <span aria-hidden>{def.emoji}</span>
@@ -2447,26 +2499,26 @@ export function VipTableScan({
                 initial={{ opacity: 0, y: 14 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.55, delay: 0.65, ease: 'easeOut' }}
-                className="mt-8 rounded-[24px] border border-[var(--fp-border)] bg-[var(--fp-g3)] p-6 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)] backdrop-blur-xl"
+                className="mt-5 rounded-[24px] border border-[var(--fp-border)] bg-[var(--fp-g3)] p-5 shadow-[0_10px_30px_-10px_rgba(0,0,0,0.08)] backdrop-blur-xl"
               >
-                <p className="text-base font-semibold text-[var(--fp-text)]" style={SERIF}>
+                <p className="text-[15px] font-semibold text-[var(--fp-text)]" style={SERIF}>
                   Où vous trouvez-vous actuellement ?
                 </p>
-                <p className="mt-1 text-xs leading-relaxed text-[var(--fp-muted)]">
+                <p className="mt-0.5 text-[11px] leading-snug text-[var(--fp-muted)]">
                   Nathalie transmet votre emplacement avec chaque demande —
                   discret et sans effort.
                 </p>
-                <div className="mt-4 grid grid-cols-2 gap-2.5">
+                <div className="mt-3.5 grid grid-cols-2 gap-2">
                   {GLOBAL_ZONES.map((z) => (
                     <button
                       key={z.id}
                       type="button"
                       onClick={() => confirmZoneSelection(z.label)}
-                      className="flex min-h-[56px] items-center gap-2.5 rounded-2xl border border-[var(--fp-border)] bg-[var(--fp-bg)] px-3.5 py-3 text-left text-[13px] font-medium text-[var(--fp-text)] transition-all hover:border-[var(--fp-gold)]/50 hover:bg-[var(--fp-gold)]/8"
+                      className="flex min-h-[46px] items-center gap-2 rounded-xl border border-[var(--fp-border)] bg-[var(--fp-bg)] px-3 py-2.5 text-left text-xs font-medium text-[var(--fp-text)] transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--fp-gold)] hover:bg-[var(--fp-gold)] hover:text-[#14110B] hover:shadow-[0_10px_26px_-8px_rgba(201,169,97,0.55)]"
                       aria-label={`Je suis : ${z.label}`}
                     >
                       <span
-                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[var(--fp-gold)]/10 text-base"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[var(--fp-gold)]/10 text-sm"
                         aria-hidden
                       >
                         {z.emoji}
@@ -2477,7 +2529,7 @@ export function VipTableScan({
                 </div>
 
                 {/* Ou préciser un fauteuil — même élégance, un seul champ */}
-                <div className="my-4 flex items-center gap-3" aria-hidden>
+                <div className="my-3 flex items-center gap-3" aria-hidden>
                   <span className="h-px flex-1 bg-[var(--fp-border)]" />
                   <span className="text-[9px] font-medium uppercase tracking-[0.28em] text-[var(--fp-muted)]/70">
                     ou
@@ -2825,11 +2877,15 @@ export function VipTableScan({
           </div>
         )}
 
-        {/* Pied de page */}
-        <div className="mt-8 flex flex-col items-center gap-2 text-center">
-          <p className="inline-flex items-center gap-1.5 text-[11px] text-[var(--fp-muted)]">
-            <Sparkles className="h-3 w-3" aria-hidden /> Service discret — votre
-            confort d&apos;abord.
+        {/* Pied de page — signature luxe : tagline serif italique or,
+            timer de session en temps réel, Garder Nathalie (partage). */}
+        <div className="mt-8 flex flex-col items-center gap-2 border-t border-[var(--fp-border)] pt-5 text-center">
+          <p
+            className="inline-flex items-center gap-1.5 text-xs italic text-[var(--fp-gold)]"
+            style={SERIF}
+          >
+            <span aria-hidden>✦</span> Service discret — votre confort
+            d&apos;abord.
           </p>
           <p className="text-[11px] text-[var(--fp-muted)]/70">
             {isGlobal
@@ -3041,6 +3097,14 @@ export function VipTableScan({
                     {deniseTexte || '…'}
                   </p>
                 </div>
+                {/* Passer — couper le message d'un geste discret */}
+                <button
+                  type="button"
+                  onClick={passerDenise}
+                  className="shrink-0 rounded-full border border-[#3A2E1A]/35 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#3A2E1A]/85 transition-all duration-300 hover:bg-[#3A2E1A]/12 active:scale-95"
+                >
+                  Passer
+                </button>
               </div>
             </div>
           </motion.div>
