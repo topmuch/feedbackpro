@@ -410,7 +410,9 @@ export function VipSettingsTab() {
           </div>
           <p className="text-[11px] leading-relaxed text-[#8B6F47]/70">
             Le Wi-Fi s’affiche à l’accueil des clients (Écran d’entrée Nathalie) avec un bouton
-            « Copier en 1 clic ». Laisser vide pour ne rien afficher.
+            « Copier en 1 clic ». Il est AUSSI encodé dans le <span className="font-semibold">QR Wi-Fi</span>
+            (onglet QR Codes) : le client scanne → connexion automatique au réseau, et le mot de passe
+            est imprimé sous le QR. Laisser vide pour ne rien afficher.
           </p>
         </Section>
 

@@ -708,3 +708,58 @@ body {
   font-family: 'Inter', ui-sans-serif, system-ui, -apple-system,
     'Segoe UI', sans-serif;
 }
+
+/* ============================================================
+   Mode Sombre Luxe — Dashboard Salon VIP (Terra Solution)
+   ------------------------------------------------------------
+   Toggle 🌙 en haut à droite du dashboard VIP. La classe
+   .vip-dark est posée sur <body> (useEffect) : elle couvre ainsi
+   TOUTES les surfaces du dashboard ET les portals shadcn/ui
+   (Dialog, Sheet, Select, Toast) montés sous body.
+
+   Stratégie identique au white-label ci-dessus : on re-mappe les
+   classes Tailwind arbitraires utilisées par vip-dashboard.tsx
+   (blanc cassé #FAFAF7, cartes blanches, texte anthracite
+   #2C2C2C, bronze #8B6F47, bordure #EAE5DC) vers la palette
+   « Mode Sombre Luxe » : anthracite profond #0F0F0F, cartes
+   #1A1814, texte ivoire #F2EDE3, bronze doré éclairci.
+   Les plaques QR (styles inline marbre/or) restent inchangées.
+   ============================================================ */
+.vip-dark {
+  color-scheme: dark;
+  /* Tokens shadcn — couvre Dialog/Sheet/Select/Popover/Toast/Skeleton */
+  --background: #0f0f0f;
+  --foreground: #f2ede3;
+  --card: #1a1814;
+  --card-foreground: #f2ede3;
+  --popover: #1e1b16;
+  --popover-foreground: #f2ede3;
+  --secondary: #26221b;
+  --secondary-foreground: #f2ede3;
+  --muted: #26221b;
+  --muted-foreground: #b9a882;
+  --accent: #2c261d;
+  --accent-foreground: #e8d9b5;
+  --border: rgba(201, 169, 97, 0.18);
+  --input: rgba(201, 169, 97, 0.24);
+}
+/* Fond du dashboard + cartes */
+.vip-dark .bg-white { background-color: #1a1814 !important; }
+.vip-dark .bg-white\/80 { background-color: rgba(26, 24, 20, 0.82) !important; }
+.vip-dark .bg-white\/95 { background-color: rgba(26, 24, 20, 0.95) !important; }
+.vip-dark .bg-\[\#FAFAF7\] { background-color: #141210 !important; }
+.vip-dark .bg-\[\#FAFAF7\]\/95 { background-color: rgba(15, 15, 15, 0.95) !important; }
+.vip-dark .bg-\[\#EAE5DC\] { background-color: #2e2921 !important; }
+/* Texte : anthracite → ivoire, bronze → doré éclairci */
+.vip-dark .text-\[\#2C2C2C\] { color: #f2ede3 !important; }
+.vip-dark .text-\[\#2C2C2C\]\/70 { color: rgba(242, 237, 227, 0.72) !important; }
+.vip-dark .text-\[\#8B6F47\] { color: #c9a961 !important; }
+.vip-dark .text-\[\#8B6F47\]\/80 { color: rgba(201, 169, 97, 0.8) !important; }
+.vip-dark .text-\[\#8B6F47\]\/70 { color: rgba(201, 169, 97, 0.7) !important; }
+.vip-dark .text-\[\#8B6F47\]\/60 { color: rgba(201, 169, 97, 0.6) !important; }
+.vip-dark .text-\[\#8B6F47\]\/50 { color: rgba(201, 169, 97, 0.5) !important; }
+.vip-dark .text-\[\#8B6F47\]\/40 { color: rgba(201, 169, 97, 0.4) !important; }
+/* Bordures : ivoire chaud → filet or discret */
+.vip-dark .border-\[\#EAE5DC\] { border-color: rgba(201, 169, 97, 0.18) !important; }
+/* Gradient décoratif du filet sidebar : invisible sur fond sombre */
+.vip-dark .via-white\/10 { --tw-gradient-via: rgba(201, 169, 97, 0.12) !important; }

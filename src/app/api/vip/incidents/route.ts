@@ -52,6 +52,8 @@ export async function GET(req: NextRequest) {
       commentaire: r.commentaire ?? null,
       statut: r.statut as 'EN_ATTENTE' | 'EN_COURS' | 'RESOLU',
       createdAt: r.createdAt.toISOString(),
+      // Phase 2 — affectation staff (alertes douces → « Assigner à… »)
+      assignedTo: r.assignedTo ?? null,
     })),
   )
 }
@@ -61,11 +63,8 @@ export async function PATCH(req: NextRequest) {
   if (!user) return fail('Non authentifié', 401)
 
   const body = await req.json().catch(() => null)
-  if (!body || typeof body.id !== 'string' || typeof body.statut !== 'string') {
-    return fail('Paramètres manquants (id + statut)', 400)
-  }
-  if (!STATUTS_VALIDES.has(body.statut)) {
-    return fail('Statut invalide', 400)
+  if (!body || typeof body.id !== 'string') {
+    return fail('Paramètres manquants (id requis)', 400)
   }
 
   const report = await db.airportReport.findUnique({
@@ -75,6 +74,23 @@ export async function PATCH(req: NextRequest) {
   if (!report) return fail('Signalement introuvable', 404)
   if (!report.zone || !VIP_ZONE_CODES.includes(report.zone.code)) {
     return fail('Accès refusé : ce signalement n\'appartient pas au module VIP', 403)
+  }
+
+  // --- Phase 2 — affectation staff seule (alertes douces « Assigner à… ») ---
+  if (typeof body.assignedTo === 'string' && typeof body.statut !== 'string') {
+    const assignee = body.assignedTo.trim().slice(0, 80)
+    await db.airportReport.update({
+      where: { id: body.id },
+      data: { assignedTo: assignee || null },
+    })
+    return ok({ id: body.id, assignedTo: assignee || null })
+  }
+
+  if (typeof body.statut !== 'string') {
+    return fail('Paramètres manquants (statut ou assignedTo)', 400)
+  }
+  if (!STATUTS_VALIDES.has(body.statut)) {
+    return fail('Statut invalide', 400)
   }
 
   const nextStatut = body.statut as 'EN_ATTENTE' | 'EN_COURS' | 'RESOLU'

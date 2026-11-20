@@ -33,7 +33,7 @@
 // en attendant leurs APIs dédiées.
 // ============================================================
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Wine,
   LayoutDashboard,
@@ -85,6 +85,12 @@ import {
   X,
   UserPlus,
   Monitor,
+  Mic,
+  Moon,
+  Sun,
+  Wifi,
+  Copy,
+  Check,
 } from 'lucide-react'
 import { useAppStore } from '@/store/app-store'
 import { getZonesByTenant } from '@/lib/airport-config'
@@ -129,6 +135,7 @@ import {
 } from '@/components/ui/dialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useToast } from '@/hooks/use-toast'
+import { parler } from '@/lib/staff-tts'
 
 // ============================================================
 // Types
@@ -141,6 +148,8 @@ type VipIncident = {
   commentaire: string | null
   statut: 'EN_ATTENTE' | 'EN_COURS' | 'RESOLU'
   createdAt: string
+  // Phase 2 — affectation staff (bouton « Assigner à… » des alertes douces)
+  assignedTo?: string | null
 }
 
 type ShowerStatus = 'free' | 'occupied' | 'cleaning' | 'maintenance'
@@ -608,6 +617,9 @@ const DEFAULT_SETTINGS: VipSettings = {
 // Helpers
 // ============================================================
 
+/** Clé localStorage du Mode Sombre Luxe du dashboard. */
+const DARK_STORAGE_KEY = 'vip_dashboard_dark'
+
 /** Horloge live HH:MM:SS (évite l'hydration mismatch en partant de null).
  *  L'initialisation est différée via setTimeout(0) pour ne pas appeler
  *  setState de manière synchrone dans l'effet (rule set-state-in-effect). */
@@ -682,6 +694,88 @@ function countdownMmSs(nextIso: string): string {
   const m = Math.floor(remaining / 60)
   const s = remaining % 60
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
+}
+
+/**
+ * FIX BUG « 4024 min » — libellé humain du timer de vérification.
+ * - Timer à venir     → « Dans 2 min » / « Dans 1 h 05 »
+ * - Retard raisonnable → « En retard de X min » (alerte honnête)
+ * L'API /api/vip/buffet rebase les retards > 2× intervalle, donc le
+ * dashboard n'affiche JAMAIS « il y a 4024 min ».
+ */
+function formatTimerLabel(nextIso: string): { text: string; overdue: boolean } {
+  const remainingMin = Math.floor((new Date(nextIso).getTime() - Date.now()) / 60000)
+  if (remainingMin > 0) {
+    if (remainingMin < 60) return { text: `Dans ${remainingMin} min`, overdue: false }
+    return {
+      text: `Dans ${Math.floor(remainingMin / 60)} h ${String(remainingMin % 60).padStart(2, '0')}`,
+      overdue: false,
+    }
+  }
+  const lateMin = -remainingMin
+  if (lateMin < 60) return { text: `En retard de ${lateMin} min`, overdue: true }
+  return {
+    text: `En retard de ${Math.floor(lateMin / 60)} h ${String(lateMin % 60).padStart(2, '0')}`,
+    overdue: true,
+  }
+}
+
+/** « il y a 28 min » / « à l'instant » / « il y a 1 h 05 » — détail d'alerte buffet. */
+function formatLastCheckLabel(iso: string): string {
+  const min = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000))
+  if (min < 1) return "à l'instant"
+  if (min < 60) return `il y a ${min} min`
+  return `il y a ${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')}`
+}
+
+/**
+ * Compteur animé (KPI qui « s'incrémente en temps réel ») — tween
+ * d'interpolation douce entre la valeur précédente et la nouvelle.
+ * Le premier rendu affiche directement la cible (aucune animation
+ * SSR/hydration : l'animation ne démarre qu'aux polls suivants).
+ */
+function useCountUp(target: number, durationMs = 700): number {
+  const [value, setValue] = useState(target)
+  const prevRef = useRef(target)
+  useEffect(() => {
+    const from = prevRef.current
+    prevRef.current = target
+    if (from === target) return
+    let raf = 0
+    const start = performance.now()
+    const step = (t: number) => {
+      const p = Math.min(1, (t - start) / durationMs)
+      const eased = 1 - Math.pow(1 - p, 3)
+      setValue(Math.round(from + (target - from) * eased))
+      if (p < 1) raf = requestAnimationFrame(step)
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [target, durationMs])
+  return value
+}
+
+// ============================================================
+// QR Wi-Fi — format standard WIFI: (auto-connexion au scan)
+// ============================================================
+
+/** Échappe les caractères spéciaux du format WIFI: ( \ ; , : " ). */
+function wifiQrEscape(s: string): string {
+  return s.replace(/([\\;,:"])/g, '\\$1')
+}
+
+/**
+ * Payload QR Wi-Fi standard : WIFI:T:WPA;S:<ssid>;P:<clé>;;
+ * Le smartphone se connecte AUTOMATIQUEMENT au scan du QR.
+ * Réseau sans clé → T:nopass. SSID vide → '' (pas de QR).
+ */
+function wifiQrPayload(ssid: string, pass: string): string {
+  const s = ssid.trim()
+  if (!s) return ''
+  const p = pass.trim()
+  return p
+    ? `WIFI:T:WPA;S:${wifiQrEscape(s)};P:${wifiQrEscape(p)};;`
+    : `WIFI:T:nopass;S:${wifiQrEscape(s)};;`
 }
 
 function initials(name: string): string {
@@ -893,8 +987,8 @@ function TableCard({
             {table.tableNumber}
           </p>
         </div>
-        <span className={cn('flex h-7 w-7 items-center justify-center rounded-full', st.bg)}>
-          <span className={cn('h-2.5 w-2.5 rounded-full', st.dot)} />
+        <span className={cn('flex h-7 w-7 items-center justify-center rounded-full transition-colors duration-500', st.bg)}>
+          <span className={cn('h-2.5 w-2.5 rounded-full transition-colors duration-500', st.dot)} />
         </span>
       </div>
 
@@ -1217,6 +1311,15 @@ function TableDetailSheet({
             <Button
               variant="outline"
               size="sm"
+              disabled={busy || table.status === 'occupied'}
+              onClick={() => act('Table occupée', { status: 'occupied' }, `Table ${table.tableNumber} marquée occupée.`)}
+              className="w-full border-[#6B4C9A]/40 bg-[#6B4C9A]/8 text-[#6B4C9A] hover:bg-[#6B4C9A]/15"
+            >
+              <Users className="h-3.5 w-3.5" aria-hidden /> Marquer occupée
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               disabled={busy}
               onClick={() => setAssignDialogOpen(true)}
               className="w-full border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
@@ -1297,6 +1400,9 @@ function VIPSidebarContent({
   userRole,
   onLogout,
   modulesEnabled,
+  onBriefing,
+  briefingBusy,
+  briefingPlaying,
 }: {
   activeTab: VipTab
   onNavigate: (t: VipTab) => void
@@ -1305,6 +1411,10 @@ function VIPSidebarContent({
   userRole: string
   onLogout: () => void
   modulesEnabled?: Partial<VipLoungeConfig['modulesEnabled']> | null
+  /** Phase 2 — briefing vocal Denise (prise de poste). */
+  onBriefing?: () => void
+  briefingBusy?: boolean
+  briefingPlaying?: boolean
 }) {
   // Modules optionnels désactivés → onglets masqués (Paramètres → Modules optionnels)
   const TAB_MODULE_KEY: Partial<Record<VipTab, keyof VipLoungeConfig['modulesEnabled']>> = {
@@ -1381,8 +1491,38 @@ function VIPSidebarContent({
         })}
       </nav>
 
-      {/* Bas : utilisateur + déconnexion */}
+      {/* Bas : briefing Denise + utilisateur + déconnexion */}
       <div className="shrink-0 border-t border-white/10 p-3">
+        {onBriefing ? (
+          <Button
+            variant="ghost"
+            disabled={briefingBusy}
+            onClick={onBriefing}
+            className="mb-2 w-full justify-start gap-2.5 rounded-xl border border-[#C9A961]/25 bg-[#C9A961]/8 text-[#E3C985] hover:bg-[#C9A961]/15"
+          >
+            {briefingBusy ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            ) : briefingPlaying ? (
+              <Volume2 className="h-4 w-4 animate-pulse" aria-hidden />
+            ) : (
+              <Mic className="h-4 w-4" aria-hidden />
+            )}
+            <span className="truncate text-xs font-semibold uppercase tracking-wider">
+              {briefingBusy
+                ? 'Préparation du briefing…'
+                : briefingPlaying
+                  ? 'Briefing en cours'
+                  : 'Briefing Denise'}
+            </span>
+            {briefingPlaying ? (
+              <span className="ml-auto flex items-end gap-0.5" aria-hidden>
+                <span className="h-2.5 w-0.5 animate-pulse rounded bg-[#C9A961]" />
+                <span className="h-3.5 w-0.5 animate-pulse rounded bg-[#C9A961] [animation-delay:150ms]" />
+                <span className="h-2 w-0.5 animate-pulse rounded bg-[#C9A961] [animation-delay:300ms]" />
+              </span>
+            ) : null}
+          </Button>
+        ) : null}
         <div className="rounded-xl border border-white/10 bg-white/[0.05] px-3.5 py-3">
           <div className="flex items-center gap-2.5">
             <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-xs font-semibold text-white">
@@ -1420,6 +1560,13 @@ function OverviewTab({
   rewardsGivenToday,
   loading,
   onPatchTable,
+  onBuffetCheck,
+  onBuffetSnooze,
+  onShowerFree,
+  onIncidentResolve,
+  onIncidentAssign,
+  onTableRestore,
+  onNavigate,
 }: {
   incidents: VipIncident[]
   showers: Shower[]
@@ -1436,13 +1583,40 @@ function OverviewTab({
       clientVipLevel?: string | null
     },
   ) => Promise<void>
+  // Actions rapides des Alertes Douces (Phase 2)
+  onBuffetCheck: (id: string) => Promise<void>
+  onBuffetSnooze: (id: string) => Promise<void>
+  onShowerFree: (id: string) => Promise<void>
+  onIncidentResolve: (id: string) => Promise<void>
+  onIncidentAssign: (id: string, assignee: string) => Promise<void>
+  onTableRestore: (id: string, toOccupied: boolean) => Promise<void>
+  onNavigate: (t: VipTab) => void
 }) {
+  const { toast } = useToast()
   const clock = useClock()
   const [today, setToday] = useState<Date | null>(null)
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null)
+  // Phase 2 — dialog « Assigner à… » pour les alertes VIP
+  const [assignIncident, setAssignIncident] = useState<VipIncident | null>(null)
+  const [assignee, setAssignee] = useState<string>(SEED_STAFF[0]?.name ?? 'Manager')
+  const [assignBusy, setAssignBusy] = useState(false)
+  const [alertBusyId, setAlertBusyId] = useState<string | null>(null)
   useEffect(() => {
     setToday(new Date())
   }, [])
+
+  /** Exécute une action d'alerte avec état busy + toast d'erreur. */
+  const runAlertAction = async (alertId: string, fn: () => Promise<void>, okMsg: string) => {
+    setAlertBusyId(alertId)
+    try {
+      await fn()
+      toast({ title: okMsg })
+    } catch {
+      toast({ title: 'Erreur', description: 'Action impossible, réessayez.', variant: 'destructive' })
+    } finally {
+      setAlertBusyId(null)
+    }
+  }
 
   const openIncidents = incidents.filter((i) => i.statut !== 'RESOLU')
   const freeShowers = showers.filter((s) => s.status === 'free').length
@@ -1458,8 +1632,7 @@ function OverviewTab({
 
   // Séjour moyen : moyenne des durées des tables occupées
   const occupiedTables = tables.filter((t) => t.status === 'occupied' && t.arrivedAt)
-  const avgStayMin =
-    occupiedTables.length > 0
+  const avgStayMin =    occupiedTables.length > 0
       ? Math.round(
           occupiedTables.reduce((sum, t) => sum + minutesDepuis(t.arrivedAt!), 0) /
             occupiedTables.length,
@@ -1477,21 +1650,43 @@ function OverviewTab({
   // Satisfaction : mock 4.8/5 (depuis derniers retours clients)
   const satisfaction = 4.8
 
-  // Alertes douces (visuelles uniquement)
+  // Alertes douces (visuelles uniquement) — Phase 2 : ACTIONS RAPIDES
+  // sur chaque alerte (✅ Marquer fait / ⏰ Reporter 15 min / 👤 Assigner).
   const buffetAlerts = buffet.filter((b) => new Date(b.nextCheck).getTime() < Date.now())
   const showerCleaning = showers.filter((s) => s.status === 'cleaning')
   const vipIncidents = incidents.filter((i) => hashIsVip(i.id) && i.statut !== 'RESOLU')
   const lowBuffetItems = buffet.filter((b) => b.fillLevel < 30)
 
   type AlertTone = 'terracotta' | 'bronze' | 'amethyst' | 'gold'
-  const alerts: Array<{ id: string; Icon: typeof AlertTriangle; tone: AlertTone; label: string; detail: string }> = []
+  type AlertAction = { label: string; Icon?: typeof AlertTriangle; onClick: () => void }
+  const alerts: Array<{
+    id: string
+    Icon: typeof AlertTriangle
+    tone: AlertTone
+    label: string
+    detail: string
+    actions?: AlertAction[]
+  }> = []
   for (const b of buffetAlerts) {
+    const timer = formatTimerLabel(b.nextCheck)
     alerts.push({
       id: `buffet-${b.id}`,
       Icon: Clock,
       tone: 'terracotta',
       label: 'Vérification buffet requise',
-      detail: `${BUFFET_ITEM_LABELS[b.item] ?? b.item} — dernière vérification il y a ${minutesDepuis(b.lastCheck)} min`,
+      detail: `${BUFFET_ITEM_LABELS[b.item] ?? b.item} — dernière vérification ${formatLastCheckLabel(b.lastCheck)} · ${timer.text}`,
+      actions: [
+        {
+          label: 'Marquer fait',
+          Icon: CheckCircle2,
+          onClick: () => void runAlertAction(`buffet-${b.id}`, () => onBuffetCheck(b.id), 'Vérification enregistrée'),
+        },
+        {
+          label: 'Reporter 15 min',
+          Icon: Clock,
+          onClick: () => void runAlertAction(`buffet-${b.id}`, () => onBuffetSnooze(b.id), 'Reporté de 15 minutes'),
+        },
+      ],
     })
   }
   for (const b of lowBuffetItems) {
@@ -1501,6 +1696,9 @@ function OverviewTab({
       tone: 'terracotta',
       label: 'Niveau buffet bas',
       detail: `${BUFFET_ITEM_LABELS[b.item] ?? b.item} — ${b.fillLevel}% restant`,
+      actions: [
+        { label: 'Ouvrir Buffet', Icon: Wine, onClick: () => onNavigate('buffet') },
+      ],
     })
   }
   for (const s of showerCleaning) {
@@ -1510,6 +1708,13 @@ function OverviewTab({
       tone: 'bronze',
       label: `Douche N°${s.showerNumber} en nettoyage`,
       detail: 'Libérer la cabine dès que possible',
+      actions: [
+        {
+          label: 'Marquer fait',
+          Icon: CheckCircle2,
+          onClick: () => void runAlertAction(`shower-${s.id}`, () => onShowerFree(s.id), `Douche N°${s.showerNumber} libérée`),
+        },
+      ],
     })
   }
   for (const i of vipIncidents.slice(0, 2)) {
@@ -1518,7 +1723,21 @@ function OverviewTab({
       Icon: Crown,
       tone: 'amethyst',
       label: 'Client VIP a signalé un problème',
-      detail: `${i.zone?.nom ?? 'Salon'} — ${i.problemType}`,
+      detail:
+        `${i.zone?.nom ?? 'Salon'} — ${i.problemType}` +
+        (i.assignedTo ? ` · 👤 Assigné à ${i.assignedTo}` : ''),
+      actions: [
+        {
+          label: 'Marquer fait',
+          Icon: CheckCircle2,
+          onClick: () => void runAlertAction(`vip-${i.id}`, () => onIncidentResolve(i.id), 'Signalement résolu'),
+        },
+        {
+          label: 'Assigner à…',
+          Icon: UserPlus,
+          onClick: () => setAssignIncident(i),
+        },
+      ],
     })
   }
   // Tables en problème
@@ -1529,6 +1748,13 @@ function OverviewTab({
       tone: 'terracotta',
       label: `Table ${t.tableNumber} en problème`,
       detail: t.clientName ? `Client : ${t.clientName}` : 'Aucun client assigné',
+      actions: [
+        {
+          label: 'Marquer fait',
+          Icon: CheckCircle2,
+          onClick: () => void runAlertAction(`problem-${t.id}`, () => onTableRestore(t.id, Boolean(t.clientName)), `Table ${t.tableNumber} rétablie`),
+        },
+      ],
     })
   }
   // Demandes à la table en attente
@@ -1539,12 +1765,22 @@ function OverviewTab({
       tone: 'gold',
       label: `${activeTableRequests} demande${activeTableRequests > 1 ? 's' : ''} à la table en attente`,
       detail: 'Onglet Signalements pour prendre en charge',
+      actions: [
+        { label: 'Voir signalements', Icon: Bell, onClick: () => onNavigate('incidents') },
+      ],
     })
   }
 
   const selectedTable = selectedTableId
     ? tables.find((t) => t.id === selectedTableId) ?? null
     : null
+
+  // Animations KPI — compteurs qui s'incrémentent en douceur (temps réel)
+  const capacityAnim = useCountUp(clientsCount)
+  const signalementsAnim = useCountUp(totalSignalementsActifs)
+  const rewardsAnim = useCountUp(rewardsGivenToday)
+  const showersFreeAnim = useCountUp(freeShowers)
+  const satisfactionAnim = useCountUp(Math.round(satisfaction * 10)) / 10
 
   // Group tables by zone for the 2D plan
   const tablesByZone = useMemo(() => {
@@ -1602,7 +1838,7 @@ function OverviewTab({
                       className="text-2xl font-semibold leading-none text-[#2C2C2C]"
                       style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
                     >
-                      {clientsCount}
+                      {capacityAnim}
                     </span>
                     <span className="text-sm font-medium text-[#8B6F47]">/ {CAPACITE_SALON}</span>
                     <span className="ml-1 text-xs text-[#8B6F47]">({capacitePct}%)</span>
@@ -1612,9 +1848,9 @@ function OverviewTab({
                   <Users className="h-4 w-4" aria-hidden />
                 </span>
               </div>
-              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[#FAFAF7]">
+              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[#FAFAF7] transition-colors duration-500">
                 <div
-                  className="h-full rounded-full bg-[#C9A961]"
+                  className="h-full rounded-full bg-[#C9A961] transition-all duration-700"
                   style={{ width: `${capacitePct}%` }}
                 />
               </div>
@@ -1630,7 +1866,7 @@ function OverviewTab({
                       className="text-2xl font-semibold leading-none text-[#2C2C2C]"
                       style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
                     >
-                      {satisfaction.toFixed(1)}
+                      {satisfactionAnim.toFixed(1)}
                     </span>
                     <span className="text-sm font-medium text-[#8B6F47]">/5</span>
                   </div>
@@ -1643,9 +1879,9 @@ function OverviewTab({
                 </span>
               </div>
             </Card>
-            <KPICard label="Signalements actifs" value={totalSignalementsActifs} Icon={Bell} tone="terracotta" hint={`${openIncidents.length} incidents · ${activeTableRequests} à la table`} />
-            <KPICard label="Récompenses offertes" value={rewardsGivenToday} Icon={Gift} tone="gold" hint="Aujourd'hui" />
-            <KPICard label="Douches libres" value={`${freeShowers}/${showers.length || 0}`} Icon={ShowerHead} tone="sage" hint="Cabines disponibles" />
+            <KPICard label="Signalements actifs" value={signalementsAnim} Icon={Bell} tone="terracotta" hint={`${openIncidents.length} incidents · ${activeTableRequests} à la table`} />
+            <KPICard label="Récompenses offertes" value={rewardsAnim} Icon={Gift} tone="gold" hint="Aujourd'hui" />
+            <KPICard label="Douches libres" value={`${showersFreeAnim}/${showers.length || 0}`} Icon={ShowerHead} tone="sage" hint="Cabines disponibles" />
           </>
         )}
       </div>
@@ -1742,23 +1978,50 @@ function OverviewTab({
             </div>
           ) : (
             <ul className="space-y-2.5">
-              {alerts.map((a) => {
+              {alerts.map((a, idx) => {
                 const toneMap: Record<AlertTone, string> = {
                   terracotta: 'bg-[#C97B63]/8 border-[#C97B63]/25 text-[#C97B63]',
                   bronze: 'bg-[#8B6F47]/8 border-[#8B6F47]/25 text-[#8B6F47]',
                   amethyst: 'bg-[#6B4C9A]/8 border-[#6B4C9A]/25 text-[#6B4C9A]',
                   gold: 'bg-[#C9A961]/10 border-[#C9A961]/30 text-[#8B6F47]',
                 }
+                const busy = alertBusyId === a.id
                 return (
                   <li
                     key={a.id}
-                    className={cn('flex items-start gap-3 rounded-xl border px-4 py-3', toneMap[a.tone])}
+                    className={cn('animate-fadeIn flex flex-col gap-2.5 rounded-xl border px-4 py-3 sm:flex-row sm:items-start', toneMap[a.tone])}
+                    style={{ animationDelay: `${Math.min(idx * 70, 420)}ms` }}
                   >
                     <a.Icon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-[#2C2C2C]">{a.label}</p>
                       <p className="text-xs text-[#2C2C2C]/70">{a.detail}</p>
                     </div>
+                    {/* Actions rapides (Phase 2) : ✅ Fait · ⏰ 15 min · 👤 Assigner */}
+                    {a.actions && a.actions.length > 0 ? (
+                      <div className="flex shrink-0 flex-wrap gap-1.5">
+                        {a.actions.map((act) => {
+                          const AIcon = act.Icon
+                          return (
+                            <button
+                              key={act.label}
+                              type="button"
+                              onClick={act.onClick}
+                              disabled={busy}
+                              className="inline-flex h-7 items-center gap-1 rounded-md border border-current bg-white/70 px-2 text-[11px] font-semibold text-current transition hover:bg-white disabled:opacity-60"
+                              aria-label={`${act.label} — ${a.label}`}
+                            >
+                              {busy && act.label !== 'Assigner à…' ? (
+                                <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+                              ) : AIcon ? (
+                                <AIcon className="h-3 w-3" aria-hidden />
+                              ) : null}
+                              {act.label}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    ) : null}
                   </li>
                 )
               })}
@@ -1775,6 +2038,60 @@ function OverviewTab({
         }}
         onPatchTable={onPatchTable}
       />
+
+      {/* Dialog « Assigner à… » — affectation persistée (AirportReport.assignedTo) */}
+      <Dialog open={assignIncident !== null} onOpenChange={(o) => { if (!o) setAssignIncident(null) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assigner le signalement</DialogTitle>
+            <DialogDescription>
+              {assignIncident
+                ? `${assignIncident.zone?.nom ?? 'Salon'} — ${assignIncident.problemType}`
+                : 'Choisissez un membre de l\'équipe.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">Membre de l&apos;équipe</Label>
+            <Select value={assignee} onValueChange={setAssignee}>
+              <SelectTrigger className="border-[#EAE5DC] bg-[#FAFAF7]">
+                <SelectValue placeholder="Choisir un membre" />
+              </SelectTrigger>
+              <SelectContent>
+                {SEED_STAFF.map((s) => (
+                  <SelectItem key={s.id} value={s.name}>
+                    {s.name} — {s.role}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setAssignIncident(null)} disabled={assignBusy}>
+              Annuler
+            </Button>
+            <Button
+              disabled={assignBusy}
+              className="bg-[#C9A961] text-white hover:bg-[#C9A961]/90"
+              onClick={async () => {
+                if (!assignIncident) return
+                setAssignBusy(true)
+                try {
+                  await onIncidentAssign(assignIncident.id, assignee)
+                  toast({ title: 'Signalement assigné', description: `${assignee} est en charge.` })
+                  setAssignIncident(null)
+                } catch {
+                  toast({ title: 'Erreur', description: 'Affectation impossible.', variant: 'destructive' })
+                } finally {
+                  setAssignBusy(false)
+                }
+              }}
+            >
+              {assignBusy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <UserPlus className="h-4 w-4" aria-hidden />}
+              Assigner
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -2383,6 +2700,9 @@ function BuffetTab({
     .map((b) => b.nextCheck)
     .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0]
   const countdown = nextCheck ? countdownMmSs(nextCheck) : '--:--'
+  // FIX BUG 4024 min : si le timer est dépassé → libellé humain
+  // « En retard de X min » (terracotta) au lieu d'un 00:00 figé.
+  const nextTimer = nextCheck ? formatTimerLabel(nextCheck) : null
 
   const onSliderCommit = async (id: string, level: number, label: string) => {
     try {
@@ -2405,14 +2725,20 @@ function BuffetTab({
         Icon={Wine}
         action={
           <div className="flex items-center gap-2 rounded-xl border border-[#EAE5DC] bg-white px-4 py-2.5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-            <Clock className="h-4 w-4 text-[#C9A961]" aria-hidden />
-            <span className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">Prochaine vérification</span>
-            <span
-              className="text-lg font-semibold tabular-nums text-[#2C2C2C]"
-              style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
-            >
-              {loading ? '--:--' : countdown}
+            <Clock className={cn('h-4 w-4', nextTimer?.overdue ? 'text-[#C97B63]' : 'text-[#C9A961]')} aria-hidden />
+            <span className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">
+              {nextTimer?.overdue ? 'Vérification' : 'Prochaine vérification'}
             </span>
+            {nextTimer?.overdue ? (
+              <span className="text-sm font-semibold text-[#C97B63]">{nextTimer.text}</span>
+            ) : (
+              <span
+                className="text-lg font-semibold tabular-nums text-[#2C2C2C]"
+                style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
+              >
+                {loading ? '--:--' : countdown}
+              </span>
+            )}
           </div>
         }
       />
@@ -2431,7 +2757,9 @@ function BuffetTab({
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <h3 className="text-sm font-semibold text-[#2C2C2C]">{label}</h3>
-                    <p className="mt-0.5 text-xs text-[#8B6F47]">Dernière vérif. {formatTimeShort(b.lastCheck)}</p>
+                    <p className="mt-0.5 text-xs text-[#8B6F47]">
+                      Dernière vérif. {formatTimeShort(b.lastCheck)} · {formatLastCheckLabel(b.lastCheck)}
+                    </p>
                   </div>
                   {low && (
                     <Badge className="border-[#C97B63]/30 bg-[#C97B63]/12 text-[#C97B63]">
@@ -2477,7 +2805,14 @@ function BuffetTab({
                 </div>
 
                 <p className="mt-3 text-[11px] text-[#8B6F47]">
-                  Prochaine vérif. dans <span className="font-semibold tabular-nums text-[#2C2C2C]">{countdownMmSs(b.nextCheck)}</span>
+                  {formatTimerLabel(b.nextCheck).overdue ? (
+                    <span className="font-semibold text-[#C97B63]">{formatTimerLabel(b.nextCheck).text}</span>
+                  ) : (
+                    <>
+                      Prochaine vérif. dans{' '}
+                      <span className="font-semibold tabular-nums text-[#2C2C2C]">{countdownMmSs(b.nextCheck)}</span>
+                    </>
+                  )}
                 </p>
               </Card>
             )
@@ -3130,7 +3465,13 @@ function StaffTab() {
 // Tab H — QR Codes
 // ============================================================
 
-function QRTab({ tables }: { tables: VipTableData[] }) {
+function QRTab({
+  tables,
+  onGoToSettings,
+}: {
+  tables: VipTableData[]
+  onGoToSettings?: () => void
+}) {
   // Scans mockés (déterministes pour stabilité d'affichage)
   const scansForZone = (code: string) => {
     const h = code.split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 0)
@@ -3143,6 +3484,44 @@ function QRTab({ tables }: { tables: VipTableData[] }) {
 
   const { toast } = useToast()
   const [qrPngBusy, setQrPngBusy] = useState(false)
+
+  // ============================================================
+  // QR WI-FI — le réseau du salon est configuré dans Paramètres →
+  // Général (wifiNom / wifiMotDePasse). Ce QR encode les identifiants
+  // au format STANDARD « WIFI: » → le smartphone du client se connecte
+  // AUTOMATIQUEMENT au scan, et la clé est AUSSI affichée en clair
+  // sur la plaque imprimée (demande du directeur).
+  // ============================================================
+  const [wifiNom, setWifiNom] = useState('')
+  const [wifiPass, setWifiPass] = useState('')
+  const [wifiCopied, setWifiCopied] = useState(false)
+  useEffect(() => {
+    let alive = true
+    fetch('/api/vip/settings', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (!alive || !json?.ok) return
+        const g = json.data?.config?.general
+        if (typeof g?.wifiNom === 'string') setWifiNom(g.wifiNom)
+        if (typeof g?.wifiMotDePasse === 'string') setWifiPass(g.wifiMotDePasse)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const wifiPayload = wifiNom.trim() ? wifiQrPayload(wifiNom, wifiPass) : ''
+  const wifiSignature = wifiPass.trim() ? `CLÉ WI-FI : ${wifiPass.trim()}` : 'RÉSEAU OUVERT'
+  const copierWifi = () => {
+    void navigator.clipboard
+      ?.writeText(wifiPass.trim() || wifiNom.trim())
+      .then(() => {
+        setWifiCopied(true)
+        setTimeout(() => setWifiCopied(false), 2000)
+        toast({ title: 'Copié', description: wifiPass.trim() ? `Mot de passe : ${wifiPass.trim()}` : `Réseau : ${wifiNom.trim()}` })
+      })
+  }
 
   const runQrPng = async (fn: () => Promise<void>) => {
     if (qrPngBusy) return
@@ -3264,6 +3643,98 @@ function QRTab({ tables }: { tables: VipTableData[] }) {
                 ))}
               </div>
             </div>
+          </Card>
+
+          {/* ============================================================
+              QR WI-FI du salon — connexion automatique au scan.
+              Réseau + clé modifiables dans Paramètres → Général.
+              ============================================================ */}
+          <Card
+            className={cn(
+              'p-5 shadow-[0_4px_20px_rgba(201,169,97,0.10)]',
+              wifiPayload
+                ? 'border border-[#C9A961]/40 bg-white'
+                : 'border border-dashed border-[#C9A961]/40 bg-[#FAFAF7]',
+            )}
+          >
+            <div className="flex items-start gap-3">
+              <span className="text-2xl" aria-hidden>📶</span>
+              <div className="min-w-0 flex-1">
+                <h4 className="truncate text-sm font-semibold text-[#2C2C2C]">QR Wi-Fi du salon</h4>
+                <p className="truncate text-xs text-[#8B6F47]">
+                  {wifiPayload ? `${wifiNom.trim()}${wifiPass.trim() ? ' · clé configurée' : ' · réseau ouvert'}` : 'Non configuré'}
+                </p>
+              </div>
+            </div>
+            {wifiPayload ? (
+              <>
+                <div className="mt-4 flex justify-center">
+                  <NathalieQrPlaque
+                    data={wifiPayload}
+                    label={wifiNom.trim()}
+                    signature={wifiSignature}
+                    emoji="📶"
+                    size="sm"
+                    className="w-full max-w-[210px]"
+                  />
+                </div>
+                {wifiPass.trim() ? (
+                  <button
+                    type="button"
+                    onClick={copierWifi}
+                    className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#C9A961]/40 bg-[#C9A961]/8 px-3 py-2 text-xs font-semibold text-[#8B6F47] transition hover:bg-[#C9A961]/15"
+                    aria-live="polite"
+                  >
+                    {wifiCopied ? <Check className="h-3.5 w-3.5" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
+                    {wifiCopied ? 'Mot de passe copié' : `Copier le mot de passe · ${wifiPass.trim()}`}
+                  </button>
+                ) : null}
+                <p className="mt-2.5 text-[11px] leading-relaxed text-[#8B6F47]/80">
+                  Le client scanne → son téléphone se connecte <span className="font-semibold">automatiquement</span> au
+                  réseau du salon. La clé est aussi imprimée sous le QR. Réseau et mot de passe se règlent dans
+                  Paramètres → Général.
+                </p>
+                <div className="mt-3 flex gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={qrPngBusy}
+                    className="h-8 flex-1 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
+                    onClick={() =>
+                      downloadQr(
+                        { data: wifiPayload, label: wifiNom.trim(), signature: wifiSignature, emoji: '📶' },
+                        'chevalet-wifi-salon.png',
+                      )
+                    }
+                  >
+                    <Download className="h-3.5 w-3.5" aria-hidden /> Plaque
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={qrPngBusy}
+                    className="h-8 flex-1 border-[#8B6F47]/40 bg-[#8B6F47]/8 text-[#8B6F47] hover:bg-[#8B6F47]/15"
+                    onClick={() => printQr({ data: wifiPayload, label: wifiNom.trim(), signature: wifiSignature, emoji: '📶' }, 'Wi-Fi du salon')}
+                  >
+                    <Printer className="h-3.5 w-3.5" aria-hidden /> Imprimer
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="mt-4 flex flex-col items-center gap-3 py-6 text-center">
+                <Wifi className="h-8 w-8 text-[#8B6F47]/40" aria-hidden />
+                <p className="text-xs leading-relaxed text-[#8B6F47]">
+                  Renseignez le nom du réseau et le mot de passe dans
+                  Paramètres → Général pour générer le QR Wi-Fi (connexion
+                  automatique au scan + clé imprimée sur la plaque).
+                </p>
+                {onGoToSettings ? (
+                  <Button size="sm" className="bg-[#C9A961] text-white hover:bg-[#B8975A]" onClick={onGoToSettings}>
+                    <Settings className="h-3.5 w-3.5" aria-hidden /> Ouvrir Paramètres
+                  </Button>
+                ) : null}
+              </div>
+            )}
           </Card>
         </div>
       </div>
@@ -3485,6 +3956,15 @@ function SettingsTab() {
 export default function VIPDashboard() {
   const session = useAppStore((s) => s.session)
   const logout = useAppStore((s) => s.logout)
+  const { toast } = useToast()
+
+  const loungeName = session?.pro?.nomEtablissement ?? 'Salon VIP'
+  const userEmail = session?.user?.email ?? '—'
+  const userRole = session?.user?.role ?? 'PRO'
+  // Nom du staff pour attribuer les récompenses / nommer le briefing
+  const staffName = session?.user?.email
+    ? session.user.email.split('@')[0].split('.').map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
+    : 'Manager'
 
   const [tab, setTab] = useState<VipTab>('overview')
   const [drawerOuvert, setDrawerOuvert] = useState(false)
@@ -3501,13 +3981,91 @@ export default function VIPDashboard() {
   // Configuration du tenant (modules optionnels, réglages lounge) — appliquée < 5s
   const [loungeConfig, setLoungeConfig] = useState<VipLoungeConfig | null>(null)
 
-  const loungeName = session?.pro?.nomEtablissement ?? 'Salon VIP'
-  const userEmail = session?.user?.email ?? '—'
-  const userRole = session?.user?.role ?? 'PRO'
-  // Nom du staff pour attribuer les récompenses
-  const staffName = session?.user?.email
-    ? session.user.email.split('@')[0].split('.').map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
-    : 'Manager'
+  // --- Mode Sombre Luxe (toggle 🌙 en haut à droite, comme Nathalie) ---
+  // La classe .vip-dark est posée sur <body> → couvre aussi les portals
+  // shadcn/ui (Dialog, Sheet, Select, Toast) montés en dehors du layout.
+  const [darkMode, setDarkMode] = useState(false)
+  useEffect(() => {
+    try {
+      setDarkMode(localStorage.getItem(DARK_STORAGE_KEY) === '1')
+    } catch {
+      /* ignore */
+    }
+  }, [])
+  useEffect(() => {
+    try {
+      document.body.classList.toggle('vip-dark', darkMode)
+    } catch {
+      /* ignore */
+    }
+  }, [darkMode])
+  const toggleDarkMode = useCallback(() => {
+    setDarkMode((d) => {
+      const next = !d
+      try {
+        localStorage.setItem(DARK_STORAGE_KEY, next ? '1' : '0')
+      } catch {
+        /* ignore */
+      }
+      return next
+    })
+  }, [])
+
+  // --- Phase 1 — Données de démo réalistes (un clic, état crédible) ---
+  const [demoBusy, setDemoBusy] = useState(false)
+  const lancerDemoData = useCallback(async () => {
+    setDemoBusy(true)
+    try {
+      const res = await fetch('/api/vip/demo-data', { method: 'POST' })
+      const json = await res.json().catch(() => null)
+      if (!res.ok || !json?.ok) throw new Error(json?.error ?? 'erreur démo')
+      toast({
+        title: 'Données de démo appliquées',
+        description:
+          json.data?.message ?? '3 tables occupées, 1 problème, 1 réservée, buffet frais.',
+      })
+      await refreshData()
+    } catch {
+      toast({
+        title: 'Erreur',
+        description: "Impossible d'appliquer les données de démo.",
+        variant: 'destructive',
+      })
+    } finally {
+      setDemoBusy(false)
+    }
+  }, [toast])
+
+  // --- Phase 2 — Briefing vocal Denise (prise de poste) ---
+  const [briefingBusy, setBriefingBusy] = useState(false)
+  const [briefingPlaying, setBriefingPlaying] = useState(false)
+  const briefingDenise = useCallback(async () => {
+    if (briefingBusy) return
+    setBriefingBusy(true)
+    try {
+      const res = await fetch(
+        `/api/vip/briefing?role=manager&name=${encodeURIComponent(staffName)}`,
+        { cache: 'no-store' },
+      )
+      const json = await res.json().catch(() => null)
+      const content: string | undefined = json?.data?.content
+      if (!json?.ok || !content) throw new Error('briefing indisponible')
+      setBriefingBusy(false)
+      setBriefingPlaying(true)
+      parler(content)
+      toast({ title: 'Briefing Denise', description: content })
+      const ms = Math.max(6000, Math.min(35000, ((json.data.durationSec ?? 15) as number) * 1000 + 4000))
+      setTimeout(() => setBriefingPlaying(false), ms)
+    } catch {
+      toast({
+        title: 'Briefing indisponible',
+        description: 'Impossible de générer le briefing vocal.',
+        variant: 'destructive',
+      })
+    } finally {
+      setBriefingBusy(false)
+    }
+  }, [briefingBusy, staffName, toast])
 
   const refreshData = useCallback(async () => {
     try {
@@ -3754,6 +4312,44 @@ export default function VIPDashboard() {
     [],
   )
 
+  // Phase 2 — « Reporter 15 min » sur une alerte buffet (snooze timer only)
+  const patchBuffetSnooze = useCallback(async (id: string, snoozeMin = 15) => {
+    const res = await fetch('/api/vip/buffet', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, snoozeMin }),
+    })
+    if (!res.ok) throw new Error('snooze buffet failed')
+    const json = await res.json().catch(() => null)
+    const nextIso: string =
+      json?.data?.nextCheck ?? new Date(Date.now() + snoozeMin * 60_000).toISOString()
+    setBuffet((list) =>
+      list.map((b) => (b.id === id ? { ...b, nextCheck: nextIso } : b)),
+    )
+  }, [])
+
+  // Phase 2 — « Marquer fait » sur une alerte buffet (reset timer, niveau inchangé)
+  const patchBuffetCheck = useCallback(
+    async (id: string) => {
+      const current = buffet.find((b) => b.id === id)
+      await patchBuffetFill(id, current?.fillLevel ?? 100)
+    },
+    [buffet, patchBuffetFill],
+  )
+
+  // Phase 2 — affectation staff persistée (AirportReport.assignedTo)
+  const patchIncidentAssign = useCallback(async (id: string, assignee: string) => {
+    const res = await fetch('/api/vip/incidents', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, assignedTo: assignee }),
+    })
+    if (!res.ok) throw new Error('assign incident failed')
+    setIncidents((list) =>
+      list.map((i) => (i.id === id ? { ...i, assignedTo: assignee } : i)),
+    )
+  }, [])
+
   const naviguer = (t: VipTab) => {
     setTab(t)
     setDrawerOuvert(false)
@@ -3790,6 +4386,9 @@ export default function VIPDashboard() {
           userRole={userRole}
           onLogout={logout}
           modulesEnabled={loungeConfig?.modulesEnabled ?? null}
+          onBriefing={() => void briefingDenise()}
+          briefingBusy={briefingBusy}
+          briefingPlaying={briefingPlaying}
         />
       </aside>
 
@@ -3809,6 +4408,9 @@ export default function VIPDashboard() {
                   userRole={userRole}
                   onLogout={logout}
                   modulesEnabled={loungeConfig?.modulesEnabled ?? null}
+                  onBriefing={() => void briefingDenise()}
+                  briefingBusy={briefingBusy}
+                  briefingPlaying={briefingPlaying}
                 />
               </SheetContent>
             </Sheet>
@@ -3851,6 +4453,33 @@ export default function VIPDashboard() {
               )}
               <span className="hidden sm:inline">Actualiser</span>
             </Button>
+            {/* Phase 1 — Données de démo réalistes (un clic → salon crédible) */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void lancerDemoData()}
+              disabled={demoBusy}
+              className="gap-1.5 border-[#C9A961]/40 bg-[#C9A961]/10 text-[#8B6F47] hover:bg-[#C9A961]/20"
+            >
+              {demoBusy ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5" aria-hidden />
+              )}
+              <span className="hidden sm:inline">Données démo</span>
+            </Button>
+            {/* Phase 2 — Mode Sombre Luxe (anthracite #0F0F0F + accents or) */}
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={toggleDarkMode}
+              aria-pressed={darkMode}
+              aria-label={darkMode ? 'Passer en mode clair' : 'Passer en mode sombre'}
+              title={darkMode ? 'Passer en mode clair' : 'Mode Sombre Luxe'}
+              className="border-[#EAE5DC] bg-white text-[#8B6F47] hover:bg-[#C9A961]/10"
+            >
+              {darkMode ? <Sun className="h-4 w-4" aria-hidden /> : <Moon className="h-4 w-4" aria-hidden />}
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -3887,6 +4516,17 @@ export default function VIPDashboard() {
               rewardsGivenToday={rewardsGivenToday}
               loading={loading}
               onPatchTable={patchTable}
+              onBuffetCheck={patchBuffetCheck}
+              onBuffetSnooze={(id) => patchBuffetSnooze(id, 15)}
+              onShowerFree={(id) => patchShowerStatus(id, 'free')}
+              onIncidentResolve={(id) => patchIncidentStatus(id, 'RESOLU')}
+              onIncidentAssign={patchIncidentAssign}
+              onTableRestore={(id, toOccupied) =>
+                toOccupied
+                  ? patchTable(id, { status: 'occupied' })
+                  : patchTable(id, { status: 'free', clientName: null, clientVipLevel: null })
+              }
+              onNavigate={naviguer}
             />
           )}
           {tab === 'plan' && (
@@ -3911,7 +4551,7 @@ export default function VIPDashboard() {
           {tab === 'rewards' && (loungeConfig?.modulesEnabled.flashRewards ?? true) && <RewardsTab staffName={staffName} />}
           {tab === 'clients' && <ClientsTab />}
           {tab === 'staff' && <StaffTab />}
-          {tab === 'qr' && <QRTab tables={tables} />}
+          {tab === 'qr' && <QRTab tables={tables} onGoToSettings={() => naviguer('settings')} />}
           {tab === 'reports' && <ReportsTab />}
           {tab === 'wallboard' && (
             <div className="relative h-[calc(100dvh-80px)] min-h-[560px] w-full flex-1 overflow-hidden rounded-2xl border border-white/10 shadow-[0_6px_30px_rgba(26,21,8,0.25)]">
