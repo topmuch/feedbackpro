@@ -956,3 +956,18 @@ Work Log:
 Stage Summary:
 - Production feedback.qrbags.com = état local c11fc0f, gate intact, routage opérationnel, 0 erreur console
 - Identifiants Coolify/GitHub transités dans la conversation uniquement — recommander rotation post-déploiement
+
+---
+Task ID: HYER-IMG
+Agent: Z.ai Code (orchestrateur)
+Task: Régénération image hero FeedbackPro (style Hyer Aviation) + déploiement production
+
+Work Log:
+- Image hero régénérée : rendu produit studio sur fond blanc pur (téléphone titane noir + carte 9.6 + carte avis étoilée + carte QR), puis détourage script scripts/key_hero.py (flood-fill scipy bords haut/gauche/droite — écran blanc du téléphone rogné au bord bas préservé —, seuil mesuré 0.885 vs contours cartes 0.78-0.88, feather 1.5px, effacement ombre résiduelle)
+- Étoiles réharmonisées vers Clay Ember #bc7155 (masque strict hue 10-40°, sat≥0.45, mx≥0.45 — encre et titanium intacts) : conformité monochrome + UNE note chaude du design system Refero
+- public/hyer/hero-phone.png remplacé (PNG transparent 224KB) + cache-buster ?v=3 dans landing-hyer.tsx (2 occurrences)
+- lint 0/0 + tsc exit 0
+- Vérif locale : rendu desktop vérifié (wordmark 131px, ciel d'aube CSS, produit flottant raccord invisible, badges/CTA intacts) — serveur dev sandbox tué en boucle, QA mobile reportée sur production
+
+Stage Summary:
+- Hero conforme Hyer Aviation : produit hyper-clean isolé sur ciel CSS, zéro second accent, composition bas-centre

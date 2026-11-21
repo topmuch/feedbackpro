@@ -826,7 +826,7 @@ export function LandingHyer({
       <header className="hy-hero">
         {/* Rendu produit FeedbackPro sur ciel d'aube (desktop) */}
         <img
-          src="/hyer/hero-phone.png?v=2"
+          src="/hyer/hero-phone.png?v=3"
           alt="Smartphone premium FeedbackPro flottant sur un ciel d'aube, interface d'avis client avec étoiles terre cuite"
           className="hy-hero-bg"
           loading="eager"
@@ -852,7 +852,7 @@ export function LandingHyer({
 
           {/* Image produit en mobile (sous le texte) */}
           <img
-            src="/hyer/hero-phone.png?v=2"
+            src="/hyer/hero-phone.png?v=3"
             alt=""
             aria-hidden
             className="hy-hero-img-mobile"
