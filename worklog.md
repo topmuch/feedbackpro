@@ -971,3 +971,22 @@ Work Log:
 
 Stage Summary:
 - Hero conforme Hyer Aviation : produit hyper-clean isolé sur ciel CSS, zéro second accent, composition bas-centre
+
+---
+Task ID: DEPLOY-3
+Agent: Z.ai Code (orchestrateur)
+Task: Mise en production landing Hyer Aviation + nouvelle image hero
+
+Work Log:
+- PUSH GitHub : 6225dc2..de10f09 main (3 commits : images produit 31bbff8, refonte landing Hyer 4a6c9bf, hero régénéré de10f09)
+- COOLIFY : PATCH git_commit_sha=de10f09a2a1da539da0e806388799d045a6d5bf6 → POST /api/v1/deploy?uuid=...&force=true → deployment uwiesg0oobte3zutkcosjis0 finished en ~120 s
+- VÉRIFICATION PRODUCTION (agent-browser) :
+  1. / → hero Hyer rendu avec NOUVELLE image ?v=3 (produit studio transparent sur ciel d'aube CSS, étoiles Clay Ember) — desktop 1440px + mobile iPhone 14 OK
+  2. /?qr_type=CLIENT_GLOBAL → gate Option C INTACT (WELCOME / Salon VIP / Nathalie / Enter the lounge / avertissement son)
+  3. Console navigateur : 0 erreur page, 0 message console après purge des buffers locaux
+  4. Footer terminal mobile : wordmark géant, 6 secteurs, navigation complètes
+- Preuves : /tmp/prod-hero-desktop.png, /tmp/prod-hero-gate.png, /tmp/prod-hero-mobile.png, /tmp/prod-mobile-bottom.png
+
+Stage Summary:
+- feedback.qrbags.com = design Hyer Aviation live avec nouvelle image hero, gate CLIENT_GLOBAL intact, 0 erreur console
+- Tokens Coolify/GitHub réutilisés — rotation toujours recommandée
