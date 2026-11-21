@@ -1087,3 +1087,22 @@ Stage Summary:
 - Nathalie = unique assistante visible du site ; voix QR rejouable à volonté et bilingue ; flow QR VIP 100 % FR/EN (gate → lounge → douche) ; bug douches périmées corrigé client + serveur ; gate Option C intacte, 0 erreur console prod
 - QA PROD : landing 0 Denise + « Piloté par Nathalie » ; lounge EN « Replay Nathalie » + « I am Nathalie. » ; FR « Réécouter Nathalie » ; showers prod « 4 cabins available » (auto-release effective), réservation D-01 ETA 30 min #DOUCHE-1-GHL5F8 ; gate mobile iPhone 14 OK ; console vide
 - Preuves : /tmp/prod-nath-footer.png, /tmp/prod-nath-gate.png, /tmp/prod-nath-lounge.png, /tmp/prod-nath-shower-en.png, /tmp/prod-nath-shower-confirm.png, /tmp/prod-nath-lounge-fr.png, /tmp/prod-nath-mobile-gate.png
+
+---
+Task ID: VDEMO-1
+Agent: Z.ai Code (orchestrateur)
+Task: Section Nathalie interactive — démo vocale « Écouter Nathalie » (Web Speech API) sur le landing
+
+Work Log:
+- Composant src/components/feedbackpro/voice-demo-nathalie.tsx (client) : bouton « Écouter Nathalie » fonctionnel via Web Speech API native (zéro asset audio, zéro dépendance) ; sélection auto d'une voix FR féminine (amélie/audrey/julie/céline… fallback fr[0]) ; tonalité adaptée par contexte — doux (rate 0.88 / pitch 1.1) pour Salon VIP + Hôtel, neutre (0.92/1.05) pour Aéroport + Restaurant
+- Sélecteur de contexte 4 secteurs (pills 1000px, Lucide Wine/Plane/UtensilsCrossed/Hotel) : annonce, lieu et ton mis à jour (Salon VIP Terra/Mode discret, Terminal 2 · Bagages/Ton ferme, Salle principale/Ton direct, Réception · Briefing matin/Ton informatif) + fade d'entrée de la citation
+- États et animations : onde sonore 5 barres pendant la lecture, barre de progression clay (estimation 60 ms/caractère), libellé « Nathalie parle… » ↔ « Écouter Nathalie », horloge temps réel fr-FR (anti-hydratation, initial --:--:--), avatar mic pulsé, repli gracieux si synthèse non supportée
+- Robustesse : simulation visuelle si aucune voix exploitable (onerror not-allowed → onde+progression+auto-stop à 100 %), filet de sécurité 900 ms si onstart absent, garde anti-rétablissement sur error canceled/interrupted (Chrome émet error après cancel() volontaire), nettoyage complet à l'unmount (cancel + timers)
+- landing-hyer.tsx : section id=hy-denise restructurée (contenu éditorial gauche / démo droite, CSS hy-vdemo-* tokens Hyer : clay #bc7155, deck, 0 radius, aucune ombre) ; CTA « Voir Nathalie en action » conservé ; reste de la page intact (hero, secteurs, preuves, footer)
+- QUALITÉ : lint 0/0, tsc exit 0 ; QA locale : lecture/stop/reprise, switch contexte pendant lecture, auto-stop, mobile 390px, page complète harmonieuse ; SW PWA purgé pour QA (chunks stale)
+- DEPLOY : push cca78e7..e181145 → Coolify jhfdf4w0hnlo1uurianexc23 finished (~5 min)
+
+Stage Summary:
+- Le prospect entend Nathalie s'adapter à chaque environnement depuis la homepage (bouton blanc → clay pendant la lecture) ; aucun état figé possible (simulation visuelle en repli) ; gate CLIENT_GLOBAL vérifiée intacte en prod, 0 erreur console
+- QA PROD : section desktop + mobile OK ; lecture → « Nathalie parle… » + onde + progression 12.7 % ; stop → repos ; contexte Aéroport → « Alerte zone bagages… » + « Terminal 2 · Bagages / Ton ferme » ; preuves /tmp/qa-vdemo-playing4.png, /tmp/prod-vdemo-section.png, /tmp/prod-vdemo-playing.png, /tmp/prod-vdemo-mobile2.png, /tmp/prod-vdemo-mobile3.png
+- Limites QA : agent-browser headless n'a pas de moteur TTS (0 voix) — l'audio réel est validé par la simulation visuelle + API standard ; à écouter une fois dans Chrome/Safari réels
