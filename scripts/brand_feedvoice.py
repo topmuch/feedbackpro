@@ -22,6 +22,9 @@ arr = np.array(src)
 # RGB = encre noire pure. Les bords anti-aliasés restent lisibles.
 lum = arr[..., :3].mean(axis=2)
 ink_alpha = np.clip(255.0 - lum, 0, 255).astype(np.uint8)
+# Anti-voile : l'ancien fond blanc n'est pas uniformément 255 (compression)
+# → résidu alpha 5-25 visible sur fond sombre. Seuil doux + gain léger :
+ink_alpha = np.where(ink_alpha < 30, 0, np.minimum(255, (ink_alpha.astype(np.int32) * 1.12))).astype(np.uint8)
 print("alpha ink range:", ink_alpha.min(), ink_alpha.max(),
       "| transparent px:", (ink_alpha < 8).sum(), "/", ink_alpha.size)
 src = Image.fromarray(np.dstack([
