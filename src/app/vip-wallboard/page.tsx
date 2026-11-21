@@ -648,6 +648,18 @@ export default function VipWallboardPage() {
   const [error, setError] = useState<string | null>(null)
   const audioUnlockedRef = useRef<boolean>(false)
 
+  // MODE TV (?tv=1) — ouverture depuis l'onglet Wallboard du dashboard
+  // (« Ouvrir sur la TV ») : les contrôles son/thème sont masqués pour
+  // un affichage TV dédié, sans manipulation accidentelle.
+  const [tvMode, setTvMode] = useState(false)
+  useEffect(() => {
+    try {
+      setTvMode(new URLSearchParams(window.location.search).get('tv') === '1')
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
   // Palette active selon le mode sombre/clair
   const C = darkMode ? COLORS_DARK : COLORS
 
@@ -1072,45 +1084,49 @@ export default function VipWallboardPage() {
               </div>
             </div>
 
-            {/* Toggle son */}
-            <button
-              type="button"
-              onClick={toggleSound}
-              aria-pressed={soundOn}
-              title={soundOn ? 'Désactiver le son' : 'Activer le son'}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold uppercase transition"
-              style={{
-                backgroundColor: soundOn ? C.gold + '33' : 'transparent',
-                color: soundOn ? C.gold : '#FFFFFF',
-                border: `1px solid ${soundOn ? C.gold : '#555'}`,
-                letterSpacing: 1,
-              }}
-            >
-              {soundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}
-              <span className="hidden sm:inline">
-                {soundOn ? 'Son ON' : 'Son OFF'}
-              </span>
-            </button>
+            {/* Toggle son — masqué en mode TV (?tv=1) */}
+            {!tvMode && (
+              <button
+                type="button"
+                onClick={toggleSound}
+                aria-pressed={soundOn}
+                title={soundOn ? 'Désactiver le son' : 'Activer le son'}
+                className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold uppercase transition"
+                style={{
+                  backgroundColor: soundOn ? C.gold + '33' : 'transparent',
+                  color: soundOn ? C.gold : '#FFFFFF',
+                  border: `1px solid ${soundOn ? C.gold : '#555'}`,
+                  letterSpacing: 1,
+                }}
+              >
+                {soundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}
+                <span className="hidden sm:inline">
+                  {soundOn ? 'Son ON' : 'Son OFF'}
+                </span>
+              </button>
+            )}
 
-            {/* Toggle mode sombre/clair */}
-            <button
-              type="button"
-              onClick={toggleDarkMode}
-              aria-pressed={darkMode}
-              title={darkMode ? 'Passer en mode clair' : 'Passer en mode sombre'}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold uppercase transition"
-              style={{
-                backgroundColor: darkMode ? C.gold + '33' : 'transparent',
-                color: darkMode ? C.gold : '#FFFFFF',
-                border: `1px solid ${darkMode ? C.gold : '#555'}`,
-                letterSpacing: 1,
-              }}
-            >
-              {darkMode ? <Sun size={14} /> : <Moon size={14} />}
-              <span className="hidden sm:inline">
-                {darkMode ? 'Clair' : 'Sombre'}
-              </span>
-            </button>
+            {/* Toggle mode sombre/clair — masqué en mode TV (?tv=1) */}
+            {!tvMode && (
+              <button
+                type="button"
+                onClick={toggleDarkMode}
+                aria-pressed={darkMode}
+                title={darkMode ? 'Passer en mode clair' : 'Passer en mode sombre'}
+                className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold uppercase transition"
+                style={{
+                  backgroundColor: darkMode ? C.gold + '33' : 'transparent',
+                  color: darkMode ? C.gold : '#FFFFFF',
+                  border: `1px solid ${darkMode ? C.gold : '#555'}`,
+                  letterSpacing: 1,
+                }}
+              >
+                {darkMode ? <Sun size={14} /> : <Moon size={14} />}
+                <span className="hidden sm:inline">
+                  {darkMode ? 'Clair' : 'Sombre'}
+                </span>
+              </button>
+            )}
           </div>
         </div>
 

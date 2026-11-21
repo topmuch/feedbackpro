@@ -91,6 +91,8 @@ import {
   Wifi,
   Copy,
   Check,
+  LifeBuoy,
+  ExternalLink,
 } from 'lucide-react'
 import { useAppStore } from '@/store/app-store'
 import { getZonesByTenant } from '@/lib/airport-config'
@@ -106,6 +108,7 @@ import {
   type PlaqueOptions,
 } from '@/components/feedbackpro/nathalie-qr-plaque'
 import type { VipLoungeConfig } from '@/lib/vip-clients'
+import { AssistanceTab } from '@/components/feedbackpro/vip-assistance-tab'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -266,6 +269,7 @@ type VipTab =
   | 'qr'
   | 'reports'
   | 'wallboard'
+  | 'assistance'
   | 'settings'
 
 type VipSettings = {
@@ -578,6 +582,8 @@ const NAV_ITEMS: Array<{ id: VipTab; label: string; Icon: typeof LayoutDashboard
   { id: 'qr', label: 'QR Codes', Icon: QrCode },
   { id: 'reports', label: 'Rapports', Icon: BarChart3 },
   { id: 'wallboard', label: 'Wallboard', Icon: Monitor },
+  // Onglet Assistance — contact direct superadmin (connecté à « Messages »)
+  { id: 'assistance', label: 'Assistance', Icon: LifeBuoy },
   { id: 'settings', label: 'Paramètres', Icon: Settings },
 ]
 
@@ -1403,6 +1409,7 @@ function VIPSidebarContent({
   onBriefing,
   briefingBusy,
   briefingPlaying,
+  badgeCounts,
 }: {
   activeTab: VipTab
   onNavigate: (t: VipTab) => void
@@ -1415,6 +1422,8 @@ function VIPSidebarContent({
   onBriefing?: () => void
   briefingBusy?: boolean
   briefingPlaying?: boolean
+  /** Notification visuelle par onglet (ex : signalements actifs). */
+  badgeCounts?: Partial<Record<VipTab, number>>
 }) {
   // Modules optionnels désactivés → onglets masqués (Paramètres → Modules optionnels)
   const TAB_MODULE_KEY: Partial<Record<VipTab, keyof VipLoungeConfig['modulesEnabled']>> = {
@@ -1467,12 +1476,16 @@ function VIPSidebarContent({
         {navFiltre.map((item) => {
           const Icon = item.Icon
           const actif = activeTab === item.id
+          // Notification visuelle — badge terracotta pulsant (ex : signalements
+          // actifs sur les onglets Signalements + Wallboard)
+          const badge = badgeCounts?.[item.id] ?? 0
           return (
             <button
               key={item.id}
               type="button"
               onClick={() => onNavigate(item.id)}
               aria-current={actif ? 'page' : undefined}
+              aria-label={badge > 0 ? `${item.label} — ${badge} en attente` : item.label}
               className={cn(
                 'flex h-11 shrink-0 items-center gap-3 rounded-xl px-3.5 text-sm font-medium transition-all',
                 actif
@@ -1485,7 +1498,18 @@ function VIPSidebarContent({
                 aria-hidden
               />
               <span className="truncate">{item.label}</span>
-              {actif && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#C9A961]" />}
+              {badge > 0 ? (
+                <span
+                  className={cn(
+                    'ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[11px] font-bold tabular-nums text-white animate-pulse',
+                    'bg-[#C97B63] shadow-[0_0_10px_rgba(201,123,99,0.55)]',
+                  )}
+                >
+                  {badge > 9 ? '9+' : badge}
+                </span>
+              ) : actif ? (
+                <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#C9A961]" />
+              ) : null}
             </button>
           )
         })}
@@ -3465,6 +3489,62 @@ function StaffTab() {
 // Tab H — QR Codes
 // ============================================================
 
+// ============================================================
+// QrLinkRow — lien du QR Code cliquable + copie.
+// Demande du directeur : depuis l'onglet QR Codes, on peut cliquer
+// sur le lien du QR pour ouvrir la page correspondante (Nathalie,
+// scan staff…) et le copier pour le coller ailleurs.
+// ============================================================
+
+function QrLinkRow({ url }: { url: string }) {
+  const { toast } = useToast()
+  const [copied, setCopied] = useState(false)
+  const copier = () => {
+    void navigator.clipboard
+      ?.writeText(url)
+      .then(() => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+        toast({ title: 'Lien copié', description: url })
+      })
+  }
+  return (
+    <div className="mt-3 rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2.5">
+      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#8B6F47]">
+        Lien du QR Code — cliquez pour ouvrir
+      </p>
+      <div className="flex items-center gap-2">
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={url}
+          className="min-w-0 flex-1 truncate font-mono text-[11px] text-[#2C2C2C] underline decoration-[#C9A961]/60 decoration-2 underline-offset-2 transition hover:text-[#8B6F47]"
+        >
+          {url}
+        </a>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Ouvrir le lien du QR Code dans un nouvel onglet"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] transition hover:bg-[#C9A961]/15"
+        >
+          <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+        </a>
+        <button
+          type="button"
+          onClick={copier}
+          aria-label="Copier le lien du QR Code"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[#8B6F47]/40 bg-[#8B6F47]/8 text-[#8B6F47] transition hover:bg-[#8B6F47]/15"
+        >
+          {copied ? <Check className="h-3.5 w-3.5" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function QRTab({
   tables,
   onGoToSettings,
@@ -3589,6 +3669,7 @@ function QRTab({
             <div className="mt-4 flex justify-center">
               <NathalieQrPlaque data={entryUrl} label={entryOpts.label} signature={entryOpts.signature} emoji="🥂" className="w-full max-w-[260px]" />
             </div>
+            <QrLinkRow url={entryUrl} />
             <p className="mt-3 text-[11px] leading-relaxed text-[#8B6F47]/80">
               À poser sur le chevalet d&apos;accueil : Nathalie accueille le
               client SANS table assignée et lui demande son emplacement
@@ -3766,6 +3847,7 @@ function QRTab({
                 <div className="mt-4 flex justify-center">
                   <NathalieQrPlaque {...opts} size="sm" className="w-full max-w-[210px]" />
                 </div>
+                <QrLinkRow url={url} />
                 <div className="mt-3 flex items-center justify-between text-xs">
                   <span className="text-[#8B6F47]">Scans aujourd'hui</span>
                   <span className="font-semibold text-[#C9A961]">{scans}</span>
@@ -3840,6 +3922,7 @@ function QRTab({
                 <div className="mt-4 flex justify-center">
                   <NathalieQrPlaque {...opts} size="sm" className="w-full max-w-[210px]" />
                 </div>
+                <QrLinkRow url={url} />
                 <div className="mt-3 flex gap-1.5">
                   <Button
                     size="sm"
@@ -3900,6 +3983,7 @@ function QRTab({
                 <div className="mt-4 flex justify-center">
                   <NathalieQrPlaque {...opts} size="sm" className="w-full max-w-[210px]" />
                 </div>
+                <QrLinkRow url={url} />
                 <div className="mt-3 flex items-center justify-between text-xs">
                   <span className="text-[#8B6F47]">Scans aujourd'hui</span>
                   <span className="font-semibold text-[#C9A961]">{scans}</span>
@@ -4106,6 +4190,37 @@ export default function VIPDashboard() {
     const interval = setInterval(refreshData, 30000)
     return () => clearInterval(interval)
   }, [refreshData])
+
+  // ============================================================
+  // NOTIFICATION VISUELLE — badges sur les onglets Signalements et
+  // Wallboard (demande du directeur : repérage immédiat d'un
+  // signalement). Nombre = incidents ouverts + demandes de table
+  // actives. Toast visuel discret quand un NOUVEAU signalement
+  // arrive (polling 30 s — aucun son, mode discrétion).
+  // ============================================================
+  const openIncidentsCount = useMemo(
+    () => incidents.filter((i) => i.statut !== 'RESOLU').length,
+    [incidents],
+  )
+  const signalementsActifs = openIncidentsCount + tableRequests.length
+  const tabBadges = useMemo<Partial<Record<VipTab, number>>>(
+    () => ({
+      incidents: signalementsActifs,
+      wallboard: signalementsActifs,
+    }),
+    [signalementsActifs],
+  )
+  const prevSignalementsRef = useRef<number | null>(null)
+  useEffect(() => {
+    const prev = prevSignalementsRef.current
+    prevSignalementsRef.current = signalementsActifs
+    if (prev !== null && signalementsActifs > prev) {
+      toast({
+        title: 'Nouveau signalement',
+        description: `${signalementsActifs} signalement${signalementsActifs > 1 ? 's' : ''} actif${signalementsActifs > 1 ? 's' : ''} — onglets Signalements & Wallboard`,
+      })
+    }
+  }, [signalementsActifs, toast])
 
   // Config tenant lounge : chargement initial + refetch quand on revient
   // sur les onglets (application des paramètres en < 5s)
@@ -4355,6 +4470,20 @@ export default function VIPDashboard() {
     setDrawerOuvert(false)
   }
 
+  // Wallboard — lien TV cliquable + copie du lien (affichage sur la
+  // télévision du salon). ?tv=1 masque les contrôles (mode TV dédié).
+  const [wallboardCopied, setWallboardCopied] = useState(false)
+  const wallboardUrl = `${appUrl()}/vip-wallboard?tv=1`
+  const copierLienWallboard = () => {
+    void navigator.clipboard
+      ?.writeText(wallboardUrl)
+      .then(() => {
+        setWallboardCopied(true)
+        setTimeout(() => setWallboardCopied(false), 2000)
+        toast({ title: 'Lien Wallboard copié', description: 'Collez-le dans le navigateur de la TV du salon' })
+      })
+  }
+
   const manualRefresh = () => {
     setRefreshing(true)
     refreshData()
@@ -4389,6 +4518,7 @@ export default function VIPDashboard() {
           onBriefing={() => void briefingDenise()}
           briefingBusy={briefingBusy}
           briefingPlaying={briefingPlaying}
+          badgeCounts={tabBadges}
         />
       </aside>
 
@@ -4411,6 +4541,7 @@ export default function VIPDashboard() {
                   onBriefing={() => void briefingDenise()}
                   briefingBusy={briefingBusy}
                   briefingPlaying={briefingPlaying}
+                  badgeCounts={tabBadges}
                 />
               </SheetContent>
             </Sheet>
@@ -4554,14 +4685,54 @@ export default function VIPDashboard() {
           {tab === 'qr' && <QRTab tables={tables} onGoToSettings={() => naviguer('settings')} />}
           {tab === 'reports' && <ReportsTab />}
           {tab === 'wallboard' && (
-            <div className="relative h-[calc(100dvh-80px)] min-h-[560px] w-full flex-1 overflow-hidden rounded-2xl border border-white/10 shadow-[0_6px_30px_rgba(26,21,8,0.25)]">
-              <iframe
-                src="/vip-wallboard"
-                className="absolute inset-0 h-full w-full border-0"
-                title="Wallboard Salon VIP"
-              />
+            <div className="flex min-h-0 w-full flex-1 flex-col gap-3">
+              {/* Barre outil — badge signalements + lien TV cliquable */}
+              <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#EAE5DC] bg-white px-4 py-3 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <Monitor className="h-4 w-4 shrink-0 text-[#8B6F47]" aria-hidden />
+                  <span className="truncate text-sm font-semibold text-[#2C2C2C]">Wallboard temps réel</span>
+                  {signalementsActifs > 0 ? (
+                    <Badge className="animate-pulse border-0 bg-[#C97B63] text-white">
+                      {signalementsActifs} signalement{signalementsActifs > 1 ? 's' : ''} actif{signalementsActifs > 1 ? 's' : ''}
+                    </Badge>
+                  ) : (
+                    <span className="hidden text-xs font-medium text-[#4A7C59] sm:inline">Aucun signalement actif</span>
+                  )}
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={copierLienWallboard}
+                    className="gap-1.5 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
+                  >
+                    {wallboardCopied ? <Check className="h-3.5 w-3.5" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
+                    {wallboardCopied ? 'Lien copié' : 'Copier le lien'}
+                  </Button>
+                  <a href="/vip-wallboard?tv=1" target="_blank" rel="noopener noreferrer">
+                    <Button size="sm" className="gap-1.5 bg-[#2C2C2C] text-[#E3C985] hover:bg-black">
+                      <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                      Ouvrir sur la TV
+                    </Button>
+                  </a>
+                </div>
+              </div>
+              <p className="shrink-0 text-xs leading-relaxed text-[#8B6F47]">
+                Astuce TV : cliquez sur « Ouvrir sur la TV » (ou collez le lien copié) dans le navigateur
+                de la télévision du salon — affichage plein écran, mode TV sans contrôles, données
+                rafraîchies toutes les 5 secondes.
+              </p>
+              {/* Aperçu intégré (identique à la TV, avec contrôles son/thème) */}
+              <div className="relative min-h-[480px] w-full flex-1 overflow-hidden rounded-2xl border border-white/10 shadow-[0_6px_30px_rgba(26,21,8,0.25)]">
+                <iframe
+                  src="/vip-wallboard"
+                  className="absolute inset-0 h-full w-full border-0"
+                  title="Wallboard Salon VIP"
+                />
+              </div>
             </div>
           )}
+          {tab === 'assistance' && <AssistanceTab />}
           {tab === 'settings' && <SettingsTab />}
         </div>
       </main>

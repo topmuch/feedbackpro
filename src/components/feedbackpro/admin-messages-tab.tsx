@@ -19,15 +19,6 @@ type ContactMsg = {
   createdAt: string
 }
 
-const DEFI_LABELS: Record<string, string> = {
-  incidents: 'Gestion des incidents',
-  satisfaction: 'Satisfaction client',
-  reactivite: 'Réactivité staff',
-  hygiene: 'Hygiène / propreté',
-  maintenance: 'Maintenance',
-  autre: 'Autre',
-}
-
 const SECTOR_LABELS: Record<string, string> = {
   restaurant: 'Restaurant',
   aeroport: 'Aéroport',
@@ -36,6 +27,20 @@ const SECTOR_LABELS: Record<string, string> = {
   hopital: 'Hôpital / Santé',
   erp: 'Établissement public',
   autre: 'Autre',
+  salon_vip_assistance: 'Salon VIP · Assistance',
+}
+
+const DEFI_LABELS: Record<string, string> = {
+  incidents: 'Gestion des incidents',
+  satisfaction: 'Satisfaction client',
+  reactivite: 'Réactivité staff',
+  hygiene: 'Hygiène / propreté',
+  maintenance: 'Maintenance',
+  autre: 'Autre',
+  technique: 'Problème technique',
+  compte: 'Compte & facturation',
+  wifi_qr: 'Wi-Fi / QR Codes',
+  fonctionnalite: 'Demande de fonctionnalité',
 }
 
 export function AdminMessagesTab() {

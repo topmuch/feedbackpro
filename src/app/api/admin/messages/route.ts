@@ -14,21 +14,31 @@ export async function GET() {
     const SECTOR_LABELS: Record<string, string> = {
       restaurant: 'Restaurant', aeroport: 'Aéroport', hotel: 'Hôtel',
       gare: 'Gare', hopital: 'Hôpital / Santé', erp: 'Établissement public', autre: 'Autre',
+      // Onglet Assistance du dashboard Salon VIP → arrivent ici (superadmin)
+      salon_vip_assistance: 'Salon VIP · Assistance',
     }
     const DEFI_LABELS: Record<string, string> = {
       incidents: 'Gestion des incidents', satisfaction: 'Satisfaction client',
       reactivite: 'Réactivité staff', hygiene: 'Hygiène / propreté',
       maintenance: 'Maintenance', autre: 'Autre',
+      // Catégories de l'onglet Assistance Salon VIP
+      technique: 'Problème technique', compte: 'Compte & facturation',
+      wifi_qr: 'Wi-Fi / QR Codes', fonctionnalite: 'Demande de fonctionnalité',
     }
     const mapped = messages.map(m => {
       const secteur = m.typeEtablissement ? SECTOR_LABELS[m.typeEtablissement] ?? m.typeEtablissement : ''
       const defi = m.defi ? DEFI_LABELS[m.defi] ?? m.defi : ''
       const sujet = [secteur, defi].filter(Boolean).join(' · ') || 'Demande de démo'
+      // Demande d'assistance Salon VIP : sujet dédié + marqueur URGENT
+      const sujetAssistance =
+        m.typeEtablissement === 'salon_vip_assistance'
+          ? `Assistance · ${defi || 'Demande'}${m.volume === 'Urgente' ? ' · URGENT' : ''}`
+          : null
       return {
         id: m.id,
         nom: m.nom,
         email: m.email,
-        sujet,
+        sujet: sujetAssistance ?? sujet,
         message: m.message,
         statut: m.statut,
         lu: m.statut !== 'NOUVEAU',
