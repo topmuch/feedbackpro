@@ -19,6 +19,7 @@ import bcrypt from "bcryptjs"
 import { db } from "@/lib/db"
 import { createSession, attachSessionCookie, serializePro } from "@/lib/session"
 import { loginSchema, firstError } from "@/lib/validation"
+import { limiteTaux } from "@/lib/rate-limit"
 
 /** SHA256 — même algorithme que create-admin.cjs, prisma/seed.ts et /api/auth/register */
 function hashSha256(password: string): string {
@@ -39,6 +40,9 @@ function verifierMotDePasse(password: string, passwordHash: string): boolean {
 }
 
 export async function POST(req: NextRequest) {
+  // Anti brute-force : 8 tentatives/min/IP (fenêtre glissante en mémoire).
+  const bloque = limiteTaux(req, "login", { max: 8, fenetreMs: 60_000 })
+  if (bloque) return bloque
   try {
     const body = await req.json().catch(() => null)
     if (!body) {

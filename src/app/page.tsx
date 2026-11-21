@@ -88,17 +88,56 @@ export default function Home() {
 
   // D6 : enregistrement du Service Worker (PWA installable) — best effort,
   // silencieux en cas d'échec (navigateurs sans SW / mode privé).
+  // Anti-stale après déploiement : reg.update() immédiat + auto-reload UNE
+  // fois au controllerchange (garde-fou sessionStorage) — sinon le visiteur
+  // régulier reste des heures sur l'ancien SW et voit l'ancienne page.
   // Task M3 : au boot ET sur l'event 'online', on rejoue aussi les retours
   // offline stockés dans IndexedDB (au cas où Background Sync ne l'ait pas fait).
+  // Observabilité : installe le reporter d'erreurs navigateur (ring buffer
+  // superadmin via /api/log-error).
   useEffect(() => {
     if (typeof window === "undefined") return
+
+    // Reporter d'erreurs (indépendant du SW — même sans PWA).
+    import("@/lib/client-error-reporter")
+      .then(({ installerReporterErreurs }) => installerReporterErreurs())
+      .catch(() => undefined)
+
     if (!("serviceWorker" in navigator)) return
-    // En production seulement : en dev, le SW peut cacher les changements.
-    // On l'active tout de même pour pouvoir tester l'installabilité.
     const register = () => {
-      navigator.serviceWorker.register("/sw.js").catch(() => {
-        /* silencieux : la PWA reste utilisable sans SW */
-      })
+      navigator.serviceWorker
+        .register("/sw.js")
+        .then((reg) => {
+          // Re-télécharge immédiatement /sw.js (sinon le navigateur ne
+          // re-vérifie que périodiquement, ≤ 24 h entre les visites).
+          try {
+            reg.update().catch(() => undefined)
+          } catch {
+            /* update non supporté : best-effort */
+          }
+          // Auto-reload une seule fois par session quand un nouveau SW
+          // prend le contrôle de la page (après un déploiement).
+          const CLE_RELOAD = "fp-sw-reloaded"
+          let dejaRecharge = false
+          try {
+            dejaRecharge = sessionStorage.getItem(CLE_RELOAD) === "1"
+          } catch {
+            /* sessionStorage indisponible : on reste prudent */
+          }
+          if (!dejaRecharge) {
+            navigator.serviceWorker.addEventListener("controllerchange", () => {
+              try {
+                sessionStorage.setItem(CLE_RELOAD, "1")
+              } catch {
+                /* cas marginal : on recharge quand même */
+              }
+              window.location.reload()
+            })
+          }
+        })
+        .catch(() => {
+          /* silencieux : la PWA reste utilisable sans SW */
+        })
     }
     if (document.readyState === "complete") register()
     else window.addEventListener("load", register, { once: true })

@@ -20,6 +20,7 @@ import { NextRequest } from "next/server"
 import { z } from "zod"
 import { db } from "@/lib/db"
 import { ok, fail } from "@/lib/session"
+import { limiteTaux } from "@/lib/rate-limit"
 
 const schema = z.object({
   retourId: z.string().trim().min(1, "retourId manquant").max(64),
@@ -31,6 +32,9 @@ const schema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+  // Anti-spam rattrapage : 20/min/IP.
+  const bloque = limiteTaux(req, "public-rattrapage", { max: 20, fenetreMs: 60_000 })
+  if (bloque) return bloque
   try {
     const parsed = schema.safeParse(await req.json().catch(() => null))
     if (!parsed.success) return fail(parsed.error.issues[0]?.message ?? "Données invalides", 400)

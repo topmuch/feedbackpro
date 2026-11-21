@@ -15,6 +15,7 @@ import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
 import { ok, fail } from "@/lib/session"
 import { retourSchema, firstError } from "@/lib/validation"
+import { limiteTaux } from "@/lib/rate-limit"
 import { tagLabel } from "@/lib/constants"
 import { parseJsonArray, detecterAlertesIntelligentes } from "@/lib/ia"
 import { analyserEtAlerterRetour } from "@/lib/alertes"
@@ -104,6 +105,9 @@ async function resoudreMacroSecteurDuPro(pro: {
 }
 
 export async function POST(req: NextRequest) {
+  // Anti-spam retours : 20/min/IP (couvre aussi l'alias /api/public/retour).
+  const bloque = limiteTaux(req, "public-retour", { max: 20, fenetreMs: 60_000 })
+  if (bloque) return bloque
   try {
     // ---------- Validation Zod du corps de requête ----------
     const brut = await req.json().catch(() => null)
