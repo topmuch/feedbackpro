@@ -921,3 +921,19 @@ Stage Summary:
 - Section "Comportement de l'employé" s'affiche quand on saisit un nom d'employé ou note ≤ 2★
 - Coach IA reçoit piliers + tagsEmployes dans le contexte JSON, prompt structuré pour analyser par pilier et interpréter les mentions comportementales
 - Vérifications : tsc --noEmit 0 erreur · curl / → 200 · curl /api/secteurs → 200 · curl login → ok:true · curl scan → macroSecteur+piliers+tagsDetails+tagsEmployes · curl retour → accepte tags v2 + emp_*
+
+---
+Task ID: DEPLOY-1
+Agent: Z.ai Code (orchestrateur)
+Task: Préparation push production — état vérifié, push bloqué sans identifiants
+
+Work Log:
+- ÉTAT GIT : 14 commits locaux en avance sur origin/main (routing engine 4 tables + scoreCandidates + escalade L1-L3, API /api/routing/{route,rules,staff,proactive,tick,overview,history}, admin-routing-tab.tsx 1558 lignes, vip-orchestration-tab.tsx 538 lignes, vip-assistance-tab.tsx, LOGIN-2 dual-hash, landing premium B2B, i18n EN vip-scan) — arbre propre
+- BLOQUANT LINT CORRIGÉ avant push : 6 problèmes (2 erreurs React Compiler : scratch-card.tsx dernierePos let→useRef, language-selector.tsx mutation document.cookie→helper module-scope ; 4 fausses alertes .cjs/scripts → eslint ignores ; directive inutile db.ts supprimée)
+- QUALITÉ : bun run lint → 0/0 · tsc --noEmit → exit 0 · dev / et /login → 200 · commit 638e203
+- DÉCOUVERTE Dockerfile : ADD https://github.com/topmuch/feedbackpro/archive/refs/heads/main.tar.gz → le build Coolify tire le tarball de main GitHub (pas de contexte git local) → un simple push main + rebuild suffit ; le PATCH git_commit_sha reste utile pour tracer le commit dans l'UI Coolify
+- BLOQUÉ sans identifiants : (1) git push → « could not read Username » — aucun PAT dans l'env (l'ancien était éphémère, à révoquer) ; (2) deploy Coolify → URL instance + token API non persistés (règle : PATCH git_commit_sha puis POST /api/v1/deploy, 2.3–2.5 min, restart = faux build interdit)
+
+Stage Summary:
+- Production prête à déployer dès réception : PAT GitHub (scope repo topmuch/feedbackpro) + URL/token API Coolify
+- Procédure d'exécution prête : git push origin main → PATCH git_commit_sha=<sha> → POST /api/v1/deploy → vérif HTTPS feedback.qrbags.com (gate ?qr_type=CLIENT_GLOBAL intact) → 2.3–2.5 min
