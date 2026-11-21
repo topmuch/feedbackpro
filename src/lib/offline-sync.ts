@@ -48,12 +48,43 @@ export async function enregistrerServiceWorker(): Promise<void> {
   if (typeof window === "undefined") return
   if (!("serviceWorker" in navigator)) return
   try {
-    await navigator.serviceWorker.register("/sw.js", { scope: "/" })
+    const reg = await navigator.serviceWorker.register("/sw.js", { scope: "/" })
+    // Vérification immédiate d'une nouvelle version du SW : le navigateur
+    // ne re-télécharge sw.js que périodiquement (≤24 h) — sans update()
+    // explicite, un visiteur régulier peut rester des heures sur l'ancien
+    // SW et voir un contenu périmé après un déploiement.
+    try {
+      reg.update().catch(() => undefined)
+    } catch {
+      /* update non supporté : best-effort */
+    }
+    // Auto-reload UNE fois quand un nouveau SW prend le contrôle : garantit
+    // que la page courante tourne sur les nouveaux caches après déploiement.
+    // (Sans ça, le HTML de la navigation en cours — servi par l'ancien SW —
+    // restait affiché jusqu'au prochain refresh manuel.)
+    const DejaReloadKey = "fp-sw-reloaded"
+    let dejaRecharge = false
+    try {
+      dejaRecharge = sessionStorage.getItem(DejaReloadKey) === "1"
+    } catch {
+      /* sessionStorage indisponible (navigation privée) : on reste prudent */
+    }
+    if (!dejaRecharge) {
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        try {
+          sessionStorage.setItem(DejaReloadKey, "1")
+        } catch {
+          /* sans sessionStorage, on laisse tomber le garde-fou mais on
+             recharge quand même — cas marginal acceptable */
+        }
+        window.location.reload()
+      })
+    }
     // Demande au SW de rejouer la queue au boot (au cas où Background Sync
     // n'est pas supporté — Safari/iOS ne le supporte pas).
     navigator.serviceWorker.ready
-      .then((reg) => {
-        if (reg.active) reg.active.postMessage("fp-replay-offline")
+      .then((r) => {
+        if (r.active) r.active.postMessage("fp-replay-offline")
       })
       .catch(() => undefined)
   } catch (e) {

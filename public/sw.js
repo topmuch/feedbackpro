@@ -16,17 +16,17 @@
 // servi tel quel par Next.js sans compilation).
 // ============================================================
 
-// CACHE_NAME bumpé v6 → v7 (feedvoice-airport-v7) : purge forcée du
-// cache chez tous les visiteurs — rebranding FeedVoice (nouveaux logos,
-// nouvelles icônes PWA, og-image). Les anciens caches feedbackpro-* sont
-// supprimés par le handler activate ci-dessous.
-const CACHE_NAME = "feedvoice-airport-v7"
-const CACHE_API = "feedvoice-api-v3"
+// CACHE_NAME bumpé v7 → v8 (feedvoice-airport-v8) : purge forcée du cache
+// chez tous les visiteurs — suggestions homepage (photo d'ambiance hero,
+// hover différencié) + features suivantes. Les anciens caches feedvoice-*
+// v≤7 sont supprimés par le handler activate ci-dessous.
+const CACHE_NAME = "feedvoice-airport-v8"
+const CACHE_API = "feedvoice-api-v4"
 // Cache dédié aux réponses GET /api/airport/zone/* (network-first, pas de
 // TTL : on veut toujours la version réseau si disponible, le cache n'est
 // qu'un repli offline). Séparé de CACHE_API pour ne pas mélanger avec les
 // réponses TTL-marquées de /api/zone/[qrToken].
-const CACHE_AIRPORT_API = "feedvoice-airport-api-v5"
+const CACHE_AIRPORT_API = "feedvoice-airport-api-v6"
 const PRECACHE_URLS = [
   "/",
   "/manifest.webmanifest",
