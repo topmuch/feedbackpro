@@ -21,6 +21,9 @@
 // Contenu FeedVoice préservé à l'identique (hero, 6 secteurs,
 // Nathalie, stats, témoignages, CTA, footer, newsletter) — images
 // produit générées IA (public/hyer/*) sur blanc pur / ciel d'aube.
+// Enrichissements : photo d'ambiance VIP lounge sous le ciel du hero
+// (voile 7 %, fondu bas) + signature de survol différenciée par
+// secteur (mouvement de l'icône propre à chaque métier).
 //
 // Toutes les classes sont préfixées `hy-` pour éviter toute fuite.
 // ============================================================
@@ -197,6 +200,20 @@ const HY_CSS = `
   /* Ciel d'aube en CSS — raccord invisible avec le rendu produit */
   background: linear-gradient(180deg, #d9e5ee 0%, #f4e7d7 62%, #ffffff 100%);
 }
+/* Photo d'ambiance VIP lounge — voile discret sous le ciel (7 %),
+   fondu bas pour se dissoudre dans le blanc avant les secteurs */
+.hy-hero-ambiance {
+  position: absolute;
+  inset: 0;
+  background-image: url('/hyer/ambiance.png?v=1');
+  background-size: cover;
+  background-position: 50% 42%;
+  opacity: 0.07;
+  filter: saturate(0.92);
+  pointer-events: none;
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 76%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 0%, black 76%, transparent 100%);
+}
 .hy-hero-bg {
   position: absolute;
   bottom: 0;
@@ -336,10 +353,20 @@ const HY_CSS = `
   gap: 12px;
   cursor: pointer;
   border-top: 1px solid var(--pebble);
-  transition: border-color 0.25s ease;
+  transition: border-color 0.25s ease, background 0.25s ease;
 }
-.hy-card:hover { border-top-color: var(--ink); }
-.hy-card-icon { font-size: 28px; line-height: 1; }
+.hy-card:hover { border-top-color: var(--ink); background: rgba(0,13,16,0.02); }
+.hy-card-icon { font-size: 28px; line-height: 1; transition: transform 0.3s cubic-bezier(0.22, 0.61, 0.36, 1); }
+.hy-card:hover .hy-card-desc { color: #5f6066; }
+.hy-card .hy-card-link { transition: transform 0.25s ease; }
+.hy-card:hover .hy-card-link { transform: translateX(4px); }
+/* Signature de survol différenciée par secteur — même langage
+   monochrome, seul le mouvement raconte le métier */
+.hy-card[data-sector="aeroport"]:hover .hy-card-icon { transform: translateY(-5px) rotate(-6deg); }
+.hy-card[data-sector="compagnie"]:hover .hy-card-icon { transform: translateX(3px) rotate(8deg); }
+.hy-card[data-sector="hotel"]:hover .hy-card-icon { transform: translateY(-3px) scale(1.14); }
+.hy-card[data-sector="restaurant"]:hover .hy-card-icon { transform: rotate(-10deg) scale(1.08); }
+.hy-card[data-sector="erp"]:hover .hy-card-icon { transform: scale(1.12); }
 .hy-card-title {
   font-size: 23px;
   font-weight: 700;
@@ -369,6 +396,10 @@ const HY_CSS = `
   grid-column: span 1;
 }
 .hy-card-clay:hover { border-top: none; background: #a96046; }
+.hy-card-clay .hy-card-icon { transition: transform 0.3s cubic-bezier(0.22, 0.61, 0.36, 1); }
+.hy-card-clay:hover .hy-card-icon { transform: translateY(-4px) scale(1.08); }
+.hy-card-clay .hy-card-badge { transition: background 0.25s ease, border-color 0.25s ease; }
+.hy-card-clay:hover .hy-card-badge { border-color: var(--white); background: rgba(255,255,255,0.12); }
 .hy-card-clay .hy-card-title { font-size: clamp(27px, 3.4vw, 37px); letter-spacing: -0.01em; color: var(--white); }
 .hy-card-clay .hy-card-desc { color: rgba(255,255,255,0.85); }
 .hy-card-clay .hy-card-icon { font-size: 34px; }
@@ -706,6 +737,7 @@ const HY_CSS = `
   .hy-hero { min-height: auto; }
   .hy-hero-bg { display: none; }
   .hy-hero-fade { display: none; }
+  .hy-hero-ambiance { display: none; }
   .hy-hero-content { min-height: auto; padding-bottom: 24px; }
   .hy-hero-headline { text-align: left; max-width: 100%; margin: 20px 0 0; }
   .hy-hero-badge { align-self: flex-start; }
@@ -725,6 +757,11 @@ const HY_CSS = `
   .hy-cta-trust { justify-content: flex-start; }
   .hy-footer-grid { grid-template-columns: 1fr 1fr; }
 }
+/* Respect des préférences de mouvement réduit */
+@media (prefers-reduced-motion: reduce) {
+  .hy-card-icon, .hy-card-link, .hy-card-clay .hy-card-icon, .hy-card-clay .hy-card-badge { transition: none !important; }
+  .hy-card:hover .hy-card-icon, .hy-card-clay:hover .hy-card-icon { transform: none; }
+}
 @media (max-width: 640px) {
   .hy-nav-right .hy-btn { display: none; }
   .hy-grid-3, .hy-grid-3-products, .hy-stats, .hy-testimonials { grid-template-columns: 1fr; }
@@ -743,6 +780,8 @@ const HY_CSS = `
 
 const SECTORS: {
   key: NavTarget
+  /** Signature de survol différenciée (data-sector dans le CSS). */
+  sector: string
   icon: string
   title: string
   desc: string
@@ -750,6 +789,7 @@ const SECTORS: {
 }[] = [
   {
     key: "contact",
+    sector: "vip",
     icon: "🥂",
     title: "Salon VIP",
     desc: "Expérience luxe, Nathalie guide personnel, douches smart, conciergerie digitale, discrétion absolue.",
@@ -757,30 +797,35 @@ const SECTORS: {
   },
   {
     key: "aeroport",
+    sector: "aeroport",
     icon: "✈️",
     title: "Aéroports",
     desc: "Sécurité, flux, réactivité ops. Wallboard signalétique, Nathalie tour de contrôle, radar prédiction.",
   },
   {
     key: "contact",
+    sector: "compagnie",
     icon: "🛫",
     title: "Compagnies Aériennes",
     desc: "Escale, check-in, litiges bagages, portes attitrées. Soutien terrain pour vos équipes au sol.",
   },
   {
     key: "hotel",
+    sector: "hotel",
     icon: "🏨",
     title: "Hôtellerie",
     desc: "Expérience guest, housekeeping, conciergerie digitale, upselling chambres et services.",
   },
   {
     key: "restaurant",
+    sector: "restaurant",
     icon: "🍽️",
     title: "Restauration",
     desc: "Service fluide, avis maîtrisés, réactivité en salle, gestion des pics d'affluence.",
   },
   {
     key: "erp",
+    sector: "erp",
     icon: "🏛️",
     title: "Établissements Publics",
     desc: "Accueil usagers, maintenance, signalétique terrain, gares, mairies, hôpitaux.",
@@ -964,6 +1009,8 @@ export function LandingHyer({
 
       {/* ==================== HERO ==================== */}
       <header className="hy-hero">
+        {/* Photo d'ambiance VIP lounge — voile 7 % sous le ciel */}
+        <div className="hy-hero-ambiance" aria-hidden />
         {/* Rendu produit FeedVoice sur ciel d'aube (desktop) */}
         <img
           src="/hyer/hero-phone.png?v=3"
@@ -1038,6 +1085,7 @@ export function LandingHyer({
                 <div className="hy-reveal" key={sector.title}>
                   <button
                     className="hy-card hy-card-clay"
+                    data-sector={sector.sector}
                     onClick={() => navigate(sector.key)}
                     aria-label={`Découvrir le secteur ${sector.title}`}
                   >
@@ -1055,6 +1103,7 @@ export function LandingHyer({
                 <div className="hy-reveal" key={sector.title}>
                   <button
                     className="hy-card"
+                    data-sector={sector.sector}
                     onClick={() => navigate(sector.key)}
                     aria-label={`Découvrir le secteur ${sector.title}`}
                   >
