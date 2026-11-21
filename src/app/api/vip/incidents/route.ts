@@ -15,6 +15,7 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { ok, fail, getSessionUser } from '@/lib/session'
 import { getZonesByTenant } from '@/lib/airport-config'
+import { cloturerRoutagePourIncident } from '@/lib/routing-engine'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -100,6 +101,15 @@ export async function PATCH(req: NextRequest) {
     where: { id: body.id },
     data: { statut: nextStatut, resolvedAt },
   })
+
+  // --- MOTEUR DE ROUTAGE — clôture du cycle de vie de la tâche ---
+  // EN_COURS → prise en charge (responseTimeSec) ; RESOLU → résolu
+  // (resolutionTimeSec + compteur de charge décrémenté).
+  if (nextStatut === 'EN_COURS') {
+    cloturerRoutagePourIncident(body.id, 'accepted').catch(() => {})
+  } else if (nextStatut === 'RESOLU') {
+    cloturerRoutagePourIncident(body.id, 'resolved').catch(() => {})
+  }
 
   return ok({ id: body.id, statut: nextStatut })
 }

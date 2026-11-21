@@ -1423,8 +1423,143 @@ model StaffAccount {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // MOTEUR DE ROUTAGE — compétence 1:1 (zones, types maîtrisés, catégorie,
+  // disponibilité, capacité max, préférences Denise)
+  competency StaffCompetency?
+  routingHistory RoutingHistory[]
+
   @@index([phone])
   @@index([role])
+}
+
+// ============================================================
+// MOTEUR DE ROUTAGE INTELLIGENT (Routing Engine)
+// Cartographie 4D : Zones × Signalements × Employés × Tâches
+// Adaptation SQLite : les listes (TEXT[]/UUID[]/TIME[]/JSONB du cahier
+// des charges PostgreSQL) sont sérialisées en chaînes JSON.
+// ============================================================
+
+// TABLE 1 — COMPÉTENCES DES EMPLOYÉS
+model StaffCompetency {
+  id             String       @id @default(cuid())
+  staffId        String       @unique
+  staff          StaffAccount @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  tenantKey      String       @default("vip_lounge") // vip_lounge | airport | restaurant
+  zones          String       @default("[]")   // JSON codes de zones canoniques
+  signalTypes    String       @default("[]")   // JSON codes de types de signalements maîtrisés
+  category       String       @default("serveur") // serveur|barman|nettoyage|maintenance|securite|reception|maitre_dhotel|manager
+  // DISPONIBILITÉ
+  isOnDuty       Boolean      @default(false)
+  shiftStart     String?      // "08:00"
+  shiftEnd       String?      // "16:00"
+  shiftDays      String       @default("[1,2,3,4,5]") // JSON 0=dim … 6=sam
+  // ANTI-SURCHARGE
+  maxActiveTasks Int          @default(3)
+  // Zone où l'employé se trouve actuellement (bonus scoring +30)
+  currentZone    String?
+  // DENISE
+  deniseEnabled  Boolean      @default(true)
+  deniseTone     String       @default("normal") // soft|normal|urgent
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([tenantKey, category])
+  @@index([tenantKey, isOnDuty])
+}
+
+// TABLE 2 — MATRICE DE ROUTAGE (Le Cerveau)
+model RoutingRule {
+  id                 String   @id @default(cuid())
+  tenantKey          String   @default("vip_lounge")
+  zoneCode           String?  // null = toutes zones
+  signalType         String?  // null = tous types
+  priority           String   @default("medium") // low|medium|high|critical
+  // ACTIONS (le "ALORS")
+  targetCategory     String   @default("serveur")
+  targetStaffIds     String   @default("[]") // JSON ciblage direct optionnel
+  fallbackCategory   String?  // si personne dispo : ex 'manager'
+  // ESCALADE
+  escalationAfterMin Int      @default(10)
+  escalationTarget   String   @default("manager") // manager | director
+  // DENISE
+  deniseAnnounce     Boolean  @default(true)
+  deniseTone         String   @default("normal") // soft|normal|urgent
+  // PRIORITÉ DE LA RÈGLE (si plusieurs matchent) + spécificité implicite
+  rulePriority       Int      @default(1)
+  active             Boolean  @default(true)
+
+  history            RoutingHistory[]
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([tenantKey, active])
+}
+
+// TABLE 3 — TÂCHES PROACTIVES (au-delà des signalements)
+model ProactiveTask {
+  id              String    @id @default(cuid())
+  tenantKey       String    @default("vip_lounge")
+  title           String              // "Vérification buffet"
+  description     String?
+  // ASSIGNATION
+  targetZone      String?   // code canonique
+  targetCategory  String?   // 'serveur', 'nettoyage'…
+  targetStaffId   String?   // ou assignation automatique
+  // PLANIFICATION
+  recurrence      String    @default("interval") // once|daily|weekly|interval
+  intervalMinutes Int?
+  scheduledTimes  String    @default("[]") // JSON ["08:00","12:00","18:00"]
+  // CHECKLIST
+  checklistItems  String    @default("[]") // JSON [{item,required}]
+  // NOTIFICATION
+  notifyVia       String    @default("[]") // JSON ["push","denise"]
+  deniseMessage   String?   // "Vérification buffet requise"
+
+  lastRunAt       DateTime?
+  nextRunAt       DateTime?
+  active          Boolean   @default(true)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([tenantKey, active, nextRunAt])
+}
+
+// TABLE 4 — HISTORIQUE DE ROUTAGE (pour IA + compteur de charge)
+// open=true tant que la tâche assignée n'est pas clôturée → sert de
+// compteur current_active_tasks pour l'anti-surcharge.
+model RoutingHistory {
+  id                String        @id @default(cuid())
+  tenantKey         String        @default("vip_lounge")
+  incidentKind      String        @default("airport_report") // airport_report | vip_request | proactive
+  incidentId        String?
+  incidentLabel     String?       // ex: "Niveau sonore élevé — Espace Détente"
+  zoneCode          String?
+  signalType        String?
+  priority          String        @default("medium") // low|medium|high|critical
+  staffId           String?
+  staff             StaffAccount? @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  staffName         String?
+  ruleId            String?
+  rule              RoutingRule?  @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  matchedConditions String        @default("{}") // JSON {zone,type,rulePriority}
+  scoreBreakdown    String        @default("[]") // JSON [{label,points}]
+  score             Int           @default(0)
+  decisionMs        Int           @default(0)   // temps de décision du moteur
+  escalated         Boolean       @default(false)
+  open              Boolean       @default(true) // tâche active (charge)
+  responseTimeSec   Int?          // création → prise en charge
+  resolutionTimeSec Int?          // création → résolution
+  outcome           String        @default("assigned") // assigned|accepted|resolved|escalated|failed|timeout
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([tenantKey, createdAt])
+  @@index([staffId, open])
+  @@index([incidentId])
 }
 
 // ============================================================

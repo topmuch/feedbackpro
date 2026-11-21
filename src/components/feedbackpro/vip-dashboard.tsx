@@ -93,6 +93,7 @@ import {
   Check,
   LifeBuoy,
   ExternalLink,
+  Network,
 } from 'lucide-react'
 import { useAppStore } from '@/store/app-store'
 import { getZonesByTenant } from '@/lib/airport-config'
@@ -109,6 +110,7 @@ import {
 } from '@/components/feedbackpro/nathalie-qr-plaque'
 import type { VipLoungeConfig } from '@/lib/vip-clients'
 import { AssistanceTab } from '@/components/feedbackpro/vip-assistance-tab'
+import { VipOrchestrationTab } from '@/components/feedbackpro/vip-orchestration-tab'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -261,6 +263,7 @@ type VipTab =
   | 'overview'
   | 'plan'
   | 'incidents'
+  | 'orchestration'
   | 'buffet'
   | 'showers'
   | 'rewards'
@@ -574,6 +577,8 @@ const NAV_ITEMS: Array<{ id: VipTab; label: string; Icon: typeof LayoutDashboard
   { id: 'overview', label: "Vue d'ensemble", Icon: LayoutDashboard },
   { id: 'plan', label: 'Plan du Salon', Icon: Map },
   { id: 'incidents', label: 'Signalements', Icon: Bell },
+  // Onglet Orchestration — moteur de routage intelligent (manager)
+  { id: 'orchestration', label: 'Orchestration', Icon: Network },
   { id: 'buffet', label: 'Buffet & Bar', Icon: Wine },
   { id: 'showers', label: 'Douches Smart', Icon: ShowerHead },
   { id: 'rewards', label: 'Récompenses Premium', Icon: Gift },
@@ -4673,6 +4678,7 @@ export default function VIPDashboard() {
               onPatchRequest={patchRequest}
             />
           )}
+          {tab === 'orchestration' && <VipOrchestrationTab />}
           {tab === 'buffet' && (
             <BuffetTab buffet={buffet} loading={loading} onPatchFill={patchBuffetFill} />
           )}

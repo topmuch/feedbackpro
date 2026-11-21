@@ -12,6 +12,7 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { ok, fail, getSessionUser } from '@/lib/session'
+import { cloturerRoutagePourIncident } from '@/lib/routing-engine'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -74,6 +75,14 @@ export async function PATCH(
       where: { id: current.tableId },
       data: { activeRequests: { decrement: 1 } },
     })
+  }
+
+  // --- MOTEUR DE ROUTAGE — clôture du cycle de vie de la tâche ---
+  // in_progress → prise en charge ; done → résolu (stats + charge).
+  if (updated.status === 'in_progress') {
+    cloturerRoutagePourIncident(id, 'accepted').catch(() => {})
+  } else if (updated.status === 'done') {
+    cloturerRoutagePourIncident(id, 'resolved').catch(() => {})
   }
 
   return ok({

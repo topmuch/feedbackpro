@@ -23,6 +23,7 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { ok, fail, getSessionUser } from '@/lib/session'
+import { routerIncident } from '@/lib/routing-engine'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -193,6 +194,32 @@ export async function POST(req: NextRequest) {
       data: { activeRequests: { increment: 1 } },
     })
   }
+
+  // --- MOTEUR DE ROUTAGE INTELLIGENT ---
+  // Chaque demande client (commande, signalement, conciergerie…) est
+  // routée automatiquement vers le bon employé (QUI, OÙ, POURQUOI).
+  // Fire-and-forget : ne bloque JAMAIS la réponse au client et ne
+  // peut pas faire échouer la création.
+  const metaRoutage = (() => {
+    try {
+      return JSON.parse(metadata) as { tags?: string[]; description?: string }
+    } catch {
+      return {}
+    }
+  })()
+  routerIncident({
+    tenantKey: 'vip_lounge',
+    incidentKind: 'vip_request',
+    incidentId: created.id,
+    incidentLabel: trackingNumber
+      ? `${trackingNumber} — ${body.type === 'problem' ? (metaRoutage.description || (metaRoutage.tags ?? []).join(', ') || 'Signalement') : body.type}`
+      : undefined,
+    zone: table?.zone ?? contextZone ?? null,
+    signalType: body.type === 'problem' ? (metaRoutage.tags?.[0] ?? null) : body.type,
+    priority: null,
+  }).catch((err) => {
+    console.warn('[vip-requests] Routage auto échoué (non bloquant):', err instanceof Error ? err.message : String(err))
+  })
 
   return ok(
     {

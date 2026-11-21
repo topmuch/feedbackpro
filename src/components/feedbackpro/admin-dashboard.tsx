@@ -58,6 +58,7 @@ import {
   BarChart3,
   Sparkles,
   Gift,
+  Network,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -103,6 +104,7 @@ import { AirportIncidentsBell } from "@/components/feedbackpro/airport-incidents
 import { AdminOperationsTab } from "@/components/feedbackpro/admin-operations-tab"
 import { AdminNotificationsTab } from "@/components/feedbackpro/admin-notifications-tab"
 import { AdminVoiceTab } from "@/components/feedbackpro/admin-voice-tab"
+import { AdminRoutingTab } from "@/components/feedbackpro/admin-routing-tab"
 import { AdminAdsTab } from "@/components/feedbackpro/admin-ads-tab"
 import { AdminFlashRewardsTab } from "@/components/feedbackpro/admin-flash-rewards-tab"
 import { AdminDirectionTab } from "@/components/feedbackpro/admin-direction-tab"
@@ -164,6 +166,7 @@ type OngletAdmin =
   | "notifications"
   | "operations"
   | "voix"
+  | "routage"
   | "direction"
   | "webhooks"
   | "qr_analytics"
@@ -183,6 +186,7 @@ const ONGLETS: { id: OngletAdmin; labelKey: string; icone: React.ComponentType<{
   { id: "email", labelKey: "nav.email", icone: Send },
   { id: "notifications", labelKey: "nav.notifications", icone: Bell },
   { id: "voix", labelKey: "nav.voix", icone: Mic },
+  { id: "routage", labelKey: "nav.routage", icone: Network },
   { id: "direction", labelKey: "nav.direction", icone: Plane },
   { id: "qr_analytics", labelKey: "nav.qr_analytics", icone: BarChart3 },
   { id: "crystal_ball", labelKey: "nav.crystal_ball", icone: Sparkles },
@@ -337,7 +341,7 @@ function enArray<T>(v: T[] | null | undefined): T[] {
 // ============================================================
 
 export function AdminDashboard() {
-  const t = (key: string) => { const map: Record<string, string> = {"nav.overview": "Vue d'ensemble", "nav.commercants": "Commercants", "nav.utilisateurs": "Utilisateurs", "nav.commandes": "Commandes", "nav.revenus": "Revenus", "nav.retention": "Retention", "nav.secteurs": "Config. secteurs", "nav.modules": "Modules", "nav.messages": "Messages", "nav.email": "Email", "nav.parametres": "Parametres", "nav.publicites": "Publicités", "nav.regie_pub": "Régie Pub", "nav.flash_rewards": "Flash Rewards", "nav.operations": "Centre Opérationnel", "nav.notifications": "Notifications", "nav.voix": "Voix Denise", "nav.direction": "Direction", "nav.qr_analytics": "QR Analytics", "nav.crystal_ball": "Boule de Cristal", "nav.webhooks": "Webhooks", "nav.superadmin": "Superadmin", "nav.gestion": "Gestion", "common.navigationAdmin": "Sections administration", "common.ouvrirMenu": "Ouvrir le menu", "common.deconnexion": "Deconnexion", "common.connecteSuperadmin": "Connecte en superadmin", "dashboard.titreAdmin": "Administration FeedbackPro"}; return map[key] || key }
+  const t = (key: string) => { const map: Record<string, string> = {"nav.overview": "Vue d'ensemble", "nav.commercants": "Commercants", "nav.utilisateurs": "Utilisateurs", "nav.commandes": "Commandes", "nav.revenus": "Revenus", "nav.retention": "Retention", "nav.secteurs": "Config. secteurs", "nav.modules": "Modules", "nav.messages": "Messages", "nav.email": "Email", "nav.parametres": "Parametres", "nav.publicites": "Publicités", "nav.regie_pub": "Régie Pub", "nav.flash_rewards": "Flash Rewards", "nav.operations": "Centre Opérationnel", "nav.notifications": "Notifications", "nav.voix": "Voix Denise", "nav.routage": "Routage", "nav.direction": "Direction", "nav.qr_analytics": "QR Analytics", "nav.crystal_ball": "Boule de Cristal", "nav.webhooks": "Webhooks", "nav.superadmin": "Superadmin", "nav.gestion": "Gestion", "common.navigationAdmin": "Sections administration", "common.ouvrirMenu": "Ouvrir le menu", "common.deconnexion": "Deconnexion", "common.connecteSuperadmin": "Connecte en superadmin", "dashboard.titreAdmin": "Administration FeedbackPro"}; return map[key] || key }
   const [onglet, setOnglet] = useState<OngletAdmin>(() => ongletDepuisUrl())
   const [overview, setOverview] = useState<OverviewApi | null>(null)
   const [menuOuvert, setMenuOuvert] = useState(false)
@@ -530,6 +534,7 @@ export function AdminDashboard() {
         {onglet === "email" && <EmailTab />}
         {onglet === "notifications" && <AdminNotificationsTab />}
         {onglet === "voix" && <AdminVoiceTab />}
+        {onglet === "routage" && <AdminRoutingTab />}
         {onglet === "direction" && <AdminDirectionTab />}
         {onglet === "qr_analytics" && <AdminQrAnalyticsTab />}
         {onglet === "crystal_ball" && <AirportCrystalBall className="w-full" />}
@@ -560,7 +565,7 @@ function ContenuSidebarAdmin({
   onLogout: () => void
   messagesNonLus?: number
 }) {
-  const t = (key: string) => { const map: Record<string, string> = {"nav.overview": "Vue d'ensemble", "nav.commercants": "Commercants", "nav.utilisateurs": "Utilisateurs", "nav.commandes": "Commandes", "nav.revenus": "Revenus", "nav.retention": "Retention", "nav.secteurs": "Config. secteurs", "nav.modules": "Modules", "nav.messages": "Messages", "nav.email": "Email", "nav.parametres": "Parametres", "nav.publicites": "Publicités", "nav.regie_pub": "Régie Pub", "nav.flash_rewards": "Flash Rewards", "nav.operations": "Centre Opérationnel", "nav.notifications": "Notifications", "nav.voix": "Voix Denise", "nav.direction": "Direction", "nav.qr_analytics": "QR Analytics", "nav.crystal_ball": "Boule de Cristal", "nav.webhooks": "Webhooks", "nav.superadmin": "Superadmin", "nav.gestion": "Gestion", "common.navigationAdmin": "Sections administration", "common.ouvrirMenu": "Ouvrir le menu", "common.deconnexion": "Deconnexion", "common.connecteSuperadmin": "Connecte en superadmin", "dashboard.titreAdmin": "Administration FeedbackPro"}; return map[key] || key }
+  const t = (key: string) => { const map: Record<string, string> = {"nav.overview": "Vue d'ensemble", "nav.commercants": "Commercants", "nav.utilisateurs": "Utilisateurs", "nav.commandes": "Commandes", "nav.revenus": "Revenus", "nav.retention": "Retention", "nav.secteurs": "Config. secteurs", "nav.modules": "Modules", "nav.messages": "Messages", "nav.email": "Email", "nav.parametres": "Parametres", "nav.publicites": "Publicités", "nav.regie_pub": "Régie Pub", "nav.flash_rewards": "Flash Rewards", "nav.operations": "Centre Opérationnel", "nav.notifications": "Notifications", "nav.voix": "Voix Denise", "nav.routage": "Routage", "nav.direction": "Direction", "nav.qr_analytics": "QR Analytics", "nav.crystal_ball": "Boule de Cristal", "nav.webhooks": "Webhooks", "nav.superadmin": "Superadmin", "nav.gestion": "Gestion", "common.navigationAdmin": "Sections administration", "common.ouvrirMenu": "Ouvrir le menu", "common.deconnexion": "Deconnexion", "common.connecteSuperadmin": "Connecte en superadmin", "dashboard.titreAdmin": "Administration FeedbackPro"}; return map[key] || key }
   return (
     <div className="flex h-full flex-col">
       {/* Logo */}

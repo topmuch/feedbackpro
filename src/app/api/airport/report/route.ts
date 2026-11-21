@@ -33,6 +33,7 @@ import { sendEmail } from '@/lib/email'
 import { triggerPushNotification } from '@/lib/push-notifier'
 import { dispatchNotification } from '@/lib/notification-engine'
 import { dispatchWebhook } from '@/lib/webhook-dispatcher'
+import { routerIncident } from '@/lib/routing-engine'
 
 export const runtime = 'nodejs'
 
@@ -321,6 +322,25 @@ export async function POST(req: NextRequest) {
     console.log('[airport] Mode démo WhatsApp — payload à envoyer manuellement :')
     console.log(whatsappMessage)
     console.log('[airport] Deep link :', whatsappLink.slice(0, 120) + '...')
+  }
+
+  // --- MOTEUR DE ROUTAGE INTELLIGENT (zones Salon VIP) ---
+  // Pour les zones vip_lounge, le signalement est routé automatiquement
+  // vers le bon employé (QUI, OÙ, POURQUOI) : règle match → scoring →
+  // assignation → Denise. Fire-and-forget : ne bloque jamais la réponse
+  // au voyageur et ne peut pas faire échouer la création.
+  if (zone.code.startsWith('vip_') || zone.code === 'com_lounge') {
+    routerIncident({
+      tenantKey: 'vip_lounge',
+      incidentKind: 'airport_report',
+      incidentId: report.id,
+      incidentLabel: `${b.problemType} — ${zone.nom}`,
+      zone: zone.code,
+      signalType: b.problemType,
+      priority: null,
+    }).catch((err) => {
+      console.warn('[airport-report] Routage VIP échoué (non bloquant):', err instanceof Error ? err.message : String(err))
+    })
   }
 
   return ok({
