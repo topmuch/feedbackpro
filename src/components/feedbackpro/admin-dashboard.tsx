@@ -573,7 +573,7 @@ function ContenuSidebarAdmin({
         <img
           src="/feedvoice/logo-white@2x.png"
           alt="FeedVoice"
-          className="h-9 w-auto"
+          className="h-9 w-auto max-w-none"
         />
         <span className="text-xs text-white/70">Administration</span>
       </div>

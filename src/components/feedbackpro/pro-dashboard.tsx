@@ -710,7 +710,7 @@ function ContenuSidebar({
           <img
             src="/feedvoice/logo@2x.png"
             alt="FeedVoice"
-            className="h-8 w-auto"
+            className="h-8 w-auto max-w-none"
           />
         </div>
         <span className="text-xs font-medium text-sidebar-foreground/75">

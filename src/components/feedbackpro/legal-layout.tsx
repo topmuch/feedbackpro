@@ -54,7 +54,7 @@ export function LegalLayout({
             Retour
           </Link>
           <Link href="/" className="flex items-center gap-2" aria-label="FeedVoice — Accueil">
-            <img src="/feedvoice/logo@2x.png" alt="FeedVoice" className="h-6 w-auto" />
+            <img src="/feedvoice/logo@2x.png" alt="FeedVoice" className="h-6 w-auto max-w-none" />
           </Link>
         </div>
       </header>

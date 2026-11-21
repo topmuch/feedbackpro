@@ -185,7 +185,7 @@ function PanneauVisuelEtab() {
 
       {/* ---------- En-tête : logo sur carte claire ---------- */}
       <div className="relative flex items-center gap-3">
-        <img src="/feedvoice/logo-white@2x.png" alt="FeedVoice" className="h-7 w-auto" />
+        <img src="/feedvoice/logo-white@2x.png" alt="FeedVoice" className="h-7 w-auto max-w-none" />
       </div>
 
       {/* ---------- Centre : tagline + témoignage + secteurs ---------- */}
@@ -268,7 +268,7 @@ function PanneauForm() {
             className="flex items-center gap-2"
             aria-label="Retour à l'accueil"
           >
-            <img src="/feedvoice/logo@2x.png" alt="FeedVoice" className="h-6 w-auto" />
+            <img src="/feedvoice/logo@2x.png" alt="FeedVoice" className="h-6 w-auto max-w-none" />
           </button>
           <button
             type="button"
@@ -1281,7 +1281,7 @@ export function TenantSelectionStep() {
             className="flex items-center gap-2"
             aria-label="Se déconnecter"
           >
-            <img src="/feedvoice/logo@2x.png" alt="FeedVoice" className="h-6 w-auto" />
+            <img src="/feedvoice/logo@2x.png" alt="FeedVoice" className="h-6 w-auto max-w-none" />
           </button>
           <button
             type="button"

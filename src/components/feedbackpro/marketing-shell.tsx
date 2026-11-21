@@ -51,7 +51,7 @@ export function HyerWordmark({ className = "", tone = "ink" }: { className?: str
     <img
       src={src}
       alt="FeedVoice"
-      className={`inline-block w-auto ${className}`}
+      className={`inline-block w-auto max-w-none ${className}`}
     />
   )
 }

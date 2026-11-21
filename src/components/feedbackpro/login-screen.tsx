@@ -26,7 +26,7 @@ export function LoginScreen() {
             <MessageSquare className="w-6 h-6" />
           </div>
           <CardTitle className="text-2xl">
-            <img src="/feedvoice/logo.png" alt="FeedVoice" className="mx-auto h-7 w-auto" />
+            <img src="/feedvoice/logo.png" alt="FeedVoice" className="mx-auto h-7 w-auto max-w-none" />
           </CardTitle>
           <CardDescription>Connectez-vous à votre espace Pro</CardDescription>
         </CardHeader>
