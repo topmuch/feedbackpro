@@ -1,17 +1,41 @@
 // ============================================================
 // API - Connexion
 // POST /api/auth/login  { email, password } → { user, pro }
+//
+// LOGIN-2 — Vérification DUAL-ALGORITHME des mots de passe :
+//  - hash préfixé $2a/$2b/$2y → bcrypt (comptes historiques seedés
+//    en bcrypt, présents dans certaines bases — bcryptjs est déjà
+//    installé)
+//  - sinon → SHA256 (comptes créés via /api/auth/register et
+//    scripts/create-admin.cjs)
+// La vérification SHA256 stricte seule empêchait TOUTE connexion
+// sur les bases contenant des hash bcrypt → bug « la connexion
+// déconne ».
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server"
 import crypto from "crypto"
+import bcrypt from "bcryptjs"
 import { db } from "@/lib/db"
 import { createSession, attachSessionCookie, serializePro } from "@/lib/session"
 import { loginSchema, firstError } from "@/lib/validation"
 
-// SHA256 — même algorithme que create-admin.cjs et prisma/seed.ts
-function hashPassword(password: string): string {
+/** SHA256 — même algorithme que create-admin.cjs, prisma/seed.ts et /api/auth/register */
+function hashSha256(password: string): string {
   return crypto.createHash('sha256').update(password).digest('hex')
+}
+
+/** Vérifie le mot de passe selon l'algorithme détecté dans le hash stocké. */
+function verifierMotDePasse(password: string, passwordHash: string): boolean {
+  try {
+    if (passwordHash.startsWith('$2')) {
+      // bcrypt ($2a / $2b / $2y) — comptes historiques
+      return bcrypt.compareSync(password, passwordHash)
+    }
+    return passwordHash === hashSha256(password)
+  } catch {
+    return false
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -33,7 +57,7 @@ export async function POST(req: NextRequest) {
       include: { pro: true },
     })
 
-    if (!user || user.passwordHash !== hashPassword(password)) {
+    if (!user || !verifierMotDePasse(password, user.passwordHash)) {
       return NextResponse.json({ ok: false, error: "Email ou mot de passe incorrect" }, { status: 401 })
     }
 

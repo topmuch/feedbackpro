@@ -15,7 +15,7 @@ import { Loader2 } from "lucide-react"
 import { useAppStore, tokenDepuisUrl, airportTagDepuisUrl, vipQrDepuisUrl } from "@/store/app-store"
 import type { View } from "@/store/app-store"
 import { LandingView } from "@/components/feedbackpro/landing-view"
-import { AuthView, TenantSelectionStep } from "@/components/feedbackpro/auth-view"
+import { AuthView, AuthViewAdmin, TenantSelectionStep } from "@/components/feedbackpro/auth-view"
 import { ScanView } from "@/components/feedbackpro/scan-view"
 import { AirportScanView } from "@/components/feedbackpro/airport-scan-view"
 import { AirportStaffView } from "@/components/feedbackpro/airport-staff-view"
@@ -150,6 +150,13 @@ export default function Home() {
         const auth = chemin === "/login" ? "login" : chemin === "/register" ? "register" : params.get("auth")
         if ((auth === "login" || auth === "register") && !useAppStore.getState().session) {
           setAuthMode(auth === "login" ? "login" : "signup")
+        }
+        // LOGIN-2 — Page de connexion SuperAdmin dédiée (/admin-login) :
+        //   - non connecté          → vue auth-admin (formulaire noir/or)
+        //   - connecté SUPERADMIN   → deriveView route déjà vers "admin"
+        //   - connecté non-admin    → deriveView route vers son dashboard
+        if (chemin === "/admin-login" && !useAppStore.getState().session) {
+          setView("auth-admin")
         }
       } catch {
         /* ignore */
@@ -286,10 +293,41 @@ export default function Home() {
   }
 
   // ---------- Navigation ----------
+  // LOGIN-2 — Les CTAs de connexion pointent vers les pages dédiées :
+  //   - login/signup → /login (établissements, crème/or)
+  //   - l'espace SuperAdmin a son propre chemin /admin-login (noir/or),
+  //     accessible via un lien dédié sur la page de connexion établissements.
   const nav = {
-    login: () => setAuthMode("login"),
-    signup: () => setAuthMode("signup"),
-    landing: () => setView("landing"),
+    login: () => {
+      try {
+        if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+          window.history.replaceState({}, "", "/login")
+        }
+      } catch {
+        /* ignore */
+      }
+      setAuthMode("login")
+    },
+    signup: () => {
+      try {
+        if (typeof window !== "undefined" && window.location.pathname !== "/login") {
+          window.history.replaceState({}, "", "/login")
+        }
+      } catch {
+        /* ignore */
+      }
+      setAuthMode("signup")
+    },
+    landing: () => {
+      try {
+        if (typeof window !== "undefined" && window.location.pathname === "/login") {
+          window.history.replaceState({}, "", "/")
+        }
+      } catch {
+        /* ignore */
+      }
+      setView("landing")
+    },
   }
 
   return (
@@ -298,6 +336,7 @@ export default function Home() {
       <main className="flex-1 flex flex-col">
         {view === "landing" && <LandingView onLogin={nav.login} onSignup={nav.signup} />}
         {view === "auth" && <AuthView />}
+        {view === "auth-admin" && <AuthViewAdmin />}
         {view === "dashboard" &&
           (session?.user.role === "PRO" ? (
             <ProDashboard />

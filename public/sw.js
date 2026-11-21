@@ -16,11 +16,12 @@
 // servi tel quel par Next.js sans compilation).
 // ============================================================
 
-// CACHE_NAME bumpé v4 → v5 (feedbackpro-airport-v5) : purge forcée du
-// shell en cache chez tous les visiteurs existants. Correction du bug
-// « ancien design servi après un déploiement » — les navigations HTML
-// passent désormais en NETWORK-FIRST (voir règle 3b du fetch).
-const CACHE_NAME = "feedbackpro-airport-v5"
+// CACHE_NAME bumpé v5 → v6 (feedbackpro-airport-v6) : purge forcée du
+// cache chez tous les visiteurs — v5 contenait des réponses /api/auth/me
+// en cache (via l'ancienne règle stale-while-revalidate) qui causaient
+// le bug « il faut saisir ses identifiants 2 fois » (après le login, le
+// SW servait la réponse « non connecté » en cache avant la revalidation).
+const CACHE_NAME = "feedbackpro-airport-v6"
 const CACHE_API = "feedbackpro-api-v2"
 // Cache dédié aux réponses GET /api/airport/zone/* (network-first, pas de
 // TTL : on veut toujours la version réseau si disponible, le cache n'est
@@ -254,6 +255,37 @@ self.addEventListener("fetch", (event) => {
     return
   }
 
+  // 2c) NETWORK-FIRST STRICT pour TOUTES les autres réponses API GET
+  // (/api/auth/me, /api/pro/*, /api/admin/*, /api/me, /api/notifications…).
+  // Ces réponses sont DYNAMIQUES et liées au cookie de session : les servir
+  // depuis un cache (stale-while-revalidate) provoquait le bug
+  // « il faut saisir ses identifiants 2 fois » — après le POST /auth/login
+  // (cookie posé), le SW renvoyait depuis le cache le /api/auth/me « non
+  // connecté » capturé avant la connexion. Aucune mise en cache : le réseau
+  // est toujours la source de vérité ; le cache n'est qu'un repli offline.
+  if (url.pathname.startsWith("/api/")) {
+    event.respondWith(
+      (async () => {
+        try {
+          return await fetch(req)
+        } catch {
+          // Hors ligne : repli best-effort sur un éventuel cache ancien,
+          // sinon réponse JSON 503 exploitable par le client.
+          const cache = await caches.open(CACHE_API)
+          const fallback = await cache.match(req)
+          return (
+            fallback ??
+            new Response(JSON.stringify({ ok: false, error: "Hors ligne" }), {
+              status: 503,
+              headers: { "Content-Type": "application/json" },
+            })
+          )
+        }
+      })()
+    )
+    return
+  }
+
   // 3) Network-first pour la page de scan /r/[qrToken]
   if (url.pathname.startsWith("/r/")) {
     event.respondWith(
@@ -304,7 +336,9 @@ self.addEventListener("fetch", (event) => {
   }
 
   // 4) Stale-while-revalidate pour les assets statiques same-origin
-  // (JS/CSS/images — noms hashés, donc jamais obsolètes en pratique)
+  // (JS/CSS/images — noms hashés, donc jamais obsolètes en pratique).
+  // NB : toutes les routes /api/* sont déjà traitées plus haut (règles 1,
+  // 2, 2b et 2c) — aucune réponse API dynamique ne passe par ici.
   if (url.origin === self.location.origin) {
     event.respondWith(
       (async () => {

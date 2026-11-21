@@ -9,7 +9,7 @@
 
 import { create } from "zustand"
 
-export type View = "loading" | "landing" | "auth" | "dashboard" | "admin" | "scan" | "airport" | "airport-staff" | "airport-ops" | "airline" | "vip" | "vip-table" | "vip-staff" | "onboarding-tenant"
+export type View = "loading" | "landing" | "auth" | "auth-admin" | "dashboard" | "admin" | "scan" | "airport" | "airport-staff" | "airport-ops" | "airline" | "vip" | "vip-table" | "vip-staff" | "onboarding-tenant"
 
 /** Établissement (Pro) tel que renvoyé par /api/auth/me et les routes de session */
 export type ProData = {
