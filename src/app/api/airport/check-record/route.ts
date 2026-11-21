@@ -3,7 +3,7 @@
 // ------------------------------------------------------------
 // Vérifie si une résolution constitue un "record personnel" et/ou
 // respecte le SLA cible de la zone. Appelé par la PWA staff après
-// la résolution d'un incident pour déclencher la voix Denise +
+// la résolution d'un incident pour déclencher la voix Nathalie +
 // le son "level up" + l'overlay de célébration.
 //
 // Body JSON :

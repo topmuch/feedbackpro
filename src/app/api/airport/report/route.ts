@@ -66,7 +66,7 @@ export async function POST(req: NextRequest) {
     tag?: string
     problemType?: string
     commentaire?: string
-    // --- Task WAHOO-1 — Denise Traducteur Universel ---
+    // --- Task WAHOO-1 — Nathalie Traducteur Universel ---
     // commentaireOriginal : texte original saisi par le voyageur dans sa
     //   langue (avant traduction). Préservé pour référence (audit, email).
     // commentaireLang : code langue source (fr, en, zh, ar, es, de, pt,
@@ -172,7 +172,7 @@ export async function POST(req: NextRequest) {
   // `commentaire` = version FR). On encode dans le champ DB `commentaire` :
   //   - un préfixe `[origine:XX]` parsable par le wallboard pour annoncer
   //     « Message original en [langue] »
-  //   - la traduction française (Denise lit cette partie en français)
+  //   - la traduction française (Nathalie lit cette partie en français)
   //   - le texte original pour référence (audit, email, ops)
   //
   // Format : `[origine:en] Bagage oublié à la porte B4 — Original (en): I forgot my bag at gate B4`
@@ -327,7 +327,7 @@ export async function POST(req: NextRequest) {
   // --- MOTEUR DE ROUTAGE INTELLIGENT (zones Salon VIP) ---
   // Pour les zones vip_lounge, le signalement est routé automatiquement
   // vers le bon employé (QUI, OÙ, POURQUOI) : règle match → scoring →
-  // assignation → Denise. Fire-and-forget : ne bloque jamais la réponse
+  // assignation → Nathalie. Fire-and-forget : ne bloque jamais la réponse
   // au voyageur et ne peut pas faire échouer la création.
   if (zone.code.startsWith('vip_') || zone.code === 'com_lounge') {
     routerIncident({

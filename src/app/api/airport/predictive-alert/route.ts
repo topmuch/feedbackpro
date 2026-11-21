@@ -1,9 +1,9 @@
 // ============================================================
 // GET /api/airport/predictive-alert
 // ------------------------------------------------------------
-// Task WAHOO-4 — "Mode Prédictif" de Denise
+// Task WAHOO-4 — "Mode Prédictif" de Nathalie
 //
-// Denise ne se contente plus d'annoncer les incidents passés :
+// Nathalie ne se contente plus d'annoncer les incidents passés :
 // elle ANTICIPE les risques futurs en croisant 3 signaux :
 //
 //   1. **Vols aux portes (AirportFlightGate)** — vols actifs dont

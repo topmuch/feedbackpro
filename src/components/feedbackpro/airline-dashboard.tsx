@@ -13,7 +13,7 @@
 //   3. airline_baggage_office — Bureau litiges bagages
 //   4. airline_waiting_room   — Salle d'attente compagnie
 //
-// Denise (TTS) :
+// Nathalie (TTS) :
 //   - 2 niveaux uniquement : "Important/Opérationnel" et "Info/Factuel"
 //   - JAMAIS de ton critique (pas de mode crise)
 //   - Voix calme : rate 0.9, pitch 1.0 (vs 1.1 / 0.9 pour airport)
@@ -72,7 +72,7 @@ type BaggageDispute = {
 type AirlineTab = 'incidents' | 'baggage'
 
 // ---------------------------------------------------------------
-// Denise — Voix calme pour la compagnie (rate 0.9, pitch 1.0)
+// Nathalie — Voix calme pour la compagnie (rate 0.9, pitch 1.0)
 // ---------------------------------------------------------------
 
 function parlerCalme(texte: string): void {
@@ -238,7 +238,7 @@ export default function AirlineDashboard() {
       (i) => i.statut === 'EN_ATTENTE' && !announcedRef.current.has(i.id),
     )
     if (nouveaux.length === 0) return
-    // Niveaux Denise : "Important/Opérationnel" ou "Info/Factuel".
+    // Niveaux Nathalie : "Important/Opérationnel" ou "Info/Factuel".
     // On n'utilise JAMAIS le ton critique (pas de mode crise en compagnie).
     const texte = nouveaux
       .slice(0, 1)

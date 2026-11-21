@@ -19,7 +19,7 @@
 // Layout : max 1200px · gap section 80px · card 22px · clay 53/59.
 //
 // Contenu FeedVoice préservé à l'identique (hero, 6 secteurs,
-// Denise, stats, témoignages, CTA, footer, newsletter) — images
+// Nathalie, stats, témoignages, CTA, footer, newsletter) — images
 // produit générées IA (public/hyer/*) sur blanc pur / ciel d'aube.
 //
 // Toutes les classes sont préfixées `hy-` pour éviter toute fuite.
@@ -393,7 +393,7 @@ const HY_CSS = `
 }
 .hy-product-media img { width: 100%; height: 100%; object-fit: cover; }
 
-/* ---- DENISE (bande sombre) ---- */
+/* ---- NATHALIE (bande sombre) ---- */
 .hy-denise-grid {
   display: grid;
   grid-template-columns: 1fr 1.1fr;
@@ -622,7 +622,7 @@ const SECTORS: {
     key: "aeroport",
     icon: "✈️",
     title: "Aéroports",
-    desc: "Sécurité, flux, réactivité ops. Wallboard signalétique, Denise tour de contrôle, radar prédiction.",
+    desc: "Sécurité, flux, réactivité ops. Wallboard signalétique, Nathalie tour de contrôle, radar prédiction.",
   },
   {
     key: "contact",
@@ -661,7 +661,7 @@ const TESTIMONIALS = [
     initials: "JD",
     name: "Jean Diallo",
     role: "Manager · Hôtel Le Teranga",
-    text: "Nous capturons enfin les problèmes avant qu'ils ne deviennent des avis négatifs. Denise est devenue indispensable pour nos équipes terrain.",
+    text: "Nous capturons enfin les problèmes avant qu'ils ne deviennent des avis négatifs. Nathalie est devenue indispensable pour nos équipes terrain.",
   },
   {
     initials: "AS",
@@ -781,7 +781,7 @@ export function LandingHyer({
           </button>
           <div className="hy-nav-links">
             <button className="hy-nav-link" onClick={() => scrollToId("hy-secteurs")}>Secteurs</button>
-            <button className="hy-nav-link" onClick={() => scrollToId("hy-denise")}>Denise</button>
+            <button className="hy-nav-link" onClick={() => scrollToId("hy-denise")}>Nathalie</button>
             <button className="hy-nav-link" onClick={() => scrollToId("hy-preuves")}>Résultats</button>
             <button className="hy-nav-link" onClick={() => navigate("contact")}>Contact</button>
           </div>
@@ -816,7 +816,7 @@ export function LandingHyer({
           </div>
           <div className="hy-menu-list">
             <button className="hy-menu-item" onClick={() => scrollToId("hy-secteurs")}>Secteurs</button>
-            <button className="hy-menu-item" onClick={() => scrollToId("hy-denise")}>Denise</button>
+            <button className="hy-menu-item" onClick={() => scrollToId("hy-denise")}>Nathalie</button>
             <button className="hy-menu-item" onClick={() => scrollToId("hy-preuves")}>Résultats</button>
             <button className="hy-menu-item" onClick={() => { setMenuOpen(false); navigate("contact") }}>Contact</button>
             <button className="hy-menu-item" onClick={() => { setMenuOpen(false); navigate("apropos") }}>À propos</button>
@@ -966,12 +966,12 @@ export function LandingHyer({
         </div>
       </section>
 
-      {/* ==================== DENISE (bande sombre) ==================== */}
+      {/* ==================== NATHALIE (bande sombre) ==================== */}
       <section className="hy-section hy-band-hull" id="hy-denise">
         <div className="hy-container">
           <div className="hy-head-right">
             <p className="hy-eyebrow" style={{ color: "rgba(255,255,255,0.5)" }}>La voix</p>
-            <h2 className="hy-h2">Denise ne dort jamais.</h2>
+            <h2 className="hy-h2">Nathalie ne dort jamais.</h2>
           </div>
 
           <div className="hy-denise-grid">
@@ -981,14 +981,14 @@ export function LandingHyer({
                 <div className="hy-denise-head">
                   <span className="hy-denise-avatar" aria-hidden>🎙️</span>
                   <div>
-                    <div className="hy-denise-name">Denise</div>
+                    <div className="hy-denise-name">Nathalie</div>
                     <div className="hy-denise-status">
                       <span className="hy-denise-dot" aria-hidden />
                       Écoute active · Salon VIP Terra
                     </div>
                   </div>
                 </div>
-                <div className="hy-denise-label">Annonce de Denise</div>
+                <div className="hy-denise-label">Annonce de Nathalie</div>
                 <p className="hy-denise-quote">
                   « Point d&apos;attention : Buffet niveau bas à 35%. Rafraîchissement
                   recommandé. Table T-08 signale bruit excessif, intervention
@@ -1005,7 +1005,7 @@ export function LandingHyer({
             {/* Colonne droite : contenu */}
             <div className="hy-reveal">
               <p className="hy-lede" style={{ color: "rgba(255,255,255,0.72)" }}>
-                Pendant que vos équipes travaillent les mains occupées, Denise
+                Pendant que vos équipes travaillent les mains occupées, Nathalie
                 veille. Chaque signalement est analysé, priorisé et annoncé
                 vocalement. Pas d&apos;écran à regarder — juste une voix qui guide,
                 adaptée à chaque environnement.
@@ -1029,7 +1029,7 @@ export function LandingHyer({
                 </div>
               </div>
               <button className="hy-btn hy-btn-ghost-light" onClick={() => navigate("contact")}>
-                Voir Denise en action
+                Voir Nathalie en action
                 <ArrowRight size={16} aria-hidden />
               </button>
             </div>
@@ -1137,7 +1137,7 @@ export function LandingHyer({
               </p>
               <p className="hy-footer-desc">
                 L&apos;excellence opérationnelle pour vos établissements. Piloté par
-                Denise et Nathalie, vos assistantes intelligentes temps réel.
+                Nathalie, votre assistante intelligente temps réel.
               </p>
             </div>
 
@@ -1197,7 +1197,7 @@ export function LandingHyer({
             <div>© {new Date().getFullYear()} FeedVoice. Tous droits réservés.</div>
             <div className="hy-footer-denise">
               <span className="hy-footer-badge-dot" aria-hidden />
-              Piloté par Denise
+              Piloté par Nathalie
             </div>
           </div>
         </div>

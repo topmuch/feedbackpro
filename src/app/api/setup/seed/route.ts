@@ -26,7 +26,7 @@ export async function POST() {
     // Modules
     const modules = [
       { key: "surveys", nom: "Sondages", description: "Questionnaires", actif: true },
-      { key: "voice_ai", nom: "Coach Vocal IA", description: "Denise", actif: true },
+      { key: "voice_ai", nom: "Coach Vocal IA", description: "Nathalie", actif: true },
       { key: "trends", nom: "Analytics", description: "Tableaux de bord", actif: true },
       { key: "nps", nom: "NPS", description: "Satisfaction", actif: true },
       { key: "abonnement_multi_sites", nom: "Multi-Sites", description: "Multi-établissements", actif: true },

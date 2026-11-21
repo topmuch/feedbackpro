@@ -10,7 +10,7 @@
 //     votre guide personnel. »
 //
 // Source : tenant.config (chargerVipConfig) — général.nom et
-// Denise.messageBienvenue, avec fallback sur les défauts.
+// Nathalie.messageBienvenue, avec fallback sur les défauts.
 // Multi-tenant safe : aucune valeur codée en dur côté client.
 // ============================================================
 

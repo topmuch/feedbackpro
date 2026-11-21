@@ -173,7 +173,7 @@ const SERVICE_LABELS: Record<string, string> = {
   whatsapp_api: "API WhatsApp Business",
   smtp_email: "SMTP / Resend Email",
   push_pwa: "Notifications Push PWA (Web Push)",
-  denise_tts: "Synthèse vocale Denise TTS",
+  denise_tts: "Synthèse vocale Nathalie TTS",
   service_worker: "Service Worker PWA (/sw.js)",
 }
 

@@ -13,6 +13,9 @@
 //   • Bouton "RÉSERVER" sur cabine libre (réservation directe).
 //   • Bouton "RÉSERVER MA DOUCHE" (rejoint la file la plus courte).
 //   • Écran de confirmation avec n° de suivi + ETA personnel.
+//   • Bilingue FR/EN via la prop `langue` (défaut 'fr').
+//   • Filtre anti-périmé : réservations queued/ready expirées et
+//     'using' > 60 min (no-show) traitées comme inactives côté lecture.
 //
 // Palette « Luxe Lumineux » :
 //   - Background   #ffffff    - Cards  #FFFFFF + shadow gold 6%
@@ -99,6 +102,9 @@ interface ReserveResult {
 
 type Screen = 'main' | 'confirm'
 
+/** Langue d'affichage du module (bilingue FR/EN). */
+type Langue = 'fr' | 'en'
+
 interface ConfirmationState {
   showerNumber: number
   etaMin: number
@@ -125,26 +131,40 @@ const POLL_INTERVAL_MS = 15_000
 
 const ACTIVE_RESERVATION_STATUSES = new Set(['queued', 'ready', 'using'])
 
+/** No-show : une résa 'using' dont reservedAt date de plus de 60 min est périmée. */
+const USING_STALE_MS = 60 * 60_000
+/** Plafond d'affichage (minutes) anti-valeurs absurdes (ETA, « Occupée depuis »). */
+const MAX_DISPLAY_MIN = 120
+
 const STATUS_META: Record<
   DerivedStatus,
-  { label: string; emoji: string; badgeClass: string; ringClass: string }
+  {
+    labelFr: string
+    labelEn: string
+    emoji: string
+    badgeClass: string
+    ringClass: string
+  }
 > = {
   free: {
-    label: 'Libre',
+    labelFr: 'Libre',
+    labelEn: 'Available',
     emoji: '🟢',
     badgeClass:
       'bg-[#faf1ec] text-[#8a4f3b] border-[#e7c1ae]',
     ringClass: 'ring-[#e7c1ae]/60',
   },
   occupied: {
-    label: 'Occupée',
+    labelFr: 'Occupée',
+    labelEn: 'Occupied',
     emoji: '🟠',
     badgeClass:
       'bg-[#faf1ec] text-[#8a4f3b] border-[#e7c1ae]',
     ringClass: 'ring-[#e7c1ae]/60',
   },
   cleaning: {
-    label: 'Nettoyage',
+    labelFr: 'Nettoyage',
+    labelEn: 'Cleaning',
     emoji: '🔵',
     badgeClass: 'bg-[#f0f1f2] text-[#2e3040] border-[#b9bbc2]',
     ringClass: 'ring-[#b9bbc2]/60',
@@ -157,9 +177,9 @@ const STATUS_META: Record<
  *   - zone/fauteuil ("Zone Buffet", "Fauteuil 12", "Salon VIP")
  *     → affiché tel quel (mode CLIENT_GLOBAL, QR d'entrée).
  */
-function displayLocation(t: string): string {
+function displayLocation(t: string, langue: Langue = 'fr'): string {
   const raw = (t ?? '').trim()
-  if (!raw) return 'Salon VIP'
+  if (!raw) return langue === 'en' ? 'VIP Lounge' : 'Salon VIP'
   return /^t[-\s]?\d+/i.test(raw) ? `Table ${raw}` : raw
 }
 
@@ -176,11 +196,40 @@ function minutesSince(iso: string | null): number {
   return Math.max(0, Math.floor((Date.now() - t) / 60_000))
 }
 
-/** Formate "X min" en gérant le singulier/pluriel. */
-function fmtMinutes(min: number): string {
-  if (min <= 0) return "à l'instant"
+/** Formate "X min" en gérant le singulier/pluriel (bilingue FR/EN). */
+function fmtMinutes(min: number, langue: Langue = 'fr'): string {
+  if (min <= 0) return langue === 'en' ? 'just now' : "à l'instant"
   if (min === 1) return '1 min'
   return `${min} min`
+}
+
+/**
+ * FILTRE ANTI-PÉRIMÉ — une réservation n'est « active » que si :
+ *   • son statut est queued / ready / using, ET
+ *   • queued|ready : expiresAt n'est pas déjà passé (sinon le no-show
+ *     n'a jamais été libéré côté lecture → « Occupée depuis 3373 min ») ;
+ *   • using : reservedAt date de moins de 60 min (no-show présumé).
+ * Les réservations périmées sont ignorées comme si elles étaient
+ * terminées (done / cancelled).
+ */
+function isReservationActive(r: ShowerReservation): boolean {
+  if (!ACTIVE_RESERVATION_STATUSES.has(r.status)) return false
+  const now = Date.now()
+  // (a) queued / ready : expiresAt passé → périmée
+  if (r.status === 'queued' || r.status === 'ready') {
+    if (r.expiresAt) {
+      const exp = new Date(r.expiresAt).getTime()
+      if (!Number.isNaN(exp) && exp < now) return false
+    }
+  }
+  // (b) using : reservedAt vieux de plus de 60 min → périmée (no-show)
+  if (r.status === 'using') {
+    const started = new Date(r.reservedAt).getTime()
+    if (!Number.isNaN(started) && now - started > USING_STALE_MS) {
+      return false
+    }
+  }
+  return true
 }
 
 /**
@@ -201,7 +250,9 @@ function buildShowerViews(
   // Index des réservations actives par showerNumber
   const activeByShower = new Map<number, ShowerReservation[]>()
   for (const r of reservations) {
-    if (!ACTIVE_RESERVATION_STATUSES.has(r.status)) continue
+    // Filtre anti-périmé : queued/ready expirées et 'using' > 60 min
+    // ne comptent plus (ni file, ni ETA, ni occupation).
+    if (!isReservationActive(r)) continue
     const arr = activeByShower.get(r.showerNumber) ?? []
     arr.push(r)
     activeByShower.set(r.showerNumber, arr)
@@ -231,11 +282,15 @@ function buildShowerViews(
       status = active.length > 0 || hasUsingOrReady ? 'occupied' : 'free'
     }
 
-    // Queue = nombre de réservations "queued" (en attente)
+    // Queue = nombre de réservations "queued" (en attente) non périmées
     const queueCount = active.filter((r) => r.status === 'queued').length
-    // ETA = nombre de gens devant * SLOT_MIN (incluant l'usage courant)
+    // ETA = nombre de gens devant * SLOT_MIN (incluant l'usage courant),
+    // plafonné à MAX_DISPLAY_MIN pour éviter les ETA absurdes.
     const slotsAhead = Math.max(0, active.length)
-    const etaMin = status === 'free' ? 0 : slotsAhead * SLOT_MIN
+    const etaMin =
+      status === 'free'
+        ? 0
+        : Math.min(slotsAhead * SLOT_MIN, MAX_DISPLAY_MIN)
 
     const occupiedSince =
       row?.occupiedSince ??
@@ -273,11 +328,23 @@ interface ShowerCardProps {
   view: ShowerView
   onReserve: (showerNumber: number) => void
   busy?: boolean
+  langue?: Langue
 }
 
-function ShowerCard({ view, onReserve, busy }: ShowerCardProps) {
+function ShowerCard({
+  view,
+  onReserve,
+  busy,
+  langue = 'fr',
+}: ShowerCardProps) {
+  const T = (fr: string, en: string) => (langue === 'en' ? en : fr)
   const meta = STATUS_META[view.status]
   const elapsedMin = minutesSince(view.occupiedSince)
+  // Garde-fou d'affichage : au-delà de MAX_DISPLAY_MIN minutes, la valeur
+  // « Occupée depuis » est absurde (occupation fantôme non encore
+  // auto-libérée côté backend) → on affiche « — ».
+  const elapsedLabel =
+    elapsedMin > MAX_DISPLAY_MIN ? '—' : fmtMinutes(elapsedMin, langue)
 
   return (
     <article
@@ -309,7 +376,7 @@ function ShowerCard({ view, onReserve, busy }: ShowerCardProps) {
               {view.label}
             </div>
             <div className="mt-1 text-[11px] uppercase tracking-wide text-[#8B6F47]">
-              Cabine {view.showerNumber}
+              {T('Cabine', 'Cabin')} {view.showerNumber}
             </div>
           </div>
         </div>
@@ -321,7 +388,7 @@ function ShowerCard({ view, onReserve, busy }: ShowerCardProps) {
           )}
         >
           <span aria-hidden>{meta.emoji}</span>
-          {meta.label}
+          {T(meta.labelFr, meta.labelEn)}
         </span>
       </div>
 
@@ -329,29 +396,38 @@ function ShowerCard({ view, onReserve, busy }: ShowerCardProps) {
       <div className="mt-4 flex-1 text-sm">
         {view.status === 'free' ? (
           <p className="text-[#bc7155]">
-            Cabine disponible immédiatement.
+            {T('Cabine disponible immédiatement.', 'Cabin available right away.')}
           </p>
         ) : view.status === 'cleaning' ? (
           <div className="space-y-1">
-            <p className="text-[#6b6b6b]">En cours de nettoyage.</p>
+            <p className="text-[#6b6b6b]">
+              {T('En cours de nettoyage.', 'Currently being cleaned.')}
+            </p>
             <p className="inline-flex items-center gap-1 text-xs text-[#8B6F47]">
-              <Clock className="size-3" /> Fin prévue ≈ {fmtMinutes(CLEANING_MIN)}
+              <Clock className="size-3" />{' '}
+              {T('Fin prévue ≈', 'Ready in ≈')}{' '}
+              {fmtMinutes(CLEANING_MIN, langue)}
             </p>
           </div>
         ) : (
           <div className="space-y-1">
             <p className="inline-flex items-center gap-1 text-[#6b6b6b]">
-              <Clock className="size-3 text-[#bc7155]" /> Occupée depuis{' '}
-              {fmtMinutes(elapsedMin)}
+              <Clock className="size-3 text-[#bc7155]" />{' '}
+              {T('Occupée depuis', 'In use for')} {elapsedLabel}
             </p>
             {view.queueCount > 0 && (
               <p className="inline-flex items-center gap-1 text-xs text-[#8B6F47]">
                 <Users className="size-3" /> {view.queueCount}{' '}
-                {view.queueCount === 1 ? 'personne' : 'personnes'} en file
+                {view.queueCount === 1
+                  ? T('personne', 'person')
+                  : T('personnes', 'people')}{' '}
+                {T('en file', 'in queue')}
               </p>
             )}
             <p className="inline-flex items-center gap-1 text-xs text-[#8B6F47]">
-              <Clock className="size-3" /> Libre dans ≈ {fmtMinutes(view.etaMin)}
+              <Clock className="size-3" />{' '}
+              {T('Libre dans ≈', 'Available in ≈')}{' '}
+              {fmtMinutes(view.etaMin, langue)}
             </p>
           </div>
         )}
@@ -371,11 +447,12 @@ function ShowerCard({ view, onReserve, busy }: ShowerCardProps) {
         >
           {busy ? (
             <>
-              <Loader2 className="size-4 animate-spin" /> Réservation…
+              <Loader2 className="size-4 animate-spin" />{' '}
+              {T('Réservation…', 'Reserving…')}
             </>
           ) : (
             <>
-              <Check className="size-4" /> Réserver
+              <Check className="size-4" /> {T('Réserver', 'Reserve')}
             </>
           )}
         </Button>
@@ -392,13 +469,16 @@ interface ConfirmationViewProps {
   state: ConfirmationState
   onBack: () => void
   onReserveAnother: () => void
+  langue?: Langue
 }
 
 function ConfirmationView({
   state,
   onBack,
   onReserveAnother,
+  langue = 'fr',
 }: ConfirmationViewProps) {
+  const T = (fr: string, en: string) => (langue === 'en' ? en : fr)
   return (
     <div className="mx-auto flex max-w-md flex-col items-center px-4 py-10 text-center">
       <div
@@ -414,14 +494,15 @@ function ConfirmationView({
         className="mt-6 text-2xl text-[#2C2C2C]"
         style={TITLE_FONT}
       >
-        Douche réservée
+        {T('Douche réservée', 'Shower reserved')}
       </h2>
       <p className="mt-2 text-sm text-[#6b6b6b]">
-        Votre douche{' '}
+        {T('Votre douche', 'Your shower')}{' '}
         <span className="font-semibold text-[#2C2C2C]">
           {showerLabel(state.showerNumber)}
         </span>{' '}
-        sera prête dans ≈ {fmtMinutes(state.etaMin)}.
+        {T('sera prête dans ≈', 'will be ready in ≈')}{' '}
+        {fmtMinutes(state.etaMin, langue)}.
       </p>
 
       <div
@@ -432,7 +513,7 @@ function ConfirmationView({
       >
         <div className="flex items-center justify-between">
           <span className="text-xs font-semibold uppercase tracking-wide text-[#8B6F47]">
-            N° de suivi
+            {T('N° de suivi', 'Tracking number')}
           </span>
           <span
             className="text-lg font-bold tracking-wider text-[#bc7155]"
@@ -445,7 +526,7 @@ function ConfirmationView({
         <div className="grid grid-cols-3 gap-3 text-center">
           <div>
             <div className="text-[10px] uppercase tracking-wide text-[#8B6F47]">
-              Cabine
+              {T('Cabine', 'Cabin')}
             </div>
             <div className="text-sm font-semibold text-[#2C2C2C]">
               {showerLabel(state.showerNumber)}
@@ -453,7 +534,7 @@ function ConfirmationView({
           </div>
           <div>
             <div className="text-[10px] uppercase tracking-wide text-[#8B6F47]">
-              Position file
+              {T('Position file', 'Queue position')}
             </div>
             <div className="text-sm font-semibold text-[#2C2C2C]">
               #{state.queuePosition}
@@ -464,7 +545,7 @@ function ConfirmationView({
               ETA
             </div>
             <div className="text-sm font-semibold text-[#2C2C2C]">
-              {fmtMinutes(state.etaMin)}
+              {fmtMinutes(state.etaMin, langue)}
             </div>
           </div>
         </div>
@@ -478,11 +559,17 @@ function ConfirmationView({
       >
         <Bell className="mt-0.5 size-4 shrink-0 text-[#bc7155]" />
         <span>
-          Nous vous notifierons à votre table{' '}
+          {T(
+            'Nous vous notifierons à votre table',
+            'We will notify you at your table',
+          )}{' '}
           <span className="font-semibold text-[#2C2C2C]">
             {showerLabel(state.showerNumber)}
           </span>{' '}
-          dès qu'elle sera prête. Conservez votre n° de suivi.
+          {T(
+            "dès qu'elle sera prête. Conservez votre n° de suivi.",
+            'as soon as it is ready. Please keep your tracking number.',
+          )}
         </span>
       </div>
 
@@ -495,7 +582,8 @@ function ConfirmationView({
             'hover:bg-[#ffffff] hover:text-[#2C2C2C]',
           )}
         >
-          <ShowerHead className="size-4" /> Réserver une autre cabine
+          <ShowerHead className="size-4" />{' '}
+          {T('Réserver une autre cabine', 'Reserve another cabin')}
         </Button>
         <Button
           onClick={onBack}
@@ -504,7 +592,8 @@ function ConfirmationView({
             'hover:bg-[#B8974A] active:bg-[#A6863C]',
           )}
         >
-          <ArrowLeft className="size-4" /> Retour à la table
+          <ArrowLeft className="size-4" />{' '}
+          {T('Retour à la table', 'Back to your table')}
         </Button>
       </div>
     </div>
@@ -518,11 +607,21 @@ function ConfirmationView({
 export function VipShowerReservation({
   tableNumber,
   onBack,
+  langue = 'fr',
 }: {
   tableNumber: string
   onBack: () => void
+  langue?: Langue
 }) {
   const { toast } = useToast()
+
+  // Helper de traduction local : T(fr, en).
+  // Mémorisé sur `langue` pour conserver une identité stable dans les
+  // dépendances des useCallback ci-dessous (sinon le polling bouclerait).
+  const T = useMemo(
+    () => (fr: string, en: string) => (langue === 'en' ? en : fr),
+    [langue],
+  )
 
   // ----- State -----
   const [reservations, setReservations] = useState<ShowerReservation[]>([])
@@ -548,10 +647,12 @@ export function VipShowerReservation({
     })
     const body = await res.json().catch(() => null)
     if (!body || body.ok !== true || !Array.isArray(body.data)) {
-      throw new Error('Réservations indisponibles')
+      throw new Error(
+        T('Réservations indisponibles', 'Reservations unavailable'),
+      )
     }
     return body.data as ShowerReservation[]
-  }, [])
+  }, [T])
 
   const fetchShowers = useCallback(async (): Promise<ShowerStatusRow[] | null> => {
     // Best-effort : l'API peut renvoyer 401 côté client non authentifié.
@@ -581,9 +682,12 @@ export function VipShowerReservation({
         setLastSyncAt(Date.now())
       } catch (err) {
         if (silent) return
-        const msg = err instanceof Error ? err.message : 'Erreur réseau'
+        const msg =
+          err instanceof Error
+            ? err.message
+            : T('Erreur réseau', 'Network error')
         toast({
-          title: 'Synchronisation impossible',
+          title: T('Synchronisation impossible', 'Unable to refresh'),
           description: msg,
           variant: 'destructive',
         })
@@ -592,7 +696,7 @@ export function VipShowerReservation({
         if (mountedRef.current) setLoading(false)
       }
     },
-    [fetchReservations, fetchShowers, toast],
+    [fetchReservations, fetchShowers, toast, T],
   )
 
   // ----- Effet de montage + polling -----
@@ -623,13 +727,16 @@ export function VipShowerReservation({
   const bestShower = useMemo(() => pickBestShower(views), [views])
 
   const globalQueueAhead = useMemo(() => {
-    // Total des "queued" sur toutes les cabines (file d'attente globale)
-    return reservations.filter((r) => r.status === 'queued').length
+    // Total des "queued" non périmées (file d'attente globale)
+    return reservations.filter(
+      (r) => isReservationActive(r) && r.status === 'queued',
+    ).length
   }, [reservations])
 
   const globalEtaMin = useMemo(() => {
     if (!bestShower) return 0
-    return bestShower.etaMin
+    // Plafond de sécurité (déjà appliqué dans buildShowerViews)
+    return Math.min(bestShower.etaMin, MAX_DISPLAY_MIN)
   }, [bestShower])
 
   // ----- Actions -----
@@ -646,7 +753,9 @@ export function VipShowerReservation({
         })
         const body = await res.json().catch(() => null)
         if (!body || body.ok !== true || !body.data) {
-          throw new Error(body?.error || 'Réservation refusée')
+          throw new Error(
+            body?.error || T('Réservation refusée', 'Reservation refused'),
+          )
         }
         // La route renvoie { reservation, etaMinutes, queuePosition }.
         // On tolère aussi l'ancienne forme { id, status, etaMin }.
@@ -667,24 +776,32 @@ export function VipShowerReservation({
         const trackingNumber = buildTrackingNumber(reservationId, showerNumber)
 
         if (!mountedRef.current) return
+        // Plafond de sécurité sur l'ETA affiché (évite les ETA absurdes).
+        const safeEtaMin = Math.min(etaMin, MAX_DISPLAY_MIN)
         setConfirmation({
           showerNumber,
-          etaMin,
+          etaMin: safeEtaMin,
           queuePosition,
           reservationId,
           trackingNumber,
         })
         setScreen('confirm')
         toast({
-          title: 'Douche réservée',
-          description: `${showerLabel(showerNumber)} · ETA ≈ ${fmtMinutes(etaMin)}`,
+          title: T('Douche réservée', 'Shower reserved'),
+          description: `${showerLabel(showerNumber)} · ETA ≈ ${fmtMinutes(
+            safeEtaMin,
+            langue,
+          )}`,
         })
         // Refresh silencieux pour mettre à jour la grille
         void refresh({ silent: true })
       } catch (err) {
-        const msg = err instanceof Error ? err.message : 'Erreur réseau'
+        const msg =
+          err instanceof Error
+            ? err.message
+            : T('Erreur réseau', 'Network error')
         toast({
-          title: 'Réservation impossible',
+          title: T('Réservation impossible', 'Unable to reserve'),
           description: msg,
           variant: 'destructive',
         })
@@ -695,20 +812,23 @@ export function VipShowerReservation({
         }
       }
     },
-    [refresh, tableNumber, toast],
+    [refresh, tableNumber, toast, T, langue],
   )
 
   const handleJoinQueue = useCallback(() => {
     if (!bestShower) {
       toast({
-        title: 'Aucune cabine disponible',
-        description: 'Veuillez patienter quelques minutes.',
+        title: T('Aucune cabine disponible', 'No cabin available'),
+        description: T(
+          'Veuillez patienter quelques minutes.',
+          'Please wait a few minutes.',
+        ),
         variant: 'destructive',
       })
       return
     }
     void handleReserve(bestShower.showerNumber)
-  }, [bestShower, handleReserve, toast])
+  }, [bestShower, handleReserve, toast, T])
 
   const handleBackToTable = useCallback(() => {
     onBack()
@@ -720,6 +840,24 @@ export function VipShowerReservation({
     void refresh({ silent: false })
   }, [refresh])
 
+  // ----- Label du pied de page sync (bilingue, garde « à l'instant ») -----
+  const minsSinceSync = lastSyncAt
+    ? Math.floor((Date.now() - lastSyncAt) / 60_000)
+    : 0
+  const autoRefreshLabel =
+    langue === 'en'
+      ? `Auto-refresh every ${POLL_INTERVAL_MS / 1000}s`
+      : `MAJ auto toutes les ${POLL_INTERVAL_MS / 1000}s`
+  const syncLabel = !lastSyncAt
+    ? T('Synchronisation en cours…', 'Synchronising…')
+    : minsSinceSync <= 0
+      ? langue === 'en'
+        ? `Synced just now · ${autoRefreshLabel}`
+        : `Synchronisé à l'instant · ${autoRefreshLabel}`
+      : langue === 'en'
+        ? `Synced ${fmtMinutes(minsSinceSync, langue)} ago · ${autoRefreshLabel}`
+        : `Synchronisé il y a ${fmtMinutes(minsSinceSync, langue)} · ${autoRefreshLabel}`
+
   // ----- Render : écran confirmation -----
   if (screen === 'confirm' && confirmation) {
     return (
@@ -728,6 +866,7 @@ export function VipShowerReservation({
           state={confirmation}
           onBack={handleBackToTable}
           onReserveAnother={handleReserveAnother}
+          langue={langue}
         />
       </div>
     )
@@ -747,7 +886,7 @@ export function VipShowerReservation({
           <button
             type="button"
             onClick={onBack}
-            aria-label="Retour"
+            aria-label={T('Retour', 'Back')}
             className={cn(
               'flex size-9 items-center justify-center rounded-full',
               'border border-[#efe7e0] bg-white text-[#8B6F47]',
@@ -764,9 +903,11 @@ export function VipShowerReservation({
                 className="truncate text-lg leading-tight text-[#2C2C2C]"
                 style={TITLE_FONT}
               >
-                Réserver une douche
+                {T('Réserver une douche', 'Reserve a shower')}
               </h1>
-              <p className="text-xs text-[#8B6F47]">{displayLocation(tableNumber)}</p>
+              <p className="text-xs text-[#8B6F47]">
+                {displayLocation(tableNumber, langue)}
+              </p>
             </div>
           </div>
 
@@ -774,7 +915,7 @@ export function VipShowerReservation({
             type="button"
             onClick={() => void refresh({ silent: false })}
             disabled={refreshing}
-            aria-label="Rafraîchir"
+            aria-label={T('Rafraîchir', 'Refresh')}
             className={cn(
               'flex size-9 items-center justify-center rounded-full',
               'border border-[#efe7e0] bg-white text-[#8B6F47]',
@@ -804,13 +945,19 @@ export function VipShowerReservation({
               style={TITLE_FONT}
             >
               {freeCount > 0
-                ? `${freeCount} cabine${freeCount > 1 ? 's' : ''} disponible${freeCount > 1 ? 's' : ''}`
-                : 'Toutes les cabines sont occupées'}
+                ? langue === 'en'
+                  ? `${freeCount} cabin${freeCount > 1 ? 's' : ''} available`
+                  : `${freeCount} cabine${freeCount > 1 ? 's' : ''} disponible${freeCount > 1 ? 's' : ''}`
+                : T(
+                    'Toutes les cabines sont occupées',
+                    'All cabins are currently in use',
+                  )}
             </div>
             <p className="mt-1 text-xs leading-relaxed text-[#6b6b6b]">
-              Réservez en un clic. Vous recevrez une notification à votre
-              table dès que votre douche sera prête (durée d'usage 20 min,
-              nettoyage 10 min).
+              {T(
+                "Réservez en un clic. Vous recevrez une notification à votre table dès que votre douche sera prête (durée d'usage 20 min, nettoyage 10 min).",
+                'Reserve in one tap — you will be notified at your table as soon as your shower is ready (20-minute usage, 10-minute cleaning).',
+              )}
             </p>
           </div>
         </div>
@@ -826,6 +973,7 @@ export function VipShowerReservation({
                 view={view}
                 onReserve={handleReserve}
                 busy={busyShower === view.showerNumber}
+                langue={langue}
               />
             ))}
           </div>
@@ -848,17 +996,21 @@ export function VipShowerReservation({
                   className="text-base text-[#2C2C2C]"
                   style={TITLE_FONT}
                 >
-                  File d'attente intelligente
+                  {T("File d'attente intelligente", 'Smart queue')}
                 </h3>
                 <p className="mt-1 text-xs text-[#6b6b6b]">
                   {globalQueueAhead > 0
-                    ? `${globalQueueAhead} personne${globalQueueAhead > 1 ? 's' : ''} devant vous.`
-                    : 'Aucune file en cours.'}
+                    ? langue === 'en'
+                      ? `${globalQueueAhead} ${
+                          globalQueueAhead > 1 ? 'people' : 'person'
+                        } ahead of you.`
+                      : `${globalQueueAhead} personne${globalQueueAhead > 1 ? 's' : ''} devant vous.`
+                    : T('Aucune file en cours.', 'No queue at the moment.')}
                 </p>
                 <div className="mt-3 grid grid-cols-2 gap-3">
                   <div className="rounded-lg bg-[#ffffff] p-3 text-center">
                     <div className="text-[10px] uppercase tracking-wide text-[#8B6F47]">
-                      File d'attente
+                      {T("File d'attente", 'Queue')}
                     </div>
                     <div
                       className="mt-1 text-xl font-semibold text-[#2C2C2C]"
@@ -866,13 +1018,15 @@ export function VipShowerReservation({
                     >
                       {globalQueueAhead}{' '}
                       <span className="text-xs font-normal text-[#8B6F47]">
-                        {globalQueueAhead === 1 ? 'personne' : 'personnes'}
+                        {globalQueueAhead === 1
+                          ? T('personne', 'person')
+                          : T('personnes', 'people')}
                       </span>
                     </div>
                   </div>
                   <div className="rounded-lg bg-[#ffffff] p-3 text-center">
                     <div className="text-[10px] uppercase tracking-wide text-[#8B6F47]">
-                      ETA estimé
+                      {T('ETA estimé', 'Estimated ETA')}
                     </div>
                     <div
                       className="mt-1 text-xl font-semibold text-[#2C2C2C]"
@@ -897,17 +1051,19 @@ export function VipShowerReservation({
                 >
                   {busyQueue ? (
                     <>
-                      <Loader2 className="size-4 animate-spin" /> Réservation…
+                      <Loader2 className="size-4 animate-spin" />{' '}
+                      {T('Réservation…', 'Reserving…')}
                     </>
                   ) : (
                     <>
-                      <ShowerHead className="size-4" /> Réserver ma douche
+                      <ShowerHead className="size-4" />{' '}
+                      {T('Réserver ma douche', 'Reserve my shower')}
                     </>
                   )}
                 </Button>
                 {bestShower && (
                   <p className="mt-2 text-center text-[11px] text-[#8B6F47]">
-                    Cabine recommandée :{' '}
+                    {T('Cabine recommandée :', 'Recommended cabin:')}{' '}
                     <span className="font-semibold">
                       {showerLabel(bestShower.showerNumber)}
                     </span>
@@ -922,11 +1078,7 @@ export function VipShowerReservation({
         {!loading && (
           <div className="mt-6 flex items-center justify-center gap-2 text-[11px] text-[#8B6F47]">
             <Clock className="size-3" />
-            {lastSyncAt
-              ? `Synchronisé il y a ${fmtMinutes(
-                  Math.floor((Date.now() - lastSyncAt) / 60_000),
-                )} · MAJ auto toutes les ${POLL_INTERVAL_MS / 1000}s`
-              : 'Synchronisation en cours…'}
+            {syncLabel}
           </div>
         )}
       </div>

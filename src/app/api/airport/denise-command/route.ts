@@ -11,7 +11,7 @@
 //   3. renvoie `{ ok, data: { response, action? } }`
 //
 // Le wallboard énonce ensuite `data.response` via `parler()` (voix
-// Denise) et branche l'éventuel `data.action` (ex: 'crisis').
+// Nathalie) et branche l'éventuel `data.action` (ex: 'crisis').
 // ============================================================
 
 import { NextRequest } from 'next/server'

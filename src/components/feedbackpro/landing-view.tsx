@@ -10,12 +10,12 @@
 // Pages "secteur" (6) construites via une config SECTORS[]
 //   consommée par un composant générique <SectorPage/>. Chaque
 //   secteur expose : hero, 3 avantages (split/centered-tags),
-//   citation Denise, témoignage, CTA -> setPage('contact').
+//   citation Nathalie, témoignage, CTA -> setPage('contact').
 //
 // Sections light #ffffff + sections dark dramatiques #0f0f1c pour
-//   les parties Tech/Denise. Palette bleu aéroport #A8893F -> jaune
+//   les parties Tech/Nathalie. Palette bleu aéroport #A8893F -> jaune
 //   IATA #bc7155, accent cyan #bc7155. Effets : aurora blobs CSS,
-//   sound wave Denise (20 bars animées), mockups dashboard /
+//   sound wave Nathalie (20 bars animées), mockups dashboard /
 //   terminal / QR / phone / housekeeping / info-voyageurs /
 //   patient-flow / maintenance (HTML/CSS pur), count-up stats,
 //   reveals framer-motion (blur->clear), glows, hover lifts.
@@ -180,7 +180,7 @@ interface SectorConfig {
 const FBP_CSS = `
 /* Harmonisation premium B2B — typographie serif (Playfair Display) pour
    tous les titres des pages internes (secteurs, à propos, contact),
-   alignée sur l'accueil premium. Les guillemets (citations Denise,
+   alignée sur l'accueil premium. Les guillemets (citations Nathalie,
    témoignages) passent aussi en serif italique. */
 .fbp-shell h1, .fbp-shell h2 { font-family: 'Playfair Display', Georgia, serif; letter-spacing: -0.02em; }
 .fbp-shell blockquote { font-family: 'Playfair Display', Georgia, serif; }
@@ -958,7 +958,7 @@ function DeniseLiveCard({ dark = false }: { dark?: boolean }) {
           }`}
         >
           <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#bc7155]" />
-          Denise · centre de commandement
+          Nathalie · centre de commandement
         </div>
         <Volume2
           className={`h-4 w-4 ${dark ? "text-white/60" : "text-[#0f0f1c]/50"}`}
@@ -987,7 +987,7 @@ function DeniseLiveCard({ dark = false }: { dark?: boolean }) {
           <Mic className="h-3 w-3" /> Transcript live
         </div>
         <p className="mt-2 text-sm leading-relaxed text-white/90">
-          <span className="font-semibold text-white">Denise :</span> « Nouvel
+          <span className="font-semibold text-white">Nathalie :</span> « Nouvel
           incident. Sanitaires Zone Fumeurs. Priorité haute. Équipe nettoyage
           alertée. Temps d&apos;intervention estimé : 4 minutes. »
         </p>
@@ -1190,10 +1190,10 @@ function InfoVoyageursBoard() {
           </div>
         ))}
       </div>
-      {/* Denise announce */}
+      {/* Nathalie announce */}
       <div className="border-t border-white/10 bg-white/5 px-4 py-3">
         <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-[#bc7155]">
-          <Mic className="h-3 w-3" /> Annonce Denise
+          <Mic className="h-3 w-3" /> Annonce Nathalie
         </div>
         <p className="mt-1 text-xs text-white/85">
           « Train Dakar retardé 20 minutes. Affichage mis à jour. Voie 3. »
@@ -1551,7 +1551,7 @@ const SECTORS: SectorConfig[] = [
       </>
     ),
     heroSubtitle:
-      "Géolocalisation précise. Denise au centre de commandement. Traçabilité totale. Le signalement devient une action, pas un ticket.",
+      "Géolocalisation précise. Nathalie au centre de commandement. Traçabilité totale. Le signalement devient une action, pas un ticket.",
     qrBadge: "QR Staff géolocalisé",
     qrTitle: "Porte B12 · Tapis 4",
     qrUrl: "aeroport.feedbackpro.io/s/B12",
@@ -1626,7 +1626,7 @@ const SECTORS: SectorConfig[] = [
       initials: "JD",
       role: "Head of Ops · Aéroport européen",
       quote:
-        "Denise remplace nos talkies-walkies. Les équipes n'ont plus à regarder un écran — elles sont guidées vocalement, en continu.",
+        "Nathalie remplace nos talkies-walkies. Les équipes n'ont plus à regarder un écran — elles sont guidées vocalement, en continu.",
     },
   },
 
@@ -1714,7 +1714,7 @@ const SECTORS: SectorConfig[] = [
         layout: "split-right",
         steps: [
           { n: "1", t: "Guest signale", d: "« Chambre 301, draps à changer » via QR", icon: BellRing, color: "text-[#bc7155]" },
-          { n: "2", t: "Denise priorise", d: "Urgent vs à-faire, attribution automatique à l'étage", icon: Sparkles, color: "text-[#A8893F]" },
+          { n: "2", t: "Nathalie priorise", d: "Urgent vs à-faire, attribution automatique à l'étage", icon: Sparkles, color: "text-[#A8893F]" },
           { n: "3", t: "Femme de chambre notifiée", d: "Sur son téléphone, avec le n° de chambre et le besoin", icon: Phone, color: "text-[#A8893F]" },
           { n: "4", t: "Statut synchronisé", d: "Réception et superviseur voient la chambre en temps réel", icon: CheckCircle2, color: "text-[#bc7155]" },
         ],
@@ -1761,7 +1761,7 @@ const SECTORS: SectorConfig[] = [
       </>
     ),
     heroSubtitle:
-      "QR aux quais. Info voyageurs connectée. Denise annonce les retards. Le voyageur n'est plus seul face à l'incertitude.",
+      "QR aux quais. Info voyageurs connectée. Nathalie annonce les retards. Le voyageur n'est plus seul face à l'incertitude.",
     qrBadge: "Quai 3 · Départ Dakar",
     qrTitle: "Signaler un problème",
     qrUrl: "gare.feedbackpro.io/q/3",
@@ -1811,15 +1811,15 @@ const SECTORS: SectorConfig[] = [
       {
         num: "Avantage 3",
         icon: Megaphone,
-        title: "Info voyageurs temps réel. Denise annonce.",
+        title: "Info voyageurs temps réel. Nathalie annonce.",
         description:
-          "Le tableau info voyageurs se met à jour automatiquement. Denise annonce les retards par voie vocale sur les quais. Fini le silence anxiogène.",
+          "Le tableau info voyageurs se met à jour automatiquement. Nathalie annonce les retards par voie vocale sur les quais. Fini le silence anxiogène.",
         layout: "split-right",
         steps: [
           { n: "1", t: "Voyageur signale", d: "« Bus Dakar retardé » via QR quai 3", icon: Signpost, color: "text-[#bc7155]" },
           { n: "2", t: "IA confirme", d: "Croisement avec données planning et GPS bus", icon: Activity, color: "text-[#bc7155]" },
           { n: "3", t: "Affichage MAJ", d: "Tableau info voyageurs mis à jour en <5s", icon: Megaphone, color: "text-[#A8893F]" },
-          { n: "4", t: "Denise annonce", d: "Vocale sur le quai : « Retard 20min, voie 3. »", icon: Volume2, color: "text-[#bc7155]" },
+          { n: "4", t: "Nathalie annonce", d: "Vocale sur le quai : « Retard 20min, voie 3. »", icon: Volume2, color: "text-[#bc7155]" },
         ],
         mockup: "infovoyageurs",
         bg: "white",
@@ -1831,7 +1831,7 @@ const SECTORS: SectorConfig[] = [
       initials: "KB",
       role: "Responsable gare · Réseau national",
       quote:
-        "L'info voyageurs enfin connectée au terrain. Les voyageurs signalent, Denise annonce. Le stress sur les quais a chuté de moitié.",
+        "L'info voyageurs enfin connectée au terrain. Les voyageurs signalent, Nathalie annonce. Le stress sur les quais a chuté de moitié.",
     },
   },
 
@@ -1915,12 +1915,12 @@ const SECTORS: SectorConfig[] = [
         icon: Activity,
         title: "Flux patients optimisé. Saturation anticipée.",
         description:
-          "Tableau live par zone : urgences, consultations, radio, labo. Quand la salle d'attente se sature, Denise alerte automatiquement pour renfort.",
+          "Tableau live par zone : urgences, consultations, radio, labo. Quand la salle d'attente se sature, Nathalie alerte automatiquement pour renfort.",
         layout: "split-right",
         steps: [
           { n: "1", t: "Patient signale", d: "« Attente trop longue » via QR urgences", icon: Clock, color: "text-red-500" },
           { n: "2", t: "IA croise les flux", d: "Comptage patients vs capacité, détection saturation", icon: Activity, color: "text-[#bc7155]" },
-          { n: "3", t: "Renfort demandé", d: "Denise alerte le cadre de garde pour ouverture box", icon: BellRing, color: "text-[#bc7155]" },
+          { n: "3", t: "Renfort demandé", d: "Nathalie alerte le cadre de garde pour ouverture box", icon: BellRing, color: "text-[#bc7155]" },
           { n: "4", t: "Patient informé", d: "Délai estimé communiqué sur afficheur salle d'attente", icon: Info, color: "text-[#bc7155]" },
         ],
         mockup: "patientflow",
@@ -2130,7 +2130,7 @@ function SectorPage({
         <AdvantageSection key={idx} adv={adv} sector={sector} index={idx} />
       ))}
 
-      {/* DENISE QUOTE */}
+      {/* NATHALIE QUOTE */}
       <DeniseQuoteSection sector={sector} />
 
       {/* TESTIMONIAL */}
@@ -2385,7 +2385,7 @@ function DeniseQuoteSection({ sector }: { sector: SectorConfig }) {
       <div className="relative mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
         <Reveal>
           <div className="flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-widest text-[#bc7155]">
-            <Mic className="h-3 w-3" /> Denise · {sector.label}
+            <Mic className="h-3 w-3" /> Nathalie · {sector.label}
           </div>
         </Reveal>
         <Reveal delay={0.08}>
@@ -2404,7 +2404,7 @@ function DeniseQuoteSection({ sector }: { sector: SectorConfig }) {
         </Reveal>
         <Reveal delay={0.24}>
           <div className="mt-4 text-xs font-semibold uppercase tracking-widest text-[#bc7155]">
-            — Denise
+            — Nathalie
           </div>
         </Reveal>
       </div>
@@ -2547,7 +2547,7 @@ function AproposPage() {
         </div>
       </section>
 
-      {/* HISTOIRE DE DENISE */}
+      {/* HISTOIRE DE NATHALIE */}
       <section className="bg-white py-24 sm:py-28">
         <div className="mx-auto grid max-w-screen-2xl items-center gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:gap-16 lg:px-8">
           <div>
@@ -2565,14 +2565,14 @@ function AproposPage() {
               <p className="mt-5 text-base text-muted-foreground sm:text-lg">
                 Dans un aéroport, une cuisine, une chambre d&apos;hôtel ou un
                 service d&apos;urgences, les mains sont occupées et les yeux
-                ailleurs. La voix est le seul canal qui ne dérange pas. Denise
+                ailleurs. La voix est le seul canal qui ne dérange pas. Nathalie
                 est née de cette observation simple : il faut alerter sans
                 regarder, guider sans interrompre.
               </p>
             </Reveal>
             <Reveal delay={0.24}>
               <p className="mt-4 text-base text-muted-foreground sm:text-lg">
-                Aujourd&apos;hui, Denise veille sur des restaurants, des
+                Aujourd&apos;hui, Nathalie veille sur des restaurants, des
                 aéroports, des hôtels, des gares, des hôpitaux et des
                 établissements publics. Elle ne remplace pas les équipes. Elle
                 les rend plus rapides, plus justes, plus humaines.
@@ -2583,7 +2583,7 @@ function AproposPage() {
           <Reveal delay={0.2}>
             <div className="relative overflow-hidden rounded-none border border-black/5 bg-gradient-to-br from-[#0f0f1c] to-[#2C2C2C] p-8 text-white shadow-2xl">
               <div className="absolute inset-0 fbp-grid-dark opacity-40" aria-hidden />
-              {/* Denise avatar */}
+              {/* Nathalie avatar */}
               <div className="relative flex items-center justify-center">
                 <div className="relative">
                   <span className="fbp-ring-pulse absolute inset-0 rounded-full bg-[#bc7155]/40" />
@@ -2594,7 +2594,7 @@ function AproposPage() {
               </div>
               <div className="relative mt-6 text-center">
                 <div className="text-[10px] font-semibold uppercase tracking-widest text-[#bc7155]">
-                  Denise · Assistante vocale
+                  Nathalie · Assistante vocale
                 </div>
                 <div className="mt-4 flex h-16 items-center justify-center gap-1">
                   <SoundWave bars={22} barClassName="from-[#A8893F] to-[#bc7155] w-1" />
@@ -2620,14 +2620,14 @@ function AproposPage() {
             </Reveal>
             <Reveal delay={0.08}>
               <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#0f0f1c] sm:text-4xl">
-                Denise parle le langage de chaque secteur.
+                Nathalie parle le langage de chaque secteur.
               </h2>
             </Reveal>
             <Reveal delay={0.16}>
               <p className="mt-5 text-base text-muted-foreground sm:text-lg">
                 Le même moteur s&apos;adapte au vocabulaire, aux enjeux et aux
                 équipes de chaque environnement. Une cuisine n&apos;est pas un
-                quai de gare. Denise le sait.
+                quai de gare. Nathalie le sait.
               </p>
             </Reveal>
           </div>
@@ -2685,7 +2685,7 @@ function AproposPage() {
                 initials: "SK",
                 name: "Sofia Kone",
                 role: "CTO & Co-fondatrice",
-                bio: "Ingénieure IA. A conçu Denise pour qu'elle parle comme une collègue, pas comme un robot. Obsédée par la latence et la clarté.",
+                bio: "Ingénieure IA. A conçu Nathalie pour qu'elle parle comme une collègue, pas comme un robot. Obsédée par la latence et la clarté.",
                 color: "from-[#bc7155] to-[#A8893F]",
               },
               {
@@ -3081,11 +3081,11 @@ function Footer({ navigate }: { navigate: Navigate }) {
             </div>
             <p className="mt-4 max-w-sm text-sm text-white/60">
               L&apos;intelligence terrain pour vos établissements. Piloté par
-              Denise, votre assistante vocale temps réel.
+              Nathalie, votre assistante vocale temps réel.
             </p>
             <div className="mt-5 flex w-fit items-center gap-2 rounded-full border border-[#bc7155]/30 bg-[#bc7155]/10 px-3 py-1.5 text-xs text-[#e7c1ae]">
               <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#bc7155]" />
-              Denise veille · 24/7
+              Nathalie veille · 24/7
             </div>
           </div>
 
@@ -3158,7 +3158,7 @@ function Footer({ navigate }: { navigate: Navigate }) {
           <div>© {new Date().getFullYear()} FeedVoice. Tous droits réservés.</div>
           <div className="flex items-center gap-2">
             <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#bc7155]" />
-            Piloté par Denise
+            Piloté par Nathalie
           </div>
         </div>
       </div>
@@ -3259,7 +3259,7 @@ export function LandingView({
 
   // ACCUEIL PREMIUM B2B — refonte complète : composant autonome avec
   // sa propre nav (fixe, verre crème) et son propre footer (newsletter,
-  // badge Denise). Les autres pages gardent le shell SPA classique
+  // badge Nathalie). Les autres pages gardent le shell SPA classique
   // (Header dropdown + Footer technique).
   if (page === "accueil") {
     return (

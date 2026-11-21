@@ -12,7 +12,7 @@
 //      capacité max — anti-surcharge)
 //   4. Scorer le MEILLEUR candidat (compétence, zone, charge,
 //      performance, rotation équitable)
-//   5. Assigner + notifier (Denise) + journaliser (RoutingHistory)
+//   5. Assigner + notifier (Nathalie) + journaliser (RoutingHistory)
 //
 // Fallbacks : catégorie fallback → manager → escalade.
 // Toutes les fonctions sont best-effort : elles ne lèvent JAMAIS
@@ -716,7 +716,7 @@ export async function cloturerRoutagePourIncident(
 // ------------------------------------------------------------
 // BALAYAGE DES ESCALADES — tâches assignées non prises en charge
 // après rule.escalationAfterMin → outcome 'escalated' + alerte.
-// Retourne la liste des escalades fraîches (file Denise urgent).
+// Retourne la liste des escalades fraîches (file Nathalie urgent).
 // ------------------------------------------------------------
 export async function balayerEscalades(tenantKey: string = TENANT_DEFAUT): Promise<
   { historyId: string; staffName: string; label: string; minutes: number }[]
@@ -755,7 +755,7 @@ export async function balayerEscalades(tenantKey: string = TENANT_DEFAUT): Promi
 // ------------------------------------------------------------
 // TICK PROACTIF — exécute les tâches planifiées arrivées à échéance
 // Cas d'usage 3 : "Timer toutes les 30 min → tâche 'Vérification
-// buffet' → routage → Denise → checklist → stats"
+// buffet' → routage → Nathalie → checklist → stats"
 // ------------------------------------------------------------
 export async function executerTickProactif(tenantKey: string = TENANT_DEFAUT): Promise<{
   creees: { taskId: string; title: string; staffName: string | null }[]

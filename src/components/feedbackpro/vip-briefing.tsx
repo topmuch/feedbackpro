@@ -17,7 +17,7 @@
 //   3. Une fois chargé → affichage du briefing dans une carte
 //      « Luxe Lumineux »
 //   4. Bouton « ▶ ÉCOUTER » (or) → parle(content) via @/lib/staff-tts
-//      (voix « Denise » : française, grave, débit rapide)
+//      (voix « Nathalie » : française, grave, débit rapide)
 //   5. Bouton « PASSER » (outline) → onDismiss()
 //   6. Auto-play : tenté au montage si le navigateur l'autorise,
 //      mais la plupart des navigateurs bloquent l'autoplay sans
@@ -565,7 +565,7 @@ function BriefingContent({
         aria-live="polite"
       >
         <div className="flex items-start gap-3">
-          {/* Avatar « Denise » (voix de synthèse) */}
+          {/* Avatar « Nathalie » (voix de synthèse) */}
           <div
             className="flex size-10 shrink-0 items-center justify-center rounded-full ring-2 ring-[#efe7e0]"
             style={{ backgroundColor: '#FFFFFF' }}
@@ -575,7 +575,7 @@ function BriefingContent({
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-xs uppercase tracking-wider text-[#8B6F47]">
-              Denise · Voix de service
+              Nathalie · Voix de service
             </p>
             <p
               className="mt-1.5 text-sm leading-relaxed text-[#2C2C2C] sm:text-[15px]"

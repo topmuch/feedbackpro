@@ -32,7 +32,7 @@
 //      - Écran incident-new : détails (zone, type, signalé il y a…).
 //      - Bouton "PRENDRE EN CHARGE" → POST /api/airport/staff-scan
 //        action=TAKE_CHARGE → statut EN_COURS + assignedTo=staffName.
-//      - Feedback : vibrer() + Denise "Incident pris en charge par
+//      - Feedback : vibrer() + Nathalie "Incident pris en charge par
 //        <name>." + redirection vers "Mes incidents en cours".
 //
 //   S4 Gestion "En Cours"
@@ -49,7 +49,7 @@
 //        optionnel + photo optionnelle.
 //      - Bouton "CONFIRMER" → POST /api/airport/staff-scan action=RESOLVE
 //        → statut RESOLU + calcul résolution time.
-//      - Denise : "Incident résolu en <minutes> minutes."
+//      - Nathalie : "Incident résolu en <minutes> minutes."
 //      - L'incident passe dans "Historique/Résolus" (dashboard).
 //
 //   S6 Edge Cases
@@ -182,7 +182,7 @@ interface EmployeEntry {
   proId: string
 }
 
-// WAHOO-3 — Réponse de /api/airport/check-record (gamification Denise)
+// WAHOO-3 — Réponse de /api/airport/check-record (gamification Nathalie)
 interface CheckRecordResponse {
   isRecord: boolean
   isUnderTarget: boolean
@@ -243,7 +243,7 @@ const URGENT_KEYWORDS = [
 ]
 
 // ============================================================
-// Voice Decision Engine — Denise "réfléchit" avant de parler
+// Voice Decision Engine — Nathalie "réfléchit" avant de parler
 // ------------------------------------------------------------
 // Au lieu d'appeler parler() directement pour chaque nouvel incident,
 // on interroge le moteur /api/voice/decide. Il applique :
@@ -433,7 +433,7 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
   // Toast inline minimal
   const [toast, setToast] = useState<string | null>(null)
 
-  // WAHOO-3 — Coach vocal Denise + gamification
+  // WAHOO-3 — Coach vocal Nathalie + gamification
   // celebration : emoji géant centré à l'écran pendant 2.5s quand l'agent
   //   bat son record perso (effet "level up" visuel). Null = pas d'overlay.
   // recordToast : pill stylée (or pour record, vert pour under target) qui
@@ -487,7 +487,7 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
   const ignoredIdsRef = useRef<Set<string>>(new Set())
   const firstPollDoneRef = useRef(false)
 
-  // --- Task WAHOO-4 — Mode Prédictif de Denise (polling 5 min) ---
+  // --- Task WAHOO-4 — Mode Prédictif de Nathalie (polling 5 min) ---
   // announcedPredictionsRef : mémorise les IDs de prédictions HIGH déjà
   //   annoncées vocalement par parler() — évite de répéter la même
   //   prédiction à chaque cycle de 5 min (anti-spam).
@@ -812,7 +812,7 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
 
       for (const r of fresh) seenReportIdsRef.current.add(r.id)
 
-      // S2 — Chaîne d'alerte : vibrer + ding + Denise
+      // S2 — Chaîne d'alerte : vibrer + ding + Nathalie
       vibrer()
       jouerDing()
       // VDE — Voice Decision Engine :
@@ -820,7 +820,7 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
       // (/api/voice/decide) qui applique la matrice de règles (sector +
       // eventType), le mode horaire, l'agrégation et la déduplication.
       // Le moteur renvoie une décision : si shouldSpeak=true, decideAndParler
-      // appelle parler(message) avec le template rendu. Sinon, Denise se
+      // appelle parler(message) avec le template rendu. Sinon, Nathalie se
       // tait (notification visuelle seule — l'incident reste dans la liste
       // "Nouveaux" pour prise en charge manuelle).
       for (const r of fresh) {
@@ -858,7 +858,7 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
     return () => window.clearInterval(id)
   }, [staffName, screen, pollPendingReports])
 
-  // ---------- Task WAHOO-4 — Polling prédictions Denise (5 min) ----------
+  // ---------- Task WAHOO-4 — Polling prédictions Nathalie (5 min) ----------
   //
   // Toutes les 5 min, on interroge /api/airport/predictive-alert. Pour
   // chaque NOUVELLE prédiction HIGH (non encore annoncée), on appelle
@@ -1005,7 +1005,7 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
         }
         setActiveReport(updated)
         vibrer()
-        // S3 — Denise : "Incident pris en charge par <name>"
+        // S3 — Nathalie : "Incident pris en charge par <name>"
         parler(`Incident pris en charge par ${staffName}.`)
         setToast('Pris en charge.')
         go('incident-ongoing', 1)
@@ -1072,7 +1072,7 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
             )
           : 0
 
-        // WAHOO-3 — Coach vocal Denise + gamification "record perso"
+        // WAHOO-3 — Coach vocal Nathalie + gamification "record perso"
         // On interroge l'API check-record pour savoir si la résolution
         // constitue un record perso (all-time) et/ou respecte le SLA cible.
         // En cas d'échec réseau/API, on retombe sur le message par défaut
@@ -1096,7 +1096,7 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
           // Réseau down — on garde le message par défaut (fallback)
         }
 
-        // S5 + WAHOO-3 — Message Denise + son + celebration selon le résultat.
+        // S5 + WAHOO-3 — Message Nathalie + son + celebration selon le résultat.
         // Le prénom rend l'annonce plus chaleureuse ("Bravo Amadou.").
         const prenom = (staffName || 'Agent').split(' ')[0]
         if (recordData?.isRecord && recordData.isUnderTarget) {

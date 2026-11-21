@@ -115,7 +115,7 @@ const SERVICE_META: Record<
     description: "Web Push (FCM/APNS/Mozilla)",
   },
   denise_tts: {
-    label: "Denise TTS",
+    label: "Nathalie TTS",
     icon: Mic,
     description: "Synthèse vocale client-side",
   },

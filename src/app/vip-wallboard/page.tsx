@@ -19,9 +19,9 @@
 // Horloge : 1 seconde.
 //
 // Sons & TTS :
-//   - Nouveau signalement     → ding (880 Hz) + Denise parle.
-//   - Signalement résolu      → resolved (660 Hz) + Denise parle.
-//   - Retard ≥ 10 min         → escalation (990/880/990 Hz) + Denise,
+//   - Nouveau signalement     → ding (880 Hz) + Nathalie parle.
+//   - Signalement résolu      → resolved (660 Hz) + Nathalie parle.
+//   - Retard ≥ 10 min         → escalation (990/880/990 Hz) + Nathalie,
 //     puis rappel toutes les 5 min tant que non résolu.
 //   - Toggle son persisté en localStorage "vip_wallboard_sound".
 //   - Sons synthétisés via Web Audio API (aucun fichier externe).
@@ -900,7 +900,7 @@ export default function VipWallboardPage() {
       }
       setShowSoundBanner(false)
       if (next) {
-        // Petit ding de confirmation + annonce vocale Denise.
+        // Petit ding de confirmation + annonce vocale Nathalie.
         playDing()
         setTimeout(() => parler('Son activé. Wallboard salon VIP opérationnel.'), 200)
       } else if (typeof window !== 'undefined' && 'speechSynthesis' in window) {

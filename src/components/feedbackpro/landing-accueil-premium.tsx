@@ -21,17 +21,17 @@
 //        "Établissements" en italique doré souligné, 2 CTA, trust row
 //      - droite : preview Nathalie (en-tête photo sombre "Bonsoir,
 //        Cher Hôte.", carte Wi-Fi avec bouton Copier, 4 services,
-//        bulles flottantes animées Denise/incident)
+//        bulles flottantes animées Nathalie/incident)
 //   3. SECTEURS : 6 cartes unifiées (crème + bordure dorée + barre
 //      latérale dorée animée au hover) dont SALON VIP en featured
 //      (fond anthracite, badge Premium, icône dorée)
-//   4. DENISE : message commercial adapté au salon VIP (mode
-//      discret) + visualisation Denise "Écoute active · Salon VIP Terra"
+//   4. NATHALIE : message commercial adapté au salon VIP (mode
+//      discret) + visualisation Nathalie "Écoute active · Salon VIP Terra"
 //   5. PREUVES : 3 stats avec unités en italique doré + icônes
 //      + hover, puis 3 témoignages (avatars dorés, noms, rôles)
 //   6. CTA FINAL : dégradé bleu profond + halos dorés subtils
-//   7. FOOTER : newsletter + badge "Denise veille 24/7"
-//      + "Piloté par Denise"
+//   7. FOOTER : newsletter + badge "Nathalie veille 24/7"
+//      + "Piloté par Nathalie"
 //
 // Interactions : nav scrolled (scrollY > 50), smooth scroll vers
 // les ancres, reveals IntersectionObserver (cartes/témoignages),
@@ -702,7 +702,7 @@ const FH_CSS = `
 .fh-sector-card:hover .fh-sector-link { gap: 0.8rem; }
 
 /* ============================================ */
-/* DENISE                                       */
+/* NATHALIE                                       */
 /* ============================================ */
 .fh-denise {
   padding: 7rem 2rem;
@@ -1315,7 +1315,7 @@ const SECTORS: {
     key: "aeroport",
     icon: "✈️",
     title: "Aéroports",
-    desc: "Sécurité, flux, réactivité ops. Wallboard signalétique, Denise tour de contrôle, radar prédiction.",
+    desc: "Sécurité, flux, réactivité ops. Wallboard signalétique, Nathalie tour de contrôle, radar prédiction.",
   },
   {
     key: "contact",
@@ -1354,7 +1354,7 @@ const TESTIMONIALS = [
     initials: "JD",
     name: "Jean Diallo",
     role: "Manager · Hôtel Le Teranga",
-    text: "Nous capturons enfin les problèmes avant qu'ils ne deviennent des avis négatifs. Denise est devenue indispensable pour nos équipes terrain.",
+    text: "Nous capturons enfin les problèmes avant qu'ils ne deviennent des avis négatifs. Nathalie est devenue indispensable pour nos équipes terrain.",
   },
   {
     initials: "AS",
@@ -1495,7 +1495,7 @@ export function LandingAccueilPremium({
           </button>
           <div className="fh-nav-links">
             <button className="fh-nav-link" onClick={() => scrollToId("fh-secteurs")}>Secteurs</button>
-            <button className="fh-nav-link" onClick={() => scrollToId("fh-denise")}>Denise</button>
+            <button className="fh-nav-link" onClick={() => scrollToId("fh-denise")}>Nathalie</button>
             <button className="fh-nav-link" onClick={() => scrollToId("fh-preuves")}>Résultats</button>
             <button className="fh-nav-link" onClick={() => navigate("contact")}>Contact</button>
           </div>
@@ -1527,7 +1527,7 @@ export function LandingAccueilPremium({
             <p className="fh-hero-subtitle">
               Du salon VIP à l&apos;aéroport, de l&apos;hôtel au restaurant,
               transformez chaque interaction client en donnée actionnable.
-              Piloté par Denise et Nathalie, vos assistantes intelligentes
+              Piloté par Nathalie, votre assistante intelligente
               temps réel.
             </p>
 
@@ -1610,7 +1610,7 @@ export function LandingAccueilPremium({
                 <BellRing size={18} />
               </span>
               <div>
-                <div className="fh-float-text">Denise alerte l&apos;équipe</div>
+                <div className="fh-float-text">Nathalie alerte l&apos;équipe</div>
                 <div className="fh-float-sub">Zone sanitaire · Priorité haute</div>
               </div>
             </div>
@@ -1664,18 +1664,18 @@ export function LandingAccueilPremium({
         </div>
       </section>
 
-      {/* ==================== DENISE ==================== */}
+      {/* ==================== NATHALIE ==================== */}
       <section className="fh-denise" id="fh-denise">
         <div className="fh-denise-grid">
           <div className="fh-denise-content">
             <div className="fh-label">La technologie</div>
             <h2 className="fh-denise-title">
-              Denise ne dort jamais.
+              Nathalie ne dort jamais.
               <br />
               <em>Elle alerte, elle guide, elle centralise.</em>
             </h2>
             <p className="fh-denise-desc">
-              Pendant que vos équipes travaillent les mains occupées, Denise
+              Pendant que vos équipes travaillent les mains occupées, Nathalie
               veille. Chaque signalement est analysé, priorisé et annoncé
               vocalement. Pas d&apos;écran à regarder — juste une voix qui
               guide, adaptée à chaque environnement.
@@ -1707,7 +1707,7 @@ export function LandingAccueilPremium({
               </div>
             </div>
             <button className="fh-btn-primary" onClick={() => navigate("contact")}>
-              Voir Denise en action
+              Voir Nathalie en action
               <ArrowRight size={18} aria-hidden />
             </button>
           </div>
@@ -1716,7 +1716,7 @@ export function LandingAccueilPremium({
             <div className="fh-denise-header">
               <div className="fh-denise-avatar" aria-hidden>🎙️</div>
               <div>
-                <div className="fh-denise-name">Denise</div>
+                <div className="fh-denise-name">Nathalie</div>
                 <div className="fh-denise-status">
                   <span className="fh-status-dot" aria-hidden />
                   Écoute active · Salon VIP Terra
@@ -1724,7 +1724,7 @@ export function LandingAccueilPremium({
               </div>
             </div>
 
-            <div className="fh-denise-msglabel">Annonce de Denise</div>
+            <div className="fh-denise-msglabel">Annonce de Nathalie</div>
             <div className="fh-denise-message">
               « Point d&apos;attention : Buffet niveau bas à 35%.
               Rafraîchissement recommandé. Table T-08 signale bruit excessif,
@@ -1886,12 +1886,12 @@ export function LandingAccueilPremium({
               </button>
               <p className="fh-footer-desc">
                 L&apos;excellence opérationnelle pour vos établissements.
-                Piloté par Denise et Nathalie, vos assistantes intelligentes
+                Piloté par Nathalie, votre assistante intelligente
                 temps réel.
               </p>
               <div className="fh-footer-badge">
                 <span className="fh-status-dot" aria-hidden />
-                Denise veille · 24/7
+                Nathalie veille · 24/7
               </div>
             </div>
 
@@ -1950,7 +1950,7 @@ export function LandingAccueilPremium({
 
           <div className="fh-footer-bottom">
             <div>© {new Date().getFullYear()} FeedVoice. Tous droits réservés.</div>
-            <div className="fh-footer-denise">Piloté par Denise</div>
+            <div className="fh-footer-denise">Piloté par Nathalie</div>
           </div>
         </div>
       </footer>

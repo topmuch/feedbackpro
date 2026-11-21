@@ -24,8 +24,8 @@
 //   G. Équipe / Staff      — table + form + perf
 //   H. QR Codes            — 6 zones + QR staff
 //   I. Rapports            — KPI + bar chart CSS
-//   J. Voix Denise         — matrice + horaire + historique + test + signalements
-//   K. Paramètres          — général / Denise / buffet / douches / rewards
+//   J. Voix Nathalie         — matrice + horaire + historique + test + signalements
+//   K. Paramètres          — général / Nathalie / buffet / douches / rewards
 //
 // Mode Discrétion : TOUTES les notifications sont visuelles (aucun son).
 // Polling : /api/vip/incidents, /api/vip/showers, /api/vip/buffet toutes
@@ -1423,7 +1423,7 @@ function VIPSidebarContent({
   userRole: string
   onLogout: () => void
   modulesEnabled?: Partial<VipLoungeConfig['modulesEnabled']> | null
-  /** Phase 2 — briefing vocal Denise (prise de poste). */
+  /** Phase 2 — briefing vocal Nathalie (prise de poste). */
   onBriefing?: () => void
   briefingBusy?: boolean
   briefingPlaying?: boolean
@@ -1520,7 +1520,7 @@ function VIPSidebarContent({
         })}
       </nav>
 
-      {/* Bas : briefing Denise + utilisateur + déconnexion */}
+      {/* Bas : briefing Nathalie + utilisateur + déconnexion */}
       <div className="shrink-0 border-t border-white/10 p-3">
         {onBriefing ? (
           <Button
@@ -1541,7 +1541,7 @@ function VIPSidebarContent({
                 ? 'Préparation du briefing…'
                 : briefingPlaying
                   ? 'Briefing en cours'
-                  : 'Briefing Denise'}
+                  : 'Briefing Nathalie'}
             </span>
             {briefingPlaying ? (
               <span className="ml-auto flex items-end gap-0.5" aria-hidden>
@@ -4125,7 +4125,7 @@ export default function VIPDashboard() {
     }
   }, [toast])
 
-  // --- Phase 2 — Briefing vocal Denise (prise de poste) ---
+  // --- Phase 2 — Briefing vocal Nathalie (prise de poste) ---
   const [briefingBusy, setBriefingBusy] = useState(false)
   const [briefingPlaying, setBriefingPlaying] = useState(false)
   const briefingDenise = useCallback(async () => {
@@ -4142,7 +4142,7 @@ export default function VIPDashboard() {
       setBriefingBusy(false)
       setBriefingPlaying(true)
       parler(content)
-      toast({ title: 'Briefing Denise', description: content })
+      toast({ title: 'Briefing Nathalie', description: content })
       const ms = Math.max(6000, Math.min(35000, ((json.data.durationSec ?? 15) as number) * 1000 + 4000))
       setTimeout(() => setBriefingPlaying(false), ms)
     } catch {

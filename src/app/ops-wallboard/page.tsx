@@ -32,14 +32,14 @@
 // Fonctionnalités préservées (100% — AUCUNE EXCEPTION) :
 //   - Sons (ding-dong.mp3, ding-critical.wav, resolved.wav)
 //   - Escalade sonore Web Audio (660/880/990 Hz)
-//   - TTS Denise (decideAndSpeakForWallboard + race-condition fix)
+//   - TTS Nathalie (decideAndSpeakForWallboard + race-condition fix)
 //   - Rappel 15 min (alertedLateRef + badge EN RETARD + escalade)
 //   - Toggle son (persisté localStorage "wallboard_sound")
 //   - Mode crise (filtre incidents critiques + timer + overlay)
 //   - Actions rapides par ligne : [ASSIGNER] [APPELER] [ESCALADER]
 //   - Filtre zone (clic panneau zone → filtre le tableau)
 //   - SOS help requests (HelpRequestAlertCard)
-//   - recently_resolved (son + annonce Denise)
+//   - recently_resolved (son + annonce Nathalie)
 //   - firstLoadRef + seenIdsRef (détection nouveaux signalements)
 //   - announcedResolvedRef + announcedAlertsRef (dédup annonces)
 // ============================================================
@@ -121,10 +121,10 @@ type RecentReport = {
   flightNumber?: string | null
   createdAt: string
   isHelpRequest?: boolean
-  // Task WAHOO-1 — Denise Traducteur Universel
+  // Task WAHOO-1 — Nathalie Traducteur Universel
   // Code langue source du commentaire (fr, en, zh, ar, es, de, pt, it,
   // ru, ja, wo, auto) ou null si le voyageur a écrit en français.
-  // Utilisé pour annoncer « Message original en [langue] » via Denise.
+  // Utilisé pour annoncer « Message original en [langue] » via Nathalie.
   commentaireLang?: string | null
 }
 
@@ -216,7 +216,7 @@ type AlertsCheckResponse = {
 }
 
 // ---------------------------------------------------------------
-// Types — Feature F1/F2/F3 (Denise conversationnelle, auto-pilot, achievements)
+// Types — Feature F1/F2/F3 (Nathalie conversationnelle, auto-pilot, achievements)
 // ---------------------------------------------------------------
 
 /** Sous-ensemble du SpeechRecognition (Web Speech API) — la lib DOM TS ne
@@ -280,7 +280,7 @@ type AchievementsData = {
 }
 
 // ---------------------------------------------------------------
-// Task WAHOO-4 — Mode Prédictif de Denise
+// Task WAHOO-4 — Mode Prédictif de Nathalie
 // Contrat /api/airport/predictive-alert → predictions[].
 // ---------------------------------------------------------------
 type PredictiveAlert = {
@@ -490,7 +490,7 @@ const SOUND_CRITICAL = '/sounds/ding-critical.wav'
 const SOUND_RESOLVED = '/sounds/resolved.wav'
 
 /**
- * Task WAHOO-1 — Denise Traducteur Universel
+ * Task WAHOO-1 — Nathalie Traducteur Universel
  * Mappe un code langue (fr, en, zh, ar, es, de, pt, it, ru, ja, wo, auto)
  * vers son nom en français, pour l'annonce vocale :
  *   « Nouvel incident signalé. [...] Message original en anglais. »
@@ -557,7 +557,7 @@ function speak(text: string, enabled: boolean) {
 }
 
 // ============================================================
-// Voice Decision Engine — Denise
+// Voice Decision Engine — Nathalie
 // ============================================================
 type VoiceEvent = {
   sector: 'aeroport' | 'restaurant'
@@ -1150,7 +1150,7 @@ function IncidentRow({
       })
       const json = (await res.json()) as { ok?: boolean; error?: string }
       if (json?.ok) {
-        onActionFeedback?.(`ESCALADE DENISE → ${(r.zone?.nom ?? 'ZONE').toUpperCase()}`, 'ok')
+        onActionFeedback?.(`ESCALADE NATHALIE → ${(r.zone?.nom ?? 'ZONE').toUpperCase()}`, 'ok')
       } else {
         onActionFeedback?.(json?.error ?? 'ÉCHEC ESCALADE', 'err')
       }
@@ -1302,8 +1302,8 @@ function IncidentRow({
             type="button"
             onClick={handleEscalate}
             disabled={busy}
-            aria-label="Escalader auprès de Denise"
-            title="ESCALADER (DENISE TAKE_CHARGE)"
+            aria-label="Escalader auprès de Nathalie"
+            title="ESCALADER (NATHALIE TAKE_CHARGE)"
             className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-[#E30613] text-white transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             <Megaphone className="size-4" aria-hidden />
@@ -1592,12 +1592,12 @@ export default function OpsWallboardPage() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardData | null>(null)
   const [actionToast, setActionToast] = useState<{ msg: string; kind: 'ok' | 'err' } | null>(null)
 
-  // --- Feature F1 : Denise IA Conversationnelle (micro + SpeechRecognition) ---
+  // --- Feature F1 : Nathalie IA Conversationnelle (micro + SpeechRecognition) ---
   const [listening, setListening] = useState<boolean>(false)
   const [deniseTranscript, setDeniseTranscript] = useState<string>('')
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
 
-  // --- Feature F2 : Auto-Pilot Denise (polling 60s) ---
+  // --- Feature F2 : Auto-Pilot Nathalie (polling 60s) ---
   const [autopilotActive, setAutopilotActive] = useState<boolean>(false)
   const [autopilotActions, setAutopilotActions] = useState<AutopilotAction[]>([])
   const announcedAutopilotRef = useRef<Map<string, number>>(new Map())
@@ -1606,13 +1606,13 @@ export default function OpsWallboardPage() {
   const [achievementsData, setAchievementsData] = useState<AchievementsData | null>(null)
   const announcedAchievementsRef = useRef<Set<string>>(new Set())
 
-  // --- Task WAHOO-4 — Mode Prédictif de Denise (polling 5 min) ---
+  // --- Task WAHOO-4 — Mode Prédictif de Nathalie (polling 5 min) ---
   // predictiveAlerts : liste des prédictions HIGH/MEDIUM renvoyées par
   //   /api/airport/predictive-alert (max 3, triées par priorité).
   // predictiveTick : index de la prédiction actuellement affichée dans
   //   le bandeau — cycle toutes les 8s si plusieurs prédictions.
   // announcedPredictionsRef : Set des IDs déjà annoncés vocalement par
-  //   Denise (dédup — évite de répéter la même prédiction toutes les 5 min).
+  //   Nathalie (dédup — évite de répéter la même prédiction toutes les 5 min).
   const [predictiveAlerts, setPredictiveAlerts] = useState<PredictiveAlert[]>([])
   const [predictiveTick, setPredictiveTick] = useState(0)
   const announcedPredictionsRef = useRef<Set<string>>(new Set())
@@ -1645,10 +1645,10 @@ export default function OpsWallboardPage() {
             const tempsMin = Math.max(1, Math.floor(elapsedMs / 60000))
             const team = latest.routedTeam
             const equipeLabel = team ? ` Équipe ${team}.` : ''
-            // Task WAHOO-1 — Denise Traducteur Universel
+            // Task WAHOO-1 — Nathalie Traducteur Universel
             // Si le voyageur a écrit dans une langue ≠ français (commentaireLang
             // !== 'fr' et non null), on ajoute « Message original en [langue] »
-            // à l'annonce vocale. Denise parle en français (le commentaire stocké
+            // à l'annonce vocale. Nathalie parle en français (le commentaire stocké
             // est la traduction FR), mais signale la langue d'origine au staff
             // pour contexte culturel (touriste chinois, voyageur wolof, etc.).
             const langueOrigine = langueEnFrancais(latest.commentaireLang)
@@ -1676,7 +1676,7 @@ export default function OpsWallboardPage() {
 
       // --- Annonce de RÉSOLUTION (Issue 6 + demande directeur V3) ---
       // « Le signalement déclaré résolu doit s'annoncer dans le wallboard » :
-      // son resolved.wav + voix Denise + carte verte overlay systématiques.
+      // son resolved.wav + voix Nathalie + carte verte overlay systématiques.
       if (d.recently_resolved && d.recently_resolved.length > 0) {
         for (const r of d.recently_resolved) {
           if (!announcedResolvedRef.current.has(r.id)) {
@@ -1784,11 +1784,11 @@ export default function OpsWallboardPage() {
     }
   }, [])
 
-  // --- Feature F2 : Auto-Pilot Denise (polling 60s) ---
+  // --- Feature F2 : Auto-Pilot Nathalie (polling 60s) ---
   // Vérifie les incidents orphelins (> 10min), les motifs systémiques (3+
   // même zone en 1h) et les pics imminents (score prédiction > 80). Le
   // serveur exécute les auto-affectations ; le wallboard annonce chaque
-  // action via parler() (voix Denise).
+  // action via parler() (voix Nathalie).
   const pollAutopilot = useCallback(async () => {
     try {
       const res = await fetch('/api/airport/autopilot', { method: 'POST' })
@@ -1882,15 +1882,15 @@ export default function OpsWallboardPage() {
     }
   }, [pollAchievements])
 
-  // --- Task WAHOO-4 — Polling prédictions Denise (5 min) ---
+  // --- Task WAHOO-4 — Polling prédictions Nathalie (5 min) ---
   //
   // Toutes les 5 min, on récupère les prédictions HIGH/MEDIUM calculées
   // côté serveur (vols aux portes + patterns historiques + charge actuelle).
-  // Pour chaque NOUVELLE prédiction HIGH (non encore annoncée), Denise
+  // Pour chaque NOUVELLE prédiction HIGH (non encore annoncée), Nathalie
   // l'énonce après un délai de 1,5 s pour éviter le chevauchement avec
   // d'autres annonces (nouvel incident, résolution, escalade, etc.).
   // Les prédictions MEDIUM ne sont pas annoncées vocalement (anti-spam) —
-  // elles s'affichent juste dans le bandeau "PRÉDICTION DENISE".
+  // elles s'affichent juste dans le bandeau "PRÉDICTION NATHALIE".
   useEffect(() => {
     const fetchPredictive = async () => {
       try {
@@ -1906,7 +1906,7 @@ export default function OpsWallboardPage() {
         if (preds.length > 0) {
           setPredictiveTick((t) => t % preds.length)
         }
-        // Annonce vocale des NOUVELLES prédictions HIGH via Denise.
+        // Annonce vocale des NOUVELLES prédictions HIGH via Nathalie.
         for (const pred of preds) {
           if (pred.priority !== 'high') continue
           if (announcedPredictionsRef.current.has(pred.id)) continue
@@ -1952,7 +1952,7 @@ export default function OpsWallboardPage() {
       setTimeout(
         () =>
           speak(
-            'Mode crise activé. Board filtré sur incidents critiques. Denise en mode crise.',
+            'Mode crise activé. Board filtré sur incidents critiques. Nathalie en mode crise.',
             true,
           ),
         300,
@@ -2116,7 +2116,7 @@ export default function OpsWallboardPage() {
   // Bouton micro dans le header : démarre la reconnaissance vocale (fr-FR),
   // transcrit la phrase, l'envoie à /api/airport/denise-command (qui exécute
   // `processVoiceCommand()` côté serveur — la lib faisant des requêtes Prisma)
-  // et énonce la réponse via parler() (voix Denise). Si l'action retournée
+  // et énonce la réponse via parler() (voix Nathalie). Si l'action retournée
   // est 'crisis', déclenche handleCrisisStart() (qui énonce son propre message).
   const toggleListening = useCallback(() => {
     if (typeof window === 'undefined') return
@@ -2356,7 +2356,7 @@ export default function OpsWallboardPage() {
         })
         const json = (await res.json()) as { ok?: boolean; error?: string }
         if (json?.ok) {
-          handleActionFeedback(`ESCALADE DENISE → ${(r.zone?.nom ?? 'ZONE').toUpperCase()}`, 'ok')
+          handleActionFeedback(`ESCALADE NATHALIE → ${(r.zone?.nom ?? 'ZONE').toUpperCase()}`, 'ok')
         } else {
           handleActionFeedback(json?.error ?? 'ÉCHEC ESCALADE', 'err')
         }
@@ -2543,7 +2543,7 @@ export default function OpsWallboardPage() {
             </span>
           </div>
 
-          {/* Feature F2 — Badge AUTO-PILOT (actif tant que Denise a pris des décisions auto) */}
+          {/* Feature F2 — Badge AUTO-PILOT (actif tant que Nathalie a pris des décisions auto) */}
           {autopilotActive && (
             <div
               className="ops-pulse flex items-center gap-1.5 rounded-[25px] px-3 py-1.5 text-black"
@@ -2551,7 +2551,7 @@ export default function OpsWallboardPage() {
               title={
                 autopilotActions.length > 0
                   ? autopilotActions.map((a) => a.description).join('\n')
-                  : 'Denise prend des décisions automatiques'
+                  : 'Nathalie prend des décisions automatiques'
               }
             >
               <span className="font-black uppercase" style={{ fontSize: '11px', letterSpacing: '2px' }}>
@@ -2610,18 +2610,18 @@ export default function OpsWallboardPage() {
             )}
           </button>
 
-          {/* Feature F1 — Micro Denise (SpeechRecognition) */}
+          {/* Feature F1 — Micro Nathalie (SpeechRecognition) */}
           <button
             type="button"
             onClick={toggleListening}
             aria-pressed={listening}
             aria-label={
-              listening ? 'Arrêter Denise' : 'Parler à Denise (commande vocale)'
+              listening ? 'Arrêter Nathalie' : 'Parler à Nathalie (commande vocale)'
             }
             title={
               listening
-                ? 'Denise écoute — clic pour couper'
-                : 'Parler à Denise (bilan, zone, assigne, alerte, calme, top performer, crise)'
+                ? 'Nathalie écoute — clic pour couper'
+                : 'Parler à Nathalie (bilan, zone, assigne, alerte, calme, top performer, crise)'
             }
             className={`flex items-center gap-1.5 rounded-[15px] px-3 py-2 font-black uppercase text-white transition-opacity hover:opacity-90 ${listening ? 'ops-pulse' : ''}`}
             style={{
@@ -2632,12 +2632,12 @@ export default function OpsWallboardPage() {
             }}
           >
             <Mic className="size-4" aria-hidden />
-            <span>{listening ? 'DENISE' : 'MIC'}</span>
+            <span>{listening ? 'NATHALIE' : 'MIC'}</span>
           </button>
         </div>
       </header>
 
-      {/* ---------- Feature F1 — Indicateur "Denise écoute…" ---------- */}
+      {/* ---------- Feature F1 — Indicateur "Nathalie écoute…" ---------- */}
       {listening && (
         <div
           role="status"
@@ -2653,7 +2653,7 @@ export default function OpsWallboardPage() {
             className="font-black uppercase text-black"
             style={{ fontSize: '12px', letterSpacing: '2px' }}
           >
-            DENISE ÉCOUTE…
+            NATHALIE ÉCOUTE…
           </span>
           {deniseTranscript && (
             <span
@@ -2820,7 +2820,7 @@ export default function OpsWallboardPage() {
       </section>
 
       {/* ============================================================
-          Task WAHOO-4 — BANDEAU PRÉDICTION DENISE
+          Task WAHOO-4 — BANDEAU PRÉDICTION NATHALIE
           ------------------------------------------------------------
           Slim banner navy/gold affichant les prédictions HIGH/MEDIUM
           renvoyées par /api/airport/predictive-alert. Cycle de 8 s
@@ -2830,7 +2830,7 @@ export default function OpsWallboardPage() {
           ============================================================ */}
       {predictiveAlerts.length > 0 && (
         <section
-          aria-label="Prédictions Denise"
+          aria-label="Prédictions Nathalie"
           aria-live="polite"
           className="mx-[30px] mb-1 shrink-0"
         >
@@ -2848,7 +2848,7 @@ export default function OpsWallboardPage() {
                   boxShadow: '0 4px 10px rgba(0,0,0,0.15)',
                 }}
               >
-                {/* LEFT — label or + PRÉDICTION DENISE */}
+                {/* LEFT — label or + PRÉDICTION NATHALIE */}
                 <div
                   className="flex shrink-0 items-center gap-2 px-4 py-2"
                   style={{ backgroundColor: BLEU }}
@@ -2864,7 +2864,7 @@ export default function OpsWallboardPage() {
                     className="font-black uppercase"
                     style={{ fontSize: '11px', letterSpacing: '2px', color: JAUNE }}
                   >
-                    PRÉDICTION DENISE
+                    PRÉDICTION NATHALIE
                   </span>
                 </div>
                 {/* RIGHT — priority badge + scrolling message + dots */}

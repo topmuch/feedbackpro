@@ -6,7 +6,7 @@
 // Visible uniquement dans la section Aéroport du dashboard Pro
 // (ne s'affiche pas sur la version classique restaurant).
 //
-// Couvre : QR codes voyageur, PWA staff, wallboard ops, Denise,
+// Couvre : QR codes voyageur, PWA staff, wallboard ops, Nathalie,
 // gestion des zones, QR staff, notifications push, résolution d'incidents.
 // ============================================================
 
@@ -75,7 +75,7 @@ const SECTIONS: GuideSection[] = [
       {
         title: 'Le signalement est envoyé',
         description:
-          'Le signalement arrive en temps réel sur le wallboard ops + déclenche les alertes (Denise + push + vibration) vers les équipes concernées. Le voyageur reçoit un écran de confirmation.',
+          'Le signalement arrive en temps réel sur le wallboard ops + déclenche les alertes (Nathalie + push + vibration) vers les équipes concernées. Le voyageur reçoit un écran de confirmation.',
         duration: 'Instantané',
       },
     ],
@@ -95,19 +95,19 @@ const SECTIONS: GuideSection[] = [
       {
         title: 'Réception automatique des incidents',
         description:
-          'Quand un nouveau signalement arrive, la PWA staff affiche AUTOMATIQUEMENT l\'incident à l\'écran + vibration + son ding dong + voix Denise qui annonce la zone et le type. Pas besoin de scanner manuellement.',
+          'Quand un nouveau signalement arrive, la PWA staff affiche AUTOMATIQUEMENT l\'incident à l\'écran + vibration + son ding dong + voix Nathalie qui annonce la zone et le type. Pas besoin de scanner manuellement.',
         duration: 'Auto',
       },
       {
         title: 'Prise en charge',
         description:
-          'Le staff clique "PRENDRE EN CHARGE". L\'incident passe en statut EN_COURS, assigné à l\'employé. Denise confirme : "Incident pris en charge par [nom]".',
+          'Le staff clique "PRENDRE EN CHARGE". L\'incident passe en statut EN_COURS, assigné à l\'employé. Nathalie confirme : "Incident pris en charge par [nom]".',
         duration: '1 clic',
       },
       {
         title: 'Résolution',
         description:
-          'Sur place, le staff règle le problème. Il clique "MARQUER RÉSOLU" → confirmation avec temps écoulé + commentaire optionnel + photo. Denise : "Incident résolu en X minutes".',
+          'Sur place, le staff règle le problème. Il clique "MARQUER RÉSOLU" → confirmation avec temps écoulé + commentaire optionnel + photo. Nathalie : "Incident résolu en X minutes".',
         duration: '30 sec',
       },
       {
@@ -131,9 +131,9 @@ const SECTIONS: GuideSection[] = [
         duration: 'Permanent',
       },
       {
-        title: 'Alerte sonore + voix Denise',
+        title: 'Alerte sonore + voix Nathalie',
         description:
-          'À chaque nouvel incident, le wallboard émet un son ding dong + Denise annonce vocalement l\'incident. Le son s\'active via le bouton "Activer le son" en haut à droite.',
+          'À chaque nouvel incident, le wallboard émet un son ding dong + Nathalie annonce vocalement l\'incident. Le son s\'active via le bouton "Activer le son" en haut à droite.',
         duration: 'Auto',
       },
       {
@@ -152,14 +152,14 @@ const SECTIONS: GuideSection[] = [
   },
   {
     id: 'denise',
-    title: 'Denise — Assistante Vocale',
+    title: 'Nathalie — Assistante Vocale',
     icon: Mic,
     color: 'text-[#a05f45]',
     steps: [
       {
         title: 'Matrice de décision vocale',
         description:
-          'Denise ne parle pas au hasard. Chaque événement traverse un pipeline : règle → contexte horaire → agrégation → déduplication → décision. Elle parle seulement quand c\'est pertinent.',
+          'Nathalie ne parle pas au hasard. Chaque événement traverse un pipeline : règle → contexte horaire → agrégation → déduplication → décision. Elle parle seulement quand c\'est pertinent.',
         duration: 'Server-side',
       },
       {
@@ -171,13 +171,13 @@ const SECTIONS: GuideSection[] = [
       {
         title: 'Modes horaires',
         description:
-          'Nuit (22h-06h) : uniquement sécurité. Service midi/soir : critiques + importants uniquement. Creux : tous niveaux. Denise s\'adapte au rythme de l\'aéroport.',
+          'Nuit (22h-06h) : uniquement sécurité. Service midi/soir : critiques + importants uniquement. Creux : tous niveaux. Nathalie s\'adapte au rythme de l\'aéroport.',
         duration: 'Auto',
       },
       {
         title: 'Configuration SuperAdmin',
         description:
-          'L\'onglet "Voix Denise" dans le SuperAdmin permet d\'ajuster les règles, templates, plages horaires, et seuils d\'agrégation sans redeployer le code.',
+          'L\'onglet "Voix Nathalie" dans le SuperAdmin permet d\'ajuster les règles, templates, plages horaires, et seuils d\'agrégation sans redeployer le code.',
         duration: 'Config',
       },
     ],
@@ -241,7 +241,7 @@ const SECTIONS: GuideSection[] = [
       {
         title: 'Centre Opérationnel',
         description:
-          'Le SuperAdmin a un onglet "Centre Opérationnel" qui monitor la santé de tous les services (DB, Mtarget, WhatsApp, Push, Denise) en temps réel + alert feed + emails critiques.',
+          'Le SuperAdmin a un onglet "Centre Opérationnel" qui monitor la santé de tous les services (DB, Mtarget, WhatsApp, Push, Nathalie) en temps réel + alert feed + emails critiques.',
         duration: 'SuperAdmin',
       },
     ],
@@ -284,7 +284,7 @@ const QUICK_START = [
   { role: 'Voyageur', icon: Plane, steps: 'Scanne QR → Sélectionne problème → Envoi', time: '< 10 sec' },
   { role: 'Staff', icon: Smartphone, steps: 'Connexion → Auto-réception incident → Prendre en charge → Résoudre', time: '< 5 min' },
   { role: 'Manager', icon: Monitor, steps: 'Wallboard → Suivi temps réel → SLA + Leaderboard', time: 'Permanent' },
-  { role: 'SuperAdmin', icon: ShieldCheck, steps: 'Config Denise + Notifications + Centre Ops', time: 'Setup' },
+  { role: 'SuperAdmin', icon: ShieldCheck, steps: 'Config Nathalie + Notifications + Centre Ops', time: 'Setup' },
 ]
 
 export function AirportModeEmploiTab() {

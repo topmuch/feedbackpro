@@ -900,9 +900,9 @@ model SystemHealthLog {
 }
 
 // ============================================================
-// Task VDE — Voice Decision Engine (Denise's Brain)
+// Task VDE — Voice Decision Engine (Nathalie's Brain)
 // ------------------------------------------------------------
-// Denise = la voix de la plateforme. Elle ne parle pas pour
+// Nathalie = la voix de la plateforme. Elle ne parle pas pour
 // chaque événement : elle décide si elle doit parler, dans quel
 // ton, à quel volume, et si elle doit agréger plusieurs signaux
 // proches pour éviter la cacophonie.
@@ -929,7 +929,7 @@ model VoiceDecisionRule {
   // "staff_connect" | "plate_error" | "service_slow" | "negative_feedback" |
   // "product_out_of_stock" | "reservation_cancelled" | "rush_hour"
   eventType                  String
-  // shouldSpeak : true = Denise parle, false = silence (notification visuelle seule)
+  // shouldSpeak : true = Nathalie parle, false = silence (notification visuelle seule)
   shouldSpeak                Boolean  @default(true)
   // Priorité : "critical" | "important" | "info" | "silent"
   priority                   String   @default("info")
@@ -1128,7 +1128,7 @@ model AirportStaffLocation {
 // Flash Rewards — Cartes à gratter post-signalement
 // ------------------------------------------------------------
 // Module de récompenses voyageurs : après qu'un passager a signalé
-// un incident (et 3s après la voix de Denise), une carte à gratter
+// un incident (et 3s après la voix de Nathalie), une carte à gratter
 // s'affiche. Le voyageur gratte → révèle une récompense (ex: -15%
 // au Café Teranga) avec un code unique. L'annonceur paie uniquement
 // les codes UTILISÉS (prix par code).
@@ -1424,7 +1424,7 @@ model StaffAccount {
   updatedAt   DateTime @updatedAt
 
   // MOTEUR DE ROUTAGE — compétence 1:1 (zones, types maîtrisés, catégorie,
-  // disponibilité, capacité max, préférences Denise)
+  // disponibilité, capacité max, préférences Nathalie)
   competency StaffCompetency?
   routingHistory RoutingHistory[]
 
@@ -1457,7 +1457,7 @@ model StaffCompetency {
   maxActiveTasks Int          @default(3)
   // Zone où l'employé se trouve actuellement (bonus scoring +30)
   currentZone    String?
-  // DENISE
+  // NATHALIE
   deniseEnabled  Boolean      @default(true)
   deniseTone     String       @default("normal") // soft|normal|urgent
 
@@ -1482,7 +1482,7 @@ model RoutingRule {
   // ESCALADE
   escalationAfterMin Int      @default(10)
   escalationTarget   String   @default("manager") // manager | director
-  // DENISE
+  // NATHALIE
   deniseAnnounce     Boolean  @default(true)
   deniseTone         String   @default("normal") // soft|normal|urgent
   // PRIORITÉ DE LA RÈGLE (si plusieurs matchent) + spécificité implicite

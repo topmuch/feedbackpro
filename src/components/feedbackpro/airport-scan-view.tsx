@@ -358,18 +358,18 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
   const mediaRecorderRef = useRef<MediaRecorder | null>(null)
   const audioChunksRef = useRef<Blob[]>([])
   const voiceStreamRef = useRef<MediaStream | null>(null)
-  // Ref pour s'assurer que Denise ne parle qu'une seule fois par signalement
+  // Ref pour s'assurer que Nathalie ne parle qu'une seule fois par signalement
   // sur l'écran de confirmation (pas à chaque re-render).
   const deniseConfirmSpokenRef = useRef<string | null>(null)
 
-  // --- Task WAHOO-1 — Denise Traducteur Universel ---
+  // --- Task WAHOO-1 — Nathalie Traducteur Universel ---
   // selectedLang : langue maternellle du voyageur (sélectionnée via le
   //   LanguagePicker au-dessus du commentaire). Défaut 'fr' (pas de
   //   traduction nécessaire). Quand !== 'fr', le commentaire saisi est
   //   traduit en français par /api/airport/translate (debounce 800 ms).
   // translatedComment : version française du commentaire (affichée dans
   //   une boîte de prévisualisation + envoyée comme `commentaire` au
-  //   report API pour que Denise l'annonce en français). Null tant que
+  //   report API pour que Nathalie l'annonce en français). Null tant que
   //   la traduction n'a pas été faite ou si le commentaire est vide.
   // translating : flag pour afficher le spinner "Traduction en cours…".
   const [selectedLang, setSelectedLang] = useState<AirportLang>("fr")
@@ -390,7 +390,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
   const recognitionRef = useRef<unknown>(null)
 
   // --- Flash Rewards (carte à gratter post-signalement) ---
-  // Affichée ~3,5 s après que Denise a parlé pour confirmer le
+  // Affichée ~3,5 s après que Nathalie a parlé pour confirmer le
   // signalement. L'overlay appelle /redeem pour savoir s'il y a une
   // campagne active éligible (zone + incident + horaires + limites).
   const [showFlashReward, setShowFlashReward] = useState(false)
@@ -609,7 +609,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
   // appel à /api/airport/translate pour obtenir la version française.
   // La traduction est affichée dans une boîte de prévisualisation et
   // envoyée comme `commentaire` au report API à la soumission (pour
-  // que Denise l'annonce en français au staff).
+  // que Nathalie l'annonce en français au staff).
   //
   // Robustesse :
   //   - debounce 800 ms (évite de spammer le LLM à chaque frappe)
@@ -806,7 +806,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
         tag: string
         problemType: string
         commentaire?: string
-        // Task WAHOO-1 — Denise Traducteur Universel
+        // Task WAHOO-1 — Nathalie Traducteur Universel
         // commentaireOriginal : texte original saisi par le voyageur dans
         //   sa langue (avant traduction). Préservé pour référence côté
         //   backend (audit, email, webhook Slack/Teams).
@@ -824,7 +824,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
       const c = commentaire.trim()
       // Task WAHOO-1 — si le voyageur a écrit dans une langue ≠ français
       // et qu'une traduction est disponible, on envoie :
-      //   - commentaire = version FR (traduite) → Denise l'annonce en FR
+      //   - commentaire = version FR (traduite) → Nathalie l'annonce en FR
       //   - commentaireOriginal = texte source (préservé pour référence)
       //   - commentaireLang = code langue source
       // Sinon (selectedLang === 'fr' ou pas de traduction disponible),
@@ -1019,7 +1019,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
         statut: string
         message: string
       }>("/api/airport/help", body)
-      // Denise confirme vocalement
+      // Nathalie confirme vocalement
       parler(`Demande d'aide envoyée. ${sosTag}. Un agent ops arrive sur place.`)
       // Reset + aller à la confirmation
       setSosTag(null)
@@ -1116,9 +1116,9 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
 
   // ---------- "Signaler un autre problème" : reset vers zone_detectee ----------
   // On conserve le tag/zone (zoneData) — seul le signalement courant est réinitialisé.
-  // ---------- Denise annonce la confirmation au voyageur ----------
+  // ---------- Nathalie annonce la confirmation au voyageur ----------
   // Quand le voyageur arrive sur l'écran de confirmation (phase = "confirmation"
-  // + reportResult set), Denise parle UNE SEULE FOIS pour confirmer que le
+  // + reportResult set), Nathalie parle UNE SEULE FOIS pour confirmer que le
   // signalement est bien pris en compte. Le ref deniseConfirmSpokenRef stocke
   // l'ID du report déjà annoncé → pas de re-annonce au re-render.
   useEffect(() => {
@@ -1131,18 +1131,18 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
     const team = routerVersService(reportResult.report.problemType)
     const equipeLabel = team === 'other' ? "l'équipe technique" : `l'équipe ${serviceLabel(team)}`
 
-    // Message de confirmation — voix Denise (fr-FR, pitch grave, débit rapide)
+    // Message de confirmation — voix Nathalie (fr-FR, pitch grave, débit rapide)
     parler(
       `Votre signalement a bien été reçu. ${equipeLabel} a été alertée et intervient sur place. Merci pour votre contribution.`
     )
 
-    // Flash Rewards — on attend que Denise ait FINI de parler avant
+    // Flash Rewards — on attend que Nathalie ait FINI de parler avant
     // d'afficher la carte à gratter. Le message de confirmation dure
     // ~5-6 secondes.
     //
     // IMPORTANT : on ne commence à vérifier speaking===false qu'après
     // 1500ms, car parler() appelle speechSynthesis.cancel() avant speak(),
-    // créant un court instant où speaking===false AVANT que Denise
+    // créant un court instant où speaking===false AVANT que Nathalie
     // commence. Sans ce délai, le polling détecterait ce faux "fin" et
     // déclencherait la carte trop tôt.
     const triggerFlashReward = () => setShowFlashReward(true)
@@ -1189,7 +1189,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
     setFlightNumber("")
     setSubmitError(null)
     setReportResult(null)
-    // Reset Denise pour qu'elle parle au prochain signalement
+    // Reset Nathalie pour qu'elle parle au prochain signalement
     deniseConfirmSpokenRef.current = null
     // Reset Flash Rewards overlay pour le prochain signalement
     setShowFlashReward(false)
@@ -1694,7 +1694,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
           </div>
 
           {/* Commentaire optionnel + saisie vocale (Phase 2 — Wolof/FR/EN)
-              + Task WAHOO-1 — Denise Traducteur Universel :
+              + Task WAHOO-1 — Nathalie Traducteur Universel :
               LanguagePicker (11 langues + auto) au-dessus du textarea,
               bouton micro (Web Speech API) à côté, boîte de traduction
               française en temps réel sous le textarea. */}
@@ -1762,7 +1762,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                       </span>
                     </p>
                     <p className="mt-1 text-[10px] text-[#a05f45]">
-                      Denise annoncera cette version au staff ops.
+                      Nathalie annoncera cette version au staff ops.
                     </p>
                   </div>
                 ) : commentaire.trim() ? (
@@ -2196,7 +2196,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
         <div className="pointer-events-none absolute top-1/3 -left-20 h-64 w-64 rounded-full bg-[#dba28a]/15 blur-3xl" />
         <div className="pointer-events-none absolute bottom-0 right-1/4 h-56 w-56 rounded-full bg-[#8e8e95]/15 blur-3xl" />
 
-        {/* CSS keyframe pour l'onde sonore Denise */}
+        {/* CSS keyframe pour l'onde sonore Nathalie */}
         <style>{`
           @keyframes fbp-denise-wave {
             0%, 100% { height: 5px; }
@@ -2237,7 +2237,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
               Votre signalement a bien été reçu.
             </p>
 
-            {/* ---------- Bloc Denise : confirmation vocale animée ---------- */}
+            {/* ---------- Bloc Nathalie : confirmation vocale animée ---------- */}
             <div className="mt-5 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-[#000d10]/10 to-[#bc7155]/10 px-4 py-3 ring-1 ring-[#000d10]/30 backdrop-blur-md">
               {/* Onde sonore animée */}
               <div className="flex items-center gap-[3px] h-5" aria-hidden>
@@ -2253,7 +2253,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                 ))}
               </div>
               <p className="text-left text-xs font-medium leading-snug text-[#6f3f30]">
-                <span className="font-bold">Denise confirme :</span> L&apos;équipe{' '}
+                <span className="font-bold">Nathalie confirme :</span> L&apos;équipe{' '}
                 <span className="font-bold">
                   {serviceLabel(routerVersService(reportResult.report.problemType))}
                 </span>{' '}
@@ -2584,7 +2584,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
         )}
 
         {/* ---------- Flash Rewards : carte à gratter post-signalement ----------
-            Affichée ~3,5 s après que Denise a parlé. L'overlay appelle
+            Affichée ~3,5 s après que Nathalie a parlé. L'overlay appelle
             /api/airport/flash-rewards/redeem pour vérifier l'éligibilité
             (zone + incident + horaires + limites anti-abus). Si non
             éligible, l'overlay se ferme automatiquement sans bruit. */}

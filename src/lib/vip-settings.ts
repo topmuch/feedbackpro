@@ -2,7 +2,7 @@
 // vip-settings.ts — Validation / clamp de la config tenant lounge
 // ------------------------------------------------------------
 // Le serveur est la source de vérité : toute valeur hors bornes est
-// ramenée dans les limites (notamment le volume Denise ≤ 30%).
+// ramenée dans les limites (notamment le volume Nathalie ≤ 30%).
 // ============================================================
 
 import {

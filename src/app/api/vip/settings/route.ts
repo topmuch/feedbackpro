@@ -2,9 +2,9 @@
 // /api/vip/settings — Configuration du tenant lounge
 // ------------------------------------------------------------
 // GET : config complète (public en lecture — les vues client/staff
-//       doivent connaître modulesEnabled, DND, réglages Denise).
+//       doivent connaître modulesEnabled, DND, réglages Nathalie).
 // PUT : (session PRO requise) merge par section + clamp DUR :
-//       - volume Denise plafonné à 30% côté serveur (impossible de
+//       - volume Nathalie plafonné à 30% côté serveur (impossible de
 //         monter plus, même en forgeant la requête)
 //       - validation des bornes numériques
 //       Audit trail à chaque modification.

@@ -1,7 +1,7 @@
 // ============================================================
 // POST /api/airport/translate
 // ------------------------------------------------------------
-// Traducteur universel "Denise" (Task WAHOO-1).
+// Traducteur universel "Nathalie" (Task WAHOO-1).
 // Prend un texte saisi par un voyageur dans sa langue (français,
 // anglais, chinois, arabe, wolof, espagnol, allemand, portugais,
 // italien, russe, japonais — ou auto-détecté) et le traduit en
@@ -9,7 +9,7 @@
 //
 // Le texte traduit est ensuite affiché au voyageur dans la PWA
 // (validation visuelle avant envoi) puis soumis à /api/airport/report
-// dans le champ `commentaire` (version FR) afin que Denise l'annonce
+// dans le champ `commentaire` (version FR) afin que Nathalie l'annonce
 // en français au staff via le wallboard et la PWA staff.
 //
 // Flow :

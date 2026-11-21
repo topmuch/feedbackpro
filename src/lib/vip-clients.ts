@@ -4,8 +4,8 @@
 // - Normalisation & matching pour la détection VIP au scan
 // - Enregistrement des visites + alertes Maître d'Hôtel (visuelles)
 // - Config tenant lounge (JSONB-like : VipTenantConfig) avec défauts
-// - Clamp dur du volume Denise à 30% (impossible de monter plus)
-// - DND nocturne (respecté par Denise / notifications)
+// - Clamp dur du volume Nathalie à 30% (impossible de monter plus)
+// - DND nocturne (respecté par Nathalie / notifications)
 // - Journal d'audit des actions staff (VipAuditTrail)
 // ============================================================
 
@@ -200,7 +200,7 @@ export async function chargerVipConfig(): Promise<{
   return { config, deniseSettings, rawConfig, rawDenise, updatedAt: row.updatedAt }
 }
 
-// Clamp dur des réglages Denise : volume ≤ 30%, ton doux forcé si volume > 15,
+// Clamp dur des réglages Nathalie : volume ≤ 30%, ton doux forcé si volume > 15,
 // DND respecté par défaut. Le serveur est la source de vérité.
 export function clampDeniseSettings(input: unknown): VipDeniseSettings {
   const merged = mergeSection(DEFAUT_DENISE, input)
@@ -240,7 +240,7 @@ export function estEnDnd(notif: VipLoungeConfig['notifications'], now: Date = ne
   }
 }
 
-// Denise a-t-elle le droit de parler maintenant ? (alertes vocales + DND + ton doux)
+// Nathalie a-t-elle le droit de parler maintenant ? (alertes vocales + DND + ton doux)
 export async function denisePeutParler(now: Date = new Date()): Promise<{
   autorise: boolean
   raison: string | null

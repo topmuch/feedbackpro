@@ -1,7 +1,7 @@
 // ============================================================
-// denise-conversation.ts — Denise IA Conversationnelle (voice commands)
+// denise-conversation.ts — Nathalie IA Conversationnelle (voice commands)
 // ------------------------------------------------------------
-// Le superviseur ops parle à Denise via le micro du wallboard
+// Le superviseur ops parle à Nathalie via le micro du wallboard
 // (Web Speech API → SpeechRecognition). La transcription est
 // passée à `processVoiceCommand()` qui :
 //   1. normalise le texte (minuscules + sans accents)
@@ -10,22 +10,25 @@
 //   4. renvoie { response, action? }
 //
 // Le wallboard appelle ensuite `parler(result.response)` (voix
-// "Denise" du staff-tts.ts) pour énoncer la réponse, et branche
+// "Nathalie" du staff-tts.ts) pour énoncer la réponse, et branche
 // l'éventuel `action` (ex: 'crisis' → active le mode crise).
 //
 // Commandes reconnues :
-//   - "denise bilan" / "denise résumé"  → synthèse 24h (TTS)
-//   - "denise zone [name]"              → incidents actifs d'une zone
-//   - "denise assigne [reportId] [team]"→ déclenche l'affectation
-//   - "denise alerte [team]"            → notifie une équipe
-//   - "denise calme ?"                  → statut global
-//   - "denise top performer"            → #1 du classement mensuel
-//   - "denise crise"                    → active le mode crise
+//   - "nathalie bilan" / "nathalie résumé"  → synthèse 24h (TTS)
+//   - "nathalie zone [name]"                → incidents actifs d'une zone
+//   - "nathalie assigne [reportId] [team]"  → déclenche l'affectation
+//   - "nathalie alerte [team]"              → notifie une équipe
+//   - "nathalie calme ?"                    → statut global
+//   - "nathalie top performer"              → #1 du classement mensuel
+//   - "nathalie crise"                      → active le mode crise
+//   (alias hérité : chaque commande fonctionne aussi avec le préfixe
+//    "denise" — rétrocompatibilité avec les anciennes habitudes vocales)
 //
 // Notes :
 //   - Fonction async (requêtes Prisma). Le wallboard l'attend
 //     avant de parler.
-//   - Détection du préfixe "denise" insensible aux accents.
+//   - Détection du préfixe "nathalie" insensible aux accents/casse
+//     (alias hérité "denise" toujours accepté).
 //   - Les identifiants de signalement peuvent être saisis en forme
 //     courte (suffixe 6-8 chars affiché sur le wallboard) ou complète.
 // ============================================================
@@ -34,7 +37,7 @@ import { db } from '@/lib/db'
 import { logAuditEntry } from '@/lib/airport-gamification'
 
 export type VoiceCommandResult = {
-  /** Texte à énoncer via parler() (TTS Denise). */
+  /** Texte à énoncer via parler() (TTS Nathalie). */
   response: string
   /** Action à exécuter côté wallboard (ex: 'crisis' active le mode crise). */
   action?: 'crisis' | 'assign' | 'alert'
@@ -42,7 +45,7 @@ export type VoiceCommandResult = {
 
 // --- Normalisation ---
 
-/** Minuscules + sans accents (NFD) — pour matcher "denise résumé" / "denise resume". */
+/** Minuscules + sans accents (NFD) — pour matcher "nathalie résumé" / "nathalie resume". */
 function normalize(s: string): string {
   return s
     .trim()
@@ -87,7 +90,7 @@ function normalizeTeam(raw: string): string | null {
 // ============================================================
 
 /**
- * Analyse une transcription vocale et renvoie la réponse de Denise
+ * Analyse une transcription vocale et renvoie la réponse de Nathalie
  * + une éventuelle action à exécuter côté wallboard.
  *
  * @param text - transcription brute du SpeechRecognition.
@@ -96,14 +99,19 @@ function normalizeTeam(raw: string): string | null {
 export async function processVoiceCommand(text: string): Promise<VoiceCommandResult> {
   const norm = normalize(text)
 
-  if (!norm.startsWith('denise')) {
+  // Préfixe vocal : « nathalie » en premier (nom actuel de l'assistante),
+  // puis « denise » en alias hérité (rétrocompatibilité). Même mécanique
+  // de normalisation (minuscules + sans accents) pour les deux préfixes.
+  const PREFIXES = ['nathalie', 'denise'] as const
+  const prefix = PREFIXES.find((p) => norm.startsWith(p))
+  if (!prefix) {
     return {
       response:
-        "Je n'ai pas compris. Commencez votre phrase par Denise, suivi de votre commande.",
+        "Je n'ai pas compris. Commencez votre phrase par Nathalie, suivi de votre commande.",
     }
   }
 
-  const cmd = norm.replace(/^denise\s*/, '').trim()
+  const cmd = norm.replace(new RegExp(`^${prefix}\\s*`), '').trim()
   if (!cmd) {
     return { response: 'Oui, je vous écoute. Quelle est votre commande ?' }
   }
@@ -124,7 +132,7 @@ export async function processVoiceCommand(text: string): Promise<VoiceCommandRes
     const rest = cmd.replace(/^assigne?\s*/, '').trim()
     const parts = rest.split(/\s+/)
     if (parts.length < 2) {
-      return { response: "Commande assigne incomplète. Dites: Denise assigne, identifiant, équipe." }
+      return { response: "Commande assigne incomplète. Dites: Nathalie assigne, identifiant, équipe." }
     }
     const [reportToken, ...teamParts] = parts
     return await handleAssigne(reportToken, teamParts.join(' '))
@@ -150,7 +158,7 @@ export async function processVoiceCommand(text: string): Promise<VoiceCommandRes
   if (cmd.startsWith('crise')) {
     return {
       response:
-        'Mode crise activé. Board filtré sur incidents critiques. Denise en mode crise.',
+        'Mode crise activé. Board filtré sur incidents critiques. Nathalie en mode crise.',
       action: 'crisis',
     }
   }
@@ -165,7 +173,7 @@ export async function processVoiceCommand(text: string): Promise<VoiceCommandRes
 // Handlers
 // ============================================================
 
-/** "Denise bilan" → synthèse 24h (total, en attente, en cours, résolus, temps moyen). */
+/** "Nathalie bilan" → synthèse 24h (total, en attente, en cours, résolus, temps moyen). */
 async function handleBilan(): Promise<VoiceCommandResult> {
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
   const reports = await db.airportReport.findMany({
@@ -190,7 +198,7 @@ async function handleBilan(): Promise<VoiceCommandResult> {
   return { response }
 }
 
-/** "Denise zone [name]" → incidents actifs d'une zone (code ou nom). */
+/** "Nathalie zone [name]" → incidents actifs d'une zone (code ou nom). */
 async function handleZone(name: string): Promise<VoiceCommandResult> {
   if (!name) return { response: 'Nom de zone manquant.' }
   const zone = await db.airportZone.findFirst({
@@ -221,7 +229,7 @@ async function handleZone(name: string): Promise<VoiceCommandResult> {
   return { response }
 }
 
-/** "Denise assigne [reportId] [team]" → déclenche l'affectation d'un signalement à une équipe. */
+/** "Nathalie assigne [reportId] [team]" → déclenche l'affectation d'un signalement à une équipe. */
 async function handleAssigne(
   reportToken: string,
   teamRaw: string,
@@ -270,7 +278,7 @@ async function handleAssigne(
     actor: 'denise-voice',
     fromStatut,
     toStatut: 'EN_COURS',
-    note: `Assignation vocale Denise vers ${teamKey}`,
+    note: `Assignation vocale Nathalie vers ${teamKey}`,
   })
   return {
     response: `Signalement ${report.id.slice(-8)} assigné à l'équipe ${teamKey}. Prise en charge enregistrée.`,
@@ -278,7 +286,7 @@ async function handleAssigne(
   }
 }
 
-/** "Denise alerte [team]" → notifie une équipe (log + push broadcast ciblé). */
+/** "Nathalie alerte [team]" → notifie une équipe (log + push broadcast ciblé). */
 async function handleAlerte(teamRaw: string): Promise<VoiceCommandResult> {
   const teamKey = normalizeTeam(teamRaw)
   if (!teamKey) {
@@ -298,7 +306,7 @@ async function handleAlerte(teamRaw: string): Promise<VoiceCommandResult> {
   }
 }
 
-/** "Denise calme ?" → statut global (calme / vigilance / tendu). */
+/** "Nathalie calme ?" → statut global (calme / vigilance / tendu). */
 async function handleCalme(): Promise<VoiceCommandResult> {
   const since24h = new Date(Date.now() - 24 * 60 * 60 * 1000)
   const enAttente = await db.airportReport.count({ where: { statut: 'EN_ATTENTE' } })
@@ -314,7 +322,7 @@ async function handleCalme(): Promise<VoiceCommandResult> {
   return { response }
 }
 
-/** "Denise top performer" → #1 du classement mensuel. */
+/** "Nathalie top performer" → #1 du classement mensuel. */
 async function handleTopPerformer(): Promise<VoiceCommandResult> {
   const now = new Date()
   const month = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`

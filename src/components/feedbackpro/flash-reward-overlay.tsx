@@ -4,7 +4,7 @@
 // FlashRewardOverlay — Carte à gratter post-signalement
 // ------------------------------------------------------------
 // Overlay plein écran affiché au voyageur APRÈS qu'il a signalé
-// un incident (et ~3,5 s après que Denise a parlé).
+// un incident (et ~3,5 s après que Nathalie a parlé).
 //
 // Flux :
 //   1. On mount → POST /api/airport/flash-rewards/redeem

@@ -1,9 +1,9 @@
 "use client"
 
 // ============================================================
-// AdminVoiceTab — Voix Denise (SuperAdmin)
+// AdminVoiceTab — Voix Nathalie (SuperAdmin)
 // ------------------------------------------------------------
-// 4 sections premium pour piloter le cerveau vocal de Denise :
+// 4 sections premium pour piloter le cerveau vocal de Nathalie :
 //
 //   A. Matrice de Décision
 //      Table des VoiceDecisionRule (filtre par secteur). Édition
@@ -20,16 +20,16 @@
 //      Table des 100 derniers VoiceAnnouncementLog (filtres secteur +
 //      spoken/not-spoken). Affiche le reason humainement lisible.
 //
-//   D. Test Denise
+//   D. Test Nathalie
 //      Tester la voix : sélection du ton (urgent/firm/soft/calm) +
 //      message custom → TTS navigateur. Affiche aussi le mode
 //      horaire courant par secteur.
 //
 //   E. Gestion des Signalements (Feature 2 — FIX-4-FEATURES)
-//      Command center Denise : liste les 10 derniers signalements
+//      Command center Nathalie : liste les 10 derniers signalements
 //      aéroport (polling 15s) avec boutons Annoncer / Résoudre /
 //      Escalader. « Annoncer » déclenche parler() côté navigateur
-//      (voix grave + débit rapide = « Denise »).
+//      (voix grave + débit rapide = « Nathalie »).
 //
 // Contrats :
 //   GET    /api/admin/voice/rules[?sector=]
@@ -158,7 +158,7 @@ const TONE_STYLES: Record<Tone, { color: string; label: string }> = {
 }
 
 const REASON_LABELS: Record<string, string> = {
-  spoken: "Denise a parlé.",
+  spoken: "Nathalie a parlé.",
   no_rule: "Aucune règle pour ce couple secteur / eventType.",
   rule_inactive: "Règle désactivée (active=false).",
   rule_silent: "shouldSpeak=false — notification visuelle seule.",
@@ -369,9 +369,9 @@ export function AdminVoiceTab({ defaultTab = "matrix" }: { defaultTab?: "matrix"
             <Mic className="h-6 w-6" />
           </div>
           <div>
-            <h2 className="text-xl font-semibold tracking-tight">Voix Denise</h2>
+            <h2 className="text-xl font-semibold tracking-tight">Voix Nathalie</h2>
             <p className="text-sm text-muted-foreground">
-              Le cerveau vocal qui décide quand et comment Denise parle.
+              Le cerveau vocal qui décide quand et comment Nathalie parle.
             </p>
           </div>
         </div>
@@ -395,7 +395,7 @@ export function AdminVoiceTab({ defaultTab = "matrix" }: { defaultTab?: "matrix"
           <TabsTrigger value="test" className="gap-2">
             <TestTube2 className="h-4 w-4" /> Test
           </TabsTrigger>
-          {/* Feature 2 — Gestion des Signalements (Denise command center) */}
+          {/* Feature 2 — Gestion des Signalements (Nathalie command center) */}
           <TabsTrigger value="signalements" className="gap-2">
             <AlertTriangle className="h-4 w-4" /> Signalements
           </TabsTrigger>
@@ -545,7 +545,7 @@ export function AdminVoiceTab({ defaultTab = "matrix" }: { defaultTab?: "matrix"
                     Historique des Annonces
                   </CardTitle>
                   <CardDescription>
-                    100 dernières annonces — pourquoi Denise a parlé (ou s'est tue).
+                    100 dernières annonces — pourquoi Nathalie a parlé (ou s'est tue).
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
@@ -634,7 +634,7 @@ export function AdminVoiceTab({ defaultTab = "matrix" }: { defaultTab?: "matrix"
           </Card>
         </TabsContent>
 
-        {/* ---------------- SECTION D : Test Denise ---------------- */}
+        {/* ---------------- SECTION D : Test Nathalie ---------------- */}
         <TabsContent value="test">
           <TestDeniseSection timemodes={timemodes} />
         </TabsContent>
@@ -707,7 +707,7 @@ function TimeModesSection({
               Contexte Horaire
             </CardTitle>
             <CardDescription>
-              5 modes par secteur. Denise s'adapte : en service, elle filtre les infos ;
+              5 modes par secteur. Nathalie s'adapte : en service, elle filtre les infos ;
               la nuit, elle ne parle que pour la sécurité.
             </CardDescription>
           </div>
@@ -790,11 +790,11 @@ function TimeModesSection({
 }
 
 // ============================================================
-// Sub-section : Test Denise
+// Sub-section : Test Nathalie
 // ============================================================
 
 function TestDeniseSection({ timemodes }: { timemodes: VoiceTimeMode[] }) {
-  const [message, setMessage] = useState("Denise à l'écoute. Système opérationnel.")
+  const [message, setMessage] = useState("Nathalie à l'écoute. Système opérationnel.")
   const [tone, setTone] = useState<Tone>("firm")
   const [speaking, setSpeaking] = useState(false)
 
@@ -856,7 +856,7 @@ function TestDeniseSection({ timemodes }: { timemodes: VoiceTimeMode[] }) {
             Tester la voix
           </CardTitle>
           <CardDescription>
-            Vérifie le rendu sonore de Denise. Sélectionne un ton et tape un message.
+            Vérifie le rendu sonore de Nathalie. Sélectionne un ton et tape un message.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -1005,7 +1005,7 @@ function RuleEditDialog({
 
         <div className="grid grid-cols-1 gap-4 py-2 sm:grid-cols-2">
           <div className="flex items-center justify-between rounded-lg border p-3">
-            <Label>Denise parle ?</Label>
+            <Label>Nathalie parle ?</Label>
             <Switch
               checked={draft.shouldSpeak}
               onCheckedChange={(v) => setDraft({ ...draft, shouldSpeak: v })}
@@ -1124,14 +1124,14 @@ function RuleEditDialog({
 }
 
 // ============================================================
-// Feature 2 — Sub-section : Gestion des Signalements (Denise)
+// Feature 2 — Sub-section : Gestion des Signalements (Nathalie)
 // ------------------------------------------------------------
-// Command center Denise pour piloter les signalements aéroport :
+// Command center Nathalie pour piloter les signalements aéroport :
 //   - Liste les 10 derniers signalements (tous statuts confondus)
 //     via GET /api/airport/reports?limit=10
 //   - Polling 15 s pour afficher un feed temps réel
 //   - Boutons par ligne :
-//       • Annoncer   → parler() (TTS navigateur voix « Denise »)
+//       • Annoncer   → parler() (TTS navigateur voix « Nathalie »)
 //       • Résoudre   → POST /api/airport/ops/resolve { reportId }
 //       • Escalader  → POST /api/airport/ops/take-charge { reportId }
 //   - KPIs en haut : total / en attente / en cours / résolus
@@ -1282,14 +1282,14 @@ function SignalementsDeniseSection() {
     return () => clearInterval(t)
   }, [load])
 
-  /** Annonce vocale via Denise (parler) — voix grave + débit rapide. */
+  /** Annonce vocale via Nathalie (parler) — voix grave + débit rapide. */
   function annoncer(r: SignalementLigne) {
     const zoneNom = r.zone?.nom ?? r.tagScanne
     const texte = `Nouveau signalement. Zone ${zoneNom}. ${r.problemType}.`
     try {
       parler(texte)
       toast({
-        title: "Annonce Denise ✓",
+        title: "Annonce Nathalie ✓",
         description: texte,
       })
     } catch (e) {
@@ -1425,8 +1425,8 @@ function SignalementsDeniseSection() {
                 Gestion des Signalements
               </CardTitle>
               <CardDescription>
-                Command center Denise — feed temps réel (polling 15 s). Signalements Aéroport + Salon VIP.
-                « Annoncer » déclenche la voix Denise sur ce navigateur.
+                Command center Nathalie — feed temps réel (polling 15 s). Signalements Aéroport + Salon VIP.
+                « Annoncer » déclenche la voix Nathalie sur ce navigateur.
               </CardDescription>
             </div>
             <Button
@@ -1487,7 +1487,7 @@ function SignalementsDeniseSection() {
                     <TableHead className="min-w-[120px]">Zone</TableHead>
                     <TableHead className="text-center">Statut</TableHead>
                     <TableHead className="text-right min-w-[110px]">Signalé</TableHead>
-                    <TableHead className="text-right min-w-[260px]">Actions Denise</TableHead>
+                    <TableHead className="text-right min-w-[260px]">Actions Nathalie</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1546,7 +1546,7 @@ function SignalementsDeniseSection() {
                               disabled={isBusy}
                               onClick={() => annoncer(r)}
                               aria-label={`Annoncer ${r.problemType}`}
-                              title="Denise parle (TTS)"
+                              title="Nathalie parle (TTS)"
                             >
                               <Megaphone className="h-3.5 w-3.5" aria-hidden />
                               Annoncer

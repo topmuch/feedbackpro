@@ -16,7 +16,7 @@
 // Actions manager rapides : ✓ Résolu · ↻ Relancer le moteur sur une
 // tâche non prise en charge.
 //
-// Denise (optionnelle, désactivée par défaut — Mode Discrétion) :
+// Nathalie (optionnelle, désactivée par défaut — Mode Discrétion) :
 // annonce « Incident X assigné à Y » + file urgente d'escalade.
 //
 // Contrat : GET /api/routing/overview?tenant=vip_lounge (30s)
@@ -119,7 +119,7 @@ export function VipOrchestrationTab() {
   const dernierHistoRef = useRef<Set<string>>(new Set())
   const premierChargementRef = useRef(true)
 
-  // Denise : préférence persistée (désactivée par défaut — discrétion)
+  // Nathalie : préférence persistée (désactivée par défaut — discrétion)
   useEffect(() => {
     try {
       const v = window.localStorage.getItem(CLE_DENISE)
@@ -156,13 +156,13 @@ export function VipOrchestrationTab() {
           const nouveau: OverviewOrch = json.data
           setData(nouveau)
 
-          // Détection des nouvelles assignations → annonce Denise
+          // Détection des nouvelles assignations → annonce Nathalie
           const ids = new Set(nouveau.history.map((h) => h.id))
           if (!premierChargementRef.current && deniseOn) {
             const fraiches = nouveau.history.filter(
               (h) => !dernierHistoRef.current.has(h.id) && h.staffName && (h.outcome === 'assigned' || h.escalated),
             )
-            // File Denise du tick (escalades + proactives)
+            // File Nathalie du tick (escalades + proactives)
             const tickJson = tick ? await tick.json().catch(() => null) : null
             if (tickJson?.ok && Array.isArray(tickJson.data?.deniseQueue)) {
               for (const d of tickJson.data.deniseQueue.slice(0, 3)) {
@@ -250,8 +250,8 @@ export function VipOrchestrationTab() {
             ) : (
               <VolumeX className="h-4 w-4 text-[#8B6F47]" />
             )}
-            <span className="text-xs font-medium text-[#2C2C2C]">Denise</span>
-            <Switch checked={deniseOn} onCheckedChange={basculerDenise} aria-label="Annonces vocales Denise" />
+            <span className="text-xs font-medium text-[#2C2C2C]">Nathalie</span>
+            <Switch checked={deniseOn} onCheckedChange={basculerDenise} aria-label="Annonces vocales Nathalie" />
           </div>
           <Button variant="outline" size="sm" onClick={() => charger()} className="border-[#bc7155]/40 text-[#8B6F47] hover:bg-[#bc7155]/10">
             <RefreshCw className={cn('mr-1 h-4 w-4', chargement && 'animate-spin')} />

@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedVoice - LanguagePicker (Task WAHOO-1 — Denise Traducteur)
+// FeedVoice - LanguagePicker (Task WAHOO-1 — Nathalie Traducteur)
 // ------------------------------------------------------------
 // Sélecteur de langue compact pour la PWA voyageur aéroport.
 // Le voyageur choisit sa langue maternellle parmi 11 langues + auto.

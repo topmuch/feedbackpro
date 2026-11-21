@@ -18,6 +18,30 @@ export const dynamic = 'force-dynamic'
 
 const STATUTS_VALIDES = new Set(['free', 'occupied', 'cleaning'])
 const DEFAULT_SHOWER_COUNT = 4
+// Auto-libération : usage 20 min + nettoyage 10 min + marge 15 min.
+// Une cabine restée occupied/cleaning au-delà est réputée abandonnée
+// (staff parti sans PATCH / no-show) → repasse automatiquement "free".
+// Corrige le bug « douche indisponible pendant 3373 minutes ».
+const SHOWER_STALE_MIN = 45
+
+/**
+ * Libère les cabines dont l'occupation ou le nettoyage est périmé.
+ * Idempotent, appelé avant chaque lecture (GET) — jamais de faux
+ * "occupée depuis 3373 min" ne survit à cette passe.
+ */
+async function libererDouchesPerimees(): Promise<void> {
+  const limite = new Date(Date.now() - SHOWER_STALE_MIN * 60_000)
+  await db.showerStatus.updateMany({
+    where: {
+      status: { in: ['occupied', 'cleaning'] },
+      OR: [
+        { occupiedSince: { lt: limite } },
+        { occupiedSince: null, updatedAt: { lt: limite } },
+      ],
+    },
+    data: { status: 'free', occupiedSince: null },
+  })
+}
 
 async function ensureSeeded(): Promise<void> {
   const count = await db.showerStatus.count()
@@ -36,6 +60,7 @@ export async function GET(req: NextRequest) {
   if (!user) return fail('Non authentifié', 401)
 
   await ensureSeeded()
+  await libererDouchesPerimees()
   const showers = await db.showerStatus.findMany({
     orderBy: { showerNumber: 'asc' },
   })

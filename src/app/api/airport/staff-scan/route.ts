@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
 
   if (b.action === 'REPORT_ISSUE') {
     // Signalement interne — créer un AirportReport aussi pour que ça
-    // apparaisse sur le wallboard ET déclenche la voix Denise
+    // apparaisse sur le wallboard ET déclenche la voix Nathalie
     const zone = await db.airportZone.findFirst({
       where: { code: zoneCode ?? undefined },
     })

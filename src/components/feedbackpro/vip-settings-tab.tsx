@@ -3,13 +3,13 @@
 // ============================================================
 // VipSettingsTab — Paramètres du tenant lounge (module fondamental)
 // ------------------------------------------------------------
-// 8 sections : Général · Denise Discrétion · Alertes VIP ·
+// 8 sections : Général · Nathalie Discrétion · Alertes VIP ·
 // Checklist Buffet · Douches · Récompenses · Notifications ·
 // Intégrations + toggles des modules optionnels.
 //
 // Contraintes livraison :
-// - Volume Denise PLAFONNÉ À 30% (slider bloqué + clamp serveur)
-// - DND nocturne configuré (respecté par Denise et les alertes)
+// - Volume Nathalie PLAFONNÉ À 30% (slider bloqué + clamp serveur)
+// - DND nocturne configuré (respecté par Nathalie et les alertes)
 // - Application < 5s : sauvegarde PUT puis refetch immédiat
 // Stockage : VipTenantConfig.config + deniseSettings (JSON-like,
 // pas de migration DB à chaque option).
@@ -149,7 +149,7 @@ const MODULES_OPTIONNELS: { key: keyof LoungeConfig['modulesEnabled']; label: st
   { key: 'upselling', label: 'Upselling', desc: 'Offres et commandes clients (Nathalie)' },
   { key: 'pretExpress', label: 'Prêt Express', desc: 'Prêt d’objets (Nathalie + QRStaff)' },
   { key: 'debarrassage', label: 'Débarrassage', desc: 'Turnover table avec API vols (Session + QRStaff)' },
-  { key: 'briefingVocal', label: 'Briefing Vocal', desc: 'Briefing Denise au take-charge (Denise + API vols)' },
+  { key: 'briefingVocal', label: 'Briefing Vocal', desc: 'Briefing Nathalie au take-charge (Nathalie + API vols)' },
   { key: 'lostFound', label: 'Lost & Found', desc: 'Objets trouvés (Session + QRStaff + Push)' },
   { key: 'flashRewards', label: 'Flash Rewards', desc: 'Récompenses premium 1 clic (Nathalie + QRStaff)' },
 ]
@@ -416,8 +416,8 @@ export function VipSettingsTab() {
           </p>
         </Section>
 
-        {/* ---------- Denise Discrétion ---------- */}
-        <Section titre="Denise Discrétion" icone={Volume2}>
+        {/* ---------- Nathalie Discrétion ---------- */}
+        <Section titre="Nathalie Discrétion" icone={Volume2}>
           <div className="flex items-center justify-between">
             <Label className="text-[#8B6F47]">Alertes vocales</Label>
             <Switch checked={denise.alertesVocales} onCheckedChange={(v) => setDenise((d) => (d ? { ...d, alertesVocales: v } : d))} />
@@ -436,7 +436,7 @@ export function VipSettingsTab() {
               step={1}
               onValueChange={surChangementVolume}
               className="mt-3"
-              aria-label="Volume Denise (plafonné à 30%)"
+              aria-label="Volume Nathalie (plafonné à 30%)"
             />
             <p className="mt-2 flex items-center gap-1.5 text-[11px] text-[#8B6F47]">
               <Info className="h-3 w-3 shrink-0" aria-hidden />
@@ -455,7 +455,7 @@ export function VipSettingsTab() {
               <Label className="flex items-center gap-1.5 text-[#8B6F47]">
                 <Moon className="h-3.5 w-3.5" aria-hidden /> Respect du DND nocturne
               </Label>
-              <p className="text-[11px] text-[#8B6F47]">Denise se tait pendant les horaires DND (ci-dessous)</p>
+              <p className="text-[11px] text-[#8B6F47]">Nathalie se tait pendant les horaires DND (ci-dessous)</p>
             </div>
             <Switch checked={denise.dndRespect} onCheckedChange={(v) => setDenise((d) => (d ? { ...d, dndRespect: v } : d))} />
           </div>

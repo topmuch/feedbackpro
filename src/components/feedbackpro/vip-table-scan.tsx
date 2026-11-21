@@ -43,6 +43,7 @@ import {
   Check,
   Send,
   Package,
+  Volume2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -122,7 +123,10 @@ type ActionDef = {
   type: RequestType
   emoji: string
   label: string
+  /** Libellé anglais (sélecteur FR/EN — la valeur transmise au staff reste FR) */
+  labelEn: string
   description: string
+  descriptionEn: string
   Icon: typeof Wine
   tone: 'gold' | 'bronze' | 'sage' | 'amethyst' | 'terracotta'
   behavior: 'direct' | 'form:refreshment' | 'form:concierge' | 'form:problem' | 'form:upsell' | 'form:shower-reservation' | 'form:loan' | 'form:rating'
@@ -139,7 +143,9 @@ const ACTIONS: ActionDef[] = [
     type: 'refreshment',
     emoji: '🍸',
     label: 'Commander un rafraîchissement',
+    labelEn: 'Order a refreshment',
     description: 'Champagne, cocktail, café…',
+    descriptionEn: 'Champagne, cocktail, coffee…',
     Icon: Wine,
     tone: 'gold',
     behavior: 'form:refreshment',
@@ -148,7 +154,9 @@ const ACTIONS: ActionDef[] = [
     type: 'menu',
     emoji: '📋',
     label: 'Voir le menu du jour',
+    labelEn: 'View today’s menu',
     description: 'Carte & suggestions du chef',
+    descriptionEn: 'Menu & the chef’s suggestions',
     Icon: Utensils,
     tone: 'bronze',
     behavior: 'direct',
@@ -157,7 +165,9 @@ const ACTIONS: ActionDef[] = [
     type: 'shower',
     emoji: '🚿',
     label: 'Réserver une douche',
+    labelEn: 'Reserve a shower',
     description: `${SHOWER_AVAILABLE} cabines disponibles`,
+    descriptionEn: `${SHOWER_AVAILABLE} cabins available`,
     Icon: ShowerHead,
     tone: 'sage',
     behavior: 'form:shower-reservation',
@@ -166,7 +176,9 @@ const ACTIONS: ActionDef[] = [
     type: 'charger',
     emoji: '🔌',
     label: 'Demander un chargeur',
+    labelEn: 'Request a charger',
     description: 'USB-C, Lightning, micro-USB',
+    descriptionEn: 'USB-C, Lightning, micro-USB',
     Icon: Plug,
     tone: 'bronze',
     behavior: 'direct',
@@ -175,7 +187,9 @@ const ACTIONS: ActionDef[] = [
     type: 'upsell',
     emoji: '✨',
     label: "S'offrir un moment d'exception",
+    labelEn: 'Treat yourself to an exceptional moment',
     description: 'Massage, champagne, fast-track, boutique…',
+    descriptionEn: 'Massage, champagne, fast-track, boutique…',
     Icon: Sparkles,
     tone: 'gold',
     behavior: 'form:upsell',
@@ -184,7 +198,9 @@ const ACTIONS: ActionDef[] = [
     type: 'loan',
     emoji: '📦',
     label: 'Prêt gratuit',
+    labelEn: 'Complimentary loan',
     description: 'Chargeurs, casques, plaids, presse…',
+    descriptionEn: 'Chargers, headphones, blankets, press…',
     Icon: Package,
     tone: 'sage',
     behavior: 'form:loan',
@@ -193,7 +209,9 @@ const ACTIONS: ActionDef[] = [
     type: 'concierge',
     emoji: '🛎️',
     label: 'Appeler le concierge',
+    labelEn: 'Call the concierge',
     description: 'Une demande spécifique ?',
+    descriptionEn: 'A specific request?',
     Icon: ConciergeBell,
     tone: 'amethyst',
     behavior: 'form:concierge',
@@ -202,7 +220,9 @@ const ACTIONS: ActionDef[] = [
     type: 'problem',
     emoji: '⚠️',
     label: 'Signaler un problème',
+    labelEn: 'Report a problem',
     description: 'Confort, propreté, bruit…',
+    descriptionEn: 'Comfort, cleanliness, noise…',
     Icon: AlertTriangle,
     tone: 'terracotta',
     behavior: 'form:problem',
@@ -211,7 +231,9 @@ const ACTIONS: ActionDef[] = [
     type: 'rating',
     emoji: '⭐',
     label: 'Noter mon expérience',
+    labelEn: 'Rate my experience',
     description: 'Aidez-nous à nous améliorer',
+    descriptionEn: 'Help us improve',
     Icon: Star,
     tone: 'gold',
     behavior: 'form:rating',
@@ -308,6 +330,16 @@ const ZONE_LABELS: Record<string, string> = {
   terrasse: 'Terrasse',
 }
 
+// Traduction AFFICHÉE des zones (sélecteur FR/EN) — la valeur
+// stockée et transmise au staff reste la clé française.
+const ZONE_LABELS_EN: Record<string, string> = {
+  main: 'Main Area',
+  buffet: 'Buffet & Bar',
+  relaxation: 'Relaxation Area',
+  meeting: 'Meeting Rooms',
+  terrasse: 'Terrace',
+}
+
 // ÉCRAN 2 — Description contextuelle par zone (« Vue sur le
 // tarmac ») : le client est assis, l'écran SAIT déjà où il est.
 const ZONE_VIEWS: Record<string, string> = {
@@ -316,6 +348,15 @@ const ZONE_VIEWS: Record<string, string> = {
   relaxation: "L'espace feutré",
   meeting: 'Aile confidentielle',
   terrasse: 'Terrasse plein ciel',
+}
+
+// Traduction AFFICHÉE des vues contextuelles (« Vue sur le tarmac »)
+const ZONE_VIEWS_EN: Record<string, string> = {
+  main: 'View over the tarmac',
+  buffet: 'Facing the chef’s buffet',
+  relaxation: 'The snug lounge',
+  meeting: 'The confidential wing',
+  terrasse: 'Open-sky terrace',
 }
 
 // ÉCRAN 1 — Wi-Fi du salon : PAS de valeurs codées en dur. Le Wi-Fi
@@ -573,7 +614,7 @@ export function VipTableScan({
   // Affiché dans la carte d'accueil du scanner (les deux modes) : le
   // client reconnaît instantanément le salon qu'il vient de scanner.
   const [salonLogo, setSalonLogo] = useState<string | null>(null)
-  // Message d'accueil officiel (messageBienvenue — paramètres Denise)
+  // Message d'accueil officiel (messageBienvenue — Paramètres → Nathalie)
   const [loungeWelcome, setLoungeWelcome] = useState<string>('')
   // Vrai dès que /api/vip/lounge-info a répondu (déclenche la session)
   const [loungeLoaded, setLoungeLoaded] = useState(false)
@@ -603,17 +644,22 @@ export function VipTableScan({
   // Salutation selon l'heure (« Bonsoir, Cher Hôte ») — calculée
   // côté client uniquement pour éviter tout mismatch d'hydratation
   const [salutation, setSalutation] = useState('Bonsoir')
+  // Salutation EN parallèle — alimentée dans le MÊME useEffect que
+  // `salutation` pour garder la cohérence horaire FR/EN (le message
+  // vocal d'accueil de Nathalie est bilingue).
+  const [salutationEn, setSalutationEn] = useState('Good evening')
   // Prêt Express (ÉCRAN 2) — 2 objets vedettes du catalogue de prêt
   const [quickLoans, setQuickLoans] = useState<QuickLoanItem[]>([])
   // Animation « coche dorée qui se dessine » lors d'un Me l'apporter
   const [loanDraw, setLoanDraw] = useState<string | null>(null)
 
-  // ---- « Option C » — Écran d'entrée + audio préchargé (Denise) ----
+  // ---- « Option C » — Écran d'entrée + audio préchargé (Nathalie) ----
   // Le navigateur interdit tout son sans geste utilisateur : UN SEUL
   // bouton « Entrer dans le salon » débloque l'audio, lance le
-  // message d'accueil de Denise, puis l'écran d'entrée s'efface en
-  // fondu (800 ms). Après ce message : SILENCE TOTAL — Denise ne
-  // reparle JAMAIS (Mode Discrétion).
+  // message d'accueil de Nathalie, puis l'écran d'entrée s'efface en
+  // fondu (800 ms). Après ce message : SILENCE TOTAL — Nathalie ne
+  // reparle JAMAIS d'elle-même (Mode Discrétion ; le client garde
+  // toutefois « Réécouter Nathalie » à portée de main dans le salon).
   const [entree, setEntree] = useState(false)
   const [gateFondu, setGateFondu] = useState(false)
   const deniseDejaParle = useRef(false)
@@ -871,9 +917,13 @@ export function VipTableScan({
   }, [isGlobal, table, loungeLoaded])
 
   // ---- « Luxe Silencieux » — salutation selon l'heure (client only) ----
+  // FR et EN alimentées ensemble : une seule source de vérité horaire.
   useEffect(() => {
     const h = new Date().getHours()
     setSalutation(h < 12 ? 'Bonjour' : h < 18 ? 'Bon après-midi' : 'Bonsoir')
+    setSalutationEn(
+      h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening',
+    )
   }, [])
 
   // ---- Mode Sombre — choix du client mémorisé (localStorage) ----
@@ -1026,15 +1076,21 @@ export function VipTableScan({
     return () => window.clearInterval(id)
   }, [sessionFin])
 
-  // ---- Denise — message d'accueil vocal (UNE SEULE fois) ----
+  // ---- Nathalie — message d'accueil vocal BILINGUE (lancement AUTO
+  // une seule fois ; réécoutable via « Réécouter Nathalie ») ----
   // Composé depuis la config tenant : salutation selon l'heure +
-  // nom du salon + messageBienvenue (Paramètres → Denise).
+  // nom du salon + messageBienvenue (Paramètres → Nathalie). La
+  // config tenant est saisie en français par l'admin : en EN, on
+  // utilise la phrase d'accueil EN par défaut.
   const messageDenise = () => {
     const nom = loungeName || DEFAULT_LOUNGE_NAME
+    if (langue === 'en') {
+      return `${salutationEn}. I am Nathalie. Welcome to ${nom}. Nathalie, your personal guide, is at your entire disposal. Enjoy your stay.`
+    }
     const suite =
       loungeWelcome?.trim() ||
       'Nathalie, votre guide personnel, est à votre entière disposition.'
-    return `${salutation}. Je suis Denise. Bienvenue au ${nom}. ${suite} Belle escale.`
+    return `${salutation}. Je suis Nathalie. Bienvenue au ${nom}. ${suite} Belle escale.`
   }
 
   const terminerDenise = () => {
@@ -1043,11 +1099,10 @@ export function VipTableScan({
     deniseTimers.current.push(window.setTimeout(() => setDeniseEtat('idle'), 1500))
   }
 
-  const lancerDenise = () => {
-    // Verrou éternel : Denise ne se présente qu'UNE fois par session —
-    // ensuite, silence de cathédrale (Mode Discrétion).
-    if (deniseDejaParle.current) return
-    deniseDejaParle.current = true
+  // Corps commun du pipeline vocal (révélation mot à mot + TTS dans
+  // la langue courante). Sans verrou : appelé par lancerDenise (AUTO,
+  // verrouillé) ET par reecouterDenise (à la demande du client).
+  const demarrerAnnonce = () => {
     const texte = messageDenise()
     const mots = texte.split(/\s+/)
     setDeniseEtat('parle')
@@ -1069,20 +1124,34 @@ export function VipTableScan({
         const synth = window.speechSynthesis
         synth.cancel()
         const u = new SpeechSynthesisUtterance(texte)
-        u.lang = 'fr-FR'
+        // Voix bilingue : la langue de l'utterance suit la langue
+        // d'affichage choisie par le client (FR → fr-FR, EN → en-US).
+        u.lang = langue === 'en' ? 'en-US' : 'fr-FR'
         u.rate = 0.95 // ton doux, posé
         u.pitch = 1.05
         u.volume = 0.9
+        // Sélection de voix dans la langue courante. FR : la regex
+        // contient 'denise' — nom de voix système, à garder tel quel.
         const voix =
-          synth
-            .getVoices()
-            .find(
-              (v) =>
-                v.lang?.toLowerCase().startsWith('fr') &&
-                /(google|amélie|amelie|audrey|thomas|marie|denise|virginie)/i.test(v.name),
-            ) ??
-          synth.getVoices().find((v) => v.lang?.toLowerCase().startsWith('fr')) ??
-          null
+          langue === 'en'
+            ? synth
+                .getVoices()
+                .find(
+                  (v) =>
+                    v.lang?.toLowerCase().startsWith('en') &&
+                    /(google|samantha|daniel|karen|moira|tessa|avery|nicky)/i.test(v.name),
+                ) ??
+              synth.getVoices().find((v) => v.lang?.toLowerCase().startsWith('en')) ??
+              null
+            : synth
+                .getVoices()
+                .find(
+                  (v) =>
+                    v.lang?.toLowerCase().startsWith('fr') &&
+                    /(google|amélie|amelie|audrey|thomas|marie|denise|virginie)/i.test(v.name),
+                ) ??
+              synth.getVoices().find((v) => v.lang?.toLowerCase().startsWith('fr')) ??
+              null
         if (voix) u.voice = voix
         // Synchro fine quand le navigateur publie les bornes de mots
         u.onboundary = (e) => {
@@ -1120,7 +1189,34 @@ export function VipTableScan({
     }
   }
 
-  // Denise — nettoyage complet au démontage (jamais de voix orpheline)
+  const lancerDenise = () => {
+    // Verrou éternel : Nathalie ne se présente qu'UNE fois par session
+    // en lancement AUTO — ensuite, silence de cathédrale (Mode
+    // Discrétion). Le verrou ne concerne PAS « Réécouter Nathalie ».
+    if (deniseDejaParle.current) return
+    deniseDejaParle.current = true
+    demarrerAnnonce()
+  }
+
+  // ---- Réécouter Nathalie — la voix ne disparaît pas après la
+  // diffusion : le client qui n'a pas écouté relance EXACTEMENT le
+  // même pipeline (timers du reveal nettoyés, TTS annulé, verrou
+  // deniseDejaParle volontairement ignoré — il ne concerne que le
+  // lancement AUTO). ----
+  const reecouterDenise = () => {
+    deniseTimers.current.forEach((t) => window.clearTimeout(t))
+    deniseTimers.current = []
+    try {
+      if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+        window.speechSynthesis.cancel()
+      }
+    } catch {
+      /* ignore */
+    }
+    demarrerAnnonce()
+  }
+
+  // Nathalie — nettoyage complet au démontage (jamais de voix orpheline)
   useEffect(() => {
     return () => {
       deniseTimers.current.forEach((t) => window.clearTimeout(t))
@@ -1142,9 +1238,11 @@ export function VipTableScan({
     )
   }
 
-  // ---- Denise — « Passer » : le client coupe le message vocal d'un
+  // ---- Nathalie — « Passer » : le client coupe le message vocal d'un
   // geste discret (barre + voix + révélation mot à mot s'arrêtent
-  // net). Denise ne reparle jamais ensuite (Mode Discrétion).
+  // net). Nathalie ne reparle jamais d'elle-même ensuite (Mode
+  // Discrétion) — « Réécouter Nathalie » reste disponible dans le
+  // salon pour relancer le message à la demande.
   const passerDenise = () => {
     deniseTimers.current.forEach((t) => window.clearTimeout(t))
     deniseTimers.current = []
@@ -1206,7 +1304,30 @@ export function VipTableScan({
     }
   }
 
-  const zoneLabel = (z: string) => ZONE_LABELS[z] ?? z
+  // Messages d'erreur connus → EN à l'affichage (les messages renvoyés
+  // par l'API, déjà en français, passent tels quels — la couche
+  // affichée seule est traduite, comme pour les tags et le menu).
+  const ERREURS_EN: Record<string, string> = {
+    'QR code introuvable.': 'QR code not found.',
+    'Erreur réseau. Vérifiez votre connexion.':
+      'Network error. Please check your connection.',
+  }
+  const messageErreur = (e: string) =>
+    langue === 'en' ? (ERREURS_EN[e] ?? e) : e
+
+  // Libellés de zone AFFICHÉS dans la langue courante — les clés
+  // stockées (et transmises au staff) restent françaises.
+  const zoneLabel = (z: string) =>
+    langue === 'en'
+      ? (ZONE_LABELS_EN[z] ?? ZONE_LABELS[z] ?? z)
+      : (ZONE_LABELS[z] ?? z)
+
+  // ÉCRAN 2 — vue contextuelle de la zone (« Vue sur le tarmac »),
+  // traduite à l'affichage (la clé stockée reste française).
+  const vueZone = (z: string) =>
+    langue === 'en'
+      ? (ZONE_VIEWS_EN[z] ?? T('Vue sur le tarmac', 'View over the tarmac'))
+      : (ZONE_VIEWS[z] ?? 'Vue sur le tarmac')
 
   // QR_ROUTING — libellés d'emplacement selon le mode :
   //   CLIENT_ZONE  → « Table T-05 » (contexte direct)
@@ -1647,12 +1768,14 @@ export function VipTableScan({
           <AlertTriangle className="h-7 w-7 text-[#bc7155]" aria-hidden />
         </div>
         <h1 className="text-2xl font-semibold text-[var(--fp-text)]" style={SERIF}>
-          Oups, ce QR code est introuvable
+          {T('Oups, ce QR code est introuvable', 'Oops, this QR code cannot be found')}
         </h1>
-        <p className="max-w-sm text-sm text-[var(--fp-muted)]">{error}</p>
+        <p className="max-w-sm text-sm text-[var(--fp-muted)]">{messageErreur(error)}</p>
         <p className="text-xs text-[var(--fp-muted)]/70">
-          Demandez à l&apos;hôte du salon de vérifier le QR code affiché sur
-          votre table.
+          {T(
+            "Demandez à l'hôte du salon de vérifier le QR code affiché sur votre table.",
+            'Please ask the lounge host to check the QR code displayed on your table.',
+          )}
         </p>
         {onExit && (
           <Button
@@ -1676,7 +1799,7 @@ export function VipTableScan({
   // ------------------------------------------------------------
   // Fond dégradé sombre, logo pulsant doré, UN SEUL bouton :
   // l'interaction débloque le son du navigateur, lance le message
-  // de Denise, puis l'écran d'entrée s'efface en fondu (800 ms).
+  // de Nathalie, puis l'écran d'entrée s'efface en fondu (800 ms).
   // ============================================================
   if (!entree) {
     return (
@@ -1689,7 +1812,7 @@ export function VipTableScan({
           background:
             'radial-gradient(130% 90% at 50% 0%, #201B12 0%, #0f0f1c 48%, #0f0f1c 100%)',
         }}
-        aria-label="Écran d'entrée du salon"
+        aria-label={T("Écran d'entrée du salon", 'Lounge entrance screen')}
       >
         <style dangerouslySetInnerHTML={{ __html: NATHALIE_CSS }} />
 
@@ -1704,13 +1827,13 @@ export function VipTableScan({
           {salonLogo ? (
             <img
               src={salonLogo}
-              alt="Logo du salon"
+              alt={T('Logo du salon', 'Lounge logo')}
               className="relative h-24 w-24 rounded-[22px] bg-[#FBF7EC] object-contain p-3 shadow-[0_18px_50px_rgba(0,0,0,0.55)] ring-1 ring-[var(--fp-gold)]/60"
             />
           ) : (
             <img
               src="/brand/nathalie-avatar.png"
-              alt="Nathalie — votre guide personnel"
+              alt={T('Nathalie — votre guide personnel', 'Nathalie — your personal guide')}
               className="relative h-24 w-24 rounded-full object-cover shadow-[0_18px_50px_rgba(0,0,0,0.55)] ring-2 ring-[var(--fp-gold)]/60"
             />
           )}
@@ -2025,7 +2148,7 @@ export function VipTableScan({
         {error && (
           <div className="flex max-w-sm items-start gap-3 rounded-2xl border border-[#bc7155]/25 bg-[#bc7155]/8 px-4 py-3 text-sm text-[#bc7155]">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-            <p className="flex-1">{error}</p>
+            <p className="flex-1">{messageErreur(error)}</p>
             <button
               type="button"
               onClick={() => setError(null)}
@@ -2044,7 +2167,14 @@ export function VipTableScan({
   // Alimente la métrique Satisfaction du Rapport mensuel.
   // ============================================================
   if (view === 'rating') {
-    const LABELS = ['', 'Décevant', 'Correct', 'Bien', 'Excellent', 'Inoubliable']
+    const LABELS = [
+      '',
+      T('Décevant', 'Disappointing'),
+      T('Correct', 'Fair'),
+      T('Bien', 'Good'),
+      T('Excellent', 'Excellent'),
+      T('Inoubliable', 'Unforgettable'),
+    ]
     return (
       <div className={racineCls}>
         <style dangerouslySetInnerHTML={{ __html: NATHALIE_CSS }} />
@@ -2057,7 +2187,7 @@ export function VipTableScan({
                 {headerLocation}
               </p>
               <h1 className="mt-1 text-2xl font-semibold text-[var(--fp-text)]" style={SERIF}>
-                ⭐ Noter mon expérience
+                {T('⭐ Noter mon expérience', '⭐ Rate my experience')}
               </h1>
             </div>
             <Button
@@ -2070,15 +2200,21 @@ export function VipTableScan({
           </div>
 
           <div className="mt-8 rounded-2xl border border-[var(--fp-border)] bg-[var(--fp-card)] p-6 text-center shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-            <p className="text-sm text-[var(--fp-muted)]">Comment s’est passée votre visite ?</p>
-            <div className="mt-4 flex items-center justify-center gap-3" role="radiogroup" aria-label="Note de 1 à 5 étoiles">
+            <p className="text-sm text-[var(--fp-muted)]">
+              {T('Comment s’est passée votre visite ?', 'How was your visit?')}
+            </p>
+            <div
+              className="mt-4 flex items-center justify-center gap-3"
+              role="radiogroup"
+              aria-label={T('Note de 1 à 5 étoiles', 'Rating from 1 to 5 stars')}
+            >
               {[1, 2, 3, 4, 5].map((n) => (
                 <button
                   key={n}
                   type="button"
                   role="radio"
                   aria-checked={ratingStars === n}
-                  aria-label={`${n} étoile${n > 1 ? 's' : ''}`}
+                  aria-label={T(`${n} étoile${n > 1 ? 's' : ''}`, `${n} star${n > 1 ? 's' : ''}`)}
                   onClick={() => setRatingStars(n)}
                   className="p-1 transition-transform hover:scale-110"
                 >
@@ -2109,7 +2245,7 @@ export function VipTableScan({
               ) : (
                 <Star className="h-4 w-4" aria-hidden />
               )}
-              Envoyer ma note
+              {T('Envoyer ma note', 'Send my rating')}
             </Button>
           </div>
         </div>
@@ -2281,7 +2417,7 @@ export function VipTableScan({
             {error && (
               <div className="flex items-start gap-3 rounded-2xl border border-[#bc7155]/25 bg-[#bc7155]/8 px-4 py-3 text-sm text-[#bc7155]">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-                <p className="flex-1">{error}</p>
+                <p className="flex-1">{messageErreur(error)}</p>
                 <button
                   type="button"
                   onClick={() => setError(null)}
@@ -2417,7 +2553,7 @@ export function VipTableScan({
             {error && (
               <div className="flex items-start gap-3 rounded-2xl border border-[#bc7155]/25 bg-[#bc7155]/8 px-4 py-3 text-sm text-[#bc7155]">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-                <p className="flex-1">{error}</p>
+                <p className="flex-1">{messageErreur(error)}</p>
                 <button
                   type="button"
                   onClick={() => setError(null)}
@@ -2538,7 +2674,7 @@ export function VipTableScan({
             {/* Détails optionnels */}
             <div>
               <p className="text-sm font-medium text-[var(--fp-text)]">
-                {T('Détails (optionnel)', 'Details (optional)')} :
+                {T('Détails (optionnel) :', 'Details (optional):')}
               </p>
               <Textarea
                 value={conciergeDetails}
@@ -2573,7 +2709,7 @@ export function VipTableScan({
             {error && (
               <div className="flex items-start gap-3 rounded-2xl border border-[#bc7155]/25 bg-[#bc7155]/8 px-4 py-3 text-sm text-[#bc7155]">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-                <p className="flex-1">{error}</p>
+                <p className="flex-1">{messageErreur(error)}</p>
                 <button
                   type="button"
                   onClick={() => setError(null)}
@@ -2621,6 +2757,7 @@ export function VipTableScan({
           <VipShowerReservation
             tableNumber={locationLabel}
             onBack={() => setView('main')}
+            langue={langue}
           />
         </div>
       </div>
@@ -2651,6 +2788,30 @@ export function VipTableScan({
     <div className={racineCls}>
       <style dangerouslySetInnerHTML={{ __html: NATHALIE_CSS }} />
 
+      {/* Réécouter Nathalie — la voix ne disparaît pas après la diffusion :
+          le client qui n'a pas écouté relance le message d'accueil d'un
+          geste. Pilule flottante en HAUT À GAUCHE (miroir du toggle
+          thème ; le haut droit est déjà occupé par le sélecteur FR/EN +
+          soleil/lune), verre sombre + hairline doré — cohérente avec le
+          toast et le panier flottant. UNIQUEMENT sur l'écran principal
+          du salon : la gate et l'écran de confirmation return plus tôt,
+          le bouton n'y apparaît donc jamais. */}
+      <button
+        type="button"
+        onClick={() => {
+          reecouterDenise()
+          afficherToast(T('Nathalie vous reparle', 'Nathalie is speaking again'), '🎙️')
+        }}
+        aria-label={T(
+          'Réécouter le message de bienvenue de Nathalie',
+          "Replay Nathalie's welcome message",
+        )}
+        className="fixed left-4 top-4 z-[70] inline-flex min-h-[44px] items-center gap-2 rounded-full border border-[var(--fp-gold)]/40 bg-[#0f0f1c]/90 px-4 py-2 text-xs font-semibold text-[#F5F1E6] shadow-[0_6px_24px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:border-[var(--fp-gold)] active:scale-95"
+      >
+        <Volume2 className="h-4 w-4 shrink-0 text-[var(--fp-gold)]" aria-hidden />
+        {T('Réécouter Nathalie', 'Replay Nathalie')}
+      </button>
+
       {/* FR / EN — pilule discrète À GAUCHE du toggle thème (haut droit) */}
       {selecteurLangue('right-[4.5rem]')}
 
@@ -2659,8 +2820,12 @@ export function VipTableScan({
       <button
         type="button"
         onClick={basculerMode}
-        aria-label={modeSombre ? 'Passer en mode clair' : 'Passer en mode sombre'}
-        title={modeSombre ? 'Mode clair' : 'Mode sombre'}
+        aria-label={
+          modeSombre
+            ? T('Passer en mode clair', 'Switch to light mode')
+            : T('Passer en mode sombre', 'Switch to dark mode')
+        }
+        title={modeSombre ? T('Mode clair', 'Light mode') : T('Mode sombre', 'Dark mode')}
         className="fixed right-4 top-4 z-[70] flex h-11 w-11 items-center justify-center rounded-full border border-[var(--fp-gold)]/40 bg-[var(--fp-g2)] shadow-[0_6px_24px_rgba(0,0,0,0.18)] backdrop-blur-xl transition-all duration-300 hover:rotate-12 hover:scale-105 hover:border-[var(--fp-gold)] active:scale-95"
       >
         {modeSombre ? (
@@ -2690,7 +2855,7 @@ export function VipTableScan({
             <div className="relative overflow-hidden rounded-[28px] shadow-[0_20px_40px_-10px_rgba(0,0,0,0.12)]">
               <img
                 src="/brand/salon-hero.png"
-                alt="L'intérieur du salon"
+                alt={T("L'intérieur du salon", 'Inside the lounge')}
                 className="absolute inset-0 h-full w-full object-cover brightness-[0.88]"
               />
               <div
@@ -2706,7 +2871,7 @@ export function VipTableScan({
                 {salonLogo ? (
                   <img
                     src={salonLogo}
-                    alt="Logo du salon"
+                    alt={T('Logo du salon', 'Lounge logo')}
                     className="h-7 w-7 rounded-md bg-[#FBF7EC]/95 object-contain p-0.5 ring-1 ring-[#bc7155]/60"
                   />
                 ) : (
@@ -2718,13 +2883,13 @@ export function VipTableScan({
                   </span>
                 )}
                 <span className="text-[9px] font-semibold uppercase tracking-[0.28em] text-[#F5F5F0]">
-                  Salon VIP
+                  {T('Salon VIP', 'VIP Lounge')}
                 </span>
               </div>
               <div className="relative flex flex-col items-center justify-end px-6 pb-7 pt-16 text-center">
                 {/* Message dynamique — « Bonsoir, Cher Hôte. Je suis Nathalie. » */}
                 <p className="mt-3 text-[10px] font-medium uppercase tracking-[0.34em] text-[var(--fp-gold)]">
-                  {salonLogo ? loungeName : 'Salon VIP'}
+                  {salonLogo ? loungeName : T('Salon VIP', 'VIP Lounge')}
                 </p>
                 <h1
                   className="mt-2 text-[28px] font-semibold leading-tight text-white [text-shadow:0_2px_12px_rgba(0,0,0,0.45)]"
@@ -2814,7 +2979,7 @@ export function VipTableScan({
                     transition={{ duration: 0.5, delay: 0.35 + idxService * 0.08, ease: 'easeOut' }}
                     onClick={() => handleActionClick(ACTIONS_BY_TYPE[card.actionType])}
                     className="group relative rounded-[20px] border border-[var(--fp-gold)]/25 bg-[var(--fp-g1)] p-5 text-left shadow-[0_10px_30px_-10px_rgba(0,0,0,0.10)] backdrop-blur-xl transition-all duration-300 hover:-translate-y-[3px] hover:border-[var(--fp-gold)]/60 hover:shadow-[0_22px_44px_-12px_rgba(201,169,97,0.38)] active:scale-[0.98] active:border-[var(--fp-gold)]/60"
-                    aria-label={card.label}
+                    aria-label={langue === 'en' && card.labelEn ? card.labelEn : card.label}
                   >
                     {/* Flèche d'action — apparaît au survol (invite tactile) */}
                     <span
@@ -2833,7 +2998,7 @@ export function VipTableScan({
                       <p className="mt-1 flex items-center gap-1.5 text-xs leading-relaxed text-[var(--fp-muted)]">
                         <img
                           src="/brand/amadou-concierge.png"
-                          alt="Amadou — concierge privé"
+                          alt={T('Amadou — concierge privé', 'Amadou — private concierge')}
                           className="h-5 w-5 rounded-full object-cover ring-1 ring-[var(--fp-gold)]/50"
                         />
                         {langue === 'en' && card.descEn ? card.descEn : card.desc}
@@ -2862,7 +3027,7 @@ export function VipTableScan({
                   disabled={!!sending}
                   onClick={() => handleActionClick(def)}
                   className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-[var(--fp-border)] bg-[var(--fp-g2)] px-4 py-2 text-[13px] font-medium text-[var(--fp-text)] backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--fp-gold)] hover:bg-[var(--fp-gold)] hover:text-[#0f0f1c] hover:shadow-[0_10px_26px_-8px_rgba(201,169,97,0.55)] active:scale-[0.96] disabled:opacity-60"
-                  aria-label={def.label}
+                  aria-label={langue === 'en' && def.labelEn ? def.labelEn : def.label}
                 >
                   <span aria-hidden>{def.emoji}</span>
                   {langue === 'en' && shortEn ? shortEn : short}
@@ -2993,7 +3158,7 @@ export function VipTableScan({
             {error && (
               <div className="mt-4 flex items-start gap-3 rounded-2xl border border-[#bc7155]/25 bg-[#bc7155]/8 px-4 py-3 text-sm text-[#bc7155]">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-                <p className="flex-1">{error}</p>
+                <p className="flex-1">{messageErreur(error)}</p>
                 <button
                   type="button"
                   onClick={() => setError(null)}
@@ -3024,21 +3189,21 @@ export function VipTableScan({
               {salonLogo ? (
                 <img
                   src={salonLogo}
-                  alt="Logo du salon"
+                  alt={T('Logo du salon', 'Lounge logo')}
                   className="mx-auto h-16 w-16 rounded-xl bg-[#FBF7EC] object-contain p-2 shadow-[0_6px_20px_rgba(201,169,97,0.30)] ring-1 ring-[var(--fp-gold)]/55"
                 />
               ) : null}
               <p className="mt-3 text-[10px] font-medium uppercase tracking-[0.34em] text-[var(--fp-gold)]">
-                Votre Table
+                {T('Votre Table', 'Your Table')}
               </p>
               <h1 className="mt-1.5 text-3xl font-semibold text-[var(--fp-text)]" style={SERIF}>
-                Table {table?.tableNumber ?? ''}
+                {T('Table', 'Table')} {table?.tableNumber ?? ''}
               </h1>
               <p className="mt-1 text-sm italic text-[var(--fp-muted)]" style={SERIF}>
-                {ZONE_VIEWS[table?.zone ?? ''] ?? 'Vue sur le tarmac'}
+                {vueZone(table?.zone ?? '')}
               </p>
               <p className="mt-2 text-xs text-[var(--fp-muted)]/80">
-                {table?.seats} places · {zoneLabel(table?.zone ?? 'main')}
+                {table?.seats} {T('places', 'seats')} · {zoneLabel(table?.zone ?? 'main')}
               </p>
             </motion.div>
 
@@ -3057,15 +3222,18 @@ export function VipTableScan({
               <div className="relative flex items-center gap-4">
                 <img
                   src="/brand/amadou-concierge.png"
-                  alt="Amadou, votre concierge privé"
+                  alt={T('Amadou, votre concierge privé', 'Amadou, your private concierge')}
                   className="h-14 w-14 rounded-full object-cover shadow-[0_4px_16px_rgba(0,0,0,0.4)] ring-2 ring-[var(--fp-gold)]/70"
                 />
                 <div className="min-w-0 flex-1">
                   <p className="text-[10px] font-medium uppercase tracking-[0.28em] text-[var(--fp-gold)]">
-                    Conciergerie Privée
+                    {T('Conciergerie Privée', 'Private Concierge')}
                   </p>
                   <p className="mt-0.5 text-sm font-medium text-white/90">
-                    {CONCIERGE_NAME} est à votre disposition
+                    {T(
+                      `${CONCIERGE_NAME} est à votre disposition`,
+                      `${CONCIERGE_NAME} is at your service`,
+                    )}
                   </p>
                 </div>
               </div>
@@ -3075,7 +3243,7 @@ export function VipTableScan({
                 className="relative mt-4 w-full gap-2 rounded-2xl bg-[var(--fp-gold)] font-semibold text-[#0f0f1c] shadow-[0_8px_24px_rgba(201,169,97,0.35)] hover:bg-[var(--fp-gold)]/90"
               >
                 <ConciergeBell className="h-4 w-4" aria-hidden />
-                Appeler votre Concierge
+                {T('Appeler votre Concierge', 'Call your Concierge')}
               </Button>
             </div>
 
@@ -3086,14 +3254,14 @@ export function VipTableScan({
               <div className="mt-4 rounded-[24px] border border-[var(--fp-border)] bg-[var(--fp-card)] p-5 shadow-[0_20px_40px_-10px_rgba(0,0,0,0.05)]">
                 <div className="flex items-center justify-between">
                   <p className="text-base font-semibold text-[var(--fp-text)]" style={SERIF}>
-                    Prêt Express
+                    {T('Prêt Express', 'Quick Loan')}
                   </p>
                   <button
                     type="button"
                     onClick={() => setView('loan')}
                     className="text-xs font-semibold text-[var(--fp-gold)] underline-offset-2 hover:underline"
                   >
-                    Voir tout
+                    {T('Voir tout', 'View all')}
                   </button>
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-3">
@@ -3131,7 +3299,7 @@ export function VipTableScan({
                             />
                           </svg>
                           <p className="mt-1.5 text-xs font-medium text-[var(--fp-muted)]">
-                            C&apos;est noté
+                            {T("C'est noté", 'Noted')}
                           </p>
                         </motion.div>
                       )}
@@ -3146,7 +3314,11 @@ export function VipTableScan({
                       </p>
                       <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-[#bc7155]/10 px-2.5 py-0.5 text-[10px] font-semibold text-[#bc7155]">
                         {item.availableStock}{' '}
-                        {item.availableStock > 1 ? 'disponibles' : 'disponible'}
+                        {langue === 'en'
+                          ? 'available'
+                          : item.availableStock > 1
+                            ? 'disponibles'
+                            : 'disponible'}
                       </span>
                       <Button
                         type="button"
@@ -3156,7 +3328,7 @@ export function VipTableScan({
                         className="mt-3 w-full gap-1.5 rounded-xl border border-[var(--fp-gold)]/50 bg-[var(--fp-gold)]/10 text-xs font-semibold text-[var(--fp-muted)] hover:bg-[var(--fp-gold)]/20"
                       >
                         <Package className="h-3.5 w-3.5" aria-hidden />
-                        Me l&apos;apporter
+                        {T("Me l'apporter", 'Bring it to me')}
                       </Button>
                     </div>
                   ))}
@@ -3175,19 +3347,24 @@ export function VipTableScan({
                 className="text-base font-semibold text-[#bc7155]"
                 style={SERIF}
               >
-                🥂 Bienvenue, {table.vipClient.name}
+                🥂 {T('Bienvenue', 'Welcome')}, {table.vipClient.name}
               </p>
               <p className="mt-0.5 text-sm text-[var(--fp-text)]">
-                Nous sommes honorés de vous accueillir.
+                {T('Nous sommes honorés de vous accueillir.', 'We are honoured to welcome you.')}
               </p>
               {table.vipClient.preferences?.length > 0 && (
                 <p className="mt-1 text-xs text-[var(--fp-muted)]">
-                  Vos préférences : {table.vipClient.preferences.join(', ')}
+                  {T('Vos préférences :', 'Your preferences:')}{' '}
+                  {table.vipClient.preferences.join(', ')}
                 </p>
               )}
               {(table.vipClient.allergies?.length ?? 0) > 0 && (
                 <p className="mt-1 text-xs font-medium text-[#bc7155]">
-                  Nous prenons en compte vos allergies : {table.vipClient.allergies?.join(', ')}
+                  {T(
+                    'Nous prenons en compte vos allergies :',
+                    'We are taking your allergies into account:',
+                  )}{' '}
+                  {table.vipClient.allergies?.join(', ')}
                 </p>
               )}
             </div>
@@ -3198,7 +3375,7 @@ export function VipTableScan({
         {error && (
           <div className="mt-4 flex items-start gap-3 rounded-2xl border border-[#bc7155]/25 bg-[#bc7155]/8 px-4 py-3 text-sm text-[#bc7155]">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
-            <p className="flex-1">{error}</p>
+            <p className="flex-1">{messageErreur(error)}</p>
             <button
               type="button"
               onClick={() => setError(null)}
@@ -3231,7 +3408,7 @@ export function VipTableScan({
                   'group flex w-full items-center gap-4 rounded-2xl border border-[var(--fp-border)] bg-[var(--fp-card)] p-4 text-left shadow-[0_4px_20px_rgba(201,169,97,0.06)] ring-1 ring-transparent transition-all hover:-translate-y-0.5 hover:shadow-[0_8px_28px_rgba(201,169,97,0.12)] disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0',
                   tone.hover,
                 )}
-                aria-label={action.label}
+                aria-label={langue === 'en' && action.labelEn ? action.labelEn : action.label}
               >
                 {/* Pastille emoji colorée par tone */}
                 <span
@@ -3248,10 +3425,12 @@ export function VipTableScan({
                 {/* Texte */}
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-semibold text-[var(--fp-text)]">
-                    {action.label}
+                    {langue === 'en' && action.labelEn ? action.labelEn : action.label}
                   </p>
                   <p className="mt-0.5 text-xs text-[var(--fp-muted)]">
-                    {action.description}
+                    {langue === 'en' && action.descriptionEn
+                      ? action.descriptionEn
+                      : action.description}
                   </p>
                 </div>
 
@@ -3482,9 +3661,10 @@ export function VipTableScan({
       )}
 
       {/* ============================================================
-          Denise — indicateur vocal (barre dorée + onde sonore +
+          Nathalie — indicateur vocal (barre dorée + onde sonore +
           texte du message en temps réel). Après le message :
-          SILENCE TOTAL — Denise ne reparle jamais (Mode Discrétion).
+          SILENCE TOTAL — Nathalie ne reparle jamais d'elle-même
+          (Mode Discrétion ; « Réécouter Nathalie » reste disponible).
           ============================================================ */}
       <AnimatePresence>
         {deniseEtat !== 'idle' && (
@@ -3517,7 +3697,7 @@ export function VipTableScan({
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="text-[9px] font-semibold uppercase tracking-[0.3em] text-[#3A2E1A]/80">
-                    Denise · Accueil vocal
+                    {T('Nathalie · Accueil vocal', 'Nathalie · Voice welcome')}
                   </p>
                   <p className="mt-0.5 truncate text-[13px] font-medium text-[#0f0f1c]">
                     {deniseTexte || '…'}
@@ -3529,7 +3709,7 @@ export function VipTableScan({
                   onClick={passerDenise}
                   className="shrink-0 rounded-full border border-[#3A2E1A]/35 px-3 py-1.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#3A2E1A]/85 transition-all duration-300 hover:bg-[#3A2E1A]/12 active:scale-95"
                 >
-                  Passer
+                  {T('Passer', 'Skip')}
                 </button>
               </div>
             </div>

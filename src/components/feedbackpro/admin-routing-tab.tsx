@@ -9,11 +9,11 @@
 // 4 sections :
 //   A. 🗺️ Matrice de Routage — vue matricielle Zones × Types ×
 //      Employés. Clic sur une cellule → édition de la règle
-//      (catégorie cible, fallback, escalade, Denise, priorité).
+//      (catégorie cible, fallback, escalade, Nathalie, priorité).
 //      Légende 👤 = assigné · 👑 = escalade · — = aucun routage.
 //   B. 👥 Employés — création/édition avec assignation intelligente :
 //      catégorie, zones, types maîtrisés, capacité max, shift,
-//      Denise. Stats live (charge, succès, temps moyen).
+//      Nathalie. Stats live (charge, succès, temps moyen).
 //   C. ⏰ Tâches proactives — planification (interval, daily…),
 //      checklist, routage automatique.
 //   D. 📊 Statistiques — 7 jours : % auto, escalades, temps moyen,
@@ -437,7 +437,7 @@ export function AdminRoutingTab() {
             "Fallback": r.fallbackCategory ? CATEGORIE_LABEL(r.fallbackCategory) : "—",
             "Escalade après (min)": r.escalationAfterMin,
             "Priorité": PRIORITE_LABEL[r.priority] ?? r.priority,
-            "Denise": r.deniseAnnounce ? `Oui (${r.deniseTone})` : "Non",
+            "Nathalie": r.deniseAnnounce ? `Oui (${r.deniseTone})` : "Non",
             "Poids règle": r.rulePriority,
           })
         }
@@ -720,7 +720,7 @@ export function AdminRoutingTab() {
                       {emp.isOnDuty ? <Wifi className="h-3 w-3 text-[#a05f45]" /> : <WifiOff className="h-3 w-3" />}
                       {emp.isOnDuty ? "En service" : "Hors service"}
                       {emp.shiftStart && emp.shiftEnd ? ` · shift ${emp.shiftStart}–${emp.shiftEnd}` : " · 24/7"}
-                      {emp.deniseEnabled && " · Denise"}
+                      {emp.deniseEnabled && " · Nathalie"}
                     </p>
 
                     {emp.active && (
@@ -785,7 +785,7 @@ export function AdminRoutingTab() {
                     {t.lastRunAt ? `Dernière : ${new Date(t.lastRunAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}` : "Jamais exécutée"}
                     {" · "}
                     {t.nextRunAt ? `Prochaine : ${new Date(t.nextRunAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}` : "—"}
-                    {t.notifyVia.includes("denise") && " · 🔊 Denise"}
+                    {t.notifyVia.includes("denise") && " · 🔊 Nathalie"}
                   </p>
                   <div className="mt-2 flex gap-1">
                     <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { setTacheNouvelle(false); setTacheEdition(t) }}>
@@ -1174,7 +1174,7 @@ function RegleForm({
           <Input type="number" min={1} max={10} value={poids} onChange={(e) => setPoids(Number(e.target.value))} className="h-9" />
         </div>
         <div className="space-y-1">
-          <Label className="text-xs">Ton Denise</Label>
+          <Label className="text-xs">Ton Nathalie</Label>
           <Select value={deniseTon} onValueChange={setDeniseTon}>
             <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -1189,7 +1189,7 @@ function RegleForm({
       <div className="flex flex-wrap items-center gap-6 pt-1">
         <div className="flex items-center gap-2">
           <Switch checked={deniseAnnonce} onCheckedChange={setDeniseAnnonce} id="denise-annonce" />
-          <Label htmlFor="denise-annonce" className="text-sm">Annonce vocale Denise</Label>
+          <Label htmlFor="denise-annonce" className="text-sm">Annonce vocale Nathalie</Label>
         </div>
         <div className="flex items-center gap-2">
           <Switch checked={active} onCheckedChange={setActive} id="regle-active" />
@@ -1372,7 +1372,7 @@ function EmployeForm({
       <div className="flex flex-wrap items-center gap-6 rounded-lg border bg-stone-50 px-3 py-2">
         <div className="flex items-center gap-2">
           <Switch checked={deniseOk} onCheckedChange={setDeniseOk} id="emp-denise" />
-          <Label htmlFor="emp-denise" className="text-sm">🎙️ Être notifié vocalement par Denise</Label>
+          <Label htmlFor="emp-denise" className="text-sm">🎙️ Être notifié vocalement par Nathalie</Label>
         </div>
         <div className="flex items-center gap-2">
           <span className="text-xs text-stone-500">Ton préféré :</span>
@@ -1524,7 +1524,7 @@ function TacheForm({
         />
       </div>
       <div className="space-y-1">
-        <Label className="text-xs">Message Denise</Label>
+        <Label className="text-xs">Message Nathalie</Label>
         <Input value={deniseMessage} onChange={(e) => setDeniseMessage(e.target.value)} placeholder="Vérification buffet requise" className="h-9" />
       </div>
       <DialogFooter className="pt-1">

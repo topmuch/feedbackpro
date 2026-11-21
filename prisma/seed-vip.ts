@@ -9,7 +9,7 @@
 // Les données du salon s'auto-seed au premier chargement :
 //   - 12 tables T-01 → T-12      : /api/vip/tables
 //   - 4 douches                  : /api/vip/showers
-//   - config lounge + Denise     : /api/vip/settings
+//   - config lounge + Nathalie     : /api/vip/settings
 //
 // Le mot de passe n'est jamais écrasé si le compte existe déjà
 // (seul tenantType est réaligné).
