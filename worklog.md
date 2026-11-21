@@ -1026,3 +1026,20 @@ Work Log:
 
 Stage Summary:
 - feedback.qrbags.com entièrement harmonisé Hyer Aviation (encre + clay unique, zéro bleu/jaune/or hérités), gate intact, toggle tarifs réparé
+
+---
+Task ID: REBRAND-1
+Agent: Z.ai Code (orchestrateur)
+Task: Intégration logo FeedVoice + rebranding complet FeedbackPro → FeedVoice
+
+Work Log:
+- ASSETS (scripts/brand_feedvoice.py) : logo uploadé 225x57 noir-sur-blanc détourné (alpha = 255 - luminance + seuil 30 anti-voile), versions noir/blanc @1x/@2x/@4x dans /feedvoice/ ; icon-192/512 PWA encre + wordmark blanc (safe zone maskable) ; favicon bulle de parole src/app/icon.png ; og-image 1344x768 encre + wordmark + barre clay + tagline ; logo.svg embarqué base64 ; fallbacks /logo-feedbackpro*.png écrasés (compat)
+- INTÉGRATION LOGO : landing-hyer (nav, menu mobile, hero h1 img @4x, footer blanc), auth-view ×4 (login desktop/mobile, admin-login, tenant), login-screen, dashboard-shell, marketing-shell (HyerWordmark img tone ink/white), legal-layout, sidebar admin (blanc) + pro (noir)
+- REBRAND TEXTE (scripts/rebrand_feedvoice.py) : 451 remplacements / 148 fichiers — FeedbackPro→FeedVoice, FEEDBACKPRO→FEEDVOICE, emails feedvoice.fr/.sn/.com, fallbacks URLs ; PROTEGÉS : admin@feedbackpro.fr (credential seed DB), webhook source 'feedbackpro', plan feedbackpro_plus, dossiers/identifiants internes
+- SW : caches bumpés feedvoice-*-v7/v3/v5 (purge PWA) ; manifest name/theme_color #bc7155 ; metadata title/description/openGraph FeedVoice ; robots sitemap feedvoice.qrtags.pro
+- FIX BUG PREFLIGHT : imgs logo w-auto shrink dans flex (header /tarifs 20px) → max-w-none systématique (8 single-line + 3 multiline + composant HyerWordmark)
+- QA LOCALE (agent-browser, caddy:81) : landing desktop 1440 (hero wordmark + footer blanc) ✓, /login ✓, /admin-login ✓ (login démo superadmin OK → dashboard sidebar FeedVoice blanc) ✓, /tarifs header+footer ✓, /mentions-legales ✓, gate ?qr_type=CLIENT_GLOBAL INTACTE (WELCOME/Salon VIP/Nathalie/Enter the lounge) ✓, mobile iPhone 14 hero ✓, 0 erreur console, tsc exit 0
+- COMMITS LOCAUX : bb18e83, 7ecdbbb, d691778 (non poussés : PAT GitHub absent de cette sandbox — réinitialisée)
+
+Stage Summary:
+- Tout le site porte la marque FeedVoice (logo bulle + textes) ; gate Option C et identifiants fonctionnels intacts ; push + deploy Coolify à exécuter dès identifiants fournis
