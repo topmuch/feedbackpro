@@ -30,7 +30,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { motion } from "framer-motion"
 // ACCUEIL PREMIUM B2B — nouvelle page d'accueil autonome (nav + footer dédiés)
-import { LandingAccueilPremium } from "@/components/feedbackpro/landing-accueil-premium"
+import { LandingHyer } from "@/components/feedbackpro/landing-hyer"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -3263,7 +3263,7 @@ export function LandingView({
   // (Header dropdown + Footer technique).
   if (page === "accueil") {
     return (
-      <LandingAccueilPremium navigate={navigate} onLogin={onLogin} />
+      <LandingHyer navigate={navigate} onLogin={onLogin} />
     )
   }
 
