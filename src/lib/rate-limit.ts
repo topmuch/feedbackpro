@@ -27,10 +27,21 @@ function nettoyerIp(valeur: string): string {
   return valeur
 }
 
-/** Meilleure IP client disponible (proxy Coolify/Caddy → x-forwarded-for). */
+/**
+ * Meilleure IP client disponible. On prend le DERNIER élément de
+ * x-forwarded-for : c'est celui ajouté par NOTRE proxy de confiance
+ * (Coolify/Traefik) — les premiers éléments peuvent être forgés par le
+ * client et permettre de contourner la limite en les rotatant.
+ */
 export function ipClient(req: NextRequest): string {
   const xff = req.headers.get("x-forwarded-for")
-  if (xff) return nettoyerIp(xff.split(",")[0].trim())
+  if (xff) {
+    const parties = xff
+      .split(",")
+      .map((p) => nettoyerIp(p.trim()))
+      .filter(Boolean)
+    if (parties.length > 0) return parties[parties.length - 1]
+  }
   const xr = req.headers.get("x-real-ip")
   if (xr) return nettoyerIp(xr.trim())
   return "inconnu"
