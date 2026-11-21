@@ -937,3 +937,22 @@ Work Log:
 Stage Summary:
 - Production prête à déployer dès réception : PAT GitHub (scope repo topmuch/feedbackpro) + URL/token API Coolify
 - Procédure d'exécution prête : git push origin main → PATCH git_commit_sha=<sha> → POST /api/v1/deploy → vérif HTTPS feedback.qrbags.com (gate ?qr_type=CLIENT_GLOBAL intact) → 2.3–2.5 min
+
+---
+Task ID: DEPLOY-2
+Agent: Z.ai Code (orchestrateur)
+Task: Push production effectif — 15 commits déployés et vérifiés en direct
+
+Work Log:
+- PUSH GitHub : 0d1422b..c11fc0f main (15 commits : routing engine, VIP assistance, LOGIN-2, landing premium, i18n, fix lint pre-push 638e203 + worklog c11fc0f) — PAT éphémère via credential helper, jamais stocké
+- COOLIFY : app r10qfvmbotlm4scq5c7d7221 (FeedbackPro) — PATCH git_commit_sha=c11fc0faee... OK → POST /api/v1/deploy?force=true → deployment_uuid aohphscatqryrxkni0tyhitt → build finished en ~120 s
+- VÉRIFICATION PRODUCTION (agent-browser, 0 erreur console) :
+  1. / → landing premium B2B rendue (badge Nathalie, h1 Excellence Opérationnelle, 6 secteurs Salon VIP PREMIUM→Établissements Publics)
+  2. /?qr_type=CLIENT_GLOBAL → gate Option C INTACT (Écran d'entrée salon, logo, Nathalie « Enter the lounge », avertissement son)
+  3. /login + /admin-login → 200 ; connexion admin 1× réussie → dashboard Superadmin (22 onglets, notifications 11 non lues, graphiques, footer sticky)
+  4. Onglet ROUTAGE → « Moteur de Routage Intelligent — Salon VIP Terra » : Matrice/Employés/Tâches proactives/Statistiques, 25 règles chargées dont « Client VIP mécontent → Maître d'Hôtel, escalade 1min → Manager », boutons Actualiser/Exporter/Tester un routage
+- Preuves : /tmp/prod-deploy-01-gate.png, /tmp/prod-deploy-02-admin-login.png, /tmp/prod-deploy-03-routing-matrix.png
+
+Stage Summary:
+- Production feedback.qrbags.com = état local c11fc0f, gate intact, routage opérationnel, 0 erreur console
+- Identifiants Coolify/GitHub transités dans la conversation uniquement — recommander rotation post-déploiement
