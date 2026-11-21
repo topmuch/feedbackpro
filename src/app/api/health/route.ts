@@ -17,7 +17,15 @@ import pkg from "../../../../package.json"
 
 const DEMARRAGE_MS = Date.now() // module chargé = process démarré (approx)
 
+// Compteur globalThis (diagnostic + heartbeat monitoring) : doit croître
+// entre deux appels — sinon le runtime recrée l'état module par requête.
+const CLE_COMPTEUR = "__fv_health_hits__"
+
 export async function GET() {
+  const g = globalThis as { [CLE_COMPTEUR]?: number }
+  g[CLE_COMPTEUR] = (g[CLE_COMPTEUR] ?? 0) + 1
+  const hits = g[CLE_COMPTEUR]
+
   let dbEtat: "up" | "down" = "down"
   try {
     await db.$queryRaw`SELECT 1`
@@ -32,6 +40,7 @@ export async function GET() {
       service: "feedvoice",
       version: pkg.version ?? "0.0.0",
       uptimeSec: Math.round((Date.now() - DEMARRAGE_MS) / 1000),
+      hits,
       db: dbEtat,
       timestamp: new Date().toISOString(),
     },
