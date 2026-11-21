@@ -13,6 +13,7 @@
 
 import { NextResponse } from "next/server"
 import { db } from "@/lib/db"
+import { ipClient } from "@/lib/rate-limit"
 import pkg from "../../../../package.json"
 
 const DEMARRAGE_MS = Date.now() // module chargé = process démarré (approx)
@@ -21,7 +22,7 @@ const DEMARRAGE_MS = Date.now() // module chargé = process démarré (approx)
 // entre deux appels — sinon le runtime recrée l'état module par requête.
 const CLE_COMPTEUR = "__fv_health_hits__"
 
-export async function GET() {
+export async function GET(req: Request) {
   const g = globalThis as { [CLE_COMPTEUR]?: number }
   g[CLE_COMPTEUR] = (g[CLE_COMPTEUR] ?? 0) + 1
   const hits = g[CLE_COMPTEUR]
@@ -41,6 +42,7 @@ export async function GET() {
       version: pkg.version ?? "0.0.0",
       uptimeSec: Math.round((Date.now() - DEMARRAGE_MS) / 1000),
       hits,
+      ip: ipClient(req),
       db: dbEtat,
       timestamp: new Date().toISOString(),
     },

@@ -16,6 +16,26 @@
 
 import { NextRequest, NextResponse } from "next/server"
 
+/**
+ * Retire un port éventuel d'une adresse IPv4 fournie par un proxy
+ * (certains reverse proxies émettent « 1.2.3.4:56789 » — le port change
+ * À CHAQUE CONNEXION et rendait la clé du rate limiter unique par requête).
+ */
+function nettoyerIp(valeur: string): string {
+  const ipv4AvecPort = valeur.match(/^(\d{1,3}(?:\.\d{1,3}){3})(?::\d+)?$/)
+  if (ipv4AvecPort) return ipv4AvecPort[1]
+  return valeur
+}
+
+/** Meilleure IP client disponible (proxy Coolify/Caddy → x-forwarded-for). */
+export function ipClient(req: NextRequest): string {
+  const xff = req.headers.get("x-forwarded-for")
+  if (xff) return nettoyerIp(xff.split(",")[0].trim())
+  const xr = req.headers.get("x-real-ip")
+  if (xr) return nettoyerIp(xr.trim())
+  return "inconnu"
+}
+
 type FenetreGlissante = {
   /** Horodatages (ms) des requêtes acceptées dans la fenêtre courante. */
   horodatages: number[]
@@ -71,15 +91,6 @@ function verifier(cle: string, max: number, fenetreMs: number): { autorise: bool
   f.horodatages.push(maintenant)
   s.set(cle, f)
   return { autorise: true, retryApresSec: 0 }
-}
-
-/** Meilleure IP client disponible (proxy Coolify/Caddy → x-forwarded-for). */
-export function ipClient(req: NextRequest): string {
-  const xff = req.headers.get("x-forwarded-for")
-  if (xff) return xff.split(",")[0].trim()
-  const xr = req.headers.get("x-real-ip")
-  if (xr) return xr.trim()
-  return "inconnu"
 }
 
 /**
