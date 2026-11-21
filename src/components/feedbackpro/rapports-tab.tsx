@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Page « Rapports IA » (Session 4, §3)
+// FeedVoice - Page « Rapports IA » (Session 4, §3)
 // Liste complète des rapports du Coach IA (quotidiens + hebdo) :
 // ouverture détaillée (markdown), régénération, envoi par email.
 // Contrats :

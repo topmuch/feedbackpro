@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro — Analyse VLM des photos de signalements aéroport
+// FeedVoice — Analyse VLM des photos de signalements aéroport
 // ------------------------------------------------------------
 // Utilise le modèle de vision de z-ai-web-dev-sdk (backend only)
 // pour catégoriser automatiquement les photos envoyées par les

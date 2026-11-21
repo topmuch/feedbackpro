@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Checkout Stripe (Session 6 §1)
+// FeedVoice - Checkout Stripe (Session 6 §1)
 // POST /api/pro/billing/checkout { plan: "PRO" | "ENTERPRISE" }
 // ------------------------------------------------------------
 // - Sans STRIPE_SECRET_KEY : renvoie { mode: "DEMO" } → le frontend

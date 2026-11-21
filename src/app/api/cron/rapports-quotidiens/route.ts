@@ -1,11 +1,11 @@
 // ============================================================
-// FeedbackPro - Cron : rapports quotidiens du Coach IA (Session 5 §3)
+// FeedVoice - Cron : rapports quotidiens du Coach IA (Session 5 §3)
 // GET /api/cron/rapports-quotidiens
 // ------------------------------------------------------------
 // Planifié chaque jour à 7h00 par Vercel Cron (vercel.json).
 // Peut aussi être appelé manuellement :
 //   curl -H "Authorization: Bearer $CRON_SECRET" \
-//     https://feedbackpro.fr/api/cron/rapports-quotidiens
+//     https://feedvoice.fr/api/cron/rapports-quotidiens
 //
 // → cronRapportQuotidien() (src/lib/cron.ts) : boucle sur tous les
 //   Pros plan PRO+ (PRO / ENTERPRISE) en fréquence quotidienne, non

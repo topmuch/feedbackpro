@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro — LOGIN-2 : DEUX pages de connexion distinctes
+// FeedVoice — LOGIN-2 : DEUX pages de connexion distinctes
 // ------------------------------------------------------------
 // 1. <AuthView />          — ÉTABLISSEMENTS (/login)
 //    Design premium crème #ffffff + or #bc7155 + anthracite,
@@ -185,9 +185,7 @@ function PanneauVisuelEtab() {
 
       {/* ---------- En-tête : logo sur carte claire ---------- */}
       <div className="relative flex items-center gap-3">
-        <span className="text-2xl font-bold leading-none tracking-[-0.02em] text-white">
-          FeedbackPro<sup className="align-super text-[0.55em]">®</sup>
-        </span>
+        <img src="/feedvoice/logo-white@2x.png" alt="FeedVoice" className="h-7 w-auto" />
       </div>
 
       {/* ---------- Centre : tagline + témoignage + secteurs ---------- */}
@@ -205,7 +203,7 @@ function PanneauVisuelEtab() {
             ))}
           </div>
           <blockquote className="text-lg font-medium leading-relaxed text-white/95">
-            « FeedbackPro a transformé notre gestion des incidents. Nous réagissons avant
+            « FeedVoice a transformé notre gestion des incidents. Nous réagissons avant
             même que le client ne parte. »
           </blockquote>
           <figcaption className="mt-4 text-sm font-medium text-[#bc7155]">
@@ -270,9 +268,7 @@ function PanneauForm() {
             className="flex items-center gap-2"
             aria-label="Retour à l'accueil"
           >
-            <span className="text-xl font-bold leading-none tracking-[-0.02em] text-[#000d10]">
-              FeedbackPro<sup className="align-super text-[0.55em]">®</sup>
-            </span>
+            <img src="/feedvoice/logo@2x.png" alt="FeedVoice" className="h-6 w-auto" />
           </button>
           <button
             type="button"
@@ -527,7 +523,7 @@ function ConnexionForm() {
       {/* Mot de passe oublié */}
       <p className="text-center">
         <a
-          href="mailto:support@feedbackpro.fr?subject=Mot%20de%20passe%20oubli%C3%A9"
+          href="mailto:support@feedvoice.fr?subject=Mot%20de%20passe%20oubli%C3%A9"
           className="text-sm font-medium text-stone-500 transition-colors hover:text-[#bc7155] hover:underline"
         >
           Mot de passe oublié ?
@@ -654,7 +650,7 @@ function InscriptionForm() {
       try { localStorage.removeItem("fp_just_registered") } catch {}
       await refreshSession()
       toast({
-        title: "Bienvenue sur FeedbackPro",
+        title: "Bienvenue sur FeedVoice",
         description: "Votre compte est créé. Votre dashboard est prêt.",
       })
     } catch {
@@ -1009,11 +1005,11 @@ function CarteAdmin() {
             <ShieldCheck className="h-3.5 w-3.5" aria-hidden />
             Espace SuperAdmin
           </span>
-          <span
-            className="text-lg font-bold leading-none tracking-[-0.02em] text-white opacity-90"
-          >
-            FeedbackPro<sup className="align-super text-[0.55em]">®</sup>
-          </span>
+          <img
+            src="/feedvoice/logo-white@2x.png"
+            alt="FeedVoice"
+            className="h-6 w-auto opacity-90"
+          />
         </div>
 
         <form onSubmit={handleSubmit(aLaSoumission)} className="space-y-5" noValidate>
@@ -1023,7 +1019,7 @@ function CarteAdmin() {
               Accès <em className="italic text-[#bc7155]">Direction</em>
             </h1>
             <p className="text-sm text-white/50">
-              Back-office FeedbackPro — accès restreint.
+              Back-office FeedVoice — accès restreint.
             </p>
           </div>
 
@@ -1125,7 +1121,7 @@ function CarteAdmin() {
 
       {/* Mention bas de carte */}
       <p className="mt-6 text-center text-xs text-white/30">
-        Connexion surveillée — FeedbackPro Direction
+        Connexion surveillée — FeedVoice Direction
       </p>
     </div>
   )
@@ -1218,7 +1214,7 @@ const TENANT_OPTIONS: readonly TenantOption[] = [
     value: "classic",
     emoji: "🏪",
     titre: "Commerce classique",
-    description: "Restaurant, hôtel, etc. — dashboard FeedbackPro standard",
+    description: "Restaurant, hôtel, etc. — dashboard FeedVoice standard",
     icon: Store,
     accent: "hover:border-stone-400 hover:bg-[#f7efe9]",
   },
@@ -1285,9 +1281,7 @@ export function TenantSelectionStep() {
             className="flex items-center gap-2"
             aria-label="Se déconnecter"
           >
-            <span className="text-xl font-bold leading-none tracking-[-0.02em] text-[#000d10]">
-              FeedbackPro<sup className="align-super text-[0.55em]">®</sup>
-            </span>
+            <img src="/feedvoice/logo@2x.png" alt="FeedVoice" className="h-6 w-auto" />
           </button>
           <button
             type="button"
@@ -1347,7 +1341,7 @@ export function TenantSelectionStep() {
 
         {/* Lien bas */}
         <p className="text-center text-xs text-stone-400">
-          FeedbackPro s&apos;adapte à votre métier — aéroport, compagnie, salon VIP ou commerce.
+          FeedVoice s&apos;adapte à votre métier — aéroport, compagnie, salon VIP ou commerce.
         </p>
       </div>
     </div>

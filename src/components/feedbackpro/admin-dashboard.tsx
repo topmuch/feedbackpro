@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Dashboard Superadmin (pivot Zones, Coach IA)
+// FeedVoice - Dashboard Superadmin (pivot Zones, Coach IA)
 // Onglets : Vue d'ensemble · Commerçants · Commandes · Revenus · Paramètres
 // URLs synchronisées : /superadmin/<slug> (rewritées vers /?admin=1&tabAdmin=…)
 // Contrats : GET /api/admin/overview, /api/admin/pros (POST actions),
@@ -317,7 +317,7 @@ type SettingsForm = {
   ogDescription: string
 }
 
-// Couleurs des graphiques (palette bleu FeedbackPro)
+// Couleurs des graphiques (palette bleu FeedVoice)
 const COULEURS_PLANS: Record<string, string> = {
   STARTER: "#94a3b8",
   PRO: "#0f0f1c",
@@ -341,7 +341,7 @@ function enArray<T>(v: T[] | null | undefined): T[] {
 // ============================================================
 
 export function AdminDashboard() {
-  const t = (key: string) => { const map: Record<string, string> = {"nav.overview": "Vue d'ensemble", "nav.commercants": "Commercants", "nav.utilisateurs": "Utilisateurs", "nav.commandes": "Commandes", "nav.revenus": "Revenus", "nav.retention": "Retention", "nav.secteurs": "Config. secteurs", "nav.modules": "Modules", "nav.messages": "Messages", "nav.email": "Email", "nav.parametres": "Parametres", "nav.publicites": "Publicités", "nav.regie_pub": "Régie Pub", "nav.flash_rewards": "Flash Rewards", "nav.operations": "Centre Opérationnel", "nav.notifications": "Notifications", "nav.voix": "Voix Denise", "nav.routage": "Routage", "nav.direction": "Direction", "nav.qr_analytics": "QR Analytics", "nav.crystal_ball": "Boule de Cristal", "nav.webhooks": "Webhooks", "nav.superadmin": "Superadmin", "nav.gestion": "Gestion", "common.navigationAdmin": "Sections administration", "common.ouvrirMenu": "Ouvrir le menu", "common.deconnexion": "Deconnexion", "common.connecteSuperadmin": "Connecte en superadmin", "dashboard.titreAdmin": "Administration FeedbackPro"}; return map[key] || key }
+  const t = (key: string) => { const map: Record<string, string> = {"nav.overview": "Vue d'ensemble", "nav.commercants": "Commercants", "nav.utilisateurs": "Utilisateurs", "nav.commandes": "Commandes", "nav.revenus": "Revenus", "nav.retention": "Retention", "nav.secteurs": "Config. secteurs", "nav.modules": "Modules", "nav.messages": "Messages", "nav.email": "Email", "nav.parametres": "Parametres", "nav.publicites": "Publicités", "nav.regie_pub": "Régie Pub", "nav.flash_rewards": "Flash Rewards", "nav.operations": "Centre Opérationnel", "nav.notifications": "Notifications", "nav.voix": "Voix Denise", "nav.routage": "Routage", "nav.direction": "Direction", "nav.qr_analytics": "QR Analytics", "nav.crystal_ball": "Boule de Cristal", "nav.webhooks": "Webhooks", "nav.superadmin": "Superadmin", "nav.gestion": "Gestion", "common.navigationAdmin": "Sections administration", "common.ouvrirMenu": "Ouvrir le menu", "common.deconnexion": "Deconnexion", "common.connecteSuperadmin": "Connecte en superadmin", "dashboard.titreAdmin": "Administration FeedVoice"}; return map[key] || key }
   const [onglet, setOnglet] = useState<OngletAdmin>(() => ongletDepuisUrl())
   const [overview, setOverview] = useState<OverviewApi | null>(null)
   const [menuOuvert, setMenuOuvert] = useState(false)
@@ -565,15 +565,15 @@ function ContenuSidebarAdmin({
   onLogout: () => void
   messagesNonLus?: number
 }) {
-  const t = (key: string) => { const map: Record<string, string> = {"nav.overview": "Vue d'ensemble", "nav.commercants": "Commercants", "nav.utilisateurs": "Utilisateurs", "nav.commandes": "Commandes", "nav.revenus": "Revenus", "nav.retention": "Retention", "nav.secteurs": "Config. secteurs", "nav.modules": "Modules", "nav.messages": "Messages", "nav.email": "Email", "nav.parametres": "Parametres", "nav.publicites": "Publicités", "nav.regie_pub": "Régie Pub", "nav.flash_rewards": "Flash Rewards", "nav.operations": "Centre Opérationnel", "nav.notifications": "Notifications", "nav.voix": "Voix Denise", "nav.routage": "Routage", "nav.direction": "Direction", "nav.qr_analytics": "QR Analytics", "nav.crystal_ball": "Boule de Cristal", "nav.webhooks": "Webhooks", "nav.superadmin": "Superadmin", "nav.gestion": "Gestion", "common.navigationAdmin": "Sections administration", "common.ouvrirMenu": "Ouvrir le menu", "common.deconnexion": "Deconnexion", "common.connecteSuperadmin": "Connecte en superadmin", "dashboard.titreAdmin": "Administration FeedbackPro"}; return map[key] || key }
+  const t = (key: string) => { const map: Record<string, string> = {"nav.overview": "Vue d'ensemble", "nav.commercants": "Commercants", "nav.utilisateurs": "Utilisateurs", "nav.commandes": "Commandes", "nav.revenus": "Revenus", "nav.retention": "Retention", "nav.secteurs": "Config. secteurs", "nav.modules": "Modules", "nav.messages": "Messages", "nav.email": "Email", "nav.parametres": "Parametres", "nav.publicites": "Publicités", "nav.regie_pub": "Régie Pub", "nav.flash_rewards": "Flash Rewards", "nav.operations": "Centre Opérationnel", "nav.notifications": "Notifications", "nav.voix": "Voix Denise", "nav.routage": "Routage", "nav.direction": "Direction", "nav.qr_analytics": "QR Analytics", "nav.crystal_ball": "Boule de Cristal", "nav.webhooks": "Webhooks", "nav.superadmin": "Superadmin", "nav.gestion": "Gestion", "common.navigationAdmin": "Sections administration", "common.ouvrirMenu": "Ouvrir le menu", "common.deconnexion": "Deconnexion", "common.connecteSuperadmin": "Connecte en superadmin", "dashboard.titreAdmin": "Administration FeedVoice"}; return map[key] || key }
   return (
     <div className="flex h-full flex-col">
       {/* Logo */}
       <div className="flex shrink-0 items-center gap-2.5 px-5 py-4">
         <img
-          src="/logo-feedbackpro-transparent.png"
-          alt="FeedbackPro"
-          className="h-9 w-auto brightness-0 invert"
+          src="/feedvoice/logo-white@2x.png"
+          alt="FeedVoice"
+          className="h-9 w-auto"
         />
         <span className="text-xs text-white/70">Administration</span>
       </div>
@@ -1518,7 +1518,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
               </div>
               <DialogFooter className="gap-2 sm:gap-0">
                 <Button asChild>
-                  <a href={`mailto:${detail.email}?subject=${encodeURIComponent("Votre compte FeedbackPro")}`}>
+                  <a href={`mailto:${detail.email}?subject=${encodeURIComponent("Votre compte FeedVoice")}`}>
                     <Mail className="mr-1.5 h-4 w-4" aria-hidden />
                     Envoyer un message
                   </a>
@@ -1703,7 +1703,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
                 </DialogTitle>
                 <DialogDescription>
                   Personnalisez l&apos;apparence de la page de scan pour cet établissement (agence).
-                  Si le mode est activé, le nom, la couleur et le logo remplacent ceux de FeedbackPro.
+                  Si le mode est activé, le nom, la couleur et le logo remplacent ceux de FeedVoice.
                 </DialogDescription>
               </DialogHeader>
               <form onSubmit={sauvegarderWhiteLabel} className="space-y-4">
@@ -1714,7 +1714,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
                       Activer le mode White-label
                     </Label>
                     <p className="mt-0.5 text-xs text-muted-foreground">
-                      Remplace « FeedbackPro » par votre marque sur la page de scan client.
+                      Remplace « FeedVoice » par votre marque sur la page de scan client.
                     </p>
                   </div>
                   <Switch
@@ -1732,11 +1732,11 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
                       id="wl-name"
                       value={wlForm.brandName}
                       onChange={(e) => setWlForm({ ...wlForm, brandName: e.target.value })}
-                      placeholder="FeedbackPro"
+                      placeholder="FeedVoice"
                       maxLength={80}
                     />
                     <p className="text-[11px] text-muted-foreground">
-                      Affiché dans le pied de page (sinon « FeedbackPro »).
+                      Affiché dans le pied de page (sinon « FeedVoice »).
                     </p>
                   </div>
                   <div className="space-y-1.5">
@@ -1774,7 +1774,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
                     maxLength={500}
                   />
                   <p className="text-[11px] text-muted-foreground">
-                    Remplace le logo FeedbackPro dans le pied de page. Laissez vide pour conserver le texte.
+                    Remplace le logo FeedVoice dans le pied de page. Laissez vide pour conserver le texte.
                   </p>
                   {/* Aperçu live */}
                   {wlForm.brandLogoUrl && (
@@ -2375,7 +2375,7 @@ function EmailTab() {
   // Champs gérés par ce formulaire (avancés)
   const CHAMPS: { key: string; label: string; placeholder: string; type?: "password" | "text" }[] = [
     { key: "RESEND_API_KEY", label: "Clé API Resend", placeholder: "re_…", type: "password" },
-    { key: "EMAIL_FROM", label: "Expéditeur (EMAIL_FROM)", placeholder: "FeedbackPro <bonjour@feedbackpro.fr>" },
+    { key: "EMAIL_FROM", label: "Expéditeur (EMAIL_FROM)", placeholder: "FeedVoice <bonjour@feedvoice.fr>" },
     { key: "TWILIO_SID", label: "Twilio Account SID", placeholder: "AC…" },
     { key: "TWILIO_TOKEN", label: "Twilio Auth Token", placeholder: "••••••••", type: "password" },
     { key: "TWILIO_PHONE", label: "Téléphone Twilio", placeholder: "+33…" },
@@ -2528,7 +2528,7 @@ function EmailTab() {
             <Label htmlFor="set-email-from">Expéditeur (EMAIL_FROM)</Label>
             <Input
               id="set-email-from"
-              placeholder="FeedbackPro <bonjour@feedbackpro.fr>"
+              placeholder="FeedVoice <bonjour@feedvoice.fr>"
               value={valeurs.EMAIL_FROM ?? ""}
               onChange={(e) => setValeurs({ ...valeurs, EMAIL_FROM: e.target.value })}
             />
@@ -3174,7 +3174,7 @@ function ParametresTab() {
           const liste: { key: string; value: string }[] = j.data.settings
           const map = Object.fromEntries(liste.map((s) => [s.key, s.value]))
           setValeurs({
-            nomPlateforme: map.nomPlateforme ?? "FeedbackPro",
+            nomPlateforme: map.nomPlateforme ?? "FeedVoice",
             urlPublique: map.urlPublique ?? "",
             emailSupport: map.emailSupport ?? "",
             seuilAlerte: map.seuilAlerte ?? "2",
@@ -3281,7 +3281,7 @@ function ParametresTab() {
             <Input
               id="set-url"
               type="url"
-              placeholder="https://feedbackpro.fr"
+              placeholder="https://feedvoice.fr"
               value={valeurs.urlPublique}
               onChange={(e) => setValeurs({ ...valeurs, urlPublique: e.target.value })}
             />
@@ -3353,7 +3353,7 @@ function ParametresTab() {
               value={valeurs.metaTitle}
               onChange={(e) => setValeurs({ ...valeurs, metaTitle: e.target.value })}
               maxLength={60}
-              placeholder="FeedbackPro — Le Coach IA d'Audit Qualité Continu"
+              placeholder="FeedVoice — Le Coach IA d'Audit Qualité Continu"
             />
             <p className="text-xs text-muted-foreground">Recommandé : 50 à 60 caractères.</p>
           </div>
@@ -3369,7 +3369,7 @@ function ParametresTab() {
               value={valeurs.metaDescription}
               onChange={(e) => setValeurs({ ...valeurs, metaDescription: e.target.value })}
               maxLength={160}
-              placeholder="FeedbackPro transforme chaque client en auditeur qualité…"
+              placeholder="FeedVoice transforme chaque client en auditeur qualité…"
             />
             <p className="text-xs text-muted-foreground">Recommandé : 150 à 160 caractères.</p>
           </div>
@@ -3393,7 +3393,7 @@ function ParametresTab() {
               value={valeurs.ogTitle}
               onChange={(e) => setValeurs({ ...valeurs, ogTitle: e.target.value })}
               maxLength={80}
-              placeholder="FeedbackPro — Le Coach IA d'Audit Qualité Continu"
+              placeholder="FeedVoice — Le Coach IA d'Audit Qualité Continu"
             />
           </div>
 
@@ -3433,9 +3433,9 @@ function ParametresTab() {
 //     les Pros sont éligibles)
 //   - uploader une image (PNG/JPG/WebP ≤ 10Mo) via POST /api/public/upload
 //     (FormData champ "photo") → renvoie { url: "/api/uploads/<uuid>.webp" }
-//   - prévisualiser le logo actuel (Pro.logoUrl ou fallback /logo-feedbackpro.png)
+//   - prévisualiser le logo actuel (Pro.logoUrl ou fallback /feedvoice/logo.png)
 //   - sauvegarder via POST /api/admin/pros { action: "setLogo", id, logoUrl }
-//   - vider le logo (logoUrl = "" → fallback /logo-feedbackpro.png)
+//   - vider le logo (logoUrl = "" → fallback /feedvoice/logo.png)
 // ============================================================
 
 function LogoEtablissementCard() {
@@ -3573,7 +3573,7 @@ function LogoEtablissementCard() {
     }
   }
 
-  /** Vider le logo (retour au fallback /logo-feedbackpro.png). */
+  /** Vider le logo (retour au fallback /feedvoice/logo.png). */
   async function clearLogo() {
     if (!selectedProId) return
     setSaving(true)
@@ -3595,7 +3595,7 @@ function LogoEtablissementCard() {
         setPendingLogoUrl(null)
         toast({
           title: "Logo effacé ✓",
-          description: "Le header QR scan utilisera le logo FeedbackPro par défaut.",
+          description: "Le header QR scan utilisera le logo FeedVoice par défaut.",
         })
       } else {
         toast({ title: "Erreur", description: json.error ?? "Échec", variant: "destructive" })
@@ -3620,7 +3620,7 @@ function LogoEtablissementCard() {
         </CardTitle>
         <p className="text-sm text-muted-foreground">
           Logo affiché dans le header QR scan (voyageur). Préféré pour les établissements
-          de type « Aéroport ». Si vide, le logo FeedbackPro par défaut est utilisé.
+          de type « Aéroport ». Si vide, le logo FeedVoice par défaut est utilisé.
         </p>
       </CardHeader>
       <CardContent className="space-y-4 pt-2">
@@ -3670,13 +3670,13 @@ function LogoEtablissementCard() {
                   className="max-h-full max-w-full object-contain"
                   onError={(e) => {
                     // Bascule sur le fallback si l'image est cassée
-                    e.currentTarget.src = "/logo-feedbackpro.png"
+                    e.currentTarget.src = "/feedvoice/logo.png"
                   }}
                 />
               ) : (
                 <img
-                  src="/logo-feedbackpro.png"
-                  alt="Logo FeedbackPro (par défaut)"
+                  src="/feedvoice/logo.png"
+                  alt="Logo FeedVoice (par défaut)"
                   className="max-h-full max-w-full object-contain opacity-80"
                 />
               )}
@@ -3688,7 +3688,7 @@ function LogoEtablissementCard() {
               <p className="text-xs text-muted-foreground">
                 {currentLogo
                   ? "Logo configuré — visible dans le header QR scan."
-                  : "Aucun logo configuré — fallback /logo-feedbackpro.png utilisé."}
+                  : "Aucun logo configuré — fallback /feedvoice/logo.png utilisé."}
               </p>
               {pendingLogoUrl && (
                 <p className="text-xs font-semibold text-[#8a4f3b] dark:text-[#dba28a]">
@@ -4988,7 +4988,7 @@ function SecteursTab() {
                 <div>
                   <h4 className="text-sm font-semibold text-foreground">Commerce classique</h4>
                   <p className="text-xs text-muted-foreground">
-                    Restaurant, hôtel, etc. — dashboard FeedbackPro standard
+                    Restaurant, hôtel, etc. — dashboard FeedVoice standard
                   </p>
                 </div>
               </div>

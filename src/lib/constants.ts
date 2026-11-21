@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Constantes métier partagées (client + serveur)
+// FeedVoice - Constantes métier partagées (client + serveur)
 // Conforme Session 1 : "Le Coach IA d'Audit Qualité Continu"
 // ============================================================
 

@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Composants partagés du dashboard
+// FeedVoice - Composants partagés du dashboard
 // Étoiles, carte KPI, en-tête applicatif, pied de page
 // ============================================================
 
@@ -82,9 +82,9 @@ export function AppHeader({ subtitle }: { subtitle?: string }) {
     <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-3">
         <div className="flex items-center gap-2.5 min-w-0">
-          <img src="/logo-feedbackpro.png" alt="FeedbackPro" className="h-11 w-auto shrink-0" />
+          <img src="/feedvoice/logo.png" alt="FeedVoice" className="h-11 w-auto shrink-0" />
           <div className="min-w-0">
-            <p className="font-bold leading-tight truncate">FeedbackPro</p>
+            <p className="font-bold leading-tight truncate">FeedVoice</p>
             {subtitle && <p className="text-xs text-muted-foreground truncate">{subtitle}</p>}
           </div>
           {planName && (
@@ -121,7 +121,7 @@ export function AppFooter() {
     <footer className="mt-auto bg-[#000d10] text-white/60">
       <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-5 text-xs sm:flex-row sm:px-6">
         <p className="flex items-center gap-1.5">
-          <img src="/logo-feedbackpro.png" alt="FeedbackPro" className="h-6 w-auto brightness-0 invert" />
+          <img src="/feedvoice/logo.png" alt="FeedVoice" className="h-6 w-auto brightness-0 invert" />
           <span className="text-white/60">© 2026 — Tous droits réservés.</span>
         </p>
         <nav aria-label="Liens légaux" className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">

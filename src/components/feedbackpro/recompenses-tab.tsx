@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Onglet « Récompenses » du dashboard Pro (Session 3)
+// FeedVoice - Onglet « Récompenses » du dashboard Pro (Session 3)
 // Configuration de la micro-récompense offerte au Client Mystère :
 //   · Toggle activer / désactiver
 //   · Type : ☕ café gratuit · 🎁 réduction -X% · 🍔 produit offert ·

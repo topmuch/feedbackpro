@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Cloche de notifications in-app (header)
+// FeedVoice - Cloche de notifications in-app (header)
 // Polling toutes les 30 s pour rafraîchir le badge de notifications non lues.
 // Au clic : dropdown listant les 10 dernières notifications + actions
 // « marquer comme lu » et « tout marquer comme lu ».

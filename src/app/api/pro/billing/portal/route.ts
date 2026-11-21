@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Portail client Stripe (Customer Portal)
+// FeedVoice - Portail client Stripe (Customer Portal)
 // POST /api/pro/billing/portal
 // ------------------------------------------------------------
 // - Sans STRIPE_SECRET_KEY : mode démo → { mode: "DEMO" } (le frontend

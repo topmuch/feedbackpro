@@ -200,7 +200,7 @@ export function AdminAdsTab() {
             Régie Publicitaire
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Plateforme AdTech aéroport — leaderboard 916×90. Triple verrou FeedbackPro : jamais de
+            Plateforme AdTech aéroport — leaderboard 916×90. Triple verrou FeedVoice : jamais de
             publicité sur les zones d&apos;urgence (SOS).
           </p>
         </div>
@@ -821,7 +821,7 @@ function CampaignsSection() {
             </DialogTitle>
             <DialogDescription>
               Leaderboard 916×90. Les zones d&apos;urgence (SOS) sont interdites — triple verrou
-              FeedbackPro.
+              FeedVoice.
             </DialogDescription>
           </DialogHeader>
 
@@ -1576,7 +1576,7 @@ function ZonesSection() {
         <CardContent className="flex items-start gap-3 py-3 text-sm text-[#6f3f30]">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
           <div>
-            <p className="font-medium">Triple verrou FeedbackPro</p>
+            <p className="font-medium">Triple verrou FeedVoice</p>
             <p className="mt-1 text-xs">
               Les zones d&apos;urgence (SOS) sont verrouillées à 3 niveaux : (1) flag{" "}
               <code className="font-mono">isAdEligible: false</code> en BDD, (2) check 403 backend

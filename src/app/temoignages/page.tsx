@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 
 // ============================================================
-// FeedbackPro - Page Témoignages (App Router)
+// FeedVoice - Page Témoignages (App Router)
 // ------------------------------------------------------------
 // Route réelle : GET /temoignages
 // Contenu : 3 témoignages clients + stats clés + CTA final.
@@ -13,9 +13,9 @@ import { MarketingLayout, MarketingCTA } from "@/components/feedbackpro/marketin
 import { TESTIMONIALS } from "@/lib/landing-data"
 
 export const metadata: Metadata = {
-  title: "Témoignages clients FeedbackPro — Bistrot, Hôtel, Boutique",
+  title: "Témoignages clients FeedVoice — Bistrot, Hôtel, Boutique",
   description:
-    "127+ établissements utilisent FeedbackPro au quotidien. Découvrez les témoignages de Sophie (Bistrot Marais), Karim (Hôtel Royal Lyon) et Émilie (Maison Vert).",
+    "127+ établissements utilisent FeedVoice au quotidien. Découvrez les témoignages de Sophie (Bistrot Marais), Karim (Hôtel Royal Lyon) et Émilie (Maison Vert).",
   alternates: { canonical: "/temoignages" },
 }
 
@@ -49,7 +49,7 @@ export default function TemoignagesPage() {
             Ils ont <span className="bg-gradient-to-br from-[#0f0f1c] to-[#0f0f1c] bg-clip-text text-transparent">transformé leur qualité</span>
           </h1>
           <p className="mt-4 text-lg text-gray-600">
-            127+ établissements utilisent FeedbackPro au quotidien. Voici ce qu&apos;ils en disent.
+            127+ établissements utilisent FeedVoice au quotidien. Voici ce qu&apos;ils en disent.
           </p>
         </div>
       </section>

@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Configuration i18n (Task M2)
+// FeedVoice - Configuration i18n (Task M2)
 // ------------------------------------------------------------
 // next-intl pour l'interface (dashboard + auth + scan).
 // L'ancien module src/lib/i18n.ts (FR/EN/AR pour la page scan client)

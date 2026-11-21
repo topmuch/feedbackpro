@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 
 // ============================================================
-// FeedbackPro - Page légale : Conditions Générales d'Utilisation
+// FeedVoice - Page légale : Conditions Générales d'Utilisation
 // Route réelle : GET /cgu (Session 6 §4)
 // ============================================================
 
@@ -9,25 +9,25 @@ import type { Metadata } from "next"
 import { LegalLayout, SectionLegale } from "@/components/feedbackpro/legal-layout"
 
 export const metadata: Metadata = {
-  title: "Conditions Générales d'Utilisation — FeedbackPro",
+  title: "Conditions Générales d'Utilisation — FeedVoice",
   description:
-    "Conditions générales d'utilisation de la plateforme FeedbackPro : compte, abonnements, rapports du Coach IA, engagements, supports physiques et résiliation.",
+    "Conditions générales d'utilisation de la plateforme FeedVoice : compte, abonnements, rapports du Coach IA, engagements, supports physiques et résiliation.",
 }
 
 export default function CguPage() {
   return (
     <LegalLayout
       titre="Conditions Générales d'Utilisation"
-      description="Les présentes CGU encadrent l'accès et l'utilisation de la plateforme FeedbackPro par les commerçants abonnés et leurs clients finaux."
+      description="Les présentes CGU encadrent l'accès et l'utilisation de la plateforme FeedVoice par les commerçants abonnés et leurs clients finaux."
       dateMiseAJour="1er février 2026"
       pageActive="/cgu"
     >
       <SectionLegale titre="1. Objet">
         <p>
-          FeedbackPro est une plateforme SaaS de <strong>Coach IA d'Audit Qualité Continu</strong> : chaque
+          FeedVoice est une plateforme SaaS de <strong>Coach IA d'Audit Qualité Continu</strong> : chaque
           client réel de l'établissement devient un « Client Mystère ». Il scanne le QR code d'une
           <strong> zone</strong> (Accueil, Salle, Toilettes…), laisse une note de 1 à 5, des tags et un
-          commentaire. Le Coach IA de FeedbackPro analyse ces retours et génère un rapport d'audit
+          commentaire. Le Coach IA de FeedVoice analyse ces retours et génère un rapport d'audit
           quotidien ou hebdomadaire avec les 3 priorités du jour, des recommandations et des prédictions.
         </p>
       </SectionLegale>
@@ -76,7 +76,7 @@ export default function CguPage() {
           <li>ne pas tenter de contourner les limites de son plan ni d&apos;accéder aux comptes d&apos;autres commerces.</li>
         </ul>
         <p>
-          En cas de manquement, FeedbackPro peut suspendre le compte après notification par email,
+          En cas de manquement, FeedVoice peut suspendre le compte après notification par email,
           notamment en cas d&apos;usage frauduleux ou de non-paiement.
         </p>
       </SectionLegale>
@@ -94,7 +94,7 @@ export default function CguPage() {
       <SectionLegale titre="6. Supports physiques">
         <p>
           L'établissement peut commander des supports imprimés (autocollants, chevalets, affiches par
-          zone) directement depuis la Plateforme. Les commandes sont préparées par FeedbackPro et
+          zone) directement depuis la Plateforme. Les commandes sont préparées par FeedVoice et
           expédiées à l&apos;adresse indiquée sous 3 à 5 jours ouvrés. Le droit de rétractation
           de 14 jours s&apos;applique ; il est toutefois exclu pour les biens confectionnés
           selon les spécifications de l&apos;établissement, conformément à l&apos;article L221-28 du Code
@@ -104,9 +104,9 @@ export default function CguPage() {
 
       <SectionLegale titre="7. Responsabilité et disponibilité">
         <p>
-          FeedbackPro met la Plateforme à disposition avec diligence, sans garantie de
+          FeedVoice met la Plateforme à disposition avec diligence, sans garantie de
           disponibilité ininterrompue (maintenance, force majeure). La responsabilité de
-          FeedbackPro ne saurait être engagée pour les contenus saisis par les clients finaux ni
+          FeedVoice ne saurait être engagée pour les contenus saisis par les clients finaux ni
           pour les décisions commerciales prises sur la base des statistiques fournies.
         </p>
       </SectionLegale>
@@ -116,7 +116,7 @@ export default function CguPage() {
           L'établissement peut supprimer son compte à tout moment depuis la rubrique « Paramètres »
           de son dashboard ; les données associées sont alors effacées conformément à notre{" "}
           <a className="text-primary underline underline-offset-2" href="/confidentialite">Politique de confidentialité</a>.
-          FeedbackPro peut résilier en cas de manquement grave, après notification et sans
+          FeedVoice peut résilier en cas de manquement grave, après notification et sans
           réponse sous 15 jours.
         </p>
       </SectionLegale>

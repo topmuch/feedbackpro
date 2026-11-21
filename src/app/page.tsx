@@ -5,7 +5,7 @@
 export const dynamic = 'force-dynamic'
 
 // ============================================================
-// FeedbackPro - Application monopage (SPA)
+// FeedVoice - Application monopage (SPA)
 // Routage par état : Landing · Auth · Scan · Dashboards
 // Le paramètre d'URL ?scan=<token> correspond au QR code scanné
 // ============================================================
@@ -190,7 +190,7 @@ export default function Home() {
       <main className="flex min-h-screen items-center justify-center bg-background" aria-busy="true" aria-label="Chargement">
         <div className="flex flex-col items-center gap-3">
           <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden />
-          <p className="text-sm text-muted-foreground">Chargement de FeedbackPro…</p>
+          <p className="text-sm text-muted-foreground">Chargement de FeedVoice…</p>
         </div>
       </main>
     )

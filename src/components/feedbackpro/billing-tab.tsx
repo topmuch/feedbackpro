@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Onglet "Facturation" du dashboard Pro (Coach IA)
+// FeedVoice - Onglet "Facturation" du dashboard Pro (Coach IA)
 // ------------------------------------------------------------
 // - Plan actuel (badge) + grille comparative des 3 plans
 //   (PLANS 29€ / 99€ / 249€ de src/lib/constants.ts)
@@ -292,7 +292,7 @@ export function BillingTab() {
   function contacterEnterprise() {
     toast({
       title: "Parlons de votre projet multi-sites 🏢",
-      description: "Écrivez-nous à contact@feedbackpro.fr : nous préparerons une démo personnalisée et un devis adapté à votre groupe.",
+      description: "Écrivez-nous à contact@feedvoice.fr : nous préparerons une démo personnalisée et un devis adapté à votre groupe.",
     })
   }
 

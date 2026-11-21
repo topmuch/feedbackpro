@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Onglet "Tableau de bord" du dashboard Pro
+// FeedVoice - Onglet "Tableau de bord" du dashboard Pro
 // ------------------------------------------------------------
 // V3 PREMIUM — refonte « Luxe Silencieux » :
 //   · Titres en Playfair Display (serif élégant) + filet champagne #bc7155

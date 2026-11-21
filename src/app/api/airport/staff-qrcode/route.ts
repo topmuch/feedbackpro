@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
     pdf.setFont('helvetica', 'normal')
     pdf.setFontSize(11)
     pdf.setTextColor(200, 200, 220)
-    pdf.text('QR code employé — FeedbackPro', pageWidth / 2, 40, { align: 'center' })
+    pdf.text('QR code employé — FeedVoice', pageWidth / 2, 40, { align: 'center' })
 
     // QR code
     const qrSize = 120

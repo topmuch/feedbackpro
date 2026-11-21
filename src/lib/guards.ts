@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Guards d'authentification pour les API routes
+// FeedVoice - Guards d'authentification pour les API routes
 // ============================================================
 
 import { NextRequest } from "next/server"

@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Emails d'onboarding "First Week" (Task 1)
+// FeedVoice - Emails d'onboarding "First Week" (Task 1)
 // ------------------------------------------------------------
 // 3 templates déclenchés par le cron ou par les actions du Pro :
 //   • Jour 0 — Bienvenue + rappel des 4 étapes pour démarrer
@@ -15,7 +15,7 @@ import { emailRapportIA, type RapportIAEmail } from "@/lib/email"
 
 /** URL publique de l'app (liens dans les emails) */
 function baseUrl(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL || "https://feedbackpro.fr").replace(/\/$/, "")
+  return (process.env.NEXT_PUBLIC_APP_URL || "https://feedvoice.fr").replace(/\/$/, "")
 }
 
 /** Échappe les caractères HTML (les données proviennent des utilisateurs) */
@@ -38,7 +38,7 @@ function bouton(label: string, href: string): string {
 // ---------- Jour 0 : Bienvenue + 4 étapes ----------
 
 export function emailOnboardingJour0(nomEtablissement: string): { sujet: string; html: string } {
-  const sujet = "Bienvenue sur FeedbackPro 🎉 — vos 4 étapes pour démarrer"
+  const sujet = "Bienvenue sur FeedVoice 🎉 — vos 4 étapes pour démarrer"
   const etapes = [
     {
       n: 1,
@@ -93,13 +93,13 @@ export function emailOnboardingJour0(nomEtablissement: string): { sujet: string;
     .join("")
 
   const corps = `
-    <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;color:#1c1917;">Bienvenue sur FeedbackPro 🎉</h1>
+    <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;color:#1c1917;">Bienvenue sur FeedVoice 🎉</h1>
     <p style="margin:0 0 12px;font-size:15px;line-height:1.7;color:#44403c;">
       Bonjour <strong>${escapeHtml(nomEtablissement)}</strong>,
     </p>
     <p style="margin:0 0 20px;font-size:15px;line-height:1.7;color:#44403c;">
       Vos clients réels deviennent vos meilleurs <strong>Clients Mystères</strong>. Pour tirer le
-      maximum de FeedbackPro dès cette première semaine, voici vos <strong>4 étapes</strong> :
+      maximum de FeedVoice dès cette première semaine, voici vos <strong>4 étapes</strong> :
     </p>
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">${listeHtml}</table>
     <p style="margin:24px 0 12px;font-size:15px;line-height:1.7;color:#44403c;">
@@ -108,7 +108,7 @@ export function emailOnboardingJour0(nomEtablissement: string): { sujet: string;
     </p>
     ${bouton("Ouvrir mon dashboard", `${baseUrl()}/dashboard`)}
     <p style="margin:20px 0 0;font-size:13px;line-height:1.7;color:#78716c;">
-      À très vite,<br />L'équipe FeedbackPro
+      À très vite,<br />L'équipe FeedVoice
     </p>`
 
   // Réutilise l'enveloppe commune via un import indirect pour éviter la
@@ -146,7 +146,7 @@ export function emailOnboardingJour3(nomEtablissement: string): { sujet: string;
     </p>
     ${bouton("Télécharger mes QR codes", `${baseUrl()}/dashboard/qr-codes`)}
     <p style="margin:20px 0 0;font-size:13px;line-height:1.7;color:#78716c;">
-      Besoin d'aide ? Répondez à cet email.<br />L'équipe FeedbackPro
+      Besoin d'aide ? Répondez à cet email.<br />L'équipe FeedVoice
     </p>`
   return { sujet, html: enveloppe(sujet, corps) }
 }
@@ -185,7 +185,7 @@ export function emailOnboardingJour7(
     </table>
     ${bouton("Consulter mon rapport", `${baseUrl()}/dashboard/coach`)}
     <p style="margin:20px 0 0;font-size:13px;line-height:1.7;color:#78716c;">
-      Bonne lecture,<br />L'équipe FeedbackPro
+      Bonne lecture,<br />L'équipe FeedVoice
     </p>`
   return { sujet, html: enveloppe(sujet, corps) }
 }
@@ -202,7 +202,7 @@ function enveloppe(titre: string, corps: string): string {
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
         <!-- En-tête -->
         <tr><td style="background-color:${BLEU};padding:24px 32px;">
-          <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;">FeedbackPro</p>
+          <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;">FeedVoice</p>
           <p style="margin:4px 0 0;font-size:13px;color:#dcdee0;">Le Coach IA d'Audit Qualité Continu</p>
         </td></tr>
         <!-- Corps -->
@@ -210,7 +210,7 @@ function enveloppe(titre: string, corps: string): string {
         <!-- Pied -->
         <tr><td style="background-color:#fafaf9;padding:20px 32px;border-top:1px solid #e7e5e4;">
           <p style="margin:0;font-size:12px;color:#78716c;line-height:1.6;">
-            © ${new Date().getFullYear()} FeedbackPro — Tous droits réservés.<br />
+            © ${new Date().getFullYear()} FeedVoice — Tous droits réservés.<br />
             <a href="${baseUrl()}/mentions-legales" style="color:#78716c;">Mentions légales</a> ·
             <a href="${baseUrl()}/cgu" style="color:#78716c;">CGU</a> ·
             <a href="${baseUrl()}/confidentialite" style="color:#78716c;">Confidentialité</a>

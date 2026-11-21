@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 
 // ============================================================
-// FeedbackPro - Page Contact (App Router)
+// FeedVoice - Page Contact (App Router)
 // ------------------------------------------------------------
 // Route réelle : GET /contact
 // Affiche : titre, coordonnées, carte Google Maps + itinéraire,
@@ -16,9 +16,9 @@ import { MarketingLayout } from "@/components/feedbackpro/marketing-shell"
 import { ContactForm } from "@/components/feedbackpro/contact-form"
 
 export const metadata: Metadata = {
-  title: "Contactez FeedbackPro",
+  title: "Contactez FeedVoice",
   description:
-    "Une question sur FeedbackPro ? Contactez notre équipe à Dakar, Sénégal. Adresse : Sicap Foire, Dakar. Téléphone : +221 77 382 18 22. Email : contact@gofeedbackpro.com.",
+    "Une question sur FeedVoice ? Contactez notre équipe à Dakar, Sénégal. Adresse : Sicap Foire, Dakar. Téléphone : +221 77 382 18 22. Email : contact@feedvoice.com.",
   alternates: { canonical: "/contact" },
 }
 
@@ -44,9 +44,9 @@ const COORDONNEES = [
   {
     icone: Mail,
     titre: "Email",
-    lignes: ["contact@gofeedbackpro.com"],
+    lignes: ["contact@feedvoice.com"],
     action: {
-      href: "mailto:contact@gofeedbackpro.com",
+      href: "mailto:contact@feedvoice.com",
       label: "Écrire",
     },
   },
@@ -65,7 +65,7 @@ export default function ContactPage() {
             className="mt-4 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl"
             style={{ letterSpacing: "-0.03em" }}
           >
-            Contactez <span className="bg-gradient-to-br from-[#0f0f1c] to-[#0f0f1c] bg-clip-text text-transparent">FeedbackPro</span>
+            Contactez <span className="bg-gradient-to-br from-[#0f0f1c] to-[#0f0f1c] bg-clip-text text-transparent">FeedVoice</span>
           </h1>
           <p className="mt-4 text-lg text-gray-600">
             Une question, une démo, un partenariat ? Notre équipe vous répond sous 72 heures ouvrées.
@@ -126,7 +126,7 @@ export default function ContactPage() {
 
             <div className="overflow-hidden rounded-none border border-gray-200 shadow-sm">
               <iframe
-                title="Localisation FeedbackPro — Sicap Foire, Dakar"
+                title="Localisation FeedVoice — Sicap Foire, Dakar"
                 src="https://www.google.com/maps?q=Sicap+Foire+Dakar+Sénégal&output=embed"
                 className="h-80 w-full sm:h-96"
                 loading="lazy"

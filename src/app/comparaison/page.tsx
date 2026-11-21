@@ -1,10 +1,10 @@
 export const dynamic = "force-dynamic"
 
 // ============================================================
-// FeedbackPro - Page Comparatif (App Router)
+// FeedVoice - Page Comparatif (App Router)
 // ------------------------------------------------------------
 // Route réelle : GET /comparaison
-// Contenu : Tableau "Traditionnel vs FeedbackPro" (6 critères)
+// Contenu : Tableau "Traditionnel vs FeedVoice" (6 critères)
 // + CTA final.
 // ============================================================
 
@@ -14,9 +14,9 @@ import { MarketingLayout, MarketingCTA } from "@/components/feedbackpro/marketin
 import { COMPARISON_ROWS } from "@/lib/landing-data"
 
 export const metadata: Metadata = {
-  title: "Comparatif Client Mystère traditionnel vs FeedbackPro",
+  title: "Comparatif Client Mystère traditionnel vs FeedVoice",
   description:
-    "Traditionnel vs FeedbackPro : 10× moins cher, 30× plus rapide, 100× plus actionnable. Tableau complet sur 6 critères (prix, fréquence, couverture, réactivité, actionnable, ROI).",
+    "Traditionnel vs FeedVoice : 10× moins cher, 30× plus rapide, 100× plus actionnable. Tableau complet sur 6 critères (prix, fréquence, couverture, réactivité, actionnable, ROI).",
   alternates: { canonical: "/comparaison" },
 }
 
@@ -34,7 +34,7 @@ export default function ComparaisonPage() {
             style={{ letterSpacing: "-0.03em" }}
           >
             Traditionnel <span className="text-gray-400">vs</span>{" "}
-            <span className="bg-gradient-to-br from-[#0f0f1c] to-[#0f0f1c] bg-clip-text text-transparent">FeedbackPro</span>
+            <span className="bg-gradient-to-br from-[#0f0f1c] to-[#0f0f1c] bg-clip-text text-transparent">FeedVoice</span>
           </h1>
           <p className="mt-4 text-lg text-gray-600">
             Même objectif (mesurer votre qualité), mais 10× moins cher, 30× plus rapide et 100×
@@ -57,7 +57,7 @@ export default function ComparaisonPage() {
             <div className="relative border-l border-[#0f0f1c]/30 bg-[#0f0f1c]/10 px-4 py-5 text-sm font-semibold text-gray-900 sm:px-6">
               <span className="flex flex-wrap items-center gap-2">
                 <span className="bg-gradient-to-br from-[#0f0f1c] to-[#0f0f1c] bg-clip-text text-transparent">
-                  FeedbackPro
+                  FeedVoice
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-full bg-[#f3ddd2] px-2 py-0.5 text-xs font-medium text-[#8a4f3b]">
                   ✅ 10× moins cher
@@ -81,7 +81,7 @@ export default function ComparaisonPage() {
               </div>
               <div className="flex items-center gap-2 border-l border-[#0f0f1c]/30 bg-[#0f0f1c]/5 px-4 py-4 text-sm font-medium sm:px-6">
                 <Check className="h-4 w-4 shrink-0 text-[#bc7155]" aria-hidden />
-                <span className="text-gray-900">{row.feedbackpro}</span>
+                <span className="text-gray-900">{row.feedvoice}</span>
               </div>
             </div>
           ))}

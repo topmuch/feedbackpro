@@ -1,11 +1,11 @@
 // ============================================================
-// FeedbackPro - Envoi d'emails transactionnels via Resend
+// FeedVoice - Envoi d'emails transactionnels via Resend
 // ------------------------------------------------------------
 // Utilise l'API REST Resend via fetch (pas de SDK).
 //
 // Variables d'environnement (optionnelles) :
 //   RESEND_API_KEY - Clé API Resend (re_...)
-//   EMAIL_FROM     - Expéditeur (ex: "FeedbackPro <bonjour@feedbackpro.fr>")
+//   EMAIL_FROM     - Expéditeur (ex: "FeedVoice <bonjour@feedvoice.fr>")
 //
 // Surcharge dynamique : si les réglages sont édités par le superadmin
 // dans l'onglet Paramètres → Email, ils priment sur process.env (table
@@ -15,7 +15,7 @@
 // et la fonction renvoie true — jamais d'exception qui casse le flux.
 //
 // Les templates sont en HTML inline-CSS (compatibilité maximale avec
-// les clients de messagerie), responsive et aux couleurs FeedbackPro.
+// les clients de messagerie), responsive et aux couleurs FeedVoice.
 // ============================================================
 
 import { getSetting } from "@/lib/settings"
@@ -43,7 +43,7 @@ export async function sendEmail(to: string, sujet: string, html: string): Promis
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        from: emailFrom || "FeedbackPro <onboarding@resend.dev>",
+        from: emailFrom || "FeedVoice <onboarding@resend.dev>",
         to: [to],
         subject: sujet,
         html,
@@ -80,7 +80,7 @@ function enveloppe(titre: string, corps: string): string {
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
         <!-- En-tête -->
         <tr><td style="background-color:${BLEU};padding:24px 32px;">
-          <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;">FeedbackPro</p>
+          <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;">FeedVoice</p>
           <p style="margin:4px 0 0;font-size:13px;color:#dcdee0;">Le Coach IA d'Audit Qualité Continu</p>
         </td></tr>
         <!-- Corps -->
@@ -88,7 +88,7 @@ function enveloppe(titre: string, corps: string): string {
         <!-- Pied -->
         <tr><td style="background-color:#fafaf9;padding:20px 32px;border-top:1px solid #e7e5e4;">
           <p style="margin:0;font-size:12px;color:#78716c;line-height:1.6;">
-            © ${new Date().getFullYear()} FeedbackPro — Tous droits réservés.<br />
+            © ${new Date().getFullYear()} FeedVoice — Tous droits réservés.<br />
             <a href="${baseUrl()}/mentions-legales" style="color:#78716c;">Mentions légales</a> ·
             <a href="${baseUrl()}/cgu" style="color:#78716c;">CGU</a> ·
             <a href="${baseUrl()}/confidentialite" style="color:#78716c;">Confidentialité</a>
@@ -103,7 +103,7 @@ function enveloppe(titre: string, corps: string): string {
 
 /** URL publique de l'app (liens dans les emails) */
 function baseUrl(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL || "https://feedbackpro.fr").replace(/\/$/, "")
+  return (process.env.NEXT_PUBLIC_APP_URL || "https://feedvoice.fr").replace(/\/$/, "")
 }
 
 /** Bouton d'action commun */
@@ -116,7 +116,7 @@ function bouton(label: string, href: string): string {
 /** Email de bienvenue envoyé après l'inscription d'un établissement */
 export function emailBienvenue(nomEtablissement: string): string {
   const corps = `
-    <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;color:#1c1917;">Bienvenue sur FeedbackPro 🎉</h1>
+    <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;color:#1c1917;">Bienvenue sur FeedVoice 🎉</h1>
     <p style="margin:0 0 12px;font-size:15px;line-height:1.7;color:#44403c;">
       Bonjour <strong>${escapeHtml(nomEtablissement)}</strong>,
     </p>
@@ -131,9 +131,9 @@ export function emailBienvenue(nomEtablissement: string): string {
     </p>
     ${bouton("Ouvrir mon dashboard", `${baseUrl()}/dashboard`)}
     <p style="margin:20px 0 0;font-size:13px;line-height:1.7;color:#78716c;">
-      À très vite,<br />L'équipe FeedbackPro
+      À très vite,<br />L'équipe FeedVoice
     </p>`
-  return enveloppe("Bienvenue sur FeedbackPro", corps)
+  return enveloppe("Bienvenue sur FeedVoice", corps)
 }
 
 /** Email de confirmation d'une commande de supports physiques */
@@ -164,9 +164,9 @@ export function emailConfirmationCommande(
     </p>
     ${bouton("Suivre ma commande", `${baseUrl()}/dashboard/qr-code`)}
     <p style="margin:20px 0 0;font-size:13px;line-height:1.7;color:#78716c;">
-      Merci de votre confiance,<br />L'équipe FeedbackPro
+      Merci de votre confiance,<br />L'équipe FeedVoice
     </p>`
-  return enveloppe("Confirmation de commande FeedbackPro", corps)
+  return enveloppe("Confirmation de commande FeedVoice", corps)
 }
 
 /**
@@ -261,9 +261,9 @@ export function emailRecapHebdo(nomEtablissement: string, stats: RecapStats): st
     </table>
     ${bouton("Ouvrir mon dashboard", `${baseUrl()}/dashboard`)}
     <p style="margin:20px 0 0;font-size:13px;line-height:1.7;color:#78716c;">
-      Vous recevez cet email chaque lundi matin. Bonne semaine !<br />L'équipe FeedbackPro
+      Vous recevez cet email chaque lundi matin. Bonne semaine !<br />L'équipe FeedVoice
     </p>`
-  return enveloppe("Récap hebdomadaire FeedbackPro", corps)
+  return enveloppe("Récap hebdomadaire FeedVoice", corps)
 }
 
 // ---------- Rapport IA (Coach IA — pivot Session 1) ----------
@@ -280,7 +280,7 @@ export type RapportIAEmail = {
 
 /** Sujet officiel du rapport IA (utilisé par le cron et POST /api/pro/coach) */
 export function sujetRapportIA(rapport: Pick<RapportIAEmail, "scoreGlobal">): string {
-  return `🤖 Votre rapport d'audit FeedbackPro — Score ${rapport.scoreGlobal}/100`
+  return `🤖 Votre rapport d'audit FeedVoice — Score ${rapport.scoreGlobal}/100`
 }
 
 /** Rendu markdown minimal → HTML (titres, gras, listes, paragraphes) */
@@ -373,7 +373,7 @@ export function emailRapportIA(
     ${markdownVersHtml(rapport.contenuMarkdown)}
     ${bouton("Voir le rapport complet", `${baseUrl()}/dashboard`)}
     <p style="margin:20px 0 0;font-size:13px;line-height:1.7;color:#78716c;">
-      Rapport généré automatiquement par votre Coach IA FeedbackPro.
+      Rapport généré automatiquement par votre Coach IA FeedVoice.
     </p>`
   return { sujet: sujetRapportIA(rapport), html: enveloppe(sujetRapportIA(rapport), corps) }
 }
@@ -451,7 +451,7 @@ export function emailSuiviRattrapage(
       </td></tr>
     </table>
     <p style="margin:20px 0 0;font-size:13px;line-height:1.7;color:#78716c;">
-      Merci de votre confiance,<br />L'équipe FeedbackPro
+      Merci de votre confiance,<br />L'équipe FeedVoice
     </p>`
   return { sujet, html: enveloppe(sujet, corps) }
 }

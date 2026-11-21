@@ -130,7 +130,7 @@ export function OnboardingBanner() {
           <Sparkles className="h-5 w-5 text-[#000d10]" aria-hidden />
           <div>
             <p className="text-sm font-bold text-[#0f0f1c]">
-              Bienvenue sur FeedbackPro — votre première semaine
+              Bienvenue sur FeedVoice — votre première semaine
             </p>
             <p className="text-xs text-[#9A9AAE]">
               4 étapes pour activer votre Coach IA qualité — progression {progression}%

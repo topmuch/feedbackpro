@@ -1,4 +1,4 @@
-// Types partagés FeedbackPro
+// Types partagés FeedVoice
 export type StatutRetour = 'NOUVEAU' | 'EN_COURS' | 'RESOLU'
 
 export type Retour = {

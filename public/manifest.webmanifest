@@ -1,11 +1,11 @@
 {
-  "name": "FeedbackPro — Le Coach IA d'Audit Qualité Continu",
-  "short_name": "FeedbackPro",
+  "name": "FeedVoice — Le Coach IA d'Audit Qualité Continu",
+  "short_name": "FeedVoice",
   "description": "Transformez vos clients en auditeurs qualité. Rapport IA quotidien avec 3 priorités pour améliorer votre service.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#FAFAF7",
-  "theme_color": "#C9A961",
+  "theme_color": "#bc7155",
   "orientation": "portrait-primary",
   "icons": [
     {

@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Moteur de l'ACCUEIL du Coach IA (Session 4, §2)
+// FeedVoice - Moteur de l'ACCUEIL du Coach IA (Session 4, §2)
 // ------------------------------------------------------------
 // Calcule DÉTERMINISTEMENT (à la volée, sans LLM) les 4 sections
 // de la page d'accueil du dashboard Pro :

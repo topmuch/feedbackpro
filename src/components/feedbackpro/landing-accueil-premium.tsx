@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro — Landing "Accueil Premium B2B — Focus Salon VIP"
+// FeedVoice — Landing "Accueil Premium B2B — Focus Salon VIP"
 // ------------------------------------------------------------
 // Refonte v2 (maquette utilisateur) : le hero passe en 2 colonnes
 // avec une PREVIEW NATHALIE (interface Wi-Fi + services + bulles
@@ -1489,9 +1489,9 @@ export function LandingAccueilPremium({
       {/* ==================== NAVIGATION ==================== */}
       <nav className={`fh-nav ${scrolled ? "fh-scrolled" : ""}`} aria-label="Navigation principale">
         <div className="fh-nav-container">
-          <button className="fh-nav-logo" onClick={scrollTop} aria-label="FeedbackPro — Retour en haut">
+          <button className="fh-nav-logo" onClick={scrollTop} aria-label="FeedVoice — Retour en haut">
             <span className="fh-nav-logo-icon" aria-hidden>&#10022;</span>
-            FeedbackPro
+            FeedVoice
           </button>
           <div className="fh-nav-links">
             <button className="fh-nav-link" onClick={() => scrollToId("fh-secteurs")}>Secteurs</button>
@@ -1757,7 +1757,7 @@ export function LandingAccueilPremium({
             Le signal capté <em>au moment où il sert.</em>
           </h2>
           <p className="fh-subtitle">
-            FeedbackPro mesure ce que les autres outils ignorent. Les
+            FeedVoice mesure ce que les autres outils ignorent. Les
             indicateurs qui transforment une opération moyenne en opération
             excellente.
           </p>
@@ -1774,7 +1774,7 @@ export function LandingAccueilPremium({
                 <div className="fh-stat-label">
                   d&apos;incidents invisibles
                   <br />
-                  sans FeedbackPro
+                  sans FeedVoice
                 </div>
               </div>
             </div>
@@ -1843,7 +1843,7 @@ export function LandingAccueilPremium({
         <div className="fh-cta-inner">
           <div className="fh-cta-logo">
             <span className="fh-cta-logo-icon" aria-hidden>&#10022;</span>
-            FeedbackPro
+            FeedVoice
           </div>
           <h2 className="fh-cta-title">
             Prêt à transformer vos interactions
@@ -1880,9 +1880,9 @@ export function LandingAccueilPremium({
         <div className="fh-footer-inner">
           <div className="fh-footer-grid">
             <div className="fh-footer-brand">
-              <button className="fh-nav-logo" onClick={scrollTop} aria-label="FeedbackPro — Retour en haut">
+              <button className="fh-nav-logo" onClick={scrollTop} aria-label="FeedVoice — Retour en haut">
                 <span className="fh-nav-logo-icon" aria-hidden>&#10022;</span>
-                FeedbackPro
+                FeedVoice
               </button>
               <p className="fh-footer-desc">
                 L&apos;excellence opérationnelle pour vos établissements.
@@ -1931,7 +1931,7 @@ export function LandingAccueilPremium({
 
           <div className="fh-newsletter">
             <div className="fh-newsletter-text">
-              <strong>Restez informé des nouveautés FeedbackPro</strong>
+              <strong>Restez informé des nouveautés FeedVoice</strong>
               <span>Une lettre mensuelle. Pas de spam. Désinscription en un clic.</span>
             </div>
             <form className="fh-newsletter-form" onSubmit={onNewsletterSubmit}>
@@ -1949,7 +1949,7 @@ export function LandingAccueilPremium({
           </div>
 
           <div className="fh-footer-bottom">
-            <div>© {new Date().getFullYear()} FeedbackPro. Tous droits réservés.</div>
+            <div>© {new Date().getFullYear()} FeedVoice. Tous droits réservés.</div>
             <div className="fh-footer-denise">Piloté par Denise</div>
           </div>
         </div>

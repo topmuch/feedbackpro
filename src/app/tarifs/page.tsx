@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 
 // ============================================================
-// FeedbackPro - Page Tarifs (App Router)
+// FeedVoice - Page Tarifs (App Router)
 // ------------------------------------------------------------
 // Route réelle : GET /tarifs
 // Contenu : 3 plans (Starter, Pro, Enterprise) + toggle
@@ -15,7 +15,7 @@ import { PricingToggle, type Plan } from "@/components/feedbackpro/pricing-toggl
 import { PRICING } from "@/lib/landing-data"
 
 export const metadata: Metadata = {
-  title: "Tarifs FeedbackPro — Starter 29 €, Pro 99 €, Enterprise 249 €",
+  title: "Tarifs FeedVoice — Starter 29 €, Pro 99 €, Enterprise 249 €",
   description:
     "Sans engagement. Annulation en 1 clic. 14 jours d'essai gratuit, sans carte bancaire. 3 plans : Starter 29 €, Pro 99 € (recommandé), Enterprise 249 €.",
   alternates: { canonical: "/tarifs" },

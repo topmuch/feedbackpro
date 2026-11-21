@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Traductions de la page de scan client (D3)
+// FeedVoice - Traductions de la page de scan client (D3)
 // ------------------------------------------------------------
 // Trois langues : français (fr), anglais (en), arabe (ar).
 // L'arabe impose dir="rtl" au conteneur racine.

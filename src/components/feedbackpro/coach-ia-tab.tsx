@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Onglet « Coach IA » (ACCUEIL du dashboard Pro)
+// FeedVoice - Onglet « Coach IA » (ACCUEIL du dashboard Pro)
 // Session 4 : page d'accueil repensée —
 //   1. Rapport du jour (score du jour, évolutions, retours du jour)
 //   2. 3 priorités du jour STRUCTURÉES (🔥 critique / ⚠️ important /

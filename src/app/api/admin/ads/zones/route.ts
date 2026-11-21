@@ -120,7 +120,7 @@ export async function GET(_req: NextRequest) {
       totalCampaigns: agg.totalCampaigns,
       forbiddenReason: isEligible
         ? null
-        : 'Zone protégée — interdiction absolue de publicité (sécurité publique). Règle FeedbackPro : jamais sur urgence.',
+        : 'Zone protégée — interdiction absolue de publicité (sécurité publique). Règle FeedVoice : jamais sur urgence.',
     }
   })
 

@@ -5,8 +5,16 @@ import { ThemeProvider } from "@/components/theme-provider";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "FeedbackPro",
-  description: "Le Coach IA d'Audit Qualité Continu",
+  title: "FeedVoice — Le Coach IA d'Audit Qualité Continu",
+  description:
+    "FeedVoice transforme vos clients en auditeurs qualité. Avis instantanés, alertes temps réel et rapports IA quotidiens.",
+  openGraph: {
+    title: "FeedVoice — Le Coach IA d'Audit Qualité Continu",
+    description:
+      "FeedVoice transforme vos clients en auditeurs qualité. Avis instantanés, alertes temps réel et rapports IA quotidiens.",
+    images: ["/og-image.png"],
+    type: "website",
+  },
 };
 
 export default function RootLayout({
@@ -43,7 +51,7 @@ export default function RootLayout({
         {/* next-themes — le bouton mode sombre/clair des dashboards (ThemeToggle)
             ne fonctionne QUE si le provider est monté ici. attribute="class" →
             la classe .dark est posée sur <html> (définie dans globals.css).
-            defaultTheme="light" : le mode clair reste le défaut FeedbackPro. */}
+            defaultTheme="light" : le mode clair reste le défaut FeedVoice. */}
         <ThemeProvider
           attribute="class"
           defaultTheme="light"

@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 
 // ============================================================
-// FeedbackPro - Page Démo (App Router)
+// FeedVoice - Page Démo (App Router)
 // ------------------------------------------------------------
 // Route réelle : GET /demo
 // Contenu : Vidéo placeholder (mockup rapport) + récap des 4
@@ -13,9 +13,9 @@ import { ArrowRight, BellRing, Bot, BarChart3, Play, QrCode, ScanLine, TrendingU
 import { MarketingLayout, MarketingCTA } from "@/components/feedbackpro/marketing-shell"
 
 export const metadata: Metadata = {
-  title: "Démo FeedbackPro — Voir le Coach IA en action",
+  title: "Démo FeedVoice — Voir le Coach IA en action",
   description:
-    "Découvrez en 2 minutes comment FeedbackPro transforme vos clients en auditeurs qualité : scan QR, note, tags, IA, et rapport quotidien avec 3 priorités actionnables.",
+    "Découvrez en 2 minutes comment FeedVoice transforme vos clients en auditeurs qualité : scan QR, note, tags, IA, et rapport quotidien avec 3 priorités actionnables.",
   alternates: { canonical: "/demo" },
 }
 
@@ -43,7 +43,7 @@ export default function DemoPage() {
             Voir le <span className="bg-gradient-to-br from-[#0f0f1c] to-[#0f0f1c] bg-clip-text text-transparent">Coach IA</span> en action
           </h1>
           <p className="mt-4 text-lg text-gray-600">
-            2 minutes pour comprendre comment FeedbackPro transforme chaque client en auditeur
+            2 minutes pour comprendre comment FeedVoice transforme chaque client en auditeur
             qualité — et chaque matin en plan d&apos;action concret.
           </p>
         </div>
@@ -63,7 +63,7 @@ export default function DemoPage() {
               <div className="flex items-center justify-between text-xs text-white/80">
                 <span className="flex items-center gap-1.5">
                   <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
-                  Démo FeedbackPro · 2 min 14
+                  Démo FeedVoice · 2 min 14
                 </span>
                 <span>HD</span>
               </div>

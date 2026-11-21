@@ -2,7 +2,7 @@
 // /api/vip/assistance — Support direct Salon VIP → Superadmin
 // ------------------------------------------------------------
 // L'onglet « Assistance » du dashboard Salon VIP permet au salon
-// de contacter l'équipe FeedbackPro (superadmin) en cas de problème.
+// de contacter l'équipe FeedVoice (superadmin) en cas de problème.
 //
 // CONNEXION AVEC LE SUPERADMIN : les messages sont stockés dans la
 // table ContactMessage avec le marqueur typeEtablissement =

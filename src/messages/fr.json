@@ -53,8 +53,8 @@
     "aucunRapport": "Aucun rapport généré pour le moment",
     "secteurLabel": "Secteur",
     "planLabel": "Plan",
-    "titreDashboard": "Tableau de bord FeedbackPro",
-    "titreAdmin": "Administration FeedbackPro",
+    "titreDashboard": "Tableau de bord FeedVoice",
+    "titreAdmin": "Administration FeedVoice",
     "titrePage": {
       "dashboard": "Tableau de bord",
       "coach": "Coach IA",
@@ -182,11 +182,11 @@
     "navigationAdmin": "Navigation administration",
     "promesseCoach": "Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorités concrètes.",
     "connecteSuperadmin": "Connecté en superadmin",
-    "tableauBordFeedback": "Tableau de bord FeedbackPro",
+    "tableauBordFeedback": "Tableau de bord FeedVoice",
     "ouvrirNouvelOnglet": "Ouvrir dans un nouvel onglet"
   },
   "onboarding": {
-    "titre": "Bienvenue sur FeedbackPro — votre première semaine",
+    "titre": "Bienvenue sur FeedVoice — votre première semaine",
     "sousTitre": "4 étapes pour activer votre Coach IA qualité — progression {progress}%",
     "jaiCompris": "J'ai compris",
     "etapeValidee": "Étape {n} validée ✓",

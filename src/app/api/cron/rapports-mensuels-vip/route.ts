@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro VIP — Cron : rapport mensuel lounge
+// FeedVoice VIP — Cron : rapport mensuel lounge
 // GET /api/cron/rapports-mensuels-vip
 // ------------------------------------------------------------
 // Planifié le 1er du mois à 7h30 UTC (vercel.json).

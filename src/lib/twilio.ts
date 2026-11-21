@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Envoi de SMS via l'API REST Twilio (Session 6 §2)
+// FeedVoice - Envoi de SMS via l'API REST Twilio (Session 6 §2)
 // ------------------------------------------------------------
 // Utilise fetch + Basic auth (PAS le SDK Twilio) pour rester
 // léger et compatible Edge/Node.

@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Checkout Stripe d'une commande de support physique
+// FeedVoice - Checkout Stripe d'une commande de support physique
 // POST /api/pro/commandes/checkout { typeSupport, adresseLivraison, zoneId? }
 // ------------------------------------------------------------
 // - Sans STRIPE_SECRET_KEY : mode démo → la commande est créée

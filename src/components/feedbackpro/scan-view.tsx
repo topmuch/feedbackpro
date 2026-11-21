@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - ScanView (refonte "Wahoo" — UX mobile premium)
+// FeedVoice - ScanView (refonte "Wahoo" — UX mobile premium)
 // ------------------------------------------------------------
 // Le client a scanné le QR code d'une ZONE (Accueil, Salle,
 // Toilettes RDC…) imprimée dans le commerce. Sans auth.
@@ -105,9 +105,9 @@ type ScanData = {
     // D8 : URL d'avis Google (saisie manuelle par le commerçant)
     googleReviewUrl?: string | null
     // Task 4 — White-label : personnalisation marque blanche de la page
-    // de scan. Si whiteLabel=true, brandName remplace "FeedbackPro" dans le
+    // de scan. Si whiteLabel=true, brandName remplace "FeedVoice" dans le
     // pied de page, brandColor remplace #0f0f1c (via la variable CSS
-    // --fp-brand), et brandLogoUrl remplace le logo FeedbackPro.
+    // --fp-brand), et brandLogoUrl remplace le logo FeedVoice.
     whiteLabel?: boolean
     brandName?: string | null
     brandColor?: string | null
@@ -448,7 +448,7 @@ function SelecteurLangue({
 }
 
 // ---------- Écran de chargement : wizard QRTags plein écran bleu ----------
-// Fond bleu FeedbackPro, spinner blanc, libellé "Chargement…" en blanc.
+// Fond bleu FeedVoice, spinner blanc, libellé "Chargement…" en blanc.
 function EcranChargement({ t }: { t: TraductionsScan }) {
   return (
     <div
@@ -3434,9 +3434,9 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
         </footer>
       )}
 
-      {/* ====== "Propulsé par FeedbackPro" discret (welcome + error) ======
+      {/* ====== "Propulsé par FeedVoice" discret (welcome + error) ======
           Task 4 — White-label : si le Pro a whiteLabel=true, on remplace
-          le nom "FeedbackPro" par brandName et on affiche brandLogoUrl à
+          le nom "FeedVoice" par brandName et on affiche brandLogoUrl à
           la place du texte si un logo de marque est fourni. */}
       {(phase === "welcome" || phase === "error") && (
         <p className="pb-4 text-center text-xs text-slate-800/60">
@@ -3455,7 +3455,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
             <span className="font-semibold text-slate-800/80">
               {scanData?.pro?.whiteLabel && scanData.pro.brandName
                 ? scanData.pro.brandName
-                : "FeedbackPro"}
+                : "FeedVoice"}
             </span>
           )}
         </p>

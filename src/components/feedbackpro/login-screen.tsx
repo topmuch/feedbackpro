@@ -25,7 +25,9 @@ export function LoginScreen() {
           <div className="mx-auto w-12 h-12 rounded-xl bg-primary flex items-center justify-center text-primary-foreground">
             <MessageSquare className="w-6 h-6" />
           </div>
-          <CardTitle className="text-2xl">FeedbackPro</CardTitle>
+          <CardTitle className="text-2xl">
+            <img src="/feedvoice/logo.png" alt="FeedVoice" className="mx-auto h-7 w-auto" />
+          </CardTitle>
           <CardDescription>Connectez-vous à votre espace Pro</CardDescription>
         </CardHeader>
         <CardContent>

@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro — Configuration statique des zones ERP
+// FeedVoice — Configuration statique des zones ERP
 // ------------------------------------------------------------
 // ERP = Établissement Recevant du Public (administration,
 // mairie, préfecture, CAF, CPAM, service des impôts, Pôle

@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 
 // ============================================================
-// FeedbackPro - Page Fonctionnalités (App Router)
+// FeedVoice - Page Fonctionnalités (App Router)
 // ------------------------------------------------------------
 // Route réelle : GET /fonctionnalites
 // Contenu : Bento grid (6 fonctionnalités) + section 7 problèmes
@@ -14,9 +14,9 @@ import { MarketingLayout, MarketingCTA } from "@/components/feedbackpro/marketin
 import { FEATURES, PROBLEM_CARDS } from "@/lib/landing-data"
 
 export const metadata: Metadata = {
-  title: "Fonctionnalités FeedbackPro — Coach IA, QR Zones, Alertes temps réel",
+  title: "Fonctionnalités FeedVoice — Coach IA, QR Zones, Alertes temps réel",
   description:
-    "Découvrez les 6 modules FeedbackPro : Coach IA quotidien, QR Zones intelligentes, Leaderboard équipe, Alertes WhatsApp temps réel, Statistiques avancées et Supports physiques livrés.",
+    "Découvrez les 6 modules FeedVoice : Coach IA quotidien, QR Zones intelligentes, Leaderboard équipe, Alertes WhatsApp temps réel, Statistiques avancées et Supports physiques livrés.",
   alternates: { canonical: "/fonctionnalites" },
 }
 
@@ -108,11 +108,11 @@ export default function FonctionnalitesPage() {
               className="mt-4 text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl"
               style={{ letterSpacing: "-0.03em" }}
             >
-              Les 7 problèmes qu&apos;FeedbackPro résout
+              Les 7 problèmes qu&apos;FeedVoice résout
             </h2>
             <p className="mt-3 text-base text-gray-600">
               Sans retour client en temps réel, vous pilotez à l&apos;aveugle. Voici ce que vivent
-              chaque jour les commerces sans FeedbackPro.
+              chaque jour les commerces sans FeedVoice.
             </p>
           </div>
 
@@ -134,7 +134,7 @@ export default function FonctionnalitesPage() {
               <p className="text-3xl">✨</p>
               <h3 className="mt-3 text-lg font-bold">La solution ?</h3>
               <p className="mt-2 text-sm leading-relaxed text-white/90">
-                Un QR code, une IA, un rapport chaque matin. FeedbackPro transforme ces 7 frustrations
+                Un QR code, une IA, un rapport chaque matin. FeedVoice transforme ces 7 frustrations
                 en 3 priorités actionnables.
               </p>
               <a

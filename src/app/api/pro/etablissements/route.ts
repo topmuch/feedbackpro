@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
     if (!parentUser) return fail("Compte parent introuvable", 404)
     const [localPart, domain] = parentUser.email.split("@")
     const suffix = `+enfant-${Date.now().toString(36)}`
-    const emailEnfant = `${localPart}${suffix}@${domain ?? "feedbackpro.fr"}`
+    const emailEnfant = `${localPart}${suffix}@${domain ?? "feedvoice.fr"}`
 
     const passwordHash = crypto.createHash("sha256").update(Math.random().toString(36).slice(2) + Date.now()).digest("hex")
     const userEnfant = await db.user.create({

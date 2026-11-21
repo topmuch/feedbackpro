@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - AirportScanView (PWA voyageur aéroport)
+// FeedVoice - AirportScanView (PWA voyageur aéroport)
 // ------------------------------------------------------------
 // Le voyageur a scanné un QR code aéroport (ex: tapis_bagages_1)
 // et signale un problème en cours (tapis arrêté, file trop longue…).
@@ -29,7 +29,7 @@
 //   - accents amber (sélection du problème)
 //   - accents emerald (succès + opt-in WhatsApp)
 //   - rose pour l'action critique de signalement
-//   Aucun indigo / bleu FeedbackPro (#0f0f1c / bg-primary) —
+//   Aucun indigo / bleu FeedVoice (#0f0f1c / bg-primary) —
 //   l'expérience voyageur doit se distinguer du reste de l'app.
 // ============================================================
 
@@ -155,14 +155,14 @@ type AirportAd = {
 // Feature 3 — FIX-4-FEATURES : le logo affiché dans le header du scan
 // QR provient soit du `logoUrl` du Pro « Aéroport » rattaché (renvoyé
 // par GET /api/airport/zone/[tag] dans `zoneData.airportLogo`), soit
-// du fallback `/logo-feedbackpro.png` (logo FeedbackPro par défaut).
+// du fallback `/feedvoice/logo.png` (logo FeedVoice par défaut).
 // On ne dégrade plus vers une icône Plane : le header doit toujours
-// afficher une identité visuelle (logo de l'aéroport ou logo FeedbackPro).
+// afficher une identité visuelle (logo de l'aéroport ou logo FeedVoice).
 function AirportLogo({ zoneData, size = "sm" }: { zoneData: ZoneData | null; size?: "sm" | "md" }) {
   // Feature 3 — logo agrandi : sm 8 → 12, md 10 → 14
   const sz = size === "md" ? "size-14" : "size-12"
-  // Feature 3 — FIX-4-FEATURES : logo Pro.logoUrl ou fallback /logo-feedbackpro.png
-  const logoSrc = zoneData?.airportLogo || "/logo-feedbackpro.png"
+  // Feature 3 — FIX-4-FEATURES : logo Pro.logoUrl ou fallback /feedvoice/logo.png
+  const logoSrc = zoneData?.airportLogo || "/feedvoice/logo.png"
   const logoAlt = zoneData?.airportName ?? "Aéroport"
   return (
     <img
@@ -170,11 +170,11 @@ function AirportLogo({ zoneData, size = "sm" }: { zoneData: ZoneData | null; siz
       alt={logoAlt}
       className={cn(sz, "rounded-lg object-cover bg-white/90 p-0.5 shadow-sm")}
       // Fallback navigateur si l'image distante (Pro.logoUrl) est cassée :
-      // on bascule sur /logo-feedbackpro.png pour ne jamais casser le header.
+      // on bascule sur /feedvoice/logo.png pour ne jamais casser le header.
       onError={(e) => {
         const img = e.currentTarget
-        if (img.src.endsWith("/logo-feedbackpro.png")) return
-        img.src = "/logo-feedbackpro.png"
+        if (img.src.endsWith("/feedvoice/logo.png")) return
+        img.src = "/feedvoice/logo.png"
       }}
     />
   )

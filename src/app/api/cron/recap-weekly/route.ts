@@ -1,11 +1,11 @@
 // ============================================================
-// FeedbackPro - Cron : récapitulatif hebdomadaire
+// FeedVoice - Cron : récapitulatif hebdomadaire
 // GET /api/cron/recap-weekly
 // ------------------------------------------------------------
 // Planifié chaque lundi à 8h00 UTC par Vercel Cron (vercel.json).
 // Peut aussi être appelé manuellement :
 //   curl -H "Authorization: Bearer $CRON_SECRET" \
-//     https://feedbackpro.fr/api/cron/recap-weekly
+//     https://feedvoice.fr/api/cron/recap-weekly
 //
 // Agrège les retours des 7 derniers jours par établissement
 // (volume + note moyenne + alertes ≤ 2★ + zone la plus critiquée)

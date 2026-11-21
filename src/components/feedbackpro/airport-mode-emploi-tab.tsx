@@ -425,7 +425,7 @@ export function AirportModeEmploiTab() {
             <div>
               <p className="text-sm font-semibold text-foreground">Besoin d&apos;aide supplémentaire ?</p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Contactez le support à support@feedbackpro.sn ou consultez le Centre Opérationnel
+                Contactez le support à support@feedvoice.sn ou consultez le Centre Opérationnel
                 dans le dashboard SuperAdmin pour le monitoring temps réel du système.
               </p>
             </div>

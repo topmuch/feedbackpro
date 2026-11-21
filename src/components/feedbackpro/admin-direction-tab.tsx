@@ -656,6 +656,6 @@ th { background: #f8fafc; padding: 8px 12px; text-align: left; font-size: 10px; 
 <table><thead><tr><th>Zone</th><th style="text-align:center;">Incidents 30j</th><th style="text-align:center;">En attente</th><th style="text-align:center;">Temps moy.</th><th style="text-align:center;">Risque</th></tr></thead>
 <tbody>${zonesHtml || '<tr><td colspan="5" style="padding:12px;text-align:center;color:#94a3b8;">Aucune zone à risque</td></tr>'}</tbody></table>
 
-<div class="footer">Rapport généré automatiquement par FeedbackPro — Dashboard Direction</div>
+<div class="footer">Rapport généré automatiquement par FeedVoice — Dashboard Direction</div>
 </body></html>`
 }

@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Schémas de validation partagés (client + serveur)
+// FeedVoice - Schémas de validation partagés (client + serveur)
 // Une seule source de vérité : zod (v4) — mêmes messages d'erreur
 // affichés dans les formulaires et appliqués par les API routes.
 // Pivot Session 1 : « Le Coach IA d'Audit Qualité Continu »

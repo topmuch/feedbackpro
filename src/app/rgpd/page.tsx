@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Page RGPD générique + sections par secteur (Task M5)
+// FeedVoice - Page RGPD générique + sections par secteur (Task M5)
 // ------------------------------------------------------------
 // Route : GET /rgpd
 // Composant serveur : lit directement les fiches SecteurConfig en
@@ -19,7 +19,7 @@ import { db } from "@/lib/db"
 import { Badge } from "@/components/ui/badge"
 
 export const metadata: Metadata = {
-  title: "RGPD par secteur — FeedbackPro",
+  title: "RGPD par secteur — FeedVoice",
   description:
     "Règles RGPD spécifiques par secteur d'activité : restaurants, hôtels, hôpitaux, aéroports… Chaque secteur a ses propres contraintes de collecte et de traitement des données client.",
 }
@@ -65,14 +65,14 @@ export default async function RgpdPage() {
   return (
     <LegalLayout
       titre="RGPD & règles par secteur"
-      description="FeedbackPro traite des données personnelles dans le respect du RGPD. Cette page regroupe les règles transversales (communes à tous les secteurs) et les règles spécifiques à chaque secteur d'activité."
+      description="FeedVoice traite des données personnelles dans le respect du RGPD. Cette page regroupe les règles transversales (communes à tous les secteurs) et les règles spécifiques à chaque secteur d'activité."
       dateMiseAJour="1er février 2026"
       pageActive="/rgpd"
     >
       {/* ---------------- RÈGLES GÉNÉRIQUES (communes) ---------------- */}
       <SectionLegale titre="1. Règles transversales (tous secteurs)">
         <p>
-          Quelle que soit votre activité, FeedbackPro applique les principes suivants
+          Quelle que soit votre activité, FeedVoice applique les principes suivants
           (voir aussi notre{" "}
           <Link className="text-primary underline underline-offset-2" href="/confidentialite">
             politique de confidentialité
@@ -83,7 +83,7 @@ export default async function RgpdPage() {
           <li><strong>Minimisation</strong> : seules les données strictement nécessaires à l&apos;audit qualité sont collectées.</li>
           <li><strong>Anonymisation par défaut</strong> : le client peut laisser un retour sans email ni nom.</li>
           <li><strong>Durée de conservation</strong> : les retours sont conservés 24 mois, puis anonymisés.</li>
-          <li><strong>Droit à l&apos;oubli</strong> : un client peut demander la suppression de ses données via le commerçant ou <code>privacy@feedbackpro.fr</code>.</li>
+          <li><strong>Droit à l&apos;oubli</strong> : un client peut demander la suppression de ses données via le commerçant ou <code>privacy@feedvoice.fr</code>.</li>
           <li><strong>Chiffrement au repos</strong> : les commentaires libres et emails clients sont chiffrés en AES-GCM (clé ENCRYPTION_KEY) — voir <code>src/lib/crypto.ts</code>.</li>
           <li><strong>Pas de revente</strong> : les données ne sont jamais cédées à un tiers à des fins commerciales.</li>
         </ul>
@@ -93,7 +93,7 @@ export default async function RgpdPage() {
         <p>
           Selon votre secteur, certaines zones ne doivent <strong>jamais</strong> être
           photographiées par les clients (blocs opératoires, contrôle de sécurité…).
-          FeedbackPro désactive automatiquement l&apos;option photo sur ces secteurs et
+          FeedVoice désactive automatiquement l&apos;option photo sur ces secteurs et
           signale les zones sensibles dans l&apos;interface commerçant.
         </p>
         <p>
@@ -181,8 +181,8 @@ export default async function RgpdPage() {
           Conformément au RGPD, vous disposez d&apos;un droit d&apos;accès, de rectification,
           d&apos;effacement, de limitation, de portabilité et d&apos;opposition. Pour les exercer,
           contactez le commerçant concerné ou écrivez à{" "}
-          <a className="text-primary underline underline-offset-2" href="mailto:privacy@feedbackpro.fr">
-            privacy@feedbackpro.fr
+          <a className="text-primary underline underline-offset-2" href="mailto:privacy@feedvoice.fr">
+            privacy@feedvoice.fr
           </a>
           .
         </p>

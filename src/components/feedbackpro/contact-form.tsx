@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Formulaire de contact public (page /contact)
+// FeedVoice - Formulaire de contact public (page /contact)
 // ------------------------------------------------------------
 // Client component : POST vers /api/contact, affiche un toast en
 // cas de succès, et reset le formulaire. Aucune auth requise.
@@ -152,7 +152,7 @@ export function ContactForm() {
         )}
       </Button>
       <p className="text-center text-xs text-muted-foreground">
-        En envoyant ce formulaire, vous acceptez d&apos;être recontacté par FeedbackPro. Vos données
+        En envoyant ce formulaire, vous acceptez d&apos;être recontacté par FeedVoice. Vos données
         ne sont jamais partagées.
       </p>
     </form>

@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Configuration next-intl pour RSC / API routes
+// FeedVoice - Configuration next-intl pour RSC / API routes
 // ------------------------------------------------------------
 // next-intl 4.x expose `getRequestConfig` qui charge dynamiquement
 // les messages JSON de la locale demandée. La locale est résolue

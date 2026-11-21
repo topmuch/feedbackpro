@@ -1,11 +1,11 @@
 export const dynamic = "force-dynamic"
 
 // ============================================================
-// FeedbackPro - Page À propos (App Router)
+// FeedVoice - Page À propos (App Router)
 // ------------------------------------------------------------
 // Route réelle : GET /a-propos
 // Sections : mission · comment ça marche (4 étapes) · pourquoi
-// FeedbackPro (3 avantages) · l'équipe (3 cards) · nos valeurs
+// FeedVoice (3 avantages) · l'équipe (3 cards) · nos valeurs
 // (Qualité, Innovation, Proximité client) · CTA contact.
 // ============================================================
 
@@ -30,9 +30,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { MarketingLayout, MarketingCTA } from "@/components/feedbackpro/marketing-shell"
 
 export const metadata: Metadata = {
-  title: "À propos de FeedbackPro",
+  title: "À propos de FeedVoice",
   description:
-    "FeedbackPro transforme chaque client en auditeur qualité grâce à l'IA. Découvrez notre mission, notre équipe, nos valeurs et comment fonctionne notre Coach IA d'audit qualité continu.",
+    "FeedVoice transforme chaque client en auditeur qualité grâce à l'IA. Découvrez notre mission, notre équipe, nos valeurs et comment fonctionne notre Coach IA d'audit qualité continu.",
   alternates: { canonical: "/a-propos" },
 }
 
@@ -86,7 +86,7 @@ const EQUIPE: { initiales: string; nom: string; poste: string; bio: string; coul
     initiales: "AM",
     nom: "Awa Mbaye",
     poste: "Co-fondatrice & CEO",
-    bio: "10 ans dans la restauration et l'hôtellerie à Dakar. Awa a vu trop de clients silencieux partir sans rien dire. Elle a fondé FeedbackPro pour leur donner une voix.",
+    bio: "10 ans dans la restauration et l'hôtellerie à Dakar. Awa a vu trop de clients silencieux partir sans rien dire. Elle a fondé FeedVoice pour leur donner une voix.",
     couleur: "from-[#0f0f1c] to-[#0f0f1c]",
   },
   {
@@ -100,7 +100,7 @@ const EQUIPE: { initiales: string; nom: string; poste: string; bio: string; coul
     initiales: "FN",
     nom: "Fatou Ndiaye",
     poste: "Head of Customer Success",
-    bio: "Ancienne gérante de salon, Fatou accompagne chaque nouveau commerçant dans le déploiement de FeedbackPro. Sa mission : ROI en moins de 30 jours.",
+    bio: "Ancienne gérante de salon, Fatou accompagne chaque nouveau commerçant dans le déploiement de FeedVoice. Sa mission : ROI en moins de 30 jours.",
     couleur: "from-[#bc7155] to-[#bc7155]",
   },
 ]
@@ -137,11 +137,11 @@ export default function AProposPage() {
             className="mt-4 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl"
             style={{ letterSpacing: "-0.03em" }}
           >
-            À propos de <span className="bg-gradient-to-br from-[#0f0f1c] to-[#0f0f1c] bg-clip-text text-transparent">FeedbackPro</span>
+            À propos de <span className="bg-gradient-to-br from-[#0f0f1c] to-[#0f0f1c] bg-clip-text text-transparent">FeedVoice</span>
           </h1>
           <p className="mt-4 text-lg text-gray-600">
             Né à Dakar d&apos;une frustration simple : trop de commerces pilotent à l&apos;instinct, sans
-            jamais entendre les clients qui partent sans rien dire. FeedbackPro leur donne une voix.
+            jamais entendre les clients qui partent sans rien dire. FeedVoice leur donne une voix.
           </p>
         </div>
       </section>
@@ -221,11 +221,11 @@ export default function AProposPage() {
         </div>
       </section>
 
-      {/* ---------- Pourquoi FeedbackPro (3 avantages) ---------- */}
+      {/* ---------- Pourquoi FeedVoice (3 avantages) ---------- */}
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
         <div className="mx-auto max-w-2xl text-center">
           <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#0f0f1c] shadow-sm">
-            Pourquoi FeedbackPro
+            Pourquoi FeedVoice
           </span>
           <h2
             className="mt-4 text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl"
@@ -266,7 +266,7 @@ export default function AProposPage() {
               className="mt-4 text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl"
               style={{ letterSpacing: "-0.03em" }}
             >
-              Les visages derrière FeedbackPro
+              Les visages derrière FeedVoice
             </h2>
             <p className="mt-3 text-base text-gray-600">
               Une équipe pluridisciplinaire, basée à Dakar, obsédée par votre qualité.

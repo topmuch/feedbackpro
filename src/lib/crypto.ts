@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Helper de chiffrement (Task M5)
+// FeedVoice - Helper de chiffrement (Task M5)
 // ------------------------------------------------------------
 // Chiffrement/déchiffrement des champs sensibles (commentaires libres,
 // emails clients) en AES-GCM via crypto.subtle (Web Crypto API —

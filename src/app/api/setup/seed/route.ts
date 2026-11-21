@@ -49,8 +49,8 @@ export async function POST() {
 
     // Settings
     for (const s of [
-      { key: "site_name", value: "FeedbackPro" },
-      { key: "support_email", value: "support@feedbackpro.fr" },
+      { key: "site_name", value: "FeedVoice" },
+      { key: "support_email", value: "support@feedvoice.fr" },
       { key: "default_language", value: "fr" },
     ]) await db.setting.upsert({ where: { key: s.key }, create: s, update: s })
     results.push("✓ 3 paramètres")

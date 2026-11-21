@@ -2,7 +2,7 @@
 
 // ============================================================
 // AirportOfflineBanner — Banner sticky pour la PWA aéroport
-// (Task 3 Phase 2 — FeedbackPro airport)
+// (Task 3 Phase 2 — FeedVoice airport)
 // ------------------------------------------------------------
 // Affiché en haut de la PWA voyageur quand :
 //   • offline            → banner ambre, icône WifiOff (animate-pulse)

@@ -53,8 +53,8 @@
     "aucunRapport": "No report generated yet",
     "secteurLabel": "Sector",
     "planLabel": "Plan",
-    "titreDashboard": "Dashboard FeedbackPro",
-    "titreAdmin": "FeedbackPro Administration",
+    "titreDashboard": "Dashboard FeedVoice",
+    "titreAdmin": "FeedVoice Administration",
     "titrePage": {
       "dashboard": "Dashboard",
       "coach": "AI Coach",
@@ -182,11 +182,11 @@
     "navigationAdmin": "Administration navigation",
     "promesseCoach": "Your Coach analyzes your contact zones daily to give you 3 concrete priorities.",
     "connecteSuperadmin": "Signed in as superadmin",
-    "tableauBordFeedback": "FeedbackPro dashboard",
+    "tableauBordFeedback": "FeedVoice dashboard",
     "ouvrirNouvelOnglet": "Open in new tab"
   },
   "onboarding": {
-    "titre": "Welcome to FeedbackPro — your first week",
+    "titre": "Welcome to FeedVoice — your first week",
     "sousTitre": "4 steps to activate your AI quality Coach — {progress}% progress",
     "jaiCompris": "I understand",
     "etapeValidee": "Step {n} validated ✓",

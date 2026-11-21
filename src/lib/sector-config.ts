@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro — Registry central multi-secteurs
+// FeedVoice — Registry central multi-secteurs
 // ------------------------------------------------------------
 // Mappe chaque typeEtablissement (champ Pro.typeEtablissement
 // en BDD) vers la config statique du secteur correspondant :
@@ -40,7 +40,7 @@ export type ZoneConfig = {
   isAdEligible?: boolean
 }
 
-/** Identifiants des secteurs supportés par FeedbackPro. */
+/** Identifiants des secteurs supportés par FeedVoice. */
 export type SectorId = 'restaurant' | 'aeroport' | 'hotel' | 'gare' | 'hopital' | 'erp'
 
 /** Configuration complète d'un secteur. */
@@ -65,7 +65,7 @@ export type SectorConfig = {
 export type AnyZoneConfig = AirportZoneConfig | HotelZoneConfig | GareZoneConfig | HopitalZoneConfig | ErpZoneConfig
 
 /**
- * Registry central : tous les secteurs supportés par FeedbackPro.
+ * Registry central : tous les secteurs supportés par FeedVoice.
  * L'ordre est volontairement : restaurant, aéroport, hôtel, gare,
  * hôpital, ERP — pour suivre l'ordre historique d'intégration.
  */

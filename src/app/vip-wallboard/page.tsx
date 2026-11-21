@@ -1474,7 +1474,7 @@ export default function VipWallboardPage() {
             style={{ letterSpacing: 2 }}
           >
             <Plane size={12} style={{ color: C.gold }} />
-            FeedbackPro · Salon VIP Wallboard
+            FeedVoice · Salon VIP Wallboard
           </div>
           <div className="flex items-center gap-4 text-[11px]">
             <span className="hidden items-center gap-1.5 opacity-70 sm:flex">

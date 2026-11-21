@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Helper offline-sync (Task M3)
+// FeedVoice - Helper offline-sync (Task M3)
 // ------------------------------------------------------------
 // Côté client : enregistre le service worker + helper pour la queue
 // IndexedDB des retours offline (utilisé par scan-view.tsx).

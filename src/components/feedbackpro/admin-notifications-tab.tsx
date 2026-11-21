@@ -481,8 +481,8 @@ function DialogConfigCanal({
       : canal === "email"
         ? [
             { key: "provider", label: "Provider", placeholder: "resend | sendgrid" },
-            { key: "fromName", label: "Nom expéditeur", placeholder: "FeedbackPro Alertes" },
-            { key: "fromEmail", label: "Email expéditeur", placeholder: "alertes@feedbackpro.sn" },
+            { key: "fromName", label: "Nom expéditeur", placeholder: "FeedVoice Alertes" },
+            { key: "fromEmail", label: "Email expéditeur", placeholder: "alertes@feedvoice.sn" },
             { key: "apiKey", label: "Clé API", placeholder: "re_… / SG.…", type: "password" },
           ]
         : canal === "whatsapp"

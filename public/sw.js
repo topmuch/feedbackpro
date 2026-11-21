@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Service Worker (Phase 2 — Mode Offline étendu)
+// FeedVoice - Service Worker (Phase 2 — Mode Offline étendu)
 // ------------------------------------------------------------
 // Stratégies de cache hybrides :
 //   1. POST /api/public/retour (offline) → IndexedDB + Background Sync
@@ -16,18 +16,17 @@
 // servi tel quel par Next.js sans compilation).
 // ============================================================
 
-// CACHE_NAME bumpé v5 → v6 (feedbackpro-airport-v6) : purge forcée du
-// cache chez tous les visiteurs — v5 contenait des réponses /api/auth/me
-// en cache (via l'ancienne règle stale-while-revalidate) qui causaient
-// le bug « il faut saisir ses identifiants 2 fois » (après le login, le
-// SW servait la réponse « non connecté » en cache avant la revalidation).
-const CACHE_NAME = "feedbackpro-airport-v6"
-const CACHE_API = "feedbackpro-api-v2"
+// CACHE_NAME bumpé v6 → v7 (feedvoice-airport-v7) : purge forcée du
+// cache chez tous les visiteurs — rebranding FeedVoice (nouveaux logos,
+// nouvelles icônes PWA, og-image). Les anciens caches feedbackpro-* sont
+// supprimés par le handler activate ci-dessous.
+const CACHE_NAME = "feedvoice-airport-v7"
+const CACHE_API = "feedvoice-api-v3"
 // Cache dédié aux réponses GET /api/airport/zone/* (network-first, pas de
 // TTL : on veut toujours la version réseau si disponible, le cache n'est
 // qu'un repli offline). Séparé de CACHE_API pour ne pas mélanger avec les
 // réponses TTL-marquées de /api/zone/[qrToken].
-const CACHE_AIRPORT_API = "feedbackpro-airport-api-v4"
+const CACHE_AIRPORT_API = "feedvoice-airport-api-v5"
 const PRECACHE_URLS = [
   "/",
   "/manifest.webmanifest",
@@ -570,7 +569,7 @@ async function notifieClientsAirportPendingChanged() {
 // ============================================================
 
 self.addEventListener("push", function (event) {
-  let data = { title: "FeedbackPro", body: "Nouvel incident", url: "/" }
+  let data = { title: "FeedVoice", body: "Nouvel incident", url: "/" }
   try {
     if (event.data) {
       const parsed = event.data.json()

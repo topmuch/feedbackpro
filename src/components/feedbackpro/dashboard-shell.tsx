@@ -28,7 +28,7 @@ export function DashboardShell() {
             <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
               <MessageSquare className="w-4 h-4" />
             </div>
-            <span className="font-semibold">FeedbackPro</span>
+            <img src="/feedvoice/logo.png" alt="FeedVoice" className="h-5 w-auto" />
             {user?.etablissements?.[0] && (
               <span className="hidden sm:inline text-sm text-muted-foreground">
                 · {user.etablissements[0].nom}
@@ -81,7 +81,7 @@ export function DashboardShell() {
       </main>
 
       <footer className="mt-auto border-t py-4 text-center text-xs text-muted-foreground">
-        FeedbackPro · Espace Pro · {new Date().getFullYear()}
+        FeedVoice · Espace Pro · {new Date().getFullYear()}
       </footer>
     </div>
   )

@@ -160,17 +160,17 @@ export async function POST(req: NextRequest) {
         const passwordHash = crypto.createHash("sha256").update(password).digest("hex")
         await db.user.update({ where: { id: pro.userId }, data: { passwordHash } })
 
-        const sujet = "Réinitialisation de votre mot de passe FeedbackPro"
+        const sujet = "Réinitialisation de votre mot de passe FeedVoice"
         const html = `<!DOCTYPE html><html lang="fr"><body style="font-family:Arial,Helvetica,sans-serif;color:#1c1917;background:#f5f5f4;padding:24px;">
 <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)">
-<div style="background:#000d10;padding:24px 32px;color:#fff"><p style="margin:0;font-size:20px;font-weight:700">FeedbackPro</p></div>
+<div style="background:#000d10;padding:24px 32px;color:#fff"><p style="margin:0;font-size:20px;font-weight:700">FeedVoice</p></div>
 <div style="padding:32px">
 <h1 style="margin:0 0 12px;font-size:18px">Réinitialisation de votre mot de passe</h1>
 <p style="margin:0 0 12px;line-height:1.6;color:#44403c">Bonjour ${pro.nomEtablissement},</p>
-<p style="margin:0 0 16px;line-height:1.6;color:#44403c">Votre mot de passe a été réinitialisé par un administrateur FeedbackPro. Voici votre mot de passe temporaire :</p>
+<p style="margin:0 0 16px;line-height:1.6;color:#44403c">Votre mot de passe a été réinitialisé par un administrateur FeedVoice. Voici votre mot de passe temporaire :</p>
 <p style="margin:0 0 16px;padding:16px;background:#f0f1f2;border-radius:8px;font-family:monospace;font-size:18px;color:#0f0f1c;font-weight:700;text-align:center">${password}</p>
 <p style="margin:0 0 12px;line-height:1.6;color:#44403c">Nous vous invitons à le changer dès votre prochaine connexion.</p>
-<p style="margin:16px 0 0;line-height:1.6;color:#78716c;font-size:12px">Si vous n'êtes pas à l'origine de cette demande, contactez le support FeedbackPro.</p>
+<p style="margin:16px 0 0;line-height:1.6;color:#78716c;font-size:12px">Si vous n'êtes pas à l'origine de cette demande, contactez le support FeedVoice.</p>
 </div></div></body></html>`
         try {
           await sendEmail(pro.user.email, sujet, html)
@@ -206,7 +206,7 @@ export async function POST(req: NextRequest) {
         // Feature 4 — FIX-4-FEATURES : met à jour le logo de l'établissement
         // (Pro.logoUrl) affiché dans le header QR scan. L'admin upload une
         // image via /api/public/upload puis PATCH l'URL retournée ici.
-        // - logoUrl = ""    → on vide le logo (retour au fallback /logo-feedbackpro.png)
+        // - logoUrl = ""    → on vide le logo (retour au fallback /feedvoice/logo.png)
         // - logoUrl = null  → on ne touche pas (non fourni dans le payload)
         // - logoUrl = "/api/uploads/<uuid>.webp" → URL relative servie par Next
         // - logoUrl = "https://…/logo.png"       → URL absolue (CDN, bucket S3, etc.)

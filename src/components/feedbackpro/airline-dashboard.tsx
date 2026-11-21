@@ -468,7 +468,7 @@ export default function AirlineDashboard() {
         <div className="flex items-center justify-between text-[11px] text-slate-500">
           <div className="flex items-center gap-2">
             <Plane className="h-3 w-3" aria-hidden />
-            <span>FeedbackPro · Module Compagnie Aérienne</span>
+            <span>FeedVoice · Module Compagnie Aérienne</span>
           </div>
           <div className="hidden tabular-nums sm:block">
             Onglet actif : <span className="text-[#3c3e4c]">{tab}</span>

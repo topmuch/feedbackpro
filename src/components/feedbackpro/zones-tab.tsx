@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Onglet « Zones » du dashboard Pro (Session 1)
+// FeedVoice - Onglet « Zones » du dashboard Pro (Session 1)
 // Le commerçant gère ses zones de contact (Accueil, Salle,
 // Toilettes…) : CRUD + tags proposés au scan + limite par plan
 // ============================================================

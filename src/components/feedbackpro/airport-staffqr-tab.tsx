@@ -599,7 +599,7 @@ export function AirportStaffQrTab() {
                       </div>
                     </div>
                     <span className="font-mono text-[9px] uppercase tracking-wider text-slate-400">
-                      FeedbackPro
+                      FeedVoice
                     </span>
                   </div>
                   <div className="flex items-center justify-center bg-white p-4">

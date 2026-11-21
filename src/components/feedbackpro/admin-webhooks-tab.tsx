@@ -363,7 +363,7 @@ export function AdminWebhooksTab() {
               <div>
                 <p className="text-sm font-medium text-slate-700">Aucun webhook configuré</p>
                 <p className="mt-1 text-xs text-slate-500">
-                  Créez votre premier webhook pour recevoir les événements FeedbackPro dans Slack, Teams, Zapier…
+                  Créez votre premier webhook pour recevoir les événements FeedVoice dans Slack, Teams, Zapier…
                 </p>
               </div>
               <Button size="sm" onClick={() => setCreateOpen(true)} className="mt-2 gap-2">

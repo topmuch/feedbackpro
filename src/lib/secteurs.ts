@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Configuration multisectorielle (Task 2)
+// FeedVoice - Configuration multisectorielle (Task 2)
 // ------------------------------------------------------------
 // Chaque type d'établissement a une fiche :
 //   - zonesParDefaut : noms des zones pré-remplies à l'inscription

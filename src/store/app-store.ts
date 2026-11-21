@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Store global (Zustand)
+// FeedVoice - Store global (Zustand)
 // Gère : la vue courante (SPA), la session, le mode auth, le token de scan
 // Pivot Session 1 : chaque client réel devient un Client Mystère,
 // le Pro gère des ZONES et reçoit des rapports du Coach IA.

@@ -1962,7 +1962,7 @@ function LoginScreen({
             onClick={onExit}
             className="w-full rounded-xl border-2 border-slate-200 bg-white py-3 text-sm font-bold text-slate-500 transition hover:border-slate-300"
           >
-            Retour à l&apos;accueil FeedbackPro
+            Retour à l&apos;accueil FeedVoice
           </button>
         </div>
       ) : (

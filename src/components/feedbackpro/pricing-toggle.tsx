@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Toggle Tarifs (client)
+// FeedVoice - Toggle Tarifs (client)
 // Encapsule le toggle mensuel/annuel + la grille de plans pour
 // la page /tarifs. Client pour le state du toggle.
 // ============================================================

@@ -3,7 +3,7 @@
 // ============================================================
 // Task O1 — Centre Opérationnel (NOC SuperAdmin)
 // ------------------------------------------------------------
-// "Tour de contrôle" temps réel de la plateforme FeedbackPro.
+// "Tour de contrôle" temps réel de la plateforme FeedVoice.
 // Sondes les 7 services critiques toutes les 10s et affiche un
 // flux d'alertes rafraîchi toutes les 5s.
 //

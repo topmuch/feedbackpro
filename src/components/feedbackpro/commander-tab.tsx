@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Onglet "Commander" du dashboard Pro (Session 6)
+// FeedVoice - Onglet "Commander" du dashboard Pro (Session 6)
 // ------------------------------------------------------------
 // Module de commande des supports physiques :
 //  1. Choix du support (catalogue : 50 autocollants 29€ / chevalet 49€ /
@@ -475,7 +475,7 @@ export function CommanderTab() {
                   {supportActif.label} — {supportActif.price} €
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {zoneId ? `QR dédié : ${nomZone(zoneId) ?? "zone choisie"}` : "QR code générique FeedbackPro"} ·{" "}
+                  {zoneId ? `QR dédié : ${nomZone(zoneId) ?? "zone choisie"}` : "QR code générique FeedVoice"} ·{" "}
                   {supportActif.delai}
                 </p>
               </div>

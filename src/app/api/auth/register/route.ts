@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
     }
     // Conserve l'ancien template pour compat (peut être retiré plus tard).
     try {
-      await sendEmail(email, "Bienvenue sur FeedbackPro 🎉", emailBienvenue(nomEtablissement))
+      await sendEmail(email, "Bienvenue sur FeedVoice 🎉", emailBienvenue(nomEtablissement))
     } catch (e) {
       console.warn("Email de bienvenue legacy non envoyé (non bloquant)", e)
     }
@@ -146,7 +146,7 @@ export async function POST(req: NextRequest) {
     await notifierSuperadmins(
       "nouveau_commercant",
       "🏪 Nouveau commerçant inscrit",
-      `« ${nomEtablissement} » (${ville}) vient de créer un compte FeedbackPro.`
+      `« ${nomEtablissement} » (${ville}) vient de créer un compte FeedVoice.`
     )
 
     const sessionId = await createSession(user.id)

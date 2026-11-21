@@ -221,10 +221,10 @@ export async function POST(req: NextRequest) {
     await db.retour.update({ where: { id }, data })
 
     // Envoi de l'email au client (mode démo = log serveur, jamais bloquant)
-    const sujet = `Réponse de ${ctx.pro.nomEtablissement} — FeedbackPro`
+    const sujet = `Réponse de ${ctx.pro.nomEtablissement} — FeedVoice`
     const html = `<!DOCTYPE html><html lang="fr"><body style="font-family:Arial,Helvetica,sans-serif;color:#1c1917;background:#f5f5f4;padding:24px;">
 <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)">
-<div style="background:#000d10;padding:24px 32px;color:#fff"><p style="margin:0;font-size:20px;font-weight:700">FeedbackPro</p></div>
+<div style="background:#000d10;padding:24px 32px;color:#fff"><p style="margin:0;font-size:20px;font-weight:700">FeedVoice</p></div>
 <div style="padding:32px">
 <h1 style="margin:0 0 12px;font-size:18px">Réponse de ${ctx.pro.nomEtablissement}</h1>
 <p style="margin:0 0 16px;line-height:1.6;color:#44403c">Suite à votre retour du ${new Date(existing.createdAt).toLocaleDateString("fr-FR")} sur la zone « ${existing.zone?.nom ?? "—"} », le commerçant vous a adressé la réponse suivante :</p>

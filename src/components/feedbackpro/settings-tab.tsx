@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Onglet "Paramètres" du dashboard Pro (pivot Zones)
+// FeedVoice - Onglet "Paramètres" du dashboard Pro (pivot Zones)
 // Sections :
 //   (a) Informations de l'établissement  (b) Contact & alertes
 //   (c) Coach IA (fréquence des rapports) (d) Expérience client (récompense)
@@ -134,7 +134,7 @@ export function SettingsTab() {
     setEmail(pro.email || "")
     setSmsAlertes(pro.smsAlertes !== false)
     setFrequenceRapport(pro.frequenceRapport === "hebdomadaire" ? "hebdomadaire" : "quotidien")
-    setMessageWhatsapp(pro.messageWhatsapp || "Envoyé via FeedbackPro ✨")
+    setMessageWhatsapp(pro.messageWhatsapp || "Envoyé via FeedVoice ✨")
     setLogoActuel(pro.logoUrl || null)
     // D8 : Google Business Profile
     setGoogleReviewUrl(pro.googleReviewUrl || "")

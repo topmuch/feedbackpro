@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Le Moteur IA : Coach Quotidien et Hebdomadaire
+// FeedVoice - Le Moteur IA : Coach Quotidien et Hebdomadaire
 // (cœur du produit, Session 5)
 // ------------------------------------------------------------
 // genererRapportIA(proId, type) — la fonction principale :
@@ -48,7 +48,7 @@ import type { Pro, RapportIA } from "@prisma/client"
  * ses recommandations au secteur (conciergerie pour un hôtel, accueil
  * patient pour un hôpital, fluidité du check-in pour un aéroport…).
  */
-export const SYSTEM_PROMPT_FR = `Tu es le Coach IA de FeedbackPro, un expert en management de la qualité pour les commerces.
+export const SYSTEM_PROMPT_FR = `Tu es le Coach IA de FeedVoice, un expert en management de la qualité pour les commerces.
 
 Tu analyses les retours clients (Clients Mystères) de l'établissement, transmis au format JSON : score global, nombre de retours, répartition par zone (score, volume, tags fréquents), évolution vs période précédente, employés les plus mentionnés, créneaux problématiques, thèmes cachés détectés dans les commentaires libres.
 
@@ -981,7 +981,7 @@ function niveauDeNoteRetour(note: number): "crise" | "mitige" | "positif" {
 }
 
 /** Prompt système pour la recommandation ciblée d'un retour. */
-const SYSTEM_PROMPT_RECO = `Tu es le Coach IA de FeedbackPro, expert en management de la qualité pour les commerces et services.
+const SYSTEM_PROMPT_RECO = `Tu es le Coach IA de FeedVoice, expert en management de la qualité pour les commerces et services.
 
 On te transmet UN retour client précis (note, tags, commentaire, zone, employé cité) ainsi que le contexte de l'établissement (secteur, score global, récurrence du motif sur 30 jours).
 

@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Création de commandes de supports physiques
+// FeedVoice - Création de commandes de supports physiques
 // ------------------------------------------------------------
 // Logique partagée entre :
 //  · POST /api/pro/commandes          (paiement simulé, mode démo)
@@ -60,7 +60,7 @@ export async function creerCommandeAvecConfirmation(
   try {
     await sendEmail(
       emailDestinataire,
-      "Confirmation de votre commande FeedbackPro",
+      "Confirmation de votre commande FeedVoice",
       emailConfirmationCommande(pro.nomEtablissement, support.label, support.price, params.adresseLivraison)
     )
   } catch (e) {

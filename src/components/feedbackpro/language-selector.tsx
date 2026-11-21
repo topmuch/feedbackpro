@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Sélecteur de langue (Task M2)
+// FeedVoice - Sélecteur de langue (Task M2)
 // ------------------------------------------------------------
 // 3 drapeaux FR / EN / ES au clic : set le cookie `fp_locale` puis
 // recharge la page pour que le serveur renvoie la nouvelle locale

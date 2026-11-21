@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Onglet « Actions » du dashboard Pro (Session 1)
+// FeedVoice - Onglet « Actions » du dashboard Pro (Session 1)
 // Historique des décisions managériales : pour chaque retour
 // sensible (≤ 3★ ou déjà suivi), l'action prise + le statut
 // ============================================================

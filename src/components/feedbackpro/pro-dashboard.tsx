@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Dashboard Commerçant — coquille à 11 onglets (Session 4)
+// FeedVoice - Dashboard Commerçant — coquille à 11 onglets (Session 4)
 // Navigation principale : Coach IA (accueil) · Zones · Retours · Équipe
 // · Statistiques · QR Codes · Paramètres
 // Groupe « Gestion » (secondaire) : Rapports IA · Récompenses · Actions
@@ -253,7 +253,7 @@ function ongletDepuisUrl(): Onglet {
 }
 
 export function ProDashboard() {
-  const t = (key: string) => { const map: Record<string, string> = {"nav.dashboard": "Tableau de bord", "nav.coach": "Coach IA", "nav.auditMatin": "Audit Matin", "nav.zones": "Zones", "nav.retours": "Retours", "nav.team": "Equipe", "nav.stats": "Statistiques", "nav.qrcode": "QR Codes", "nav.settings": "Parametres", "nav.commander": "Commander", "nav.rapports": "Rapports IA", "nav.recompenses": "Recompenses", "nav.actions": "Actions", "nav.billing": "Facturation", "nav.airportWallboard": "Wallboard", "nav.airportZones": "Zones aéroport", "nav.airportReports": "Signalements", "nav.airportLeaderboard": "Classement", "nav.airportBot": "Bot WhatsApp", "nav.airportBlackBox": "Black Box", "nav.airportStaffQr": "QR Staff", "nav.airportVols": "Vols & Portes", "nav.airportModeEmploi": "Mode d'Emploi", "nav.aeroport": "Aéroport", "nav.gestion": "Gestion", "common.ouvrirMenu": "Ouvrir le menu", "common.navigationDashboard": "Navigation du dashboard", "common.deconnexion": "Deconnexion", "common.tableauBordFeedback": "Tableau de bord FeedbackPro", "common.promesseCoach": "Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorites concretes."}; return map[key] || key }
+  const t = (key: string) => { const map: Record<string, string> = {"nav.dashboard": "Tableau de bord", "nav.coach": "Coach IA", "nav.auditMatin": "Audit Matin", "nav.zones": "Zones", "nav.retours": "Retours", "nav.team": "Equipe", "nav.stats": "Statistiques", "nav.qrcode": "QR Codes", "nav.settings": "Parametres", "nav.commander": "Commander", "nav.rapports": "Rapports IA", "nav.recompenses": "Recompenses", "nav.actions": "Actions", "nav.billing": "Facturation", "nav.airportWallboard": "Wallboard", "nav.airportZones": "Zones aéroport", "nav.airportReports": "Signalements", "nav.airportLeaderboard": "Classement", "nav.airportBot": "Bot WhatsApp", "nav.airportBlackBox": "Black Box", "nav.airportStaffQr": "QR Staff", "nav.airportVols": "Vols & Portes", "nav.airportModeEmploi": "Mode d'Emploi", "nav.aeroport": "Aéroport", "nav.gestion": "Gestion", "common.ouvrirMenu": "Ouvrir le menu", "common.navigationDashboard": "Navigation du dashboard", "common.deconnexion": "Deconnexion", "common.tableauBordFeedback": "Tableau de bord FeedVoice", "common.promesseCoach": "Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorites concretes."}; return map[key] || key }
   const [onglet, setOnglet] = useState<Onglet>(() => ongletDepuisUrl())
   const [menuOuvert, setMenuOuvert] = useState(false)
   /** Zone présélectionnée dans l'onglet QR (arrivée depuis l'onglet Zones) */
@@ -661,7 +661,7 @@ function BoutonOnglet({
   actif: boolean
   onNaviguer: (o: Onglet) => void
 }) {
-  const t = (key: string) => { const map: Record<string, string> = {"nav.dashboard": "Tableau de bord", "nav.coach": "Coach IA", "nav.auditMatin": "Audit Matin", "nav.zones": "Zones", "nav.retours": "Retours", "nav.team": "Equipe", "nav.stats": "Statistiques", "nav.qrcode": "QR Codes", "nav.settings": "Parametres", "nav.commander": "Commander", "nav.rapports": "Rapports IA", "nav.recompenses": "Recompenses", "nav.actions": "Actions", "nav.billing": "Facturation", "nav.airportWallboard": "Wallboard", "nav.airportZones": "Zones aéroport", "nav.airportReports": "Signalements", "nav.airportLeaderboard": "Classement", "nav.airportBot": "Bot WhatsApp", "nav.airportBlackBox": "Black Box", "nav.airportStaffQr": "QR Staff", "nav.airportVols": "Vols & Portes", "nav.airportModeEmploi": "Mode d'Emploi", "nav.aeroport": "Aéroport", "nav.gestion": "Gestion", "common.ouvrirMenu": "Ouvrir le menu", "common.navigationDashboard": "Navigation du dashboard", "common.deconnexion": "Deconnexion", "common.tableauBordFeedback": "Tableau de bord FeedbackPro", "common.promesseCoach": "Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorites concretes."}; return map[key] || key }
+  const t = (key: string) => { const map: Record<string, string> = {"nav.dashboard": "Tableau de bord", "nav.coach": "Coach IA", "nav.auditMatin": "Audit Matin", "nav.zones": "Zones", "nav.retours": "Retours", "nav.team": "Equipe", "nav.stats": "Statistiques", "nav.qrcode": "QR Codes", "nav.settings": "Parametres", "nav.commander": "Commander", "nav.rapports": "Rapports IA", "nav.recompenses": "Recompenses", "nav.actions": "Actions", "nav.billing": "Facturation", "nav.airportWallboard": "Wallboard", "nav.airportZones": "Zones aéroport", "nav.airportReports": "Signalements", "nav.airportLeaderboard": "Classement", "nav.airportBot": "Bot WhatsApp", "nav.airportBlackBox": "Black Box", "nav.airportStaffQr": "QR Staff", "nav.airportVols": "Vols & Portes", "nav.airportModeEmploi": "Mode d'Emploi", "nav.aeroport": "Aéroport", "nav.gestion": "Gestion", "common.ouvrirMenu": "Ouvrir le menu", "common.navigationDashboard": "Navigation du dashboard", "common.deconnexion": "Deconnexion", "common.tableauBordFeedback": "Tableau de bord FeedVoice", "common.promesseCoach": "Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorites concretes."}; return map[key] || key }
   const Icon = entree.icon
   return (
     <button
@@ -701,15 +701,15 @@ function ContenuSidebar({
   estAeroport?: boolean
   airportEnAttente?: number
 }) {
-  const t = (key: string) => { const map: Record<string, string> = {"nav.dashboard": "Tableau de bord", "nav.coach": "Coach IA", "nav.auditMatin": "Audit Matin", "nav.zones": "Zones", "nav.retours": "Retours", "nav.team": "Equipe", "nav.stats": "Statistiques", "nav.qrcode": "QR Codes", "nav.settings": "Parametres", "nav.commander": "Commander", "nav.rapports": "Rapports IA", "nav.recompenses": "Recompenses", "nav.actions": "Actions", "nav.billing": "Facturation", "nav.airportWallboard": "Wallboard", "nav.airportZones": "Zones aéroport", "nav.airportReports": "Signalements", "nav.airportLeaderboard": "Classement", "nav.airportBot": "Bot WhatsApp", "nav.airportBlackBox": "Black Box", "nav.airportStaffQr": "QR Staff", "nav.airportVols": "Vols & Portes", "nav.airportModeEmploi": "Mode d'Emploi", "nav.aeroport": "Aéroport", "nav.gestion": "Gestion", "common.ouvrirMenu": "Ouvrir le menu", "common.navigationDashboard": "Navigation du dashboard", "common.deconnexion": "Deconnexion", "common.tableauBordFeedback": "Tableau de bord FeedbackPro", "common.promesseCoach": "Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorites concretes."}; return map[key] || key }
+  const t = (key: string) => { const map: Record<string, string> = {"nav.dashboard": "Tableau de bord", "nav.coach": "Coach IA", "nav.auditMatin": "Audit Matin", "nav.zones": "Zones", "nav.retours": "Retours", "nav.team": "Equipe", "nav.stats": "Statistiques", "nav.qrcode": "QR Codes", "nav.settings": "Parametres", "nav.commander": "Commander", "nav.rapports": "Rapports IA", "nav.recompenses": "Recompenses", "nav.actions": "Actions", "nav.billing": "Facturation", "nav.airportWallboard": "Wallboard", "nav.airportZones": "Zones aéroport", "nav.airportReports": "Signalements", "nav.airportLeaderboard": "Classement", "nav.airportBot": "Bot WhatsApp", "nav.airportBlackBox": "Black Box", "nav.airportStaffQr": "QR Staff", "nav.airportVols": "Vols & Portes", "nav.airportModeEmploi": "Mode d'Emploi", "nav.aeroport": "Aéroport", "nav.gestion": "Gestion", "common.ouvrirMenu": "Ouvrir le menu", "common.navigationDashboard": "Navigation du dashboard", "common.deconnexion": "Deconnexion", "common.tableauBordFeedback": "Tableau de bord FeedVoice", "common.promesseCoach": "Votre Coach analyse chaque jour vos zones de contact pour vous donner 3 priorites concretes."}; return map[key] || key }
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* Logo — shrink-0 pour rester visible en haut quand le nav scroll */}
       <div className="flex shrink-0 items-center gap-2.5 border-b border-sidebar-border px-5 py-5">
         <div className="rounded-lg bg-[#ffffff] px-2 py-1 shadow-[0_2px_10px_rgba(0,0,0,0.4)]">
           <img
-            src="/logo-feedbackpro-transparent.png"
-            alt="FeedbackPro"
+            src="/feedvoice/logo@2x.png"
+            alt="FeedVoice"
             className="h-8 w-auto"
           />
         </div>

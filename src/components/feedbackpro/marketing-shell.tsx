@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Coquille marketing partagée (Header + Footer)
+// FeedVoice - Coquille marketing partagée (Header + Footer)
 // ------------------------------------------------------------
 // Design « Hyer Aviation » (Refero) : monochrome Deep Ink + UNE
 // note chaude Clay Ember, pills 1000px, cartes 0px radius,
@@ -46,11 +46,13 @@ export function pageMetadata(titre: string, description: string): Metadata {
 // ---------- Wordmark texte (signature Hyer, ® exposant) ----------
 
 export function HyerWordmark({ className = "", tone = "ink" }: { className?: string; tone?: "ink" | "white" }) {
-  const color = tone === "ink" ? "text-[#000d10]" : "text-white"
+  const src = tone === "ink" ? "/feedvoice/logo@2x.png" : "/feedvoice/logo-white@2x.png"
   return (
-    <span className={`font-bold tracking-[-0.02em] leading-none ${color} ${className}`}>
-      FeedbackPro<sup className="text-[0.55em] font-bold align-super">®</sup>
-    </span>
+    <img
+      src={src}
+      alt="FeedVoice"
+      className={`inline-block w-auto ${className}`}
+    />
   )
 }
 
@@ -63,9 +65,9 @@ export function MarketingHeader({ activePath }: { activePath?: string }) {
         <Link
           href="/"
           className="flex items-center"
-          aria-label="Accueil FeedbackPro"
+          aria-label="Accueil FeedVoice"
         >
-          <HyerWordmark className="text-[19px]" />
+          <HyerWordmark className="h-[22px]" />
         </Link>
 
         {/* Liens desktop */}
@@ -157,7 +159,7 @@ export function MarketingFooter() {
   return (
     <footer className="bg-[#000d10] text-white">
       <div className="mx-auto max-w-[1200px] px-4 py-14 sm:px-6 lg:px-8">
-        <HyerWordmark tone="white" className="text-4xl sm:text-6xl" />
+        <HyerWordmark tone="white" className="h-10 sm:h-14" />
         <div className="mt-10 grid grid-cols-2 gap-8 md:grid-cols-4">
           {/* Colonne 1 : Manifeste */}
           <div className="col-span-2 md:col-span-1">
@@ -264,7 +266,7 @@ export function MarketingFooter() {
 
         <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 sm:flex-row">
           <p className="text-xs text-[#8e8e95]">
-            © {annee} FeedbackPro. Fait avec ❤️ en France.
+            © {annee} FeedVoice. Fait avec ❤️ en France.
           </p>
           <div className="flex items-center gap-2 text-xs text-[#8e8e95]">
             <span className="h-2 w-2 rounded-full bg-[#bc7155]" aria-hidden />

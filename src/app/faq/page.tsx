@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 
 // ============================================================
-// FeedbackPro - Page FAQ (App Router)
+// FeedVoice - Page FAQ (App Router)
 // ------------------------------------------------------------
 // Route réelle : GET /faq
 // Contenu : 8 questions fréquentes (accordion client) + CTA.
@@ -13,9 +13,9 @@ import { FaqAccordion } from "@/components/feedbackpro/faq-accordion"
 import { FAQ_ITEMS } from "@/lib/landing-data"
 
 export const metadata: Metadata = {
-  title: "FAQ FeedbackPro — Questions fréquentes sur le Coach IA d'audit qualité",
+  title: "FAQ FeedVoice — Questions fréquentes sur le Coach IA d'audit qualité",
   description:
-    "Comment fonctionne FeedbackPro ? Le client doit-il télécharger une app ? Combien de temps pour être opérationnel ? Toutes les réponses aux 8 questions les plus fréquentes.",
+    "Comment fonctionne FeedVoice ? Le client doit-il télécharger une app ? Combien de temps pour être opérationnel ? Toutes les réponses aux 8 questions les plus fréquentes.",
   alternates: { canonical: "/faq" },
 }
 

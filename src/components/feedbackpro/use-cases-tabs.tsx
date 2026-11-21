@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Tabs Cas d'usage (client)
+// FeedVoice - Tabs Cas d'usage (client)
 // ------------------------------------------------------------
 // Encapsule les Tabs shadcn pour la page /cas-usage. Importe
 // directement les données depuis @/lib/landing-data (les icônes
@@ -58,7 +58,7 @@ export function UseCasesTabs() {
                     {uc.emoji} {uc.label}
                   </h3>
                   <p className="text-sm text-gray-600">
-                    4 points clés couverts par FeedbackPro
+                    4 points clés couverts par FeedVoice
                   </p>
                 </div>
               </div>

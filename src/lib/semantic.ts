@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Analyse sémantique des commentaires (Session 5 §5)
+// FeedVoice - Analyse sémantique des commentaires (Session 5 §5)
 // ------------------------------------------------------------
 // Objectif : détecter les THÈMES CACHÉS dans les commentaires libres
 // même quand aucun tag n'a été sélectionné. Exemple du cahier des

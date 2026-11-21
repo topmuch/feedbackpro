@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Landing "Premium Multi-Secteurs" (SPA 9 pages)
+// FeedVoice - Landing "Premium Multi-Secteurs" (SPA 9 pages)
 // ------------------------------------------------------------
 // 9 pages gérées par état client : accueil | restaurant | aeroport
 //   | hotel | gare | hopital | erp | apropos | contact.
@@ -20,7 +20,7 @@
 //   patient-flow / maintenance (HTML/CSS pur), count-up stats,
 //   reveals framer-motion (blur->clear), glows, hover lifts.
 //
-// Logo FeedbackPro : <img src="/logo-feedbackpro.png"> dans le
+// Logo FeedVoice : <img src="/feedvoice/logo.png"> dans le
 //   header, le footer, le CTA final et la page À propos (toujours
 //   dans un conteneur blanc arrondi sur fond sombre).
 //
@@ -329,12 +329,12 @@ function Logo({
 }: {
   className?: string
 }) {
-  // Logo transparent bleu FeedbackPro. Visible sur fond clair.
+  // Logo transparent bleu FeedVoice. Visible sur fond clair.
   // Sur fond sombre, l'appelant l'enveloppe dans un conteneur blanc arrondi.
   return (
     <img
-      src="/logo-feedbackpro.png"
-      alt="FeedbackPro"
+      src="/feedvoice/logo.png"
+      alt="FeedVoice"
       className={className}
     />
   )
@@ -413,7 +413,7 @@ function Header({
         <button
           onClick={() => navigate("accueil")}
           className="flex items-center gap-2 transition-opacity hover:opacity-80"
-          aria-label="FeedbackPro - Accueil"
+          aria-label="FeedVoice - Accueil"
         >
           <Logo className="h-7 sm:h-8 w-auto" />
         </button>
@@ -559,7 +559,7 @@ function Header({
           side="right"
           className="w-[85vw] max-w-sm border-l border-[#bc7155]/25 bg-[#ffffff] p-0"
         >
-          <SheetTitle className="sr-only">Menu de navigation FeedbackPro</SheetTitle>
+          <SheetTitle className="sr-only">Menu de navigation FeedVoice</SheetTitle>
           <div className="flex h-full flex-col">
             <div className="flex h-16 items-center border-b border-black/5 px-4">
               <Logo className="h-7 w-auto" />
@@ -698,7 +698,7 @@ function PhoneMockup({
           {/* status bar */}
           <div className="flex items-center justify-between px-4 pb-2 pt-9 text-[10px] font-semibold text-[#0f0f1c]/60">
             <span>14:32</span>
-            <span>FeedbackPro Staff</span>
+            <span>FeedVoice Staff</span>
           </div>
           {/* header */}
           <div className="px-4 pb-3">
@@ -3129,7 +3129,7 @@ function Footer({ navigate }: { navigate: Navigate }) {
         <div className="mt-12 grid gap-6 rounded-2xl border border-white/10 bg-white/5 p-6 backdrop-blur md:grid-cols-2 md:items-center">
           <div>
             <div className="text-sm font-semibold text-white">
-              Restez informé des nouveautés FeedbackPro
+              Restez informé des nouveautés FeedVoice
             </div>
             <div className="mt-1 text-xs text-white/60">
               Une lettre mensuelle. Pas de spam. Désinscription en un clic.
@@ -3155,7 +3155,7 @@ function Footer({ navigate }: { navigate: Navigate }) {
 
         {/* Bottom bar */}
         <div className="mt-10 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 text-xs text-white/50 sm:flex-row">
-          <div>© {new Date().getFullYear()} FeedbackPro. Tous droits réservés.</div>
+          <div>© {new Date().getFullYear()} FeedVoice. Tous droits réservés.</div>
           <div className="flex items-center gap-2">
             <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#bc7155]" />
             Piloté par Denise

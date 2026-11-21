@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Accordion FAQ (client)
+// FeedVoice - Accordion FAQ (client)
 // Encapsule l'Accordion shadcn (qui nécessite un client) pour
 // pouvoir être utilisé dans une page serveur (/faq).
 // ============================================================

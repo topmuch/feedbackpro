@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Onglet "Statistiques" du dashboard Pro (pivot Zones)
+// FeedVoice - Onglet "Statistiques" du dashboard Pro (pivot Zones)
 // Données : GET /api/pro/stats?periode=7j|30j|90j|1an (défaut 30j)
 //   → { periode, nbJours, courbe (+alias courbe30j), parTag, parHeure,
 //      parHeureMatrice, parZone, kpis }
@@ -383,7 +383,7 @@ export function StatsTab() {
     doc.setFont("helvetica", "normal")
     doc.setFontSize(9)
     doc.setTextColor(150, 150, 150)
-    doc.text("Propulsé par FeedbackPro — Le Coach IA d'audit qualité continu", W / 2, 287, { align: "center" })
+    doc.text("Propulsé par FeedVoice — Le Coach IA d'audit qualité continu", W / 2, 287, { align: "center" })
     doc.save(`rapport-stats-${new Date().toISOString().slice(0, 10)}.pdf`)
   }
 

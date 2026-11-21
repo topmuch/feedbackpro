@@ -81,7 +81,7 @@ async function genererPosterPdf(
   scanUrl: string,
 ): Promise<Buffer> {
   // Construction d'un PDF simple via une approche minimaliste :
-  // on utilise la lib jsPDF (déjà installée pour les affiches FeedbackPro)
+  // on utilise la lib jsPDF (déjà installée pour les affiches FeedVoice)
   const { default: jsPDF } = await import('jspdf')
 
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })

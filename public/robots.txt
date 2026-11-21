@@ -25,4 +25,4 @@ Disallow: /register
 Disallow: /r/
 
 # Sitemap
-Sitemap: https://feedbackpro.qrtags.pro/sitemap.xml
+Sitemap: https://feedvoice.qrtags.pro/sitemap.xml

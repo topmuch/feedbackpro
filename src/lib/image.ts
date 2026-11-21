@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Utilitaire image côté client uniquement
+// FeedVoice - Utilitaire image côté client uniquement
 // Redimensionne un fichier image en data URL compacte (logo)
 // ============================================================
 

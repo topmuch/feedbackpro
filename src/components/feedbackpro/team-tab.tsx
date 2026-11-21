@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Onglet "Équipe & Leaderboard" (gamification, pivot Zones)
+// FeedVoice - Onglet "Équipe & Leaderboard" (gamification, pivot Zones)
 //   1. Top 5 du mois (GET /api/pro/leaderboard) : podium 🥇🥈🥉 +
 //      BarChart Recharts (positifs vs négatifs) + badges de l'API
 //   2. Liste des employés (GET /api/pro/employes) : actif (Switch),

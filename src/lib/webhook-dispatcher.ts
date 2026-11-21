@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro — Webhook Dispatcher (Task F3 — Marketplace)
+// FeedVoice — Webhook Dispatcher (Task F3 — Marketplace)
 // ------------------------------------------------------------
 // Dispatcher de webhooks pour intégrations tierces (Slack, Microsoft
 // Teams, Zapier, Make.com, n8n, IFTTT, etc.). Chaque endpoint
@@ -96,8 +96,8 @@ async function sendToWebhook(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'FeedbackPro-Webhooks/1.0',
-        'X-FeedbackPro-Event': payload.event,
+        'User-Agent': 'FeedVoice-Webhooks/1.0',
+        'X-FeedVoice-Event': payload.event,
       },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(5000),
@@ -184,8 +184,8 @@ export async function sendTestWebhook(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'User-Agent': 'FeedbackPro-Webhooks/1.0',
-        'X-FeedbackPro-Event': 'test',
+        'User-Agent': 'FeedVoice-Webhooks/1.0',
+        'X-FeedVoice-Event': 'test',
       },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(5000),

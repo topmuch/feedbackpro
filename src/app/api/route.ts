@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Point d'entrée API (health check)
+// FeedVoice - Point d'entrée API (health check)
 // GET /api → statut de la plateforme (utile pour le monitoring)
 // ============================================================
 
@@ -9,7 +9,7 @@ export async function GET() {
   return NextResponse.json({
     ok: true,
     data: {
-      nom: "FeedbackPro",
+      nom: "FeedVoice",
       produit: "Le Coach IA d'Audit Qualité Continu",
       statut: "operational",
       horodatage: new Date().toISOString(),

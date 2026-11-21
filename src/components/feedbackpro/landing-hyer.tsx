@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro — Landing « Hyer Aviation » (design system Refero)
+// FeedVoice — Landing « Hyer Aviation » (design system Refero)
 // ------------------------------------------------------------
 // Reconstruction du landing accueil dans le langage visuel Hyer :
 // éditorial luxe voyage, monochrome Deep Ink avec UNE note chaude
@@ -18,7 +18,7 @@
 //   feature 23px/-0.23 · corps 18px/1.61 · caption 17px.
 // Layout : max 1200px · gap section 80px · card 22px · clay 53/59.
 //
-// Contenu FeedbackPro préservé à l'identique (hero, 6 secteurs,
+// Contenu FeedVoice préservé à l'identique (hero, 6 secteurs,
 // Denise, stats, témoignages, CTA, footer, newsletter) — images
 // produit générées IA (public/hyer/*) sur blanc pur / ciel d'aube.
 //
@@ -137,6 +137,9 @@ const HY_CSS = `
   display: inline-flex; align-items: center; gap: 2px;
 }
 .hy-nav-logo sup { font-size: 11px; line-height: 1; }
+.hy-logo-img { height: 26px; width: auto; display: block; }
+.hy-wordmark-img { display: block; width: min(64vw, 560px); height: auto; }
+.hy-footer-mark-img { display: block; width: min(46vw, 420px); height: auto; }
 .hy-nav-links { display: flex; align-items: center; gap: 32px; }
 .hy-nav-link {
   font-size: 17px;
@@ -598,7 +601,7 @@ const HY_CSS = `
 `
 
 // ------------------------------------------------------------
-// Données locales — contenu FeedbackPro préservé
+// Données locales — contenu FeedVoice préservé
 // ------------------------------------------------------------
 
 const SECTORS: {
@@ -668,23 +671,23 @@ const TESTIMONIALS = [
   },
 ]
 
-/** Produits FeedbackPro (images générées, crops serrés sur blanc). */
+/** Produits FeedVoice (images générées, crops serrés sur blanc). */
 const PRODUCTS = [
   {
     img: "/hyer/chevalet.png",
-    alt: "Chevalet QR de table FeedbackPro en marbre blanc avec base terre cuite",
+    alt: "Chevalet QR de table FeedVoice en marbre blanc avec base terre cuite",
     title: "Chevalet QR de table",
     desc: "Un objet premium posé sur chaque table. Le client scanne, note, repart — zéro application à installer.",
   },
   {
     img: "/hyer/badge.png",
-    alt: "Badge QR employé FeedbackPro en encre profonde avec liseré terre cuite",
+    alt: "Badge QR employé FeedVoice en encre profonde avec liseré terre cuite",
     title: "Badge QR employé",
     desc: "Chaque employé porte son QR. Les compliments et les alertes suivent la bonne personne, en temps réel.",
   },
   {
     img: "/hyer/tablet.png",
-    alt: "Tablette de pilotage FeedbackPro avec tableau de bord encre et accents terre cuite",
+    alt: "Tablette de pilotage FeedVoice avec tableau de bord encre et accents terre cuite",
     title: "Tablette Ops",
     desc: "Direction et équipes voient tout : incidents, flux, SLA. Le terrain devient un tableau de bord vivant.",
   },
@@ -773,8 +776,8 @@ export function LandingHyer({
       {/* ==================== NAV ==================== */}
       <nav className="hy-nav" aria-label="Navigation principale">
         <div className="hy-nav-inner">
-          <button className="hy-nav-logo" onClick={scrollTop} aria-label="FeedbackPro — Retour en haut">
-            FeedbackPro<sup>®</sup>
+          <button className="hy-nav-logo" onClick={scrollTop} aria-label="FeedVoice — Retour en haut">
+            <img src="/feedvoice/logo.png" alt="FeedVoice" className="hy-logo-img" />
           </button>
           <div className="hy-nav-links">
             <button className="hy-nav-link" onClick={() => scrollToId("hy-secteurs")}>Secteurs</button>
@@ -805,7 +808,7 @@ export function LandingHyer({
         <div className="hy-menu-panel" role="dialog" aria-label="Menu de navigation">
           <div className="hy-menu-head">
             <span className="hy-nav-logo" style={{ cursor: "default" }}>
-              FeedbackPro<sup>®</sup>
+              <img src="/feedvoice/logo.png" alt="FeedVoice" className="hy-logo-img" />
             </span>
             <button className="hy-circle" onClick={() => setMenuOpen(false)} aria-label="Fermer le menu">
               <X size={20} aria-hidden />
@@ -824,10 +827,10 @@ export function LandingHyer({
 
       {/* ==================== HERO ==================== */}
       <header className="hy-hero">
-        {/* Rendu produit FeedbackPro sur ciel d'aube (desktop) */}
+        {/* Rendu produit FeedVoice sur ciel d'aube (desktop) */}
         <img
           src="/hyer/hero-phone.png?v=3"
-          alt="Smartphone premium FeedbackPro flottant sur un ciel d'aube, interface d'avis client avec étoiles terre cuite"
+          alt="Smartphone premium FeedVoice flottant sur un ciel d'aube, interface d'avis client avec étoiles terre cuite"
           className="hy-hero-bg"
           loading="eager"
         />
@@ -835,7 +838,7 @@ export function LandingHyer({
 
         <div className="hy-hero-content">
           <h1 className="hy-wordmark">
-            FeedbackPro<sup>®</sup>
+            <img src="/feedvoice/logo@4x.png" alt="FeedVoice" className="hy-wordmark-img" />
           </h1>
 
           {/* Sous-titre en mobile uniquement (desktop : le wordmark porte) */}
@@ -1041,7 +1044,7 @@ export function LandingHyer({
             <p className="hy-eyebrow">La preuve</p>
             <h2 className="hy-h2">Le signal capté au moment où il sert.</h2>
             <p className="hy-lede">
-              FeedbackPro mesure ce que les autres outils ignorent. Les indicateurs
+              FeedVoice mesure ce que les autres outils ignorent. Les indicateurs
               qui transforment une opération moyenne en opération excellente.
             </p>
           </div>
@@ -1051,7 +1054,7 @@ export function LandingHyer({
               <div className="hy-stat">
                 <div className="hy-stat-value">15%</div>
                 <div className="hy-stat-label">
-                  d&apos;incidents invisibles sans FeedbackPro.
+                  d&apos;incidents invisibles sans FeedVoice.
                 </div>
               </div>
             </div>
@@ -1130,7 +1133,7 @@ export function LandingHyer({
           <div className="hy-footer-grid">
             <div>
               <p className="hy-footer-mark">
-                FeedbackPro<sup>®</sup>
+                <img src="/feedvoice/logo-white@4x.png" alt="FeedVoice" className="hy-footer-mark-img" />
               </p>
               <p className="hy-footer-desc">
                 L&apos;excellence opérationnelle pour vos établissements. Piloté par
@@ -1173,7 +1176,7 @@ export function LandingHyer({
 
           <div className="hy-newsletter">
             <div className="hy-newsletter-text">
-              <strong>Restez informé des nouveautés FeedbackPro</strong>
+              <strong>Restez informé des nouveautés FeedVoice</strong>
               <span>Une lettre mensuelle. Pas de spam. Désinscription en un clic.</span>
             </div>
             <form className="hy-newsletter-form" onSubmit={onNewsletterSubmit}>
@@ -1191,7 +1194,7 @@ export function LandingHyer({
           </div>
 
           <div className="hy-footer-bottom">
-            <div>© {new Date().getFullYear()} FeedbackPro. Tous droits réservés.</div>
+            <div>© {new Date().getFullYear()} FeedVoice. Tous droits réservés.</div>
             <div className="hy-footer-denise">
               <span className="hy-footer-badge-dot" aria-hidden />
               Piloté par Denise

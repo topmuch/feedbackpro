@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Helpers de session côté serveur (API routes)
+// FeedVoice - Helpers de session côté serveur (API routes)
 // Cookie httpOnly → Session en base → User (+ Pro)
 // ============================================================
 

@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Sérialiseurs partagés des API routes
+// FeedVoice - Sérialiseurs partagés des API routes
 // Les champs « STRING JSON » du schéma SQLite (tags, historique,
 // zoneIds…) sont systématiquement parsés ici, avec un repli sûr
 // en cas de contenu invalide (défaut []).

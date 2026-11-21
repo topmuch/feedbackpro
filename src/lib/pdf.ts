@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Génération de PDF côté client (jsPDF)
+// FeedVoice - Génération de PDF côté client (jsPDF)
 // - Affiche A4 "VOTRE AVIS COMPTE" avec QR (par ZONE)
 // - Planche d'étiquettes 5x5 cm (20 étiquettes)
 // - Bon d'impression d'une commande (Superadmin, avec n° de suivi)
@@ -50,7 +50,7 @@ export function downloadPng(dataUrl: string, filename: string) {
  * - Sous-titre "Scannez pour évaluer votre expérience en 15 secondes"
  * - QR code centré (8 x 8 cm)
  * - Logo de l'établissement en bas (si disponible)
- * - Mention "Propulsé par FeedbackPro" discrète
+ * - Mention "Propulsé par FeedVoice" discrète
  */
 export function generatePosterPdf(
   qrDataUrl: string,
@@ -63,7 +63,7 @@ export function generatePosterPdf(
   const H = 297
 
   // Cadre extérieur double
-  doc.setDrawColor(37, 99, 235) // bleu FeedbackPro
+  doc.setDrawColor(37, 99, 235) // bleu FeedVoice
   doc.setLineWidth(2)
   doc.rect(10, 10, W - 20, H - 20)
   doc.setLineWidth(0.5)
@@ -123,7 +123,7 @@ export function generatePosterPdf(
   doc.setFont("helvetica", "normal")
   doc.setFontSize(9)
   doc.setTextColor(150, 150, 150)
-  doc.text("Propulsé par FeedbackPro", W / 2, 280, { align: "center" })
+  doc.text("Propulsé par FeedVoice", W / 2, 280, { align: "center" })
 
   doc.save(`affiche-a4-${slug(zoneNom || nomEtablissement)}.pdf`)
 }
@@ -184,7 +184,7 @@ export function generateLabelsPdf(
   doc.setFont("helvetica", "normal")
   doc.setFontSize(9)
   doc.setTextColor(150, 150, 150)
-  doc.text("Propulsé par FeedbackPro - Impression à 100% sur A4, découpe le long des pointillés", W / 2, H - 12, {
+  doc.text("Propulsé par FeedVoice - Impression à 100% sur A4, découpe le long des pointillés", W / 2, H - 12, {
     align: "center",
   })
 
@@ -213,13 +213,13 @@ export function generateCommandePdf(
   const doc = new jsPDF({ unit: MM, format: "a4" })
   const W = 210
 
-  // Bandeau (bleu FeedbackPro #000d10)
+  // Bandeau (bleu FeedVoice #000d10)
   doc.setFillColor(37, 99, 235)
   doc.rect(0, 0, W, 42, "F")
   doc.setFont("helvetica", "bold")
   doc.setFontSize(24)
   doc.setTextColor(255, 255, 255)
-  doc.text("FeedbackPro", 15, 20)
+  doc.text("FeedVoice", 15, 20)
   doc.setFontSize(11)
   doc.setFont("helvetica", "normal")
   doc.text("Bon d'impression - Support physique", 15, 30)
@@ -468,7 +468,7 @@ export function generateStatsReportPdf(
   doc.setFont("helvetica", "normal")
   doc.setFontSize(9)
   doc.setTextColor(150, 150, 150)
-  doc.text("Propulsé par FeedbackPro - Rapport généré automatiquement", W / 2, H - 12, { align: "center" })
+  doc.text("Propulsé par FeedVoice - Rapport généré automatiquement", W / 2, H - 12, { align: "center" })
 
   doc.save(`rapport-${slug(nomEtablissement)}-${new Date().toISOString().slice(0, 10)}.pdf`)
 }

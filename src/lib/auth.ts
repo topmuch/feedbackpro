@@ -1,4 +1,4 @@
-// Cookie-based session helpers for FeedbackPro
+// Cookie-based session helpers for FeedVoice
 import { createHash, createHmac } from 'crypto'
 import { cookies } from 'next/headers'
 import { db } from '@/lib/db'

@@ -55,7 +55,7 @@ async function villeDepuisIp(req: NextRequest): Promise<string | null> {
     if (!ip || estIpPrivee(ip)) return null
     const res = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`, {
       signal: AbortSignal.timeout(1500),
-      headers: { "User-Agent": "FeedbackPro/1.0" },
+      headers: { "User-Agent": "FeedVoice/1.0" },
     })
     if (!res.ok) return null
     const json = (await res.json().catch(() => null)) as { city?: unknown } | null
@@ -236,7 +236,7 @@ export async function POST(req: NextRequest) {
         const cfg = await getModuleConfig<CfgAlertes>(MODULE_KEYS.ALERTES_TEMPS_REEL)
         const cible = cfg?.phone || pro.whatsapp
         if (pro.smsAlertes && cible) {
-          const smsTxt = `🚨 FeedbackPro : retour ${note}/5 sur « ${zone.nom} » (${pro.nomEtablissement}).${retour.commentaire ? ` Commentaire : ${retour.commentaire.slice(0, 120)}` : ""}`
+          const smsTxt = `🚨 FeedVoice : retour ${note}/5 sur « ${zone.nom} » (${pro.nomEtablissement}).${retour.commentaire ? ` Commentaire : ${retour.commentaire.slice(0, 120)}` : ""}`
           await sendSMS(cible, smsTxt).catch((e) =>
             console.warn("SMS alertes_temps_reel non envoyé (non bloquant)", e)
           )

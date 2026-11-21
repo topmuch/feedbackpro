@@ -151,7 +151,7 @@
   animation: notificationPulse 1.8s ease-out infinite;
 }
 
-/* ---------- Scrollbar personnalisée FeedbackPro ---------- */
+/* ---------- Scrollbar personnalisée FeedVoice ---------- */
 .custom-scrollbar::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -205,7 +205,7 @@
   scrollbar-width: none;
 }
 
-/* ---------- Animations Landing FeedbackPro (CSS pur, sans framer) ---------- */
+/* ---------- Animations Landing FeedVoice (CSS pur, sans framer) ---------- */
 @keyframes fp-float {
   0%, 100% { transform: translateY(0) rotate(0deg); }
   50% { transform: translateY(-12px) rotate(-0.5deg); }
@@ -263,7 +263,7 @@ html { scroll-behavior: smooth; }
    Refonte Landing "Linear/Stripe/Vercel" Premium — CSS pur
    ============================================================ */
 
-/* Gradient mesh animé (arrière-plan hero / CTA final) — bleu profond FeedbackPro */
+/* Gradient mesh animé (arrière-plan hero / CTA final) — bleu profond FeedVoice */
 .fp-mesh-bg {
   background:
     radial-gradient(at 20% 30%, rgba(0, 46, 133, 0.15) 0px, transparent 50%),
@@ -277,7 +277,7 @@ html { scroll-behavior: smooth; }
   50%      { background-position: 100% 50%; }
 }
 
-/* Gradient texte signature (bleu profond FeedbackPro) */
+/* Gradient texte signature (bleu profond FeedVoice) */
 .fp-text-gradient {
   background: linear-gradient(135deg, #0f0f1c, #0f0f1c, #0f0f1c);
   -webkit-background-clip: text;
@@ -303,7 +303,7 @@ html { scroll-behavior: smooth; }
   transform-style: preserve-3d;
 }
 
-/* Pulse glow (CTA principaux) — bleu profond FeedbackPro */
+/* Pulse glow (CTA principaux) — bleu profond FeedVoice */
 @keyframes fp-pulse-glow {
   0%, 100% { box-shadow: 0 0 20px rgba(0, 46, 133, 0.3), 0 0 0 0 rgba(0, 46, 133, 0.4); }
   50%      { box-shadow: 0 0 40px rgba(0, 46, 133, 0.6), 0 0 0 8px rgba(0, 46, 133, 0); }
@@ -331,7 +331,7 @@ html { scroll-behavior: smooth; }
   animation-play-state: paused;
 }
 
-/* Glow doux pulsé derrière cards premium — bleu profond FeedbackPro */
+/* Glow doux pulsé derrière cards premium — bleu profond FeedVoice */
 @keyframes fp-card-glow {
   0%, 100% { box-shadow: 0 0 30px rgba(0, 46, 133, 0.15); }
   50%      { box-shadow: 0 0 50px rgba(0, 46, 133, 0.35); }
@@ -584,7 +584,7 @@ html { scroll-behavior: smooth; }
 }
 
 /* ============================================================
-   Refonte QRTags — wizard plein écran couleur (bleu FeedbackPro)
+   Refonte QRTags — wizard plein écran couleur (bleu FeedVoice)
    ------------------------------------------------------------
    - fond bleu plein (bg-[#3c3e4c]) qui vire au vert (positif) ou
      au rouge (négatif) à l'étape 1 — transition douce 500 ms

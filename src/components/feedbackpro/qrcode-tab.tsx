@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Onglet « Mes QR Codes » du dashboard Pro (Session 3)
+// FeedVoice - Onglet « Mes QR Codes » du dashboard Pro (Session 3)
 // UNE CARTE PAR ZONE : aperçu du QR, nombre de retours, score moyen
 // et 4 actions : PNG 1000×1000 · PDF A4 (sous-titre adapté à la zone)
 // · PDF planche de 20 étiquettes 5×5 cm · Commander stickers (50 u.)
@@ -133,7 +133,7 @@ function telechargerPng(dataUrl: string, nomFichier: string) {
  * Affiche A4 « VOTRE AVIS COMPTE » (spec Session 3) : double cadre bleu,
  * SOUS-TITRE ADAPTÉ AU CONTEXTE DE LA ZONE (ex. toilettes → « L'entretien de
  * cet espace est-il à la hauteur ? »), QR 8×8 cm centré, logo du commerce,
- * mention « Propulsé par FeedbackPro ».
+ * mention « Propulsé par FeedVoice ».
  */
 function genererAffichePdf(
   qrDataUrl: string,
@@ -145,7 +145,7 @@ function genererAffichePdf(
   const W = 210
   const H = 297
 
-  // Cadre extérieur double (bleu FeedbackPro)
+  // Cadre extérieur double (bleu FeedVoice)
   doc.setDrawColor(37, 99, 235)
   doc.setLineWidth(2)
   doc.rect(10, 10, W - 20, H - 20)
@@ -211,7 +211,7 @@ function genererAffichePdf(
   doc.setFont("helvetica", "normal")
   doc.setFontSize(9)
   doc.setTextColor(150, 150, 150)
-  doc.text("Propulsé par FeedbackPro", W / 2, 280, { align: "center" })
+  doc.text("Propulsé par FeedVoice", W / 2, 280, { align: "center" })
 
   doc.save(`affiche-a4-${slugifier(nomEtablissement)}-${slugifier(nomZone)}.pdf`)
 }
@@ -267,7 +267,7 @@ function genererPlanchePdf(qrDataUrl: string, nomEtablissement: string, nomZone:
   doc.setFont("helvetica", "normal")
   doc.setFontSize(9)
   doc.setTextColor(150, 150, 150)
-  doc.text("Propulsé par FeedbackPro — Découpez le long des pointillés", W / 2, H - 12, { align: "center" })
+  doc.text("Propulsé par FeedVoice — Découpez le long des pointillés", W / 2, H - 12, { align: "center" })
 
   doc.save(`planche-etiquettes-${slugifier(nomEtablissement)}-${slugifier(nomZone)}.pdf`)
 }
@@ -517,7 +517,7 @@ function CarteZone({
       } else if (type === "etiquettes") {
         genererPlanchePdf(qr, nomEtablissement, zone.nom)
       } else if (type === "affiche-a4" || type === "affiche-a5") {
-        // Nouveau design d'affiche FeedbackPro (style « VOTRE AVIS COMPTE »)
+        // Nouveau design d'affiche FeedVoice (style « VOTRE AVIS COMPTE »)
         const format = type === "affiche-a4" ? "A4" : "A5"
         const url = lienScan ?? `${window.location.origin}/r/${zone.qrToken}`
         const qrDataUrlPoster = await genererQrDataUrl(url)
@@ -528,7 +528,7 @@ function CarteZone({
           format,
         })
         telechargerPng(pngDataUrl, `affiche-feedbackpro-${slugifier(zone.nom)}-${format}.png`)
-        toast({ title: `Affiche ${format} téléchargée ✓`, description: "Design FeedbackPro « VOTRE AVIS COMPTE »" })
+        toast({ title: `Affiche ${format} téléchargée ✓`, description: "Design FeedVoice « VOTRE AVIS COMPTE »" })
       }
     } catch (e) {
       toast({ title: "Erreur", description: "Génération impossible", variant: "destructive" })

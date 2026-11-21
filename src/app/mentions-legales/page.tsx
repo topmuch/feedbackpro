@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 
 // ============================================================
-// FeedbackPro - Page légale : Mentions légales (Session 6 §4)
+// FeedVoice - Page légale : Mentions légales (Session 6 §4)
 // Route réelle : GET /mentions-legales
 // ============================================================
 
@@ -9,32 +9,32 @@ import type { Metadata } from "next"
 import { LegalLayout, SectionLegale } from "@/components/feedbackpro/legal-layout"
 
 export const metadata: Metadata = {
-  title: "Mentions légales — FeedbackPro",
+  title: "Mentions légales — FeedVoice",
   description:
-    "Mentions légales de la plateforme FeedbackPro : éditeur, hébergement, propriété intellectuelle et contact.",
+    "Mentions légales de la plateforme FeedVoice : éditeur, hébergement, propriété intellectuelle et contact.",
 }
 
 export default function MentionsLegalesPage() {
   return (
     <LegalLayout
       titre="Mentions légales"
-      description="Informations relatives à l'éditeur de la plateforme FeedbackPro, à son hébergeur et à ses droits de propriété intellectuelle."
+      description="Informations relatives à l'éditeur de la plateforme FeedVoice, à son hébergeur et à ses droits de propriété intellectuelle."
       dateMiseAJour="1er février 2026"
       pageActive="/mentions-legales"
     >
       <SectionLegale titre="1. Éditeur de la plateforme">
         <p>
-          La plateforme <strong>FeedbackPro</strong> (ci-après « la Plateforme ») est éditée par
-          FeedbackPro, société par actions simplifiée en cours d&apos;immatriculation au RCS de Paris,
+          La plateforme <strong>FeedVoice</strong> (ci-après « la Plateforme ») est éditée par
+          FeedVoice, société par actions simplifiée en cours d&apos;immatriculation au RCS de Paris,
           dont le siège social est situé à Paris, France.
         </p>
         <p>
-          Directeur de la publication : le Président de FeedbackPro.<br />
-          Contact : <a className="text-primary underline underline-offset-2" href="mailto:contact@feedbackpro.fr">contact@feedbackpro.fr</a>
+          Directeur de la publication : le Président de FeedVoice.<br />
+          Contact : <a className="text-primary underline underline-offset-2" href="mailto:contact@feedvoice.fr">contact@feedvoice.fr</a>
         </p>
         <p>
           Numéro de TVA intracommunautaire : à communiquer lors de l&apos;immatriculation.
-          FeedbackPro est entièrement financée par les abonnements de ses utilisateurs (aucune
+          FeedVoice est entièrement financée par les abonnements de ses utilisateurs (aucune
           revente de données, aucune publicité).
         </p>
       </SectionLegale>
@@ -59,7 +59,7 @@ export default function MentionsLegalesPage() {
       <SectionLegale titre="3. Propriété intellectuelle">
         <p>
           L&apos;ensemble des éléments constituant la Plateforme (structure, textes, graphismes,
-          logo, code source, marque FeedbackPro) est la propriété exclusive de FeedbackPro ou de
+          logo, code source, marque FeedVoice) est la propriété exclusive de FeedVoice ou de
           ses partenaires, et est protégé par le Code de la propriété intellectuelle.
         </p>
         <p>
@@ -80,7 +80,7 @@ export default function MentionsLegalesPage() {
       <SectionLegale titre="5. Signalement">
         <p>
           Pour signaler un contenu ou un dysfonctionnement, écrivez à{" "}
-          <a className="text-primary underline underline-offset-2" href="mailto:contact@feedbackpro.fr">contact@feedbackpro.fr</a>.
+          <a className="text-primary underline underline-offset-2" href="mailto:contact@feedvoice.fr">contact@feedvoice.fr</a>.
           Nous nous engageons à répondre sous 72 heures ouvrées.
         </p>
       </SectionLegale>

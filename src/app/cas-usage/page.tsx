@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 
 // ============================================================
-// FeedbackPro - Page Cas d'usage (App Router)
+// FeedVoice - Page Cas d'usage (App Router)
 // ------------------------------------------------------------
 // Route réelle : GET /cas-usage
 // Contenu : 5 tabs secteurs (Hôtellerie, Restauration, Retail,
@@ -13,9 +13,9 @@ import { MarketingLayout, MarketingCTA } from "@/components/feedbackpro/marketin
 import { UseCasesTabs } from "@/components/feedbackpro/use-cases-tabs"
 
 export const metadata: Metadata = {
-  title: "Cas d'usage FeedbackPro par secteur — Hôtellerie, Restauration, Retail, Santé",
+  title: "Cas d'usage FeedVoice par secteur — Hôtellerie, Restauration, Retail, Santé",
   description:
-    "Tags contextuels et zones pré-configurées pour chaque métier : hôtellerie, restauration, retail, santé, administrations. Déployez FeedbackPro en quelques minutes.",
+    "Tags contextuels et zones pré-configurées pour chaque métier : hôtellerie, restauration, retail, santé, administrations. Déployez FeedVoice en quelques minutes.",
   alternates: { canonical: "/cas-usage" },
 }
 
@@ -48,7 +48,7 @@ export default function CasUsagePage() {
 
       <MarketingCTA
         titre="Votre secteur n'est pas dans la liste ?"
-        sousTitre="FeedbackPro s'adapte à tout commerce avec un point de contact physique client. Contactez-nous pour un déploiement sur-mesure."
+        sousTitre="FeedVoice s'adapte à tout commerce avec un point de contact physique client. Contactez-nous pour un déploiement sur-mesure."
         bouton="Demander une démo"
       />
     </MarketingLayout>

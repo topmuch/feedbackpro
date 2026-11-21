@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Cron : emails d'onboarding "First Week" (Task 1)
+// FeedVoice - Cron : emails d'onboarding "First Week" (Task 1)
 // GET /api/cron/onboarding-emails
 // ------------------------------------------------------------
 // Appelé une fois par jour (vercel.json). Envoie les 3 emails J0 / J3 / J7

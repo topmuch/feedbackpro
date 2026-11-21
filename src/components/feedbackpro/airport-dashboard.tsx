@@ -238,7 +238,7 @@ export default function AirportDashboard() {
             <Link
               href="/"
               className="inline-flex items-center gap-1.5 rounded-md border border-slate-700 bg-slate-800/60 px-2.5 py-1.5 text-xs font-medium text-slate-200 transition hover:border-slate-600 hover:bg-slate-800 hover:text-white"
-              title="Retour à l'accueil FeedbackPro"
+              title="Retour à l'accueil FeedVoice"
             >
               <Home className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Accueil</span>
@@ -296,7 +296,7 @@ export default function AirportDashboard() {
           <div className="flex items-center gap-2">
             <Plane className="h-3 w-3" aria-hidden />
             <span>
-              FeedbackPro · Module Aéroport — Dashboard opérationnel
+              FeedVoice · Module Aéroport — Dashboard opérationnel
             </span>
           </div>
           <div className="hidden tabular-nums sm:block">

@@ -3,7 +3,7 @@
 // ============================================================
 // Onglet « Assistance » — Dashboard Salon VIP
 // ------------------------------------------------------------
-// Permet au salon VIP de contacter le superadmin FeedbackPro en
+// Permet au salon VIP de contacter le superadmin FeedVoice en
 // cas de problème (technique, compte, Wi-Fi/QR, fonctionnalité).
 //
 // CONNEXION SUPERADMIN : chaque message est enregistré comme
@@ -125,7 +125,7 @@ export function AssistanceTab() {
       if (!res.ok || !json?.ok) throw new Error(json?.error ?? 'erreur')
       toast({
         title: priorite === 'urgente' ? 'Demande URGENTE envoyée' : 'Demande envoyée',
-        description: 'Votre message est arrivé dans la boîte Messages de l\u2019équipe FeedbackPro.',
+        description: 'Votre message est arrivé dans la boîte Messages de l\u2019équipe FeedVoice.',
       })
       setMessage('')
       setPriorite('normale')
@@ -154,7 +154,7 @@ export function AssistanceTab() {
             Assistance
           </h2>
           <p className="text-sm text-[#8B6F47]">
-            Un problème ? Contactez directement l&apos;équipe FeedbackPro — réponse sous 24 h ouvrées.
+            Un problème ? Contactez directement l&apos;équipe FeedVoice — réponse sous 24 h ouvrées.
           </p>
         </div>
       </div>
@@ -286,7 +286,7 @@ export function AssistanceTab() {
               <p className="text-sm font-medium text-[#2C2C2C]">Aucune demande pour le moment</p>
               <p className="max-w-sm text-xs leading-relaxed text-[#8B6F47]">
                 Vos demandes d&apos;assistance apparaîtront ici avec leur statut de traitement par
-                l&apos;équipe FeedbackPro.
+                l&apos;équipe FeedVoice.
               </p>
             </div>
           ) : (

@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Settings plateforme (table Setting key-value)
+// FeedVoice - Settings plateforme (table Setting key-value)
 // Lecture des réglages (avec fallback process.env) et écriture.
 // Utilisé par l'onglet Paramètres du superadmin et par les helpers
 // d'envoi (email, twilio, stripe) pour surcharger les variables env.

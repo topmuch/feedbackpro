@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 
 // ============================================================
-// FeedbackPro - Page légale : Politique de confidentialité (RGPD)
+// FeedVoice - Page légale : Politique de confidentialité (RGPD)
 // Route réelle : GET /confidentialite (Session 6 §4)
 // ============================================================
 
@@ -9,25 +9,25 @@ import type { Metadata } from "next"
 import { LegalLayout, SectionLegale } from "@/components/feedbackpro/legal-layout"
 
 export const metadata: Metadata = {
-  title: "Politique de confidentialité — FeedbackPro",
+  title: "Politique de confidentialité — FeedVoice",
   description:
-    "Politique de confidentialité RGPD de FeedbackPro : données collectées, finalités, durées de conservation, sous-traitants et exercice de vos droits.",
+    "Politique de confidentialité RGPD de FeedVoice : données collectées, finalités, durées de conservation, sous-traitants et exercice de vos droits.",
 }
 
 export default function ConfidentialitePage() {
   return (
     <LegalLayout
       titre="Politique de confidentialité"
-      description="FeedbackPro traite des données personnelles dans le respect du Règlement Général sur la Protection des Données (RGPD - UE 2016/679). Cette page détaille, en toute transparence, ce que nous collectons et pourquoi."
+      description="FeedVoice traite des données personnelles dans le respect du Règlement Général sur la Protection des Données (RGPD - UE 2016/679). Cette page détaille, en toute transparence, ce que nous collectons et pourquoi."
       dateMiseAJour="1er février 2026"
       pageActive="/confidentialite"
     >
       <SectionLegale titre="1. Responsable de traitement">
         <p>
-          Le responsable de traitement est FeedbackPro (voir nos{" "}
+          Le responsable de traitement est FeedVoice (voir nos{" "}
           <a className="text-primary underline underline-offset-2" href="/mentions-legales">mentions légales</a>).
           Pour toute question relative aux données personnelles :{" "}
-          <a className="text-primary underline underline-offset-2" href="mailto:privacy@feedbackpro.fr">privacy@feedbackpro.fr</a>.
+          <a className="text-primary underline underline-offset-2" href="mailto:privacy@feedvoice.fr">privacy@feedvoice.fr</a>.
         </p>
       </SectionLegale>
 
@@ -106,7 +106,7 @@ export default function ConfidentialitePage() {
           <li>
             Client final : pour demander la suppression d&apos;un commentaire, contactez le
             commerce concerné ou écrivez à{" "}
-            <a className="text-primary underline underline-offset-2" href="mailto:privacy@feedbackpro.fr">privacy@feedbackpro.fr</a>.
+            <a className="text-primary underline underline-offset-2" href="mailto:privacy@feedvoice.fr">privacy@feedvoice.fr</a>.
           </li>
           <li>
             Pour toute autre demande, écrivez-nous : une réponse est apportée sous 30 jours.

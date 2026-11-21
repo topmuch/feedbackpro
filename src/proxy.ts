@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Middleware d'authentification + sécurité (Session 2, §4)
+// FeedVoice - Middleware d'authentification + sécurité (Session 2, §4)
 // - Protège /dashboard/*  → redirige vers /login si non connecté
 // - Protège /superadmin/* → redirige vers /login si non connecté
 //   (le contrôle de rôle SUPERADMIN est fait côté serveur via

@@ -411,7 +411,7 @@ async function notifierManagersEmail(
           <div style="font-size: 32px;">✈️</div>
           <div>
             <h1 style="color: #bc7155; font-size: 20px; font-weight: 800; margin: 0;">Nouveau signalement aéroport</h1>
-            <p style="color: #94a3b8; font-size: 12px; margin: 4px 0 0 0;">FeedbackPro — Système de signalement voyageur</p>
+            <p style="color: #94a3b8; font-size: 12px; margin: 4px 0 0 0;">FeedVoice — Système de signalement voyageur</p>
           </div>
         </div>
       </div>
@@ -469,7 +469,7 @@ async function notifierManagersEmail(
       <!-- Footer -->
       <div style="background: #0f0f1c; padding: 16px 32px; text-align: center;">
         <p style="color: #475569; font-size: 11px; margin: 0;">
-          Cet email a été envoyé automatiquement par FeedbackPro — Système de signalement aéroport.
+          Cet email a été envoyé automatiquement par FeedVoice — Système de signalement aéroport.
         </p>
       </div>
     </div>

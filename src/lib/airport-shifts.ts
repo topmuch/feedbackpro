@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro — Helpers partagés pour la planification des quarts
+// FeedVoice — Helpers partagés pour la planification des quarts
 // (shifts) aéroport.
 // ------------------------------------------------------------
 // Ce module centralise la logique de résolution du shift actif :

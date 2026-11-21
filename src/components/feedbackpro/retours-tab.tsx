@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Onglet "Retours clients" du dashboard Pro (pivot Zones)
+// FeedVoice - Onglet "Retours clients" du dashboard Pro (pivot Zones)
 // Refonte "Inbox Intelligente" (liste) + "Dashboard d'Urgence" (détail)
 // Liste : cards intelligentes, filtres pills, résumé IA Coach, regroupement
 // Détail : en-tête sticky, layout 3 colonnes, recommandation IA dégradée
@@ -1994,7 +1994,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
       lignes.push(`Motifs : ${neg.length > 0 ? neg.join(", ") : "—"}`)
       lignes.push(`Commentaire : ${detail.commentaire?.trim() || "(aucun commentaire)"}`)
       lignes.push("Action requise : vérifier le service.")
-      lignes.push("- Management FeedbackPro")
+      lignes.push("- Management FeedVoice")
       return lignes.join("\n")
     })()
     const lienWhatsapp =
