@@ -1106,3 +1106,21 @@ Stage Summary:
 - Le prospect entend Nathalie s'adapter à chaque environnement depuis la homepage (bouton blanc → clay pendant la lecture) ; aucun état figé possible (simulation visuelle en repli) ; gate CLIENT_GLOBAL vérifiée intacte en prod, 0 erreur console
 - QA PROD : section desktop + mobile OK ; lecture → « Nathalie parle… » + onde + progression 12.7 % ; stop → repos ; contexte Aéroport → « Alerte zone bagages… » + « Terminal 2 · Bagages / Ton ferme » ; preuves /tmp/qa-vdemo-playing4.png, /tmp/prod-vdemo-section.png, /tmp/prod-vdemo-playing.png, /tmp/prod-vdemo-mobile2.png, /tmp/prod-vdemo-mobile3.png
 - Limites QA : agent-browser headless n'a pas de moteur TTS (0 voix) — l'audio réel est validé par la simulation visuelle + API standard ; à écouter une fois dans Chrome/Safari réels
+
+---
+Task ID: SUG-1
+Agent: Z.ai Code (orchestrateur)
+Task: Suggestions du diagnostic homepage — photo d'ambiance hero + hover différencié secteurs
+
+Work Log:
+- CONTEXTE : les 3 axes prioritaires du diagnostic (9/10) ; l'axe (c) « vrai audio dans la section vocale » était DÉJÀ livré et déployé (VDEMO-1, démo Web Speech API « Écouter Nathalie ») — vérifié à nouveau en prod
+- (a) PHOTO D'AMBIANCE HERO : génération IA public/hyer/ambiance.png (1344x768, salon VIP luxe à l'aube — fauteuils terracotta, baies vitrées, marbre, sans personne) ; calque .hy-hero-ambiance sous le ciel d'aube CSS (inset 0, cover 50%/42%, OPACITÉ 7 %, saturate 0.92, mask fondu bas → dissolution dans le blanc avant les secteurs) ; au-dessus du gradient, sous le rendu produit et le fade ; masqué ≤1024px avec le reste du décor hero
+- (b) HOVER DIFFÉRENCIÉ SECTEURS : data-sector sur les 6 cartes ; signature propre à chaque métier sur l'icône — aéroport décollage (−5px/−6°), compagnie virage (+3px/+8°), hôtellerie accueil (−3px/×1.14), restauration pivot (−10°/×1.08), publics sceau (×1.12) ; base commune : fond lavé rgba(0,13,16,0.02), desc grisée #5f6066, flèche « Découvrir » +4px ; carte clay Salon VIP : badge blanc +12 % fond, icône −4px/×1.08 ; gardé 0 ombre / 0 nouvelle couleur (mouvement seul) ; @media prefers-reduced-motion neutralise tout
+- QUALITÉ : lint 0/0, tsc exit 0 ; QA locale agent-browser : ambiance opacity 0.07, les 6 signatures vérifiées par getComputedStyle + :hover (aeroport/company/hotel/restaurant/erp/clay), lecture vocale locale OK (« Nathalie parle… » + onde + progression), mobile 390px ambiance masquée + 0 overflow
+- DEPLOY : push 54fa7ea..e96ed11 → PATCH SHA e96ed114abf6c0b4eea877f00cd2a31748d4e4bc → deployment ki2z9jzzervndb9kakaswkfg finished (~2 min)
+- QA PROD (cache-buster ?fv=sug1) : ambiance.png HTTP 200 (102 Ko) + opacity 0.07 ; hover aéroport transform matrix vérifié ; « Écouter Nathalie » → « Nathalie parle… » puis stop ; footer « Piloté par Nathalie » ; mobile iPhone 14 : ambiance none + 0 overflow ; gate ?qr_type=CLIENT_GLOBAL INTACTE (WELCOME / Salon VIP / Nathalie your personal guide / Enter the lounge / emblème VIP / toggle FR-EN / avertissement son) ; console 0 erreur 0 warning
+- Preuves : /tmp/qa-hero-ambiance.png, /tmp/qa-hover-aeroport.png, /tmp/qa-hover-clay.png, /tmp/qa-vdemo-playing-local.png, /tmp/prod-sug-hero.png, /tmp/prod-sug-hover.png, /tmp/prod-sug-vdemo.png, /tmp/prod-sug-mobile.png, /tmp/prod-sug-gate.png
+
+Stage Summary:
+- Les 2 suggestions restantes du diagnostic sont en production (ambiance hero 7 % + hover différencié par métier) ; l'axe audio était déjà live (VDEMO-1) et re-vérifié ; gate CLIENT_GLOBAL intacte, console vide
+- Les 2 axes non-prioritaires du diagnostic (non décrits dans la session) restent à demander si souhaités
