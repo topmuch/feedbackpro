@@ -1007,3 +1007,22 @@ Work Log:
 
 Stage Summary:
 - Tout le site (landing, marketing, légal, auth, dashboards Pro/SuperAdmin, wallboards, PWA scans) partage désormais le langage Hyer Aviation : encre + UNE note clay, pills, cartes carrées, hairlines, zéro or/bleu/jaune hérités
+
+---
+Task ID: DEPLOY-4
+Agent: Z.ai Code (orchestrateur)
+Task: Mise en production de l'harmonisation Hyer complète + fix toggle tarifs
+
+Work Log:
+- PUSH GitHub : 5a5e364..2900de1 main (harmonisation 1760333 : 116 fichiers, +3176/-2924 ; fix toggle 2900de1)
+- COOLIFY : deploys e8udsqr4ieytjrkjkdubgqfd + or3kicc2fcid1bdyjpmhctql — finished ~120 s chacun
+- BUG TROUVÉ EN QA PROD : thumb du toggle mensuel/annuel dérivait de 24px hors du rail (absolu sans ancre left) — corrigé (left-0), vérifié en prod après redeploy
+- VÉRIFICATION PRODUCTION (agent-browser) :
+  1. /tarifs → header Hyer (wordmark + pills + CTA encre), cartes carrées hairline, toggle réparé (crop pixel)
+  2. /login → panneau Hull + wordmark blanc + toggle lisible + champs carrés
+  3. /?qr_type=CLIENT_GLOBAL → gate Option C INTACTE (Welcome / Salon VIP / Nathalie / Enter the lounge, emblème VIP conservé)
+  4. Dashboard superadmin + /ops-wallboard vérifiés en local pré-deploy (sidebar Hull, KPI carrés encre/clay, rouge critique conservé)
+- Preuves : /tmp/prod-harm-tarifs.png, /tmp/prod-harm-login.png, /tmp/prod-final-toggle.png, /tmp/prod-final-gate.png
+
+Stage Summary:
+- feedback.qrbags.com entièrement harmonisé Hyer Aviation (encre + clay unique, zéro bleu/jaune/or hérités), gate intact, toggle tarifs réparé
