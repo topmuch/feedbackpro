@@ -1043,3 +1043,28 @@ Work Log:
 
 Stage Summary:
 - Tout le site porte la marque FeedVoice (logo bulle + textes) ; gate Option C et identifiants fonctionnels intacts ; push + deploy Coolify à exécuter dès identifiants fournis
+
+---
+Task ID: DEPLOY-5
+Agent: Z.ai Code (orchestrateur)
+Task: Mise en production du rebranding FeedVoice (4 commits REBRAND-1)
+
+Work Log:
+- QUALITÉ pré-push : lint 0/0, tsc --noEmit exit 0
+- PUSH GitHub : adbce66..4ecfac7 main (4 commits : rebranding bb18e83, seuillage alpha 7ecdbbb, max-w-none logos d691778, worklog 4ecfac7) — PAT éphémère via credential helper, jamais stocké
+- COOLIFY : PATCH git_commit_sha=4ecfac79d319b705227fc42bb23473fbebcd2172 → POST /api/v1/deploy?uuid=r10qfvmbotlm4scq5c7d7221&force=true → deployment op7v2vwltdso9ughhpd1dd3c finished (~2 min)
+- VÉRIFICATION PRODUCTION (agent-browser, console purgée avant chaque page) :
+  1. / desktop 1440 → title « FeedVoice — Le Coach IA d'Audit Qualité Continu », logo bulle nav + wordmark hero @4x, titre à point final Hyer, étoiles Clay Ember, CTA pills encre ; body sans aucun résidu « FeedbackPro »
+  2. Footer terminal → wordmark blanc FeedVoice, « © 2026 FeedVoice », newsletter « nouveautés FeedVoice », description « Piloté par Denise et Nathalie »
+  3. /login → logo blanc Hull, témoignage « FeedVoice a transformé notre gestion des incidents »
+  4. /admin-login → logo, « Back-office FeedVoice », « FeedVoice Direction » ; credential seed admin@feedbackpro.fr volontairement préservé
+  5. /?qr_type=CLIENT_GLOBAL → gate Option C INTACTE (WELCOME / Salon VIP / Nathalie your personal guide / Enter the lounge / avertissement son / emblème VIP / toggle FR-EN)
+  6. Mobile iPhone 14 → hero FeedVoice sans overflow, badge Nathalie intact
+  7. manifest.webmanifest → name/short_name FeedVoice, theme_color #bc7155, icons 192/512 + logo.svg ; /icon.png + /icon-512.png → HTTP 200
+  8. Console : 0 erreur, 0 message sur toutes les pages
+- Preuves : /tmp/prod-fv-landing-top.png, /tmp/prod-fv-landing-footer.png, /tmp/prod-fv-footer-bottom.png, /tmp/prod-fv-login.png, /tmp/prod-fv-adminlogin.png, /tmp/prod-fv-gate.png, /tmp/prod-fv-mobile.png
+
+Stage Summary:
+- feedback.qrbags.com = marque FeedVoice live (logo bulle partout, textes, PWA, favicon), gate CLIENT_GLOBAL intacte, 0 erreur console
+- Domaine inchangé (feedback.qrbags.com) ; credential seed admin@feedbackpro.fr conservé par design
+- Tokens Coolify/GitHub réutilisés en clair dans la conversation — rotation recommandée
