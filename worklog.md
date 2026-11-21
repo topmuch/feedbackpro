@@ -1124,3 +1124,31 @@ Work Log:
 Stage Summary:
 - Les 2 suggestions restantes du diagnostic sont en production (ambiance hero 7 % + hover différencié par métier) ; l'axe audio était déjà live (VDEMO-1) et re-vérifié ; gate CLIENT_GLOBAL intacte, console vide
 - Les 2 axes non-prioritaires du diagnostic (non décrits dans la session) restent à demander si souhaités
+
+---
+Task ID: ROBUST-1 + FEAT-GOOGLE-DEMO-VOIX
+Agent: Z.ai Code (orchestrateur + 2 sous-agents fullstack)
+Task: Améliorations par criticité (robustesse, rate limiting, backup, erreur log) + fonctionnalités (Google Reviews, démo sandbox, rapports écoutables) + fix PWA anti-stale
+
+Work Log:
+- FIX PWA (phase 0, déploie séparé) : CACHE_NAME v7→v8 + api v4 + airport-api v6 (purge forcée chez tous les visiteurs) ; reg.update() immédiat au boot (le navigateur ne re-vérifie sw.js que périodiquement ≤24h) ; auto-reload UNE fois au controllerchange (garde-fou sessionStorage fp-sw-reloaded) — branché dans page.tsx (le vrai point d'enregistrement, enregistrerServiceWorker() de offline-sync étant mort) ; corrige « l'ancienne image toujours dans le hero » après déploiement
+- ROBUSTESSE (par criticité) :
+  a) /api/health GET public no-store : { ok, service, version (package.json), uptimeSec, hits (compteur globalThis), ip (vue serveur), db: up|down via SELECT 1 }
+  b) rate-limit.ts fenêtre glissante en mémoire (globalThis, purge anti-fuite 10k clés, max par route) — appliqué à : /api/auth/login 8/min, /api/public/scan 30/min, /api/retour 20/min (couvre alias /api/public/retour), /api/public/retour/rattrapage 20/min, /api/public/loterie 20/min, /api/contact/submit 5/10min, /api/log-error 30/min — 429 + Retry-After
+  c) /api/cron/backup-db GET (Bearer CRON_SECRET) : VACUUM INTO (snapshot consistant SQLite) → db/backups/feedvoice-<ts>.db + rotation 7
+  d) error-log.ts ring buffer 200 + /api/log-error (POST public rate-limité) + /api/admin/error-log (superadmin) + client-error-reporter.ts (window.onerror + unhandledrejection, throttle 5s, ignore scripts extensions) branché au boot page.tsx
+- FONCTIONNALITÉS :
+  a) GOOGLE REVIEWS (sous-agent 2-a) : prisma Pro.googleReviewEnabled (bool default true, googleReviewUrl existait) ; settings PATCH + section « Réputation Google » dans Paramètres (URL https:// validée + Switch) ; /api/zone/[qrToken] expose la config ; scan-view : carte CTA « Votre expérience vous a plu ? / Laisser un avis Google » UNIQUEMENT sur l'écran succès si note ≥4★ + URL + flag (liens pré-envoi D8 supprimés) ; FR/EN/AR via TraductionsScan ; style Hyer carte hairline + pill encre
+  b) DÉMO SANDBOX (sous-agent 2-b) : POST /api/demo/login idempotent (demo@feedvoice.fr / PRO, garde-fou anti-admin 403, rate limit 1/10s) : seed « Restaurant Le Bristol (Démo) » = 5 zones + 5 employés + 18 retours 7 jours (moyenne 3,89, tags/commentaires réalistes) + récompense + 3 utilisées + 3 alertes + 2 RapportIA (scores 78/81) ; session posée exactement comme /api/auth/login ; /demo : carte « Essayez FeedVoice maintenant. » + bouton « Explorer la démo » (loading/erreur inline) → dashboard
+  c) RAPPORTS VOIX : rapports-tab.tsx bouton « Écouter le rapport / Arrêter la lecture » (Web Speech API, voix FR féminine rate 0.92 pitch 1.05, texte = intro score + markdown épuré ≤1500 chars + priorités/recommandations/prédictions) ; cancel au retour liste et unmount
+- BUG RATE LIMIT EN PROD (diagnostiqué et corrigé) : le limiteur ne bloquait pas en prod standalone — (1) ipClient prenait le 1er XFF : derrière le proxy la clé variait et un XFF forgé pouvait bypasser → fix : DERNIER élément du XFF (ajouté par NOTRE proxy de confiance) + strip port IPv4 ; (2) preuve : compteur globalThis dans /api/health (hits 1→2 = état persistant) ; 429 démontré avec clé stable ; anti-spoofing vérifié (XFF 9.9.9.9 forgé → serveur voit l'IP réelle)
+- QUALITÉ : lint 0/0, tsc exit 0 (tsc 2345 Request/NextRequest corrigé immédiatement) ; db:push googleReviewEnabled OK
+- DEPLOYS : efba5ed (PWA) → pblme9hgffwmty2jmgyljlbd ; 3104a57 (robustesse+features) → 5e3q7dluct2btak3zjegw4h7 ; 0acb3df+f8cc6b2+98f60f3 (diag+fix ip) ; 427ff16 (anti-spoofing) → l2guksa3l89snltxkpw4xq53 — tous finished
+- QA PROD : /api/health {db:up, hits, ip} ; rate limit : 429 prouvé (XFF stable), anti-spoofing OK ; /demo CTA → dashboard Bristol (Démo) seedé (score 78/100, 18 retours, 67% interception) ; Paramètres → section Réputation Google + URL persistée ; Rapports IA → bouton « Écouter le rapport » ; gate ?qr_type=CLIENT_GLOBAL INTACTE ; hero ambiance opacity 0.07 (visiteurs anonymes) ; console 0 erreur
+- NOTE QA : le navigateur headless n'a pas de moteur TTS (0 voix) — lecture vocale validée par code path + reset gracieux ; à écouter dans Chrome/Safari réels. La sandbox de test sort sur un pool d'IP NAT rotatives → les tests de limite depuis cette sandbox se dispersent naturellement (comportement attendu, pas un bug)
+- Limites : Sentry non branché (journal interne suffit pour l'instant) ; 2FA admin et i18n dashboards complets non traités dans cette passe ; Capacitor + benchmarks sectoriels reportés
+
+Stage Summary:
+- FeedVoice gagne 4 garde-fous d'exploitation (health, rate limiting anti-spoof, backup DB, journal d'erreurs) + 3 fonctionnalités orientées conversion/rétention (boucle Google, démo sandbox 1 clic, rapports écoutables Nathalie)
+- L'anti-stale PWA garantit que tout déploiement est visible après UNE visite (auto-reload contrôlé) — fin des « ancienne image »
+- Gate CLIENT_GLOBAL intacte, 0 erreur console en prod
