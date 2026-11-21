@@ -45,7 +45,7 @@ export function PricingToggle({ plans }: { plans: Plan[] }) {
           }`}
         >
           <span
-            className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${
+            className={`absolute left-0 top-0.5 h-6 w-6 rounded-full bg-white shadow transition-transform ${
               annuel ? "translate-x-5" : "translate-x-0.5"
             }`}
           />
