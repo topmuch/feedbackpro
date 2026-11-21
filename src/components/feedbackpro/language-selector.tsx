@@ -18,6 +18,14 @@ import { LOCALES, LOCALE_LABELS, LOCALE_COOKIE, type Locale } from "@/i18n/confi
 
 type Tone = "dark" | "light"
 
+// Helper module-scope : l'écriture du cookie est une mutation globale
+// volontaire (évènement utilisateur) — sortie du corps du composant pour
+// rester compatible avec les règles de pureté du compilateur React.
+function ecrireCookieLocale(l: Locale) {
+  // 1 an d'expiration, path=/ pour qu'il soit envoyé à toutes les routes
+  document.cookie = `${LOCALE_COOKIE}=${l}; path=/; max-age=${365 * 24 * 3600}; SameSite=Lax`
+}
+
 export function LanguageSelector({
   tone = "light",
   className,
@@ -29,8 +37,7 @@ export function LanguageSelector({
 
   function choisir(l: Locale) {
     setOuvert(false)
-    // 1 an d'expiration, path=/ pour qu'il soit envoyé à toutes les routes
-    document.cookie = `${LOCALE_COOKIE}=${l}; path=/; max-age=${365 * 24 * 3600}; SameSite=Lax`
+    ecrireCookieLocale(l)
     // Recharge pour appliquer la nouvelle locale côté serveur (messages + <html lang>)
     window.location.reload()
   }

@@ -96,29 +96,29 @@ export function ScratchCard({
   }
 
   // ---------- Grattage : tracer un segment qui efface ----------
-  let dernierePos: { x: number; y: number } | null = null
+  const dernierePosRef = useRef<{ x: number; y: number } | null>(null)
 
   function gratteStart(e: React.PointerEvent<HTMLCanvasElement>) {
     if (termine) return
     e.preventDefault()
     setGratteEnCours(true)
-    dernierePos = positionRelative(e)
+    dernierePosRef.current = positionRelative(e)
     // Premier point : on dessine un disque pour avoir une trace immédiate
-    grattePoint(dernierePos)
+    grattePoint(dernierePosRef.current)
   }
 
   function gratteMove(e: React.PointerEvent<HTMLCanvasElement>) {
     if (!gratteEnCours || termine) return
     e.preventDefault()
     const pos = positionRelative(e)
-    gratteSegment(dernierePos, pos)
-    dernierePos = pos
+    gratteSegment(dernierePosRef.current, pos)
+    dernierePosRef.current = pos
   }
 
   function gratteEnd() {
     if (!gratteEnCours) return
     setGratteEnCours(false)
-    dernierePos = null
+    dernierePosRef.current = null
     verifierProgression()
   }
 

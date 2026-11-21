@@ -12,7 +12,6 @@
 // On charge @prisma/client via un require dynamique pour éviter que
 // Turbopack ne bundle l'import statique — cela permet de rebondir en dev
 // même si le chunk Turbopack d'@prisma/client a été invalidé.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getRequire(): NodeRequire | undefined {
   // Plusieurs stratégies pour récupérer require() en contexte ESM/Turbopack
   try {
