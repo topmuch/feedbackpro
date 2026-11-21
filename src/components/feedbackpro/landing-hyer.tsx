@@ -27,6 +27,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { ArrowRight, Menu, X } from "lucide-react"
+import { VoiceDemoNathalie } from "@/components/feedbackpro/voice-demo-nathalie"
 
 // ------------------------------------------------------------
 // Types — mêmes cibles de navigation que l'accueil premium
@@ -433,6 +434,142 @@ const HY_CSS = `
   background: rgba(255,255,255,0.12);
   display: inline-flex; align-items: center; justify-content: center;
   flex-shrink: 0;
+}
+
+/* ---- NATHALIE — démo vocale interactive (Web Speech API) ---- */
+.hy-vdemo-title {
+  font-size: clamp(32px, 4.6vw, 52px);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.0;
+  color: var(--white);
+  margin: 0;
+}
+.hy-vdemo-lede {
+  font-size: 18px;
+  line-height: 1.61;
+  color: rgba(255,255,255,0.72);
+  margin: 18px 0 0;
+}
+.hy-vdemo-panel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.hy-vdemo-panel::before {
+  content: "";
+  position: absolute;
+  top: -170px;
+  right: -130px;
+  width: 440px;
+  height: 440px;
+  border-radius: 100%;
+  background: radial-gradient(circle, rgba(188,113,85,0.12) 0%, transparent 68%);
+  pointer-events: none;
+}
+.hy-vdemo-avatar { position: relative; }
+.hy-vdemo-avatar::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 100%;
+  border: 1px solid rgba(188,113,85,0.45);
+  animation: hy-avatar-pulse 2.2s ease-in-out infinite;
+}
+@keyframes hy-avatar-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.12); opacity: 0.4; }
+}
+.hy-vdemo-ctx { display: flex; flex-wrap: wrap; gap: 10px; }
+.hy-vdemo-pill {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.18);
+  color: rgba(255,255,255,0.72);
+  padding: 10px 16px 11px;
+  border-radius: 1000px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+}
+.hy-vdemo-pill:hover { border-color: rgba(188,113,85,0.55); color: var(--white); }
+.hy-vdemo-pill[data-active="true"] { background: var(--clay); border-color: var(--clay); color: var(--white); }
+.hy-vdemo-group { display: flex; flex-direction: column; gap: 10px; }
+.hy-vdemo-quote {
+  background: rgba(188,113,85,0.08);
+  border-left: 3px solid var(--clay);
+  padding: 18px 20px;
+  min-height: 108px;
+  animation: hy-quote-in 0.35s ease;
+}
+@keyframes hy-quote-in {
+  from { opacity: 0.3; }
+  to { opacity: 1; }
+}
+.hy-vdemo-listen {
+  width: 100%;
+  background: var(--white);
+  color: var(--ink);
+  border: 1px solid transparent;
+  border-radius: 1000px;
+  padding: 15px 22px 16px;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 52px;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+.hy-vdemo-listen:hover { background: var(--clay); color: var(--white); }
+.hy-vdemo-listen[data-playing="true"] { background: var(--clay); color: var(--white); }
+.hy-vdemo-wave { display: none; align-items: flex-end; gap: 3px; height: 18px; }
+.hy-vdemo-listen[data-playing="true"] .hy-vdemo-wave { display: flex; }
+.hy-vdemo-wave span {
+  width: 3px;
+  background: currentColor;
+  border-radius: 2px;
+  animation: hy-wave-bar 1s ease-in-out infinite;
+}
+.hy-vdemo-wave span:nth-child(1) { animation-delay: 0s; height: 7px; }
+.hy-vdemo-wave span:nth-child(2) { animation-delay: 0.1s; height: 12px; }
+.hy-vdemo-wave span:nth-child(3) { animation-delay: 0.2s; height: 18px; }
+.hy-vdemo-wave span:nth-child(4) { animation-delay: 0.3s; height: 12px; }
+.hy-vdemo-wave span:nth-child(5) { animation-delay: 0.4s; height: 7px; }
+@keyframes hy-wave-bar {
+  0%, 100% { transform: scaleY(0.55); }
+  50% { transform: scaleY(1.3); }
+}
+.hy-vdemo-progress {
+  height: 3px;
+  background: rgba(255,255,255,0.12);
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.hy-vdemo-progress[data-visible="true"] { opacity: 1; }
+.hy-vdemo-progress span {
+  display: block;
+  height: 100%;
+  background: var(--clay);
+  transition: width 0.12s linear;
+}
+.hy-vdemo-fallback {
+  margin: 0;
+  border: 1px solid rgba(255,193,7,0.35);
+  background: rgba(255,193,7,0.08);
+  color: #ffd166;
+  padding: 12px 16px;
+  font-size: 15px;
+  line-height: 1.5;
 }
 
 /* ---- PREUVES ---- */
@@ -966,45 +1103,15 @@ export function LandingHyer({
         </div>
       </section>
 
-      {/* ==================== NATHALIE (bande sombre) ==================== */}
+      {/* ==================== NATHALIE (bande sombre, démo vocale interactive) ==================== */}
       <section className="hy-section hy-band-hull" id="hy-denise">
         <div className="hy-container">
-          <div className="hy-head-right">
-            <p className="hy-eyebrow" style={{ color: "rgba(255,255,255,0.5)" }}>La voix</p>
-            <h2 className="hy-h2">Nathalie ne dort jamais.</h2>
-          </div>
-
           <div className="hy-denise-grid">
-            {/* Colonne gauche : panneau Charcoal Deck */}
+            {/* Colonne gauche : contenu éditorial */}
             <div className="hy-reveal">
-              <div className="hy-denise-panel">
-                <div className="hy-denise-head">
-                  <span className="hy-denise-avatar" aria-hidden>🎙️</span>
-                  <div>
-                    <div className="hy-denise-name">Nathalie</div>
-                    <div className="hy-denise-status">
-                      <span className="hy-denise-dot" aria-hidden />
-                      Écoute active · Salon VIP Terra
-                    </div>
-                  </div>
-                </div>
-                <div className="hy-denise-label">Annonce de Nathalie</div>
-                <p className="hy-denise-quote">
-                  « Point d&apos;attention : Buffet niveau bas à 35%. Rafraîchissement
-                  recommandé. Table T-08 signale bruit excessif, intervention
-                  discrète en cours. »
-                </p>
-                <div className="hy-denise-meta">
-                  <span>14:32:08</span>
-                  <span>Salon VIP</span>
-                  <span>Mode discret</span>
-                </div>
-              </div>
-            </div>
-
-            {/* Colonne droite : contenu */}
-            <div className="hy-reveal">
-              <p className="hy-lede" style={{ color: "rgba(255,255,255,0.72)" }}>
+              <p className="hy-eyebrow" style={{ color: "rgba(255,255,255,0.5)" }}>La voix</p>
+              <h2 className="hy-vdemo-title">Nathalie ne dort jamais.</h2>
+              <p className="hy-vdemo-lede">
                 Pendant que vos équipes travaillent les mains occupées, Nathalie
                 veille. Chaque signalement est analysé, priorisé et annoncé
                 vocalement. Pas d&apos;écran à regarder — juste une voix qui guide,
@@ -1032,6 +1139,11 @@ export function LandingHyer({
                 Voir Nathalie en action
                 <ArrowRight size={16} aria-hidden />
               </button>
+            </div>
+
+            {/* Colonne droite : démo vocale interactive (Web Speech API) */}
+            <div className="hy-reveal">
+              <VoiceDemoNathalie />
             </div>
           </div>
         </div>
