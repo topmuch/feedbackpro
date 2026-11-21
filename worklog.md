@@ -1068,3 +1068,22 @@ Stage Summary:
 - feedback.qrbags.com = marque FeedVoice live (logo bulle partout, textes, PWA, favicon), gate CLIENT_GLOBAL intacte, 0 erreur console
 - Domaine inchangé (feedback.qrbags.com) ; credential seed admin@feedbackpro.fr conservé par design
 - Tokens Coolify/GitHub réutilisés en clair dans la conversation — rotation recommandée
+
+---
+Task ID: NAT-1
+Agent: Z.ai Code (orchestrateur)
+Task: Unification Denise → Nathalie + QR VIP bilingue de bout en bout + voix replay + fix douches 3373 min
+
+Work Log:
+- A. REBRAND (sous-agent 2-c, 53 fichiers, ~300 remplacements) : tous les textes visibles Denise → Nathalie (landing Hyer nav/sections/footer « Piloté par Nathalie », wallboards ops/vip, tabs admin, TTS staff, seeds voice_ai → « Nathalie », prisma commentaires « Nathalie's Brain ») ; protégés intacts : deniseSettings/deniseEnabled/deniseTone (colonnes + clés API), VipDeniseSettings/DEFAUT_DENISE/VOLUME_DENISE_MAX, /api/airport/denise-command, denise-conversation.ts (fichier), denise_tts, regex voix système ; phrases « Denise et Nathalie » fusionnées en « Piloté par Nathalie, votre assistante intelligente temps réel »
+- B. VOIX QR (sous-agent 2-a) : message d'accueil bilingue (FR « Je suis Nathalie… Belle escale. » / EN « I am Nathalie… Enjoy your stay. » + salutationEn anti-hydratation) ; utterance lang en-US/fr-FR + sélection voix EN (samantha/daniel/karen…) ; extraction demarrerAnnonce() (sans verrou) + lancerDenise (auto 1×, Mode Discrétion inchangé) + reecouterDenise() ; bouton flottant « Réécouter Nathalie / Replay Nathalie » (fixed left-4 top-4 z-70, Volume2, min-h-44px, toast 🎙️) visible en permanence sur l'écran principal — la voix ne disparaît plus après diffusion
+- C. BILINGUE QR (2-a + 2-b, ~195 chaînes) : vip-table-scan ~60 nouvelles EN (actions labelEn/descriptionEn, zones, rating, prêt express, conciergerie, Wi-Fi, erreurs, aria, placeholders — payloads API inchangés) ; vip-shower-reservation entièrement bilingue (prop langue, sous-composants, fmtMinutes(min, langue)) ; langue propagée du parent vers la douche
+- D. FIX DOUCHES : composant (2-b) isReservationActive — inactive si queued/ready avec expiresAt < now ou using > 60 min ; ETA plafonné 120 min ; « Occupée depuis » affiche '—' au-delà de 120 min. BACKEND (orchestrateur) : /api/vip/showers GET → libererDouchesPerimees() (occupied/cleaning > 45 min → free, occupiedSince null) ; /api/vip/shower-reservations GET+POST → purgerReservationsPerimees() (expiresAt < now → cancelled ; using > 60 min → done) — le « no-show auto-libération » documenté mais jamais implémenté est effectif ; corrigé à la source pour le dashboard VIP aussi
+- E. denise-conversation.ts : préfixe vocal « nathalie » principal, « denise » alias hérité (rétrocompatibilité superviseur)
+- QUALITÉ : lint 0/0, tsc exit 0 ; QA locale : landing 0 Denise, gate intacte, lounge EN/FR, bouton replay FR/EN, douche EN réservation → « Shower reserved, ETA ≈ 30 min » + tracking, douche FR → « Réserver une douche / Libre dans ≈ 30 min »
+- DEPLOY : push 7f2e779..fd05277 → Coolify f1wtecalvgk5rpmv7ifjdd3e finished ~2 min
+
+Stage Summary:
+- Nathalie = unique assistante visible du site ; voix QR rejouable à volonté et bilingue ; flow QR VIP 100 % FR/EN (gate → lounge → douche) ; bug douches périmées corrigé client + serveur ; gate Option C intacte, 0 erreur console prod
+- QA PROD : landing 0 Denise + « Piloté par Nathalie » ; lounge EN « Replay Nathalie » + « I am Nathalie. » ; FR « Réécouter Nathalie » ; showers prod « 4 cabins available » (auto-release effective), réservation D-01 ETA 30 min #DOUCHE-1-GHL5F8 ; gate mobile iPhone 14 OK ; console vide
+- Preuves : /tmp/prod-nath-footer.png, /tmp/prod-nath-gate.png, /tmp/prod-nath-lounge.png, /tmp/prod-nath-shower-en.png, /tmp/prod-nath-shower-confirm.png, /tmp/prod-nath-lounge-fr.png, /tmp/prod-nath-mobile-gate.png
