@@ -67,7 +67,7 @@ export async function sendEmail(to: string, sujet: string, html: string): Promis
 
 // ---------- Gabarit commun (inline-CSS responsive) ----------
 
-const BLEU = "#2563EB"
+const BLEU = "#000d10"
 
 /** Structure commune : conteneur 600px, en-tête bleu, pied de page légal */
 function enveloppe(titre: string, corps: string): string {
@@ -81,7 +81,7 @@ function enveloppe(titre: string, corps: string): string {
         <!-- En-tête -->
         <tr><td style="background-color:${BLEU};padding:24px 32px;">
           <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;">FeedbackPro</p>
-          <p style="margin:4px 0 0;font-size:13px;color:#dbeafe;">Le Coach IA d'Audit Qualité Continu</p>
+          <p style="margin:4px 0 0;font-size:13px;color:#dcdee0;">Le Coach IA d'Audit Qualité Continu</p>
         </td></tr>
         <!-- Corps -->
         <tr><td style="padding:32px;">${corps}</td></tr>
@@ -234,7 +234,7 @@ export function emailRecapHebdo(nomEtablissement: string, stats: RecapStats): st
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 20px;">
       <tr>
         <td align="center" style="padding:0 4px;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#eff6ff;border-radius:8px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0f1f2;border-radius:8px;">
             <tr><td align="center" style="padding:16px 8px;">
               <p style="margin:0;font-size:24px;font-weight:700;color:${BLEU};">${stats.total}</p>
               <p style="margin:4px 0 0;font-size:12px;color:#64748b;">Retours</p>
@@ -242,7 +242,7 @@ export function emailRecapHebdo(nomEtablissement: string, stats: RecapStats): st
           </table>
         </td>
         <td align="center" style="padding:0 4px;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#eff6ff;border-radius:8px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0f1f2;border-radius:8px;">
             <tr><td align="center" style="padding:16px 8px;">
               <p style="margin:0;font-size:24px;font-weight:700;color:${BLEU};">${noteAffichee}</p>
               <p style="margin:4px 0 0;font-size:12px;color:#64748b;">Note moyenne /5</p>
@@ -250,7 +250,7 @@ export function emailRecapHebdo(nomEtablissement: string, stats: RecapStats): st
           </table>
         </td>
         <td align="center" style="padding:0 4px;">
-          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#eff6ff;border-radius:8px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0f1f2;border-radius:8px;">
             <tr><td align="center" style="padding:16px 8px;">
               <p style="margin:0;font-size:24px;font-weight:700;color:${stats.alertes > 0 ? "#dc2626" : BLEU};">${stats.alertes}</p>
               <p style="margin:4px 0 0;font-size:12px;color:#64748b;">Alertes ≤ 2★</p>
@@ -363,7 +363,7 @@ export function emailRapportIA(
       Bonjour <strong>${escapeHtml(pro.nomEtablissement)}</strong>,
     </p>
     <p style="margin:0 0 16px;font-size:14px;color:#78716c;">Période audité : ${periodeTxt}</p>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#eff6ff;border-radius:8px;margin:0 0 20px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0f1f2;border-radius:8px;margin:0 0 20px;">
       <tr><td align="center" style="padding:20px;">
         <p style="margin:0;font-size:34px;font-weight:700;color:${BLEU};">${rapport.scoreGlobal}<span style="font-size:16px;color:#64748b;">/100</span></p>
         <p style="margin:4px 0 0;font-size:12px;color:#64748b;">Score qualité global</p>
@@ -443,7 +443,7 @@ export function emailSuiviRattrapage(
       Pour nous aider à améliorer notre service, pourriez-vous nous indiquer si le problème a pu
       être résolu lors de votre visite ? Votre retour est précieux et reste strictement privé.
     </p>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#eff6ff;border-radius:8px;margin:0 0 20px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0f1f2;border-radius:8px;margin:0 0 20px;">
       <tr><td style="padding:20px;text-align:center;">
         <p style="margin:0 0 8px;font-size:14px;color:#1c1917;">Le manager a-t-il pu résoudre votre problème ?</p>
         ${bouton("Oui, tout est rentré dans l'ordre ✓", mailtoHref)}

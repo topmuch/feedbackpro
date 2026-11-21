@@ -56,16 +56,16 @@ export default function ContactPage() {
   return (
     <MarketingLayout activePath="/contact">
       {/* ---------- Hero ---------- */}
-      <section className="bg-gradient-to-b from-[#002e85]/5 to-white py-14 sm:py-20">
+      <section className="bg-gradient-to-b from-[#0f0f1c]/5 to-white py-14 sm:py-20">
         <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
-          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#002e85] shadow-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#0f0f1c] shadow-sm">
             Contact
           </span>
           <h1
             className="mt-4 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl"
             style={{ letterSpacing: "-0.03em" }}
           >
-            Contactez <span className="bg-gradient-to-br from-[#002e85] to-[#0047c7] bg-clip-text text-transparent">FeedbackPro</span>
+            Contactez <span className="bg-gradient-to-br from-[#0f0f1c] to-[#0f0f1c] bg-clip-text text-transparent">FeedbackPro</span>
           </h1>
           <p className="mt-4 text-lg text-gray-600">
             Une question, une démo, un partenariat ? Notre équipe vous répond sous 72 heures ouvrées.
@@ -81,10 +81,10 @@ export default function ContactPage() {
             return (
               <Card
                 key={c.titre}
-                className="rounded-3xl border border-gray-200 shadow-sm transition-shadow hover:shadow-md"
+                className="rounded-none border border-gray-200 shadow-sm transition-shadow hover:shadow-md"
               >
                 <CardHeader className="pb-2">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#002e85] to-[#0047c7] text-white shadow-sm">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#0f0f1c] to-[#0f0f1c] text-white shadow-sm">
                     <Icone className="h-6 w-6" />
                   </div>
                   <CardTitle className="mt-3 text-base font-semibold text-gray-900">{c.titre}</CardTitle>
@@ -97,7 +97,7 @@ export default function ContactPage() {
                     href={c.action.href}
                     target={c.action.href.startsWith("http") ? "_blank" : undefined}
                     rel={c.action.href.startsWith("http") ? "noopener noreferrer" : undefined}
-                    className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-[#002e85] hover:underline"
+                    className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-[#0f0f1c] hover:underline"
                   >
                     {c.action.label}
                     <ArrowRight className="h-3.5 w-3.5" />
@@ -124,7 +124,7 @@ export default function ContactPage() {
               </p>
             </div>
 
-            <div className="overflow-hidden rounded-3xl border border-gray-200 shadow-sm">
+            <div className="overflow-hidden rounded-none border border-gray-200 shadow-sm">
               <iframe
                 title="Localisation FeedbackPro — Sicap Foire, Dakar"
                 src="https://www.google.com/maps?q=Sicap+Foire+Dakar+Sénégal&output=embed"
@@ -141,13 +141,13 @@ export default function ContactPage() {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm font-medium text-gray-900 shadow-sm transition-colors hover:bg-gray-50"
             >
-              <MapPin className="h-4 w-4 text-[#002e85]" />
+              <MapPin className="h-4 w-4 text-[#0f0f1c]" />
               Voir l&apos;itinéraire sur Google Maps
               <ExternalLink className="h-3.5 w-3.5 text-gray-400" />
             </a>
 
             {/* Encart horaires */}
-            <Card className="rounded-3xl border border-gray-200 bg-gray-50/50 shadow-none">
+            <Card className="rounded-none border border-gray-200 bg-gray-50/50 shadow-none">
               <CardContent className="p-5">
                 <h3 className="text-sm font-semibold text-gray-900">Horaires</h3>
                 <ul className="mt-2 space-y-1 text-sm text-gray-600">
@@ -161,7 +161,7 @@ export default function ContactPage() {
 
           {/* Colonne droite : Formulaire */}
           <div>
-            <Card className="rounded-3xl border border-gray-200 shadow-sm">
+            <Card className="rounded-none border border-gray-200 shadow-sm">
               <CardHeader>
                 <CardTitle className="text-xl font-bold text-gray-900">Envoyez-nous un message</CardTitle>
                 <p className="text-sm text-muted-foreground">
@@ -188,7 +188,7 @@ export default function ContactPage() {
           </p>
           <Link
             href="/?auth=register"
-            className="mt-5 inline-flex h-12 items-center gap-2 rounded-md bg-gradient-to-br from-[#002e85] to-[#0047c7] px-6 text-base font-semibold text-white shadow-sm hover:opacity-90"
+            className="mt-5 inline-flex h-12 items-center gap-2 rounded-md bg-gradient-to-br from-[#0f0f1c] to-[#0f0f1c] px-6 text-base font-semibold text-white shadow-sm hover:opacity-90"
           >
             Essayer gratuitement
             <ArrowRight className="h-4 w-4" />

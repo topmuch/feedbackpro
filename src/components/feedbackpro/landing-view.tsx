@@ -12,9 +12,9 @@
 //   secteur expose : hero, 3 avantages (split/centered-tags),
 //   citation Denise, témoignage, CTA -> setPage('contact').
 //
-// Sections light #FAFAF7 + sections dark dramatiques #1A1A1A pour
+// Sections light #ffffff + sections dark dramatiques #0f0f1c pour
 //   les parties Tech/Denise. Palette bleu aéroport #A8893F -> jaune
-//   IATA #C9A961, accent cyan #C9A961. Effets : aurora blobs CSS,
+//   IATA #bc7155, accent cyan #bc7155. Effets : aurora blobs CSS,
 //   sound wave Denise (20 bars animées), mockups dashboard /
 //   terminal / QR / phone / housekeeping / info-voyageurs /
 //   patient-flow / maintenance (HTML/CSS pur), count-up stats,
@@ -252,7 +252,7 @@ function SoundWave({
       {Array.from({ length: bars }, (_, i) => (
         <div
           key={i}
-          className={`fbp-bar w-[3px] rounded-full bg-gradient-to-t from-[#A8893F] to-[#C9A961] ${barClassName}`}
+          className={`fbp-bar w-[3px] rounded-full bg-gradient-to-t from-[#A8893F] to-[#bc7155] ${barClassName}`}
           style={{
             animationDelay: `${(i % 6) * 0.13}s`,
             height: "20%",
@@ -292,7 +292,7 @@ function FakeQR({ size = 21, className = "" }: { size?: number; className?: stri
         <div
           key={i}
           style={{ aspectRatio: "1 / 1" }}
-          className={c ? "bg-[#1A1A1A]" : "bg-white"}
+          className={c ? "bg-[#0f0f1c]" : "bg-white"}
         />
       ))}
     </div>
@@ -312,12 +312,12 @@ function Aurora({ dark = false }: { dark?: boolean }) {
       />
       <div
         className={`fbp-aurora2 absolute top-1/4 -right-32 h-[38rem] w-[38rem] rounded-full ${
-          dark ? "bg-[#C9A961]/25" : "bg-[#C9A961]/15"
+          dark ? "bg-[#bc7155]/25" : "bg-[#bc7155]/15"
         } blur-[140px]`}
       />
       <div
         className={`fbp-aurora3 absolute -bottom-24 left-1/3 h-[34rem] w-[34rem] rounded-full ${
-          dark ? "bg-[#C9A961]/18" : "bg-[#C9A961]/10"
+          dark ? "bg-[#bc7155]/18" : "bg-[#bc7155]/10"
         } blur-[140px]`}
       />
     </div>
@@ -354,15 +354,15 @@ function CtaSignup({
 }) {
   const styles: Record<string, string> = {
     primary:
-      "bg-[#C9A961] text-[#1A1A1A] shadow-lg shadow-[#C9A961]/30 hover:bg-[#A8893F] hover:shadow-xl hover:shadow-[#C9A961]/40",
+      "bg-[#bc7155] text-[#0f0f1c] shadow-lg shadow-[#bc7155]/30 hover:bg-[#A8893F] hover:shadow-xl hover:shadow-[#bc7155]/40",
     white:
-      "bg-white text-[#1A1A1A] shadow-lg shadow-black/10 hover:shadow-xl hover:shadow-black/20",
+      "bg-white text-[#0f0f1c] shadow-lg shadow-black/10 hover:shadow-xl hover:shadow-black/20",
     tech:
-      "bg-[#C9A961] text-[#1A1A1A] shadow-lg shadow-[#C9A961]/30 hover:bg-[#A8893F] hover:shadow-xl hover:shadow-[#C9A961]/40",
+      "bg-[#bc7155] text-[#0f0f1c] shadow-lg shadow-[#bc7155]/30 hover:bg-[#A8893F] hover:shadow-xl hover:shadow-[#bc7155]/40",
     warm:
-      "bg-[#C9A961] text-[#1A1A1A] shadow-lg shadow-[#C9A961]/30 hover:bg-[#A8893F] hover:shadow-xl hover:shadow-[#C9A961]/40",
+      "bg-[#bc7155] text-[#0f0f1c] shadow-lg shadow-[#bc7155]/30 hover:bg-[#A8893F] hover:shadow-xl hover:shadow-[#bc7155]/40",
     ghost:
-      "border border-[#C9A961]/40 text-[#1A1A1A] bg-white/60 backdrop-blur hover:bg-[#FAFAF7] hover:border-[#C9A961]",
+      "border border-[#bc7155]/40 text-[#0f0f1c] bg-white/60 backdrop-blur hover:bg-[#ffffff] hover:border-[#bc7155]",
   }
   return (
     <Button
@@ -407,7 +407,7 @@ function Header({
 }) {
   const isSector = SECTOR_NAV.some((s) => s.key === page)
   return (
-    <header className="sticky top-0 z-50 h-16 border-b border-[#C9A961]/20 bg-[#FAFAF7]/90 backdrop-blur-xl">
+    <header className="sticky top-0 z-50 h-16 border-b border-[#bc7155]/20 bg-[#ffffff]/90 backdrop-blur-xl">
       <div className="mx-auto flex h-full max-w-screen-2xl items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <button
@@ -429,14 +429,14 @@ function Header({
             className={`relative px-4 py-2 text-sm font-medium transition-colors ${
               page === "accueil"
                 ? "text-[#A8893F]"
-                : "text-[#1A1A1A]/70 hover:text-[#1A1A1A]"
+                : "text-[#0f0f1c]/70 hover:text-[#0f0f1c]"
             }`}
           >
             Accueil
             {page === "accueil" && (
               <motion.span
                 layoutId="nav-underline"
-                className="absolute -bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full bg-gradient-to-r from-[#A8893F] to-[#C9A961]"
+                className="absolute -bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full bg-gradient-to-r from-[#A8893F] to-[#bc7155]"
               />
             )}
           </button>
@@ -447,7 +447,7 @@ function Header({
               className={`relative flex items-center gap-1 px-4 py-2 text-sm font-medium transition-colors ${
                 isSector
                   ? "text-[#A8893F]"
-                  : "text-[#1A1A1A]/70 hover:text-[#1A1A1A]"
+                  : "text-[#0f0f1c]/70 hover:text-[#0f0f1c]"
               }`}
               aria-haspopup="true"
               aria-expanded={isSector}
@@ -457,13 +457,13 @@ function Header({
               {isSector && (
                 <motion.span
                   layoutId="nav-underline"
-                  className="absolute -bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full bg-gradient-to-r from-[#A8893F] to-[#C9A961]"
+                  className="absolute -bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full bg-gradient-to-r from-[#A8893F] to-[#bc7155]"
                 />
               )}
             </button>
             {/* Dropdown panel */}
             <div className="invisible absolute left-1/2 top-full z-50 w-[28rem] -translate-x-1/2 pt-2 opacity-0 transition-all duration-200 group-hover:visible group-hover:opacity-100">
-              <div className="overflow-hidden rounded-2xl border border-[#C9A961]/25 bg-[#FAFAF7] p-3 shadow-2xl shadow-[#A8893F]/10">
+              <div className="overflow-hidden rounded-2xl border border-[#bc7155]/25 bg-[#ffffff] p-3 shadow-2xl shadow-[#A8893F]/10">
                 <div className="grid grid-cols-2 gap-1.5">
                   {SECTOR_NAV.map((s) => {
                     const active = page === s.key
@@ -474,12 +474,12 @@ function Header({
                         className={`flex flex-col gap-0.5 rounded-xl px-3 py-2.5 text-left transition-colors ${
                           active
                             ? "bg-[#A8893F]/8"
-                            : "hover:bg-[#FAFAF7]"
+                            : "hover:bg-[#ffffff]"
                         }`}
                       >
                         <span
                           className={`text-sm font-semibold ${
-                            active ? "text-[#A8893F]" : "text-[#1A1A1A]"
+                            active ? "text-[#A8893F]" : "text-[#0f0f1c]"
                           }`}
                         >
                           {s.label}
@@ -501,14 +501,14 @@ function Header({
             className={`relative px-4 py-2 text-sm font-medium transition-colors ${
               page === "apropos"
                 ? "text-[#A8893F]"
-                : "text-[#1A1A1A]/70 hover:text-[#1A1A1A]"
+                : "text-[#0f0f1c]/70 hover:text-[#0f0f1c]"
             }`}
           >
             À propos
             {page === "apropos" && (
               <motion.span
                 layoutId="nav-underline"
-                className="absolute -bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full bg-gradient-to-r from-[#A8893F] to-[#C9A961]"
+                className="absolute -bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full bg-gradient-to-r from-[#A8893F] to-[#bc7155]"
               />
             )}
           </button>
@@ -519,14 +519,14 @@ function Header({
             className={`relative px-4 py-2 text-sm font-medium transition-colors ${
               page === "contact"
                 ? "text-[#A8893F]"
-                : "text-[#1A1A1A]/70 hover:text-[#1A1A1A]"
+                : "text-[#0f0f1c]/70 hover:text-[#0f0f1c]"
             }`}
           >
             Contact
             {page === "contact" && (
               <motion.span
                 layoutId="nav-underline"
-                className="absolute -bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full bg-gradient-to-r from-[#A8893F] to-[#C9A961]"
+                className="absolute -bottom-0.5 left-1/2 h-0.5 w-6 -translate-x-1/2 rounded-full bg-gradient-to-r from-[#A8893F] to-[#bc7155]"
               />
             )}
           </button>
@@ -536,7 +536,7 @@ function Header({
         <div className="hidden md:flex items-center gap-3">
           <button
             onClick={onLogin}
-            className="text-sm font-medium text-[#1A1A1A]/80 transition-colors hover:text-[#1A1A1A]"
+            className="text-sm font-medium text-[#0f0f1c]/80 transition-colors hover:text-[#0f0f1c]"
           >
             Se connecter
           </button>
@@ -545,7 +545,7 @@ function Header({
 
         {/* Mobile hamburger */}
         <button
-          className="md:hidden flex h-10 w-10 items-center justify-center rounded-lg text-[#1A1A1A]"
+          className="md:hidden flex h-10 w-10 items-center justify-center rounded-lg text-[#0f0f1c]"
           onClick={() => setMobileOpen(true)}
           aria-label="Ouvrir le menu"
         >
@@ -557,7 +557,7 @@ function Header({
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
         <SheetContent
           side="right"
-          className="w-[85vw] max-w-sm border-l border-[#C9A961]/25 bg-[#FAFAF7] p-0"
+          className="w-[85vw] max-w-sm border-l border-[#bc7155]/25 bg-[#ffffff] p-0"
         >
           <SheetTitle className="sr-only">Menu de navigation FeedbackPro</SheetTitle>
           <div className="flex h-full flex-col">
@@ -590,7 +590,7 @@ function Header({
                   setMobileOpen(false)
                   onLogin()
                 }}
-                className="h-11 rounded-full border border-black/10 text-sm font-medium text-[#1A1A1A]"
+                className="h-11 rounded-full border border-black/10 text-sm font-medium text-[#0f0f1c]"
               >
                 Se connecter
               </button>
@@ -617,7 +617,7 @@ function MobileLink({
       className={`flex items-center justify-between rounded-xl px-4 py-3 text-base font-medium transition-colors ${
         active
           ? "bg-[#A8893F]/8 text-[#A8893F]"
-          : "text-[#1A1A1A]/80 hover:bg-[#FAFAF7]"
+          : "text-[#0f0f1c]/80 hover:bg-[#ffffff]"
       }`}
     >
       {label}
@@ -664,10 +664,10 @@ function KpiCard({
       <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
         {label}
       </div>
-      <div className="mt-1 text-lg font-bold text-[#1A1A1A]">{value}</div>
+      <div className="mt-1 text-lg font-bold text-[#0f0f1c]">{value}</div>
       <div
         className={`mt-0.5 text-[10px] font-semibold ${
-          positive ? "text-emerald-600" : "text-amber-600"
+          positive ? "text-[#a05f45]" : "text-[#a05f45]"
         }`}
       >
         {trend}
@@ -679,8 +679,8 @@ function KpiCard({
 function PhoneMockup({
   notifications = [
     { delay: "0s", tag: "Critique", title: "Erreur plat", sub: "Table 14 · Plat froid servi", color: "bg-red-500" },
-    { delay: "1.4s", tag: "Important", title: "Service lent", sub: "Table 7 · 25 min d'attente", color: "bg-amber-500" },
-    { delay: "2.8s", tag: "Positif", title: "Ambiance top", sub: "Table 3 · Coup de cœur client", color: "bg-emerald-500" },
+    { delay: "1.4s", tag: "Important", title: "Service lent", sub: "Table 7 · 25 min d'attente", color: "bg-[#bc7155]" },
+    { delay: "2.8s", tag: "Positif", title: "Ambiance top", sub: "Table 3 · Coup de cœur client", color: "bg-[#bc7155]" },
     { delay: "4.2s", tag: "Info", title: "Demande addition", sub: "Table 9 · Client pressé", color: "bg-[#A8893F]" },
   ],
   badgeLabel = "Service en salle",
@@ -692,11 +692,11 @@ function PhoneMockup({
 }) {
   return (
     <div className="fbp-float relative mx-auto w-[260px]">
-      <div className="relative rounded-[2.5rem] border-[10px] border-[#1A1A1A] bg-[#1A1A1A] shadow-2xl shadow-[#A8893F]/20">
-        <div className="absolute left-1/2 top-2 z-10 h-5 w-20 -translate-x-1/2 rounded-full bg-[#1A1A1A]" />
-        <div className="relative h-[480px] overflow-hidden rounded-[1.8rem] bg-gradient-to-br from-[#FAFAF7] to-[#F0EDE5]">
+      <div className="relative rounded-[2.5rem] border-[10px] border-[#0f0f1c] bg-[#0f0f1c] shadow-2xl shadow-[#A8893F]/20">
+        <div className="absolute left-1/2 top-2 z-10 h-5 w-20 -translate-x-1/2 rounded-full bg-[#0f0f1c]" />
+        <div className="relative h-[480px] overflow-hidden rounded-[1.8rem] bg-gradient-to-br from-[#ffffff] to-[#F0EDE5]">
           {/* status bar */}
-          <div className="flex items-center justify-between px-4 pb-2 pt-9 text-[10px] font-semibold text-[#1A1A1A]/60">
+          <div className="flex items-center justify-between px-4 pb-2 pt-9 text-[10px] font-semibold text-[#0f0f1c]/60">
             <span>14:32</span>
             <span>FeedbackPro Staff</span>
           </div>
@@ -708,7 +708,7 @@ function PhoneMockup({
             >
               Alerte entrante
             </div>
-            <div className="text-base font-bold text-[#1A1A1A]">{badgeLabel}</div>
+            <div className="text-base font-bold text-[#0f0f1c]">{badgeLabel}</div>
           </div>
           {/* notifications */}
           <div className="space-y-2 px-3">
@@ -724,9 +724,9 @@ function PhoneMockup({
             ))}
           </div>
           {/* mic bar bottom */}
-          <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-[#1A1A1A] px-3 py-1.5">
-            <Mic className="h-3 w-3 text-[#C9A961]" />
-            <SoundWave bars={14} barClassName="from-[#A8893F] to-[#C9A961] h-3 w-[2px]" />
+          <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full bg-[#0f0f1c] px-3 py-1.5">
+            <Mic className="h-3 w-3 text-[#bc7155]" />
+            <SoundWave bars={14} barClassName="from-[#A8893F] to-[#bc7155] h-3 w-[2px]" />
           </div>
         </div>
       </div>
@@ -759,7 +759,7 @@ function NotifCard({
         </span>
         <span className="ml-auto text-[9px] text-muted-foreground/70">maintenant</span>
       </div>
-      <div className="mt-0.5 text-xs font-bold text-[#1A1A1A]">{title}</div>
+      <div className="mt-0.5 text-xs font-bold text-[#0f0f1c]">{title}</div>
       <div className="text-[10px] text-muted-foreground">{sub}</div>
     </div>
   )
@@ -769,25 +769,25 @@ function TerminalMapMockup() {
   // Coordonnees (en pourcentage) des incidents
   const incidents = [
     { x: 18, y: 32, type: "Sanitaires", color: "bg-red-500", delay: "0s" },
-    { x: 42, y: 58, type: "Porte B12", color: "bg-amber-500", delay: "0.6s" },
+    { x: 42, y: 58, type: "Porte B12", color: "bg-[#bc7155]", delay: "0.6s" },
     { x: 68, y: 28, type: "Zone Fumeurs", color: "bg-red-500", delay: "1.1s" },
-    { x: 80, y: 70, type: "Tapis bagages", color: "bg-[#C9A961]", delay: "1.6s" },
-    { x: 30, y: 75, type: "Sortie T2", color: "bg-emerald-500", delay: "2.1s" },
+    { x: 80, y: 70, type: "Tapis bagages", color: "bg-[#bc7155]", delay: "1.6s" },
+    { x: 30, y: 75, type: "Sortie T2", color: "bg-[#bc7155]", delay: "2.1s" },
   ]
   return (
-    <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#141414] p-4 shadow-2xl">
+    <div className="relative overflow-hidden rounded-2xl border border-white/10 bg-[#0f0f1c] p-4 shadow-2xl">
       <div className="absolute inset-0 fbp-grid-dark opacity-50" aria-hidden />
       <div className="relative mb-3 flex items-center justify-between">
-        <div className="text-[10px] font-semibold uppercase tracking-widest text-[#C9A961]">
+        <div className="text-[10px] font-semibold uppercase tracking-widest text-[#bc7155]">
           Terminal 2 · Live
         </div>
         <div className="flex items-center gap-2 text-[10px] text-white/60">
-          <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#C9A961]" />
+          <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#bc7155]" />
           5 incidents actifs
         </div>
       </div>
 
-      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-gradient-to-br from-[#2C2C2C] to-[#141414]">
+      <div className="relative aspect-[4/3] w-full overflow-hidden rounded-xl bg-gradient-to-br from-[#2C2C2C] to-[#0f0f1c]">
         {/* Terminals shapes */}
         <div className="absolute left-[8%] top-[12%] h-[60%] w-[35%] rounded-md border border-white/10 bg-white/5" />
         <div className="absolute right-[8%] top-[18%] h-[55%] w-[28%] rounded-md border border-white/10 bg-white/5" />
@@ -796,7 +796,7 @@ function TerminalMapMockup() {
         <div className="absolute left-[10%] top-[14%] text-[8px] font-semibold text-white/40">A1-A8</div>
         <div className="absolute right-[10%] top-[20%] text-[8px] font-semibold text-white/40">B11-B20</div>
         {/* connecting path */}
-        <div className="absolute left-[43%] top-[35%] h-[2px] w-[20%] bg-[#C9A961]/30" />
+        <div className="absolute left-[43%] top-[35%] h-[2px] w-[20%] bg-[#bc7155]/30" />
 
         {/* incidents */}
         {incidents.map((inc, i) => (
@@ -824,10 +824,10 @@ function TerminalMapMockup() {
           <span className="h-2 w-2 rounded-full bg-red-500" /> Critique
         </div>
         <div className="flex items-center gap-1.5 text-white/60">
-          <span className="h-2 w-2 rounded-full bg-amber-500" /> Important
+          <span className="h-2 w-2 rounded-full bg-[#bc7155]" /> Important
         </div>
         <div className="flex items-center gap-1.5 text-white/60">
-          <span className="h-2 w-2 rounded-full bg-[#C9A961]" /> Info
+          <span className="h-2 w-2 rounded-full bg-[#bc7155]" /> Info
         </div>
       </div>
     </div>
@@ -837,21 +837,21 @@ function TerminalMapMockup() {
 function CentralDashboardMockup() {
   return (
     <div className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-2xl shadow-[#A8893F]/10">
-      <div className="flex items-center gap-2 border-b border-black/5 bg-[#FAFAF7] px-4 py-3">
+      <div className="flex items-center gap-2 border-b border-black/5 bg-[#ffffff] px-4 py-3">
         <div className="h-3 w-3 rounded-full bg-red-400" />
-        <div className="h-3 w-3 rounded-full bg-amber-400" />
-        <div className="h-3 w-3 rounded-full bg-emerald-400" />
+        <div className="h-3 w-3 rounded-full bg-[#c98b72]" />
+        <div className="h-3 w-3 rounded-full bg-[#c98b72]" />
         <div className="ml-3 hidden font-mono text-[11px] text-muted-foreground sm:block">
           aeroport.feedbackpro.io/central
         </div>
-        <div className="ml-auto flex items-center gap-1 text-[10px] text-[#C9A961]">
-          <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#C9A961]" />
+        <div className="ml-auto flex items-center gap-1 text-[10px] text-[#bc7155]">
+          <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#bc7155]" />
           Live
         </div>
       </div>
       <div className="grid gap-4 p-4 sm:p-5 md:grid-cols-3">
         {/* Incidents list */}
-        <div className="md:col-span-2 rounded-xl border border-black/5 bg-[#FAFAF7] p-4">
+        <div className="md:col-span-2 rounded-xl border border-black/5 bg-[#ffffff] p-4">
           <div className="mb-3 flex items-center justify-between">
             <div className="text-[10px] font-semibold uppercase tracking-widest text-[#A8893F]">
               Incidents actifs
@@ -875,12 +875,12 @@ function CentralDashboardMockup() {
                     inc.p === "Critique"
                       ? "bg-red-500"
                       : inc.p === "Haute"
-                        ? "bg-amber-500"
-                        : "bg-[#C9A961]"
+                        ? "bg-[#bc7155]"
+                        : "bg-[#bc7155]"
                   }`}
                 />
                 <div className="min-w-0 flex-1">
-                  <div className="truncate text-xs font-semibold text-[#1A1A1A]">
+                  <div className="truncate text-xs font-semibold text-[#0f0f1c]">
                     {inc.t} · {inc.z}
                   </div>
                   <div className="truncate text-[10px] text-muted-foreground">
@@ -902,14 +902,14 @@ function CentralDashboardMockup() {
             </div>
             <div className="mt-2 space-y-1.5">
               {[
-                { n: "Nettoyage T2", s: 92, c: "bg-emerald-500" },
+                { n: "Nettoyage T2", s: 92, c: "bg-[#bc7155]" },
                 { n: "Sécurité", s: 88, c: "bg-[#A8893F]" },
-                { n: "Maintenance", s: 76, c: "bg-amber-500" },
+                { n: "Maintenance", s: 76, c: "bg-[#bc7155]" },
               ].map((t, i) => (
                 <div key={i}>
                   <div className="flex items-center justify-between text-[10px]">
-                    <span className="text-[#1A1A1A]/70">{t.n}</span>
-                    <span className="font-semibold text-[#1A1A1A]">{t.s}%</span>
+                    <span className="text-[#0f0f1c]/70">{t.n}</span>
+                    <span className="font-semibold text-[#0f0f1c]">{t.s}%</span>
                   </div>
                   <div className="mt-0.5 h-1.5 w-full overflow-hidden rounded-full bg-black/5">
                     <div
@@ -921,8 +921,8 @@ function CentralDashboardMockup() {
               ))}
             </div>
           </div>
-          <div className="rounded-xl border border-black/5 bg-gradient-to-br from-[#1A1A1A] to-[#2C2C2C] p-3 text-white">
-            <div className="text-[10px] font-semibold uppercase tracking-widest text-[#C9A961]">
+          <div className="rounded-xl border border-black/5 bg-gradient-to-br from-[#0f0f1c] to-[#2C2C2C] p-3 text-white">
+            <div className="text-[10px] font-semibold uppercase tracking-widest text-[#bc7155]">
               SLA temps réel
             </div>
             <div className="mt-1 text-2xl font-bold">3m 42s</div>
@@ -932,7 +932,7 @@ function CentralDashboardMockup() {
             <div className="mt-2 flex h-10 items-end gap-1">
               <SoundWave
                 bars={22}
-                barClassName="from-[#A8893F] to-[#C9A961] w-[2px]"
+                barClassName="from-[#A8893F] to-[#bc7155] w-[2px]"
               />
             </div>
           </div>
@@ -954,36 +954,36 @@ function DeniseLiveCard({ dark = false }: { dark?: boolean }) {
       <div className="flex items-center justify-between">
         <div
           className={`flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest ${
-            dark ? "text-[#C9A961]" : "text-[#A8893F]"
+            dark ? "text-[#bc7155]" : "text-[#A8893F]"
           }`}
         >
-          <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#C9A961]" />
+          <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#bc7155]" />
           Denise · centre de commandement
         </div>
         <Volume2
-          className={`h-4 w-4 ${dark ? "text-white/60" : "text-[#1A1A1A]/50"}`}
+          className={`h-4 w-4 ${dark ? "text-white/60" : "text-[#0f0f1c]/50"}`}
         />
       </div>
 
       {/* wave */}
       <div
         className={`mt-5 flex h-24 items-center justify-center gap-1 rounded-xl ${
-          dark ? "bg-white/5" : "bg-[#FAFAF7]"
+          dark ? "bg-white/5" : "bg-[#ffffff]"
         }`}
       >
         <SoundWave
           bars={28}
-          barClassName="from-[#A8893F] to-[#C9A961] w-1"
+          barClassName="from-[#A8893F] to-[#bc7155] w-1"
         />
       </div>
 
       {/* transcript */}
       <div
         className={`mt-5 rounded-xl p-4 ${
-          dark ? "bg-white/5 text-white" : "bg-[#1A1A1A] text-white"
+          dark ? "bg-white/5 text-white" : "bg-[#0f0f1c] text-white"
         }`}
       >
-        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-[#C9A961]">
+        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-[#bc7155]">
           <Mic className="h-3 w-3" /> Transcript live
         </div>
         <p className="mt-2 text-sm leading-relaxed text-white/90">
@@ -997,7 +997,7 @@ function DeniseLiveCard({ dark = false }: { dark?: boolean }) {
       <div className="mt-4 grid grid-cols-3 gap-2">
         <div
           className={`rounded-lg p-2 text-center ${
-            dark ? "bg-white/5" : "bg-[#FAFAF7]"
+            dark ? "bg-white/5" : "bg-[#ffffff]"
           }`}
         >
           <div
@@ -1008,13 +1008,13 @@ function DeniseLiveCard({ dark = false }: { dark?: boolean }) {
             Vibration
           </div>
           <div className="mt-1 flex items-center justify-center gap-1">
-            <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#C9A961]" />
+            <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#bc7155]" />
             <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#A8893F]" style={{ animationDelay: "0.3s" }} />
           </div>
         </div>
         <div
           className={`rounded-lg p-2 text-center ${
-            dark ? "bg-white/5" : "bg-[#FAFAF7]"
+            dark ? "bg-white/5" : "bg-[#ffffff]"
           }`}
         >
           <div
@@ -1030,7 +1030,7 @@ function DeniseLiveCard({ dark = false }: { dark?: boolean }) {
         </div>
         <div
           className={`rounded-lg p-2 text-center ${
-            dark ? "bg-white/5" : "bg-[#FAFAF7]"
+            dark ? "bg-white/5" : "bg-[#ffffff]"
           }`}
         >
           <div
@@ -1067,7 +1067,7 @@ function SectorQrCard({
 }) {
   return (
     <div className="fbp-float relative mx-auto w-full max-w-sm">
-      <div className={`relative overflow-hidden rounded-3xl bg-gradient-to-br ${bgGradient} p-8 shadow-2xl`}>
+      <div className={`relative overflow-hidden rounded-none bg-gradient-to-br ${bgGradient} p-8 shadow-2xl`}>
         <div
           className="absolute -right-12 -top-12 h-32 w-32 rounded-full blur-2xl"
           style={{ background: accentColor + "33" }}
@@ -1087,7 +1087,7 @@ function SectorQrCard({
             {title}
           </div>
         </div>
-        <div className="relative mt-4 flex items-center justify-center gap-2 text-[10px] text-[#1A1A1A]/50">
+        <div className="relative mt-4 flex items-center justify-center gap-2 text-[10px] text-[#0f0f1c]/50">
           <Fingerprint className="h-3 w-3" /> {url}
         </div>
       </div>
@@ -1099,23 +1099,23 @@ function SectorQrCard({
 function HousekeepingBoard() {
   const rooms = [
     { n: "301", st: "Urgent", sub: "Draps à changer", c: "bg-red-500", t: "12:14" },
-    { n: "205", st: "En cours", sub: "Femme de chambre #4", c: "bg-[#C9A961]", t: "12:08" },
-    { n: "118", st: "À faire", sub: "Check-out 11h00", c: "bg-amber-500", t: "11:58" },
-    { n: "422", st: "Terminé", sub: "Vérifié par superviseur", c: "bg-emerald-500", t: "11:32" },
-    { n: "310", st: "À faire", sub: "Clim HS signalée", c: "bg-amber-500", t: "11:25" },
+    { n: "205", st: "En cours", sub: "Femme de chambre #4", c: "bg-[#bc7155]", t: "12:08" },
+    { n: "118", st: "À faire", sub: "Check-out 11h00", c: "bg-[#bc7155]", t: "11:58" },
+    { n: "422", st: "Terminé", sub: "Vérifié par superviseur", c: "bg-[#bc7155]", t: "11:32" },
+    { n: "310", st: "À faire", sub: "Clim HS signalée", c: "bg-[#bc7155]", t: "11:25" },
     { n: "008", st: "Urgent", sub: "Wi-Fi coupé · client mécontent", c: "bg-red-500", t: "11:12" },
   ]
   return (
-    <div className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-2xl shadow-[#C9A961]/10">
+    <div className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-2xl shadow-[#bc7155]/10">
       <div className="flex items-center gap-2 border-b border-black/5 bg-[#FDF2F8] px-4 py-3">
         <div className="h-3 w-3 rounded-full bg-red-400" />
-        <div className="h-3 w-3 rounded-full bg-amber-400" />
-        <div className="h-3 w-3 rounded-full bg-emerald-400" />
+        <div className="h-3 w-3 rounded-full bg-[#c98b72]" />
+        <div className="h-3 w-3 rounded-full bg-[#c98b72]" />
         <div className="ml-3 hidden font-mono text-[11px] text-muted-foreground sm:block">
           hotel.feedbackpro.io/housekeeping
         </div>
-        <div className="ml-auto flex items-center gap-1 text-[10px] text-[#C9A961]">
-          <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#C9A961]" />
+        <div className="ml-auto flex items-center gap-1 text-[10px] text-[#bc7155]">
+          <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#bc7155]" />
           6 chambres actives
         </div>
       </div>
@@ -1123,10 +1123,10 @@ function HousekeepingBoard() {
         {rooms.map((r, i) => (
           <div
             key={i}
-            className="rounded-xl border border-black/5 bg-[#FAFAF7] p-3"
+            className="rounded-xl border border-black/5 bg-[#ffffff] p-3"
           >
             <div className="flex items-center justify-between">
-              <span className="text-sm font-bold text-[#1A1A1A]">
+              <span className="text-sm font-bold text-[#0f0f1c]">
                 Chambre {r.n}
               </span>
               <span className={`h-2 w-2 rounded-full ${r.c}`} />
@@ -1134,7 +1134,7 @@ function HousekeepingBoard() {
             <div className="mt-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
               {r.st}
             </div>
-            <div className="mt-0.5 text-[10px] text-[#1A1A1A]/70">{r.sub}</div>
+            <div className="mt-0.5 text-[10px] text-[#0f0f1c]/70">{r.sub}</div>
             <div className="mt-1 text-[9px] text-muted-foreground/70">{r.t}</div>
           </div>
         ))}
@@ -1146,22 +1146,22 @@ function HousekeepingBoard() {
 // Tableau info voyageurs (gare)
 function InfoVoyageursBoard() {
   const deps = [
-    { dest: "Dakar", voie: "Voie 3", heure: "14:45", st: "À l'heure", c: "text-emerald-500", bgc: "bg-emerald-500/10" },
-    { dest: "Thiès", voie: "Voie 1", heure: "14:52", st: "Retardé 20min", c: "text-amber-500", bgc: "bg-amber-500/10" },
-    { dest: "Saint-Louis", voie: "Voie 5", heure: "15:10", st: "Retardé 45min", c: "text-amber-500", bgc: "bg-amber-500/10" },
+    { dest: "Dakar", voie: "Voie 3", heure: "14:45", st: "À l'heure", c: "text-[#bc7155]", bgc: "bg-[#bc7155]/10" },
+    { dest: "Thiès", voie: "Voie 1", heure: "14:52", st: "Retardé 20min", c: "text-[#bc7155]", bgc: "bg-[#bc7155]/10" },
+    { dest: "Saint-Louis", voie: "Voie 5", heure: "15:10", st: "Retardé 45min", c: "text-[#bc7155]", bgc: "bg-[#bc7155]/10" },
     { dest: "Touba", voie: "Voie 2", heure: "15:25", st: "Quai saturé", c: "text-red-500", bgc: "bg-red-500/10" },
-    { dest: "Kaolack", voie: "Voie 4", heure: "15:40", st: "À l'heure", c: "text-emerald-500", bgc: "bg-emerald-500/10" },
-    { dest: "Ziguinchor", voie: "—", heure: "16:00", st: "Info manquante", c: "text-[#C9A961]", bgc: "bg-[#C9A961]/10" },
+    { dest: "Kaolack", voie: "Voie 4", heure: "15:40", st: "À l'heure", c: "text-[#bc7155]", bgc: "bg-[#bc7155]/10" },
+    { dest: "Ziguinchor", voie: "—", heure: "16:00", st: "Info manquante", c: "text-[#bc7155]", bgc: "bg-[#bc7155]/10" },
   ]
   return (
-    <div className="overflow-hidden rounded-2xl border border-black/5 bg-[#1A1A1A] text-white shadow-2xl">
+    <div className="overflow-hidden rounded-2xl border border-black/5 bg-[#0f0f1c] text-white shadow-2xl">
       <div className="flex items-center gap-2 border-b border-white/10 px-4 py-3">
-        <Megaphone className="h-3.5 w-3.5 text-[#C9A961]" />
+        <Megaphone className="h-3.5 w-3.5 text-[#bc7155]" />
         <div className="font-mono text-[11px] uppercase tracking-widest text-white/70">
           Info voyageurs · Quai central
         </div>
-        <div className="ml-auto flex items-center gap-1 text-[10px] text-[#C9A961]">
-          <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#C9A961]" />
+        <div className="ml-auto flex items-center gap-1 text-[10px] text-[#bc7155]">
+          <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#bc7155]" />
           Live
         </div>
       </div>
@@ -1192,7 +1192,7 @@ function InfoVoyageursBoard() {
       </div>
       {/* Denise announce */}
       <div className="border-t border-white/10 bg-white/5 px-4 py-3">
-        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-[#C9A961]">
+        <div className="flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest text-[#bc7155]">
           <Mic className="h-3 w-3" /> Annonce Denise
         </div>
         <p className="mt-1 text-xs text-white/85">
@@ -1207,21 +1207,21 @@ function InfoVoyageursBoard() {
 function PatientFlowBoard() {
   const zones = [
     { z: "Urgences · Salle d'attente", n: 28, capa: 30, st: "Saturé", c: "bg-red-500", wait: "1h 12min" },
-    { z: "Consultations externes", n: 12, capa: 25, st: "Correct", c: "bg-amber-500", wait: "32min" },
-    { z: "Radiologie", n: 6, capa: 10, st: "Ok", c: "bg-emerald-500", wait: "18min" },
-    { z: "Accueil principal", n: 4, capa: 15, st: "Ok", c: "bg-emerald-500", wait: "5min" },
-    { z: "Laboratoire", n: 9, capa: 12, st: "Correct", c: "bg-amber-500", wait: "24min" },
-    { z: "Pharmacie", n: 2, capa: 8, st: "Ok", c: "bg-emerald-500", wait: "3min" },
+    { z: "Consultations externes", n: 12, capa: 25, st: "Correct", c: "bg-[#bc7155]", wait: "32min" },
+    { z: "Radiologie", n: 6, capa: 10, st: "Ok", c: "bg-[#bc7155]", wait: "18min" },
+    { z: "Accueil principal", n: 4, capa: 15, st: "Ok", c: "bg-[#bc7155]", wait: "5min" },
+    { z: "Laboratoire", n: 9, capa: 12, st: "Correct", c: "bg-[#bc7155]", wait: "24min" },
+    { z: "Pharmacie", n: 2, capa: 8, st: "Ok", c: "bg-[#bc7155]", wait: "3min" },
   ]
   return (
-    <div className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-2xl shadow-[#C9A961]/10">
+    <div className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-2xl shadow-[#bc7155]/10">
       <div className="flex items-center gap-2 border-b border-black/5 bg-[#FEF2F2] px-4 py-3">
-        <HeartPulse className="h-3.5 w-3.5 text-[#C9A961]" />
+        <HeartPulse className="h-3.5 w-3.5 text-[#bc7155]" />
         <div className="hidden font-mono text-[11px] text-muted-foreground sm:block">
           hopital.feedbackpro.io/flux-patients
         </div>
-        <div className="ml-auto flex items-center gap-1 text-[10px] text-[#C9A961]">
-          <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#C9A961]" />
+        <div className="ml-auto flex items-center gap-1 text-[10px] text-[#bc7155]">
+          <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#bc7155]" />
           Live
         </div>
       </div>
@@ -1231,11 +1231,11 @@ function PatientFlowBoard() {
           return (
             <div
               key={i}
-              className="rounded-xl border border-black/5 bg-[#FAFAF7] p-3"
+              className="rounded-xl border border-black/5 bg-[#ffffff] p-3"
             >
               <div className="flex items-center justify-between gap-2">
                 <div className="min-w-0">
-                  <div className="truncate text-xs font-semibold text-[#1A1A1A]">
+                  <div className="truncate text-xs font-semibold text-[#0f0f1c]">
                     {z.z}
                   </div>
                   <div className="text-[10px] text-muted-foreground">
@@ -1246,9 +1246,9 @@ function PatientFlowBoard() {
                   className={`shrink-0 rounded-full px-2 py-0.5 text-[9px] font-semibold uppercase tracking-wider ${
                     z.c === "bg-red-500"
                       ? "bg-red-500/10 text-red-600"
-                      : z.c === "bg-amber-500"
-                        ? "bg-amber-500/10 text-amber-600"
-                        : "bg-emerald-500/10 text-emerald-600"
+                      : z.c === "bg-[#bc7155]"
+                        ? "bg-[#bc7155]/10 text-[#a05f45]"
+                        : "bg-[#bc7155]/10 text-[#a05f45]"
                   }`}
                 >
                   {z.st}
@@ -1272,21 +1272,21 @@ function PatientFlowBoard() {
 function MaintenanceBoard() {
   const tickets = [
     { eq: "Borne interactive · Hall principal", p: "Critique", st: "HS", time: "Signalé 11:42", by: "Agent #M204", c: "bg-red-500" },
-    { eq: "Guichet 3 · Distributeur tickets", p: "Haute", st: "En cours", time: "Signalé 10:55", by: "Techn. #T011", c: "bg-amber-500" },
-    { eq: "Ascenseur · Aile B", p: "Haute", st: "Assigné", time: "Signalé 09:18", by: "Techn. #T008", c: "bg-amber-500" },
-    { eq: "Écran info · Accueil", p: "Moyenne", st: "Résolu", time: "Signalé 08:30", by: "Techn. #T005", c: "bg-emerald-500" },
-    { eq: "Borne paiement · Guichet 1", p: "Moyenne", st: "Planifié", time: "Signalé 08:12", by: "Techn. #T002", c: "bg-[#C9A961]" },
-    { eq: "Porte automatique · Entrée E", p: "Basse", st: "Résolu", time: "Signalé 07:45", by: "Techn. #T001", c: "bg-emerald-500" },
+    { eq: "Guichet 3 · Distributeur tickets", p: "Haute", st: "En cours", time: "Signalé 10:55", by: "Techn. #T011", c: "bg-[#bc7155]" },
+    { eq: "Ascenseur · Aile B", p: "Haute", st: "Assigné", time: "Signalé 09:18", by: "Techn. #T008", c: "bg-[#bc7155]" },
+    { eq: "Écran info · Accueil", p: "Moyenne", st: "Résolu", time: "Signalé 08:30", by: "Techn. #T005", c: "bg-[#bc7155]" },
+    { eq: "Borne paiement · Guichet 1", p: "Moyenne", st: "Planifié", time: "Signalé 08:12", by: "Techn. #T002", c: "bg-[#bc7155]" },
+    { eq: "Porte automatique · Entrée E", p: "Basse", st: "Résolu", time: "Signalé 07:45", by: "Techn. #T001", c: "bg-[#bc7155]" },
   ]
   return (
-    <div className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-2xl shadow-[#C9A961]/10">
-      <div className="flex items-center gap-2 border-b border-black/5 bg-[#ECFDF5] px-4 py-3">
-        <Wrench className="h-3.5 w-3.5 text-[#C9A961]" />
+    <div className="overflow-hidden rounded-2xl border border-black/5 bg-white shadow-2xl shadow-[#bc7155]/10">
+      <div className="flex items-center gap-2 border-b border-black/5 bg-[#faf1ec] px-4 py-3">
+        <Wrench className="h-3.5 w-3.5 text-[#bc7155]" />
         <div className="hidden font-mono text-[11px] text-muted-foreground sm:block">
           erp.feedbackpro.io/maintenance
         </div>
-        <div className="ml-auto flex items-center gap-1 text-[10px] text-[#C9A961]">
-          <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#C9A961]" />
+        <div className="ml-auto flex items-center gap-1 text-[10px] text-[#bc7155]">
+          <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#bc7155]" />
           Live
         </div>
       </div>
@@ -1294,11 +1294,11 @@ function MaintenanceBoard() {
         {tickets.map((t, i) => (
           <div
             key={i}
-            className="flex items-center gap-3 rounded-lg border border-black/5 bg-[#FAFAF7] p-2.5"
+            className="flex items-center gap-3 rounded-lg border border-black/5 bg-[#ffffff] p-2.5"
           >
             <span className={`h-2 w-2 shrink-0 rounded-full ${t.c}`} />
             <div className="min-w-0 flex-1">
-              <div className="truncate text-xs font-semibold text-[#1A1A1A]">
+              <div className="truncate text-xs font-semibold text-[#0f0f1c]">
                 {t.eq}
               </div>
               <div className="truncate text-[10px] text-muted-foreground">
@@ -1314,10 +1314,10 @@ function MaintenanceBoard() {
                   t.st === "HS"
                     ? "text-red-600"
                     : t.st === "Résolu"
-                      ? "text-emerald-600"
+                      ? "text-[#a05f45]"
                       : t.st === "En cours"
-                        ? "text-amber-600"
-                        : "text-[#C9A961]"
+                        ? "text-[#a05f45]"
+                        : "text-[#bc7155]"
                 }`}
               >
                 {t.st}
@@ -1350,7 +1350,7 @@ function TagsGrid({
               className={`group flex items-center gap-2 rounded-full border px-4 py-2 text-sm font-medium shadow-sm transition-all duration-300 hover:-translate-y-0.5 hover:shadow-md ${
                 dark
                   ? "border-white/10 bg-white/5 text-white"
-                  : "border-black/5 bg-white text-[#1A1A1A]"
+                  : "border-black/5 bg-white text-[#0f0f1c]"
               }`}
             >
               <span
@@ -1375,7 +1375,7 @@ function TagsGrid({
           >
             <div
               className={`flex items-center gap-2 text-[10px] font-semibold uppercase tracking-widest ${
-                dark ? "text-[#C9A961]" : "text-[#A8893F]"
+                dark ? "text-[#bc7155]" : "text-[#A8893F]"
               }`}
             >
               <Activity className="h-3 w-3" /> Vue patterns · 30 derniers jours
@@ -1385,7 +1385,7 @@ function TagsGrid({
                 <div
                   key={i}
                   className={`rounded-xl p-3 ${
-                    dark ? "bg-white/5" : "bg-[#FAFAF7]"
+                    dark ? "bg-white/5" : "bg-[#ffffff]"
                   }`}
                 >
                   <div className="flex items-center gap-2">
@@ -1400,7 +1400,7 @@ function TagsGrid({
                   </div>
                   <div
                     className={`mt-1 text-xl font-bold ${
-                      dark ? "text-white" : "text-[#1A1A1A]"
+                      dark ? "text-white" : "text-[#0f0f1c]"
                     }`}
                   >
                     {p.v}
@@ -1428,21 +1428,21 @@ const SECTORS: SectorConfig[] = [
     cardTitle: "Restauration",
     tagline: "Service fluide, avis maîtrisés",
     icon: Utensils,
-    accentFrom: "#C9A961",
+    accentFrom: "#bc7155",
     accentTo: "#A8893F",
-    iconGradient: "from-[#C9A961] to-[#A8893F]",
+    iconGradient: "from-[#bc7155] to-[#A8893F]",
     cardClasses:
-      "border-black/5 bg-gradient-to-br from-[#FFF7ED] via-[#FFEDD5] to-[#FDBA74]/30 hover:shadow-[#C9A961]/20",
-    glowClasses: "bg-[#C9A961]/30",
-    cardTitleColor: "text-[#1A1A1A]",
-    cardBodyColor: "text-[#1A1A1A]/70",
+      "border-black/5 bg-gradient-to-br from-[#faf1ec] via-[#f3ddd2] to-[#dba28a]/30 hover:shadow-[#bc7155]/20",
+    glowClasses: "bg-[#bc7155]/30",
+    cardTitleColor: "text-[#0f0f1c]",
+    cardBodyColor: "text-[#0f0f1c]/70",
     cardLinkColor: "text-[#A8893F]",
     dark: false,
     ctaVariant: "warm",
     heroTitle: (
       <>
         Ne laissez plus un mauvais avis{" "}
-        <span className="bg-gradient-to-r from-[#C9A961] to-[#A8893F] bg-clip-text text-transparent">
+        <span className="bg-gradient-to-r from-[#bc7155] to-[#A8893F] bg-clip-text text-transparent">
           gâcher votre service.
         </span>
       </>
@@ -1478,19 +1478,19 @@ const SECTORS: SectorConfig[] = [
           "Chaque retour est catégorisé instantanément. Vous voyez les patterns, pas juste des commentaires.",
         layout: "centered-tags",
         tags: [
-          { label: "Service lent", icon: Clock, color: "from-amber-500 to-orange-500" },
-          { label: "Plat froid", icon: Timer, color: "from-cyan-500 to-blue-500" },
+          { label: "Service lent", icon: Clock, color: "from-[#bc7155] to-[#bc7155]" },
+          { label: "Plat froid", icon: Timer, color: "from-[#bc7155] to-[#4b4d5e]" },
           { label: "Addition erronée", icon: AlertCircle, color: "from-red-500 to-rose-500" },
           { label: "Personnel distrait", icon: Users, color: "from-rose-500 to-pink-500" },
-          { label: "Ambiance top", icon: Sparkles, color: "from-emerald-500 to-teal-500" },
+          { label: "Ambiance top", icon: Sparkles, color: "from-[#bc7155] to-[#bc7155]" },
           { label: "Erreur de commande", icon: AlertCircle, color: "from-red-500 to-rose-500" },
-          { label: "Qualité produit", icon: Trophy, color: "from-amber-500 to-yellow-500" },
-          { label: "Propreté", icon: CheckCircle2, color: "from-teal-500 to-emerald-500" },
+          { label: "Qualité produit", icon: Trophy, color: "from-[#bc7155] to-yellow-500" },
+          { label: "Propreté", icon: CheckCircle2, color: "from-[#bc7155] to-[#bc7155]" },
         ],
         patterns: [
-          { l: "Service lent", v: "32%", c: "bg-amber-500" },
-          { l: "Plat froid", v: "18%", c: "bg-cyan-500" },
-          { l: "Ambiance top", v: "47%", c: "bg-emerald-500" },
+          { l: "Service lent", v: "32%", c: "bg-[#bc7155]" },
+          { l: "Plat froid", v: "18%", c: "bg-[#bc7155]" },
+          { l: "Ambiance top", v: "47%", c: "bg-[#bc7155]" },
           { l: "Erreur commande", v: "9%", c: "bg-red-500" },
         ],
         bg: "light",
@@ -1505,8 +1505,8 @@ const SECTORS: SectorConfig[] = [
         steps: [
           { n: "1", t: "Client signale", d: "« Erreur plat · Table 14 » via QR", icon: AlertCircle, color: "text-red-500" },
           { n: "2", t: "Serveur reçoit l'alerte", d: "Sur sa montre ou son téléphone, en moins de 2s", icon: Phone, color: "text-[#A8893F]" },
-          { n: "3", t: "Intervention immédiate", d: "Le serveur intervient pendant que le client est encore à table", icon: Zap, color: "text-amber-500" },
-          { n: "4", t: "Client transformé", d: "Un mécontent devient un ambassadeur", icon: Trophy, color: "text-emerald-500" },
+          { n: "3", t: "Intervention immédiate", d: "Le serveur intervient pendant que le client est encore à table", icon: Zap, color: "text-[#bc7155]" },
+          { n: "4", t: "Client transformé", d: "Un mécontent devient un ambassadeur", icon: Trophy, color: "text-[#bc7155]" },
         ],
         mockup: "phone",
         bg: "white",
@@ -1531,19 +1531,19 @@ const SECTORS: SectorConfig[] = [
     tagline: "Sécurité, flux, réactivité ops",
     icon: Plane,
     accentFrom: "#A8893F",
-    accentTo: "#C9A961",
-    iconGradient: "from-[#A8893F] to-[#C9A961]",
+    accentTo: "#bc7155",
+    iconGradient: "from-[#A8893F] to-[#bc7155]",
     cardClasses:
-      "border-white/10 bg-gradient-to-br from-[#1A1A1A] via-[#2C2C2C] to-[#A8893F]/20 hover:shadow-[#A8893F]/30",
-    glowClasses: "bg-[#C9A961]/30",
+      "border-white/10 bg-gradient-to-br from-[#0f0f1c] via-[#2C2C2C] to-[#A8893F]/20 hover:shadow-[#A8893F]/30",
+    glowClasses: "bg-[#bc7155]/30",
     cardTitleColor: "text-white",
     cardBodyColor: "text-white/70",
-    cardLinkColor: "text-[#C9A961]",
+    cardLinkColor: "text-[#bc7155]",
     dark: true,
     ctaVariant: "tech",
     heroTitle: (
       <>
-        <span className="bg-gradient-to-r from-[#A8893F] via-[#C9A961] to-[#E5D4A8] bg-clip-text text-transparent">
+        <span className="bg-gradient-to-r from-[#A8893F] via-[#bc7155] to-[#e7c1ae] bg-clip-text text-transparent">
           Maîtrisez chaque mètre carré
         </span>
         <br />
@@ -1587,19 +1587,19 @@ const SECTORS: SectorConfig[] = [
         layout: "centered-tags",
         tags: [
           { label: "Tapis HS", icon: Wrench, color: "from-red-500 to-rose-500" },
-          { label: "Attente >30min", icon: Clock, color: "from-amber-500 to-orange-500" },
+          { label: "Attente >30min", icon: Clock, color: "from-[#bc7155] to-[#bc7155]" },
           { label: "Sécurité", icon: ShieldAlert, color: "from-red-500 to-rose-500" },
-          { label: "Propreté", icon: CheckCircle2, color: "from-teal-500 to-emerald-500" },
-          { label: "Sanitaires", icon: AlertCircle, color: "from-cyan-500 to-blue-500" },
+          { label: "Propreté", icon: CheckCircle2, color: "from-[#bc7155] to-[#bc7155]" },
+          { label: "Sanitaires", icon: AlertCircle, color: "from-[#bc7155] to-[#4b4d5e]" },
           { label: "Objet suspect", icon: Eye, color: "from-red-500 to-rose-500" },
-          { label: "Zone glissante", icon: AlertCircle, color: "from-amber-500 to-orange-500" },
-          { label: "Info manquante", icon: Info, color: "from-violet-500 to-purple-500" },
+          { label: "Zone glissante", icon: AlertCircle, color: "from-[#bc7155] to-[#bc7155]" },
+          { label: "Info manquante", icon: Info, color: "from-[#bc7155] to-[#bc7155]" },
         ],
         patterns: [
           { l: "Tapis HS", v: "8%", c: "bg-red-500" },
           { l: "Sécurité", v: "4%", c: "bg-red-500" },
-          { l: "Sanitaires", v: "21%", c: "bg-cyan-500" },
-          { l: "Propreté", v: "17%", c: "bg-emerald-500" },
+          { l: "Sanitaires", v: "21%", c: "bg-[#bc7155]" },
+          { l: "Propreté", v: "17%", c: "bg-[#bc7155]" },
         ],
         bg: "dark",
       },
@@ -1638,21 +1638,21 @@ const SECTORS: SectorConfig[] = [
     cardTitle: "Hôtellerie",
     tagline: "Expérience guest, housekeeping",
     icon: Hotel,
-    accentFrom: "#C9A961",
+    accentFrom: "#bc7155",
     accentTo: "#A8893F",
-    iconGradient: "from-[#C9A961] to-[#A8893F]",
+    iconGradient: "from-[#bc7155] to-[#A8893F]",
     cardClasses:
-      "border-black/5 bg-gradient-to-br from-[#FDF2F8] via-[#FCE7F3] to-[#F9A8D4]/30 hover:shadow-[#C9A961]/20",
-    glowClasses: "bg-[#C9A961]/30",
-    cardTitleColor: "text-[#1A1A1A]",
-    cardBodyColor: "text-[#1A1A1A]/70",
-    cardLinkColor: "text-[#C9A961]",
+      "border-black/5 bg-gradient-to-br from-[#FDF2F8] via-[#FCE7F3] to-[#F9A8D4]/30 hover:shadow-[#bc7155]/20",
+    glowClasses: "bg-[#bc7155]/30",
+    cardTitleColor: "text-[#0f0f1c]",
+    cardBodyColor: "text-[#0f0f1c]/70",
+    cardLinkColor: "text-[#bc7155]",
     dark: false,
     ctaVariant: "primary",
     heroTitle: (
       <>
         L&apos;expérience guest, du{" "}
-        <span className="bg-gradient-to-r from-[#C9A961] to-[#A8893F] bg-clip-text text-transparent">
+        <span className="bg-gradient-to-r from-[#bc7155] to-[#A8893F] bg-clip-text text-transparent">
           lobby à la chambre.
         </span>
       </>
@@ -1688,20 +1688,20 @@ const SECTORS: SectorConfig[] = [
           "Clim HS, Wi-Fi, literie, propreté. Chaque retour est catégorisé et routé vers la bonne équipe instantanément.",
         layout: "centered-tags",
         tags: [
-          { label: "Clim HS", icon: AirVent, color: "from-cyan-500 to-blue-500" },
-          { label: "Literie", icon: BedDouble, color: "from-amber-500 to-orange-500" },
-          { label: "Wi-Fi", icon: Wifi, color: "from-violet-500 to-purple-500" },
-          { label: "Propreté", icon: CheckCircle2, color: "from-teal-500 to-emerald-500" },
+          { label: "Clim HS", icon: AirVent, color: "from-[#bc7155] to-[#4b4d5e]" },
+          { label: "Literie", icon: BedDouble, color: "from-[#bc7155] to-[#bc7155]" },
+          { label: "Wi-Fi", icon: Wifi, color: "from-[#bc7155] to-[#bc7155]" },
+          { label: "Propreté", icon: CheckCircle2, color: "from-[#bc7155] to-[#bc7155]" },
           { label: "Bruit", icon: BellRing, color: "from-rose-500 to-pink-500" },
-          { label: "Room service lent", icon: Clock, color: "from-amber-500 to-orange-500" },
-          { label: "Conciergerie", icon: ConciergeBell, color: "from-[#A8893F] to-[#C9A961]" },
-          { label: "Vue agréable", icon: Sparkles, color: "from-emerald-500 to-teal-500" },
+          { label: "Room service lent", icon: Clock, color: "from-[#bc7155] to-[#bc7155]" },
+          { label: "Conciergerie", icon: ConciergeBell, color: "from-[#A8893F] to-[#bc7155]" },
+          { label: "Vue agréable", icon: Sparkles, color: "from-[#bc7155] to-[#bc7155]" },
         ],
         patterns: [
-          { l: "Wi-Fi", v: "23%", c: "bg-violet-500" },
-          { l: "Clim HS", v: "11%", c: "bg-cyan-500" },
-          { l: "Propreté", v: "8%", c: "bg-emerald-500" },
-          { l: "Literie", v: "5%", c: "bg-amber-500" },
+          { l: "Wi-Fi", v: "23%", c: "bg-[#bc7155]" },
+          { l: "Clim HS", v: "11%", c: "bg-[#bc7155]" },
+          { l: "Propreté", v: "8%", c: "bg-[#bc7155]" },
+          { l: "Literie", v: "5%", c: "bg-[#bc7155]" },
         ],
         bg: "light",
       },
@@ -1713,10 +1713,10 @@ const SECTORS: SectorConfig[] = [
           "Chaque chambre a un statut live : à faire, en cours, terminé, urgent. Les femmes de chambre n'attendent plus la feuille de route paper.",
         layout: "split-right",
         steps: [
-          { n: "1", t: "Guest signale", d: "« Chambre 301, draps à changer » via QR", icon: BellRing, color: "text-[#C9A961]" },
+          { n: "1", t: "Guest signale", d: "« Chambre 301, draps à changer » via QR", icon: BellRing, color: "text-[#bc7155]" },
           { n: "2", t: "Denise priorise", d: "Urgent vs à-faire, attribution automatique à l'étage", icon: Sparkles, color: "text-[#A8893F]" },
           { n: "3", t: "Femme de chambre notifiée", d: "Sur son téléphone, avec le n° de chambre et le besoin", icon: Phone, color: "text-[#A8893F]" },
-          { n: "4", t: "Statut synchronisé", d: "Réception et superviseur voient la chambre en temps réel", icon: CheckCircle2, color: "text-emerald-500" },
+          { n: "4", t: "Statut synchronisé", d: "Réception et superviseur voient la chambre en temps réel", icon: CheckCircle2, color: "text-[#bc7155]" },
         ],
         mockup: "housekeeping",
         bg: "white",
@@ -1740,20 +1740,20 @@ const SECTORS: SectorConfig[] = [
     cardTitle: "Gares",
     tagline: "Embarquement, information voyageur",
     icon: Bus,
-    accentFrom: "#C9A961",
-    accentTo: "#E5D4A8",
-    iconGradient: "from-[#C9A961] to-[#A8893F]",
+    accentFrom: "#bc7155",
+    accentTo: "#e7c1ae",
+    iconGradient: "from-[#bc7155] to-[#A8893F]",
     cardClasses:
-      "border-white/10 bg-gradient-to-br from-[#042F2E] via-[#064E3B] to-[#C9A961]/20 hover:shadow-[#C9A961]/30",
-    glowClasses: "bg-[#C9A961]/30",
+      "border-white/10 bg-gradient-to-br from-[#042F2E] via-[#064E3B] to-[#bc7155]/20 hover:shadow-[#bc7155]/30",
+    glowClasses: "bg-[#bc7155]/30",
     cardTitleColor: "text-white",
     cardBodyColor: "text-white/70",
-    cardLinkColor: "text-[#C9A961]",
+    cardLinkColor: "text-[#bc7155]",
     dark: false,
     ctaVariant: "tech",
     heroTitle: (
       <>
-        <span className="bg-gradient-to-r from-[#C9A961] via-[#E5D4A8] to-[#A8893F] bg-clip-text text-transparent">
+        <span className="bg-gradient-to-r from-[#bc7155] via-[#e7c1ae] to-[#A8893F] bg-clip-text text-transparent">
           Fluidifiez l&apos;embarquement,
         </span>
         <br />
@@ -1791,20 +1791,20 @@ const SECTORS: SectorConfig[] = [
           "Bus retardé, quai saturé, info manquante. Chaque retour est trié, priorisé et affiché sur le tableau info voyageurs.",
         layout: "centered-tags",
         tags: [
-          { label: "Bus retardé", icon: Clock, color: "from-amber-500 to-orange-500" },
+          { label: "Bus retardé", icon: Clock, color: "from-[#bc7155] to-[#bc7155]" },
           { label: "Quai saturé", icon: Users, color: "from-red-500 to-rose-500" },
-          { label: "Info manquante", icon: Info, color: "from-[#C9A961] to-[#A8893F]" },
-          { label: "Propreté", icon: CheckCircle2, color: "from-teal-500 to-emerald-500" },
+          { label: "Info manquante", icon: Info, color: "from-[#bc7155] to-[#A8893F]" },
+          { label: "Propreté", icon: CheckCircle2, color: "from-[#bc7155] to-[#bc7155]" },
           { label: "Sécurité", icon: ShieldAlert, color: "from-red-500 to-rose-500" },
-          { label: "Affichage HS", icon: AlertCircle, color: "from-amber-500 to-orange-500" },
-          { label: "Billet contrôlé", icon: CheckCircle2, color: "from-emerald-500 to-teal-500" },
+          { label: "Affichage HS", icon: AlertCircle, color: "from-[#bc7155] to-[#bc7155]" },
+          { label: "Billet contrôlé", icon: CheckCircle2, color: "from-[#bc7155] to-[#bc7155]" },
           { label: "Correspondance ratée", icon: AlertCircle, color: "from-red-500 to-rose-500" },
         ],
         patterns: [
-          { l: "Bus retardé", v: "29%", c: "bg-amber-500" },
+          { l: "Bus retardé", v: "29%", c: "bg-[#bc7155]" },
           { l: "Quai saturé", v: "14%", c: "bg-red-500" },
-          { l: "Info manquante", v: "19%", c: "bg-[#C9A961]" },
-          { l: "Propreté", v: "7%", c: "bg-emerald-500" },
+          { l: "Info manquante", v: "19%", c: "bg-[#bc7155]" },
+          { l: "Propreté", v: "7%", c: "bg-[#bc7155]" },
         ],
         bg: "light",
       },
@@ -1816,10 +1816,10 @@ const SECTORS: SectorConfig[] = [
           "Le tableau info voyageurs se met à jour automatiquement. Denise annonce les retards par voie vocale sur les quais. Fini le silence anxiogène.",
         layout: "split-right",
         steps: [
-          { n: "1", t: "Voyageur signale", d: "« Bus Dakar retardé » via QR quai 3", icon: Signpost, color: "text-[#C9A961]" },
-          { n: "2", t: "IA confirme", d: "Croisement avec données planning et GPS bus", icon: Activity, color: "text-[#C9A961]" },
+          { n: "1", t: "Voyageur signale", d: "« Bus Dakar retardé » via QR quai 3", icon: Signpost, color: "text-[#bc7155]" },
+          { n: "2", t: "IA confirme", d: "Croisement avec données planning et GPS bus", icon: Activity, color: "text-[#bc7155]" },
           { n: "3", t: "Affichage MAJ", d: "Tableau info voyageurs mis à jour en <5s", icon: Megaphone, color: "text-[#A8893F]" },
-          { n: "4", t: "Denise annonce", d: "Vocale sur le quai : « Retard 20min, voie 3. »", icon: Volume2, color: "text-[#C9A961]" },
+          { n: "4", t: "Denise annonce", d: "Vocale sur le quai : « Retard 20min, voie 3. »", icon: Volume2, color: "text-[#bc7155]" },
         ],
         mockup: "infovoyageurs",
         bg: "white",
@@ -1843,20 +1843,20 @@ const SECTORS: SectorConfig[] = [
     cardTitle: "Santé",
     tagline: "Hygiène, flux patients, équipements",
     icon: Stethoscope,
-    accentFrom: "#C9A961",
+    accentFrom: "#bc7155",
     accentTo: "#A8893F",
-    iconGradient: "from-[#C9A961] to-[#A8893F]",
+    iconGradient: "from-[#bc7155] to-[#A8893F]",
     cardClasses:
-      "border-black/5 bg-gradient-to-br from-[#FEF2F2] via-[#FEE2E2] to-[#FCA5A5]/30 hover:shadow-[#C9A961]/20",
-    glowClasses: "bg-[#C9A961]/30",
-    cardTitleColor: "text-[#1A1A1A]",
-    cardBodyColor: "text-[#1A1A1A]/70",
-    cardLinkColor: "text-[#C9A961]",
+      "border-black/5 bg-gradient-to-br from-[#FEF2F2] via-[#FEE2E2] to-[#FCA5A5]/30 hover:shadow-[#bc7155]/20",
+    glowClasses: "bg-[#bc7155]/30",
+    cardTitleColor: "text-[#0f0f1c]",
+    cardBodyColor: "text-[#0f0f1c]/70",
+    cardLinkColor: "text-[#bc7155]",
     dark: false,
     ctaVariant: "primary",
     heroTitle: (
       <>
-        <span className="bg-gradient-to-r from-[#C9A961] to-[#A8893F] bg-clip-text text-transparent">
+        <span className="bg-gradient-to-r from-[#bc7155] to-[#A8893F] bg-clip-text text-transparent">
           Hygiène, flux patients, équipements
         </span>{" "}
         maîtrisés.
@@ -1894,18 +1894,18 @@ const SECTORS: SectorConfig[] = [
         layout: "centered-tags",
         tags: [
           { label: "Attente excessive", icon: Clock, color: "from-red-500 to-rose-500" },
-          { label: "Hygiène", icon: CheckCircle2, color: "from-teal-500 to-emerald-500" },
-          { label: "Équipement HS", icon: Wrench, color: "from-amber-500 to-orange-500" },
-          { label: "Accueil", icon: ConciergeBell, color: "from-[#A8893F] to-[#C9A961]" },
-          { label: "Wi-Fi", icon: Wifi, color: "from-violet-500 to-purple-500" },
-          { label: "Clim", icon: AirVent, color: "from-cyan-500 to-blue-500" },
-          { label: "Info manquante", icon: Info, color: "from-amber-500 to-orange-500" },
-          { label: "Personnel à l'écoute", icon: HeartPulse, color: "from-emerald-500 to-teal-500" },
+          { label: "Hygiène", icon: CheckCircle2, color: "from-[#bc7155] to-[#bc7155]" },
+          { label: "Équipement HS", icon: Wrench, color: "from-[#bc7155] to-[#bc7155]" },
+          { label: "Accueil", icon: ConciergeBell, color: "from-[#A8893F] to-[#bc7155]" },
+          { label: "Wi-Fi", icon: Wifi, color: "from-[#bc7155] to-[#bc7155]" },
+          { label: "Clim", icon: AirVent, color: "from-[#bc7155] to-[#4b4d5e]" },
+          { label: "Info manquante", icon: Info, color: "from-[#bc7155] to-[#bc7155]" },
+          { label: "Personnel à l'écoute", icon: HeartPulse, color: "from-[#bc7155] to-[#bc7155]" },
         ],
         patterns: [
           { l: "Attente excessive", v: "38%", c: "bg-red-500" },
-          { l: "Hygiène", v: "12%", c: "bg-emerald-500" },
-          { l: "Équipement HS", v: "9%", c: "bg-amber-500" },
+          { l: "Hygiène", v: "12%", c: "bg-[#bc7155]" },
+          { l: "Équipement HS", v: "9%", c: "bg-[#bc7155]" },
           { l: "Accueil", v: "17%", c: "bg-[#A8893F]" },
         ],
         bg: "light",
@@ -1919,9 +1919,9 @@ const SECTORS: SectorConfig[] = [
         layout: "split-right",
         steps: [
           { n: "1", t: "Patient signale", d: "« Attente trop longue » via QR urgences", icon: Clock, color: "text-red-500" },
-          { n: "2", t: "IA croise les flux", d: "Comptage patients vs capacité, détection saturation", icon: Activity, color: "text-[#C9A961]" },
-          { n: "3", t: "Renfort demandé", d: "Denise alerte le cadre de garde pour ouverture box", icon: BellRing, color: "text-amber-500" },
-          { n: "4", t: "Patient informé", d: "Délai estimé communiqué sur afficheur salle d'attente", icon: Info, color: "text-[#C9A961]" },
+          { n: "2", t: "IA croise les flux", d: "Comptage patients vs capacité, détection saturation", icon: Activity, color: "text-[#bc7155]" },
+          { n: "3", t: "Renfort demandé", d: "Denise alerte le cadre de garde pour ouverture box", icon: BellRing, color: "text-[#bc7155]" },
+          { n: "4", t: "Patient informé", d: "Délai estimé communiqué sur afficheur salle d'attente", icon: Info, color: "text-[#bc7155]" },
         ],
         mockup: "patientflow",
         bg: "white",
@@ -1945,20 +1945,20 @@ const SECTORS: SectorConfig[] = [
     cardTitle: "Établissements Publics",
     tagline: "Accueil usagers, maintenance",
     icon: Landmark,
-    accentFrom: "#C9A961",
-    accentTo: "#E5D4A8",
-    iconGradient: "from-[#C9A961] to-[#A8893F]",
+    accentFrom: "#bc7155",
+    accentTo: "#e7c1ae",
+    iconGradient: "from-[#bc7155] to-[#A8893F]",
     cardClasses:
-      "border-white/10 bg-gradient-to-br from-[#022C22] via-[#064E3B] to-[#C9A961]/20 hover:shadow-[#C9A961]/30",
-    glowClasses: "bg-[#C9A961]/30",
+      "border-white/10 bg-gradient-to-br from-[#022C22] via-[#064E3B] to-[#bc7155]/20 hover:shadow-[#bc7155]/30",
+    glowClasses: "bg-[#bc7155]/30",
     cardTitleColor: "text-white",
     cardBodyColor: "text-white/70",
-    cardLinkColor: "text-[#C9A961]",
+    cardLinkColor: "text-[#bc7155]",
     dark: false,
     ctaVariant: "primary",
     heroTitle: (
       <>
-        <span className="bg-gradient-to-r from-[#C9A961] via-[#E5D4A8] to-[#A8893F] bg-clip-text text-transparent">
+        <span className="bg-gradient-to-r from-[#bc7155] via-[#e7c1ae] to-[#A8893F] bg-clip-text text-transparent">
           Accueil usagers fluide,
         </span>
         <br />
@@ -1996,19 +1996,19 @@ const SECTORS: SectorConfig[] = [
           "File longue, borne HS, guichet fermé. Chaque retour est catégorisé et priorisé. La maintenance et l'accueil voient la même vue live.",
         layout: "centered-tags",
         tags: [
-          { label: "File longue", icon: Users, color: "from-amber-500 to-orange-500" },
+          { label: "File longue", icon: Users, color: "from-[#bc7155] to-[#bc7155]" },
           { label: "Borne HS", icon: Wrench, color: "from-red-500 to-rose-500" },
-          { label: "Guichet fermé", icon: AlertCircle, color: "from-amber-500 to-orange-500" },
+          { label: "Guichet fermé", icon: AlertCircle, color: "from-[#bc7155] to-[#bc7155]" },
           { label: "Écran info HS", icon: AlertCircle, color: "from-red-500 to-rose-500" },
-          { label: "Propreté", icon: CheckCircle2, color: "from-teal-500 to-emerald-500" },
-          { label: "Accessibilité", icon: Footprints, color: "from-[#A8893F] to-[#C9A961]" },
+          { label: "Propreté", icon: CheckCircle2, color: "from-[#bc7155] to-[#bc7155]" },
+          { label: "Accessibilité", icon: Footprints, color: "from-[#A8893F] to-[#bc7155]" },
           { label: "Ascenseur HS", icon: Wrench, color: "from-red-500 to-rose-500" },
-          { label: "Accueil pro", icon: ConciergeBell, color: "from-emerald-500 to-teal-500" },
+          { label: "Accueil pro", icon: ConciergeBell, color: "from-[#bc7155] to-[#bc7155]" },
         ],
         patterns: [
-          { l: "File longue", v: "26%", c: "bg-amber-500" },
+          { l: "File longue", v: "26%", c: "bg-[#bc7155]" },
           { l: "Borne HS", v: "11%", c: "bg-red-500" },
-          { l: "Guichet fermé", v: "9%", c: "bg-amber-500" },
+          { l: "Guichet fermé", v: "9%", c: "bg-[#bc7155]" },
           { l: "Accessibilité", v: "5%", c: "bg-[#A8893F]" },
         ],
         bg: "light",
@@ -2022,9 +2022,9 @@ const SECTORS: SectorConfig[] = [
         layout: "split-right",
         steps: [
           { n: "1", t: "Usager signale", d: "« Borne interactive HS » via QR hall principal", icon: AlertCircle, color: "text-red-500" },
-          { n: "2", t: "IA priorise", d: "Critique vs planifié, attribution au technicien de garde", icon: Sparkles, color: "text-[#C9A961]" },
+          { n: "2", t: "IA priorise", d: "Critique vs planifié, attribution au technicien de garde", icon: Sparkles, color: "text-[#bc7155]" },
           { n: "3", t: "Technicien notifié", d: "Sur son téléphone, avec localisation et contexte", icon: Phone, color: "text-[#A8893F]" },
-          { n: "4", t: "Résolution tracée", d: "Statut synchronisé au superviseur et au responsable", icon: CheckCircle2, color: "text-emerald-500" },
+          { n: "4", t: "Résolution tracée", d: "Statut synchronisé au superviseur et au responsable", icon: CheckCircle2, color: "text-[#bc7155]" },
         ],
         mockup: "maintenanceboard",
         bg: "white",
@@ -2061,7 +2061,7 @@ function SectorPage({
       {/* HERO */}
       <section
         className={`relative flex min-h-[60vh] items-center overflow-hidden ${
-          dark ? "bg-[#1A1A1A] text-white" : "bg-[#FAFAF7]"
+          dark ? "bg-[#0f0f1c] text-white" : "bg-[#ffffff]"
         }`}
       >
         <Aurora dark={dark} />
@@ -2077,8 +2077,8 @@ function SectorPage({
               <div
                 className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-medium backdrop-blur ${
                   dark
-                    ? "border-[#C9A961]/30 bg-[#C9A961]/10 text-[#E5D4A8]"
-                    : "border-[#C9A961]/40 bg-[#C9A961]/10 text-[#A8893F]"
+                    ? "border-[#bc7155]/30 bg-[#bc7155]/10 text-[#e7c1ae]"
+                    : "border-[#bc7155]/40 bg-[#bc7155]/10 text-[#A8893F]"
                 }`}
               >
                 <sector.icon className="h-3 w-3" style={{ color: sector.accentFrom }} />
@@ -2088,7 +2088,7 @@ function SectorPage({
             <Reveal delay={0.08}>
               <h1
                 className={`mt-5 text-4xl font-bold tracking-tighter leading-[0.95] sm:text-5xl lg:text-6xl ${
-                  dark ? "text-white" : "text-[#1A1A1A]"
+                  dark ? "text-white" : "text-[#0f0f1c]"
                 }`}
               >
                 {sector.heroTitle}
@@ -2113,7 +2113,7 @@ function SectorPage({
                   className={`flex h-12 items-center justify-center gap-2 rounded-full border px-6 text-sm font-semibold backdrop-blur transition-all ${
                     dark
                       ? "border-white/15 bg-white/5 text-white hover:bg-white/10"
-                      : "border-black/10 bg-white/60 text-[#1A1A1A] hover:bg-white"
+                      : "border-black/10 bg-white/60 text-[#0f0f1c] hover:bg-white"
                   }`}
                 >
                   Demander une démo
@@ -2154,9 +2154,9 @@ function AdvantageSection({
   const dark = adv.bg === "dark"
   const bgClass =
     adv.bg === "dark"
-      ? "bg-[#1A1A1A] text-white"
+      ? "bg-[#0f0f1c] text-white"
       : adv.bg === "light"
-        ? "bg-[#FAFAF7]"
+        ? "bg-[#ffffff]"
         : "bg-white"
 
   if (adv.layout === "centered-tags") {
@@ -2164,7 +2164,7 @@ function AdvantageSection({
       <section className={`relative py-24 sm:py-28 ${bgClass}`}>
         {dark && (
           <div
-            className="pointer-events-none absolute top-0 left-1/2 h-[32rem] w-[50rem] -translate-x-1/2 rounded-full bg-[#C9A961]/15 blur-[140px]"
+            className="pointer-events-none absolute top-0 left-1/2 h-[32rem] w-[50rem] -translate-x-1/2 rounded-full bg-[#bc7155]/15 blur-[140px]"
             aria-hidden
           />
         )}
@@ -2173,7 +2173,7 @@ function AdvantageSection({
             <Reveal>
               <div
                 className={`flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-widest ${
-                  dark ? "text-[#C9A961]" : "text-[#A8893F]"
+                  dark ? "text-[#bc7155]" : "text-[#A8893F]"
                 }`}
               >
                 <adv.icon className="h-3 w-3" /> {adv.num}
@@ -2182,7 +2182,7 @@ function AdvantageSection({
             <Reveal delay={0.08}>
               <h2
                 className={`mt-3 text-3xl font-bold tracking-tight sm:text-4xl ${
-                  dark ? "text-white" : "text-[#1A1A1A]"
+                  dark ? "text-white" : "text-[#0f0f1c]"
                 }`}
               >
                 {adv.title}
@@ -2231,7 +2231,7 @@ function AdvantageSection({
           <Reveal>
             <div
               className={`flex items-center gap-2 text-xs font-semibold uppercase tracking-widest ${
-                dark ? "text-[#C9A961]" : "text-[#A8893F]"
+                dark ? "text-[#bc7155]" : "text-[#A8893F]"
               }`}
             >
               <adv.icon className="h-3 w-3" /> {adv.num}
@@ -2240,7 +2240,7 @@ function AdvantageSection({
           <Reveal delay={0.08}>
             <h2
               className={`mt-3 text-3xl font-bold tracking-tight sm:text-4xl ${
-                dark ? "text-white" : "text-[#1A1A1A]"
+                dark ? "text-white" : "text-[#0f0f1c]"
               }`}
             >
               {adv.title}
@@ -2263,7 +2263,7 @@ function AdvantageSection({
                   <li
                     key={i}
                     className={`flex items-start gap-3 text-sm ${
-                      dark ? "text-white/80" : "text-[#1A1A1A]/80"
+                      dark ? "text-white/80" : "text-[#0f0f1c]/80"
                     }`}
                   >
                     <CheckCircle2
@@ -2286,11 +2286,11 @@ function AdvantageSection({
                     className={`flex items-start gap-4 rounded-xl border p-4 ${
                       dark
                         ? "border-white/10 bg-white/5"
-                        : "border-black/5 bg-[#FAFAF7]"
+                        : "border-black/5 bg-[#ffffff]"
                     }`}
                   >
                     <div
-                      className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-xs font-bold text-[#1A1A1A]"
+                      className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br text-xs font-bold text-[#0f0f1c]"
                       style={{
                         backgroundImage: `linear-gradient(to bottom right, ${sector.accentFrom}, ${sector.accentTo})`,
                       }}
@@ -2302,7 +2302,7 @@ function AdvantageSection({
                         <s.icon className={`h-3.5 w-3.5 ${s.color}`} />
                         <div
                           className={`text-sm font-semibold ${
-                            dark ? "text-white" : "text-[#1A1A1A]"
+                            dark ? "text-white" : "text-[#0f0f1c]"
                           }`}
                         >
                           {s.t}
@@ -2346,8 +2346,8 @@ function AdvantageMockup({
           // accent is carried by the inline-style glow + accent-colored title.
           bgGradient={
             sector.dark
-              ? "from-[#1A1A1A] via-[#2C2C2C] to-[#A8893F]/20"
-              : "from-[#FAFAF7] via-white to-slate-100"
+              ? "from-[#0f0f1c] via-[#2C2C2C] to-[#A8893F]/20"
+              : "from-[#ffffff] via-white to-slate-100"
           }
           accentColor={sector.accentFrom}
         />
@@ -2375,7 +2375,7 @@ function AdvantageMockup({
 
 function DeniseQuoteSection({ sector }: { sector: SectorConfig }) {
   return (
-    <section className="relative overflow-hidden bg-[#1A1A1A] py-24 text-white sm:py-32">
+    <section className="relative overflow-hidden bg-[#0f0f1c] py-24 text-white sm:py-32">
       <div
         className="pointer-events-none absolute -top-32 left-1/2 h-[40rem] w-[60rem] -translate-x-1/2 rounded-full blur-[140px]"
         style={{ background: sector.accentFrom + "20" }}
@@ -2384,7 +2384,7 @@ function DeniseQuoteSection({ sector }: { sector: SectorConfig }) {
       <div className="absolute inset-0 fbp-grid-dark opacity-40" aria-hidden />
       <div className="relative mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
         <Reveal>
-          <div className="flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-widest text-[#C9A961]">
+          <div className="flex items-center justify-center gap-2 text-xs font-semibold uppercase tracking-widest text-[#bc7155]">
             <Mic className="h-3 w-3" /> Denise · {sector.label}
           </div>
         </Reveal>
@@ -2403,7 +2403,7 @@ function DeniseQuoteSection({ sector }: { sector: SectorConfig }) {
           </blockquote>
         </Reveal>
         <Reveal delay={0.24}>
-          <div className="mt-4 text-xs font-semibold uppercase tracking-widest text-[#C9A961]">
+          <div className="mt-4 text-xs font-semibold uppercase tracking-widest text-[#bc7155]">
             — Denise
           </div>
         </Reveal>
@@ -2414,10 +2414,10 @@ function DeniseQuoteSection({ sector }: { sector: SectorConfig }) {
 
 function TestimonialSection({ sector }: { sector: SectorConfig }) {
   return (
-    <section className="bg-[#FAFAF7] py-24 sm:py-28">
+    <section className="bg-[#ffffff] py-24 sm:py-28">
       <div className="mx-auto max-w-4xl px-4 sm:px-6 lg:px-8">
         <Reveal>
-          <div className="relative overflow-hidden rounded-3xl border border-black/5 bg-white p-8 shadow-xl sm:p-12">
+          <div className="relative overflow-hidden rounded-none border border-black/5 bg-white p-8 shadow-xl sm:p-12">
             <Quote
               className="absolute -right-4 -top-4 h-24 w-24"
               style={{ color: sector.accentFrom + "10" }}
@@ -2427,11 +2427,11 @@ function TestimonialSection({ sector }: { sector: SectorConfig }) {
                 {Array.from({ length: 5 }).map((_, i) => (
                   <Star
                     key={i}
-                    className="h-4 w-4 fill-[#C9A961] text-[#C9A961]"
+                    className="h-4 w-4 fill-[#bc7155] text-[#bc7155]"
                   />
                 ))}
               </div>
-              <blockquote className="mt-5 text-xl font-medium leading-relaxed text-[#1A1A1A] sm:text-2xl">
+              <blockquote className="mt-5 text-xl font-medium leading-relaxed text-[#0f0f1c] sm:text-2xl">
                 « {sector.testimonial.quote} »
               </blockquote>
               <div className="mt-6 flex items-center gap-3">
@@ -2444,7 +2444,7 @@ function TestimonialSection({ sector }: { sector: SectorConfig }) {
                   {sector.testimonial.initials}
                 </div>
                 <div>
-                  <div className="text-sm font-semibold text-[#1A1A1A]">
+                  <div className="text-sm font-semibold text-[#0f0f1c]">
                     {sector.testimonial.name}
                   </div>
                   <div className="text-xs text-muted-foreground">
@@ -2469,10 +2469,10 @@ function SectorCtaSection({
 }) {
   return (
     <section className="relative overflow-hidden">
-      <div className="relative overflow-hidden bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#334155] py-24 sm:py-32">
+      <div className="relative overflow-hidden bg-gradient-to-br from-[#0f0f1c] via-[#1E293B] to-[#334155] py-24 sm:py-32">
         {/* Halos dorés subtils — signature CTA premium */}
-        <div className="pointer-events-none absolute -bottom-24 -left-16 h-80 w-80 rounded-full bg-[#C9A961]/15 blur-[110px]" aria-hidden />
-        <div className="pointer-events-none absolute -top-24 -right-16 h-80 w-80 rounded-full bg-[#C9A961]/10 blur-[110px]" aria-hidden />
+        <div className="pointer-events-none absolute -bottom-24 -left-16 h-80 w-80 rounded-full bg-[#bc7155]/15 blur-[110px]" aria-hidden />
+        <div className="pointer-events-none absolute -top-24 -right-16 h-80 w-80 rounded-full bg-[#bc7155]/10 blur-[110px]" aria-hidden />
         <div className="relative mx-auto flex max-w-4xl flex-col items-center px-4 text-center sm:px-6">
           <Reveal delay={0.08}>
             <h2 className="text-3xl font-bold tracking-tight text-white sm:text-4xl lg:text-5xl">
@@ -2521,7 +2521,7 @@ function AproposPage() {
   return (
     <>
       {/* HERO */}
-      <section className="bg-[#FAFAF7] py-24 sm:py-28">
+      <section className="bg-[#ffffff] py-24 sm:py-28">
         <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
           <Reveal>
             <div className="w-fit mx-auto rounded-xl bg-white px-4 py-2 shadow-lg">
@@ -2529,9 +2529,9 @@ function AproposPage() {
             </div>
           </Reveal>
           <Reveal delay={0.08}>
-            <h1 className="mt-6 text-4xl font-bold tracking-tighter text-[#1A1A1A] sm:text-5xl">
+            <h1 className="mt-6 text-4xl font-bold tracking-tighter text-[#0f0f1c] sm:text-5xl">
               Redonner du{" "}
-              <span className="bg-gradient-to-r from-[#A8893F] to-[#C9A961] bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-[#A8893F] to-[#bc7155] bg-clip-text text-transparent">
                 pouvoir d&apos;agir
               </span>{" "}
               au terrain.
@@ -2557,7 +2557,7 @@ function AproposPage() {
               </div>
             </Reveal>
             <Reveal delay={0.08}>
-              <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#1A1A1A] sm:text-4xl">
+              <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#0f0f1c] sm:text-4xl">
                 Pourquoi une voix ?
               </h2>
             </Reveal>
@@ -2581,23 +2581,23 @@ function AproposPage() {
           </div>
 
           <Reveal delay={0.2}>
-            <div className="relative overflow-hidden rounded-3xl border border-black/5 bg-gradient-to-br from-[#1A1A1A] to-[#2C2C2C] p-8 text-white shadow-2xl">
+            <div className="relative overflow-hidden rounded-none border border-black/5 bg-gradient-to-br from-[#0f0f1c] to-[#2C2C2C] p-8 text-white shadow-2xl">
               <div className="absolute inset-0 fbp-grid-dark opacity-40" aria-hidden />
               {/* Denise avatar */}
               <div className="relative flex items-center justify-center">
                 <div className="relative">
-                  <span className="fbp-ring-pulse absolute inset-0 rounded-full bg-[#C9A961]/40" />
-                  <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-[#A8893F] to-[#C9A961] shadow-2xl">
+                  <span className="fbp-ring-pulse absolute inset-0 rounded-full bg-[#bc7155]/40" />
+                  <div className="relative flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-[#A8893F] to-[#bc7155] shadow-2xl">
                     <Volume2 className="h-10 w-10 text-white" />
                   </div>
                 </div>
               </div>
               <div className="relative mt-6 text-center">
-                <div className="text-[10px] font-semibold uppercase tracking-widest text-[#C9A961]">
+                <div className="text-[10px] font-semibold uppercase tracking-widest text-[#bc7155]">
                   Denise · Assistante vocale
                 </div>
                 <div className="mt-4 flex h-16 items-center justify-center gap-1">
-                  <SoundWave bars={22} barClassName="from-[#A8893F] to-[#C9A961] w-1" />
+                  <SoundWave bars={22} barClassName="from-[#A8893F] to-[#bc7155] w-1" />
                 </div>
                 <p className="mt-4 text-sm text-white/80">
                   « Bonjour. Je veille sur votre établissement. Dites-moi ce qui
@@ -2610,7 +2610,7 @@ function AproposPage() {
       </section>
 
       {/* MULTI-SECTEURS */}
-      <section className="bg-[#FAFAF7] py-24 sm:py-28">
+      <section className="bg-[#ffffff] py-24 sm:py-28">
         <div className="mx-auto max-w-screen-2xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <Reveal>
@@ -2619,7 +2619,7 @@ function AproposPage() {
               </div>
             </Reveal>
             <Reveal delay={0.08}>
-              <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#1A1A1A] sm:text-4xl">
+              <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#0f0f1c] sm:text-4xl">
                 Denise parle le langage de chaque secteur.
               </h2>
             </Reveal>
@@ -2642,7 +2642,7 @@ function AproposPage() {
                     <s.icon className="h-5 w-5" />
                   </div>
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-semibold text-[#1A1A1A]">
+                    <div className="truncate text-sm font-semibold text-[#0f0f1c]">
                       {s.cardTitle}
                     </div>
                     <div className="truncate text-xs text-muted-foreground">
@@ -2666,7 +2666,7 @@ function AproposPage() {
               </div>
             </Reveal>
             <Reveal delay={0.08}>
-              <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#1A1A1A] sm:text-4xl">
+              <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#0f0f1c] sm:text-4xl">
                 Une équipe obsédée par le terrain.
               </h2>
             </Reveal>
@@ -2679,21 +2679,21 @@ function AproposPage() {
                 name: "Alexandre Roy",
                 role: "CEO & Co-fondateur",
                 bio: "15 ans dans l'hôtellerie-restauration. A vu trop de mauvaises expériences devenir des avis publics. A décidé d'agir en amont.",
-                color: "from-[#A8893F] to-[#C9A961]",
+                color: "from-[#A8893F] to-[#bc7155]",
               },
               {
                 initials: "SK",
                 name: "Sofia Kone",
                 role: "CTO & Co-fondatrice",
                 bio: "Ingénieure IA. A conçu Denise pour qu'elle parle comme une collègue, pas comme un robot. Obsédée par la latence et la clarté.",
-                color: "from-[#C9A961] to-[#A8893F]",
+                color: "from-[#bc7155] to-[#A8893F]",
               },
               {
                 initials: "JD",
                 name: "Julien Diaz",
                 role: "Head of Ops Multi-Secteurs",
                 bio: "Ex-responsable opérations dans un grand aéroport européen. Connaît chaque mètre carré d'un terminal — et chaque douleur associée.",
-                color: "from-[#A8893F] to-[#E5D4A8]",
+                color: "from-[#A8893F] to-[#e7c1ae]",
               },
             ].map((m, i) => (
               <Reveal key={i} delay={0.1 * i}>
@@ -2703,7 +2703,7 @@ function AproposPage() {
                   >
                     {m.initials}
                   </div>
-                  <h3 className="mt-4 text-lg font-bold text-[#1A1A1A]">
+                  <h3 className="mt-4 text-lg font-bold text-[#0f0f1c]">
                     {m.name}
                   </h3>
                   <div className="text-xs font-semibold uppercase tracking-widest text-[#A8893F]">
@@ -2718,7 +2718,7 @@ function AproposPage() {
       </section>
 
       {/* VALEURS */}
-      <section className="bg-[#FAFAF7] py-24 sm:py-28">
+      <section className="bg-[#ffffff] py-24 sm:py-28">
         <div className="mx-auto max-w-screen-2xl px-4 sm:px-6 lg:px-8">
           <div className="mx-auto max-w-3xl text-center">
             <Reveal>
@@ -2727,7 +2727,7 @@ function AproposPage() {
               </div>
             </Reveal>
             <Reveal delay={0.08}>
-              <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#1A1A1A] sm:text-4xl">
+              <h2 className="mt-3 text-3xl font-bold tracking-tight text-[#0f0f1c] sm:text-4xl">
                 Ce qui nous guide.
               </h2>
             </Reveal>
@@ -2752,11 +2752,11 @@ function AproposPage() {
               },
             ].map((v, i) => (
               <Reveal key={i} delay={0.1 * i}>
-                <div className="h-full rounded-2xl border border-[#A8893F]/10 bg-gradient-to-br from-[#FAFAF7] to-white p-6">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#A8893F] to-[#C9A961] text-white shadow-lg shadow-[#A8893F]/25">
+                <div className="h-full rounded-2xl border border-[#A8893F]/10 bg-gradient-to-br from-[#ffffff] to-white p-6">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#A8893F] to-[#bc7155] text-white shadow-lg shadow-[#A8893F]/25">
                     <v.icon className="h-5 w-5" />
                   </div>
-                  <h3 className="mt-4 text-lg font-bold text-[#1A1A1A]">
+                  <h3 className="mt-4 text-lg font-bold text-[#0f0f1c]">
                     {v.t}
                   </h3>
                   <p className="mt-2 text-sm text-muted-foreground">{v.d}</p>
@@ -2806,7 +2806,7 @@ function ContactPage() {
   return (
     <>
       {/* HERO */}
-      <section className="bg-[#FAFAF7] py-24 sm:py-28">
+      <section className="bg-[#ffffff] py-24 sm:py-28">
         <div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
           <Reveal>
             <div className="inline-flex items-center gap-2 rounded-full border border-[#A8893F]/15 bg-white/70 px-4 py-1.5 text-xs font-medium text-[#A8893F] backdrop-blur">
@@ -2814,9 +2814,9 @@ function ContactPage() {
             </div>
           </Reveal>
           <Reveal delay={0.08}>
-            <h1 className="mt-5 text-4xl font-bold tracking-tighter text-[#1A1A1A] sm:text-5xl">
+            <h1 className="mt-5 text-4xl font-bold tracking-tighter text-[#0f0f1c] sm:text-5xl">
               Parlez-nous de votre{" "}
-              <span className="bg-gradient-to-r from-[#A8893F] to-[#C9A961] bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-[#A8893F] to-[#bc7155] bg-clip-text text-transparent">
                 établissement.
               </span>
             </h1>
@@ -2830,13 +2830,13 @@ function ContactPage() {
       </section>
 
       {/* COORDONNÉES + CARTE */}
-      <section className="bg-[#FAFAF7] pb-12">
+      <section className="bg-[#ffffff] pb-12">
         <div className="mx-auto max-w-5xl px-4 sm:px-6">
           <Reveal>
             <div className="grid gap-6 lg:grid-cols-2">
               {/* Coordonnées */}
               <div className="rounded-2xl border border-black/5 bg-white p-6 shadow-lg">
-                <h2 className="text-lg font-bold text-[#1A1A1A]">Nos coordonnées</h2>
+                <h2 className="text-lg font-bold text-[#0f0f1c]">Nos coordonnées</h2>
                 <div className="mt-4 space-y-4">
                   <div className="flex items-start gap-3">
                     <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#A8893F]/10">
@@ -2844,7 +2844,7 @@ function ContactPage() {
                     </div>
                     <div>
                       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Adresse</p>
-                      <p className="text-sm font-medium text-[#1A1A1A]">Société 2M</p>
+                      <p className="text-sm font-medium text-[#0f0f1c]">Société 2M</p>
                       <p className="text-sm text-muted-foreground">Lot n°13, Sicap Foire</p>
                       <p className="text-sm text-muted-foreground">Dakar, Sénégal</p>
                     </div>
@@ -2890,12 +2890,12 @@ function ContactPage() {
       </section>
 
       {/* FORM */}
-      <section className="bg-[#FAFAF7] pb-24">
+      <section className="bg-[#ffffff] pb-24">
         <div className="mx-auto max-w-2xl px-4 sm:px-6">
           <Reveal>
             <form
               onSubmit={onSubmit}
-              className="rounded-3xl border border-black/5 bg-white p-6 shadow-xl sm:p-8"
+              className="rounded-none border border-black/5 bg-white p-6 shadow-xl sm:p-8"
             >
               <div className="grid gap-4 sm:grid-cols-2">
                 <Field label="Nom">
@@ -2904,7 +2904,7 @@ function ContactPage() {
                     value={formData.nom}
                     onChange={(e) => setFormData({ ...formData, nom: e.target.value })}
                     placeholder="Marie Dupont"
-                    className="h-11 border-black/10 bg-[#FAFAF7] focus:border-[#A8893F]"
+                    className="h-11 border-black/10 bg-[#ffffff] focus:border-[#A8893F]"
                   />
                 </Field>
                 <Field label="Email">
@@ -2914,12 +2914,12 @@ function ContactPage() {
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     placeholder="marie@etablissement.com"
-                    className="h-11 border-black/10 bg-[#FAFAF7] focus:border-[#A8893F]"
+                    className="h-11 border-black/10 bg-[#ffffff] focus:border-[#A8893F]"
                   />
                 </Field>
                 <Field label="Type d'établissement">
                   <Select required value={formData.typeEtablissement} onValueChange={(v) => setFormData({ ...formData, typeEtablissement: v })}>
-                    <SelectTrigger className="h-11 border-black/10 bg-[#FAFAF7] focus:border-[#A8893F]">
+                    <SelectTrigger className="h-11 border-black/10 bg-[#ffffff] focus:border-[#A8893F]">
                       <SelectValue placeholder="Sélectionnez" />
                     </SelectTrigger>
                     <SelectContent>
@@ -2938,12 +2938,12 @@ function ContactPage() {
                     value={formData.volume}
                     onChange={(e) => setFormData({ ...formData, volume: e.target.value })}
                     placeholder="Couverts / passagers / chambres / jour"
-                    className="h-11 border-black/10 bg-[#FAFAF7] focus:border-[#A8893F]"
+                    className="h-11 border-black/10 bg-[#ffffff] focus:border-[#A8893F]"
                   />
                 </Field>
                 <Field label="Défi principal" className="sm:col-span-2">
                   <Select required value={formData.defi} onValueChange={(v) => setFormData({ ...formData, defi: v })}>
-                    <SelectTrigger className="h-11 border-black/10 bg-[#FAFAF7] focus:border-[#A8893F]">
+                    <SelectTrigger className="h-11 border-black/10 bg-[#ffffff] focus:border-[#A8893F]">
                       <SelectValue placeholder="Sélectionnez votre défi" />
                     </SelectTrigger>
                     <SelectContent>
@@ -2963,7 +2963,7 @@ function ContactPage() {
                     value={formData.message}
                     onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                     placeholder="Parlez-nous de votre établissement"
-                    className="border-black/10 bg-[#FAFAF7] focus:border-[#A8893F]"
+                    className="border-black/10 bg-[#ffffff] focus:border-[#A8893F]"
                   />
                 </Field>
               </div>
@@ -2975,7 +2975,7 @@ function ContactPage() {
                 <Button
                   type="submit"
                   disabled={submitting}
-                  className="h-12 rounded-full bg-[#C9A961] px-6 text-sm font-semibold text-[#1A1A1A] shadow-lg shadow-[#C9A961]/25 transition-all hover:-translate-y-0.5 hover:bg-[#A8893F] hover:shadow-xl hover:shadow-[#C9A961]/40 disabled:opacity-70"
+                  className="h-12 rounded-full bg-[#bc7155] px-6 text-sm font-semibold text-[#0f0f1c] shadow-lg shadow-[#bc7155]/25 transition-all hover:-translate-y-0.5 hover:bg-[#A8893F] hover:shadow-xl hover:shadow-[#bc7155]/40 disabled:opacity-70"
                 >
                   <span className="flex items-center gap-2">
                     {submitting ? "Envoi..." : "Demander ma démo"}
@@ -2988,14 +2988,14 @@ function ContactPage() {
                 <motion.div
                   initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
-                  className="mt-6 flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 p-4"
+                  className="mt-6 flex items-center gap-3 rounded-xl border border-[#e7c1ae] bg-[#faf1ec] p-4"
                 >
-                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                  <CheckCircle2 className="h-5 w-5 text-[#a05f45]" />
                   <div>
-                    <div className="text-sm font-semibold text-emerald-800">
+                    <div className="text-sm font-semibold text-[#6f3f30]">
                       Demande envoyée.
                     </div>
-                    <div className="text-xs text-emerald-700">
+                    <div className="text-xs text-[#8a4f3b]">
                       Notre équipe vous recontacte sous 24h pour planifier une
                       démo adaptée à votre secteur.
                     </div>
@@ -3010,9 +3010,9 @@ function ContactPage() {
       {/* PROMISE */}
       <section className="px-4 pb-24 sm:px-6">
         <Reveal className="mx-auto max-w-4xl">
-          <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-[#0F172A] via-[#1E293B] to-[#334155] py-16 px-6 text-center text-white shadow-2xl">
-            <div className="pointer-events-none absolute -bottom-20 -left-12 h-72 w-72 rounded-full bg-[#C9A961]/15 blur-[100px]" aria-hidden />
-            <div className="pointer-events-none absolute -top-20 -right-12 h-72 w-72 rounded-full bg-[#C9A961]/10 blur-[100px]" aria-hidden />
+          <div className="relative overflow-hidden rounded-none bg-gradient-to-br from-[#0f0f1c] via-[#1E293B] to-[#334155] py-16 px-6 text-center text-white shadow-2xl">
+            <div className="pointer-events-none absolute -bottom-20 -left-12 h-72 w-72 rounded-full bg-[#bc7155]/15 blur-[100px]" aria-hidden />
+            <div className="pointer-events-none absolute -top-20 -right-12 h-72 w-72 rounded-full bg-[#bc7155]/10 blur-[100px]" aria-hidden />
             <Aurora dark />
             <div className="relative">
               <div className="mx-auto w-fit rounded-xl bg-white px-4 py-2 shadow-lg">
@@ -3071,7 +3071,7 @@ function Field({
 
 function Footer({ navigate }: { navigate: Navigate }) {
   return (
-    <footer className="bg-[#1A1A1A] text-white">
+    <footer className="bg-[#0f0f1c] text-white">
       <div className="mx-auto max-w-screen-2xl px-4 py-16 sm:px-6 lg:px-8">
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-5">
           {/* Brand */}
@@ -3083,8 +3083,8 @@ function Footer({ navigate }: { navigate: Navigate }) {
               L&apos;intelligence terrain pour vos établissements. Piloté par
               Denise, votre assistante vocale temps réel.
             </p>
-            <div className="mt-5 flex w-fit items-center gap-2 rounded-full border border-[#C9A961]/30 bg-[#C9A961]/10 px-3 py-1.5 text-xs text-[#E5D4A8]">
-              <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#C9A961]" />
+            <div className="mt-5 flex w-fit items-center gap-2 rounded-full border border-[#bc7155]/30 bg-[#bc7155]/10 px-3 py-1.5 text-xs text-[#e7c1ae]">
+              <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#bc7155]" />
               Denise veille · 24/7
             </div>
           </div>
@@ -3142,11 +3142,11 @@ function Footer({ navigate }: { navigate: Navigate }) {
             <Input
               type="email"
               placeholder="vous@etablissement.com"
-              className="h-11 border-white/10 bg-white/5 text-white placeholder:text-white/40 focus:border-[#C9A961]"
+              className="h-11 border-white/10 bg-white/5 text-white placeholder:text-white/40 focus:border-[#bc7155]"
             />
             <Button
               type="submit"
-              className="h-11 shrink-0 rounded-full bg-[#C9A961] px-5 text-sm font-semibold text-[#1A1A1A] shadow-lg shadow-[#C9A961]/25 hover:bg-[#A8893F]"
+              className="h-11 shrink-0 rounded-full bg-[#bc7155] px-5 text-sm font-semibold text-[#0f0f1c] shadow-lg shadow-[#bc7155]/25 hover:bg-[#A8893F]"
             >
               S&apos;abonner
             </Button>
@@ -3157,7 +3157,7 @@ function Footer({ navigate }: { navigate: Navigate }) {
         <div className="mt-10 flex flex-col items-center justify-between gap-3 border-t border-white/10 pt-6 text-xs text-white/50 sm:flex-row">
           <div>© {new Date().getFullYear()} FeedbackPro. Tous droits réservés.</div>
           <div className="flex items-center gap-2">
-            <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#C9A961]" />
+            <span className="fbp-pulse-dot h-2 w-2 rounded-full bg-[#bc7155]" />
             Piloté par Denise
           </div>
         </div>
@@ -3268,7 +3268,7 @@ export function LandingView({
   }
 
   return (
-    <div className="relative min-h-screen bg-[#FAFAF7] fbp-shell">
+    <div className="relative min-h-screen bg-[#ffffff] fbp-shell">
       <style dangerouslySetInnerHTML={{ __html: FBP_CSS }} />
 
       <Header

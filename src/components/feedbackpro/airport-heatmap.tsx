@@ -7,9 +7,9 @@
 // animée temps réel. Polle /api/airport/wallboard toutes les 5s
 // et affiche pour chaque zone une tuile colorée selon
 // count_en_attente :
-//   0       → vert   (#00A651)
-//   1-2     → jaune  (#FCD116)
-//   3-5     → orange (#FF6B00)
+//   0       → vert   (#bc7155)
+//   1-2     → jaune  (#bc7155)
+//   3-5     → orange (#bc7155)
 //   6+      → rouge  (#E30613, pulsing)
 //
 // Particules animées CSS qui s'écoulent des zones critiques
@@ -20,19 +20,19 @@
 // anneau bleu épais.
 //
 // Palette V2.0 : fond #F5F5F5, panneaux blancs rounded-15px,
-// bleu #003399 (titre + sélection), jaune #FCD116, rouge #E30613,
-// vert #00A651, orange #FF6B00.
+// bleu #000d10 (titre + sélection), jaune #bc7155, rouge #E30613,
+// vert #bc7155, orange #bc7155.
 // ============================================================
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Activity, AlertTriangle, RefreshCw, Thermometer } from 'lucide-react'
 
 // --- Palette V2.0 ---
-const BLEU = '#003399'
-const JAUNE = '#FCD116'
+const BLEU = '#000d10'
+const JAUNE = '#bc7155'
 const ROUGE = '#E30613'
-const VERT = '#00A651'
-const ORANGE = '#FF6B00'
+const VERT = '#bc7155'
+const ORANGE = '#bc7155'
 const BG = '#F5F5F5'
 
 // --- Layout de la carte aéroport (grille 5 colonnes × 5 lignes) ---

@@ -406,8 +406,8 @@ export function ZonesTab({ onOpenQr }: { onOpenQr: (zoneId: string) => void }) {
                     <AreaChart data={details.evolution} margin={{ top: 5, right: 5, left: -18, bottom: 0 }}>
                       <defs>
                         <linearGradient id="gradZoneScore" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="5%" stopColor="#2563eb" stopOpacity={0.25} />
-                          <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+                          <stop offset="5%" stopColor="#000d10" stopOpacity={0.25} />
+                          <stop offset="95%" stopColor="#000d10" stopOpacity={0} />
                         </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e7e5e4" />
@@ -418,7 +418,7 @@ export function ZonesTab({ onOpenQr }: { onOpenQr: (zoneId: string) => void }) {
                         type="monotone"
                         dataKey="score"
                         name="Score"
-                        stroke="#2563eb"
+                        stroke="#000d10"
                         strokeWidth={2.5}
                         fill="url(#gradZoneScore)"
                         connectNulls
@@ -444,7 +444,7 @@ export function ZonesTab({ onOpenQr }: { onOpenQr: (zoneId: string) => void }) {
                         key={t.id}
                         variant="outline"
                         className={cn(
-                          t.type === "positif" && "border-green-300 text-green-700",
+                          t.type === "positif" && "border-[#dba28a] text-[#8a4f3b]",
                           t.type === "negatif" && "border-rose-300 text-rose-700"
                         )}
                       >
@@ -468,7 +468,7 @@ export function ZonesTab({ onOpenQr }: { onOpenQr: (zoneId: string) => void }) {
                       <div key={r.id} className="rounded-lg border px-3 py-2.5">
                         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs">
                           <span aria-label={`Note ${r.note} sur 5`}>
-                            <span className="text-amber-500">{"★".repeat(r.note)}</span>
+                            <span className="text-[#bc7155]">{"★".repeat(r.note)}</span>
                             <span className="text-stone-300">{"☆".repeat(Math.max(0, 5 - r.note))}</span>
                           </span>
                           <span className="text-muted-foreground">{dateRetourCourt(r.createdAt)}</span>
@@ -499,7 +499,7 @@ export function ZonesTab({ onOpenQr }: { onOpenQr: (zoneId: string) => void }) {
                 <ul className="space-y-1.5">
                   {details.recommandations.map((rec, i) => (
                     <li key={i} className="flex items-start gap-2 text-sm leading-relaxed text-muted-foreground">
-                      <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-500" aria-hidden />
+                      <Lightbulb className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#bc7155]" aria-hidden />
                       <span className="min-w-0">{rec}</span>
                     </li>
                   ))}
@@ -548,7 +548,7 @@ export function ZonesTab({ onOpenQr }: { onOpenQr: (zoneId: string) => void }) {
       </div>
 
       {limiteAtteinte && (
-        <p className="flex items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800">
+        <p className="flex items-center gap-2 rounded-xl border border-[#dba28a] bg-[#faf1ec] px-3.5 py-2.5 text-sm text-[#6f3f30]">
           <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />
           Limite de {limite} zones atteinte pour votre plan {planName} — passez au plan supérieur pour en créer
           davantage.
@@ -761,7 +761,7 @@ function BadgeTendance({
   if (delta === null || delta === undefined) return null
   if (tendance === "hausse") {
     return (
-      <Badge variant="outline" className="border-green-300 text-green-700">
+      <Badge variant="outline" className="border-[#dba28a] text-[#8a4f3b]">
         <TrendingUp className="mr-1 h-3 w-3" aria-hidden />
         +{delta.toFixed(2).replace(".", ",")} pt
       </Badge>
@@ -814,7 +814,7 @@ function ChipsTags({
                 "rounded-full border px-2.5 py-1 text-xs transition-colors",
                 actif
                   ? variante === "positif"
-                    ? "border-green-400 bg-green-100 text-green-800"
+                    ? "border-[#c98b72] bg-[#f3ddd2] text-[#6f3f30]"
                     : "border-rose-300 bg-rose-100 text-rose-800"
                   : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground"
               )}

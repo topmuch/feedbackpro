@@ -264,7 +264,7 @@ export const TESTIMONIALS: {
       "En 3 semaines, on a corrigé un problème d'attente au déjeuner qu'on traînait depuis 2 ans. Le rapport du matin m'a permis de cibler exactement qui former.",
     note: 5,
     initiales: "SM",
-    couleur: "from-[#002e85] to-[#0047c7]",
+    couleur: "from-[#0f0f1c] to-[#0f0f1c]",
   },
   {
     nom: "Karim Benali",
@@ -274,7 +274,7 @@ export const TESTIMONIALS: {
       "On a divisé par 4 les avis négatifs Google en 2 mois. Les alertes WhatsApp m'ont sauvé 3 clients qui allaient partir. ROI atteint en 3 semaines.",
     note: 5,
     initiales: "KB",
-    couleur: "from-emerald-500 to-teal-500",
+    couleur: "from-[#bc7155] to-[#bc7155]",
   },
   {
     nom: "Émilie Faure",
@@ -284,7 +284,7 @@ export const TESTIMONIALS: {
       "On pilotait 8 boutiques à l'instinct. Aujourd'hui chaque manager reçoit son rapport matinal. Le leaderboard a complètement changé la dynamique d'équipe.",
     note: 5,
     initiales: "EF",
-    couleur: "from-[#002e85] to-[#0047c7]",
+    couleur: "from-[#0f0f1c] to-[#0f0f1c]",
   },
 ]
 

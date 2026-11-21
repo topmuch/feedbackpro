@@ -135,7 +135,7 @@ export function urgenceForRetour(nps: number, isRecidive?: boolean): Urgence {
 
 export const URGENCES: Record<Urgence, { label: string; emoji: string; bg: string; bgDark: string }> = {
   URGENT: { label: 'Urgent', emoji: '🚨', bg: '#720032', bgDark: '#5a0026' },
-  A_TRAITER: { label: 'À traiter', emoji: '🟠', bg: '#c2410c', bgDark: '#9a3412' },
+  A_TRAITER: { label: 'À traiter', emoji: '🟠', bg: '#8a4f3b', bgDark: '#6f3f30' },
   MITIGE: { label: 'Mitigé', emoji: '🟡', bg: '#a16207', bgDark: '#854d0e' },
   POSITIF: { label: 'Positif', emoji: '🟢', bg: '#0da14b', bgDark: '#0a8f3f' },
 }

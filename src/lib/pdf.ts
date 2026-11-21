@@ -213,7 +213,7 @@ export function generateCommandePdf(
   const doc = new jsPDF({ unit: MM, format: "a4" })
   const W = 210
 
-  // Bandeau (bleu FeedbackPro #2563EB)
+  // Bandeau (bleu FeedbackPro #000d10)
   doc.setFillColor(37, 99, 235)
   doc.rect(0, 0, W, 42, "F")
   doc.setFont("helvetica", "bold")

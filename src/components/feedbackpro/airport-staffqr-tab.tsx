@@ -402,13 +402,13 @@ export function AirportStaffQrTab() {
       {/* ---------- Header ---------- */}
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-start gap-3">
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 dark:bg-amber-500/15">
-            <QrCode className="size-5 text-amber-600 dark:text-amber-400" aria-hidden />
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-[#bc7155]/30 bg-[#bc7155]/10 dark:bg-[#bc7155]/15">
+            <QrCode className="size-5 text-[#a05f45] dark:text-[#c98b72]" aria-hidden />
           </div>
           <div>
             <h1 className="font-mono text-xl font-bold tracking-tight text-foreground sm:text-2xl">
               STAFF QR{' '}
-              <span className="text-amber-600 dark:text-amber-400">— Générateur</span>
+              <span className="text-[#a05f45] dark:text-[#c98b72]">— Générateur</span>
             </h1>
             <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
               <Users className="size-3" aria-hidden />
@@ -418,7 +418,7 @@ export function AirportStaffQrTab() {
             </p>
           </div>
         </div>
-        <Badge variant="outline" className="border-amber-500/30 bg-amber-500/5 text-[10px] font-semibold text-amber-700">
+        <Badge variant="outline" className="border-[#bc7155]/30 bg-[#bc7155]/5 text-[10px] font-semibold text-[#8a4f3b]">
           {savedLoading ? '…' : `${savedQrs.length} sauvegardé(s)`}
         </Badge>
       </div>
@@ -441,7 +441,7 @@ export function AirportStaffQrTab() {
                 value={tag}
                 onChange={(e) => setTag(e.target.value)}
                 placeholder="staff_nettoyage_T2"
-                className="border-border bg-background font-mono text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-amber-500/40"
+                className="border-border bg-background font-mono text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-[#bc7155]/40"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
                     e.preventDefault()
@@ -468,7 +468,7 @@ export function AirportStaffQrTab() {
                 value={label}
                 onChange={(e) => setLabel(e.target.value)}
                 placeholder="Nettoyage T2"
-                className="border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-amber-500/40"
+                className="border-border bg-background text-sm text-foreground placeholder:text-muted-foreground focus-visible:border-[#bc7155]/40"
                 maxLength={60}
               />
               <p className="text-[11px] text-muted-foreground">
@@ -487,7 +487,7 @@ export function AirportStaffQrTab() {
               >
                 <SelectTrigger
                   id="staff-zone"
-                  className="border-border bg-background text-sm text-foreground focus-visible:border-amber-500/40"
+                  className="border-border bg-background text-sm text-foreground focus-visible:border-[#bc7155]/40"
                 >
                   <SelectValue placeholder="Aucune (QR générique)" />
                 </SelectTrigger>
@@ -529,7 +529,7 @@ export function AirportStaffQrTab() {
                       className={cn(
                         'inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition',
                         active
-                          ? 'border-amber-500/60 bg-amber-500/10 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400'
+                          ? 'border-[#bc7155]/60 bg-[#bc7155]/10 dark:bg-[#bc7155]/15 text-[#a05f45] dark:text-[#c98b72]'
                           : 'border-border bg-background text-muted-foreground hover:border-muted-foreground hover:bg-muted hover:text-foreground',
                       )}
                     >
@@ -547,7 +547,7 @@ export function AirportStaffQrTab() {
                 URL encodée
               </span>
               <div className="rounded-md border border-border bg-background p-2.5">
-                <code className="break-all font-mono text-[11px] text-emerald-600 dark:text-emerald-400">
+                <code className="break-all font-mono text-[11px] text-[#a05f45] dark:text-[#c98b72]">
                   {tag.trim() ? encodedPreview : '—'}
                 </code>
               </div>
@@ -558,7 +558,7 @@ export function AirportStaffQrTab() {
               type="button"
               onClick={() => void generate()}
               disabled={generating || !tag.trim()}
-              className="w-full border-0 bg-amber-500 text-slate-950 hover:bg-amber-400 disabled:opacity-50"
+              className="w-full border-0 bg-[#bc7155] text-slate-950 hover:bg-[#c98b72] disabled:opacity-50"
             >
               {generating ? (
                 <Loader2 className="size-4 animate-spin" />
@@ -618,7 +618,7 @@ export function AirportStaffQrTab() {
                     variant="outline"
                     onClick={() => void downloadPng()}
                     disabled={downloadingPng}
-                    className="border-border bg-background text-foreground hover:border-amber-500/50 hover:bg-muted hover:text-amber-600 dark:hover:text-amber-300"
+                    className="border-border bg-background text-foreground hover:border-[#bc7155]/50 hover:bg-muted hover:text-[#a05f45] dark:hover:text-[#dba28a]"
                   >
                     {downloadingPng ? (
                       <Loader2 className="size-4 animate-spin" />
@@ -633,7 +633,7 @@ export function AirportStaffQrTab() {
                     variant="outline"
                     onClick={() => void downloadPdf()}
                     disabled={downloadingPdf}
-                    className="border-border bg-background text-foreground hover:border-amber-500/50 hover:bg-muted hover:text-amber-600 dark:hover:text-amber-300"
+                    className="border-border bg-background text-foreground hover:border-[#bc7155]/50 hover:bg-muted hover:text-[#a05f45] dark:hover:text-[#dba28a]"
                   >
                     {downloadingPdf ? (
                       <Loader2 className="size-4 animate-spin" />
@@ -801,7 +801,7 @@ function SavedQrCard({
         {qr.zoneCode && (
           <Badge
             variant="outline"
-            className="shrink-0 border-emerald-500/30 bg-emerald-500/5 text-[9px] font-semibold text-emerald-700"
+            className="shrink-0 border-[#bc7155]/30 bg-[#bc7155]/5 text-[9px] font-semibold text-[#8a4f3b]"
             title={zoneLabel ? `Zone : ${zoneLabel}` : `Code zone : ${qr.zoneCode}`}
           >
             {zoneEmoji ? `${zoneEmoji} ` : ''}

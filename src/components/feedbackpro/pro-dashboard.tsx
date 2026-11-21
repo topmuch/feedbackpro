@@ -407,10 +407,10 @@ export function ProDashboard() {
       <div className="relative flex min-h-screen flex-col bg-background lg:pl-72 lg:pr-3">
         {/* Pastilles décoratives floues (vert + indigo) derrière tout */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-          <div className="absolute -left-32 -top-24 h-[28rem] w-[28rem] rounded-full bg-emerald-500/15 blur-3xl" />
+          <div className="absolute -left-32 -top-24 h-[28rem] w-[28rem] rounded-full bg-[#bc7155]/15 blur-3xl" />
           <div className="absolute -right-24 -top-16 h-[24rem] w-[24rem] rounded-full bg-primary/10 blur-3xl" />
         </div>
-        <aside className="fixed inset-y-4 left-4 z-40 hidden max-h-[calc(100vh-2rem)] w-64 flex-col rounded-3xl border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-[0_10px_30px_rgba(0,0,0,0.35)] lg:flex">
+        <aside className="fixed inset-y-4 left-4 z-40 hidden max-h-[calc(100vh-2rem)] w-64 flex-col rounded-none border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-[0_10px_30px_rgba(0,0,0,0.35)] lg:flex">
           <div className="flex shrink-0 items-center gap-2.5 px-5 py-5">
             <Skeleton className="h-10 w-10 rounded-xl bg-sidebar-foreground/20" />
             <div className="flex-1 space-y-2">
@@ -437,10 +437,10 @@ export function ProDashboard() {
           <Skeleton className="h-10 w-72" />
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             {[...Array(4)].map((_, i) => (
-              <Skeleton key={i} className="h-28 rounded-3xl" />
+              <Skeleton key={i} className="h-28 rounded-none" />
             ))}
           </div>
-          <Skeleton className="h-64 rounded-3xl" />
+          <Skeleton className="h-64 rounded-none" />
         </main>
       </div>
     )
@@ -453,7 +453,7 @@ export function ProDashboard() {
     )}>
       {/* ---------- Pastilles décoratives floues (vert + indigo) ---------- */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-        <div className="absolute -left-32 -top-24 h-[28rem] w-[28rem] rounded-full bg-emerald-500/15 blur-3xl" />
+        <div className="absolute -left-32 -top-24 h-[28rem] w-[28rem] rounded-full bg-[#bc7155]/15 blur-3xl" />
         <div className="absolute -right-24 -top-16 h-[24rem] w-[24rem] rounded-full bg-primary/10 blur-3xl" />
       </div>
       {/* ---------- Sidebar détachée (desktop lg+) ----------
@@ -465,7 +465,7 @@ export function ProDashboard() {
           débordent — typiquement sur écran 11" (1366×768) où 22×44px ≈ 968px
           > 768px viewport. Le header (logo) et le footer (promesse) restent
           visibles grâce à shrink-0 / mt-auto. */}
-      <aside className="fixed inset-y-4 left-4 z-40 hidden max-h-[calc(100vh-2rem)] w-64 flex-col rounded-3xl border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-[0_18px_50px_rgba(0,0,0,0.45)] lg:flex">
+      <aside className="fixed inset-y-4 left-4 z-40 hidden max-h-[calc(100vh-2rem)] w-64 flex-col rounded-none border border-sidebar-border bg-sidebar text-sidebar-foreground shadow-[0_18px_50px_rgba(0,0,0,0.45)] lg:flex">
         <ContenuSidebar ongletActif={onglet} onNaviguer={naviguer} retoursNonLus={retoursNonLus} estAeroport={typeEtablissement === "Aéroport"} airportEnAttente={airportEnAttente} />
       </aside>
 
@@ -671,8 +671,8 @@ function BoutonOnglet({
       className={cn(
         "relative mx-3 flex h-11 shrink-0 items-center gap-3 rounded-2xl px-3.5 text-[11px] font-semibold uppercase tracking-wide transition-colors",
         actif
-          ? "-mr-2 bg-[#FAFAF7] text-[#5C4526] shadow-[0_8px_22px_rgba(0,0,0,0.45)]"
-          : "text-sidebar-foreground/85 hover:bg-white/[0.06] hover:text-[#E3C985]"
+          ? "-mr-2 bg-[#ffffff] text-[#5C4526] shadow-[0_8px_22px_rgba(0,0,0,0.45)]"
+          : "text-sidebar-foreground/85 hover:bg-white/[0.06] hover:text-[#dba28a]"
       )}
     >
       <Icon className="h-[18px] w-[18px] shrink-0" aria-hidden />
@@ -706,7 +706,7 @@ function ContenuSidebar({
     <div className="flex h-full min-h-0 flex-col">
       {/* Logo — shrink-0 pour rester visible en haut quand le nav scroll */}
       <div className="flex shrink-0 items-center gap-2.5 border-b border-sidebar-border px-5 py-5">
-        <div className="rounded-lg bg-[#FAFAF7] px-2 py-1 shadow-[0_2px_10px_rgba(0,0,0,0.4)]">
+        <div className="rounded-lg bg-[#ffffff] px-2 py-1 shadow-[0_2px_10px_rgba(0,0,0,0.4)]">
           <img
             src="/logo-feedbackpro-transparent.png"
             alt="FeedbackPro"
@@ -726,7 +726,7 @@ function ContenuSidebar({
           /* --- Dashboard AÉROPORT dédié : uniquement les onglets aéroport --- */
           <>
             <p
-              className="px-6 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-[#C9A961]"
+              className="px-6 pt-2 pb-1 text-[11px] font-semibold uppercase tracking-wider text-[#bc7155]"
               role="presentation"
             >
               {t("nav.aeroport")}

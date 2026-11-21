@@ -214,7 +214,7 @@ export function ScratchCard({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-2xl border-4 border-amber-300 bg-white shadow-lg",
+        "relative overflow-hidden rounded-2xl border-4 border-[#dba28a] bg-white shadow-lg",
         className
       )}
       style={{ width: largeur, height: hauteur, maxWidth: "100%" }}
@@ -226,7 +226,7 @@ export function ScratchCard({
             <span className="text-4xl" aria-hidden>
               🎉
             </span>
-            <p className="text-balance text-lg font-black leading-tight text-amber-700 sm:text-xl">
+            <p className="text-balance text-lg font-black leading-tight text-[#8a4f3b] sm:text-xl">
               {gain}
             </p>
           </>

@@ -9,7 +9,7 @@
 // sur le Salon VIP (carte secteur "featured" sombre + badge
 // Premium) et les 6 secteurs unifiés.
 //
-// Design unifié crème #FAFAF7 + or #C9A961 + anthracite #1A1A1A.
+// Design unifié crème #ffffff + or #bc7155 + anthracite #0f0f1c.
 // Typographie : Playfair Display (titres, italique doré pour les
 // accents) + Inter (corps). Playfair/Inter sont chargées globalement
 // dans src/app/layout.tsx (link runtime, jamais au build).
@@ -75,14 +75,14 @@ type NavTarget =
 
 const FH_CSS = `
 .fh-root {
-  --gold: #C9A961;
-  --gold-light: #E5D4A8;
+  --gold: #bc7155;
+  --gold-light: #e7c1ae;
   --gold-deep: #A8893F;
-  --anthracite: #1A1A1A;
+  --anthracite: #0f0f1c;
   --anthracite-soft: #2C2C2C;
-  --cream: #FAFAF7;
+  --cream: #ffffff;
   --cream-dark: #F0EDE5;
-  --sage: #4A7C59;
+  --sage: #bc7155;
   font-family: 'Inter', sans-serif;
   background: var(--cream);
   color: var(--anthracite);
@@ -369,7 +369,7 @@ const FH_CSS = `
 }
 .fh-nathalie-header {
   height: 200px;
-  background: linear-gradient(135deg, #1a1a1a 0%, #2c1810 100%);
+  background: linear-gradient(135deg, #0f0f1c 0%, #2c1810 100%);
   position: relative;
   overflow: hidden;
 }
@@ -997,7 +997,7 @@ const FH_CSS = `
 /* ============================================ */
 .fh-cta {
   padding: 8rem 2rem;
-  background: linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #334155 100%);
+  background: linear-gradient(135deg, #0f0f1c 0%, #1E293B 50%, #334155 100%);
   color: var(--cream);
   text-align: center;
   position: relative;

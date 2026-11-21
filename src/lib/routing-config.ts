@@ -292,8 +292,8 @@ export const PRIORITE_LABEL: Record<string, string> = {
 
 export const PRIORITE_CLASSE: Record<string, string> = {
   low: 'bg-stone-100 text-stone-600 border-stone-200',
-  medium: 'bg-amber-50 text-amber-700 border-amber-200',
-  high: 'bg-orange-100 text-orange-800 border-orange-300',
+  medium: 'bg-[#faf1ec] text-[#8a4f3b] border-[#e7c1ae]',
+  high: 'bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a]',
   critical: 'bg-red-100 text-red-800 border-red-300',
 }
 

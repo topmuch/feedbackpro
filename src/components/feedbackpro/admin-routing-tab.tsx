@@ -466,7 +466,7 @@ export function AdminRoutingTab() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="flex items-center gap-2 text-xl font-bold text-stone-900">
-            <Network className="h-5 w-5 text-amber-600" />
+            <Network className="h-5 w-5 text-[#a05f45]" />
             Moteur de Routage Intelligent — Salon VIP Terra
           </h2>
           <p className="text-sm text-stone-500">
@@ -482,7 +482,7 @@ export function AdminRoutingTab() {
             <Download className="mr-1 h-4 w-4" />
             Exporter
           </Button>
-          <Button size="sm" className="bg-amber-600 text-white hover:bg-amber-700" onClick={() => setTestOuvert(true)}>
+          <Button size="sm" className="bg-[#a05f45] text-white hover:bg-[#8a4f3b]" onClick={() => setTestOuvert(true)}>
             <FlaskConical className="mr-1 h-4 w-4" />
             Tester un routage
           </Button>
@@ -555,7 +555,7 @@ export function AdminRoutingTab() {
                                   )
                                 }}
                                 className={cn(
-                                  "w-full rounded-md border px-2 py-1.5 text-left text-xs transition hover:border-amber-400 hover:bg-amber-50",
+                                  "w-full rounded-md border px-2 py-1.5 text-left text-xs transition hover:border-[#c98b72] hover:bg-[#faf1ec]",
                                   r ? "border-stone-200 bg-white" : "border-dashed border-stone-200 bg-stone-50 text-stone-400",
                                 )}
                               >
@@ -590,15 +590,15 @@ export function AdminRoutingTab() {
 
           {/* Alertes orchestration */}
           {data.alertes.length > 0 && (
-            <Card className="border-orange-200 bg-orange-50/50">
+            <Card className="border-[#e7c1ae] bg-[#faf1ec]/50">
               <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-base text-orange-800">
+                <CardTitle className="flex items-center gap-2 text-base text-[#6f3f30]">
                   <AlertTriangle className="h-4 w-4" /> Alertes orchestration ({data.alertes.length})
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-1.5">
                 {data.alertes.map((a, i) => (
-                  <p key={i} className={cn("text-sm", a.severity === "danger" ? "text-red-700" : "text-orange-700")}>
+                  <p key={i} className={cn("text-sm", a.severity === "danger" ? "text-red-700" : "text-[#8a4f3b]")}>
                     • {a.message}
                   </p>
                 ))}
@@ -618,7 +618,7 @@ export function AdminRoutingTab() {
                     key={r.id}
                     type="button"
                     onClick={() => { setRegleNouvelle(null); setRegleEdition(r) }}
-                    className="flex w-full flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition hover:border-amber-400 hover:bg-amber-50"
+                    className="flex w-full flex-wrap items-center gap-2 rounded-lg border px-3 py-2 text-left text-sm transition hover:border-[#c98b72] hover:bg-[#faf1ec]"
                   >
                     <Badge variant="outline" className={cn("border", PRIORITE_CLASSE[r.priority] ?? "")}>
                       {PRIORITE_LABEL[r.priority] ?? r.priority}
@@ -646,7 +646,7 @@ export function AdminRoutingTab() {
             <p className="text-sm text-stone-500">
               {data.staff.filter((x) => x.isOnDuty).length}/{data.staff.length} en service — capacité anti-surcharge par employé.
             </p>
-            <Button size="sm" className="bg-amber-600 text-white hover:bg-amber-700" onClick={() => setEmployeNouveau(true)}>
+            <Button size="sm" className="bg-[#a05f45] text-white hover:bg-[#8a4f3b]" onClick={() => setEmployeNouveau(true)}>
               <Plus className="mr-1 h-4 w-4" /> Nouvel employé
             </Button>
           </div>
@@ -681,7 +681,7 @@ export function AdminRoutingTab() {
                         variant="outline"
                         className={cn(
                           "border",
-                          charge >= 1 ? "border-red-300 bg-red-50 text-red-700" : charge >= 0.66 ? "border-amber-300 bg-amber-50 text-amber-700" : "border-emerald-300 bg-emerald-50 text-emerald-700",
+                          charge >= 1 ? "border-red-300 bg-red-50 text-red-700" : charge >= 0.66 ? "border-[#dba28a] bg-[#faf1ec] text-[#8a4f3b]" : "border-[#dba28a] bg-[#faf1ec] text-[#8a4f3b]",
                         )}
                       >
                         Charge {emp.activeTasks}/{emp.maxActiveTasks}
@@ -717,7 +717,7 @@ export function AdminRoutingTab() {
                     </div>
 
                     <p className="mt-2 flex items-center gap-1 text-[11px] text-stone-400">
-                      {emp.isOnDuty ? <Wifi className="h-3 w-3 text-emerald-600" /> : <WifiOff className="h-3 w-3" />}
+                      {emp.isOnDuty ? <Wifi className="h-3 w-3 text-[#a05f45]" /> : <WifiOff className="h-3 w-3" />}
                       {emp.isOnDuty ? "En service" : "Hors service"}
                       {emp.shiftStart && emp.shiftEnd ? ` · shift ${emp.shiftStart}–${emp.shiftEnd}` : " · 24/7"}
                       {emp.deniseEnabled && " · Denise"}
@@ -746,7 +746,7 @@ export function AdminRoutingTab() {
             <p className="text-sm text-stone-500">
               Au-delà des signalements : rondes et vérifications planifiées, routées automatiquement.
             </p>
-            <Button size="sm" className="bg-amber-600 text-white hover:bg-amber-700" onClick={() => setTacheNouvelle(true)}>
+            <Button size="sm" className="bg-[#a05f45] text-white hover:bg-[#8a4f3b]" onClick={() => setTacheNouvelle(true)}>
               <Plus className="mr-1 h-4 w-4" /> Nouvelle tâche
             </Button>
           </div>
@@ -770,7 +770,7 @@ export function AdminRoutingTab() {
                         {CATEGORIE_EMOJI(t.targetCategory)} {CATEGORIE_LABEL(t.targetCategory)}
                       </Badge>
                     )}
-                    <Badge variant="outline" className="border-amber-200 bg-amber-50 text-amber-700">
+                    <Badge variant="outline" className="border-[#e7c1ae] bg-[#faf1ec] text-[#8a4f3b]">
                       {t.recurrence === "interval" ? `toutes les ${t.intervalMinutes} min` : t.recurrence}
                     </Badge>
                   </div>
@@ -806,15 +806,15 @@ export function AdminRoutingTab() {
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
             <Card>
               <CardContent className="p-4">
-                <p className="flex items-center gap-1.5 text-xs text-stone-500"><CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" /> Routés automatiquement (7j)</p>
-                <p className="mt-1 text-2xl font-bold text-emerald-700">{s.tauxAutomatique}%</p>
+                <p className="flex items-center gap-1.5 text-xs text-stone-500"><CheckCircle2 className="h-3.5 w-3.5 text-[#a05f45]" /> Routés automatiquement (7j)</p>
+                <p className="mt-1 text-2xl font-bold text-[#8a4f3b]">{s.tauxAutomatique}%</p>
                 <p className="text-[11px] text-stone-400">{s.total - s.escalades} / {s.total} signalements</p>
               </CardContent>
             </Card>
             <Card>
               <CardContent className="p-4">
-                <p className="flex items-center gap-1.5 text-xs text-stone-500"><AlertTriangle className="h-3.5 w-3.5 text-orange-600" /> Escaladés manager</p>
-                <p className="mt-1 text-2xl font-bold text-orange-700">{s.tauxEscalade}%</p>
+                <p className="flex items-center gap-1.5 text-xs text-stone-500"><AlertTriangle className="h-3.5 w-3.5 text-[#a05f45]" /> Escaladés manager</p>
+                <p className="mt-1 text-2xl font-bold text-[#8a4f3b]">{s.tauxEscalade}%</p>
                 <p className="text-[11px] text-stone-400">{s.escalades} escalades</p>
               </CardContent>
             </Card>
@@ -827,8 +827,8 @@ export function AdminRoutingTab() {
             </Card>
             <Card>
               <CardContent className="p-4">
-                <p className="flex items-center gap-1.5 text-xs text-stone-500"><Zap className="h-3.5 w-3.5 text-amber-600" /> Temps de décision</p>
-                <p className="mt-1 text-2xl font-bold text-amber-700">{s.avgDecisionMs} ms</p>
+                <p className="flex items-center gap-1.5 text-xs text-stone-500"><Zap className="h-3.5 w-3.5 text-[#a05f45]" /> Temps de décision</p>
+                <p className="mt-1 text-2xl font-bold text-[#8a4f3b]">{s.avgDecisionMs} ms</p>
                 <p className="text-[11px] text-stone-400">moteur &lt; 500 ms cible</p>
               </CardContent>
             </Card>
@@ -845,13 +845,13 @@ export function AdminRoutingTab() {
             {/* Top routeurs */}
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-base"><Crown className="h-4 w-4 text-amber-600" /> Top routeurs (7 jours)</CardTitle>
+                <CardTitle className="flex items-center gap-2 text-base"><Crown className="h-4 w-4 text-[#a05f45]" /> Top routeurs (7 jours)</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
                 {s.topRouteurs.length === 0 && <p className="text-sm text-stone-400">Aucun historique sur la période.</p>}
                 {s.topRouteurs.map((r, i) => (
                   <div key={r.staffId} className="flex items-center gap-3 rounded-lg border px-3 py-2">
-                    <span className="text-sm font-bold text-amber-700">#{i + 1}</span>
+                    <span className="text-sm font-bold text-[#8a4f3b]">#{i + 1}</span>
                     <div className="flex-1">
                       <p className="text-sm font-medium">{r.name}</p>
                       <p className="text-xs text-stone-500">
@@ -877,7 +877,7 @@ export function AdminRoutingTab() {
                     <div key={h.zone ?? "null"} className="flex items-center gap-2 text-sm">
                       <span className="w-40 shrink-0 text-stone-600">{ZONE_EMOJI(h.zone)} {h.label}</span>
                       <div className="h-3 flex-1 overflow-hidden rounded-full bg-stone-100">
-                        <div className="h-full rounded-full bg-amber-500" style={{ width: `${(h.count / max) * 100}%` }} />
+                        <div className="h-full rounded-full bg-[#bc7155]" style={{ width: `${(h.count / max) * 100}%` }} />
                       </div>
                       <span className="w-8 text-right font-medium">{h.count}</span>
                     </div>
@@ -925,11 +925,11 @@ export function AdminRoutingTab() {
                           variant="outline"
                           className={cn(
                             "text-[10px]",
-                            h.outcome === "resolved" && "border-emerald-200 text-emerald-700",
-                            h.outcome === "accepted" && "border-sky-200 text-sky-700",
+                            h.outcome === "resolved" && "border-[#e7c1ae] text-[#8a4f3b]",
+                            h.outcome === "accepted" && "border-[#b9bbc2] text-[#2e3040]",
                             (h.outcome === "failed" || h.outcome === "timeout") && "border-red-200 text-red-700",
-                            h.outcome === "escalated" && "border-orange-200 text-orange-700",
-                            (h.outcome === "assigned" || h.outcome === "accepted") && h.open && "border-amber-200 bg-amber-50 text-amber-700",
+                            h.outcome === "escalated" && "border-[#e7c1ae] text-[#8a4f3b]",
+                            (h.outcome === "assigned" || h.outcome === "accepted") && h.open && "border-[#e7c1ae] bg-[#faf1ec] text-[#8a4f3b]",
                           )}
                         >
                           {h.open ? "en cours" : h.outcome}
@@ -1003,7 +1003,7 @@ export function AdminRoutingTab() {
       <Dialog open={testOuvert} onOpenChange={setTestOuvert}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2"><FlaskConical className="h-4 w-4 text-amber-600" /> Tester un routage</DialogTitle>
+            <DialogTitle className="flex items-center gap-2"><FlaskConical className="h-4 w-4 text-[#a05f45]" /> Tester un routage</DialogTitle>
             <DialogDescription>
               Simulation sans effet réel : le moteur calcule QUI serait assigné et POURQUOI (détail du score).
             </DialogDescription>
@@ -1045,7 +1045,7 @@ export function AdminRoutingTab() {
                 </Select>
               </div>
             </div>
-            <Button className="w-full bg-amber-600 text-white hover:bg-amber-700" onClick={lancerTest} disabled={testEnCours}>
+            <Button className="w-full bg-[#a05f45] text-white hover:bg-[#8a4f3b]" onClick={lancerTest} disabled={testEnCours}>
               {testEnCours ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <Play className="mr-1 h-4 w-4" />}
               Lancer la simulation
             </Button>
@@ -1055,7 +1055,7 @@ export function AdminRoutingTab() {
                 {testResultat.ok && testResultat.staff ? (
                   <>
                     <p className="text-sm">
-                      <span className="font-semibold text-emerald-700">✓ Gagnant : {testResultat.staff.name}</span>
+                      <span className="font-semibold text-[#8a4f3b]">✓ Gagnant : {testResultat.staff.name}</span>
                       <span className="ml-2 text-stone-500">({CATEGORIE_LABEL(testResultat.staff.category)}) — {testResultat.score} pts en {testResultat.decisionMs} ms</span>
                     </p>
                     {testResultat.rule && (
@@ -1068,7 +1068,7 @@ export function AdminRoutingTab() {
                         {testResultat.breakdown.map((b, i) => (
                           <li key={i} className="flex justify-between text-xs text-stone-600">
                             <span>{b.label}</span>
-                            <span className={cn("font-medium", b.points >= 0 ? "text-emerald-700" : "text-red-600")}>
+                            <span className={cn("font-medium", b.points >= 0 ? "text-[#8a4f3b]" : "text-red-600")}>
                               {b.points >= 0 ? "+" : ""}{b.points}
                             </span>
                           </li>
@@ -1083,7 +1083,7 @@ export function AdminRoutingTab() {
                     )}
                   </>
                 ) : (
-                  <p className="text-sm text-orange-700">⚠ {testResultat.message ?? "Aucun candidat disponible pour cette combinaison."}</p>
+                  <p className="text-sm text-[#8a4f3b]">⚠ {testResultat.message ?? "Aucun candidat disponible pour cette combinaison."}</p>
                 )}
               </div>
             )}
@@ -1204,7 +1204,7 @@ function RegleForm({
           </Button>
         )}
         <Button
-          className="bg-amber-600 text-white hover:bg-amber-700"
+          className="bg-[#a05f45] text-white hover:bg-[#8a4f3b]"
           onClick={() =>
             onEnregistrer({
               zoneCode: initial.zoneCode,
@@ -1287,7 +1287,7 @@ function EmployeForm({
               onClick={() => setCategorie(c.code)}
               className={cn(
                 "rounded-full border px-3 py-1.5 text-xs transition",
-                categorie === c.code ? "border-amber-500 bg-amber-50 font-semibold text-amber-800" : "border-stone-200 text-stone-600 hover:border-stone-300",
+                categorie === c.code ? "border-[#bc7155] bg-[#faf1ec] font-semibold text-[#6f3f30]" : "border-stone-200 text-stone-600 hover:border-stone-300",
               )}
             >
               {c.emoji} {c.label}
@@ -1306,7 +1306,7 @@ function EmployeForm({
               onClick={() => toggle(zones, setZones, z.code)}
               className={cn(
                 "rounded-full border px-3 py-1.5 text-xs transition",
-                zones.includes(z.code) ? "border-emerald-500 bg-emerald-50 font-semibold text-emerald-800" : "border-stone-200 text-stone-600 hover:border-stone-300",
+                zones.includes(z.code) ? "border-[#bc7155] bg-[#faf1ec] font-semibold text-[#6f3f30]" : "border-stone-200 text-stone-600 hover:border-stone-300",
               )}
             >
               {zones.includes(z.code) ? "☑" : "☐"} {z.emoji} {z.label}
@@ -1325,7 +1325,7 @@ function EmployeForm({
               onClick={() => toggle(types, setTypes, t.code)}
               className={cn(
                 "rounded-full border px-3 py-1.5 text-xs transition",
-                types.includes(t.code) ? "border-amber-500 bg-amber-50 font-semibold text-amber-800" : "border-stone-200 text-stone-600 hover:border-stone-300",
+                types.includes(t.code) ? "border-[#bc7155] bg-[#faf1ec] font-semibold text-[#6f3f30]" : "border-stone-200 text-stone-600 hover:border-stone-300",
               )}
             >
               {types.includes(t.code) ? "☑" : "☐"} {t.emoji} {t.label}
@@ -1389,7 +1389,7 @@ function EmployeForm({
 
       <DialogFooter className="pt-1">
         <Button
-          className="bg-amber-600 text-white hover:bg-amber-700"
+          className="bg-[#a05f45] text-white hover:bg-[#8a4f3b]"
           disabled={sauvegarde || !nom.trim() || (!initial && !tel.trim())}
           onClick={() =>
             onEnregistrer({
@@ -1520,7 +1520,7 @@ function TacheForm({
           onChange={(e) => setChecklist(e.target.value)}
           rows={3}
           placeholder={"Plats réassortis\nSurfaces propres"}
-          className="w-full rounded-md border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+          className="w-full rounded-md border border-stone-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#bc7155]"
         />
       </div>
       <div className="space-y-1">
@@ -1529,7 +1529,7 @@ function TacheForm({
       </div>
       <DialogFooter className="pt-1">
         <Button
-          className="bg-amber-600 text-white hover:bg-amber-700"
+          className="bg-[#a05f45] text-white hover:bg-[#8a4f3b]"
           disabled={sauvegarde || !titre.trim()}
           onClick={() =>
             onEnregistrer({

@@ -204,7 +204,7 @@ export async function POST(req: NextRequest) {
     const sujet = "Email test FeedbackPro ✓"
     const html = `<!DOCTYPE html><html lang="fr"><body style="font-family:Arial,Helvetica,sans-serif;color:#1c1917;background:#f5f5f4;padding:24px;">
 <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)">
-<div style="background:#2563EB;padding:24px 32px;color:#fff"><p style="margin:0;font-size:20px;font-weight:700">FeedbackPro</p></div>
+<div style="background:#000d10;padding:24px 32px;color:#fff"><p style="margin:0;font-size:20px;font-weight:700">FeedbackPro</p></div>
 <div style="padding:32px">
 <h1 style="margin:0 0 12px;font-size:18px">Email test ✓</h1>
 <p style="margin:0;line-height:1.6;color:#44403c">Bonjour,</p>

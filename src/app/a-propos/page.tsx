@@ -87,21 +87,21 @@ const EQUIPE: { initiales: string; nom: string; poste: string; bio: string; coul
     nom: "Awa Mbaye",
     poste: "Co-fondatrice & CEO",
     bio: "10 ans dans la restauration et l'hôtellerie à Dakar. Awa a vu trop de clients silencieux partir sans rien dire. Elle a fondé FeedbackPro pour leur donner une voix.",
-    couleur: "from-[#002e85] to-[#0047c7]",
+    couleur: "from-[#0f0f1c] to-[#0f0f1c]",
   },
   {
     initiales: "MD",
     nom: "Moussa Diallo",
     poste: "Co-fondateur & CTO",
     bio: "Ingénieur IA formé à Paris. Moussa conçoit le moteur du Coach IA : analyse sémantique, détection de patterns et génération de priorités actionnables.",
-    couleur: "from-emerald-500 to-teal-500",
+    couleur: "from-[#bc7155] to-[#bc7155]",
   },
   {
     initiales: "FN",
     nom: "Fatou Ndiaye",
     poste: "Head of Customer Success",
     bio: "Ancienne gérante de salon, Fatou accompagne chaque nouveau commerçant dans le déploiement de FeedbackPro. Sa mission : ROI en moins de 30 jours.",
-    couleur: "from-amber-500 to-orange-500",
+    couleur: "from-[#bc7155] to-[#bc7155]",
   },
 ]
 
@@ -127,9 +127,9 @@ export default function AProposPage() {
   return (
     <MarketingLayout activePath="/a-propos">
       {/* ---------- Hero ---------- */}
-      <section className="bg-gradient-to-b from-[#002e85]/5 to-white py-14 sm:py-20">
+      <section className="bg-gradient-to-b from-[#0f0f1c]/5 to-white py-14 sm:py-20">
         <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
-          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#002e85] shadow-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#0f0f1c] shadow-sm">
             <Sparkles className="h-3.5 w-3.5" />
             Notre histoire
           </span>
@@ -137,7 +137,7 @@ export default function AProposPage() {
             className="mt-4 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl"
             style={{ letterSpacing: "-0.03em" }}
           >
-            À propos de <span className="bg-gradient-to-br from-[#002e85] to-[#0047c7] bg-clip-text text-transparent">FeedbackPro</span>
+            À propos de <span className="bg-gradient-to-br from-[#0f0f1c] to-[#0f0f1c] bg-clip-text text-transparent">FeedbackPro</span>
           </h1>
           <p className="mt-4 text-lg text-gray-600">
             Né à Dakar d&apos;une frustration simple : trop de commerces pilotent à l&apos;instinct, sans
@@ -148,9 +148,9 @@ export default function AProposPage() {
 
       {/* ---------- Mission ---------- */}
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
-        <Card className="overflow-hidden rounded-3xl border border-gray-200 shadow-sm">
+        <Card className="overflow-hidden rounded-none border border-gray-200 shadow-sm">
           <div className="grid grid-cols-1 lg:grid-cols-5">
-            <div className="relative bg-gradient-to-br from-[#002e85] to-[#0047c7] p-8 text-white sm:p-12 lg:col-span-2">
+            <div className="relative bg-gradient-to-br from-[#0f0f1c] to-[#0f0f1c] p-8 text-white sm:p-12 lg:col-span-2">
               <Target className="h-10 w-10 opacity-80" aria-hidden />
               <p className="mt-6 text-xs uppercase tracking-[0.3em] text-white/70">Notre mission</p>
               <p className="mt-3 text-2xl font-bold leading-snug sm:text-3xl">
@@ -184,7 +184,7 @@ export default function AProposPage() {
       <section className="border-y border-gray-200 bg-gray-50">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
           <div className="mx-auto max-w-2xl text-center">
-            <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#002e85] shadow-sm">
+            <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#0f0f1c] shadow-sm">
               Comment ça marche
             </span>
             <h2
@@ -201,10 +201,10 @@ export default function AProposPage() {
             {ETAPES.map((e) => {
               const Icone = e.icone
               return (
-                <Card key={e.num} className="relative overflow-hidden rounded-3xl border border-gray-200 shadow-sm">
+                <Card key={e.num} className="relative overflow-hidden rounded-none border border-gray-200 shadow-sm">
                   <CardHeader className="pb-2">
                     <div className="flex items-center justify-between">
-                      <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#002e85] to-[#0047c7] text-white shadow-sm">
+                      <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#0f0f1c] to-[#0f0f1c] text-white shadow-sm">
                         <Icone className="h-5 w-5" />
                       </span>
                       <span className="text-4xl font-extrabold leading-none text-gray-200">{e.num}</span>
@@ -224,7 +224,7 @@ export default function AProposPage() {
       {/* ---------- Pourquoi FeedbackPro (3 avantages) ---------- */}
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
         <div className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#002e85] shadow-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#0f0f1c] shadow-sm">
             Pourquoi FeedbackPro
           </span>
           <h2
@@ -238,9 +238,9 @@ export default function AProposPage() {
           {AVANTAGES.map((a) => {
             const Icone = a.icone
             return (
-              <Card key={a.titre} className="h-full rounded-3xl border border-gray-200 shadow-sm transition-shadow hover:shadow-md">
+              <Card key={a.titre} className="h-full rounded-none border border-gray-200 shadow-sm transition-shadow hover:shadow-md">
                 <CardHeader>
-                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#002e85] to-[#0047c7] text-white shadow-sm">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#0f0f1c] to-[#0f0f1c] text-white shadow-sm">
                     <Icone className="h-6 w-6" />
                   </span>
                   <CardTitle className="mt-3 text-lg font-bold text-gray-900">{a.titre}</CardTitle>
@@ -258,7 +258,7 @@ export default function AProposPage() {
       <section className="border-y border-gray-200 bg-gray-50">
         <div className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
           <div className="mx-auto max-w-2xl text-center">
-            <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#002e85] shadow-sm">
+            <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#0f0f1c] shadow-sm">
               <Users className="h-3.5 w-3.5" />
               L&apos;équipe
             </span>
@@ -274,7 +274,7 @@ export default function AProposPage() {
           </div>
           <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3">
             {EQUIPE.map((m) => (
-              <Card key={m.nom} className="h-full rounded-3xl border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
+              <Card key={m.nom} className="h-full rounded-none border border-gray-200 bg-white shadow-sm transition-shadow hover:shadow-md">
                 <CardContent className="p-6">
                   <div className="flex items-center gap-4">
                     <span
@@ -285,7 +285,7 @@ export default function AProposPage() {
                     </span>
                     <div className="min-w-0">
                       <p className="text-base font-bold text-gray-900">{m.nom}</p>
-                      <p className="text-sm text-[#002e85]">{m.poste}</p>
+                      <p className="text-sm text-[#0f0f1c]">{m.poste}</p>
                     </div>
                   </div>
                   <p className="mt-4 text-sm leading-relaxed text-gray-600">{m.bio}</p>
@@ -299,7 +299,7 @@ export default function AProposPage() {
       {/* ---------- Nos valeurs ---------- */}
       <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8 lg:py-20">
         <div className="mx-auto max-w-2xl text-center">
-          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#002e85] shadow-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#0f0f1c] shadow-sm">
             Nos valeurs
           </span>
           <h2
@@ -313,9 +313,9 @@ export default function AProposPage() {
           {VALEURS.map((v) => {
             const Icone = v.icone
             return (
-              <Card key={v.titre} className="h-full rounded-3xl border border-gray-200 shadow-sm">
+              <Card key={v.titre} className="h-full rounded-none border border-gray-200 shadow-sm">
                 <CardContent className="p-6">
-                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#002e85]/10 text-[#002e85]">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[#0f0f1c]/10 text-[#0f0f1c]">
                     <Icone className="h-6 w-6" />
                   </span>
                   <h3 className="mt-4 text-lg font-bold text-gray-900">{v.titre}</h3>
@@ -329,8 +329,8 @@ export default function AProposPage() {
 
       {/* ---------- CTA Contact ---------- */}
       <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
-        <Card className="rounded-3xl border border-gray-200 bg-white p-8 text-center shadow-sm sm:p-12">
-          <MapPin className="mx-auto h-10 w-10 text-[#002e85]" aria-hidden />
+        <Card className="rounded-none border border-gray-200 bg-white p-8 text-center shadow-sm sm:p-12">
+          <MapPin className="mx-auto h-10 w-10 text-[#0f0f1c]" aria-hidden />
           <h2 className="mt-4 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
             Une question ? Parlons-en.
           </h2>
@@ -340,7 +340,7 @@ export default function AProposPage() {
           </p>
           <Link
             href="/contact"
-            className="mt-6 inline-flex h-12 items-center gap-2 rounded-md bg-gradient-to-br from-[#002e85] to-[#0047c7] px-6 text-base font-semibold text-white shadow-sm hover:opacity-90"
+            className="mt-6 inline-flex h-12 items-center gap-2 rounded-md bg-gradient-to-br from-[#0f0f1c] to-[#0f0f1c] px-6 text-base font-semibold text-white shadow-sm hover:opacity-90"
           >
             Nous contacter
             <ArrowRight className="h-4 w-4" />

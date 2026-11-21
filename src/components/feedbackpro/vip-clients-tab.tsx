@@ -109,16 +109,16 @@ interface VisitRow {
 }
 
 const LEVEL_STYLES: Record<VipLevel, { label: string; bg: string; text: string; Icon: typeof Crown }> = {
-  gold: { label: 'Gold', bg: 'bg-[#C9A961]/15', text: 'text-[#8B6F47]', Icon: Crown },
-  platinum: { label: 'Platinum', bg: 'bg-[#6B4C9A]/12', text: 'text-[#6B4C9A]', Icon: Sparkles },
-  diamond: { label: 'Diamond', bg: 'bg-[#4A7C59]/12', text: 'text-[#4A7C59]', Icon: Diamond },
+  gold: { label: 'Gold', bg: 'bg-[#bc7155]/15', text: 'text-[#8B6F47]', Icon: Crown },
+  platinum: { label: 'Platinum', bg: 'bg-[#bc7155]/12', text: 'text-[#bc7155]', Icon: Sparkles },
+  diamond: { label: 'Diamond', bg: 'bg-[#bc7155]/12', text: 'text-[#bc7155]', Icon: Diamond },
 }
 
 const NOTE_TYPE_STYLES: Record<string, { label: string; cls: string }> = {
-  concierge: { label: 'Concierge', cls: 'bg-[#C9A961]/12 text-[#8B6F47]' },
-  allergie: { label: 'Allergie', cls: 'bg-[#C97B63]/15 text-[#C97B63]' },
-  preference: { label: 'Préférence', cls: 'bg-[#4A7C59]/12 text-[#4A7C59]' },
-  service: { label: 'Service', cls: 'bg-[#6B4C9A]/12 text-[#6B4C9A]' },
+  concierge: { label: 'Concierge', cls: 'bg-[#bc7155]/12 text-[#8B6F47]' },
+  allergie: { label: 'Allergie', cls: 'bg-[#bc7155]/15 text-[#bc7155]' },
+  preference: { label: 'Préférence', cls: 'bg-[#bc7155]/12 text-[#bc7155]' },
+  service: { label: 'Service', cls: 'bg-[#bc7155]/12 text-[#bc7155]' },
 }
 
 function initials(name: string): string {
@@ -410,13 +410,13 @@ export function VipClientsTab() {
         <div className="flex gap-2">
           <Button
             variant="outline"
-            className="gap-2 border-[#C9A961]/40 bg-white text-[#8B6F47] hover:bg-[#C9A961]/10"
+            className="gap-2 border-[#bc7155]/40 bg-white text-[#8B6F47] hover:bg-[#bc7155]/10"
             onClick={() => { setImportResult(null); setImportOpen(true) }}
           >
             <FileUp className="h-4 w-4" aria-hidden /> Importer CSV
           </Button>
           <Button
-            className="gap-2 bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white hover:opacity-90"
+            className="gap-2 bg-gradient-to-br from-[#bc7155] to-[#8B6F47] text-white hover:opacity-90"
             onClick={ouvrirCreation}
           >
             <Plus className="h-4 w-4" aria-hidden /> Ajouter client
@@ -426,18 +426,18 @@ export function VipClientsTab() {
 
       {/* Bandeau détection + RGPD */}
       <div className="grid gap-2 sm:grid-cols-2">
-        <div className="flex items-center gap-2 rounded-lg border border-[#C9A961]/25 bg-[#C9A961]/8 px-3 py-2 text-xs text-[#8B6F47]">
-          <Sparkles className="h-3.5 w-3.5 shrink-0 text-[#C9A961]" aria-hidden />
+        <div className="flex items-center gap-2 rounded-lg border border-[#bc7155]/25 bg-[#bc7155]/8 px-3 py-2 text-xs text-[#8B6F47]">
+          <Sparkles className="h-3.5 w-3.5 shrink-0 text-[#bc7155]" aria-hidden />
           <span>Détection automatique au scan QR ou à la saisie réception → alerte visuelle nom + photo au Maître d’Hôtel.</span>
         </div>
-        <div className="flex items-center gap-2 rounded-lg border border-[#4A7C59]/25 bg-[#4A7C59]/8 px-3 py-2 text-xs text-[#4A7C59]">
+        <div className="flex items-center gap-2 rounded-lg border border-[#bc7155]/25 bg-[#bc7155]/8 px-3 py-2 text-xs text-[#bc7155]">
           <ShieldCheck className="h-3.5 w-3.5 shrink-0" aria-hidden />
           <span>RGPD : consentements photo et profil obligatoires · purge totale sur demande du client.</span>
         </div>
       </div>
 
       {/* Filtres */}
-      <Card className="border border-[#EAE5DC] bg-white p-4 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+      <Card className="border border-[#efe7e0] bg-white p-4 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative min-w-[200px] flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8B6F47]/60" aria-hidden />
@@ -445,11 +445,11 @@ export function VipClientsTab() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Rechercher (nom, compagnie, préférence, allergie…)"
-              className="border-[#EAE5DC] bg-[#FAFAF7] pl-9 text-sm"
+              className="border-[#efe7e0] bg-[#ffffff] pl-9 text-sm"
             />
           </div>
           <Select value={filterLevel} onValueChange={setFilterLevel}>
-            <SelectTrigger className="w-[160px] border-[#EAE5DC] bg-[#FAFAF7] text-sm">
+            <SelectTrigger className="w-[160px] border-[#efe7e0] bg-[#ffffff] text-sm">
               <SelectValue placeholder="Niveau" />
             </SelectTrigger>
             <SelectContent>
@@ -481,13 +481,13 @@ export function VipClientsTab() {
             return (
               <Card
                 key={c.id}
-                className="cursor-pointer border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)] transition-shadow hover:shadow-[0_6px_24px_rgba(201,169,97,0.18)]"
+                className="cursor-pointer border border-[#efe7e0] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)] transition-shadow hover:shadow-[0_6px_24px_rgba(201,169,97,0.18)]"
                 onClick={() => setDetailId(c.id)}
               >
                 <div className="flex items-start gap-3">
-                  <Avatar className="h-12 w-12 ring-1 ring-[#EAE5DC]">
+                  <Avatar className="h-12 w-12 ring-1 ring-[#efe7e0]">
                     {c.photo && c.consentPhoto && <AvatarImage src={c.photo} alt={c.name} />}
-                    <AvatarFallback className="bg-[#C9A961]/15 text-sm font-semibold text-[#8B6F47]">
+                    <AvatarFallback className="bg-[#bc7155]/15 text-sm font-semibold text-[#8B6F47]">
                       {initials(c.name)}
                     </AvatarFallback>
                   </Avatar>
@@ -509,7 +509,7 @@ export function VipClientsTab() {
                 {c.allergies.length > 0 && (
                   <div className="mt-3 flex flex-wrap gap-1.5">
                     {c.allergies.map((a, i) => (
-                      <span key={`al-${i}`} className="inline-flex items-center gap-1 rounded-full bg-[#C97B63]/12 px-2 py-0.5 text-[11px] font-medium text-[#C97B63]">
+                      <span key={`al-${i}`} className="inline-flex items-center gap-1 rounded-full bg-[#bc7155]/12 px-2 py-0.5 text-[11px] font-medium text-[#bc7155]">
                         <ShieldAlert className="h-3 w-3" aria-hidden /> {a}
                       </span>
                     ))}
@@ -518,19 +518,19 @@ export function VipClientsTab() {
                 {c.preferences.length > 0 && (
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     {c.preferences.slice(0, 3).map((p, i) => (
-                      <span key={`pr-${i}`} className="rounded-full bg-[#C9A961]/10 px-2 py-0.5 text-[11px] font-medium text-[#8B6F47]">
+                      <span key={`pr-${i}`} className="rounded-full bg-[#bc7155]/10 px-2 py-0.5 text-[11px] font-medium text-[#8B6F47]">
                         {p}
                       </span>
                     ))}
                     {c.preferences.length > 3 && (
-                      <span className="rounded-full bg-[#EAE5DC] px-2 py-0.5 text-[11px] text-[#8B6F47]">
+                      <span className="rounded-full bg-[#efe7e0] px-2 py-0.5 text-[11px] text-[#8B6F47]">
                         +{c.preferences.length - 3}
                       </span>
                     )}
                   </div>
                 )}
 
-                <div className="mt-3 flex items-center justify-between border-t border-[#EAE5DC] pt-3 text-xs text-[#8B6F47]">
+                <div className="mt-3 flex items-center justify-between border-t border-[#efe7e0] pt-3 text-xs text-[#8B6F47]">
                   <span className="flex items-center gap-1">
                     <Coffee className="h-3 w-3" aria-hidden /> {c.visitCount} visite{c.visitCount > 1 ? 's' : ''}
                   </span>
@@ -550,7 +550,7 @@ export function VipClientsTab() {
       )}
 
       {!loading && filtered.length === 0 && (
-        <Card className="border border-[#EAE5DC] bg-white p-10 text-center shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <Card className="border border-[#efe7e0] bg-white p-10 text-center shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
           <Users className="mx-auto h-8 w-8 text-[#8B6F47]/40" aria-hidden />
           <p className="mt-3 text-sm text-[#8B6F47]">Aucun client ne correspond à vos critères.</p>
         </Card>
@@ -558,7 +558,7 @@ export function VipClientsTab() {
 
       {/* ---------- Dialog création / édition ---------- */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto border-[#EAE5DC] bg-white p-6 sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-y-auto border-[#efe7e0] bg-white p-6 sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-xl text-[#2C2C2C]" style={SERIF}>
               {editing ? 'Modifier le client VIP' : 'Nouveau client VIP'}
@@ -571,18 +571,18 @@ export function VipClientsTab() {
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <Label htmlFor="vc-name" className="text-[#8B6F47]">Nom complet *</Label>
-                <Input id="vc-name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="ex. Aminata Diallo" className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]" />
+                <Input id="vc-name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="ex. Aminata Diallo" className="mt-1.5 border-[#efe7e0] bg-[#ffffff]" />
               </div>
               <div>
                 <Label htmlFor="vc-airline" className="text-[#8B6F47]">Compagnie</Label>
-                <Input id="vc-airline" value={form.airline} onChange={(e) => setForm((f) => ({ ...f, airline: e.target.value }))} placeholder="ex. Air Sénégal" className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]" />
+                <Input id="vc-airline" value={form.airline} onChange={(e) => setForm((f) => ({ ...f, airline: e.target.value }))} placeholder="ex. Air Sénégal" className="mt-1.5 border-[#efe7e0] bg-[#ffffff]" />
               </div>
             </div>
             <div className="grid gap-4 sm:grid-cols-2">
               <div>
                 <Label htmlFor="vc-level" className="text-[#8B6F47]">Niveau VIP</Label>
                 <Select value={form.vipLevel} onValueChange={(v) => setForm((f) => ({ ...f, vipLevel: v as VipLevel }))}>
-                  <SelectTrigger id="vc-level" className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]">
+                  <SelectTrigger id="vc-level" className="mt-1.5 border-[#efe7e0] bg-[#ffffff]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -594,48 +594,48 @@ export function VipClientsTab() {
               </div>
               <div>
                 <Label htmlFor="vc-pass" className="text-[#8B6F47]">Carte d’embarquement</Label>
-                <Input id="vc-pass" value={form.boardingPassId} onChange={(e) => setForm((f) => ({ ...f, boardingPassId: e.target.value }))} placeholder="ex. SN205-4821" className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]" />
+                <Input id="vc-pass" value={form.boardingPassId} onChange={(e) => setForm((f) => ({ ...f, boardingPassId: e.target.value }))} placeholder="ex. SN205-4821" className="mt-1.5 border-[#efe7e0] bg-[#ffffff]" />
               </div>
             </div>
             <div>
               <Label htmlFor="vc-photo" className="flex items-center gap-1 text-[#8B6F47]">
                 <Camera className="h-3.5 w-3.5" aria-hidden /> Photo (URL)
               </Label>
-              <Input id="vc-photo" value={form.photo} onChange={(e) => setForm((f) => ({ ...f, photo: e.target.value }))} placeholder="https://…" className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]" />
+              <Input id="vc-photo" value={form.photo} onChange={(e) => setForm((f) => ({ ...f, photo: e.target.value }))} placeholder="https://…" className="mt-1.5 border-[#efe7e0] bg-[#ffffff]" />
             </div>
             <div>
               <Label htmlFor="vc-prefs" className="text-[#8B6F47]">Préférences (séparées par des virgules)</Label>
-              <Input id="vc-prefs" value={form.preferences} onChange={(e) => setForm((f) => ({ ...f, preferences: e.target.value }))} placeholder="ex. Préfère rosé, Coin calme" className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]" />
+              <Input id="vc-prefs" value={form.preferences} onChange={(e) => setForm((f) => ({ ...f, preferences: e.target.value }))} placeholder="ex. Préfère rosé, Coin calme" className="mt-1.5 border-[#efe7e0] bg-[#ffffff]" />
             </div>
             <div>
-              <Label htmlFor="vc-allergies" className="flex items-center gap-1 text-[#C97B63]">
+              <Label htmlFor="vc-allergies" className="flex items-center gap-1 text-[#bc7155]">
                 <ShieldAlert className="h-3.5 w-3.5" aria-hidden /> Allergies (séparées par des virgules)
               </Label>
-              <Input id="vc-allergies" value={form.allergies} onChange={(e) => setForm((f) => ({ ...f, allergies: e.target.value }))} placeholder="ex. Arachides, Fruits de mer" className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]" />
+              <Input id="vc-allergies" value={form.allergies} onChange={(e) => setForm((f) => ({ ...f, allergies: e.target.value }))} placeholder="ex. Arachides, Fruits de mer" className="mt-1.5 border-[#efe7e0] bg-[#ffffff]" />
             </div>
             <div>
               <Label htmlFor="vc-notes" className="text-[#8B6F47]">Note générale</Label>
-              <Input id="vc-notes" value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder="ex. Cliente fidèle depuis 2024" className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]" />
+              <Input id="vc-notes" value={form.notes} onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))} placeholder="ex. Cliente fidèle depuis 2024" className="mt-1.5 border-[#efe7e0] bg-[#ffffff]" />
             </div>
 
             {/* RGPD */}
-            <div className="space-y-3 rounded-xl border border-[#4A7C59]/25 bg-[#4A7C59]/5 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[#4A7C59]">Consentements RGPD</p>
+            <div className="space-y-3 rounded-xl border border-[#bc7155]/25 bg-[#bc7155]/5 p-4">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#bc7155]">Consentements RGPD</p>
               <label className="flex cursor-pointer items-start gap-3 text-sm text-[#2C2C2C]">
                 <Checkbox checked={form.consentProfil} onCheckedChange={(v) => setForm((f) => ({ ...f, consentProfil: Boolean(v) }))} className="mt-0.5" />
                 <span>Le client a consenti explicitement à la création de son profil et au suivi de ses visites.</span>
               </label>
-              <label className={cn('flex cursor-pointer items-start gap-3 text-sm text-[#2C2C2C]', !form.consentPhoto && form.photo.trim() && 'text-[#C97B63]')}>
+              <label className={cn('flex cursor-pointer items-start gap-3 text-sm text-[#2C2C2C]', !form.consentPhoto && form.photo.trim() && 'text-[#bc7155]')}>
                 <Checkbox checked={form.consentPhoto} onCheckedChange={(v) => setForm((f) => ({ ...f, consentPhoto: Boolean(v) }))} className="mt-0.5" />
                 <span>Le client a consenti explicitement à l’enregistrement de sa photo (diffusion interne Maître d’Hôtel uniquement).</span>
               </label>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" className="border-[#EAE5DC] text-[#8B6F47]" onClick={() => setFormOpen(false)}>
+            <Button variant="outline" className="border-[#efe7e0] text-[#8B6F47]" onClick={() => setFormOpen(false)}>
               Annuler
             </Button>
-            <Button className="gap-2 bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white hover:opacity-90" onClick={enregistrer} disabled={saving}>
+            <Button className="gap-2 bg-gradient-to-br from-[#bc7155] to-[#8B6F47] text-white hover:opacity-90" onClick={enregistrer} disabled={saving}>
               {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Plus className="h-4 w-4" aria-hidden />}
               {saving ? 'Enregistrement…' : editing ? 'Enregistrer' : 'Ajouter'}
             </Button>
@@ -645,7 +645,7 @@ export function VipClientsTab() {
 
       {/* ---------- Dialog import CSV ---------- */}
       <Dialog open={importOpen} onOpenChange={setImportOpen}>
-        <DialogContent className="border-[#EAE5DC] bg-white p-6 sm:max-w-xl">
+        <DialogContent className="border-[#efe7e0] bg-white p-6 sm:max-w-xl">
           <DialogHeader>
             <DialogTitle className="text-xl text-[#2C2C2C]" style={SERIF}>
               Import CSV — compagnie partenaire
@@ -657,7 +657,7 @@ export function VipClientsTab() {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="gap-1.5 border-[#C9A961]/40 text-[#8B6F47]" onClick={() => fileRef.current?.click()}>
+              <Button variant="outline" size="sm" className="gap-1.5 border-[#bc7155]/40 text-[#8B6F47]" onClick={() => fileRef.current?.click()}>
                 <Upload className="h-3.5 w-3.5" aria-hidden /> Choisir un fichier
               </Button>
               <Button variant="ghost" size="sm" className="gap-1.5 text-[#8B6F47]" onClick={telechargerModele}>
@@ -680,14 +680,14 @@ export function VipClientsTab() {
               onChange={(e) => setCsvText(e.target.value)}
               placeholder={CSV_TEMPLATE}
               rows={7}
-              className="w-full rounded-lg border border-[#EAE5DC] bg-[#FAFAF7] p-3 font-mono text-xs text-[#2C2C2C]"
+              className="w-full rounded-lg border border-[#efe7e0] bg-[#ffffff] p-3 font-mono text-xs text-[#2C2C2C]"
             />
             <label className="flex cursor-pointer items-center gap-3 text-sm text-[#2C2C2C]">
               <Checkbox checked={updateExisting} onCheckedChange={(v) => setUpdateExisting(Boolean(v))} />
               <span>Mettre à jour les clients déjà présents (sinon ils sont ignorés)</span>
             </label>
             {importResult && (
-              <div className={cn('rounded-lg border p-3 text-xs', importResult.created > 0 ? 'border-[#4A7C59]/30 bg-[#4A7C59]/8 text-[#4A7C59]' : 'border-[#C97B63]/30 bg-[#C97B63]/8 text-[#C97B63]')}>
+              <div className={cn('rounded-lg border p-3 text-xs', importResult.created > 0 ? 'border-[#bc7155]/30 bg-[#bc7155]/8 text-[#bc7155]' : 'border-[#bc7155]/30 bg-[#bc7155]/8 text-[#bc7155]')}>
                 <p className="font-semibold">
                   {importResult.created} créé(s) · {importResult.updated} mis à jour · {importResult.skipped} ignoré(s)
                 </p>
@@ -702,10 +702,10 @@ export function VipClientsTab() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="outline" className="border-[#EAE5DC] text-[#8B6F47]" onClick={() => setImportOpen(false)}>
+            <Button variant="outline" className="border-[#efe7e0] text-[#8B6F47]" onClick={() => setImportOpen(false)}>
               Fermer
             </Button>
-            <Button className="gap-2 bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white hover:opacity-90" onClick={lancerImport} disabled={importing}>
+            <Button className="gap-2 bg-gradient-to-br from-[#bc7155] to-[#8B6F47] text-white hover:opacity-90" onClick={lancerImport} disabled={importing}>
               {importing ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Upload className="h-4 w-4" aria-hidden />}
               {importing ? 'Import…' : 'Importer'}
             </Button>
@@ -715,8 +715,8 @@ export function VipClientsTab() {
 
       {/* ---------- Sheet fiche détail ---------- */}
       <Sheet open={Boolean(detailId)} onOpenChange={(o) => !o && setDetailId(null)}>
-        <SheetContent side="right" className="w-full overflow-y-auto border-[#EAE5DC] bg-[#FAFAF7] p-0 sm:max-w-md">
-          <SheetHeader className="border-b border-[#EAE5DC] bg-white px-5 py-4">
+        <SheetContent side="right" className="w-full overflow-y-auto border-[#efe7e0] bg-[#ffffff] p-0 sm:max-w-md">
+          <SheetHeader className="border-b border-[#efe7e0] bg-white px-5 py-4">
             <SheetTitle className="text-left text-xl text-[#2C2C2C]" style={SERIF}>
               {detail?.name ?? 'Fiche client VIP'}
             </SheetTitle>
@@ -743,11 +743,11 @@ export function VipClientsTab() {
           {detail && (
             <div className="space-y-5 px-5 py-5">
               {/* Profil */}
-              <Card className="border border-[#EAE5DC] bg-white p-4 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+              <Card className="border border-[#efe7e0] bg-white p-4 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
                 <div className="flex items-start gap-3">
-                  <Avatar className="h-14 w-14 ring-2 ring-[#C9A961]/40">
+                  <Avatar className="h-14 w-14 ring-2 ring-[#bc7155]/40">
                     {detail.photo && detail.consentPhoto && <AvatarImage src={detail.photo} alt={detail.name} />}
-                    <AvatarFallback className="bg-[#C9A961]/15 font-semibold text-[#8B6F47]">
+                    <AvatarFallback className="bg-[#bc7155]/15 font-semibold text-[#8B6F47]">
                       {initials(detail.name)}
                     </AvatarFallback>
                   </Avatar>
@@ -768,35 +768,35 @@ export function VipClientsTab() {
                           </Badge>
                         )
                       })()}
-                      <Badge variant="outline" className="border-[#EAE5DC] text-[#8B6F47]">
+                      <Badge variant="outline" className="border-[#efe7e0] text-[#8B6F47]">
                         <Coffee className="h-3 w-3" aria-hidden /> {detail.visitCount} visites
                       </Badge>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" className="text-[#8B6F47] hover:bg-[#C9A961]/10" onClick={() => ouvrirEdition(detail)} aria-label="Modifier le client">
+                  <Button variant="ghost" size="icon" className="text-[#8B6F47] hover:bg-[#bc7155]/10" onClick={() => ouvrirEdition(detail)} aria-label="Modifier le client">
                     <Pencil className="h-4 w-4" aria-hidden />
                   </Button>
                 </div>
 
                 {/* Consentements RGPD */}
-                <div className="mt-3 flex flex-wrap gap-2 border-t border-[#EAE5DC] pt-3">
-                  <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium', detail.consentProfil ? 'bg-[#4A7C59]/12 text-[#4A7C59]' : 'bg-[#C97B63]/12 text-[#C97B63]')}>
+                <div className="mt-3 flex flex-wrap gap-2 border-t border-[#efe7e0] pt-3">
+                  <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium', detail.consentProfil ? 'bg-[#bc7155]/12 text-[#bc7155]' : 'bg-[#bc7155]/12 text-[#bc7155]')}>
                     <ShieldCheck className="h-3 w-3" aria-hidden /> Profil : {detail.consentProfil ? 'consenti' : 'non consenti'}
                   </span>
-                  <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium', detail.consentPhoto ? 'bg-[#4A7C59]/12 text-[#4A7C59]' : 'bg-[#C97B63]/12 text-[#C97B63]')}>
+                  <span className={cn('inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-medium', detail.consentPhoto ? 'bg-[#bc7155]/12 text-[#bc7155]' : 'bg-[#bc7155]/12 text-[#bc7155]')}>
                     <ShieldCheck className="h-3 w-3" aria-hidden /> Photo : {detail.consentPhoto ? 'consenti' : 'non consenti'}
                   </span>
                 </div>
 
                 {/* Allergies — affichage proéminent (règle killer #2) */}
                 {detail.allergies.length > 0 && (
-                  <div className="mt-3 rounded-lg border border-[#C97B63]/35 bg-[#C97B63]/8 p-3">
-                    <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#C97B63]">
+                  <div className="mt-3 rounded-lg border border-[#bc7155]/35 bg-[#bc7155]/8 p-3">
+                    <p className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#bc7155]">
                       <ShieldAlert className="h-3.5 w-3.5" aria-hidden /> Allergies — à respecter en service
                     </p>
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                       {detail.allergies.map((a, i) => (
-                        <span key={i} className="rounded-full bg-[#C97B63]/15 px-2 py-0.5 text-xs font-medium text-[#C97B63]">{a}</span>
+                        <span key={i} className="rounded-full bg-[#bc7155]/15 px-2 py-0.5 text-xs font-medium text-[#bc7155]">{a}</span>
                       ))}
                     </div>
                   </div>
@@ -808,7 +808,7 @@ export function VipClientsTab() {
                     <p className="text-[11px] font-semibold uppercase tracking-wide text-[#8B6F47]">Préférences</p>
                     <div className="mt-1.5 flex flex-wrap gap-1.5">
                       {detail.preferences.map((p, i) => (
-                        <span key={i} className="rounded-full bg-[#C9A961]/10 px-2 py-0.5 text-xs font-medium text-[#8B6F47]">{p}</span>
+                        <span key={i} className="rounded-full bg-[#bc7155]/10 px-2 py-0.5 text-xs font-medium text-[#8B6F47]">{p}</span>
                       ))}
                     </div>
                   </div>
@@ -818,18 +818,18 @@ export function VipClientsTab() {
               {/* Notes concierge */}
               <div>
                 <h4 className="flex items-center gap-1.5 text-sm font-semibold text-[#2C2C2C]" style={SERIF}>
-                  <StickyNote className="h-4 w-4 text-[#C9A961]" aria-hidden /> Notes concierge
+                  <StickyNote className="h-4 w-4 text-[#bc7155]" aria-hidden /> Notes concierge
                 </h4>
                 <div className="mt-2.5 space-y-2">
                   {detail.conciergeNotes.length === 0 && (
-                    <p className="rounded-lg border border-dashed border-[#EAE5DC] bg-white px-3 py-3 text-xs text-[#8B6F47]">
+                    <p className="rounded-lg border border-dashed border-[#efe7e0] bg-white px-3 py-3 text-xs text-[#8B6F47]">
                       Aucune note pour ce client. Ajoutez « préfère rosé », « allergie arachides »…
                     </p>
                   )}
                   {detail.conciergeNotes.map((n) => {
                     const ts = NOTE_TYPE_STYLES[n.type] ?? NOTE_TYPE_STYLES.concierge
                     return (
-                      <div key={n.id} className="rounded-lg border border-[#EAE5DC] bg-white p-3">
+                      <div key={n.id} className="rounded-lg border border-[#efe7e0] bg-white p-3">
                         <div className="flex items-center justify-between gap-2">
                           <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide', ts.cls)}>
                             {ts.label}
@@ -843,9 +843,9 @@ export function VipClientsTab() {
                     )
                   })}
                 </div>
-                <div className="mt-3 space-y-2 rounded-lg border border-[#EAE5DC] bg-white p-3">
+                <div className="mt-3 space-y-2 rounded-lg border border-[#efe7e0] bg-white p-3">
                   <Select value={noteType} onValueChange={setNoteType}>
-                    <SelectTrigger className="h-8 w-full border-[#EAE5DC] bg-[#FAFAF7] text-xs">
+                    <SelectTrigger className="h-8 w-full border-[#efe7e0] bg-[#ffffff] text-xs">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
@@ -860,11 +860,11 @@ export function VipClientsTab() {
                     onChange={(e) => setNoteContenu(e.target.value)}
                     onKeyDown={(e) => { if (e.key === 'Enter') ajouterNote() }}
                     placeholder="ex. Préfère rosé bien frais"
-                    className="border-[#EAE5DC] bg-[#FAFAF7] text-sm"
+                    className="border-[#efe7e0] bg-[#ffffff] text-sm"
                   />
                   <Button
                     size="sm"
-                    className="w-full gap-1.5 bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white hover:opacity-90"
+                    className="w-full gap-1.5 bg-gradient-to-br from-[#bc7155] to-[#8B6F47] text-white hover:opacity-90"
                     onClick={ajouterNote}
                     disabled={noteSaving || !noteContenu.trim()}
                   >
@@ -877,18 +877,18 @@ export function VipClientsTab() {
               {/* Historique de visites */}
               <div>
                 <h4 className="flex items-center gap-1.5 text-sm font-semibold text-[#2C2C2C]" style={SERIF}>
-                  <History className="h-4 w-4 text-[#C9A961]" aria-hidden /> Historique de visites
+                  <History className="h-4 w-4 text-[#bc7155]" aria-hidden /> Historique de visites
                 </h4>
                 <div className="mt-2.5 space-y-1.5">
                   {detail.visits.length === 0 && (
-                    <p className="rounded-lg border border-dashed border-[#EAE5DC] bg-white px-3 py-3 text-xs text-[#8B6F47]">
+                    <p className="rounded-lg border border-dashed border-[#efe7e0] bg-white px-3 py-3 text-xs text-[#8B6F47]">
                       Aucune visite enregistrée pour l’instant.
                     </p>
                   )}
                   {detail.visits.map((v) => (
-                    <div key={v.id} className="flex items-center justify-between rounded-lg border border-[#EAE5DC] bg-white px-3 py-2 text-xs">
+                    <div key={v.id} className="flex items-center justify-between rounded-lg border border-[#efe7e0] bg-white px-3 py-2 text-xs">
                       <span className="flex items-center gap-1.5 text-[#2C2C2C]">
-                        <Clock className="h-3 w-3 text-[#C9A961]" aria-hidden />
+                        <Clock className="h-3 w-3 text-[#bc7155]" aria-hidden />
                         {new Date(v.createdAt).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                       </span>
                       <span className="text-[#8B6F47]">
@@ -901,8 +901,8 @@ export function VipClientsTab() {
               </div>
 
               {/* Purge RGPD */}
-              <div className="rounded-lg border border-[#C97B63]/35 bg-[#C97B63]/5 p-4">
-                <p className="flex items-center gap-1.5 text-xs font-semibold text-[#C97B63]">
+              <div className="rounded-lg border border-[#bc7155]/35 bg-[#bc7155]/5 p-4">
+                <p className="flex items-center gap-1.5 text-xs font-semibold text-[#bc7155]">
                   <Trash2 className="h-3.5 w-3.5" aria-hidden /> Purge RGPD sur demande
                 </p>
                 <p className="mt-1 text-[11px] leading-relaxed text-[#8B6F47]">
@@ -911,7 +911,7 @@ export function VipClientsTab() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="mt-2.5 gap-1.5 border-[#C97B63]/40 text-[#C97B63] hover:bg-[#C97B63]/10"
+                  className="mt-2.5 gap-1.5 border-[#bc7155]/40 text-[#bc7155] hover:bg-[#bc7155]/10"
                   onClick={() => setPurgeOpen(true)}
                 >
                   <Trash2 className="h-3.5 w-3.5" aria-hidden /> Purger ce client
@@ -924,9 +924,9 @@ export function VipClientsTab() {
 
       {/* ---------- Dialog confirmation purge ---------- */}
       <Dialog open={purgeOpen} onOpenChange={setPurgeOpen}>
-        <DialogContent className="border-[#C97B63]/30 bg-white p-6 sm:max-w-md">
+        <DialogContent className="border-[#bc7155]/30 bg-white p-6 sm:max-w-md">
           <DialogHeader>
-            <DialogTitle className="text-xl text-[#C97B63]" style={SERIF}>Confirmer la purge RGPD</DialogTitle>
+            <DialogTitle className="text-xl text-[#bc7155]" style={SERIF}>Confirmer la purge RGPD</DialogTitle>
             <DialogDescription className="text-[#8B6F47]">
               Toutes les données de <strong>{detail?.name}</strong> seront supprimées définitivement
               (profil, {detail?.visitCount ?? 0} visite(s), notes, alertes). Tapez le nom du client pour confirmer.
@@ -936,10 +936,10 @@ export function VipClientsTab() {
             value={purgeConfirm}
             onChange={(e) => setPurgeConfirm(e.target.value)}
             placeholder={detail?.name ?? ''}
-            className="border-[#C97B63]/40 bg-[#FAFAF7]"
+            className="border-[#bc7155]/40 bg-[#ffffff]"
           />
           <DialogFooter>
-            <Button variant="outline" className="border-[#EAE5DC] text-[#8B6F47]" onClick={() => { setPurgeOpen(false); setPurgeConfirm('') }}>
+            <Button variant="outline" className="border-[#efe7e0] text-[#8B6F47]" onClick={() => { setPurgeOpen(false); setPurgeConfirm('') }}>
               Annuler
             </Button>
             <Button

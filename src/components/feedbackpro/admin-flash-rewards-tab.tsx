@@ -15,7 +15,7 @@
 //                               jours) par campagne
 //   E. Conversion annonceurs  — table groupée par annonceur
 //
-// Palette aéroport : navy #003399 + gold #FCD116 (distincte du
+// Palette aéroport : navy #000d10 + gold #bc7155 (distincte du
 // reste de l'app).
 //
 // Backend companion : /api/airport/flash-rewards/* (5+ routes).
@@ -85,8 +85,8 @@ import { formatDate } from "@/components/feedbackpro/shared"
 import { cn } from "@/lib/utils"
 
 // ---------- Palette aéroport ----------
-const NAVY = "#003399"
-const GOLD = "#FCD116"
+const NAVY = "#000d10"
+const GOLD = "#bc7155"
 
 // ---------- Types (mirror des réponses API) ----------
 
@@ -879,7 +879,7 @@ function CreateCampaignSection({
 const STATUS_BADGE: Record<string, { label: string; className: string; bg: string; color: string }> = {
   unused: { label: "Non gratté", className: "", bg: "#94a3b8", color: "#fff" },
   scratched: { label: "Gratté", className: "", bg: GOLD, color: NAVY },
-  used: { label: "Utilisé", className: "", bg: "#10b981", color: "#fff" },
+  used: { label: "Utilisé", className: "", bg: "#bc7155", color: "#fff" },
   expired: { label: "Expiré", className: "", bg: "#ef4444", color: "#fff" },
 }
 
@@ -1136,7 +1136,7 @@ function CampaignStatCard({ stat }: { stat: CampaignStat }) {
   const bars = [
     { label: "Non grattés", value: stat.codesByStatus.unused ?? 0, color: "#94a3b8" },
     { label: "Grattés", value: stat.codesByStatus.scratched ?? 0, color: GOLD },
-    { label: "Utilisés", value: stat.codesByStatus.used ?? 0, color: "#10b981" },
+    { label: "Utilisés", value: stat.codesByStatus.used ?? 0, color: "#bc7155" },
     { label: "Expirés", value: stat.codesByStatus.expired ?? 0, color: "#ef4444" },
   ]
   const max = Math.max(...bars.map((b) => b.value), 1)
@@ -1156,7 +1156,7 @@ function CampaignStatCard({ stat }: { stat: CampaignStat }) {
             variant="outline"
             className="font-semibold"
             style={{
-              color: stat.campaign.status === "active" ? "#10b981" : "#94a3b8",
+              color: stat.campaign.status === "active" ? "#bc7155" : "#94a3b8",
             }}
           >
             {stat.campaign.status}
@@ -1235,7 +1235,7 @@ function Stat({
       <p className="text-[10px] font-medium uppercase tracking-wider text-slate-500">{label}</p>
       <p
         className="text-base font-black"
-        style={{ color: hint ? "#10b981" : NAVY }}
+        style={{ color: hint ? "#bc7155" : NAVY }}
       >
         {value}
       </p>
@@ -1350,7 +1350,7 @@ function ConversionAdvertiserSection() {
                     <TableCell className="text-center">{r.campaignCount}</TableCell>
                     <TableCell className="text-center">{r.totalCodes}</TableCell>
                     <TableCell className="text-center">
-                      <span className="font-bold text-emerald-600">{r.usedCodes}</span>
+                      <span className="font-bold text-[#a05f45]">{r.usedCodes}</span>
                     </TableCell>
                     <TableCell className="text-center">
                       <span
@@ -1395,8 +1395,8 @@ function ConversionAdvertiserSection() {
 // ============================================================
 
 const CAMPAIGN_STATUS_BADGE: Record<string, { label: string; bg: string; color: string }> = {
-  active: { label: "Active", bg: "#10b981", color: "#fff" },
-  paused: { label: "En pause", bg: "#f59e0b", color: "#fff" },
+  active: { label: "Active", bg: "#bc7155", color: "#fff" },
+  paused: { label: "En pause", bg: "#bc7155", color: "#fff" },
   expired: { label: "Expirée", bg: "#ef4444", color: "#fff" },
 }
 
@@ -1769,7 +1769,7 @@ function CampaignCard({
                   <Ticket className="h-3 w-3" aria-hidden />
                   {stat.totalCodes} codes générés
                 </span>
-                <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-1 text-emerald-700">
+                <span className="inline-flex items-center gap-1 rounded-md bg-[#faf1ec] px-2 py-1 text-[#8a4f3b]">
                   <CheckCircle2 className="h-3 w-3" aria-hidden />
                   {stat.totalUsed} utilisés
                 </span>

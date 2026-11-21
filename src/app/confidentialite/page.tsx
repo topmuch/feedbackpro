@@ -50,7 +50,7 @@ export default function ConfidentialitePage() {
             pas stockée : seul le nom de la ville peut être conservé, sans identification possible.
           </li>
         </ul>
-        <p className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-900">
+        <p className="rounded-lg border border-[#e7c1ae] bg-[#faf1ec] p-3 text-[#573125]">
           Nous ne collectons aucune donnée dite « sensible » (santé, opinions politiques,
           orientations…), aucune donnée bancaire (le paiement est délégué à Stripe, qui ne nous
           transmet aucun numéro de carte) et nous ne revendons aucune donnée.

@@ -320,11 +320,11 @@ type SettingsForm = {
 // Couleurs des graphiques (palette bleu FeedbackPro)
 const COULEURS_PLANS: Record<string, string> = {
   STARTER: "#94a3b8",
-  PRO: "#0047c7",
-  ENTERPRISE: "#003399",
-  FRANCHISE: "#d97706", // ambre — distinct des autres plans
+  PRO: "#0f0f1c",
+  ENTERPRISE: "#000d10",
+  FRANCHISE: "#a05f45", // ambre — distinct des autres plans
 }
-const COULEURS_SUPPORTS = ["#003399", "#0047c7", "#1e3a8a"]
+const COULEURS_SUPPORTS = ["#000d10", "#0f0f1c", "#0f0f1c"]
 
 /** Libellé d'un plan depuis son id (STARTER → Starter) */
 function nomPlan(plan: string | undefined): string {
@@ -442,10 +442,10 @@ export function AdminDashboard() {
       {/* ---------- Pastilles décoratives floues (vert + indigo) ---------- */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
         <div className="absolute -left-32 -top-24 h-[28rem] w-[28rem] rounded-full bg-[#4CC96B]/15 blur-3xl" />
-        <div className="absolute -right-24 -top-16 h-[24rem] w-[24rem] rounded-full bg-[#003399]/10 blur-3xl" />
+        <div className="absolute -right-24 -top-16 h-[24rem] w-[24rem] rounded-full bg-[#000d10]/10 blur-3xl" />
       </div>
       {/* ---------- Sidebar détachée (desktop lg+) ---------- */}
-      <aside className="fixed inset-y-4 left-4 z-40 hidden w-64 flex-col rounded-3xl bg-[#003399] text-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] lg:flex">
+      <aside className="fixed inset-y-4 left-4 z-40 hidden w-64 flex-col rounded-none bg-[#000d10] text-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] lg:flex">
         <ContenuSidebarAdmin
           ongletActif={onglet}
           onNaviguer={naviguer}
@@ -460,7 +460,7 @@ export function AdminDashboard() {
         <div className="flex h-14 items-center justify-between gap-3 rounded-2xl bg-card px-4 shadow-[0_10px_30px_rgba(0,0,0,0.06)] sm:h-16 sm:px-5">
           <div className="flex min-w-0 items-center gap-2.5">
             <Sheet open={menuOuvert} onOpenChange={setMenuOuvert}>
-              <SheetContent side="left" className="h-full w-72 border-0 bg-[#003399] p-0 text-white" aria-describedby={undefined}>
+              <SheetContent side="left" className="h-full w-72 border-0 bg-[#000d10] p-0 text-white" aria-describedby={undefined}>
                 <SheetTitle className="sr-only">{t("common.navigationAdmin")}</SheetTitle>
                 <ContenuSidebarAdmin
                   ongletActif={onglet}
@@ -481,7 +481,7 @@ export function AdminDashboard() {
               <Menu className="h-5 w-5" aria-hidden />
             </Button>
             <div className="min-w-0">
-              <p className="truncate font-semibold text-[#1E1E2E] dark:text-foreground">{titreOnglet}</p>
+              <p className="truncate font-semibold text-[#0f0f1c] dark:text-foreground">{titreOnglet}</p>
               <p className="hidden truncate text-xs text-[#9A9AAE] dark:text-muted-foreground sm:block">{t("dashboard.titreAdmin")}</p>
             </div>
           </div>
@@ -605,7 +605,7 @@ function ContenuSidebarAdmin({
               aria-current={actif ? "page" : undefined}
               className={`flex h-10 shrink-0 items-center gap-2.5 rounded-xl px-3 text-[11px] font-semibold uppercase tracking-wide transition-colors ${
                 actif
-                  ? "bg-white text-[#1E1E2E] shadow-[0_4px_14px_rgba(0,0,0,0.12)]"
+                  ? "bg-white text-[#0f0f1c] shadow-[0_4px_14px_rgba(0,0,0,0.12)]"
                   : "text-white/80 hover:bg-white/10 hover:text-white"
               }`}
             >
@@ -663,7 +663,7 @@ function ColoredKpi({
 }) {
   return (
     <div
-      className={`relative overflow-hidden rounded-3xl bg-gradient-to-br ${gradient} p-6 text-white shadow-md`}
+      className={`relative overflow-hidden rounded-none bg-gradient-to-br ${gradient} p-6 text-white shadow-md`}
     >
       {/* Décoration : cercle translucide en arrière-plan */}
       <div
@@ -690,11 +690,11 @@ function GlobaleTab({ overview }: { overview: OverviewApi | null }) {
       <div className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-3xl" />
+            <Skeleton key={i} className="h-28 rounded-none" />
           ))}
         </div>
-        <Skeleton className="h-72 rounded-3xl" />
-        <Skeleton className="h-72 rounded-3xl" />
+        <Skeleton className="h-72 rounded-none" />
+        <Skeleton className="h-72 rounded-none" />
       </div>
     )
   }
@@ -742,28 +742,28 @@ function GlobaleTab({ overview }: { overview: OverviewApi | null }) {
           label="Pros total"
           value={totalPros}
           hint={`${prosActifs} actifs`}
-          gradient="from-blue-500 to-blue-700"
+          gradient="from-[#4b4d5e] to-[#2e3040]"
         />
         <ColoredKpi
           icon={CheckCircle2}
           label="Pros actifs"
           value={prosActifs}
           hint="Comptes non suspendus"
-          gradient="from-emerald-500 to-emerald-700"
+          gradient="from-[#bc7155] to-[#8a4f3b]"
         />
         <ColoredKpi
           icon={Euro}
           label="MRR abonnements"
           value={`${mrr} €`}
           hint="29/99/249/199 € par plan"
-          gradient="from-amber-500 to-orange-600"
+          gradient="from-[#bc7155] to-[#a05f45]"
         />
         <ColoredKpi
           icon={Package}
           label="Commandes en cours"
           value={commandesEnCours}
           hint={commandesEnCours > 0 ? "À imprimer ou expédier" : "Tout est traité"}
-          gradient="from-violet-500 to-purple-700"
+          gradient="from-[#bc7155] to-[#8a4f3b]"
         />
       </div>
 
@@ -772,20 +772,20 @@ function GlobaleTab({ overview }: { overview: OverviewApi | null }) {
           prix de plan des Pros avec proId non-null (établissements enfants
           d'un groupe multi-sites). */}
       {moduleMultiSitesActif && (
-        <Card className="border-amber-300 bg-amber-50/40 shadow-sm dark:border-amber-800/40 dark:bg-amber-950/10">
+        <Card className="border-[#dba28a] bg-[#faf1ec]/40 shadow-sm dark:border-[#6f3f30]/40 dark:bg-[#3f231b]/10">
           <CardContent className="flex items-center gap-4 p-5 sm:p-6">
-            <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-sm">
+            <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#bc7155] to-[#a05f45] text-white shadow-sm">
               <Building2 className="h-6 w-6" aria-hidden />
             </div>
             <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wide text-amber-800 dark:text-amber-300">
+              <p className="text-xs font-semibold uppercase tracking-wide text-[#6f3f30] dark:text-[#dba28a]">
                 Revenu multi-sites · module Franchise
               </p>
-              <p className="mt-0.5 text-2xl font-bold tracking-tight text-amber-900 dark:text-amber-200 sm:text-3xl">
+              <p className="mt-0.5 text-2xl font-bold tracking-tight text-[#573125] dark:text-[#e7c1ae] sm:text-3xl">
                 {revenuMultiSites} €
-                <span className="ms-1 text-sm font-normal text-amber-700/80 dark:text-amber-300/70">/mois</span>
+                <span className="ms-1 text-sm font-normal text-[#8a4f3b]/80 dark:text-[#dba28a]/70">/mois</span>
               </p>
-              <p className="mt-1 text-xs text-amber-800/80 dark:text-amber-300/70">
+              <p className="mt-1 text-xs text-[#6f3f30]/80 dark:text-[#dba28a]/70">
                 Somme des prix de plan des Pros rattachés à un groupe multi-établissements (proId non-null).
               </p>
             </div>
@@ -804,8 +804,8 @@ function GlobaleTab({ overview }: { overview: OverviewApi | null }) {
               <AreaChart data={croissance} margin={{ top: 8, right: 8, bottom: 0, left: -18 }}>
                 <defs>
                   <linearGradient id="gradPros" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#003399" stopOpacity={0.35} />
-                    <stop offset="100%" stopColor="#003399" stopOpacity={0.02} />
+                    <stop offset="0%" stopColor="#000d10" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="#000d10" stopOpacity={0.02} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
@@ -816,7 +816,7 @@ function GlobaleTab({ overview }: { overview: OverviewApi | null }) {
                   labelStyle={{ color: "#1c1917", fontWeight: 600 }}
                   contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 13 }}
                 />
-                <Area type="monotone" dataKey="nouveaux" stroke="#003399" strokeWidth={2.5} fill="url(#gradPros)" />
+                <Area type="monotone" dataKey="nouveaux" stroke="#000d10" strokeWidth={2.5} fill="url(#gradPros)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -845,7 +845,7 @@ function GlobaleTab({ overview }: { overview: OverviewApi | null }) {
                     labelStyle={{ color: "#1c1917", fontWeight: 600 }}
                     contentStyle={{ borderRadius: 12, border: "1px solid #e2e8f0", fontSize: 13 }}
                   />
-                  <Bar dataKey="retours" fill="#003399" radius={[0, 6, 6, 0]} barSize={18} />
+                  <Bar dataKey="retours" fill="#000d10" radius={[0, 6, 6, 0]} barSize={18} />
                 </BarChart>
               </ResponsiveContainer>
             )}
@@ -896,7 +896,7 @@ const CONFIRM_META: Record<
     description: (p) =>
       `« ${p.nomEtablissement} » perdra immédiatement l'accès à son dashboard et à ses API jusqu'à réactivation. Ses données sont conservées.`,
     bouton: "Suspendre le compte",
-    classe: "bg-amber-600 hover:bg-amber-700 text-white",
+    classe: "bg-[#a05f45] hover:bg-[#8a4f3b] text-white",
   },
   reactiver: {
     titre: "Réactiver ce commerçant ?",
@@ -947,7 +947,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
   const [wlForm, setWlForm] = useState({
     whiteLabel: false,
     brandName: "",
-    brandColor: "#003399",
+    brandColor: "#000d10",
     brandLogoUrl: "",
   })
   const [envoiWl, setEnvoiWl] = useState(false)
@@ -1161,7 +1161,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
     setWlForm({
       whiteLabel: pro.whiteLabel ?? false,
       brandName: pro.brandName ?? "",
-      brandColor: pro.brandColor || "#003399",
+      brandColor: pro.brandColor || "#000d10",
       brandLogoUrl: pro.brandLogoUrl ?? "",
     })
   }
@@ -1300,7 +1300,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
       {loading ? (
         <div className="space-y-3">
           {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-16 rounded-3xl" />
+            <Skeleton key={i} className="h-16 rounded-none" />
           ))}
         </div>
       ) : visibles.length === 0 ? (
@@ -1388,7 +1388,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
                             Suspendu
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="text-green-700 border-green-300 dark:text-green-300 dark:border-green-800">
+                          <Badge variant="outline" className="text-[#8a4f3b] border-[#dba28a] dark:text-[#dba28a] dark:border-[#6f3f30]">
                             Actif
                           </Badge>
                         )}
@@ -1419,8 +1419,8 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
                             size="icon"
                             className={`h-8 w-8 ${
                               p.whiteLabel
-                                ? "bg-violet-100 text-violet-700 hover:bg-violet-200 dark:bg-violet-950/40 dark:text-violet-300"
-                                : "text-violet-700 hover:bg-violet-50 dark:text-violet-300 dark:hover:bg-violet-900/40"
+                                ? "bg-[#f3ddd2] text-[#8a4f3b] hover:bg-[#e7c1ae] dark:bg-[#3f231b]/40 dark:text-[#dba28a]"
+                                : "text-[#8a4f3b] hover:bg-[#faf1ec] dark:text-[#dba28a] dark:hover:bg-[#573125]/40"
                             }`}
                             aria-label={`Mode White-label de ${p.nomEtablissement}`}
                             title={p.whiteLabel ? "White-label activé" : "Mode White-label"}
@@ -1431,7 +1431,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-blue-700 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-900/40"
+                            className="h-8 w-8 text-[#2e3040] hover:bg-[#f0f1f2] dark:text-[#8e8e95] dark:hover:bg-[#14152a]/40"
                             aria-label={`Réinitialiser le mot de passe de ${p.nomEtablissement}`}
                             disabled={actionEnCours === p.id}
                             onClick={() => executerResetMdp(p)}
@@ -1446,7 +1446,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 text-green-700 hover:bg-green-50 dark:text-green-300 dark:hover:bg-green-900/40"
+                              className="h-8 w-8 text-[#8a4f3b] hover:bg-[#faf1ec] dark:text-[#dba28a] dark:hover:bg-[#573125]/40"
                               aria-label={`Réactiver ${p.nomEtablissement}`}
                               onClick={() => setConfirmation({ action: "reactiver", pro: p })}
                             >
@@ -1456,7 +1456,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/40"
+                              className="h-8 w-8 text-[#8a4f3b] hover:bg-[#faf1ec] dark:text-[#dba28a] dark:hover:bg-[#573125]/40"
                               aria-label={`Suspendre ${p.nomEtablissement}`}
                               onClick={() => setConfirmation({ action: "suspendre", pro: p })}
                             >
@@ -1567,7 +1567,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <Building2 className="h-5 w-5 text-blue-600" aria-hidden />
+              <Building2 className="h-5 w-5 text-[#3c3e4c]" aria-hidden />
               Ajouter un commerçant
             </DialogTitle>
             <DialogDescription>
@@ -1698,7 +1698,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
             <>
               <DialogHeader>
                 <DialogTitle className="flex items-center gap-2">
-                  <Palette className="h-5 w-5 text-violet-600" aria-hidden />
+                  <Palette className="h-5 w-5 text-[#a05f45]" aria-hidden />
                   Mode White-label — {dialogWl.nomEtablissement}
                 </DialogTitle>
                 <DialogDescription>
@@ -1758,7 +1758,7 @@ function ProsTab({ onModifie }: { onModifie: () => void }) {
                       />
                     </div>
                     <p className="text-[11px] text-muted-foreground">
-                      Remplace #002e85 partout sur la page de scan.
+                      Remplace #0f0f1c partout sur la page de scan.
                     </p>
                   </div>
                 </div>
@@ -2042,7 +2042,7 @@ function UtilisateursTab() {
       {loading ? (
         <div className="space-y-3">
           {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-16 rounded-3xl" />
+            <Skeleton key={i} className="h-16 rounded-none" />
           ))}
         </div>
       ) : visibles.length === 0 ? (
@@ -2071,7 +2071,7 @@ function UtilisateursTab() {
                       <TableCell className="pl-4 max-w-56 truncate font-medium">{u.email}</TableCell>
                       <TableCell>
                         {u.role === "SUPERADMIN" ? (
-                          <Badge variant="outline" className="text-blue-700 border-blue-300 dark:text-blue-300 dark:border-blue-800">
+                          <Badge variant="outline" className="text-[#2e3040] border-[#8e8e95] dark:text-[#8e8e95] dark:border-[#1c1d2c]">
                             <Shield className="mr-1 h-3 w-3" aria-hidden />
                             Superadmin
                           </Badge>
@@ -2094,7 +2094,7 @@ function UtilisateursTab() {
                             Suspendu
                           </Badge>
                         ) : (
-                          <Badge variant="outline" className="text-green-700 border-green-300 dark:text-green-300 dark:border-green-800">
+                          <Badge variant="outline" className="text-[#8a4f3b] border-[#dba28a] dark:text-[#dba28a] dark:border-[#6f3f30]">
                             Actif
                           </Badge>
                         )}
@@ -2121,7 +2121,7 @@ function UtilisateursTab() {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-8 w-8 text-blue-700 hover:bg-blue-50 dark:text-blue-300 dark:hover:bg-blue-900/40"
+                            className="h-8 w-8 text-[#2e3040] hover:bg-[#f0f1f2] dark:text-[#8e8e95] dark:hover:bg-[#14152a]/40"
                             aria-label={`Réinitialiser le mot de passe de ${u.email}`}
                             disabled={actionEnCours === u.id}
                             onClick={() => executerAction("resetPassword", u)}
@@ -2137,7 +2137,7 @@ function UtilisateursTab() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 text-green-700 hover:bg-green-50 dark:text-green-300 dark:hover:bg-green-900/40"
+                              className="h-8 w-8 text-[#8a4f3b] hover:bg-[#faf1ec] dark:text-[#dba28a] dark:hover:bg-[#573125]/40"
                               aria-label={`Réactiver ${u.email}`}
                               disabled={actionEnCours === u.id}
                               onClick={() => executerAction("reactiver", u)}
@@ -2148,7 +2148,7 @@ function UtilisateursTab() {
                             <Button
                               variant="ghost"
                               size="icon"
-                              className="h-8 w-8 text-amber-700 hover:bg-amber-50 dark:text-amber-300 dark:hover:bg-amber-900/40"
+                              className="h-8 w-8 text-[#8a4f3b] hover:bg-[#faf1ec] dark:text-[#dba28a] dark:hover:bg-[#573125]/40"
                               aria-label={`Suspendre ${u.email}`}
                               disabled={actionEnCours === u.id}
                               onClick={() => executerAction("suspendre", u)}
@@ -2489,8 +2489,8 @@ function EmailTab() {
   if (chargement || !valeurs) {
     return (
       <div className="space-y-4 max-w-3xl">
-        <Skeleton className="h-44 rounded-3xl" />
-        <Skeleton className="h-64 rounded-3xl" />
+        <Skeleton className="h-44 rounded-none" />
+        <Skeleton className="h-64 rounded-none" />
       </div>
     )
   }
@@ -2500,7 +2500,7 @@ function EmailTab() {
       <Card>
         <CardHeader className="pb-2">
           <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-            <Mail className="h-4 w-4 text-blue-600" aria-hidden />
+            <Mail className="h-4 w-4 text-[#3c3e4c]" aria-hidden />
             Email transactionnel (Resend)
           </CardTitle>
           <p className="text-sm text-muted-foreground">
@@ -2762,7 +2762,7 @@ function CommandesTab({ onModifie }: { onModifie: () => void }) {
         width: 600,
         margin: 1,
         errorCorrectionLevel: "H",
-        color: { dark: "#0f172a", light: "#ffffff" },
+        color: { dark: "#0f0f1c", light: "#ffffff" },
       })
       if (c.typeSupport === "STICKERS_50") {
         // Planche d'étiquettes 5x5 cm (20 autocollants)
@@ -2843,7 +2843,7 @@ function CommandesTab({ onModifie }: { onModifie: () => void }) {
       {loading ? (
         <div className="space-y-3">
           {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-3xl" />
+            <Skeleton key={i} className="h-28 rounded-none" />
           ))}
         </div>
       ) : commandes.length === 0 ? (
@@ -2866,7 +2866,7 @@ function CommandesTab({ onModifie }: { onModifie: () => void }) {
                         </span>
                         <span className="text-sm font-normal text-muted-foreground">#{c.id.slice(-8).toUpperCase()}</span>
                         {c.numeroSuivi && (
-                          <Badge variant="outline" className="text-emerald-700 border-emerald-300 font-normal gap-1 dark:text-emerald-300 dark:border-emerald-800">
+                          <Badge variant="outline" className="text-[#8a4f3b] border-[#dba28a] font-normal gap-1 dark:text-[#dba28a] dark:border-[#6f3f30]">
                             <Truck className="h-3 w-3" aria-hidden />
                             Suivi : {c.numeroSuivi}
                           </Badge>
@@ -2886,10 +2886,10 @@ function CommandesTab({ onModifie }: { onModifie: () => void }) {
                       variant="outline"
                       className={
                         c.statut === "LIVRE"
-                          ? "text-green-700 border-green-300 dark:text-green-300 dark:border-green-800"
+                          ? "text-[#8a4f3b] border-[#dba28a] dark:text-[#dba28a] dark:border-[#6f3f30]"
                           : c.statut === "A_IMPRIMER"
                             ? "text-rose-700 border-rose-300 dark:text-rose-300 dark:border-rose-800"
-                            : "text-amber-700 border-amber-300 dark:text-amber-300 dark:border-amber-800"
+                            : "text-[#8a4f3b] border-[#dba28a] dark:text-[#dba28a] dark:border-[#6f3f30]"
                       }
                     >
                       {STATUT_COMMANDE_LABEL[c.statut]}
@@ -3018,11 +3018,11 @@ function RevenusTab() {
       <div className="space-y-4">
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
           {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-3xl" />
+            <Skeleton key={i} className="h-28 rounded-none" />
           ))}
         </div>
-        <Skeleton className="h-72 rounded-3xl" />
-        <Skeleton className="h-72 rounded-3xl" />
+        <Skeleton className="h-72 rounded-none" />
+        <Skeleton className="h-72 rounded-none" />
       </div>
     )
   }
@@ -3143,8 +3143,8 @@ function RevenusTab() {
                 <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} allowDecimals={false} />
                 <Tooltip formatter={(v, nom) => [`${v} €`, String(nom)]} labelStyle={{ color: "#1c1917" }} />
                 <Legend iconType="circle" wrapperStyle={{ fontSize: 13 }} />
-                <Bar dataKey="abonnements" name="Abonnements (MRR)" fill="#003399" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="supports" name="Supports" fill="#0047c7" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="abonnements" name="Abonnements (MRR)" fill="#000d10" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="supports" name="Supports" fill="#0f0f1c" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -3246,8 +3246,8 @@ function ParametresTab() {
   if (chargement || !valeurs) {
     return (
       <div className="space-y-4 max-w-2xl">
-        <Skeleton className="h-44 rounded-3xl" />
-        <Skeleton className="h-64 rounded-3xl" />
+        <Skeleton className="h-44 rounded-none" />
+        <Skeleton className="h-64 rounded-none" />
       </div>
     )
   }
@@ -3615,7 +3615,7 @@ function LogoEtablissementCard() {
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-          <ImagePlus className="h-5 w-5 text-emerald-600" aria-hidden />
+          <ImagePlus className="h-5 w-5 text-[#a05f45]" aria-hidden />
           Logo de l&apos;établissement
         </CardTitle>
         <p className="text-sm text-muted-foreground">
@@ -3644,9 +3644,9 @@ function LogoEtablissementCard() {
                   <SelectItem key={p.id} value={p.id}>
                     <span className="inline-flex items-center gap-2">
                       {p.typeEtablissement === "Aéroport" ? (
-                        <Plane className="h-3.5 w-3.5 text-sky-600" aria-hidden />
+                        <Plane className="h-3.5 w-3.5 text-[#3c3e4c]" aria-hidden />
                       ) : (
-                        <Building2 className="h-3.5 w-3.5 text-amber-600" aria-hidden />
+                        <Building2 className="h-3.5 w-3.5 text-[#a05f45]" aria-hidden />
                       )}
                       <span className="truncate">{p.nomEtablissement}</span>
                       <span className="text-xs text-muted-foreground">· {p.typeEtablissement}</span>
@@ -3691,7 +3691,7 @@ function LogoEtablissementCard() {
                   : "Aucun logo configuré — fallback /logo-feedbackpro.png utilisé."}
               </p>
               {pendingLogoUrl && (
-                <p className="text-xs font-semibold text-emerald-700 dark:text-emerald-300">
+                <p className="text-xs font-semibold text-[#8a4f3b] dark:text-[#dba28a]">
                   ⏳ Nouveau logo prêt — cliquez « Enregistrer le logo ».
                 </p>
               )}
@@ -3727,7 +3727,7 @@ function LogoEtablissementCard() {
             type="button"
             disabled={saving || !pendingLogoUrl || !selectedProId}
             onClick={() => void saveLogo()}
-            className="gap-2 bg-emerald-600 text-white hover:bg-emerald-700"
+            className="gap-2 bg-[#a05f45] text-white hover:bg-[#8a4f3b]"
           >
             {saving ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -4030,7 +4030,7 @@ function AirportAdsCard() {
                       className={cn(
                         "shrink-0 text-[10px]",
                         ad.active
-                          ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
+                          ? "border-[#bc7155]/30 bg-[#bc7155]/10 text-[#a05f45]"
                           : "border-muted-foreground/30 bg-muted/40 text-muted-foreground",
                       )}
                     >
@@ -4332,7 +4332,7 @@ function PublicitesTab() {
                   {/* Notch */}
                   <div className="absolute left-1/2 top-0 z-10 h-5 w-20 -translate-x-1/2 rounded-b-xl bg-slate-800" />
                   {/* Écran */}
-                  <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-[#003399] via-[#003399] to-[#0044bb] p-4 pt-8 text-center">
+                  <div className="flex h-full w-full flex-col items-center justify-center gap-3 bg-gradient-to-br from-[#000d10] via-[#000d10] to-[#0f0f1c] p-4 pt-8 text-center">
                     {fImageUrl ? (
                       <img src={fImageUrl} alt="Preview" className="absolute inset-0 h-full w-full object-cover" />
                     ) : (
@@ -4397,7 +4397,7 @@ function PublicitesTab() {
                     className={cn(
                       "text-[10px]",
                       ad.active
-                        ? "border-emerald-500/30 bg-emerald-500/90 text-white"
+                        ? "border-[#bc7155]/30 bg-[#bc7155]/90 text-white"
                         : "border-muted-foreground/30 bg-black/60 text-white/70",
                     )}
                   >
@@ -4535,8 +4535,8 @@ function MessagesTab({ onApresAction }: { onApresAction: () => void }) {
   if (chargement) {
     return (
       <div className="space-y-4">
-        <Skeleton className="h-20 rounded-3xl" />
-        <Skeleton className="h-96 rounded-3xl" />
+        <Skeleton className="h-20 rounded-none" />
+        <Skeleton className="h-96 rounded-none" />
       </div>
     )
   }
@@ -4545,28 +4545,28 @@ function MessagesTab({ onApresAction }: { onApresAction: () => void }) {
     <div className="space-y-4">
       {/* ---------- KPI : total / non lus ---------- */}
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-        <Card className="rounded-3xl border-none shadow-sm">
+        <Card className="rounded-none border-none shadow-sm">
           <CardContent className="p-5">
             <p className="text-xs text-muted-foreground">Total messages</p>
             <p className="mt-1 text-2xl font-bold">{messages.length}</p>
           </CardContent>
         </Card>
-        <Card className="rounded-3xl border-none shadow-sm">
+        <Card className="rounded-none border-none shadow-sm">
           <CardContent className="p-5">
             <p className="text-xs text-muted-foreground">Non lus</p>
             <p className="mt-1 text-2xl font-bold text-rose-600">{nonLus}</p>
           </CardContent>
         </Card>
-        <Card className="col-span-2 rounded-3xl border-none shadow-sm sm:col-span-1">
+        <Card className="col-span-2 rounded-none border-none shadow-sm sm:col-span-1">
           <CardContent className="p-5">
             <p className="text-xs text-muted-foreground">Lus</p>
-            <p className="mt-1 text-2xl font-bold text-emerald-600">{messages.length - nonLus}</p>
+            <p className="mt-1 text-2xl font-bold text-[#a05f45]">{messages.length - nonLus}</p>
           </CardContent>
         </Card>
       </div>
 
       {messages.length === 0 ? (
-        <Card className="rounded-3xl">
+        <Card className="rounded-none">
           <CardContent className="flex flex-col items-center justify-center gap-3 py-16 text-center">
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-muted" aria-hidden>
               <Mail className="h-6 w-6 text-muted-foreground" />
@@ -4581,7 +4581,7 @@ function MessagesTab({ onApresAction }: { onApresAction: () => void }) {
       ) : (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
           {/* ---------- Liste des messages (lg:col-span-2) ---------- */}
-          <Card className="rounded-3xl lg:col-span-2">
+          <Card className="rounded-none lg:col-span-2">
             <CardHeader className="pb-3">
               <CardTitle className="text-base">Boîte de réception</CardTitle>
             </CardHeader>
@@ -4629,7 +4629,7 @@ function MessagesTab({ onApresAction }: { onApresAction: () => void }) {
           </Card>
 
           {/* ---------- Détail du message sélectionné (lg:col-span-3) ---------- */}
-          <Card className="rounded-3xl lg:col-span-3">
+          <Card className="rounded-none lg:col-span-3">
             {messageSelectionne ? (
               <>
                 <CardHeader className="pb-3">
@@ -4668,7 +4668,7 @@ function MessagesTab({ onApresAction }: { onApresAction: () => void }) {
                         </span>
                       )}
                       {messageSelectionne.defi && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/10 px-3 py-1 text-xs font-medium text-amber-700">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#bc7155]/10 px-3 py-1 text-xs font-medium text-[#8a4f3b]">
                           Défi : {messageSelectionne.defi}
                         </span>
                       )}
@@ -4946,7 +4946,7 @@ function SecteursTab() {
       <Card>
         <CardHeader className="pb-4">
           <CardTitle className="flex items-center gap-2 text-base">
-            <Plane className="h-4 w-4 text-[#003399]" aria-hidden />
+            <Plane className="h-4 w-4 text-[#000d10]" aria-hidden />
             Types d&apos;établissement (Tenants)
           </CardTitle>
           <CardDescription className="text-xs">
@@ -4961,27 +4961,27 @@ function SecteursTab() {
             emoji="✈️"
             titre="Aéroport"
             description="Infrastructure & ops — wallboard, salle de supervision"
-            accent="border-[#003399]/30 bg-[#003399]/5"
+            accent="border-[#000d10]/30 bg-[#000d10]/5"
           />
           <TenantZonesSection
             tenant="airline"
             emoji="🛫"
             titre="Compagnie Aérienne"
             description="Escale & passager — check-in, embarquement, litiges bagages"
-            accent="border-sky-500/30 bg-sky-50 dark:bg-sky-950/30"
+            accent="border-[#4b4d5e]/30 bg-[#f0f1f2] dark:bg-[#0f0f1c]/30"
           />
           <TenantZonesSection
             tenant="vip_lounge"
             emoji="🥂"
             titre="Salon VIP"
             description="Luxe & discrétion — buffet, douches, conciergerie"
-            accent="border-[#D4AF37]/30 bg-[#D4AF37]/5"
+            accent="border-[#bc7155]/30 bg-[#bc7155]/5"
           />
           {/* Commerce classique — pas de zones aéroport dédiées :
               ce sont les secteurs historiques (restaurant, hôtel, etc.)
               listés plus bas dans le sélecteur de secteurs. On affiche un
               récapitulatif avec le nombre de secteurs chargés depuis l'API. */}
-          <div className={`rounded-2xl border p-4 ${secteurs.length > 0 ? "border-border bg-muted/30" : "border-amber-300 bg-amber-50 dark:bg-amber-950/30"}`}>
+          <div className={`rounded-2xl border p-4 ${secteurs.length > 0 ? "border-border bg-muted/30" : "border-[#dba28a] bg-[#faf1ec] dark:bg-[#3f231b]/30"}`}>
             <div className="flex flex-wrap items-center justify-between gap-2">
               <div className="flex items-center gap-3">
                 <span className="text-2xl" aria-hidden>🏪</span>
@@ -5045,7 +5045,7 @@ function SecteursTab() {
                       {s.scenarioCount} scén. · {s.questionCount} quest.
                     </span>
                     {s.source === "fallback" && (
-                      <Badge variant="outline" className="mt-1 h-4 px-1 text-[9px] font-normal text-amber-700">
+                      <Badge variant="outline" className="mt-1 h-4 px-1 text-[9px] font-normal text-[#8a4f3b]">
                         défaut
                       </Badge>
                     )}
@@ -5072,8 +5072,8 @@ function SecteursTab() {
                         className={cn(
                           "ml-1 h-4 px-1.5 text-[10px] font-normal",
                           secteurSelectionne.source === "bdd"
-                            ? "border-emerald-300 bg-emerald-50 text-emerald-700 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
-                            : "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+                            ? "border-[#dba28a] bg-[#faf1ec] text-[#8a4f3b] dark:border-[#6f3f30] dark:bg-[#3f231b]/40 dark:text-[#dba28a]"
+                            : "border-[#dba28a] bg-[#faf1ec] text-[#8a4f3b] dark:border-[#6f3f30] dark:bg-[#3f231b]/40 dark:text-[#dba28a]"
                         )}
                       >
                         {secteurSelectionne.source === "bdd" ? "BDD (édité)" : "Fallback hardcoded"}
@@ -5109,7 +5109,7 @@ function SecteursTab() {
                   className={cn(
                     "flex items-center gap-2 rounded-xl border p-2.5 text-xs",
                     validation.valide
-                      ? "border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/40 dark:text-emerald-300"
+                      ? "border-[#dba28a] bg-[#faf1ec] text-[#6f3f30] dark:border-[#6f3f30] dark:bg-[#3f231b]/40 dark:text-[#dba28a]"
                       : "border-rose-300 bg-rose-50 text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300"
                   )}
                 >
@@ -5246,7 +5246,7 @@ function TenantZonesSection({
               {deplacee && (
                 <Badge
                   variant="outline"
-                  className="ml-1 h-4 shrink-0 px-1 text-[9px] font-normal text-amber-700 dark:text-amber-300"
+                  className="ml-1 h-4 shrink-0 px-1 text-[9px] font-normal text-[#8a4f3b] dark:text-[#dba28a]"
                   title={`Origine : ${deplacee.from} → ${deplacee.to}`}
                 >
                   {deplacee.label}
@@ -5293,7 +5293,7 @@ type RetentionData = {
   periode: { debut: string; fin: string; nbMois: number }
 }
 
-const COULEURS_REPARTITION = ["#003399", "#0047c7", "#94a3b8", "#1e3a8a", "#64748b"]
+const COULEURS_REPARTITION = ["#000d10", "#0f0f1c", "#94a3b8", "#0f0f1c", "#64748b"]
 
 function RetentionTab() {
   const [data, setData] = useState<RetentionData | null>(null)
@@ -5377,7 +5377,7 @@ function RetentionTab() {
           <CardContent className="p-4 sm:p-5">
             <div className="flex items-center justify-between">
               <p className="text-xs font-medium text-muted-foreground">Clients actifs (30j)</p>
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300">
+              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#faf1ec] text-[#8a4f3b] dark:bg-[#3f231b]/40 dark:text-[#dba28a]">
                 <CheckCircle2 className="h-4 w-4" aria-hidden />
               </span>
             </div>
@@ -5398,8 +5398,8 @@ function RetentionTab() {
                   data.tauxChurn >= 50
                     ? "bg-rose-50 text-rose-700 dark:bg-rose-950/40 dark:text-rose-300"
                     : data.tauxChurn >= 25
-                      ? "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-300"
-                      : "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-300"
+                      ? "bg-[#faf1ec] text-[#8a4f3b] dark:bg-[#3f231b]/40 dark:text-[#dba28a]"
+                      : "bg-[#faf1ec] text-[#8a4f3b] dark:bg-[#3f231b]/40 dark:text-[#dba28a]"
                 )}
               >
                 <TrendingUp className="h-4 w-4" aria-hidden />
@@ -5431,7 +5431,7 @@ function RetentionTab() {
           <CardContent className="p-4 sm:p-5">
             <div className="flex items-center justify-between">
               <p className="text-xs font-medium text-muted-foreground">Total Pros</p>
-              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-300">
+              <span className="flex h-8 w-8 items-center justify-center rounded-xl bg-[#f0f1f2] text-[#2e3040] dark:bg-[#0f0f1c]/40 dark:text-[#8e8e95]">
                 <Users className="h-4 w-4" aria-hidden />
               </span>
             </div>
@@ -5461,8 +5461,8 @@ function RetentionTab() {
                 <AreaChart data={data.clientsActifsParMois} margin={{ top: 5, right: 10, bottom: 0, left: -20 }}>
                   <defs>
                     <linearGradient id="gradActifs" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#0047c7" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#0047c7" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#0f0f1c" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#0f0f1c" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} className="dark:stroke-slate-700" />
@@ -5479,7 +5479,7 @@ function RetentionTab() {
                   <Area
                     type="monotone"
                     dataKey="count"
-                    stroke="#0047c7"
+                    stroke="#0f0f1c"
                     strokeWidth={2}
                     fill="url(#gradActifs)"
                     name="Actifs"
@@ -5493,7 +5493,7 @@ function RetentionTab() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base">
-              <Plus className="h-4 w-4 text-emerald-600" aria-hidden />
+              <Plus className="h-4 w-4 text-[#a05f45]" aria-hidden />
               Nouveaux clients par mois
             </CardTitle>
             <p className="text-xs text-muted-foreground">
@@ -5506,8 +5506,8 @@ function RetentionTab() {
                 <AreaChart data={data.nouveauxClientsParMois} margin={{ top: 5, right: 10, bottom: 0, left: -20 }}>
                   <defs>
                     <linearGradient id="gradNouveaux" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#bc7155" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#bc7155" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" vertical={false} className="dark:stroke-slate-700" />
@@ -5524,7 +5524,7 @@ function RetentionTab() {
                   <Area
                     type="monotone"
                     dataKey="count"
-                    stroke="#10b981"
+                    stroke="#bc7155"
                     strokeWidth={2}
                     fill="url(#gradNouveaux)"
                     name="Nouveaux"
@@ -5681,11 +5681,11 @@ const MODULE_STYLES: Record<
   { emoji: string; gradient: string }
 > = {
   alertes_temps_reel: { emoji: "🚨", gradient: "from-rose-500 to-rose-700" },
-  voice_to_text: { emoji: "🎤", gradient: "from-violet-500 to-purple-700" },
-  abonnement_multi_sites: { emoji: "🏢", gradient: "from-amber-500 to-orange-600" },
+  voice_to_text: { emoji: "🎤", gradient: "from-[#bc7155] to-[#8a4f3b]" },
+  abonnement_multi_sites: { emoji: "🏢", gradient: "from-[#bc7155] to-[#a05f45]" },
   loterie: { emoji: "🎰", gradient: "from-pink-500 to-rose-600" },
-  smart_qr: { emoji: "🕒", gradient: "from-cyan-500 to-blue-700" },
-  double_shield: { emoji: "🛡️", gradient: "from-emerald-500 to-emerald-700" },
+  smart_qr: { emoji: "🕒", gradient: "from-[#bc7155] to-[#2e3040]" },
+  double_shield: { emoji: "🛡️", gradient: "from-[#bc7155] to-[#8a4f3b]" },
   webhooks_sortants: { emoji: "🔔", gradient: "from-slate-500 to-slate-700" },
 }
 
@@ -5822,7 +5822,7 @@ function ModulesTab() {
                 key={m.id}
                 className={cn(
                   "overflow-hidden shadow-sm transition-shadow hover:shadow-md",
-                  m.actif && "ring-1 ring-emerald-500/40"
+                  m.actif && "ring-1 ring-[#bc7155]/40"
                 )}
               >
                 <CardHeader className="pb-3">
@@ -5849,7 +5849,7 @@ function ModulesTab() {
                         variant={m.actif ? "default" : "secondary"}
                         className={
                           m.actif
-                            ? "border-emerald-300 bg-emerald-50 text-emerald-800 hover:bg-emerald-50 dark:border-emerald-800/60 dark:bg-emerald-950/40 dark:text-emerald-300"
+                            ? "border-[#dba28a] bg-[#faf1ec] text-[#6f3f30] hover:bg-[#faf1ec] dark:border-[#6f3f30]/60 dark:bg-[#3f231b]/40 dark:text-[#dba28a]"
                             : ""
                         }
                       >

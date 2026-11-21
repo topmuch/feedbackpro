@@ -115,7 +115,7 @@ const STATUS_BADGE: Record<
   BOARDING: {
     label: 'Embarquement',
     className:
-      'border-emerald-500/40 bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400',
+      'border-[#bc7155]/40 bg-[#bc7155]/10 dark:bg-[#bc7155]/15 text-[#a05f45] dark:text-[#c98b72]',
     icon: Plane,
   },
   DEPARTED: {
@@ -127,7 +127,7 @@ const STATUS_BADGE: Record<
   DELAYED: {
     label: 'Retardé',
     className:
-      'border-amber-500/40 bg-amber-500/10 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400',
+      'border-[#bc7155]/40 bg-[#bc7155]/10 dark:bg-[#bc7155]/15 text-[#a05f45] dark:text-[#c98b72]',
     icon: AlertTriangle,
   },
   CANCELLED: {
@@ -368,7 +368,7 @@ export function AirportFlightGatesTab() {
       {/* Header */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-amber-500/10 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400">
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-[#bc7155]/10 dark:bg-[#bc7155]/15 text-[#a05f45] dark:text-[#c98b72]">
             <Plane className="size-5" />
           </div>
           <div>
@@ -399,7 +399,7 @@ export function AirportFlightGatesTab() {
           <Button
             size="sm"
             onClick={() => setDialogOpen(true)}
-            className="bg-gradient-to-b from-amber-500 to-amber-600 text-white shadow-sm hover:from-amber-600 hover:to-amber-700"
+            className="bg-gradient-to-b from-[#bc7155] to-[#a05f45] text-white shadow-sm hover:from-[#a05f45] hover:to-[#8a4f3b]"
           >
             <Plus className="mr-2 size-4" />
             Nouvelle assignation
@@ -411,7 +411,7 @@ export function AirportFlightGatesTab() {
       <Card className="overflow-hidden border-border bg-card shadow-sm">
         <CardHeader className="border-b border-border bg-muted/60 px-4 py-3">
           <CardTitle className="flex items-center gap-2 text-sm font-semibold text-foreground">
-            <Plane className="size-4 text-amber-600 dark:text-amber-400" />
+            <Plane className="size-4 text-[#a05f45] dark:text-[#c98b72]" />
             Portes assignées ({gates.length})
           </CardTitle>
         </CardHeader>
@@ -433,7 +433,7 @@ export function AirportFlightGatesTab() {
                 size="sm"
                 variant="outline"
                 onClick={() => setDialogOpen(true)}
-                className="border-amber-500/40 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 dark:hover:bg-amber-500/15"
+                className="border-[#bc7155]/40 text-[#a05f45] dark:text-[#c98b72] hover:bg-[#bc7155]/10 dark:hover:bg-[#bc7155]/15"
               >
                 <Plus className="mr-2 size-4" />
                 Assigner un premier vol
@@ -466,7 +466,7 @@ export function AirportFlightGatesTab() {
                         className={cn(
                           'text-sm transition-colors',
                           gate.active
-                            ? 'bg-card hover:bg-amber-500/10 dark:hover:bg-amber-500/15'
+                            ? 'bg-card hover:bg-[#bc7155]/10 dark:hover:bg-[#bc7155]/15'
                             : 'bg-muted/40 text-muted-foreground',
                         )}
                       >
@@ -477,7 +477,7 @@ export function AirportFlightGatesTab() {
                         </td>
                         <td className="px-4 py-3 align-middle">
                           <span className="inline-flex items-center gap-1.5 font-bold text-foreground">
-                            <Plane className="size-3.5 text-amber-600 dark:text-amber-400" />
+                            <Plane className="size-3.5 text-[#a05f45] dark:text-[#c98b72]" />
                             {gate.flightNumber}
                           </span>
                         </td>
@@ -535,7 +535,7 @@ export function AirportFlightGatesTab() {
                               onClick={() =>
                                 handlePatch(gate, { status: 'DELAYED' })
                               }
-                              className="h-8 px-2 text-xs text-amber-600 dark:text-amber-400 hover:bg-amber-500/10 dark:hover:bg-amber-500/15"
+                              className="h-8 px-2 text-xs text-[#a05f45] dark:text-[#c98b72] hover:bg-[#bc7155]/10 dark:hover:bg-[#bc7155]/15"
                               title="Retarder"
                             >
                               <AlertTriangle className="size-3.5" />
@@ -605,7 +605,7 @@ export function AirportFlightGatesTab() {
                             </Badge>
                           </div>
                           <div className="mt-1 flex items-center gap-1.5">
-                            <Plane className="size-4 text-amber-600 dark:text-amber-400" />
+                            <Plane className="size-4 text-[#a05f45] dark:text-[#c98b72]" />
                             <span className="text-base font-bold text-foreground">
                               {gate.flightNumber}
                             </span>
@@ -650,7 +650,7 @@ export function AirportFlightGatesTab() {
                           onClick={() =>
                             handlePatch(gate, { status: 'DELAYED' })
                           }
-                          className="h-8 border-amber-500/40 px-2 text-xs text-amber-600 dark:text-amber-400"
+                          className="h-8 border-[#bc7155]/40 px-2 text-xs text-[#a05f45] dark:text-[#c98b72]"
                         >
                           <AlertTriangle className="size-3.5" />
                           <span className="ml-1">Retarder</span>
@@ -694,7 +694,7 @@ export function AirportFlightGatesTab() {
         <DialogContent className="max-w-lg border-border bg-background p-0">
           <DialogHeader className="border-b border-border px-5 py-4">
             <DialogTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
-              <Plane className="size-4 text-amber-600 dark:text-amber-400" />
+              <Plane className="size-4 text-[#a05f45] dark:text-[#c98b72]" />
               Nouvelle assignation porte ↔ vol
             </DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground">
@@ -839,7 +839,7 @@ export function AirportFlightGatesTab() {
             <Button
               onClick={handleCreate}
               disabled={submitting}
-              className="bg-gradient-to-b from-amber-500 to-amber-600 text-white shadow-sm hover:from-amber-600 hover:to-amber-700"
+              className="bg-gradient-to-b from-[#bc7155] to-[#a05f45] text-white shadow-sm hover:from-[#a05f45] hover:to-[#8a4f3b]"
             >
               {submitting ? (
                 <Loader2 className="mr-2 size-4 animate-spin" />

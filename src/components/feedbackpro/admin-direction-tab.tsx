@@ -14,7 +14,7 @@
 //   GET /api/airport/direction-dashboard → KPI agrégés
 //
 // Style : V2.0 — cartes blanches, coins arrondis, palette bleu
-// aéroport (#003399) + jaune (#fbbf24). Aucun détail ops individuel
+// aéroport (#000d10) + jaune (#bc7155). Aucun détail ops individuel
 // (pas d'ID signalement, pas de commentaire voyageur).
 // ============================================================
 
@@ -93,14 +93,14 @@ type DirectionData = {
 }
 
 // ---------- Couleurs palette V2.0 ----------
-const NAVY = "#003399"
-const GOLD = "#fbbf24"
-const NAVY_SOFT = "bg-[#003399]"
-const GOLD_SOFT = "bg-[#fbbf24]"
+const NAVY = "#000d10"
+const GOLD = "#bc7155"
+const NAVY_SOFT = "bg-[#000d10]"
+const GOLD_SOFT = "bg-[#bc7155]"
 const RISK_STYLES: Record<string, { label: string; className: string }> = {
-  low: { label: "Faible", className: "bg-emerald-50 text-emerald-700 border-emerald-200" },
-  medium: { label: "Modéré", className: "bg-amber-50 text-amber-700 border-amber-200" },
-  high: { label: "Élevé", className: "bg-orange-50 text-orange-700 border-orange-200" },
+  low: { label: "Faible", className: "bg-[#faf1ec] text-[#8a4f3b] border-[#e7c1ae]" },
+  medium: { label: "Modéré", className: "bg-[#faf1ec] text-[#8a4f3b] border-[#e7c1ae]" },
+  high: { label: "Élevé", className: "bg-[#faf1ec] text-[#8a4f3b] border-[#e7c1ae]" },
   critical: { label: "Critique", className: "bg-rose-50 text-rose-700 border-rose-200" },
   unknown: { label: "N/A", className: "bg-slate-100 text-slate-600 border-slate-200" },
 }
@@ -206,7 +206,7 @@ export function AdminDirectionTab() {
             <RefreshCw className={loading ? "size-4 animate-spin" : "size-4"} />
             Rafraîchir
           </Button>
-          <Button size="sm" onClick={handleExportPdf} className="gap-2 bg-[#003399] hover:bg-[#002277]">
+          <Button size="sm" onClick={handleExportPdf} className="gap-2 bg-[#000d10] hover:bg-[#002277]">
             <Download className="size-4" />
             Export PDF
           </Button>
@@ -280,7 +280,7 @@ export function AdminDirectionTab() {
             <div className="mt-2 flex items-baseline gap-2">
               <span
                 className={`text-3xl font-bold leading-tight ${
-                  data.nps.score >= 0 ? "text-emerald-600" : "text-rose-600"
+                  data.nps.score >= 0 ? "text-[#a05f45]" : "text-rose-600"
                 }`}
               >
                 {data.nps.score > 0 ? "+" : ""}
@@ -388,10 +388,10 @@ export function AdminDirectionTab() {
                     <div
                       className={`flex size-10 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
                         p.rank === 1
-                          ? "bg-amber-100 text-amber-700"
+                          ? "bg-[#f3ddd2] text-[#8a4f3b]"
                           : p.rank === 2
                           ? "bg-slate-100 text-slate-700"
-                          : "bg-orange-100 text-orange-700"
+                          : "bg-[#f3ddd2] text-[#8a4f3b]"
                       }`}
                     >
                       #{p.rank}
@@ -419,7 +419,7 @@ export function AdminDirectionTab() {
         <Card className="border-slate-200 bg-white shadow-sm">
           <CardHeader className="border-b border-slate-100 pb-3">
             <CardTitle className="flex items-center gap-2 text-base">
-              <AlertTriangle className="size-4 text-amber-500" />
+              <AlertTriangle className="size-4 text-[#bc7155]" />
               Zone risk ranking
             </CardTitle>
             <CardDescription className="text-xs text-slate-500">
@@ -429,7 +429,7 @@ export function AdminDirectionTab() {
           <CardContent className="p-0">
             {data.zoneRiskRanking.length === 0 ? (
               <div className="flex flex-col items-center justify-center gap-2 px-6 py-10 text-center">
-                <ShieldCheck className="size-8 text-emerald-300" />
+                <ShieldCheck className="size-8 text-[#dba28a]" />
                 <p className="text-sm text-slate-500">Aucune zone à risque — situation calme</p>
               </div>
             ) : (
@@ -540,7 +540,7 @@ function TrendPill({ label, delta, current }: { label: string; delta: number; cu
         <span className="text-base font-bold text-slate-900">{current}</span>
         <span
           className={`text-xs font-semibold ${
-            neutral ? "text-slate-500" : positive ? "text-rose-600" : "text-emerald-600"
+            neutral ? "text-slate-500" : positive ? "text-rose-600" : "text-[#a05f45]"
           }`}
         >
           {neutral ? "±0%" : `${positive ? "+" : ""}${delta}%`}
@@ -616,14 +616,14 @@ function buildExportHtml(d: DirectionData): string {
 <style>
 @page { margin: 18mm 14mm; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; color: #1e293b; margin: 0; padding: 24px; background: #fff; }
-h1 { color: #003399; font-size: 22px; margin: 0 0 4px 0; }
-h2 { color: #003399; font-size: 15px; margin: 24px 0 8px 0; border-bottom: 2px solid #fbbf24; padding-bottom: 4px; }
+h1 { color: #000d10; font-size: 22px; margin: 0 0 4px 0; }
+h2 { color: #000d10; font-size: 15px; margin: 24px 0 8px 0; border-bottom: 2px solid #bc7155; padding-bottom: 4px; }
 .meta { color: #64748b; font-size: 11px; margin-bottom: 16px; }
 .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 16px 0; }
-.kpi { border: 1px solid #e2e8f0; border-top: 3px solid #003399; border-radius: 8px; padding: 14px; }
-.kpi.gold { border-top-color: #fbbf24; }
+.kpi { border: 1px solid #e2e8f0; border-top: 3px solid #000d10; border-radius: 8px; padding: 14px; }
+.kpi.gold { border-top-color: #bc7155; }
 .kpi .label { font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: 600; letter-spacing: 0.05em; }
-.kpi .value { font-size: 22px; font-weight: 700; color: #0f172a; margin-top: 4px; }
+.kpi .value { font-size: 22px; font-weight: 700; color: #0f0f1c; margin-top: 4px; }
 .kpi .hint { font-size: 10px; color: #94a3b8; margin-top: 4px; }
 table { width: 100%; border-collapse: collapse; font-size: 12px; }
 th { background: #f8fafc; padding: 8px 12px; text-align: left; font-size: 10px; text-transform: uppercase; color: #64748b; font-weight: 700; border-bottom: 2px solid #e2e8f0; }

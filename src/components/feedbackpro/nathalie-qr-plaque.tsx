@@ -6,7 +6,7 @@
 // Direction artistique (chevalet d'accueil produit) :
 //   · Socle marbre Nero Marquina (noir profond, veines ivoire)
 //   · Plaque aluminium noir anodisé mat, effet brossé
-//   · Filets & crochets d'or champagne brossé (#C9A961)
+//   · Filets & crochets d'or champagne brossé (#bc7155)
 //   · QR gravé sur médaillon ivoire — modules anthracite
 //     #2C2C2C (lisibilité scan optimale, pas de noir pur)
 //   · Typographie épurée en haut et en bas (serif)
@@ -238,11 +238,11 @@ export function NathalieQrPlaque({
           style={{ backgroundImage: `${SHEEN}, ${BRUSHED}` }}
         />
         {/* Filet or champagne */}
-        <div className="pointer-events-none absolute inset-[7px] rounded-[10px] border border-[#C9A961]/55 shadow-[inset_0_0_14px_rgba(201,169,97,0.10)]" />
+        <div className="pointer-events-none absolute inset-[7px] rounded-[10px] border border-[#bc7155]/55 shadow-[inset_0_0_14px_rgba(201,169,97,0.10)]" />
 
         {/* Typographie — haut */}
         <p
-          className={cn('relative font-semibold uppercase text-[#C9A961]', cfg.kicker)}
+          className={cn('relative font-semibold uppercase text-[#bc7155]', cfg.kicker)}
           style={SERIF}
         >
           {kicker}
@@ -255,7 +255,7 @@ export function NathalieQrPlaque({
           <div className="relative mx-auto mt-2.5 w-fit">
             <span
               className={cn(
-                'flex items-center justify-center rounded-full border-2 border-[#C9A961]/70 bg-gradient-to-br from-[#2E2A22] via-[#1E1B15] to-[#14120D]',
+                'flex items-center justify-center rounded-full border-2 border-[#bc7155]/70 bg-gradient-to-br from-[#2E2A22] via-[#1E1B15] to-[#14120D]',
                 'shadow-[0_3px_14px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.08)]',
                 cfg.emoji,
               )}
@@ -269,7 +269,7 @@ export function NathalieQrPlaque({
         {/* Emblème géométrique : médaillon ivoire + crochets d'or */}
         <div className="relative mx-auto w-fit">
           <div
-            className={cn('relative rounded-[5px] border border-[#C9A961]/50', cfg.medal)}
+            className={cn('relative rounded-[5px] border border-[#bc7155]/50', cfg.medal)}
             style={{ background: MEDALLION, boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.22), 0 1px 2px rgba(255,255,255,0.05)' }}
           >
             {qr ? (
@@ -283,7 +283,7 @@ export function NathalieQrPlaque({
             {qr && logo ? (
               <span
                 className={cn(
-                  'absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-[9px] bg-[#FBF7EC] shadow-[0_2px_12px_rgba(0,0,0,0.32)] ring-[1.5px] ring-[#C9A961]/70',
+                  'absolute left-1/2 top-1/2 z-10 -translate-x-1/2 -translate-y-1/2 rounded-[9px] bg-[#FBF7EC] shadow-[0_2px_12px_rgba(0,0,0,0.32)] ring-[1.5px] ring-[#bc7155]/70',
                   cfg.chip,
                 )}
                 aria-hidden
@@ -292,27 +292,27 @@ export function NathalieQrPlaque({
               </span>
             ) : null}
             {/* Crochets d'or de l'emblème */}
-            <span className="absolute -left-1.5 -top-1.5 h-3.5 w-3.5 border-l-2 border-t-2 border-[#C9A961]" />
-            <span className="absolute -right-1.5 -top-1.5 h-3.5 w-3.5 border-r-2 border-t-2 border-[#C9A961]" />
-            <span className="absolute -left-1.5 -bottom-1.5 h-3.5 w-3.5 border-b-2 border-l-2 border-[#C9A961]" />
-            <span className="absolute -right-1.5 -bottom-1.5 h-3.5 w-3.5 border-b-2 border-r-2 border-[#C9A961]" />
+            <span className="absolute -left-1.5 -top-1.5 h-3.5 w-3.5 border-l-2 border-t-2 border-[#bc7155]" />
+            <span className="absolute -right-1.5 -top-1.5 h-3.5 w-3.5 border-r-2 border-t-2 border-[#bc7155]" />
+            <span className="absolute -left-1.5 -bottom-1.5 h-3.5 w-3.5 border-b-2 border-l-2 border-[#bc7155]" />
+            <span className="absolute -right-1.5 -bottom-1.5 h-3.5 w-3.5 border-b-2 border-r-2 border-[#bc7155]" />
           </div>
         </div>
 
         {/* Séparateur losange */}
         <div className="relative mx-auto mt-3 flex items-center gap-2 px-2">
-          <span className="h-px flex-1 bg-gradient-to-r from-transparent to-[#C9A961]/55" />
-          <span className="text-[7px] leading-none text-[#C9A961]" aria-hidden>
+          <span className="h-px flex-1 bg-gradient-to-r from-transparent to-[#bc7155]/55" />
+          <span className="text-[7px] leading-none text-[#bc7155]" aria-hidden>
             ◆
           </span>
-          <span className="h-px flex-1 bg-gradient-to-l from-transparent to-[#C9A961]/55" />
+          <span className="h-px flex-1 bg-gradient-to-l from-transparent to-[#bc7155]/55" />
         </div>
 
         {/* Typographie — bas */}
         <p className={cn('relative mt-2 truncate text-[#EDE6D4]', cfg.label)} style={SERIF}>
           {label}
         </p>
-        <p className={cn('relative mt-1 truncate uppercase text-[#C9A961]/85', cfg.signature)}>
+        <p className={cn('relative mt-1 truncate uppercase text-[#bc7155]/85', cfg.signature)}>
           {signature}
         </p>
       </div>
@@ -353,7 +353,7 @@ export function plaqueSvgString({ data, label, kicker = 'SALON VIP', signature =
     const inset = Math.round(lp * 0.12)
     logoSvg = `
   <!-- logo du salon gravé (grand) -->
-  <rect x="${lx}" y="${ly}" width="${lp}" height="${lp}" rx="${Math.round(lp * 0.14)}" fill="url(#medal)" stroke="#C9A961" stroke-opacity="0.7" stroke-width="2"/>
+  <rect x="${lx}" y="${ly}" width="${lp}" height="${lp}" rx="${Math.round(lp * 0.14)}" fill="url(#medal)" stroke="#bc7155" stroke-opacity="0.7" stroke-width="2"/>
   <image href="${logoPng}" x="${lx + inset}" y="${ly + inset}" width="${lp - inset * 2}" height="${lp - inset * 2}" preserveAspectRatio="xMidYMid meet"/>
 `
   }
@@ -367,7 +367,7 @@ export function plaqueSvgString({ data, label, kicker = 'SALON VIP', signature =
     emojiSvg = `
   <!-- icône de la rubrique (grande, médaillon or) -->
   <circle cx="${W / 2}" cy="${cy}" r="${r}" fill="url(#medalOmbre)" stroke="url(#or)" stroke-width="2"/>
-  <circle cx="${W / 2}" cy="${cy}" r="${r - 4}" fill="none" stroke="#C9A961" stroke-opacity="0.35" stroke-width="0.8"/>
+  <circle cx="${W / 2}" cy="${cy}" r="${r - 4}" fill="none" stroke="#bc7155" stroke-opacity="0.35" stroke-width="0.8"/>
   <text x="${W / 2}" y="${cy}" text-anchor="middle" dominant-baseline="central" font-size="28" font-family="'Apple Color Emoji','Segoe UI Emoji','Noto Color Emoji',sans-serif">${esc(emoji)}</text>
 `
   }
@@ -385,8 +385,8 @@ export function plaqueSvgString({ data, label, kicker = 'SALON VIP', signature =
       <stop offset="1" stop-color="#EFE8D3"/>
     </linearGradient>
     <linearGradient id="or" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#E3C985"/>
-      <stop offset="0.5" stop-color="#C9A961"/>
+      <stop offset="0" stop-color="#dba28a"/>
+      <stop offset="0.5" stop-color="#bc7155"/>
       <stop offset="1" stop-color="#A98B4B"/>
     </linearGradient>
     <radialGradient id="medalOmbre" cx="0.35" cy="0.3" r="1">
@@ -408,14 +408,14 @@ export function plaqueSvgString({ data, label, kicker = 'SALON VIP', signature =
   </g>
   <!-- filets or champagne -->
   <rect x="38" y="38" width="${W - 76}" height="${H - 76}" rx="14" fill="none" stroke="url(#or)" stroke-width="1.6" stroke-opacity="0.7"/>
-  <rect x="46" y="46" width="${W - 92}" height="${H - 92}" rx="11" fill="none" stroke="#C9A961" stroke-opacity="0.22" stroke-width="0.8"/>
+  <rect x="46" y="46" width="${W - 92}" height="${H - 92}" rx="11" fill="none" stroke="#bc7155" stroke-opacity="0.22" stroke-width="0.8"/>
 
   <!-- typographie haut -->
-  <text x="${W / 2}" y="140" text-anchor="middle" font-family="${FONT_STACK}" font-size="24" letter-spacing="12" fill="#C9A961" font-weight="600">${esc(kicker.toUpperCase())}</text>
+  <text x="${W / 2}" y="140" text-anchor="middle" font-family="${FONT_STACK}" font-size="24" letter-spacing="12" fill="#bc7155" font-weight="600">${esc(kicker.toUpperCase())}</text>
   ${emojiSvg}
 
   <!-- emblème : médaillon ivoire + crochets d'or -->
-  <rect x="${x}" y="${y}" width="${s}" height="${s}" rx="8" fill="url(#medal)" stroke="#C9A961" stroke-opacity="0.55" stroke-width="1.4"/>
+  <rect x="${x}" y="${y}" width="${s}" height="${s}" rx="8" fill="url(#medal)" stroke="#bc7155" stroke-opacity="0.55" stroke-width="1.4"/>
   <image href="${qrPng}" x="${x + 14}" y="${y + 14}" width="${s - 28}" height="${s - 28}"/>
   ${logoSvg}
   <g stroke="url(#or)" stroke-width="5" fill="none" stroke-linecap="square">
@@ -426,13 +426,13 @@ export function plaqueSvgString({ data, label, kicker = 'SALON VIP', signature =
   </g>
 
   <!-- séparateur losange -->
-  <line x1="196" y1="580" x2="296" y2="580" stroke="#C9A961" stroke-opacity="0.55" stroke-width="1"/>
+  <line x1="196" y1="580" x2="296" y2="580" stroke="#bc7155" stroke-opacity="0.55" stroke-width="1"/>
   <path d="M ${W / 2} 572 L ${W / 2 + 8} 580 L ${W / 2} 588 L ${W / 2 - 8} 580 Z" fill="url(#or)"/>
-  <line x1="344" y1="580" x2="444" y2="580" stroke="#C9A961" stroke-opacity="0.55" stroke-width="1"/>
+  <line x1="344" y1="580" x2="444" y2="580" stroke="#bc7155" stroke-opacity="0.55" stroke-width="1"/>
 
   <!-- typographie bas -->
   <text x="${W / 2}" y="646" text-anchor="middle" font-family="${FONT_STACK}" font-size="32" fill="#EDE6D4">${esc(label)}</text>
-  <text x="${W / 2}" y="700" text-anchor="middle" font-family="${FONT_STACK}" font-size="14" letter-spacing="6" fill="#C9A961" fill-opacity="0.9">${esc(signature.toUpperCase())}</text>
+  <text x="${W / 2}" y="700" text-anchor="middle" font-family="${FONT_STACK}" font-size="14" letter-spacing="6" fill="#bc7155" fill-opacity="0.9">${esc(signature.toUpperCase())}</text>
 </svg>`
 }
 

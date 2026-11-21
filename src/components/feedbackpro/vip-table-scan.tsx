@@ -13,8 +13,8 @@
 //    Prêt Express façon vitrine avec coche dorée qui se dessine.
 //  ÉCRAN 3 — La Confirmation « WAAHOU » : prénom, promesse, réf.
 //    élégante, barre de progression douce.
-// Palette « Or & Soie » : #FAFAF7 / var(--fp-gold) / #1A1A1A /
-// #4A7C59 / #C97B63. Playfair Display (titres) + Inter (corps).
+// Palette « Or & Soie » : #ffffff / var(--fp-gold) / #0f0f1c /
+// #bc7155 / #bc7155. Playfair Display (titres) + Inter (corps).
 // ============================================================
 
 import { useEffect, useState, useRef, type ChangeEvent } from 'react'
@@ -235,22 +235,22 @@ const TONE_STYLE: Record<
     hover: 'hover:bg-[var(--fp-muted)]/12 hover:ring-[var(--fp-muted)]/40',
   },
   sage: {
-    bg: 'bg-[#4A7C59]/8',
-    ring: 'ring-[#4A7C59]/30',
-    iconText: 'text-[#4A7C59]',
-    hover: 'hover:bg-[#4A7C59]/12 hover:ring-[#4A7C59]/40',
+    bg: 'bg-[#bc7155]/8',
+    ring: 'ring-[#bc7155]/30',
+    iconText: 'text-[#bc7155]',
+    hover: 'hover:bg-[#bc7155]/12 hover:ring-[#bc7155]/40',
   },
   amethyst: {
-    bg: 'bg-[#6B4C9A]/8',
-    ring: 'ring-[#6B4C9A]/30',
-    iconText: 'text-[#6B4C9A]',
-    hover: 'hover:bg-[#6B4C9A]/12 hover:ring-[#6B4C9A]/40',
+    bg: 'bg-[#bc7155]/8',
+    ring: 'ring-[#bc7155]/30',
+    iconText: 'text-[#bc7155]',
+    hover: 'hover:bg-[#bc7155]/12 hover:ring-[#bc7155]/40',
   },
   terracotta: {
-    bg: 'bg-[#C97B63]/8',
-    ring: 'ring-[#C97B63]/30',
-    iconText: 'text-[#C97B63]',
-    hover: 'hover:bg-[#C97B63]/12 hover:ring-[#C97B63]/40',
+    bg: 'bg-[#bc7155]/8',
+    ring: 'ring-[#bc7155]/30',
+    iconText: 'text-[#bc7155]',
+    hover: 'hover:bg-[#bc7155]/12 hover:ring-[#bc7155]/40',
   },
 }
 
@@ -509,17 +509,17 @@ const SERIF = { fontFamily: '"Playfair Display", Georgia, serif' } as const
 // « Option C » — Audio Préchargé + Mode Sombre Luxueux
 // ------------------------------------------------------------
 // Deux palettes gérées par variables CSS :
-//   · Luxe Lumineux — ivoire #FAFAF7, or champagne #C9A961
-//   · Luxe Sombre   — #0F0F0F (jamais noir pur), or lumineux
-//     #D4AF37, texte crème #F5F5F0, cartes verre assombries
+//   · Luxe Lumineux — ivoire #ffffff, or champagne #bc7155
+//   · Luxe Sombre   — #0f0f1c (jamais noir pur), or lumineux
+//     #bc7155, texte crème #F5F5F0, cartes verre assombries
 // Transition douce 600 ms entre les deux modes, choix du client
 // mémorisé (localStorage). Le :where() laisse les utilitaires
 // Tailwind garder la priorité sur les micro-interactions.
 // ============================================================
 const NATHALIE_CSS = `
-.nathalie-root{--fp-bg:#FAFAF7;--fp-card:#FFFFFF;--fp-g1:#FFFBEF;--fp-g2:#FAF3E0;--fp-g3:#F6EDD7;--fp-text:#2C2C2C;--fp-muted:#8B6F47;--fp-border:#E7DFC9;--fp-gold:#C9A961;transition:background-color .6s ease,color .6s ease}
+.nathalie-root{--fp-bg:#ffffff;--fp-card:#FFFFFF;--fp-g1:#FFFBEF;--fp-g2:#FAF3E0;--fp-g3:#F6EDD7;--fp-text:#2C2C2C;--fp-muted:#8B6F47;--fp-border:#E7DFC9;--fp-gold:#bc7155;transition:background-color .6s ease,color .6s ease}
 :where(.nathalie-root) :where(*){transition-property:background-color,border-color,color,fill,stroke;transition-duration:600ms;transition-timing-function:ease}
-.nathalie-sombre{--fp-bg:#0F0F0F;--fp-card:#161619;--fp-g1:rgba(255,255,255,0.055);--fp-g2:rgba(255,255,255,0.075);--fp-g3:rgba(255,255,255,0.10);--fp-text:#F5F5F0;--fp-muted:#BFAD92;--fp-border:rgba(212,175,55,0.20);--fp-gold:#D4AF37}
+.nathalie-sombre{--fp-bg:#0f0f1c;--fp-card:#161619;--fp-g1:rgba(255,255,255,0.055);--fp-g2:rgba(255,255,255,0.075);--fp-g3:rgba(255,255,255,0.10);--fp-text:#F5F5F0;--fp-muted:#BFAD92;--fp-border:rgba(212,175,55,0.20);--fp-gold:#bc7155}
 @keyframes haloOr{0%{box-shadow:0 0 0 0 rgba(212,175,55,0.45)}70%{box-shadow:0 0 0 26px rgba(212,175,55,0)}100%{box-shadow:0 0 0 0 rgba(212,175,55,0)}}
 .halo-or{animation:haloOr 2.6s ease-out infinite}
 @keyframes ondeBarre{0%,100%{transform:scaleY(0.35)}50%{transform:scaleY(1)}}
@@ -986,7 +986,7 @@ export function VipTableScan({
           className={cn(
             'flex h-9 min-w-[44px] items-center justify-center rounded-full px-2.5 text-[11px] font-bold uppercase tracking-[0.08em] transition-all duration-300',
             langue === l
-              ? 'bg-[var(--fp-gold)] text-[#14110B] shadow-[0_4px_14px_rgba(201,169,97,0.45)]'
+              ? 'bg-[var(--fp-gold)] text-[#0f0f1c] shadow-[0_4px_14px_rgba(201,169,97,0.45)]'
               : 'text-[var(--fp-muted)] hover:text-[var(--fp-text)]',
           )}
         >
@@ -1643,8 +1643,8 @@ export function VipTableScan({
     return (
       <div className={cn(racineCls, 'flex flex-col items-center justify-center gap-4 px-6 text-center')}>
         <style dangerouslySetInnerHTML={{ __html: NATHALIE_CSS }} />
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#C97B63]/10">
-          <AlertTriangle className="h-7 w-7 text-[#C97B63]" aria-hidden />
+        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#bc7155]/10">
+          <AlertTriangle className="h-7 w-7 text-[#bc7155]" aria-hidden />
         </div>
         <h1 className="text-2xl font-semibold text-[var(--fp-text)]" style={SERIF}>
           Oups, ce QR code est introuvable
@@ -1687,7 +1687,7 @@ export function VipTableScan({
         )}
         style={{
           background:
-            'radial-gradient(130% 90% at 50% 0%, #201B12 0%, #14110B 48%, #0F0F0F 100%)',
+            'radial-gradient(130% 90% at 50% 0%, #201B12 0%, #0f0f1c 48%, #0f0f1c 100%)',
         }}
         aria-label="Écran d'entrée du salon"
       >
@@ -1723,7 +1723,7 @@ export function VipTableScan({
           {loungeName}
         </h1>
         <p
-          className="mt-3 max-w-xs text-[15px] italic leading-relaxed text-[#E3C985]"
+          className="mt-3 max-w-xs text-[15px] italic leading-relaxed text-[#dba28a]"
           style={SERIF}
         >
           {T(
@@ -1741,14 +1741,14 @@ export function VipTableScan({
         >
           {/* remplissage or — montée douce au survol */}
           <span
-            className="absolute inset-0 origin-bottom scale-y-0 bg-gradient-to-t from-[var(--fp-gold)] via-[var(--fp-gold)] to-[#E3C985] transition-transform duration-500 ease-out group-hover:scale-y-100"
+            className="absolute inset-0 origin-bottom scale-y-0 bg-gradient-to-t from-[var(--fp-gold)] via-[var(--fp-gold)] to-[#dba28a] transition-transform duration-500 ease-out group-hover:scale-y-100"
             aria-hidden
           />
-          <span className="relative z-10 text-[15px] font-medium text-[#F5F1E6] transition-colors duration-300 group-hover:text-[#1A1A1A]">
+          <span className="relative z-10 text-[15px] font-medium text-[#F5F1E6] transition-colors duration-300 group-hover:text-[#0f0f1c]">
             {T('Entrer dans le salon', 'Enter the lounge')}
           </span>
           <ArrowRight
-            className="relative z-10 h-4 w-4 text-[var(--fp-gold)] transition-all duration-300 group-hover:translate-x-1.5 group-hover:text-[#1A1A1A]"
+            className="relative z-10 h-4 w-4 text-[var(--fp-gold)] transition-all duration-300 group-hover:translate-x-1.5 group-hover:text-[#0f0f1c]"
             aria-hidden
           />
         </button>
@@ -1891,7 +1891,7 @@ export function VipTableScan({
             s'écrit. Halo champagne diffus : vivant, jamais clignotant. */}
         <div className="relative flex h-28 w-28 items-center justify-center">
           <div
-            className="absolute inset-0 rounded-full bg-gradient-to-br from-[var(--fp-gold)]/25 via-[var(--fp-gold)]/8 to-[#4A7C59]/15 blur-md"
+            className="absolute inset-0 rounded-full bg-gradient-to-br from-[var(--fp-gold)]/25 via-[var(--fp-gold)]/8 to-[#bc7155]/15 blur-md"
             aria-hidden
           />
           <motion.svg viewBox="0 0 64 64" className="relative h-20 w-20" aria-hidden>
@@ -1900,7 +1900,7 @@ export function VipTableScan({
               cy="32"
               r="29"
               fill="none"
-              stroke="#C9A961"
+              stroke="#bc7155"
               strokeWidth="1.75"
               initial={{ pathLength: 0, opacity: 0.45 }}
               animate={{ pathLength: 1, opacity: 1 }}
@@ -1909,7 +1909,7 @@ export function VipTableScan({
             <motion.path
               d="M20 33 L29 42 L45 24"
               fill="none"
-              stroke="#4A7C59"
+              stroke="#bc7155"
               strokeWidth="3.25"
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -1960,7 +1960,7 @@ export function VipTableScan({
             <p className="text-[10px] font-medium uppercase tracking-[0.22em] text-[var(--fp-gold)]">
               {refLabel}
             </p>
-            <span className="text-[11px] font-medium text-[#4A7C59]">
+            <span className="text-[11px] font-medium text-[#bc7155]">
               {T('Pris en charge', 'Being handled')}
             </span>
           </div>
@@ -2023,7 +2023,7 @@ export function VipTableScan({
 
         {/* Erreur inline (si un send secondaire échoue) */}
         {error && (
-          <div className="flex max-w-sm items-start gap-3 rounded-2xl border border-[#C97B63]/25 bg-[#C97B63]/8 px-4 py-3 text-sm text-[#C97B63]">
+          <div className="flex max-w-sm items-start gap-3 rounded-2xl border border-[#bc7155]/25 bg-[#bc7155]/8 px-4 py-3 text-sm text-[#bc7155]">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
             <p className="flex-1">{error}</p>
             <button
@@ -2160,7 +2160,7 @@ export function VipTableScan({
             )}
           </p>
 
-          <div className="mt-5 space-y-6 rounded-3xl border border-[var(--fp-border)] bg-[var(--fp-card)] p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+          <div className="mt-5 space-y-6 rounded-none border border-[var(--fp-border)] bg-[var(--fp-card)] p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
             {/* Type de besoin — grille 2 colonnes, sélection dorée
                 (un clic, la tuile devient or — prototype directeur) */}
             <div>
@@ -2184,7 +2184,7 @@ export function VipTableScan({
                       className={cn(
                         'flex min-h-[46px] items-center gap-2 rounded-xl border px-3 text-[13px] font-medium transition-all duration-300',
                         selected
-                          ? 'border-[var(--fp-gold)] bg-[var(--fp-gold)] text-[#14110B] shadow-[0_10px_26px_-8px_rgba(201,169,97,0.55)]'
+                          ? 'border-[var(--fp-gold)] bg-[var(--fp-gold)] text-[#0f0f1c] shadow-[0_10px_26px_-8px_rgba(201,169,97,0.55)]'
                           : 'border-[var(--fp-border)] bg-[var(--fp-card)] text-[var(--fp-text)] hover:-translate-y-0.5 hover:border-[var(--fp-gold)]/60',
                       )}
                     >
@@ -2264,7 +2264,7 @@ export function VipTableScan({
                 type="button"
                 disabled={!!sending || !canSubmit}
                 onClick={submitProblem}
-                className="w-full gap-2 rounded-2xl border border-transparent bg-[#14110B] text-[#F5F1E6] shadow-[0_14px_36px_-10px_rgba(20,17,11,0.5)] transition-all duration-300 hover:border-[var(--fp-gold)] hover:bg-[var(--fp-gold)] hover:text-[#14110B]"
+                className="w-full gap-2 rounded-2xl border border-transparent bg-[#0f0f1c] text-[#F5F1E6] shadow-[0_14px_36px_-10px_rgba(20,17,11,0.5)] transition-all duration-300 hover:border-[var(--fp-gold)] hover:bg-[var(--fp-gold)] hover:text-[#0f0f1c]"
               >
                 {sending === 'problem' ? (
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -2279,7 +2279,7 @@ export function VipTableScan({
             </div>
 
             {error && (
-              <div className="flex items-start gap-3 rounded-2xl border border-[#C97B63]/25 bg-[#C97B63]/8 px-4 py-3 text-sm text-[#C97B63]">
+              <div className="flex items-start gap-3 rounded-2xl border border-[#bc7155]/25 bg-[#bc7155]/8 px-4 py-3 text-sm text-[#bc7155]">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
                 <p className="flex-1">{error}</p>
                 <button
@@ -2326,7 +2326,7 @@ export function VipTableScan({
             </div>
           </div>
 
-          <div className="mt-5 space-y-7 rounded-3xl border border-[var(--fp-border)] bg-[var(--fp-card)] p-5 pb-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+          <div className="mt-5 space-y-7 rounded-none border border-[var(--fp-border)] bg-[var(--fp-card)] p-5 pb-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
             {/* Menu groupé par catégorie — titre serif + barre d'or
                 (prototype directeur : catégories élégantes) */}
             {MENU_CATEGORIES.map((cat) => (
@@ -2390,7 +2390,7 @@ export function VipTableScan({
                             onClick={() =>
                               setCart((p) => ({ ...p, [m.id]: 1 }))
                             }
-                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--fp-gold)] bg-transparent text-lg leading-none text-[var(--fp-gold)] transition-all duration-300 hover:scale-110 hover:bg-[var(--fp-gold)] hover:text-[#14110B] active:scale-95"
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-[var(--fp-gold)] bg-transparent text-lg leading-none text-[var(--fp-gold)] transition-all duration-300 hover:scale-110 hover:bg-[var(--fp-gold)] hover:text-[#0f0f1c] active:scale-95"
                             aria-label={`${T('Ajouter', 'Add')} ${nomMenu(m)}`}
                           >
                             +
@@ -2415,7 +2415,7 @@ export function VipTableScan({
             ) : null}
 
             {error && (
-              <div className="flex items-start gap-3 rounded-2xl border border-[#C97B63]/25 bg-[#C97B63]/8 px-4 py-3 text-sm text-[#C97B63]">
+              <div className="flex items-start gap-3 rounded-2xl border border-[#bc7155]/25 bg-[#bc7155]/8 px-4 py-3 text-sm text-[#bc7155]">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
                 <p className="flex-1">{error}</p>
                 <button
@@ -2443,7 +2443,7 @@ export function VipTableScan({
               transition={{ duration: 0.4, ease: [0.4, 0, 0.2, 1] }}
               className="fixed inset-x-0 bottom-6 z-[80] flex justify-center px-4"
             >
-              <div className="flex w-full max-w-md items-center justify-between gap-3 rounded-full border border-[var(--fp-gold)]/35 bg-[#14110B]/95 px-5 py-3 shadow-[0_20px_44px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+              <div className="flex w-full max-w-md items-center justify-between gap-3 rounded-full border border-[var(--fp-gold)]/35 bg-[#0f0f1c]/95 px-5 py-3 shadow-[0_20px_44px_rgba(0,0,0,0.45)] backdrop-blur-xl">
                 <div className="min-w-0">
                   <p className="text-sm font-semibold text-[#F5F1E6]">
                     {cartCount} {T('article', 'item')}
@@ -2457,7 +2457,7 @@ export function VipTableScan({
                   type="button"
                   disabled={!!sending}
                   onClick={submitRefreshment}
-                  className="shrink-0 gap-2 rounded-full border border-[var(--fp-gold)] bg-[var(--fp-gold)] px-5 py-2.5 text-[13px] font-bold text-[#14110B] shadow-[0_8px_22px_-6px_rgba(201,169,97,0.6)] transition-all duration-300 hover:bg-[#E3C985]"
+                  className="shrink-0 gap-2 rounded-full border border-[var(--fp-gold)] bg-[var(--fp-gold)] px-5 py-2.5 text-[13px] font-bold text-[#0f0f1c] shadow-[0_8px_22px_-6px_rgba(201,169,97,0.6)] transition-all duration-300 hover:bg-[#dba28a]"
                 >
                   {sending === 'refreshment' ? (
                     <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -2503,7 +2503,7 @@ export function VipTableScan({
             </Button>
           </div>
 
-          <div className="mt-6 space-y-6 rounded-3xl border border-[var(--fp-border)] bg-[var(--fp-card)] p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+          <div className="mt-6 space-y-6 rounded-none border border-[var(--fp-border)] bg-[var(--fp-card)] p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
             {/* Sélecteur de demande (single-select) */}
             <div>
               <p className="text-sm font-medium text-[var(--fp-text)]">
@@ -2520,8 +2520,8 @@ export function VipTableScan({
                       className={cn(
                         'flex items-center gap-2 rounded-xl border px-3 py-3 text-left text-sm font-medium transition-all',
                         selected
-                          ? 'border-[#6B4C9A] bg-[#6B4C9A]/10 text-[#6B4C9A]'
-                          : 'border-[var(--fp-border)] bg-[var(--fp-bg)] text-[var(--fp-muted)] hover:border-[#6B4C9A]/40 hover:bg-[#6B4C9A]/6',
+                          ? 'border-[#bc7155] bg-[#bc7155]/10 text-[#bc7155]'
+                          : 'border-[var(--fp-border)] bg-[var(--fp-bg)] text-[var(--fp-muted)] hover:border-[#bc7155]/40 hover:bg-[#bc7155]/6',
                       )}
                     >
                       <span className="text-xl" aria-hidden>
@@ -2544,7 +2544,7 @@ export function VipTableScan({
                 value={conciergeDetails}
                 onChange={(e) => setConciergeDetails(e.target.value)}
                 placeholder={T('Je souhaite un taxi pour 18h…', 'I would like a taxi for 6 pm…')}
-                className="mt-2 min-h-24 resize-none border-[var(--fp-border)] bg-[var(--fp-bg)] text-sm text-[var(--fp-text)] placeholder:text-[var(--fp-muted)]/50 focus-visible:border-[#6B4C9A] focus-visible:ring-[#6B4C9A]/20"
+                className="mt-2 min-h-24 resize-none border-[var(--fp-border)] bg-[var(--fp-bg)] text-sm text-[var(--fp-text)] placeholder:text-[var(--fp-muted)]/50 focus-visible:border-[#bc7155] focus-visible:ring-[#bc7155]/20"
               />
             </div>
 
@@ -2554,7 +2554,7 @@ export function VipTableScan({
                 type="button"
                 disabled={!!sending || !conciergeType}
                 onClick={submitConcierge}
-                className="w-full gap-2 rounded-2xl border border-[#6B4C9A] bg-[#6B4C9A] text-white shadow-[0_4px_20px_rgba(107,76,154,0.18)] hover:bg-[#6B4C9A]/90"
+                className="w-full gap-2 rounded-2xl border border-[#bc7155] bg-[#bc7155] text-white shadow-[0_4px_20px_rgba(107,76,154,0.18)] hover:bg-[#bc7155]/90"
               >
                 {sending === 'concierge' ? (
                   <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -2571,7 +2571,7 @@ export function VipTableScan({
             </div>
 
             {error && (
-              <div className="flex items-start gap-3 rounded-2xl border border-[#C97B63]/25 bg-[#C97B63]/8 px-4 py-3 text-sm text-[#C97B63]">
+              <div className="flex items-start gap-3 rounded-2xl border border-[#bc7155]/25 bg-[#bc7155]/8 px-4 py-3 text-sm text-[#bc7155]">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
                 <p className="flex-1">{error}</p>
                 <button
@@ -2702,16 +2702,16 @@ export function VipTableScan({
                   badge central + logo carré + logo rond). Logo du salon
                   gravé dans la pilule de verre quand il est configuré,
                   sinon couronne or. */}
-              <div className="absolute left-4 top-4 flex items-center gap-2.5 rounded-2xl border border-[#C9A961]/40 bg-black/60 px-3 py-1.5 backdrop-blur-md">
+              <div className="absolute left-4 top-4 flex items-center gap-2.5 rounded-2xl border border-[#bc7155]/40 bg-black/60 px-3 py-1.5 backdrop-blur-md">
                 {salonLogo ? (
                   <img
                     src={salonLogo}
                     alt="Logo du salon"
-                    className="h-7 w-7 rounded-md bg-[#FBF7EC]/95 object-contain p-0.5 ring-1 ring-[#C9A961]/60"
+                    className="h-7 w-7 rounded-md bg-[#FBF7EC]/95 object-contain p-0.5 ring-1 ring-[#bc7155]/60"
                   />
                 ) : (
                   <span
-                    className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-[#E3C985] to-[#C9A961] text-sm shadow-[0_4px_14px_rgba(201,169,97,0.45)]"
+                    className="flex h-7 w-7 items-center justify-center rounded-md bg-gradient-to-br from-[#dba28a] to-[#bc7155] text-sm shadow-[0_4px_14px_rgba(201,169,97,0.45)]"
                     aria-hidden
                   >
                     👑
@@ -2733,7 +2733,7 @@ export function VipTableScan({
                   {salutationAffichee},{' '}
                   {table?.vipClient?.name?.trim().split(/\s+/)[0] ?? T('Cher Hôte', 'Dear Guest')}.
                 </h1>
-                <p className="mt-1 text-lg italic text-[#E3C985]" style={SERIF}>
+                <p className="mt-1 text-lg italic text-[#dba28a]" style={SERIF}>
                   {T('Je suis Nathalie.', 'I am Nathalie.')}
                 </p>
                 <p className="mt-2.5 max-w-xs text-[13px] leading-relaxed text-white/75">
@@ -2777,7 +2777,7 @@ export function VipTableScan({
                   className={cn(
                     'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-4 py-2.5 text-xs font-semibold transition-all active:scale-[0.96]',
                     wifiCopied
-                      ? 'border-[#4A7C59] bg-[#4A7C59] text-white shadow-[0_8px_22px_-6px_rgba(74,124,89,0.55)]'
+                      ? 'border-[#bc7155] bg-[#bc7155] text-white shadow-[0_8px_22px_-6px_rgba(74,124,89,0.55)]'
                       : 'border-[var(--fp-gold)]/40 bg-[var(--fp-gold)]/8 text-[var(--fp-muted)] hover:bg-[var(--fp-gold)]/15',
                   )}
                   aria-live="polite"
@@ -2861,7 +2861,7 @@ export function VipTableScan({
                   type="button"
                   disabled={!!sending}
                   onClick={() => handleActionClick(def)}
-                  className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-[var(--fp-border)] bg-[var(--fp-g2)] px-4 py-2 text-[13px] font-medium text-[var(--fp-text)] backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--fp-gold)] hover:bg-[var(--fp-gold)] hover:text-[#14110B] hover:shadow-[0_10px_26px_-8px_rgba(201,169,97,0.55)] active:scale-[0.96] disabled:opacity-60"
+                  className="inline-flex min-h-[44px] items-center gap-2 rounded-full border border-[var(--fp-border)] bg-[var(--fp-g2)] px-4 py-2 text-[13px] font-medium text-[var(--fp-text)] backdrop-blur transition-all duration-300 hover:-translate-y-0.5 hover:border-[var(--fp-gold)] hover:bg-[var(--fp-gold)] hover:text-[#0f0f1c] hover:shadow-[0_10px_26px_-8px_rgba(201,169,97,0.55)] active:scale-[0.96] disabled:opacity-60"
                   aria-label={def.label}
                 >
                   <span aria-hidden>{def.emoji}</span>
@@ -2899,8 +2899,8 @@ export function VipTableScan({
                         className={cn(
                           'relative flex min-h-[46px] items-center gap-2 rounded-xl border px-3 py-2.5 text-left text-xs font-medium transition-all duration-300',
                           estChoisie
-                            ? 'scale-[0.98] border-[var(--fp-gold)] bg-[var(--fp-gold)] text-[#14110B] shadow-[0_10px_26px_-8px_rgba(201,169,97,0.55)]'
-                            : 'border-[var(--fp-border)] bg-[var(--fp-card)] text-[var(--fp-text)] hover:-translate-y-0.5 hover:border-[var(--fp-gold)] hover:bg-[var(--fp-gold)] hover:text-[#14110B] hover:shadow-[0_10px_26px_-8px_rgba(201,169,97,0.55)]',
+                            ? 'scale-[0.98] border-[var(--fp-gold)] bg-[var(--fp-gold)] text-[#0f0f1c] shadow-[0_10px_26px_-8px_rgba(201,169,97,0.55)]'
+                            : 'border-[var(--fp-border)] bg-[var(--fp-card)] text-[var(--fp-text)] hover:-translate-y-0.5 hover:border-[var(--fp-gold)] hover:bg-[var(--fp-gold)] hover:text-[#0f0f1c] hover:shadow-[0_10px_26px_-8px_rgba(201,169,97,0.55)]',
                         )}
                         aria-label={
                           langue === 'en'
@@ -2919,7 +2919,7 @@ export function VipTableScan({
                         {/* Coche ✓ — la zone sélectionnée devient dorée
                             avec une coche visible (demande directeur) */}
                         {estChoisie && (
-                          <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#14110B]/85 text-[10px] font-bold text-[var(--fp-gold)]" aria-hidden>
+                          <span className="absolute right-1.5 top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-[#0f0f1c]/85 text-[10px] font-bold text-[var(--fp-gold)]" aria-hidden>
                             ✓
                           </span>
                         )}
@@ -2991,7 +2991,7 @@ export function VipTableScan({
 
             {/* Erreur inline (mode global) */}
             {error && (
-              <div className="mt-4 flex items-start gap-3 rounded-2xl border border-[#C97B63]/25 bg-[#C97B63]/8 px-4 py-3 text-sm text-[#C97B63]">
+              <div className="mt-4 flex items-start gap-3 rounded-2xl border border-[#bc7155]/25 bg-[#bc7155]/8 px-4 py-3 text-sm text-[#bc7155]">
                 <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
                 <p className="flex-1">{error}</p>
                 <button
@@ -3045,7 +3045,7 @@ export function VipTableScan({
             {/* Conciergerie — carte proéminente, Amadou en personne.
                 Pourquoi un fond anthracite ? Le contraste fait de cette
                 carte le point focal ; l'or champagne réserve l'action. */}
-            <div className="relative mt-4 overflow-hidden rounded-[24px] bg-gradient-to-br from-[#1A1A1A] via-[#2E2C28] to-[#1A1A1A] p-5 shadow-[0_20px_40px_-10px_rgba(26,26,26,0.35)]">
+            <div className="relative mt-4 overflow-hidden rounded-[24px] bg-gradient-to-br from-[#0f0f1c] via-[#2E2C28] to-[#0f0f1c] p-5 shadow-[0_20px_40px_-10px_rgba(26,26,26,0.35)]">
               <div
                 className="pointer-events-none absolute inset-0 opacity-40"
                 style={{
@@ -3072,7 +3072,7 @@ export function VipTableScan({
               <Button
                 type="button"
                 onClick={() => setView('concierge')}
-                className="relative mt-4 w-full gap-2 rounded-2xl bg-[var(--fp-gold)] font-semibold text-[#1A1A1A] shadow-[0_8px_24px_rgba(201,169,97,0.35)] hover:bg-[var(--fp-gold)]/90"
+                className="relative mt-4 w-full gap-2 rounded-2xl bg-[var(--fp-gold)] font-semibold text-[#0f0f1c] shadow-[0_8px_24px_rgba(201,169,97,0.35)] hover:bg-[var(--fp-gold)]/90"
               >
                 <ConciergeBell className="h-4 w-4" aria-hidden />
                 Appeler votre Concierge
@@ -3115,13 +3115,13 @@ export function VipTableScan({
                               cy="32"
                               r="29"
                               fill="none"
-                              stroke="#EAE5DC"
+                              stroke="#efe7e0"
                               strokeWidth="2"
                             />
                             <motion.path
                               d="M20 33 L29 42 L45 24"
                               fill="none"
-                              stroke="#C9A961"
+                              stroke="#bc7155"
                               strokeWidth="3.5"
                               strokeLinecap="round"
                               strokeLinejoin="round"
@@ -3144,7 +3144,7 @@ export function VipTableScan({
                       <p className="mt-2 truncate text-sm font-medium text-[var(--fp-text)]">
                         {item.name}
                       </p>
-                      <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-[#4A7C59]/10 px-2.5 py-0.5 text-[10px] font-semibold text-[#4A7C59]">
+                      <span className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-[#bc7155]/10 px-2.5 py-0.5 text-[10px] font-semibold text-[#bc7155]">
                         {item.availableStock}{' '}
                         {item.availableStock > 1 ? 'disponibles' : 'disponible'}
                       </span>
@@ -3166,13 +3166,13 @@ export function VipTableScan({
 
         {/* Bannière de détection VIP (CLIENT_ZONE — détection au scan de table) */}
         {!isGlobal && table?.vipClient && (
-          <div className="mt-4 flex items-start gap-3 rounded-2xl border border-[#6B4C9A]/25 bg-[#6B4C9A]/8 px-4 py-4">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#6B4C9A]/15">
-              <Crown className="h-5 w-5 text-[#6B4C9A]" aria-hidden />
+          <div className="mt-4 flex items-start gap-3 rounded-2xl border border-[#bc7155]/25 bg-[#bc7155]/8 px-4 py-4">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[#bc7155]/15">
+              <Crown className="h-5 w-5 text-[#bc7155]" aria-hidden />
             </div>
             <div className="min-w-0 flex-1">
               <p
-                className="text-base font-semibold text-[#6B4C9A]"
+                className="text-base font-semibold text-[#bc7155]"
                 style={SERIF}
               >
                 🥂 Bienvenue, {table.vipClient.name}
@@ -3186,7 +3186,7 @@ export function VipTableScan({
                 </p>
               )}
               {(table.vipClient.allergies?.length ?? 0) > 0 && (
-                <p className="mt-1 text-xs font-medium text-[#C97B63]">
+                <p className="mt-1 text-xs font-medium text-[#bc7155]">
                   Nous prenons en compte vos allergies : {table.vipClient.allergies?.join(', ')}
                 </p>
               )}
@@ -3196,7 +3196,7 @@ export function VipTableScan({
 
         {/* Erreur réseau inline (réinitialisée à chaque sendRequest) */}
         {error && (
-          <div className="mt-4 flex items-start gap-3 rounded-2xl border border-[#C97B63]/25 bg-[#C97B63]/8 px-4 py-3 text-sm text-[#C97B63]">
+          <div className="mt-4 flex items-start gap-3 rounded-2xl border border-[#bc7155]/25 bg-[#bc7155]/8 px-4 py-3 text-sm text-[#bc7155]">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
             <p className="flex-1">{error}</p>
             <button
@@ -3308,7 +3308,7 @@ export function VipTableScan({
               </span>
             )}
             {pwaInstalle ? (
-              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#4A7C59]/35 bg-[#4A7C59]/10 px-4 py-2 text-xs font-semibold text-[#4A7C59]">
+              <span className="inline-flex items-center gap-1.5 rounded-full border border-[#bc7155]/35 bg-[#bc7155]/10 px-4 py-2 text-xs font-semibold text-[#bc7155]">
                 ✓ {T('Nathalie est installée', 'Nathalie is installed')}
               </span>
             ) : (
@@ -3323,7 +3323,7 @@ export function VipTableScan({
                   'Installer Nathalie sur votre écran d’accueil',
                   'Install Nathalie on your home screen',
                 )}
-                className="btn-shimmer inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl border border-[var(--fp-gold)] bg-gradient-to-r from-[var(--fp-gold)] to-[#B8944D] px-6 py-3 text-sm font-semibold text-[#14110B] shadow-[0_10px_30px_-8px_rgba(201,169,97,0.55)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_14px_36px_-8px_rgba(201,169,97,0.65)] active:scale-[0.98]"
+                className="btn-shimmer inline-flex min-h-[48px] items-center justify-center gap-2 rounded-2xl border border-[var(--fp-gold)] bg-gradient-to-r from-[var(--fp-gold)] to-[#B8944D] px-6 py-3 text-sm font-semibold text-[#0f0f1c] shadow-[0_10px_30px_-8px_rgba(201,169,97,0.55)] transition-all duration-300 hover:-translate-y-0.5 hover:shadow-[0_14px_36px_-8px_rgba(201,169,97,0.65)] active:scale-[0.98]"
               >
                 <span aria-hidden>📱</span>
                 {installEvt
@@ -3350,7 +3350,7 @@ export function VipTableScan({
           aria-modal="true"
           aria-labelledby="zone-modal-title"
         >
-          <div className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-3xl border border-[var(--fp-border)] bg-[var(--fp-card)] p-6 shadow-[0_16px_48px_rgba(201,169,97,0.18)] sm:p-8">
+          <div className="relative max-h-[90vh] w-full max-w-md overflow-y-auto rounded-none border border-[var(--fp-border)] bg-[var(--fp-card)] p-6 shadow-[0_16px_48px_rgba(201,169,97,0.18)] sm:p-8">
             {/* Filet doré supérieur (signature Luxe Lumineux) */}
             <div
               className="pointer-events-none absolute inset-x-0 top-0 h-1 rounded-t-3xl bg-gradient-to-r from-[var(--fp-gold)] via-[var(--fp-muted)] to-[var(--fp-gold)]"
@@ -3399,7 +3399,7 @@ export function VipTableScan({
                     className={cn(
                       'relative flex min-h-[52px] items-center gap-3 rounded-2xl border px-4 py-3 text-left text-sm font-medium transition-all',
                       estChoisie
-                        ? 'scale-[0.98] border-[var(--fp-gold)] bg-[var(--fp-gold)] text-[#14110B] shadow-[0_10px_26px_-8px_rgba(201,169,97,0.55)]'
+                        ? 'scale-[0.98] border-[var(--fp-gold)] bg-[var(--fp-gold)] text-[#0f0f1c] shadow-[0_10px_26px_-8px_rgba(201,169,97,0.55)]'
                         : 'border-[var(--fp-border)] bg-[var(--fp-bg)] text-[var(--fp-text)] hover:border-[var(--fp-gold)]/50 hover:bg-[var(--fp-gold)]/8',
                     )}
                     aria-pressed={estChoisie}
@@ -3412,7 +3412,7 @@ export function VipTableScan({
                     </span>
                     {langue === 'en' ? z.labelEn : z.label}
                     {estChoisie && (
-                      <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-[#14110B]/85 text-[10px] font-bold text-[var(--fp-gold)]" aria-hidden>
+                      <span className="absolute right-2 top-2 flex h-5 w-5 items-center justify-center rounded-full bg-[#0f0f1c]/85 text-[10px] font-bold text-[var(--fp-gold)]" aria-hidden>
                         ✓
                       </span>
                     )}
@@ -3498,7 +3498,7 @@ export function VipTableScan({
           >
             <div className="mx-auto max-w-xl px-4 pt-3 sm:px-6">
               <div
-                className="flex items-center gap-3 rounded-2xl border border-[#E3C985]/60 px-4 py-3 shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
+                className="flex items-center gap-3 rounded-2xl border border-[#dba28a]/60 px-4 py-3 shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
                 style={{
                   background:
                     'linear-gradient(100deg, rgba(227,201,133,0.97) 0%, rgba(201,169,97,0.97) 55%, rgba(227,201,133,0.97) 100%)',
@@ -3519,7 +3519,7 @@ export function VipTableScan({
                   <p className="text-[9px] font-semibold uppercase tracking-[0.3em] text-[#3A2E1A]/80">
                     Denise · Accueil vocal
                   </p>
-                  <p className="mt-0.5 truncate text-[13px] font-medium text-[#1A1A1A]">
+                  <p className="mt-0.5 truncate text-[13px] font-medium text-[#0f0f1c]">
                     {deniseTexte || '…'}
                   </p>
                 </div>
@@ -3547,7 +3547,7 @@ export function VipTableScan({
               animate={{ y: 0, opacity: 1, scale: 1 }}
               exit={{ y: 24, opacity: 0, scale: 0.96 }}
               transition={{ duration: 0.3, ease: 'easeOut' }}
-              className="flex items-center gap-2.5 rounded-full border border-[var(--fp-gold)]/45 bg-[#14110B]/95 px-5 py-3 shadow-[0_14px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl"
+              className="flex items-center gap-2.5 rounded-full border border-[var(--fp-gold)]/45 bg-[#0f0f1c]/95 px-5 py-3 shadow-[0_14px_40px_rgba(0,0,0,0.45)] backdrop-blur-xl"
               role="status"
             >
               <span aria-hidden>{toast.emoji}</span>

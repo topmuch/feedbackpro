@@ -52,7 +52,7 @@ const SECTIONS: GuideSection[] = [
     id: 'voyageur',
     title: 'Côté Voyageur',
     icon: Plane,
-    color: 'text-indigo-600',
+    color: 'text-[#3c3e4c]',
     steps: [
       {
         title: 'Le voyageur scanne le QR code',
@@ -84,7 +84,7 @@ const SECTIONS: GuideSection[] = [
     id: 'staff',
     title: 'Côté Staff (PWA Employé)',
     icon: Smartphone,
-    color: 'text-emerald-600',
+    color: 'text-[#a05f45]',
     steps: [
       {
         title: 'Connexion staff',
@@ -122,7 +122,7 @@ const SECTIONS: GuideSection[] = [
     id: 'wallboard',
     title: 'Côté Wallboard Ops',
     icon: Monitor,
-    color: 'text-amber-600',
+    color: 'text-[#a05f45]',
     steps: [
       {
         title: 'Affichage TV salle ops',
@@ -154,7 +154,7 @@ const SECTIONS: GuideSection[] = [
     id: 'denise',
     title: 'Denise — Assistante Vocale',
     icon: Mic,
-    color: 'text-violet-600',
+    color: 'text-[#a05f45]',
     steps: [
       {
         title: 'Matrice de décision vocale',
@@ -186,7 +186,7 @@ const SECTIONS: GuideSection[] = [
     id: 'zones',
     title: 'Gestion des Zones & QR Codes',
     icon: MapPin,
-    color: 'text-sky-600',
+    color: 'text-[#3c3e4c]',
     steps: [
       {
         title: 'Onglet Zones',
@@ -250,7 +250,7 @@ const SECTIONS: GuideSection[] = [
     id: 'resolution',
     title: 'Résolution d\'Incidents',
     icon: CheckCircle2,
-    color: 'text-emerald-600',
+    color: 'text-[#a05f45]',
     steps: [
       {
         title: 'Workflow complet',
@@ -295,7 +295,7 @@ export function AirportModeEmploiTab() {
       <div className="mx-auto max-w-5xl space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#003399] to-[#FCD116] text-white shadow-lg">
+          <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#000d10] to-[#bc7155] text-white shadow-lg">
             <BookOpen className="size-6" />
           </div>
           <div>
@@ -310,7 +310,7 @@ export function AirportModeEmploiTab() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-lg">
-              <Zap className="size-5 text-amber-500" />
+              <Zap className="size-5 text-[#bc7155]" />
               Démarrage Rapide
             </CardTitle>
           </CardHeader>
@@ -419,9 +419,9 @@ export function AirportModeEmploiTab() {
         </Accordion>
 
         {/* Footer info */}
-        <Card className="border-amber-500/20 bg-amber-500/5">
+        <Card className="border-[#bc7155]/20 bg-[#bc7155]/5">
           <CardContent className="flex items-start gap-3 p-4">
-            <AlertTriangle className="size-5 shrink-0 text-amber-600" />
+            <AlertTriangle className="size-5 shrink-0 text-[#a05f45]" />
             <div>
               <p className="text-sm font-semibold text-foreground">Besoin d&apos;aide supplémentaire ?</p>
               <p className="mt-1 text-xs text-muted-foreground">

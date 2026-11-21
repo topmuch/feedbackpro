@@ -20,10 +20,10 @@
 //   • Polling auto 15s pour rafraîchir le stock (temps réel).
 //
 // Palette « Luxe Lumineux » :
-//   - Background   #FAFAF7    - Cards  #FFFFFF + shadow gold 6%
-//   - Gold         #C9A961    - Bronze #8B6F47
-//   - Text         #2C2C2C    - Success #4A7C59
-//   - Alert        #C97B63    - Border #EAE5DC
+//   - Background   #ffffff    - Cards  #FFFFFF + shadow gold 6%
+//   - Gold         #bc7155    - Bronze #8B6F47
+//   - Text         #2C2C2C    - Success #bc7155
+//   - Alert        #bc7155    - Border #efe7e0
 //   - Title font   Georgia, "Playfair Display", serif
 //
 // APIs consommées :
@@ -133,11 +133,11 @@ function stockBadge(
   if (available <= threshold)
     return {
       text: `${available} dispo`,
-      class: 'bg-amber-100 text-amber-800',
+      class: 'bg-[#f3ddd2] text-[#6f3f30]',
     }
   return {
     text: `${available} dispo`,
-    class: 'bg-emerald-100 text-emerald-700',
+    class: 'bg-[#f3ddd2] text-[#8a4f3b]',
   }
 }
 
@@ -196,10 +196,10 @@ function ItemCard({ item, tableLabel, busy, onRequest }: ItemCardProps) {
     <article
       className={cn(
         'flex flex-col rounded-xl border bg-white p-5 transition-all',
-        'border-[#EAE5DC]',
+        'border-[#efe7e0]',
         exhausted
           ? 'opacity-80'
-          : 'hover:border-[#C9A961]/40 hover:shadow-[0_8px_28px_rgba(201,169,97,0.10)]',
+          : 'hover:border-[#bc7155]/40 hover:shadow-[0_8px_28px_rgba(201,169,97,0.10)]',
         CARD_SHADOW,
       )}
     >
@@ -208,7 +208,7 @@ function ItemCard({ item, tableLabel, busy, onRequest }: ItemCardProps) {
         <div
           className={cn(
             'flex size-12 shrink-0 items-center justify-center rounded-full',
-            'bg-[#FAFAF7] ring-2 ring-[#EAE5DC]',
+            'bg-[#ffffff] ring-2 ring-[#efe7e0]',
             exhausted && 'grayscale',
           )}
           aria-hidden
@@ -250,8 +250,8 @@ function ItemCard({ item, tableLabel, busy, onRequest }: ItemCardProps) {
         className={cn(
           'mt-4 h-10 w-full rounded-md text-sm font-semibold uppercase tracking-wide',
           exhausted
-            ? 'bg-[#EAE5DC] text-[#8B6F47]'
-            : 'bg-[#C9A961] text-white hover:bg-[#B8974A] active:bg-[#A6863C]',
+            ? 'bg-[#efe7e0] text-[#8B6F47]'
+            : 'bg-[#bc7155] text-white hover:bg-[#B8974A] active:bg-[#A6863C]',
           'shadow-sm transition-colors',
         )}
       >
@@ -305,10 +305,10 @@ function ConfirmationView({
       <div
         className={cn(
           'flex size-20 items-center justify-center rounded-full',
-          'bg-[#4A7C59]/10 ring-4 ring-[#4A7C59]/15',
+          'bg-[#bc7155]/10 ring-4 ring-[#bc7155]/15',
         )}
       >
-        <Check className="size-10 text-[#4A7C59]" strokeWidth={3} />
+        <Check className="size-10 text-[#bc7155]" strokeWidth={3} />
       </div>
 
       {/* Titre */}
@@ -335,7 +335,7 @@ function ConfirmationView({
       {/* Carte récapitulative */}
       <div
         className={cn(
-          'mt-6 w-full rounded-xl border border-[#EAE5DC] bg-white p-5 text-left',
+          'mt-6 w-full rounded-xl border border-[#efe7e0] bg-white p-5 text-left',
           CARD_SHADOW,
         )}
       >
@@ -343,7 +343,7 @@ function ConfirmationView({
           <div
             className={cn(
               'flex size-11 shrink-0 items-center justify-center rounded-full',
-              'bg-[#FAFAF7] ring-2 ring-[#C9A961]/30',
+              'bg-[#ffffff] ring-2 ring-[#bc7155]/30',
             )}
             aria-hidden
           >
@@ -362,7 +362,7 @@ function ConfirmationView({
           </div>
         </div>
 
-        <div className="my-4 h-px bg-[#EAE5DC]" />
+        <div className="my-4 h-px bg-[#efe7e0]" />
 
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -370,7 +370,7 @@ function ConfirmationView({
               N° de suivi
             </div>
             <div
-              className="mt-1 text-sm font-bold tracking-wider text-[#C9A961]"
+              className="mt-1 text-sm font-bold tracking-wider text-[#bc7155]"
               style={TITLE_FONT}
             >
               #{tracking}
@@ -390,11 +390,11 @@ function ConfirmationView({
       {/* Note d'info */}
       <div
         className={cn(
-          'mt-4 flex items-start gap-2 rounded-lg border border-[#EAE5DC]',
-          'bg-[#FAFAF7] px-4 py-3 text-left text-xs text-[#6b6b6b]',
+          'mt-4 flex items-start gap-2 rounded-lg border border-[#efe7e0]',
+          'bg-[#ffffff] px-4 py-3 text-left text-xs text-[#6b6b6b]',
         )}
       >
-        <Bell className="mt-0.5 size-4 shrink-0 text-[#C9A961]" />
+        <Bell className="mt-0.5 size-4 shrink-0 text-[#bc7155]" />
         <span>
           Conservez votre n° de suivi. Le staff confirmera la remise en main
           propre à votre arrivée à la table.
@@ -408,8 +408,8 @@ function ConfirmationView({
           variant="ghost"
           onClick={onAnotherRequest}
           className={cn(
-            'flex-1 rounded-md border border-[#EAE5DC] bg-white text-[#8B6F47]',
-            'hover:bg-[#FAFAF7] hover:text-[#2C2C2C]',
+            'flex-1 rounded-md border border-[#efe7e0] bg-white text-[#8B6F47]',
+            'hover:bg-[#ffffff] hover:text-[#2C2C2C]',
           )}
         >
           <Package className="size-4" /> Autre demande
@@ -418,7 +418,7 @@ function ConfirmationView({
           type="button"
           onClick={onBack}
           className={cn(
-            'flex-1 rounded-md bg-[#C9A961] px-6 text-sm font-semibold text-white',
+            'flex-1 rounded-md bg-[#bc7155] px-6 text-sm font-semibold text-white',
             'hover:bg-[#B8974A] active:bg-[#A6863C]',
           )}
         >
@@ -438,25 +438,25 @@ function ItemGridSkeleton() {
     <div className="space-y-8">
       {Array.from({ length: 2 }).map((_, g) => (
         <section key={g}>
-          <div className="mb-3 h-5 w-40 animate-pulse rounded bg-[#EAE5DC]" />
+          <div className="mb-3 h-5 w-40 animate-pulse rounded bg-[#efe7e0]" />
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => (
               <div
                 key={i}
                 className={cn(
-                  'h-40 animate-pulse rounded-xl border border-[#EAE5DC] bg-white',
+                  'h-40 animate-pulse rounded-xl border border-[#efe7e0] bg-white',
                   CARD_SHADOW,
                 )}
               >
                 <div className="flex h-full flex-col p-5">
                   <div className="flex items-center gap-3">
-                    <div className="size-12 rounded-full bg-[#EAE5DC]" />
+                    <div className="size-12 rounded-full bg-[#efe7e0]" />
                     <div className="flex-1">
-                      <div className="h-4 w-3/4 rounded bg-[#EAE5DC]" />
-                      <div className="mt-2 h-4 w-16 rounded-full bg-[#EAE5DC]" />
+                      <div className="h-4 w-3/4 rounded bg-[#efe7e0]" />
+                      <div className="mt-2 h-4 w-16 rounded-full bg-[#efe7e0]" />
                     </div>
                   </div>
-                  <div className="mt-auto h-9 w-full rounded bg-[#EAE5DC]" />
+                  <div className="mt-auto h-9 w-full rounded bg-[#efe7e0]" />
                 </div>
               </div>
             ))}
@@ -651,7 +651,7 @@ export function VipLoanCatalog({
   // ----- Render : écran confirmation -----
   if (screen === 'confirm' && confirmation) {
     return (
-      <div className="min-h-screen bg-[#FAFAF7]">
+      <div className="min-h-screen bg-[#ffffff]">
         <ConfirmationView
           state={confirmation}
           tableLabel={tableLabel}
@@ -664,11 +664,11 @@ export function VipLoanCatalog({
 
   // ----- Render : écran catalogue -----
   return (
-    <div className="min-h-screen bg-[#FAFAF7] text-[#2C2C2C]">
+    <div className="min-h-screen bg-[#ffffff] text-[#2C2C2C]">
       {/* ---------- Header ---------- */}
       <header
         className={cn(
-          'sticky top-0 z-10 border-b border-[#EAE5DC] bg-white/90 backdrop-blur',
+          'sticky top-0 z-10 border-b border-[#efe7e0] bg-white/90 backdrop-blur',
           CARD_SHADOW,
         )}
       >
@@ -680,8 +680,8 @@ export function VipLoanCatalog({
             aria-label="Retour"
             className={cn(
               'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm',
-              'border border-[#EAE5DC] bg-white text-[#8B6F47]',
-              'transition-colors hover:border-[#C9A961]/50 hover:text-[#2C2C2C]',
+              'border border-[#efe7e0] bg-white text-[#8B6F47]',
+              'transition-colors hover:border-[#bc7155]/50 hover:text-[#2C2C2C]',
             )}
           >
             <ArrowLeft className="size-4" /> Retour
@@ -711,8 +711,8 @@ export function VipLoanCatalog({
             aria-label="Rafraîchir le stock"
             className={cn(
               'flex size-9 items-center justify-center rounded-full',
-              'border border-[#EAE5DC] bg-white text-[#8B6F47]',
-              'transition-colors hover:border-[#C9A961]/50 hover:text-[#2C2C2C]',
+              'border border-[#efe7e0] bg-white text-[#8B6F47]',
+              'transition-colors hover:border-[#bc7155]/50 hover:text-[#2C2C2C]',
               'disabled:opacity-50',
             )}
           >
@@ -729,13 +729,13 @@ export function VipLoanCatalog({
         {!loading && stats.totalItems > 0 && (
           <div
             className={cn(
-              'mb-5 flex items-center gap-4 rounded-xl border border-[#EAE5DC]',
+              'mb-5 flex items-center gap-4 rounded-xl border border-[#efe7e0]',
               'bg-white p-4 text-sm',
               CARD_SHADOW,
             )}
           >
-            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#C9A961]/10">
-              <Package className="size-5 text-[#C9A961]" />
+            <div className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#bc7155]/10">
+              <Package className="size-5 text-[#bc7155]" />
             </div>
             <div className="flex-1">
               <div
@@ -755,7 +755,7 @@ export function VipLoanCatalog({
             <Badge
               variant="outline"
               className={cn(
-                'border-[#EAE5DC] text-[11px] font-semibold text-[#8B6F47]',
+                'border-[#efe7e0] text-[11px] font-semibold text-[#8B6F47]',
               )}
             >
               Temps réel
@@ -829,12 +829,12 @@ function EmptyState({ onRetry }: { onRetry: () => void }) {
   return (
     <div
       className={cn(
-        'flex flex-col items-center rounded-xl border border-[#EAE5DC]',
+        'flex flex-col items-center rounded-xl border border-[#efe7e0]',
         'bg-white px-6 py-12 text-center',
         CARD_SHADOW,
       )}
     >
-      <div className="flex size-14 items-center justify-center rounded-full bg-[#FAFAF7] ring-2 ring-[#EAE5DC]">
+      <div className="flex size-14 items-center justify-center rounded-full bg-[#ffffff] ring-2 ring-[#efe7e0]">
         <Package className="size-7 text-[#8B6F47]" />
       </div>
       <h3
@@ -852,8 +852,8 @@ function EmptyState({ onRetry }: { onRetry: () => void }) {
         variant="ghost"
         onClick={onRetry}
         className={cn(
-          'mt-4 rounded-md border border-[#EAE5DC] bg-white text-[#8B6F47]',
-          'hover:bg-[#FAFAF7] hover:text-[#2C2C2C]',
+          'mt-4 rounded-md border border-[#efe7e0] bg-white text-[#8B6F47]',
+          'hover:bg-[#ffffff] hover:text-[#2C2C2C]',
         )}
       >
         <RefreshCw className="size-4" /> Réessayer

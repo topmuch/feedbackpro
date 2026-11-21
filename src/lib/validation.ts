@@ -326,7 +326,7 @@ export const adminProActionSchema = z.object({
     .max(20, "Couleur trop longue")
     .refine(
       (v) => v === "" || /^#[0-9a-fA-F]{6}$/.test(v),
-      "Couleur invalide (format attendu : #002e85)"
+      "Couleur invalide (format attendu : #0f0f1c)"
     )
     .nullable()
     .optional(),

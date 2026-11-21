@@ -3,22 +3,22 @@
 // ------------------------------------------------------------
 // Style "Aéroport Premium V2.0" — refoundation visuelle complète :
 //   - Fond global GRIS CLAIR #F5F5F5 (makes panels pop)
-//   - Header BLEU #003399 (rounded bottom 20px) + logo JAUNE #FCD116
+//   - Header BLEU #000d10 (rounded bottom 20px) + logo JAUNE #bc7155
 //   - KPI ROW : 6 cartes colorées (red/yellow/green/blue/yellow/green)
 //   - MAIN LAYOUT 2fr/1fr : zones (white card) | alertes (white card)
 //   - Zone panels : panneaux horizontaux colorés selon statut
-//       · Calme (0)        → BLEU #003399 texte blanc
-//       · Attention (1-2)  → ORANGE #FF6B00 texte blanc
+//       · Calme (0)        → BLEU #000d10 texte blanc
+//       · Attention (1-2)  → ORANGE #bc7155 texte blanc
 //       · Critique (3+)    → ROUGE #E30613 texte blanc + flash
-//       · Default          → JAUNE #FCD116 texte noir
+//       · Default          → JAUNE #bc7155 texte noir
 //   - Incidents table : lignes séparées (gap 8px) avec coins arrondis
 //   - Radar prédiction : wrapper premium blanc
 //   - Legend bar : white card avec box colors + hint
 //
 // Palette V2.0 :
-//   --jaune  #FCD116   --bleu  #003399   --noir #000000
-//   --blanc  #FFFFFF   --rouge #E30613   --vert #00A651
-//   --orange #FF6B00   --page-bg #F5F5F5
+//   --jaune  #bc7155   --bleu  #000d10   --noir #000000
+//   --blanc  #FFFFFF   --rouge #E30613   --vert #bc7155
+//   --orange #bc7155   --page-bg #F5F5F5
 //
 // Police : Roboto Condensed (700/900) via Google Fonts @import
 // Tout en MAJUSCULES, letter-spacing 1-4px selon élément
@@ -297,13 +297,13 @@ type PredictiveAlert = {
 // ---------------------------------------------------------------
 // Constantes — palette V2.0 PREMIUM
 // ---------------------------------------------------------------
-const JAUNE = '#FCD116' // Yellow IATA
-const BLEU = '#003399' // Airport blue
+const JAUNE = '#bc7155' // Yellow IATA
+const BLEU = '#000d10' // Airport blue
 const NOIR = '#000000'
 const BLANC = '#FFFFFF'
 const ROUGE = '#E30613' // Alert red
-const VERT = '#00A651' // Success green
-const ORANGE = '#FF6B00' // Warning orange
+const VERT = '#bc7155' // Success green
+const ORANGE = '#bc7155' // Warning orange
 const PAGE_BG = '#F5F5F5' // Light gray (makes panels pop)
 
 // ---------------------------------------------------------------
@@ -696,12 +696,12 @@ function ZonePanel({
   const isCritical = st === 'critical'
   const bgClass =
     st === 'calm'
-      ? 'bg-[#003399] text-white'
+      ? 'bg-[#000d10] text-white'
       : st === 'attention'
-        ? 'bg-[#FF6B00] text-white'
+        ? 'bg-[#bc7155] text-white'
         : st === 'critical'
           ? 'bg-[#E30613] text-white'
-          : 'bg-[#FCD116] text-black'
+          : 'bg-[#bc7155] text-black'
   const statusLabel = ZONE_STATUS_META_V2[st].label
   const hasOngoing = (zone.count_en_cours ?? 0) > 0
   return (
@@ -745,12 +745,12 @@ function ZonePanel({
         {hasOngoing && (
           <span
             className="ops-pulse-soft flex items-center gap-1 rounded-[10px] bg-white/90 px-1.5 py-0.5 font-black tabular-nums"
-            style={{ fontSize: '13px', color: '#003399', lineHeight: 1.1 }}
+            style={{ fontSize: '13px', color: '#000d10', lineHeight: 1.1 }}
             title={`${zone.count_en_cours} incident(s) en cours`}
             suppressHydrationWarning
           >
             <span
-              className="inline-block size-2 rounded-full bg-[#003399]"
+              className="inline-block size-2 rounded-full bg-[#000d10]"
               style={{ animation: 'ops-pulse-dot 1.2s ease-in-out infinite' }}
               aria-hidden
             />
@@ -833,7 +833,7 @@ function OverlayNotifCard({ n }: { n: OverlayNotif }) {
  */
 function AlertCard({ alert }: { alert: TriggeredAlert }) {
   const isCritical = alert.severity === 'critical'
-  const bgClass = isCritical ? 'bg-[#E30613] text-white' : 'bg-[#FF6B00] text-white'
+  const bgClass = isCritical ? 'bg-[#E30613] text-white' : 'bg-[#bc7155] text-white'
   return (
     <div
       role="alert"
@@ -869,14 +869,14 @@ function AlertCard({ alert }: { alert: TriggeredAlert }) {
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
-          className="rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#FCD116]"
+          className="rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#bc7155]"
           style={{ fontSize: '11px', letterSpacing: '1px', color: NOIR }}
         >
           APPELER
         </button>
         <button
           type="button"
-          className="rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#FCD116]"
+          className="rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#bc7155]"
           style={{ fontSize: '11px', letterSpacing: '1px', color: NOIR }}
         >
           ESCALADER
@@ -906,7 +906,7 @@ function ReportAlertCard({
 }) {
   const elapsedMin = Math.floor((Date.now() - new Date(r.createdAt).getTime()) / 60000)
   const isLate = elapsedMin > 15 && r.statut !== 'RESOLU'
-  const bgClass = isLate ? 'bg-[#E30613] text-white' : 'bg-[#FF6B00] text-white'
+  const bgClass = isLate ? 'bg-[#E30613] text-white' : 'bg-[#bc7155] text-white'
   const [showAssignMenu, setShowAssignMenu] = useState(false)
   return (
     <div
@@ -944,7 +944,7 @@ function ReportAlertCard({
         <button
           type="button"
           onClick={onCall}
-          className="inline-flex items-center gap-1 rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#FCD116]"
+          className="inline-flex items-center gap-1 rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#bc7155]"
           style={{ fontSize: '11px', letterSpacing: '1px', color: NOIR }}
         >
           <Phone className="size-3" aria-hidden />
@@ -955,7 +955,7 @@ function ReportAlertCard({
             type="button"
             onClick={() => setShowAssignMenu((v) => !v)}
             disabled={busy}
-            className="inline-flex items-center gap-1 rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#FCD116] disabled:opacity-50"
+            className="inline-flex items-center gap-1 rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#bc7155] disabled:opacity-50"
             style={{ fontSize: '11px', letterSpacing: '1px', color: NOIR }}
           >
             <Wrench className="size-3" aria-hidden />
@@ -968,7 +968,7 @@ function ReportAlertCard({
               style={{ boxShadow: '0 6px 14px rgba(0,0,0,0.2)' }}
             >
               <p
-                className="px-2 py-1 font-black uppercase text-[#003399]"
+                className="px-2 py-1 font-black uppercase text-[#000d10]"
                 style={{ fontSize: '10px', letterSpacing: '2px' }}
               >
                 REROUTER VERS
@@ -984,7 +984,7 @@ function ReportAlertCard({
                       onAssign(k)
                       setShowAssignMenu(false)
                     }}
-                    className="flex w-full items-center gap-2 rounded-[8px] px-2 py-1.5 text-left font-bold uppercase text-black transition-colors hover:bg-[#FCD116]"
+                    className="flex w-full items-center gap-2 rounded-[8px] px-2 py-1.5 text-left font-bold uppercase text-black transition-colors hover:bg-[#bc7155]"
                     style={{ fontSize: '11px', letterSpacing: '1px' }}
                   >
                     <span aria-hidden>{TEAM_META[k].emoji}</span>
@@ -998,7 +998,7 @@ function ReportAlertCard({
           type="button"
           onClick={onEscalate}
           disabled={busy}
-          className="inline-flex items-center gap-1 rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#FCD116] disabled:opacity-50"
+          className="inline-flex items-center gap-1 rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#bc7155] disabled:opacity-50"
           style={{ fontSize: '11px', letterSpacing: '1px', color: NOIR }}
         >
           <Megaphone className="size-3" aria-hidden />
@@ -1013,7 +1013,7 @@ function ReportAlertCard({
 function HelpRequestAlertCard({ h }: { h: HelpRequestLite }) {
   const elapsedMin = Math.floor((Date.now() - new Date(h.createdAt).getTime()) / 60000)
   const isLate = elapsedMin > 15
-  const bgClass = isLate ? 'bg-[#E30613] text-white' : 'bg-[#FF6B00] text-white'
+  const bgClass = isLate ? 'bg-[#E30613] text-white' : 'bg-[#bc7155] text-white'
   return (
     <div
       role="alert"
@@ -1046,7 +1046,7 @@ function HelpRequestAlertCard({ h }: { h: HelpRequestLite }) {
       {h.travelerPhone && (
         <a
           href={`tel:${h.travelerPhone}`}
-          className="inline-flex w-fit items-center gap-1 rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#FCD116]"
+          className="inline-flex w-fit items-center gap-1 rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#bc7155]"
           style={{ fontSize: '11px', letterSpacing: '1px', color: NOIR }}
         >
           <Phone className="size-3" aria-hidden />
@@ -1081,12 +1081,12 @@ function IncidentRow({
   // Status badge classes
   const statusBadgeCls =
     r.statut === 'RESOLU'
-      ? 'bg-[#00A651] text-white'
+      ? 'bg-[#bc7155] text-white'
       : r.statut === 'EN_ATTENTE'
         ? 'bg-[#E30613] text-white'
         : r.statut === 'EN_COURS'
-          ? 'bg-[#FCD116] text-black'
-          : 'bg-[#003399] text-white'
+          ? 'bg-[#bc7155] text-black'
+          : 'bg-[#000d10] text-white'
   const statusLabel = isLate
     ? 'EN RETARD'
     : r.statut === 'EN_ATTENTE'
@@ -1253,7 +1253,7 @@ function IncidentRow({
               disabled={busy}
               aria-label="Assigner ou rerouter le signalement"
               title="ASSIGNER / REROUTER"
-              className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-[#003399] text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-[#000d10] text-white transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               <Wrench className="size-4" aria-hidden />
             </button>
@@ -1264,7 +1264,7 @@ function IncidentRow({
                 style={{ boxShadow: '0 6px 14px rgba(0,0,0,0.2)' }}
               >
                 <p
-                  className="px-2 py-1 font-black uppercase text-[#003399]"
+                  className="px-2 py-1 font-black uppercase text-[#000d10]"
                   style={{ fontSize: '10px', letterSpacing: '2px' }}
                 >
                   REROUTER VERS
@@ -1277,7 +1277,7 @@ function IncidentRow({
                       type="button"
                       role="menuitem"
                       onClick={() => void handleAssign(k)}
-                      className="flex w-full items-center gap-2 rounded-[8px] px-2 py-1.5 text-left font-bold uppercase text-black transition-colors hover:bg-[#FCD116]"
+                      className="flex w-full items-center gap-2 rounded-[8px] px-2 py-1.5 text-left font-bold uppercase text-black transition-colors hover:bg-[#bc7155]"
                       style={{ fontSize: '11px', letterSpacing: '1px' }}
                     >
                       <span aria-hidden>{TEAM_META[k].emoji}</span>
@@ -1293,7 +1293,7 @@ function IncidentRow({
           onClick={handleCall}
           aria-label="Appeler le PC ops"
           title="APPELER PC OPS (+221 78 485 8226)"
-          className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-[#003399] text-white transition-opacity hover:opacity-90"
+          className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-[#000d10] text-white transition-opacity hover:opacity-90"
         >
           <Phone className="size-4" aria-hidden />
         </button>
@@ -1346,7 +1346,7 @@ function SlaRow({ zone, sla }: { zone: ZoneAgg; sla?: SlaStats }) {
           {zone.nom}
         </span>
         <span
-          className="rounded-[8px] bg-[#003399] px-2 py-0.5 font-black uppercase text-white"
+          className="rounded-[8px] bg-[#000d10] px-2 py-0.5 font-black uppercase text-white"
           style={{ fontSize: '10px', letterSpacing: '1px' }}
         >
           N/A
@@ -1358,11 +1358,11 @@ function SlaRow({ zone, sla }: { zone: ZoneAgg; sla?: SlaStats }) {
   const hasResolutions = sla.resolvedCount > 0
   const pctCls =
     !hasResolutions
-      ? 'bg-[#003399] text-white'
+      ? 'bg-[#000d10] text-white'
       : pct >= 80
-        ? 'bg-[#00A651] text-white'
+        ? 'bg-[#bc7155] text-white'
         : pct >= 60
-          ? 'bg-[#FCD116] text-black'
+          ? 'bg-[#bc7155] text-black'
           : 'bg-[#E30613] text-white'
   return (
     <div className="flex items-center gap-2 rounded-[8px] bg-[#F5F5F5] px-2.5 py-1.5">
@@ -1396,8 +1396,8 @@ function ChargeRow({ zone, max }: { zone: ZoneAgg; max: number }) {
     zone.count_en_attente > 5
       ? 'bg-[#E30613] text-white'
       : zone.count_en_attente > 0
-        ? 'bg-[#FF6B00] text-white'
-        : 'bg-[#003399] text-white'
+        ? 'bg-[#bc7155] text-white'
+        : 'bg-[#000d10] text-white'
   const barColor =
     zone.count_en_attente > 5
       ? ROUGE
@@ -1517,7 +1517,7 @@ function CrisisButtonV2({
           aria-pressed={active}
           aria-label="Désactiver le mode crise"
           title="Terminer la crise"
-          className="flex items-center gap-1.5 rounded-[15px] bg-[#00A651] px-3 py-2 font-black uppercase text-white transition-opacity hover:opacity-90"
+          className="flex items-center gap-1.5 rounded-[15px] bg-[#bc7155] px-3 py-2 font-black uppercase text-white transition-opacity hover:opacity-90"
           style={{ border: '3px solid #FFFFFF', fontSize: '11px', letterSpacing: '1px' }}
         >
           <ShieldAlert className="size-4" aria-hidden />
@@ -2369,12 +2369,12 @@ export default function OpsWallboardPage() {
 
   const slaCardCls =
     overallSlaPctNum === null
-      ? 'bg-[#FCD116] text-black'
+      ? 'bg-[#bc7155] text-black'
       : overallSlaPctNum >= 80
-        ? 'bg-[#00A651] text-white'
+        ? 'bg-[#bc7155] text-white'
         : overallSlaPctNum < 60
           ? 'bg-[#E30613] text-white'
-          : 'bg-[#FCD116] text-black'
+          : 'bg-[#bc7155] text-black'
 
   return (
     <div
@@ -2417,7 +2417,7 @@ export default function OpsWallboardPage() {
         .ops-crisis-overlay { background-color: rgba(227,6,19,0.04); }
         .ops-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
         .ops-scroll::-webkit-scrollbar-track { background: #E0E0E0; border-radius: 4px; }
-        .ops-scroll::-webkit-scrollbar-thumb { background: #003399; border-radius: 4px; }
+        .ops-scroll::-webkit-scrollbar-thumb { background: #000d10; border-radius: 4px; }
         .ops-scroll::-webkit-scrollbar-thumb:hover { background: #002277; }
         @keyframes opsPredMarquee {
           0% { transform: translateX(0); }
@@ -2475,7 +2475,7 @@ export default function OpsWallboardPage() {
             className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-[10px] bg-white"
             aria-hidden
           >
-            <Plane className="size-7 text-[#003399]" />
+            <Plane className="size-7 text-[#000d10]" />
           </span>
           {/* Title + subtitle */}
           <div className="flex flex-col">
@@ -2710,7 +2710,7 @@ export default function OpsWallboardPage() {
               type="button"
               onClick={() => setShowSoundBanner(false)}
               aria-label="Fermer la bannière"
-              className="flex items-center justify-center rounded-[10px] bg-[#003399] px-3 py-2 font-black text-white transition-opacity hover:opacity-90"
+              className="flex items-center justify-center rounded-[10px] bg-[#000d10] px-3 py-2 font-black text-white transition-opacity hover:opacity-90"
             >
               <span style={{ fontSize: '16px', lineHeight: 1 }} aria-hidden>×</span>
             </button>
@@ -2786,19 +2786,19 @@ export default function OpsWallboardPage() {
             <KpiCard
               label="EN ATTENTE"
               value={data.stats.en_attente}
-              bgClass="bg-[#FCD116]"
+              bgClass="bg-[#bc7155]"
               textClass="text-black"
             />
             <KpiCard
               label="RÉSOLUS"
               value={data.stats.resolus_24h}
-              bgClass="bg-[#00A651]"
+              bgClass="bg-[#bc7155]"
               textClass="text-white"
             />
             <KpiCard
               label="TEMPS MOY"
               value={formatDurationMin(data.stats.avg_resolution_minutes)}
-              bgClass="bg-[#003399]"
+              bgClass="bg-[#000d10]"
               textClass="text-white"
             />
             <KpiCard
@@ -2810,7 +2810,7 @@ export default function OpsWallboardPage() {
             <KpiCard
               label="STAFF"
               value={`${staffActive.count}/${staffActive.total}`}
-              bgClass="bg-[#00A651]"
+              bgClass="bg-[#bc7155]"
               textClass="text-white"
             />
           </>
@@ -2956,17 +2956,17 @@ export default function OpsWallboardPage() {
             >
               ÉQUIPES 24H
             </span>
-            <span className="font-black tabular-nums text-[#003399]" style={{ fontSize: '15px' }} suppressHydrationWarning>
+            <span className="font-black tabular-nums text-[#000d10]" style={{ fontSize: '15px' }} suppressHydrationWarning>
               {competition?.morning ?? 0}
               <span className="ml-0.5 font-black uppercase text-black" style={{ fontSize: '9px', opacity: 0.6 }}>MAT</span>
             </span>
             <span className="font-black text-black" style={{ fontSize: '11px', opacity: 0.3 }} aria-hidden>|</span>
-            <span className="font-black tabular-nums text-[#FF6B00]" style={{ fontSize: '15px' }} suppressHydrationWarning>
+            <span className="font-black tabular-nums text-[#bc7155]" style={{ fontSize: '15px' }} suppressHydrationWarning>
               {competition?.evening ?? 0}
               <span className="ml-0.5 font-black uppercase text-black" style={{ fontSize: '9px', opacity: 0.6 }}>SOIR</span>
             </span>
             <span className="font-black text-black" style={{ fontSize: '11px', opacity: 0.3 }} aria-hidden>|</span>
-            <span className="font-black tabular-nums text-[#003399]" style={{ fontSize: '15px' }} suppressHydrationWarning>
+            <span className="font-black tabular-nums text-[#000d10]" style={{ fontSize: '15px' }} suppressHydrationWarning>
               {competition?.night ?? 0}
               <span className="ml-0.5 font-black uppercase text-black" style={{ fontSize: '9px', opacity: 0.6 }}>NUIT</span>
             </span>
@@ -2988,14 +2988,14 @@ export default function OpsWallboardPage() {
                 >
                   🥇 {truncateName(topPerformer.staffName, 16)}
                 </span>
-                <span className="shrink-0 font-black tabular-nums text-[#003399]" style={{ fontSize: '13px' }}>
+                <span className="shrink-0 font-black tabular-nums text-[#000d10]" style={{ fontSize: '13px' }}>
                   {topPerformer.points}pts
                 </span>
                 {topPerformer.achievements.slice(0, 2).map((a) => (
                   <span
                     key={a.id}
                     title={a.meta ? `${a.description} — ${a.meta}` : a.description}
-                    className="inline-flex shrink-0 items-center gap-1 rounded-[8px] bg-[#FCD116] px-1.5 py-0.5 font-black uppercase text-black"
+                    className="inline-flex shrink-0 items-center gap-1 rounded-[8px] bg-[#bc7155] px-1.5 py-0.5 font-black uppercase text-black"
                     style={{ fontSize: '9px', letterSpacing: '1px' }}
                   >
                     {a.emoji} {a.label}
@@ -3105,7 +3105,7 @@ export default function OpsWallboardPage() {
             })}
             {data && data.zones.length === 0 && (
               <div
-                className="rounded-[15px] bg-[#FCD116] px-5 py-6 text-center font-black uppercase text-black"
+                className="rounded-[15px] bg-[#bc7155] px-5 py-6 text-center font-black uppercase text-black"
                 style={{ fontSize: '14px', letterSpacing: '1px' }}
               >
                 AUCUNE ZONE CONFIGURÉE
@@ -3133,7 +3133,7 @@ export default function OpsWallboardPage() {
               <div className="flex items-center gap-1.5">
                 <span
                   className="inline-block rounded-[3px]"
-                  style={{ width: '12px', height: '12px', background: '#003399' }}
+                  style={{ width: '12px', height: '12px', background: '#000d10' }}
                   aria-hidden
                 />
                 <span className="font-black uppercase text-black" style={{ fontSize: '10px', letterSpacing: '1px' }}>
@@ -3143,7 +3143,7 @@ export default function OpsWallboardPage() {
               <div className="flex items-center gap-1.5">
                 <span
                   className="inline-block rounded-[3px]"
-                  style={{ width: '12px', height: '12px', background: '#FF6B00' }}
+                  style={{ width: '12px', height: '12px', background: '#bc7155' }}
                   aria-hidden
                 />
                 <span className="font-black uppercase text-black" style={{ fontSize: '10px', letterSpacing: '1px' }}>
@@ -3165,7 +3165,7 @@ export default function OpsWallboardPage() {
               <span className="flex items-center gap-1">
                 <span
                   className="inline-block size-2 rounded-full"
-                  style={{ background: '#003399', animation: 'opsPulseDot 1.2s ease-in-out infinite' }}
+                  style={{ background: '#000d10', animation: 'opsPulseDot 1.2s ease-in-out infinite' }}
                   aria-hidden
                 />
                 EN COURS
@@ -3208,7 +3208,7 @@ export default function OpsWallboardPage() {
               activeReportAlerts.length === 0 &&
               (data?.help_requests?.length ?? 0) === 0 && (
                 <div
-                  className="flex items-center justify-center rounded-[15px] bg-[#00A651] px-5 py-6 text-center font-black uppercase text-white"
+                  className="flex items-center justify-center rounded-[15px] bg-[#bc7155] px-5 py-6 text-center font-black uppercase text-white"
                   style={{ fontSize: '13px', letterSpacing: '1px' }}
                 >
                   AUCUNE ALERTE ACTIVE
@@ -3309,7 +3309,7 @@ export default function OpsWallboardPage() {
                 </>
               ) : (
                 <div
-                  className="flex items-center justify-center rounded-[15px] bg-[#FCD116] px-6 py-8 text-center font-black uppercase text-black"
+                  className="flex items-center justify-center rounded-[15px] bg-[#bc7155] px-6 py-8 text-center font-black uppercase text-black"
                   style={{ fontSize: '14px', letterSpacing: '1px' }}
                 >
                   {crisisMode
@@ -3331,7 +3331,7 @@ export default function OpsWallboardPage() {
               className="pointer-events-none fixed left-1/2 top-24 z-30 -translate-x-1/2"
             >
               <div
-                className={`rounded-[12px] px-5 py-2.5 font-black uppercase text-white ${actionToast.kind === 'ok' ? 'bg-[#00A651]' : 'bg-[#E30613]'}`}
+                className={`rounded-[12px] px-5 py-2.5 font-black uppercase text-white ${actionToast.kind === 'ok' ? 'bg-[#bc7155]' : 'bg-[#E30613]'}`}
                 style={{ fontSize: '12px', letterSpacing: '1px', boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }}
               >
                 {actionToast.msg}

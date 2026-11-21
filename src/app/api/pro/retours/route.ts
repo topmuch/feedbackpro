@@ -224,11 +224,11 @@ export async function POST(req: NextRequest) {
     const sujet = `Réponse de ${ctx.pro.nomEtablissement} — FeedbackPro`
     const html = `<!DOCTYPE html><html lang="fr"><body style="font-family:Arial,Helvetica,sans-serif;color:#1c1917;background:#f5f5f4;padding:24px;">
 <div style="max-width:560px;margin:0 auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08)">
-<div style="background:#2563EB;padding:24px 32px;color:#fff"><p style="margin:0;font-size:20px;font-weight:700">FeedbackPro</p></div>
+<div style="background:#000d10;padding:24px 32px;color:#fff"><p style="margin:0;font-size:20px;font-weight:700">FeedbackPro</p></div>
 <div style="padding:32px">
 <h1 style="margin:0 0 12px;font-size:18px">Réponse de ${ctx.pro.nomEtablissement}</h1>
 <p style="margin:0 0 16px;line-height:1.6;color:#44403c">Suite à votre retour du ${new Date(existing.createdAt).toLocaleDateString("fr-FR")} sur la zone « ${existing.zone?.nom ?? "—"} », le commerçant vous a adressé la réponse suivante :</p>
-<blockquote style="margin:0 0 16px;padding:16px;background:#f5f5f4;border-left:4px solid #2563EB;border-radius:8px;font-style:italic;line-height:1.7;color:#1c1917">${message.replace(/</g, "&lt;").replace(/\n/g, "<br />")}</blockquote>
+<blockquote style="margin:0 0 16px;padding:16px;background:#f5f5f4;border-left:4px solid #000d10;border-radius:8px;font-style:italic;line-height:1.7;color:#1c1917">${message.replace(/</g, "&lt;").replace(/\n/g, "<br />")}</blockquote>
 <p style="margin:16px 0 0;line-height:1.6;color:#78716c;font-size:12px">Merci d'avoir partagé votre retour. À bientôt chez ${ctx.pro.nomEtablissement}.</p>
 </div></div></body></html>`
 

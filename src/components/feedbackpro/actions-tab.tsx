@@ -309,8 +309,8 @@ export function ActionsTab() {
                 p.niveau === "critique"
                   ? "border-red-300 bg-red-100 text-red-700"
                   : p.niveau === "important"
-                    ? "border-amber-300 bg-amber-100 text-amber-700"
-                    : "border-violet-300 bg-violet-100 text-violet-700"
+                    ? "border-[#dba28a] bg-[#f3ddd2] text-[#8a4f3b]"
+                    : "border-[#dba28a] bg-[#f3ddd2] text-[#8a4f3b]"
               const libelle = p.niveau === "critique" ? "Urgent" : p.niveau === "important" ? "Important" : "Suggestion"
               const emoji = p.niveau === "critique" ? "🔥" : p.niveau === "important" ? "⚠️" : "💡"
               return (
@@ -629,9 +629,9 @@ export function ActionsTab() {
 
 function Compteur({ label, valeur, ton }: { label: string; valeur: number; ton: "ambre" | "bleu" | "vert" }) {
   const classes = {
-    ambre: "border-amber-200 bg-amber-50 text-amber-800",
-    bleu: "border-blue-200 bg-blue-50 text-blue-800",
-    vert: "border-green-200 bg-green-50 text-green-800",
+    ambre: "border-[#e7c1ae] bg-[#faf1ec] text-[#6f3f30]",
+    bleu: "border-[#b9bbc2] bg-[#f0f1f2] text-[#1c1d2c]",
+    vert: "border-[#e7c1ae] bg-[#faf1ec] text-[#6f3f30]",
   }[ton]
   return (
     <div className={cn("rounded-xl border p-3 text-center sm:p-4", classes)}>
@@ -733,7 +733,7 @@ function CarteAction({ retour, maj }: { retour: RetourItem; maj: (r: RetourItem)
               </span>
             )}
             {!retour.actionPrise && (
-              <Badge className="border-amber-200 bg-amber-100 text-amber-800 hover:bg-amber-100 text-[11px]">À traiter</Badge>
+              <Badge className="border-[#e7c1ae] bg-[#f3ddd2] text-[#6f3f30] hover:bg-[#f3ddd2] text-[11px]">À traiter</Badge>
             )}
           </div>
           <div className="flex items-center gap-2">
@@ -789,7 +789,7 @@ function CarteAction({ retour, maj }: { retour: RetourItem; maj: (r: RetourItem)
             {/* Audit UX : indicateur « Sauvegardé ✓ » transitoire après enregistrement */}
             {savedFlash && (
               <span
-                className="flex items-center gap-1 text-xs font-medium text-green-700 dark:text-green-400"
+                className="flex items-center gap-1 text-xs font-medium text-[#8a4f3b] dark:text-[#c98b72]"
                 role="status"
                 aria-live="polite"
               >

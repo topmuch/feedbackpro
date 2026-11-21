@@ -71,13 +71,13 @@ type Commande = {
 function classeStatut(statut: string): string {
   switch (statut) {
     case "A_IMPRIMER":
-      return "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300"
+      return "border-[#dba28a] bg-[#faf1ec] text-[#6f3f30] hover:bg-[#faf1ec] dark:bg-[#3f231b]/40 dark:text-[#dba28a]"
     case "IMPRIME":
       return "border-primary/30 bg-primary/5 text-primary hover:bg-primary/5"
     case "EXPEDIE":
       return "border-border bg-muted text-muted-foreground hover:bg-muted"
     case "LIVRE":
-      return "border-green-300 bg-green-50 text-green-800 hover:bg-green-50 dark:bg-green-950/40 dark:text-green-300"
+      return "border-[#dba28a] bg-[#faf1ec] text-[#6f3f30] hover:bg-[#faf1ec] dark:bg-[#3f231b]/40 dark:text-[#dba28a]"
     default:
       return ""
   }
@@ -371,7 +371,7 @@ export function BillingTab() {
             }
           >
             Annuel
-            <span className="ml-1.5 inline-flex items-center rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-bold text-green-700">
+            <span className="ml-1.5 inline-flex items-center rounded-full bg-[#f3ddd2] px-1.5 py-0.5 text-[10px] font-bold text-[#8a4f3b]">
               -20 %
             </span>
           </button>
@@ -428,7 +428,7 @@ export function BillingTab() {
                   className={cn(
                     "text-sm font-semibold",
                     (pctConsommation ?? 0) >= 90
-                      ? "text-amber-600 dark:text-amber-400"
+                      ? "text-[#a05f45] dark:text-[#c98b72]"
                       : "text-primary"
                   )}
                   aria-label={`${pctConsommation}% du quota utilisé`}
@@ -440,7 +440,7 @@ export function BillingTab() {
                 value={pctConsommation ?? 0}
                 className={cn(
                   "h-2.5",
-                  (pctConsommation ?? 0) >= 90 && "bg-amber-200 dark:bg-amber-950/40"
+                  (pctConsommation ?? 0) >= 90 && "bg-[#e7c1ae] dark:bg-[#3f231b]/40"
                 )}
                 aria-label={`Progression : ${retoursMois} sur ${quotaMois} retours`}
               />
@@ -475,7 +475,7 @@ export function BillingTab() {
                   estActuel
                     ? "border-primary shadow-sm ring-1 ring-primary"
                     : p.id === "FRANCHISE"
-                      ? "shadow-sm ring-1 ring-amber-400/50 transition-shadow hover:shadow-md"
+                      ? "shadow-sm ring-1 ring-[#c98b72]/50 transition-shadow hover:shadow-md"
                       : "shadow-sm transition-shadow hover:shadow-md"
                 }
               >
@@ -485,7 +485,7 @@ export function BillingTab() {
                     {estActuel ? (
                       <Badge className="bg-primary text-primary-foreground hover:bg-primary">Plan actuel</Badge>
                     ) : p.id === "FRANCHISE" ? (
-                      <Badge className="border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-50 dark:border-amber-800/60 dark:bg-amber-950/40 dark:text-amber-300">
+                      <Badge className="border-[#dba28a] bg-[#faf1ec] text-[#6f3f30] hover:bg-[#faf1ec] dark:border-[#6f3f30]/60 dark:bg-[#3f231b]/40 dark:text-[#dba28a]">
                         Multi-sites
                       </Badge>
                     ) : null}
@@ -507,7 +507,7 @@ export function BillingTab() {
                     )}
                   </p>
                   {periode === "annuel" && p.price > 0 && (
-                    <p className="text-[11px] font-medium text-green-700">
+                    <p className="text-[11px] font-medium text-[#8a4f3b]">
                       {prix * 12} €/an au lieu de {p.price * 12} € · économie de {(p.price - prix) * 12} €
                     </p>
                   )}
@@ -528,7 +528,7 @@ export function BillingTab() {
                   {estActuel ? (
                     // Audit UX : badge vert « ✓ Plan actif » à la place du bouton grisé désactivé.
                     <div
-                      className="flex w-full items-center justify-center gap-1.5 rounded-md border border-green-300 bg-green-50 px-4 py-2.5 text-sm font-semibold text-green-800 dark:border-green-800/60 dark:bg-green-950/40 dark:text-green-300"
+                      className="flex w-full items-center justify-center gap-1.5 rounded-md border border-[#dba28a] bg-[#faf1ec] px-4 py-2.5 text-sm font-semibold text-[#6f3f30] dark:border-[#6f3f30]/60 dark:bg-[#3f231b]/40 dark:text-[#dba28a]"
                       role="status"
                       aria-label="Plan actuel actif"
                     >

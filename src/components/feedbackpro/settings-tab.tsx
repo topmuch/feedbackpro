@@ -524,7 +524,7 @@ export function SettingsTab() {
 
             {/* ================= (d) Expérience client ================= */}
             <div className="grid grid-cols-1 gap-4 pt-2">
-              <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/60 p-3.5">
+              <div className="flex items-center justify-between gap-3 rounded-xl border border-[#e7c1ae] bg-[#faf1ec]/60 p-3.5">
                 <div className="min-w-0">
                   <p className="text-sm font-medium">Micro-récompense client</p>
                   <p className="mt-0.5 text-xs text-muted-foreground">
@@ -727,7 +727,7 @@ export function SettingsTab() {
                     <span className="truncate">{etablissements.parent.nomEtablissement}</span>
                     <Badge variant="secondary" className="text-[10px]">Établissement principal</Badge>
                     {etablissements.parent.courant && (
-                      <Badge variant="outline" className="text-[10px] text-green-700 border-green-300">
+                      <Badge variant="outline" className="text-[10px] text-[#8a4f3b] border-[#dba28a]">
                         <Check className="mr-1 size-3" aria-hidden /> Actuel
                       </Badge>
                     )}
@@ -762,7 +762,7 @@ export function SettingsTab() {
                       <p className="flex flex-wrap items-center gap-2 font-medium leading-tight">
                         <span className="truncate">{e.nomEtablissement}</span>
                         {e.courant && (
-                          <Badge variant="outline" className="text-[10px] text-green-700 border-green-300">
+                          <Badge variant="outline" className="text-[10px] text-[#8a4f3b] border-[#dba28a]">
                             <Check className="mr-1 size-3" aria-hidden /> Actuel
                           </Badge>
                         )}
@@ -853,7 +853,7 @@ export function SettingsTab() {
       <Card className="shadow-sm">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-            <span className="flex size-6 items-center justify-center rounded-md border border-blue-200 bg-blue-50 text-xs font-bold text-blue-700" aria-hidden>
+            <span className="flex size-6 items-center justify-center rounded-md border border-[#b9bbc2] bg-[#f0f1f2] text-xs font-bold text-[#2e3040]" aria-hidden>
               G
             </span>
             Google Business Profile
@@ -883,16 +883,16 @@ export function SettingsTab() {
             </p>
           </div>
           {googleReviewUrl && (
-            <div className="flex items-center gap-2 rounded-lg border border-green-200 bg-green-50 px-3 py-2 text-sm">
-              <Check className="h-4 w-4 shrink-0 text-green-600" aria-hidden />
-              <span className="min-w-0 flex-1 truncate text-green-800">
+            <div className="flex items-center gap-2 rounded-lg border border-[#e7c1ae] bg-[#faf1ec] px-3 py-2 text-sm">
+              <Check className="h-4 w-4 shrink-0 text-[#a05f45]" aria-hidden />
+              <span className="min-w-0 flex-1 truncate text-[#6f3f30]">
                 Avis Google activé — proposé aux clients satisfaits (≥ 4★)
               </span>
               <a
                 href={googleReviewUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-green-700 underline underline-offset-2"
+                className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-[#8a4f3b] underline underline-offset-2"
               >
                 Tester <ExternalLink className="h-3 w-3" aria-hidden />
               </a>

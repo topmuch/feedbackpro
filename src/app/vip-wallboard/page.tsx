@@ -3,16 +3,16 @@
 // ------------------------------------------------------------
 // Affichage TV plein écran pour la salle de supervision du salon
 // VIP (ops room). Palette chaude "Luxe Lumineux" :
-//   - Background   #FAFAF7 (warm off-white)
-//   - Header       #2C2C2C (anthracite) + accent or #C9A961
+//   - Background   #ffffff (warm off-white)
+//   - Header       #2C2C2C (anthracite) + accent or #bc7155
 //   - Cards        #FFFFFF (white) + shadow rgba(201,169,97,0.06)
-//   - Accent gold  #C9A961
+//   - Accent gold  #bc7155
 //   - Accent bronze #8B6F47
 //   - Text         #2C2C2C
-//   - Success      #4A7C59 (sage green)
-//   - Alert        #C97B63 (terracotta)
-//   - VIP badge    #6B4C9A (amethyst)
-//   - Border       #EAE5DC
+//   - Success      #bc7155 (sage green)
+//   - Alert        #bc7155 (terracotta)
+//   - VIP badge    #bc7155 (amethyst)
+//   - Border       #efe7e0
 //   - Title font   Georgia, "Playfair Display", serif
 //
 // API : GET /api/vip/wallboard toutes les 5 secondes.
@@ -109,28 +109,28 @@ type WallboardData = {
 // ============================================================
 
 const COLORS = {
-  bg: '#FAFAF7',
+  bg: '#ffffff',
   header: '#2C2C2C',
   card: '#FFFFFF',
-  gold: '#C9A961',
+  gold: '#bc7155',
   bronze: '#8B6F47',
   text: '#2C2C2C',
-  success: '#4A7C59',
-  alert: '#C97B63',
-  vip: '#6B4C9A',
-  border: '#EAE5DC',
+  success: '#bc7155',
+  alert: '#bc7155',
+  vip: '#bc7155',
+  border: '#efe7e0',
 } as const
 
 // Palette mode sombre (pour affichage TV en salle ops sombre)
 const COLORS_DARK = {
-  bg: '#0F0F0F',
+  bg: '#0f0f1c',
   header: '#000000',
-  card: '#1A1A1A',
-  gold: '#C9A961',
+  card: '#0f0f1c',
+  gold: '#bc7155',
   bronze: '#8B6F47',
-  text: '#FAFAF7',
-  success: '#4A7C59',
-  alert: '#C97B63',
+  text: '#ffffff',
+  success: '#bc7155',
+  alert: '#bc7155',
   vip: '#9B7BC9',
   border: '#333333',
 } as const
@@ -1466,7 +1466,7 @@ export default function VipWallboardPage() {
         style={{
           backgroundColor: C.header,
           color: '#FFFFFF',
-          borderColor: '#1a1a1a',
+          borderColor: '#0f0f1c',
         }}
       >
         <div className="mx-auto flex max-w-[1800px] items-center justify-between gap-4 px-6 py-2.5">

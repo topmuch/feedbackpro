@@ -127,9 +127,9 @@ const STATUT_LABEL: Record<Statut, string> = {
 }
 
 const STATUT_BADGE: Record<Statut, string> = {
-  EN_ATTENTE: 'bg-sky-100 text-sky-700 border-sky-200',
-  EN_COURS: 'bg-amber-100 text-amber-700 border-amber-200',
-  RESOLU: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  EN_ATTENTE: 'bg-[#dcdee0] text-[#2e3040] border-[#b9bbc2]',
+  EN_COURS: 'bg-[#f3ddd2] text-[#8a4f3b] border-[#e7c1ae]',
+  RESOLU: 'bg-[#f3ddd2] text-[#8a4f3b] border-[#e7c1ae]',
 }
 
 const DISPUTE_STATUS_LABEL: Record<BaggageDispute['status'], string> = {
@@ -139,8 +139,8 @@ const DISPUTE_STATUS_LABEL: Record<BaggageDispute['status'], string> = {
 }
 
 const DISPUTE_STATUS_BADGE: Record<BaggageDispute['status'], string> = {
-  open: 'bg-sky-100 text-sky-700 border-sky-200',
-  resolved: 'bg-emerald-100 text-emerald-700 border-emerald-200',
+  open: 'bg-[#dcdee0] text-[#2e3040] border-[#b9bbc2]',
+  resolved: 'bg-[#f3ddd2] text-[#8a4f3b] border-[#e7c1ae]',
   escalated: 'bg-rose-100 text-rose-700 border-rose-200',
 }
 
@@ -270,7 +270,7 @@ export default function AirlineDashboard() {
       {/* ---------- HEADER ---------- */}
       <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between border-b border-slate-200 bg-white px-4 shadow-sm sm:px-6">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-sky-500 text-white shadow-sm">
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#4b4d5e] text-white shadow-sm">
             <Plane className="h-5 w-5" />
           </div>
           <div className="flex flex-col">
@@ -279,7 +279,7 @@ export default function AirlineDashboard() {
             </h1>
             <p className="hidden text-[11px] text-slate-500 sm:block" suppressHydrationWarning>
               <span className="inline-flex items-center gap-1">
-                <Building2 className="h-3 w-3 text-sky-500" />
+                <Building2 className="h-3 w-3 text-[#4b4d5e]" />
                 Compagnie Aérienne
                 <span className="text-slate-300">·</span>
                 {today ? formatDateLong(today) : ''}
@@ -291,7 +291,7 @@ export default function AirlineDashboard() {
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Horloge */}
           <div className="hidden flex-col items-end sm:flex">
-            <div className="font-mono text-xl font-bold tabular-nums text-sky-600" suppressHydrationWarning>
+            <div className="font-mono text-xl font-bold tabular-nums text-[#3c3e4c]" suppressHydrationWarning>
               {clock}
             </div>
             <div className="text-[10px] uppercase tracking-wider text-slate-400">Heure locale</div>
@@ -301,7 +301,7 @@ export default function AirlineDashboard() {
           <button
             type="button"
             onClick={() => refreshData()}
-            className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:border-sky-300 hover:bg-sky-50 hover:text-sky-600"
+            className="inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 transition hover:border-[#8e8e95] hover:bg-[#f0f1f2] hover:text-[#3c3e4c]"
             title="Rafraîchir"
           >
             <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
@@ -325,15 +325,15 @@ export default function AirlineDashboard() {
       {dissatisfiedIncidents.length > 0 && (
         <div
           role="alert"
-          className="mx-4 mt-4 flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4 sm:mx-6"
+          className="mx-4 mt-4 flex items-start gap-3 rounded-xl border border-[#e7c1ae] bg-[#faf1ec] p-4 sm:mx-6"
         >
-          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" aria-hidden />
+          <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-[#a05f45]" aria-hidden />
           <div className="flex-1">
-            <p className="text-sm font-semibold text-amber-900">
+            <p className="text-sm font-semibold text-[#573125]">
               Alerte mécontentement — {dissatisfiedIncidents.length} incident
               {dissatisfiedIncidents.length > 1 ? 's' : ''} &gt; 10 min sans résolution
             </p>
-            <p className="mt-0.5 text-xs text-amber-700">
+            <p className="mt-0.5 text-xs text-[#8a4f3b]">
               Prenez en charge ces signalements rapidement pour limiter l&apos;impact client.
             </p>
           </div>
@@ -373,11 +373,11 @@ export default function AirlineDashboard() {
                     </div>
                     <div className="flex flex-col">
                       <span className="text-xs text-slate-400">En cours</span>
-                      <span className="text-lg font-bold text-sky-600">{enAttente}</span>
+                      <span className="text-lg font-bold text-[#3c3e4c]">{enAttente}</span>
                     </div>
                     <div className="flex flex-col">
                       <span className="text-xs text-slate-400">Résolus</span>
-                      <span className="text-lg font-bold text-emerald-600">{s.resolved}</span>
+                      <span className="text-lg font-bold text-[#a05f45]">{s.resolved}</span>
                     </div>
                   </div>
                 </div>
@@ -407,7 +407,7 @@ export default function AirlineDashboard() {
                 className={cn(
                   'flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition',
                   active
-                    ? 'bg-sky-500 text-white shadow-sm'
+                    ? 'bg-[#4b4d5e] text-white shadow-sm'
                     : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900',
                 )}
               >
@@ -471,7 +471,7 @@ export default function AirlineDashboard() {
             <span>FeedbackPro · Module Compagnie Aérienne</span>
           </div>
           <div className="hidden tabular-nums sm:block">
-            Onglet actif : <span className="text-sky-600">{tab}</span>
+            Onglet actif : <span className="text-[#3c3e4c]">{tab}</span>
           </div>
         </div>
       </footer>
@@ -545,7 +545,7 @@ function IncidentsTab({
         </p>
       ) : filtered.length === 0 ? (
         <div className="py-12 text-center">
-          <CheckCircle2 className="mx-auto h-8 w-8 text-emerald-500" />
+          <CheckCircle2 className="mx-auto h-8 w-8 text-[#bc7155]" />
           <p className="mt-2 text-sm text-slate-500">Aucun incident dans cette catégorie.</p>
         </div>
       ) : (
@@ -558,7 +558,7 @@ function IncidentsTab({
                 key={inc.id}
                 className={cn(
                   'rounded-xl border bg-white p-3 transition hover:shadow-sm',
-                  late ? 'border-amber-200' : 'border-slate-200',
+                  late ? 'border-[#e7c1ae]' : 'border-slate-200',
                 )}
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
@@ -578,12 +578,12 @@ function IncidentsTab({
                         </span>
                       )}
                       {inc.flightNumber && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-700">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#dcdee0] px-2 py-0.5 text-xs font-medium text-[#2e3040]">
                           <Plane className="h-3 w-3" /> Vol {inc.flightNumber}
                         </span>
                       )}
                       {late && (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[#f3ddd2] px-2 py-0.5 text-xs font-medium text-[#8a4f3b]">
                           <Clock className="h-3 w-3" /> {minutes} min
                         </span>
                       )}
@@ -620,7 +620,7 @@ function IncidentsTab({
                       <button
                         type="button"
                         onClick={() => onAdvance(inc.id, 'EN_COURS')}
-                        className="inline-flex items-center gap-1 rounded-md bg-amber-500 px-3 py-1 text-xs font-semibold text-white transition hover:bg-amber-600"
+                        className="inline-flex items-center gap-1 rounded-md bg-[#bc7155] px-3 py-1 text-xs font-semibold text-white transition hover:bg-[#a05f45]"
                       >
                         Prendre en charge
                       </button>
@@ -629,7 +629,7 @@ function IncidentsTab({
                       <button
                         type="button"
                         onClick={() => onAdvance(inc.id, 'RESOLU')}
-                        className="inline-flex items-center gap-1 rounded-md bg-emerald-500 px-3 py-1 text-xs font-semibold text-white transition hover:bg-emerald-600"
+                        className="inline-flex items-center gap-1 rounded-md bg-[#bc7155] px-3 py-1 text-xs font-semibold text-white transition hover:bg-[#a05f45]"
                       >
                         <CheckCircle2 className="h-3 w-3" /> Résoudre
                       </button>
@@ -680,7 +680,7 @@ function BaggageDisputesTab({
         </p>
       ) : disputes.length === 0 ? (
         <div className="py-12 text-center">
-          <Luggage className="mx-auto h-8 w-8 text-emerald-500" />
+          <Luggage className="mx-auto h-8 w-8 text-[#bc7155]" />
           <p className="mt-2 text-sm text-slate-500">Aucun litige bagage en cours.</p>
         </div>
       ) : (
@@ -699,7 +699,7 @@ function BaggageDisputesTab({
                       {DISPUTE_STATUS_LABEL[d.status]}
                     </span>
                     {d.flightNumber && (
-                      <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2 py-0.5 text-xs font-medium text-sky-700">
+                      <span className="inline-flex items-center gap-1 rounded-full bg-[#dcdee0] px-2 py-0.5 text-xs font-medium text-[#2e3040]">
                         <Plane className="h-3 w-3" /> Vol {d.flightNumber}
                       </span>
                     )}
@@ -731,7 +731,7 @@ function BaggageDisputesTab({
                     <button
                       type="button"
                       onClick={() => onAdvance(d.id, 'resolved')}
-                      className="inline-flex items-center gap-1 rounded-md bg-emerald-500 px-3 py-1 text-xs font-semibold text-white transition hover:bg-emerald-600"
+                      className="inline-flex items-center gap-1 rounded-md bg-[#bc7155] px-3 py-1 text-xs font-semibold text-white transition hover:bg-[#a05f45]"
                     >
                       <CheckCircle2 className="h-3 w-3" /> Marquer résolu
                     </button>

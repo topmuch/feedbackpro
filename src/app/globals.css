@@ -45,83 +45,83 @@
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  /* V2.0 Palette FeedbackPro : Bleu aéroport #003399 (primary, headers, buttons)
-     + Jaune IATA #FCD116 (accents, highlights, badges) + blanc + gris clair #F5F5F5 */
-  --primary: #003399;
-  --primary-foreground: #FFFFFF;
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: #FCD116;
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.707 0.165 254.624);
-  --chart-1: oklch(0.546 0.245 262.881);
-  --chart-2: oklch(0.707 0.165 254.624);
-  --chart-3: oklch(0.554 0.046 257.417);
-  --chart-4: oklch(0.809 0.105 251.813);
-  --chart-5: oklch(0.623 0.214 259.815);
-  /* Sidebar NOIR profond + écriture MARRON (demande du directeur V3).
-     Le sidebar n'est plus bleu aéroport : fond noir chaud (#0D0B09)
-     et texte marron doré (#B08D5F) — signature « Luxe Silencieux ».
-     Les accents actifs utilisent un marron plus saturé (#C9A961 champagne). */
-  --sidebar: #0d0b09;
-  --sidebar-foreground: #b08d5f;
-  --sidebar-primary: #c9a961;
-  --sidebar-primary-foreground: #1a1508;
-  --sidebar-accent: #241d14;
-  --sidebar-accent-foreground: #d4b47f;
-  --sidebar-border: rgba(201, 169, 97, 0.18);
-  --sidebar-ring: rgba(201, 169, 97, 0.5);
+  /* ============================================================
+     HARMONISATION HYER AVIATION (design system Refero)
+     Monochrome + UNE note chaude :
+       Deep Ink #000d10 · Pure White #ffffff · Cool Ash #8e8e95
+       Pebble #d5d3d4 · Midnight Hull #0f0f1c · Charcoal Deck #151623
+       Clay Ember #bc7155 (accent UNIQUE)
+     Radius : 0 (cartes carrées) · pills 1000px (composants dédiés)
+     ============================================================ */
+  --radius: 0rem;
+  --background: #ffffff;
+  --foreground: #000d10;
+  --card: #ffffff;
+  --card-foreground: #000d10;
+  --popover: #ffffff;
+  --popover-foreground: #000d10;
+  --primary: #000d10;
+  --primary-foreground: #ffffff;
+  --secondary: #f2f1ef;
+  --secondary-foreground: #000d10;
+  --muted: #f2f1ef;
+  --muted-foreground: #8e8e95;
+  --accent: #bc7155;
+  --accent-foreground: #ffffff;
+  --destructive: #b23b2e;
+  --border: #d5d3d4;
+  --input: #d5d3d4;
+  --ring: #000d10;
+  --chart-1: #bc7155;
+  --chart-2: #000d10;
+  --chart-3: #8e8e95;
+  --chart-4: #d5d3d4;
+  --chart-5: #0f0f1c;
+  /* Sidebar Midnight Hull + Cool Ash, accent Clay Ember */
+  --sidebar: #0f0f1c;
+  --sidebar-foreground: #a9adb6;
+  --sidebar-primary: #bc7155;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #151623;
+  --sidebar-accent-foreground: #e5e6e9;
+  --sidebar-border: rgba(255, 255, 255, 0.10);
+  --sidebar-ring: rgba(188, 113, 85, 0.5);
 }
 
 .dark {
-  /* Mode sombre luxueux bleuté — fond très sombre avec une légère
-     teinte bleue (oklch chroma 0.02-0.03 sur les neutres), cartes
-     légèrement plus claires avec même teinte, bordures bleutées.
-     Le primary reste le bleu FeedbackPro mais un peu plus lumineux. */
-  --background: oklch(0.16 0.02 264);
-  --foreground: oklch(0.96 0.01 240);
-  --card: oklch(0.22 0.025 264);
-  --card-foreground: oklch(0.96 0.01 240);
-  --popover: oklch(0.22 0.025 264);
-  --popover-foreground: oklch(0.96 0.01 240);
-  --primary: oklch(0.55 0.18 264);
-  --primary-foreground: oklch(0.12 0.02 264);
-  --secondary: oklch(0.28 0.03 264);
-  --secondary-foreground: oklch(0.96 0.01 240);
-  --muted: oklch(0.28 0.03 264);
-  --muted-foreground: oklch(0.72 0.02 240);
-  --accent: oklch(0.30 0.04 264);
-  --accent-foreground: oklch(0.96 0.01 240);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(0.35 0.03 264 / 50%);
-  --input: oklch(0.35 0.03 264 / 60%);
-  --ring: oklch(0.60 0.18 264);
-  --chart-1: oklch(0.546 0.245 262.881);
-  --chart-2: oklch(0.707 0.165 254.624);
-  --chart-3: oklch(0.554 0.046 257.417);
-  --chart-4: oklch(0.809 0.105 251.813);
-  --chart-5: oklch(0.623 0.214 259.815);
-  /* Sidebar noir + marron identique en mode sombre (cohérence V3) */
-  --sidebar: oklch(0.14 0.008 80);
-  --sidebar-foreground: #b08d5f;
-  --sidebar-primary: #c9a961;
-  --sidebar-primary-foreground: #1a1508;
-  --sidebar-accent: oklch(0.24 0.02 80);
-  --sidebar-accent-foreground: #d4b47f;
-  --sidebar-border: rgba(201, 169, 97, 0.22);
-  --sidebar-ring: rgba(201, 169, 97, 0.5);
+  /* Mode sombre Hyer — Midnight Hull / Charcoal Deck, accent Clay Ember */
+  --background: #0f0f1c;
+  --foreground: #f2f1ef;
+  --card: #151623;
+  --card-foreground: #f2f1ef;
+  --popover: #151623;
+  --popover-foreground: #f2f1ef;
+  --primary: #f2f1ef;
+  --primary-foreground: #0f0f1c;
+  --secondary: #1c1d2c;
+  --secondary-foreground: #f2f1ef;
+  --muted: #1c1d2c;
+  --muted-foreground: #8e8e95;
+  --accent: #bc7155;
+  --accent-foreground: #ffffff;
+  --destructive: #d26a5c;
+  --border: rgba(213, 211, 212, 0.18);
+  --input: rgba(213, 211, 212, 0.24);
+  --ring: #bc7155;
+  --chart-1: #bc7155;
+  --chart-2: #d5d3d4;
+  --chart-3: #8e8e95;
+  --chart-4: #4b4d5e;
+  --chart-5: #bc7155;
+  /* Sidebar identique en mode sombre (cohérence Hyer) */
+  --sidebar: #0f0f1c;
+  --sidebar-foreground: #a9adb6;
+  --sidebar-primary: #bc7155;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #151623;
+  --sidebar-accent-foreground: #e5e6e9;
+  --sidebar-border: rgba(255, 255, 255, 0.12);
+  --sidebar-ring: rgba(188, 113, 85, 0.5);
 }
 
 @layer base {
@@ -170,7 +170,7 @@
   background: oklch(0.35 0 0);
 }
 
-/* ---------- Scrollbar sidebar admin (fond navy #003399) ---------- */
+/* ---------- Scrollbar sidebar admin (fond Midnight Hull) ---------- */
 /* Scrollbar bien visible (10px) pour indiquer qu'on peut scroller (21 onglets) */
 .admin-sidebar-nav::-webkit-scrollbar {
   width: 10px;
@@ -187,7 +187,7 @@
   background-clip: padding-box;
 }
 .admin-sidebar-nav::-webkit-scrollbar-thumb:hover {
-  background: rgba(252, 209, 22, 0.6);
+  background: rgba(188, 113, 85, 0.65);
   background-clip: padding-box;
   border: 2px solid transparent;
 }
@@ -279,7 +279,7 @@ html { scroll-behavior: smooth; }
 
 /* Gradient texte signature (bleu profond FeedbackPro) */
 .fp-text-gradient {
-  background: linear-gradient(135deg, #002e85, #0047c7, #002e85);
+  background: linear-gradient(135deg, #0f0f1c, #0f0f1c, #0f0f1c);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -287,10 +287,10 @@ html { scroll-behavior: smooth; }
 
 /* Gradient bleu profond pour boutons / surfaces */
 .fp-bg-gradient {
-  background: linear-gradient(135deg, #002e85 0%, #0047c7 100%);
+  background: linear-gradient(135deg, #0f0f1c 0%, #0f0f1c 100%);
 }
 .fp-bg-gradient-warm {
-  background: linear-gradient(135deg, #002e85 0%, #0047c7 100%);
+  background: linear-gradient(135deg, #0f0f1c 0%, #0f0f1c 100%);
 }
 
 /* Float animation pour mockup 3D */
@@ -350,7 +350,7 @@ html { scroll-behavior: smooth; }
   inset: 0;
   padding: 2px;
   border-radius: inherit;
-  background: linear-gradient(135deg, #002e85, #0047c7, #002e85);
+  background: linear-gradient(135deg, #0f0f1c, #0f0f1c, #0f0f1c);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
           mask-composite: exclude;
@@ -549,7 +549,7 @@ html { scroll-behavior: smooth; }
   inset: 0;
   padding: 2px;
   border-radius: inherit;
-  background: linear-gradient(135deg, #002e85, #0047c7, #002e85);
+  background: linear-gradient(135deg, #0f0f1c, #0f0f1c, #0f0f1c);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
           mask-composite: exclude;
@@ -586,7 +586,7 @@ html { scroll-behavior: smooth; }
 /* ============================================================
    Refonte QRTags — wizard plein écran couleur (bleu FeedbackPro)
    ------------------------------------------------------------
-   - fond bleu plein (bg-blue-600) qui vire au vert (positif) ou
+   - fond bleu plein (bg-[#3c3e4c]) qui vire au vert (positif) ou
      au rouge (négatif) à l'étape 1 — transition douce 500 ms
    - cards blanches border-2 border-gray-900, inversion au clic
      (bg-gray-900 text-white) — pas de glassmorphism
@@ -657,46 +657,46 @@ html { scroll-behavior: smooth; }
 }
 
 /* ============================================================
-   Task 4 — White-label : surcharge de la couleur #002e85 par la
+   Task 4 — White-label : surcharge de la couleur #0f0f1c par la
    couleur de marque du Pro (variable CSS --fp-brand posée sur la
    racine du scan-view). Les classes Tailwind arbitraires
-   text-[#002e85], bg-[#002e85], border-[#002e85] sont redéfinies
+   text-[#0f0f1c], bg-[#0f0f1c], border-[#0f0f1c] sont redéfinies
    pour utiliser var(--fp-brand) lorsque l'attribut data-fp-brand="1"
    est posé sur la racine du scan-view.
    ============================================================ */
 [data-fp-brand="1"] {
-  --fp-brand: #002e85;
+  --fp-brand: #0f0f1c;
   --fp-brand-rgb: 0, 46, 133;
 }
-[data-fp-brand="1"].text-\[\#002e85\],
-[data-fp-brand="1"] .text-\[\#002e85\] {
+[data-fp-brand="1"].text-\[\#0f0f1c\],
+[data-fp-brand="1"] .text-\[\#0f0f1c\] {
   color: var(--fp-brand) !important;
 }
-[data-fp-brand="1"].bg-\[\#002e85\],
-[data-fp-brand="1"] .bg-\[\#002e85\] {
+[data-fp-brand="1"].bg-\[\#0f0f1c\],
+[data-fp-brand="1"] .bg-\[\#0f0f1c\] {
   background-color: var(--fp-brand) !important;
 }
-[data-fp-brand="1"].border-\[\#002e85\],
-[data-fp-brand="1"] .border-\[\#002e85\] {
+[data-fp-brand="1"].border-\[\#0f0f1c\],
+[data-fp-brand="1"] .border-\[\#0f0f1c\] {
   border-color: var(--fp-brand) !important;
 }
-[data-fp-brand="1"].border-2.border-\[\#002e85\],
-[data-fp-brand="1"] .border-2.border-\[\#002e85\] {
+[data-fp-brand="1"].border-2.border-\[\#0f0f1c\],
+[data-fp-brand="1"] .border-2.border-\[\#0f0f1c\] {
   border-color: var(--fp-brand) !important;
 }
-[data-fp-brand="1"] .text-\[\#002e85\]\/85 { color: color-mix(in srgb, var(--fp-brand) 85%, transparent) !important; }
-[data-fp-brand="1"] .text-\[\#002e85\]\/80 { color: color-mix(in srgb, var(--fp-brand) 80%, transparent) !important; }
-[data-fp-brand="1"] .text-\[\#002e85\]\/70 { color: color-mix(in srgb, var(--fp-brand) 70%, transparent) !important; }
-[data-fp-brand="1"] .text-\[\#002e85\]\/60 { color: color-mix(in srgb, var(--fp-brand) 60%, transparent) !important; }
-[data-fp-brand="1"] .text-\[\#002e85\]\/90 { color: color-mix(in srgb, var(--fp-brand) 90%, transparent) !important; }
-[data-fp-brand="1"] .bg-\[\#002e85\]\/10 { background-color: color-mix(in srgb, var(--fp-brand) 10%, transparent) !important; }
-[data-fp-brand="1"] .bg-\[\#002e85\]\/5 { background-color: color-mix(in srgb, var(--fp-brand) 5%, transparent) !important; }
-[data-fp-brand="1"] .bg-\[\#002e85\]\/20 { background-color: color-mix(in srgb, var(--fp-brand) 20%, transparent) !important; }
-[data-fp-brand="1"] .border-\[\#002e85\]\/30 { border-color: color-mix(in srgb, var(--fp-brand) 30%, transparent) !important; }
-[data-fp-brand="1"] .border-\[\#002e85\]\/80 { border-color: color-mix(in srgb, var(--fp-brand) 80%, transparent) !important; }
-[data-fp-brand="1"] .via-\[\#002e85\]\/30 { --tw-gradient-via: color-mix(in srgb, var(--fp-brand) 30%, transparent) !important; }
-[data-fp-brand="1"] .ring-\[\#002e85\] { --tw-ring-color: var(--fp-brand) !important; }
-[data-fp-brand="1"] .ring-offset-\[\#002e85\] { --tw-ring-offset-color: var(--fp-brand) !important; }
+[data-fp-brand="1"] .text-\[\#0f0f1c\]\/85 { color: color-mix(in srgb, var(--fp-brand) 85%, transparent) !important; }
+[data-fp-brand="1"] .text-\[\#0f0f1c\]\/80 { color: color-mix(in srgb, var(--fp-brand) 80%, transparent) !important; }
+[data-fp-brand="1"] .text-\[\#0f0f1c\]\/70 { color: color-mix(in srgb, var(--fp-brand) 70%, transparent) !important; }
+[data-fp-brand="1"] .text-\[\#0f0f1c\]\/60 { color: color-mix(in srgb, var(--fp-brand) 60%, transparent) !important; }
+[data-fp-brand="1"] .text-\[\#0f0f1c\]\/90 { color: color-mix(in srgb, var(--fp-brand) 90%, transparent) !important; }
+[data-fp-brand="1"] .bg-\[\#0f0f1c\]\/10 { background-color: color-mix(in srgb, var(--fp-brand) 10%, transparent) !important; }
+[data-fp-brand="1"] .bg-\[\#0f0f1c\]\/5 { background-color: color-mix(in srgb, var(--fp-brand) 5%, transparent) !important; }
+[data-fp-brand="1"] .bg-\[\#0f0f1c\]\/20 { background-color: color-mix(in srgb, var(--fp-brand) 20%, transparent) !important; }
+[data-fp-brand="1"] .border-\[\#0f0f1c\]\/30 { border-color: color-mix(in srgb, var(--fp-brand) 30%, transparent) !important; }
+[data-fp-brand="1"] .border-\[\#0f0f1c\]\/80 { border-color: color-mix(in srgb, var(--fp-brand) 80%, transparent) !important; }
+[data-fp-brand="1"] .via-\[\#0f0f1c\]\/30 { --tw-gradient-via: color-mix(in srgb, var(--fp-brand) 30%, transparent) !important; }
+[data-fp-brand="1"] .ring-\[\#0f0f1c\] { --tw-ring-color: var(--fp-brand) !important; }
+[data-fp-brand="1"] .ring-offset-\[\#0f0f1c\] { --tw-ring-offset-color: var(--fp-brand) !important; }
 
 /* ============================================================
    « Luxe Silencieux » — Typographie corps de texte
@@ -719,16 +719,16 @@ body {
 
    Stratégie identique au white-label ci-dessus : on re-mappe les
    classes Tailwind arbitraires utilisées par vip-dashboard.tsx
-   (blanc cassé #FAFAF7, cartes blanches, texte anthracite
-   #2C2C2C, bronze #8B6F47, bordure #EAE5DC) vers la palette
-   « Mode Sombre Luxe » : anthracite profond #0F0F0F, cartes
+   (blanc cassé #ffffff, cartes blanches, texte anthracite
+   #2C2C2C, bronze #8B6F47, bordure #efe7e0) vers la palette
+   « Mode Sombre Luxe » : anthracite profond #0f0f1c, cartes
    #1A1814, texte ivoire #F2EDE3, bronze doré éclairci.
    Les plaques QR (styles inline marbre/or) restent inchangées.
    ============================================================ */
 .vip-dark {
   color-scheme: dark;
   /* Tokens shadcn — couvre Dialog/Sheet/Select/Popover/Toast/Skeleton */
-  --background: #0f0f0f;
+  --background: #0f0f1c;
   --foreground: #f2ede3;
   --card: #1a1814;
   --card-foreground: #f2ede3;
@@ -747,19 +747,19 @@ body {
 .vip-dark .bg-white { background-color: #1a1814 !important; }
 .vip-dark .bg-white\/80 { background-color: rgba(26, 24, 20, 0.82) !important; }
 .vip-dark .bg-white\/95 { background-color: rgba(26, 24, 20, 0.95) !important; }
-.vip-dark .bg-\[\#FAFAF7\] { background-color: #141210 !important; }
-.vip-dark .bg-\[\#FAFAF7\]\/95 { background-color: rgba(15, 15, 15, 0.95) !important; }
-.vip-dark .bg-\[\#EAE5DC\] { background-color: #2e2921 !important; }
+.vip-dark .bg-\[\#ffffff\] { background-color: #141210 !important; }
+.vip-dark .bg-\[\#ffffff\]\/95 { background-color: rgba(15, 15, 15, 0.95) !important; }
+.vip-dark .bg-\[\#efe7e0\] { background-color: #2e2921 !important; }
 /* Texte : anthracite → ivoire, bronze → doré éclairci */
 .vip-dark .text-\[\#2C2C2C\] { color: #f2ede3 !important; }
 .vip-dark .text-\[\#2C2C2C\]\/70 { color: rgba(242, 237, 227, 0.72) !important; }
-.vip-dark .text-\[\#8B6F47\] { color: #c9a961 !important; }
+.vip-dark .text-\[\#8B6F47\] { color: #bc7155 !important; }
 .vip-dark .text-\[\#8B6F47\]\/80 { color: rgba(201, 169, 97, 0.8) !important; }
 .vip-dark .text-\[\#8B6F47\]\/70 { color: rgba(201, 169, 97, 0.7) !important; }
 .vip-dark .text-\[\#8B6F47\]\/60 { color: rgba(201, 169, 97, 0.6) !important; }
 .vip-dark .text-\[\#8B6F47\]\/50 { color: rgba(201, 169, 97, 0.5) !important; }
 .vip-dark .text-\[\#8B6F47\]\/40 { color: rgba(201, 169, 97, 0.4) !important; }
 /* Bordures : ivoire chaud → filet or discret */
-.vip-dark .border-\[\#EAE5DC\] { border-color: rgba(201, 169, 97, 0.18) !important; }
+.vip-dark .border-\[\#efe7e0\] { border-color: rgba(201, 169, 97, 0.18) !important; }
 /* Gradient décoratif du filet sidebar : invisible sur fond sombre */
 .vip-dark .via-white\/10 { --tw-gradient-via: rgba(201, 169, 97, 0.12) !important; }

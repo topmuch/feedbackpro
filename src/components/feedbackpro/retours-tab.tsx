@@ -413,7 +413,7 @@ const NIVEAU_IA_CONFIG: Record<
   mitige: {
     label: "Mitigé",
     emoji: "⚠️",
-    gradient: "from-amber-500 to-orange-600",
+    gradient: "from-[#bc7155] to-[#a05f45]",
     badgeBg: "bg-white/25",
   },
   positif: {
@@ -667,15 +667,15 @@ function canalLabel(canal: string | null): string {
 
 /** Badge de statut coloré : Nouveau rouge / En cours orange / Résolu vert */
 function statutBadgeClass(statut: string): string {
-  if (statut === "RESOLVED") return "border-green-300 bg-green-50 text-green-800 dark:border-green-800 dark:bg-green-950/40 dark:text-green-300"
-  if (statut === "IN_PROGRESS") return "border-amber-300 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300"
+  if (statut === "RESOLVED") return "border-[#dba28a] bg-[#faf1ec] text-[#6f3f30] dark:border-[#6f3f30] dark:bg-[#3f231b]/40 dark:text-[#dba28a]"
+  if (statut === "IN_PROGRESS") return "border-[#dba28a] bg-[#faf1ec] text-[#6f3f30] dark:border-[#6f3f30] dark:bg-[#3f231b]/40 dark:text-[#dba28a]"
   return "border-rose-300 bg-rose-50 text-rose-800 dark:border-rose-800 dark:bg-rose-950/40 dark:text-rose-300"
 }
 
 /** Couleur de la pastille de la timeline de suivi */
 function pastilleClass(statut: string): string {
-  if (statut === "RESOLVED") return "bg-green-500"
-  if (statut === "IN_PROGRESS") return "bg-amber-500"
+  if (statut === "RESOLVED") return "bg-[#bc7155]"
+  if (statut === "IN_PROGRESS") return "bg-[#bc7155]"
   return "bg-rose-500"
 }
 
@@ -685,9 +685,9 @@ type Urgence = "urgent" | "atraiter" | "mitige" | "positif"
 
 // Code couleur par urgence (spec Refonte Liste) :
 // - 🔴 Urgent   : note ≤ 2 + récidive  → badge "🚨 Urgent"  (bg-red-500    text-white)
-// - 🟠 À traiter: note ≤ 2 isolé       → badge "À traiter" (bg-orange-500 text-white)
+// - 🟠 À traiter: note ≤ 2 isolé       → badge "À traiter" (bg-[#bc7155] text-white)
 // - 🟡 Mitigé   : note = 3             → badge "Mitigé"    (bg-yellow-500 text-white)
-// - 🟢 Positif  : note ≥ 4             → badge "Positif"   (bg-green-500  text-white)
+// - 🟢 Positif  : note ≥ 4             → badge "Positif"   (bg-[#bc7155]  text-white)
 // Les badges sont en fond plein (solid) avec texte blanc, bordure transparente
 // pour un rendu lumineux qui se distingue des autres badges « outline ».
 const URGENCE_CONFIG: Record<Urgence, {
@@ -713,21 +713,21 @@ const URGENCE_CONFIG: Record<Urgence, {
   atraiter: {
     label: "À traiter",
     emoji: "🟠",
-    dot: "bg-orange-500",
-    badge: "border-transparent bg-white/25 text-white shadow-sm shadow-orange-500/30",
-    border: "border-l-orange-500",
-    glow: "hover:shadow-orange-500/40",
-    cardBg: "bg-orange-500",
+    dot: "bg-[#bc7155]",
+    badge: "border-transparent bg-white/25 text-white shadow-sm shadow-[#bc7155]/30",
+    border: "border-l-[#bc7155]",
+    glow: "hover:shadow-[#bc7155]/40",
+    cardBg: "bg-[#bc7155]",
     cardText: "text-white",
   },
   mitige: {
     label: "Mitigé",
     emoji: "🟡",
-    dot: "bg-amber-400",
-    badge: "border-transparent bg-white/25 text-white shadow-sm shadow-amber-400/30",
-    border: "border-l-amber-400",
-    glow: "hover:shadow-amber-400/40",
-    cardBg: "bg-amber-400",
+    dot: "bg-[#c98b72]",
+    badge: "border-transparent bg-white/25 text-white shadow-sm shadow-[#c98b72]/30",
+    border: "border-l-[#c98b72]",
+    glow: "hover:shadow-[#c98b72]/40",
+    cardBg: "bg-[#c98b72]",
     cardText: "text-white",
   },
   positif: {
@@ -1007,13 +1007,13 @@ function MiniGraphiqueRecurrence({
           const estActuel = i === NB_SEAUX - 1
           return (
             <div key={i} className="flex flex-1 flex-col items-center justify-end gap-0.5">
-              <span className="text-[10px] font-medium text-amber-200/90 tabular-nums">
+              <span className="text-[10px] font-medium text-[#e7c1ae]/90 tabular-nums">
                 {b.count > 0 ? b.count : ""}
               </span>
               <div
                 className={cn(
                   "w-full rounded-t-sm transition-all",
-                  estActuel ? "bg-amber-300" : "bg-amber-300/60"
+                  estActuel ? "bg-[#dba28a]" : "bg-[#dba28a]/60"
                 )}
                 style={{ height: `${Math.max(2, hauteurPct)}%` }}
                 title={`${b.count} retour(s) — ${b.label}`}
@@ -1023,7 +1023,7 @@ function MiniGraphiqueRecurrence({
           )
         })}
       </div>
-      <p className="mt-1.5 text-xs text-amber-100/90">
+      <p className="mt-1.5 text-xs text-[#f3ddd2]/90">
         {total} retour{total > 1 ? "s" : ""} similaire{total > 1 ? "s" : ""}
         {tagFrequent ? ` « ${tagLabel(tagFrequent)} »` : ""} sur les 30 derniers jours.
       </p>
@@ -1058,7 +1058,7 @@ function CarteRetour({
   return (
     <Card
       className={cn(
-        "rounded-3xl border-0 shadow-md transition-all duration-200 overflow-hidden",
+        "rounded-none border-0 shadow-md transition-all duration-200 overflow-hidden",
         "hover:shadow-xl hover:-translate-y-0.5",
         cfg.cardBg,
         cfg.cardText,
@@ -1240,7 +1240,7 @@ function GroupeCartes({
   )
 
   return (
-    <Card className="rounded-3xl border bg-card shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 overflow-hidden">
+    <Card className="rounded-none border bg-card shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200 overflow-hidden">
       <button
         type="button"
         onClick={onToggle}
@@ -1260,7 +1260,7 @@ function GroupeCartes({
             {(groupe.retours.reduce((s, r) => s + r.note, 0) / groupe.count).toFixed(1)}/5
           </p>
         </div>
-        <Badge variant="outline" className="border-transparent bg-amber-500 text-white shadow-sm shadow-amber-500/30">
+        <Badge variant="outline" className="border-transparent bg-[#bc7155] text-white shadow-sm shadow-[#bc7155]/30">
           🔁 Récurrence
         </Badge>
         {deploye ? (
@@ -1295,7 +1295,7 @@ function GroupeCartes({
 function BadgeEvolution({ evolution }: { evolution: EvolutionSemaine }) {
   if (evolution.nouveau) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-blue-300 bg-blue-100 px-2 py-0.5 text-[10px] font-semibold text-blue-800 dark:border-blue-700 dark:bg-blue-950/50 dark:text-blue-300">
+      <span className="inline-flex items-center gap-1 rounded-full border border-[#8e8e95] bg-[#dcdee0] px-2 py-0.5 text-[10px] font-semibold text-[#1c1d2c] dark:border-[#2e3040] dark:bg-[#0f0f1c]/50 dark:text-[#8e8e95]">
         <span aria-hidden>🆕</span> Nouveau
       </span>
     )
@@ -1309,7 +1309,7 @@ function BadgeEvolution({ evolution }: { evolution: EvolutionSemaine }) {
   }
   if (evolution.pct < 0) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-emerald-300 bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300" title={`Cette semaine : ${evolution.thisWeek} · Semaine précédente : ${evolution.lastWeek}`}>
+      <span className="inline-flex items-center gap-1 rounded-full border border-[#dba28a] bg-[#f3ddd2] px-2 py-0.5 text-[10px] font-semibold text-[#6f3f30] dark:border-[#8a4f3b] dark:bg-[#3f231b]/50 dark:text-[#dba28a]" title={`Cette semaine : ${evolution.thisWeek} · Semaine précédente : ${evolution.lastWeek}`}>
         <span aria-hidden>↘️</span> {evolution.pct}%
       </span>
     )
@@ -1337,7 +1337,7 @@ function ResumeCoachIA({
   if (priorites.length === 0) return null
 
   return (
-    <Card className="rounded-3xl border-primary/20 bg-primary/[0.04] shadow-sm">
+    <Card className="rounded-none border-primary/20 bg-primary/[0.04] shadow-sm">
       <CardContent className="p-4 sm:p-6 space-y-4">
         <div className="flex items-center gap-2">
           <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary/10 text-primary">
@@ -2074,7 +2074,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
               <div className="ml-auto flex items-center gap-2">
                 {recurrence.count >= 2 && (
                   <Badge
-                    className="h-7 gap-1 px-3 text-sm font-bold bg-amber-400 text-amber-950 border-transparent shadow-sm ring-2 ring-white/40"
+                    className="h-7 gap-1 px-3 text-sm font-bold bg-[#c98b72] text-[#3f231b] border-transparent shadow-sm ring-2 ring-white/40"
                     title={recurrence.libelleTag ? `${ordinalFr(recurrence.count)} signalement « ${recurrence.libelleTag} » ce mois-ci` : undefined}
                   >
                     <span aria-hidden>🔁</span>
@@ -2225,10 +2225,10 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                     ? (detail.note <= 2
                         ? { label: "Critique", emoji: "🔴", cls: "bg-red-100 text-red-800 border-red-300 dark:bg-red-950/50 dark:text-red-300 dark:border-red-800", borderL: "border-l-red-500", bgLight: "bg-red-50/60 dark:bg-red-950/20" }
                         : detail.note === 3
-                          ? { label: "Moyenne", emoji: "🟡", cls: "bg-amber-100 text-amber-800 border-amber-300 dark:bg-amber-950/50 dark:text-amber-300 dark:border-amber-800", borderL: "border-l-amber-500", bgLight: "bg-amber-50/60 dark:bg-amber-950/20" }
-                          : { label: "Élevée", emoji: "🟠", cls: "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-950/50 dark:text-orange-300 dark:border-orange-800", borderL: "border-l-orange-500", bgLight: "bg-orange-50/60 dark:bg-orange-950/20" })
+                          ? { label: "Moyenne", emoji: "🟡", cls: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a] dark:bg-[#3f231b]/50 dark:text-[#dba28a] dark:border-[#6f3f30]", borderL: "border-l-[#bc7155]", bgLight: "bg-[#faf1ec]/60 dark:bg-[#3f231b]/20" }
+                          : { label: "Élevée", emoji: "🟠", cls: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a] dark:bg-[#3f231b]/50 dark:text-[#dba28a] dark:border-[#6f3f30]", borderL: "border-l-[#bc7155]", bgLight: "bg-[#faf1ec]/60 dark:bg-[#3f231b]/20" })
                     : pos
-                      ? { label: "OK", emoji: "🟢", cls: "bg-green-100 text-green-800 border-green-300 dark:bg-green-950/50 dark:text-green-300 dark:border-green-800", borderL: "border-l-green-500", bgLight: "bg-green-50/60 dark:bg-green-950/20" }
+                      ? { label: "OK", emoji: "🟢", cls: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a] dark:bg-[#3f231b]/50 dark:text-[#dba28a] dark:border-[#6f3f30]", borderL: "border-l-[#bc7155]", bgLight: "bg-[#faf1ec]/60 dark:bg-[#3f231b]/20" }
                       : { label: "Neutre", emoji: "⚪", cls: "bg-gray-100 text-gray-800 border-gray-300 dark:bg-muted dark:text-muted-foreground dark:border-border", borderL: "border-l-gray-300 dark:border-l-border", bgLight: "" }
                   return (
                     <div
@@ -2448,21 +2448,21 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
             Visible seulement si le Pro a configuré une récompense (active + texte)
             OU si le retour a consommé une récompense (detail.recompenseUtilisee). */}
         {recompenseVisible && (
-          <Card className="rounded-2xl border-amber-200 bg-amber-50 shadow-sm dark:border-amber-800/60 dark:bg-amber-950/30">
+          <Card className="rounded-2xl border-[#e7c1ae] bg-[#faf1ec] shadow-sm dark:border-[#6f3f30]/60 dark:bg-[#3f231b]/30">
             <CardContent className="p-4 sm:p-6 space-y-3">
               <div className="flex items-center gap-2">
-                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-amber-200/70 dark:bg-amber-900/50" aria-hidden>
+                <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#e7c1ae]/70 dark:bg-[#573125]/50" aria-hidden>
                   <span className="text-lg">🎁</span>
                 </span>
-                <h3 className="text-sm font-semibold text-amber-900 dark:text-amber-200">
+                <h3 className="text-sm font-semibold text-[#573125] dark:text-[#e7c1ae]">
                   Récompense client
                 </h3>
                 {detail.recompenseUtilisee ? (
-                  <Badge variant="outline" className="ml-auto h-6 gap-1 px-2 text-xs font-semibold border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-300">
+                  <Badge variant="outline" className="ml-auto h-6 gap-1 px-2 text-xs font-semibold border-[#dba28a] bg-[#f3ddd2] text-[#6f3f30] dark:border-[#8a4f3b] dark:bg-[#3f231b]/50 dark:text-[#dba28a]">
                     ✅ Utilisé
                   </Badge>
                 ) : (
-                  <Badge variant="outline" className="ml-auto h-6 gap-1 px-2 text-xs font-semibold border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-700 dark:bg-amber-950/50 dark:text-amber-300">
+                  <Badge variant="outline" className="ml-auto h-6 gap-1 px-2 text-xs font-semibold border-[#dba28a] bg-[#f3ddd2] text-[#6f3f30] dark:border-[#8a4f3b] dark:bg-[#3f231b]/50 dark:text-[#dba28a]">
                     ⏳ En attente
                   </Badge>
                 )}
@@ -2470,20 +2470,20 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
               <dl className="grid gap-2 text-sm sm:grid-cols-2">
                 {proRecompenseType && (
                   <div>
-                    <dt className="text-xs font-medium text-amber-800/70 dark:text-amber-300/70">Type</dt>
-                    <dd className="font-medium text-amber-900 dark:text-amber-100">{proRecompenseType}</dd>
+                    <dt className="text-xs font-medium text-[#6f3f30]/70 dark:text-[#dba28a]/70">Type</dt>
+                    <dd className="font-medium text-[#573125] dark:text-[#f3ddd2]">{proRecompenseType}</dd>
                   </div>
                 )}
                 {proRecompenseCode && (
                   <div>
-                    <dt className="text-xs font-medium text-amber-800/70 dark:text-amber-300/70">Code</dt>
-                    <dd className="font-mono font-semibold text-amber-900 dark:text-amber-100">{proRecompenseCode}</dd>
+                    <dt className="text-xs font-medium text-[#6f3f30]/70 dark:text-[#dba28a]/70">Code</dt>
+                    <dd className="font-mono font-semibold text-[#573125] dark:text-[#f3ddd2]">{proRecompenseCode}</dd>
                   </div>
                 )}
                 {proRecompense && (
                   <div className="sm:col-span-2">
-                    <dt className="text-xs font-medium text-amber-800/70 dark:text-amber-300/70">Texte affiché au client</dt>
-                    <dd className="text-amber-900 dark:text-amber-100">{proRecompense}</dd>
+                    <dt className="text-xs font-medium text-[#6f3f30]/70 dark:text-[#dba28a]/70">Texte affiché au client</dt>
+                    <dd className="text-[#573125] dark:text-[#f3ddd2]">{proRecompense}</dd>
                   </div>
                 )}
               </dl>
@@ -2641,8 +2641,8 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                         className={cn(
                           "inline-flex items-center gap-1.5 rounded-full border px-4 h-12 text-sm font-medium transition-all",
                           selected
-                            ? "border-[#003399] bg-[#003399] text-white shadow-md hover:bg-[#003399]/90"
-                            : "border-border bg-background text-foreground hover:bg-muted hover:border-[#003399]/40"
+                            ? "border-[#000d10] bg-[#000d10] text-white shadow-md hover:bg-[#000d10]/90"
+                            : "border-border bg-background text-foreground hover:bg-muted hover:border-[#000d10]/40"
                         )}
                       >
                         <span aria-hidden>{selected ? "✅" : "⬜"}</span>
@@ -2678,8 +2678,8 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                     const cls = s === "NEW"
                       ? "border-rose-300 bg-rose-100 text-rose-800 dark:border-rose-800 dark:bg-rose-950/50 dark:text-rose-300"
                       : s === "IN_PROGRESS"
-                        ? "border-amber-300 bg-amber-100 text-amber-800 dark:border-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
-                        : "border-emerald-300 bg-emerald-100 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-950/50 dark:text-emerald-300"
+                        ? "border-[#dba28a] bg-[#f3ddd2] text-[#6f3f30] dark:border-[#6f3f30] dark:bg-[#3f231b]/50 dark:text-[#dba28a]"
+                        : "border-[#dba28a] bg-[#f3ddd2] text-[#6f3f30] dark:border-[#6f3f30] dark:bg-[#3f231b]/50 dark:text-[#dba28a]"
                     return (
                       <button
                         key={s}
@@ -2721,7 +2721,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                 </div>
               )}
               <Button
-                className="w-full h-14 gap-1.5 text-base font-bold bg-[#003399] hover:bg-[#003399]/90 shadow-lg shadow-[#003399]/30 transition-all hover:shadow-xl hover:shadow-[#003399]/40"
+                className="w-full h-14 gap-1.5 text-base font-bold bg-[#000d10] hover:bg-[#000d10]/90 shadow-lg shadow-[#000d10]/30 transition-all hover:shadow-xl hover:shadow-[#000d10]/40"
                 onClick={enregistrerAction}
                 disabled={envoiAction || (actionTagsSelectionnes.size === 0 && !texteAction.trim())}
               >
@@ -2735,8 +2735,8 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
 
               {/* Aperçu de la dernière action enregistrée (si existe) */}
               {detail.actionPrise && (
-                <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 dark:border-emerald-800/60 dark:bg-emerald-950/30">
-                  <p className="mb-1 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                <div className="rounded-xl border border-[#e7c1ae] bg-[#faf1ec] px-4 py-3 dark:border-[#6f3f30]/60 dark:bg-[#3f231b]/30">
+                  <p className="mb-1 text-xs font-medium text-[#8a4f3b] dark:text-[#c98b72]">
                     Dernière action enregistrée
                   </p>
                   <p className="text-sm leading-relaxed whitespace-pre-wrap">{detail.actionPrise}</p>
@@ -2756,7 +2756,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                   Réponse au client
                 </h3>
                 {detail.emailClient ? (
-                  <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] font-normal text-blue-700 dark:text-blue-300">
+                  <Badge variant="outline" className="h-5 gap-1 px-1.5 text-[10px] font-normal text-[#2e3040] dark:text-[#8e8e95]">
                     <Send className="h-3 w-3" aria-hidden />
                     {detail.emailClient}
                   </Badge>
@@ -2764,7 +2764,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                   <TooltipProvider delayDuration={200}>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <span className="inline-flex items-center gap-1 rounded-full border border-amber-300 bg-amber-50 px-1.5 py-0.5 text-[10px] font-normal text-amber-700 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+                        <span className="inline-flex items-center gap-1 rounded-full border border-[#dba28a] bg-[#faf1ec] px-1.5 py-0.5 text-[10px] font-normal text-[#8a4f3b] dark:border-[#6f3f30] dark:bg-[#3f231b]/40 dark:text-[#dba28a]">
                           Pas d'email client
                         </span>
                       </TooltipTrigger>
@@ -2900,7 +2900,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                 <div className="grid gap-3 sm:grid-cols-2">
                   {/* Points forts */}
                   <div className="rounded-lg border bg-card p-3">
-                    <p className="mb-2 text-xs font-medium text-emerald-700 dark:text-emerald-400">
+                    <p className="mb-2 text-xs font-medium text-[#8a4f3b] dark:text-[#c98b72]">
                       Points forts
                     </p>
                     {statsEmp.pointsForts.length > 0 ? (
@@ -2908,7 +2908,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                         {statsEmp.pointsForts.map((p) => (
                           <li key={p.tag} className="flex items-center justify-between gap-2 text-sm">
                             <span className="truncate">{p.label}</span>
-                            <Badge variant="outline" className="h-5 shrink-0 border-emerald-300 bg-emerald-50 px-1.5 text-[10px] text-emerald-700 dark:border-emerald-700/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                            <Badge variant="outline" className="h-5 shrink-0 border-[#dba28a] bg-[#faf1ec] px-1.5 text-[10px] text-[#8a4f3b] dark:border-[#8a4f3b]/60 dark:bg-[#3f231b]/40 dark:text-[#dba28a]">
                               ×{p.count}
                             </Badge>
                           </li>
@@ -3051,8 +3051,8 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
 
       {/* ---------- Carte résumé signalements aéroport (uniquement secteur Aéroport) ---------- */}
       {isAirport && airportStats && (
-        <div className="overflow-hidden rounded-2xl border border-amber-200/60 bg-gradient-to-br from-amber-50 via-card to-emerald-50/30 shadow-sm dark:border-amber-900/40 dark:from-amber-950/20 dark:to-emerald-950/10">
-          <div className="flex items-center gap-3 border-b border-amber-200/40 bg-gradient-to-r from-amber-100/50 to-emerald-100/30 px-5 py-3 dark:from-amber-950/30 dark:to-emerald-950/20">
+        <div className="overflow-hidden rounded-2xl border border-[#e7c1ae]/60 bg-gradient-to-br from-[#faf1ec] via-card to-[#faf1ec]/30 shadow-sm dark:border-[#573125]/40 dark:from-[#3f231b]/20 dark:to-[#3f231b]/10">
+          <div className="flex items-center gap-3 border-b border-[#e7c1ae]/40 bg-gradient-to-r from-[#f3ddd2]/50 to-[#f3ddd2]/30 px-5 py-3 dark:from-[#3f231b]/30 dark:to-[#3f231b]/20">
             <span className="text-xl">✈️</span>
             <div className="flex-1">
               <h2 className="text-sm font-bold tracking-tight text-foreground">Signalements aéroport (24h)</h2>
@@ -3066,7 +3066,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                   window.dispatchEvent(new PopStateEvent("popstate"))
                 }
               }}
-              className="rounded-lg bg-amber-500 px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-amber-600"
+              className="rounded-lg bg-[#bc7155] px-3 py-1.5 text-xs font-bold text-white shadow-sm transition-colors hover:bg-[#a05f45]"
             >
               Voir les signalements →
             </button>
@@ -3076,16 +3076,16 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
               <p className="text-2xl font-bold tabular-nums text-foreground">{airportStats.total_24h}</p>
               <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Total 24h</p>
             </div>
-            <div className="rounded-xl bg-amber-50 p-3 text-center dark:bg-amber-950/20">
-              <p className="text-2xl font-bold tabular-nums text-amber-600 dark:text-amber-400">{airportStats.en_attente}</p>
+            <div className="rounded-xl bg-[#faf1ec] p-3 text-center dark:bg-[#3f231b]/20">
+              <p className="text-2xl font-bold tabular-nums text-[#a05f45] dark:text-[#c98b72]">{airportStats.en_attente}</p>
               <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">En attente</p>
             </div>
-            <div className="rounded-xl bg-sky-50 p-3 text-center dark:bg-sky-950/20">
-              <p className="text-2xl font-bold tabular-nums text-sky-600 dark:text-sky-400">{airportStats.en_cours}</p>
+            <div className="rounded-xl bg-[#f0f1f2] p-3 text-center dark:bg-[#0f0f1c]/20">
+              <p className="text-2xl font-bold tabular-nums text-[#3c3e4c] dark:text-[#5e6070]">{airportStats.en_cours}</p>
               <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">En cours</p>
             </div>
-            <div className="rounded-xl bg-emerald-50 p-3 text-center dark:bg-emerald-950/20">
-              <p className="text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">{airportStats.resolus_24h}</p>
+            <div className="rounded-xl bg-[#faf1ec] p-3 text-center dark:bg-[#3f231b]/20">
+              <p className="text-2xl font-bold tabular-nums text-[#a05f45] dark:text-[#c98b72]">{airportStats.resolus_24h}</p>
               <p className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">Résolus</p>
             </div>
           </div>
@@ -3105,7 +3105,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
       )}
 
       {/* ---------- 2. Filtres intelligents (pills) ---------- */}
-      <Card className="rounded-3xl shadow-sm">
+      <Card className="rounded-none shadow-sm">
         <CardContent className="p-4 sm:p-5 space-y-3">
           {/* Ligne 1 : pills dropdowns (Zone / Employé / Note / Statut / Tag) */}
           <div className="flex flex-wrap items-center gap-2">
@@ -3248,7 +3248,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
                 fRapide === "urgent"
-                  ? "bg-[#003399] text-white dark:bg-primary"
+                  ? "bg-[#000d10] text-white dark:bg-primary"
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
               )}
             >
@@ -3266,7 +3266,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
                 fRapide === "inprogress"
-                  ? "bg-[#003399] text-white dark:bg-primary"
+                  ? "bg-[#000d10] text-white dark:bg-primary"
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
               )}
             >
@@ -3284,7 +3284,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
               className={cn(
                 "inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
                 fRapide === "resolved"
-                  ? "bg-[#003399] text-white dark:bg-primary"
+                  ? "bg-[#000d10] text-white dark:bg-primary"
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
               )}
             >
@@ -3313,7 +3313,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                 className={cn(
                   "rounded-full px-3 py-1.5 text-xs font-medium transition-colors",
                   fTemporel === opt.id
-                    ? "bg-[#003399] text-white dark:bg-primary"
+                    ? "bg-[#000d10] text-white dark:bg-primary"
                     : "bg-muted text-muted-foreground hover:bg-muted/80"
                 )}
               >
@@ -3386,12 +3386,12 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
       {loading ? (
         <div className="space-y-3">
           {[0, 1, 2, 3, 4].map((i) => (
-            <Skeleton key={i} className="h-32 rounded-3xl" />
+            <Skeleton key={i} className="h-32 rounded-none" />
           ))}
         </div>
       ) : itemsFiltresClient.length === 0 ? (
         // Empty state soigné
-        <Card className="rounded-3xl shadow-sm">
+        <Card className="rounded-none shadow-sm">
           <CardContent className="flex flex-col items-center gap-3 py-14 text-center">
             <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-muted" aria-hidden>
               <Inbox className="h-7 w-7 text-muted-foreground" />
@@ -3504,13 +3504,13 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div className="rounded-lg border bg-card p-3">
-                      <p className="mb-2 text-xs font-medium text-emerald-700 dark:text-emerald-400">Points forts</p>
+                      <p className="mb-2 text-xs font-medium text-[#8a4f3b] dark:text-[#c98b72]">Points forts</p>
                       {stats.pointsForts.length > 0 ? (
                         <ul className="space-y-1.5">
                           {stats.pointsForts.map((p) => (
                             <li key={p.tag} className="flex items-center justify-between gap-2 text-sm">
                               <span className="truncate">{p.label}</span>
-                              <Badge variant="outline" className="h-5 shrink-0 border-emerald-300 bg-emerald-50 px-1.5 text-[10px] text-emerald-700 dark:border-emerald-700/60 dark:bg-emerald-950/40 dark:text-emerald-300">
+                              <Badge variant="outline" className="h-5 shrink-0 border-[#dba28a] bg-[#faf1ec] px-1.5 text-[10px] text-[#8a4f3b] dark:border-[#8a4f3b]/60 dark:bg-[#3f231b]/40 dark:text-[#dba28a]">
                                 ×{p.count}
                               </Badge>
                             </li>

@@ -58,13 +58,13 @@ type ZoneLegere = { id: string; nom: string }
 function classeStatut(statut: string): string {
   switch (statut) {
     case "A_IMPRIMER":
-      return "border-amber-300 bg-amber-50 text-amber-800 hover:bg-amber-50 dark:bg-amber-950/40 dark:text-amber-300"
+      return "border-[#dba28a] bg-[#faf1ec] text-[#6f3f30] hover:bg-[#faf1ec] dark:bg-[#3f231b]/40 dark:text-[#dba28a]"
     case "IMPRIME":
       return "border-primary/30 bg-primary/5 text-primary hover:bg-primary/5"
     case "EXPEDIE":
       return "border-border bg-muted text-muted-foreground hover:bg-muted"
     case "LIVRE":
-      return "border-green-300 bg-green-50 text-green-800 hover:bg-green-50 dark:bg-green-950/40 dark:text-green-300"
+      return "border-[#dba28a] bg-[#faf1ec] text-[#6f3f30] hover:bg-[#faf1ec] dark:bg-[#3f231b]/40 dark:text-[#dba28a]"
     default:
       return ""
   }

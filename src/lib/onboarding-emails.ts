@@ -28,7 +28,7 @@ function escapeHtml(v: string): string {
     .replace(/'/g, "&#39;")
 }
 
-const BLEU = "#2563EB"
+const BLEU = "#000d10"
 
 /** Bouton d'action commun */
 function bouton(label: string, href: string): string {
@@ -130,9 +130,9 @@ export function emailOnboardingJour3(nomEtablissement: string): { sujet: string;
       3 jours après votre inscription, c'est le moment de vérifier que vos QR codes sont bien en
       place. Le bon positionnement multiplie le taux de retours par 3.
     </p>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#eff6ff;border-radius:8px;margin:0 0 16px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0f1f2;border-radius:8px;margin:0 0 16px;">
       <tr><td style="padding:16px 20px;">
-        <p style="margin:0 0 8px;font-size:14px;font-weight:600;color:#1e3a8a;">📍 Où placer vos QR codes ?</p>
+        <p style="margin:0 0 8px;font-size:14px;font-weight:600;color:#0f0f1c;">📍 Où placer vos QR codes ?</p>
         <ul style="margin:0;padding-left:20px;font-size:13px;line-height:1.7;color:#44403c;">
           <li><strong>Accueil / Caisse</strong> — visible dès l'arrivée, à hauteur des yeux</li>
           <li><strong>Table / Salle</strong> — sur chaque table ou chevalet à proximité</li>
@@ -174,9 +174,9 @@ export function emailOnboardingJour7(
       de vos clients mystères. Il vous donne chaque jour <strong>3 priorités concrètes</strong> pour
       améliorer votre service.
     </p>
-    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#eff6ff;border-radius:8px;margin:0 0 16px;">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f0f1f2;border-radius:8px;margin:0 0 16px;">
       <tr><td style="padding:16px 20px;">
-        <p style="margin:0;font-size:14px;line-height:1.7;color:#1e3a8a;">
+        <p style="margin:0;font-size:14px;line-height:1.7;color:#0f0f1c;">
           ⭐ Le Coach IA croise les notes, les tags et les commentaires de vos clients pour
           identifier les axes d'amélioration prioritaires. Plus vous avez de retours, plus l'audit
           est précis.
@@ -203,7 +203,7 @@ function enveloppe(titre: string, corps: string): string {
         <!-- En-tête -->
         <tr><td style="background-color:${BLEU};padding:24px 32px;">
           <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;">FeedbackPro</p>
-          <p style="margin:4px 0 0;font-size:13px;color:#dbeafe;">Le Coach IA d'Audit Qualité Continu</p>
+          <p style="margin:4px 0 0;font-size:13px;color:#dcdee0;">Le Coach IA d'Audit Qualité Continu</p>
         </td></tr>
         <!-- Corps -->
         <tr><td style="padding:32px;">${corps}</td></tr>

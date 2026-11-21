@@ -29,7 +29,7 @@
 //   - accents amber (sélection du problème)
 //   - accents emerald (succès + opt-in WhatsApp)
 //   - rose pour l'action critique de signalement
-//   Aucun indigo / bleu FeedbackPro (#002e85 / bg-primary) —
+//   Aucun indigo / bleu FeedbackPro (#0f0f1c / bg-primary) —
 //   l'expérience voyageur doit se distinguer du reste de l'app.
 // ============================================================
 
@@ -1278,15 +1278,15 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
   if (phase === "loading") {
     return (
       <div
-        className="flex min-h-screen flex-col items-center justify-center bg-[#0F172A] px-6 text-white"
+        className="flex min-h-screen flex-col items-center justify-center bg-[#0f0f1c] px-6 text-white"
         aria-busy="true"
         aria-live="polite"
       >
         <div className="flex flex-col items-center gap-5">
           <div className="relative flex size-20 items-center justify-center rounded-2xl bg-slate-800/80 ring-1 ring-white/10">
-            <Plane className="size-9 text-amber-300" aria-hidden />
+            <Plane className="size-9 text-[#dba28a]" aria-hidden />
             <Loader2
-              className="absolute inset-0 m-auto size-10 animate-spin text-amber-300/70"
+              className="absolute inset-0 m-auto size-10 animate-spin text-[#dba28a]/70"
               aria-hidden
             />
           </div>
@@ -1300,10 +1300,10 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
   // ---------- Phase : error ----------
   if (phase === "error") {
     return (
-      <div className="flex min-h-screen flex-col items-center justify-center bg-[#0F172A] px-6 text-white">
+      <div className="flex min-h-screen flex-col items-center justify-center bg-[#0f0f1c] px-6 text-white">
         <div className="flex w-full max-w-md flex-col items-center gap-6 text-center">
-          <div className="flex size-20 items-center justify-center rounded-2xl bg-orange-500/15 ring-1 ring-orange-500/30">
-            <AlertTriangle className="size-10 text-orange-400" aria-hidden />
+          <div className="flex size-20 items-center justify-center rounded-2xl bg-[#bc7155]/15 ring-1 ring-[#bc7155]/30">
+            <AlertTriangle className="size-10 text-[#c98b72]" aria-hidden />
           </div>
           <div className="space-y-2">
             <h1 className="text-2xl font-black text-white">Zone inconnue</h1>
@@ -1331,27 +1331,27 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
   if (phase === "zone_detectee" && zoneData) {
     // Couleurs vibrantes qui tournent pour chaque bouton de problème
     const BUTTON_COLORS = [
-      { bg: 'from-violet-500 to-purple-600', ring: 'ring-violet-300', selBg: 'bg-violet-50', selBorder: 'border-violet-400', selText: 'text-violet-900', selRing: 'ring-violet-200', glow: 'shadow-violet-300/50' },
-      { bg: 'from-emerald-500 to-teal-600', ring: 'ring-emerald-300', selBg: 'bg-emerald-50', selBorder: 'border-emerald-400', selText: 'text-emerald-900', selRing: 'ring-emerald-200', glow: 'shadow-emerald-300/50' },
+      { bg: 'from-[#bc7155] to-[#a05f45]', ring: 'ring-[#dba28a]', selBg: 'bg-[#faf1ec]', selBorder: 'border-[#c98b72]', selText: 'text-[#573125]', selRing: 'ring-[#e7c1ae]', glow: 'shadow-[#dba28a]/50' },
+      { bg: 'from-[#bc7155] to-[#a05f45]', ring: 'ring-[#dba28a]', selBg: 'bg-[#faf1ec]', selBorder: 'border-[#c98b72]', selText: 'text-[#573125]', selRing: 'ring-[#e7c1ae]', glow: 'shadow-[#dba28a]/50' },
       { bg: 'from-rose-500 to-pink-600', ring: 'ring-rose-300', selBg: 'bg-rose-50', selBorder: 'border-rose-400', selText: 'text-rose-900', selRing: 'ring-rose-200', glow: 'shadow-rose-300/50' },
-      { bg: 'from-sky-500 to-blue-600', ring: 'ring-sky-300', selBg: 'bg-sky-50', selBorder: 'border-sky-400', selText: 'text-sky-900', selRing: 'ring-sky-200', glow: 'shadow-sky-300/50' },
-      { bg: 'from-amber-500 to-orange-600', ring: 'ring-amber-300', selBg: 'bg-amber-50', selBorder: 'border-amber-400', selText: 'text-amber-900', selRing: 'ring-amber-200', glow: 'shadow-amber-300/50' },
-      { bg: 'from-fuchsia-500 to-pink-600', ring: 'ring-fuchsia-300', selBg: 'bg-fuchsia-50', selBorder: 'border-fuchsia-400', selText: 'text-fuchsia-900', selRing: 'ring-fuchsia-200', glow: 'shadow-fuchsia-300/50' },
+      { bg: 'from-[#4b4d5e] to-[#3c3e4c]', ring: 'ring-[#8e8e95]', selBg: 'bg-[#f0f1f2]', selBorder: 'border-[#5e6070]', selText: 'text-[#14152a]', selRing: 'ring-[#b9bbc2]', glow: 'shadow-[#8e8e95]/50' },
+      { bg: 'from-[#bc7155] to-[#a05f45]', ring: 'ring-[#dba28a]', selBg: 'bg-[#faf1ec]', selBorder: 'border-[#c98b72]', selText: 'text-[#573125]', selRing: 'ring-[#e7c1ae]', glow: 'shadow-[#dba28a]/50' },
+      { bg: 'from-[#bc7155] to-pink-600', ring: 'ring-[#dba28a]', selBg: 'bg-[#faf1ec]', selBorder: 'border-[#c98b72]', selText: 'text-[#573125]', selRing: 'ring-[#e7c1ae]', glow: 'shadow-[#dba28a]/50' },
     ]
 
     return (
-      <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-violet-50/30 to-sky-50/40">
+      <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-[#faf1ec]/30 to-[#f0f1f2]/40">
         {/* --- Bandeau offline (Phase 2) : sticky en haut --- */}
         <AirportOfflineBanner />
 
         {/* Décoration : blobs flottants colorés en arrière-plan */}
-        <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-violet-300/20 blur-3xl" />
-        <div className="pointer-events-none absolute top-1/3 -left-20 h-64 w-64 rounded-full bg-emerald-300/15 blur-3xl" />
-        <div className="pointer-events-none absolute bottom-0 right-1/4 h-56 w-56 rounded-full bg-sky-300/15 blur-3xl" />
+        <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-[#dba28a]/20 blur-3xl" />
+        <div className="pointer-events-none absolute top-1/3 -left-20 h-64 w-64 rounded-full bg-[#dba28a]/15 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 right-1/4 h-56 w-56 rounded-full bg-[#8e8e95]/15 blur-3xl" />
 
         {/* Header — gradient vibrant avec glassmorphism */}
         {/* Feature 3 — FIX-4-FEATURES : [Logo] [Nom établissement] [Heure] */}
-        <header className="relative z-10 bg-gradient-to-r from-[#003399] via-[#003399] to-[#0044bb] text-white shadow-lg shadow-[#003399]/20">
+        <header className="relative z-10 bg-gradient-to-r from-[#000d10] via-[#000d10] to-[#0f0f1c] text-white shadow-lg shadow-[#000d10]/20">
           <div className="mx-auto flex max-w-md items-center justify-between px-4 py-3">
             <div className="flex min-w-0 items-center gap-2">
               <AirportLogo zoneData={zoneData} />
@@ -1379,14 +1379,14 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
           <div className="flex flex-col items-center text-center">
             {/* Emoji dans un cercle glassmorphism avec halo */}
             <div className="relative">
-              <div className="absolute inset-0 -m-4 rounded-full bg-gradient-to-br from-violet-400/30 to-fuchsia-400/30 blur-2xl" />
-              <div className="relative flex size-24 items-center justify-center rounded-3xl bg-white/70 shadow-xl backdrop-blur-md ring-1 ring-white/60">
+              <div className="absolute inset-0 -m-4 rounded-full bg-gradient-to-br from-[#c98b72]/30 to-[#c98b72]/30 blur-2xl" />
+              <div className="relative flex size-24 items-center justify-center rounded-none bg-white/70 shadow-xl backdrop-blur-md ring-1 ring-white/60">
                 <span className="text-5xl leading-none" style={{ animation: 'gentleFloat 3s ease-in-out infinite' }} aria-hidden>
                   {zoneData.emoji}
                 </span>
               </div>
             </div>
-            <h1 className="mt-4 text-3xl font-black tracking-tight bg-gradient-to-r from-slate-900 via-violet-900 to-slate-900 bg-clip-text text-transparent">
+            <h1 className="mt-4 text-3xl font-black tracking-tight bg-gradient-to-r from-slate-900 via-[#573125] to-slate-900 bg-clip-text text-transparent">
               {zoneData.nom}
             </h1>
             {zoneData.description ? (
@@ -1394,7 +1394,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
             ) : null}
             {/* Badge localisation — glassmorphism */}
             <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-white/70 px-4 py-2 shadow-md backdrop-blur-md ring-1 ring-white/60">
-              <MapPin className="size-3.5 text-violet-600" aria-hidden />
+              <MapPin className="size-3.5 text-[#a05f45]" aria-hidden />
               <span className="font-mono text-xs font-bold text-slate-700">{zoneData.tagScanne}</span>
               <span className="text-[10px] font-medium uppercase tracking-wide text-slate-400">Vous êtes ici</span>
             </div>
@@ -1438,7 +1438,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                 onClick={() => choisirProbleme("APPELER SECOURS")}
                 aria-label="Appeler les secours immédiatement"
                 className={cn(
-                  "group relative flex w-full flex-col items-center justify-center gap-3 overflow-hidden rounded-3xl border-2 py-8 text-center transition-all duration-300",
+                  "group relative flex w-full flex-col items-center justify-center gap-3 overflow-hidden rounded-none border-2 py-8 text-center transition-all duration-300",
                   highlightedProblem === "APPELER SECOURS"
                     ? "border-red-900 ring-4 ring-red-300 shadow-2xl shadow-red-600/40"
                     : "border-red-700 shadow-2xl shadow-red-600/30 hover:scale-[1.02] active:scale-[0.99]",
@@ -1450,7 +1450,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
 
                 {/* Halo de pulsation (anneau extérieur) */}
                 <div
-                  className="pointer-events-none absolute inset-0 rounded-3xl ring-4 ring-red-300/70"
+                  className="pointer-events-none absolute inset-0 rounded-none ring-4 ring-red-300/70"
                   style={{ animation: "sosPulse 1.4s ease-out infinite" }}
                   aria-hidden
                 />
@@ -1520,7 +1520,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
             {/* Section : Quel est le problème ? — grille colorée vibrante */}
             <section className="relative z-10 mx-auto w-full max-w-md px-4 py-6">
               <div className="mb-4 flex items-center gap-2">
-                <div className="h-1 w-8 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500" />
+                <div className="h-1 w-8 rounded-full bg-gradient-to-r from-[#bc7155] to-[#bc7155]" />
                 <h2 className="text-lg font-bold text-slate-900">Quel est le problème ?</h2>
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -1575,7 +1575,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
 
                       {/* Indicateur de sélection */}
                       {isSelected ? (
-                        <div className="absolute top-2.5 right-2.5 flex size-6 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-md">
+                        <div className="absolute top-2.5 right-2.5 flex size-6 items-center justify-center rounded-full bg-gradient-to-br from-[#c98b72] to-[#a05f45] text-white shadow-md">
                           <CheckCircle2 className="size-4" aria-hidden />
                         </div>
                       ) : null}
@@ -1626,17 +1626,17 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
   if (phase === "probleme_choisi" && zoneData && selectedProblem) {
     const problemEmoji = getProblemEmoji(selectedProblem)
     return (
-      <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-violet-50/30 to-sky-50/40">
+      <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-[#faf1ec]/30 to-[#f0f1f2]/40">
         {/* --- Bandeau offline (Phase 2) : sticky en haut, au-dessus du header --- */}
         <AirportOfflineBanner />
 
         {/* Blobs flottants */}
-        <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-violet-300/20 blur-3xl" />
-        <div className="pointer-events-none absolute bottom-0 -left-20 h-64 w-64 rounded-full bg-emerald-300/15 blur-3xl" />
+        <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-[#dba28a]/20 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 -left-20 h-64 w-64 rounded-full bg-[#dba28a]/15 blur-3xl" />
 
         {/* Header gradient vibrant */}
         {/* Feature 3 — FIX-4-FEATURES : logo + heure dans le header probleme_choisi */}
-        <header className="sticky top-0 z-10 bg-gradient-to-r from-[#003399] via-[#003399] to-[#0044bb] text-white shadow-lg shadow-[#003399]/20">
+        <header className="sticky top-0 z-10 bg-gradient-to-r from-[#000d10] via-[#000d10] to-[#0f0f1c] text-white shadow-lg shadow-[#000d10]/20">
           <div className="mx-auto flex max-w-md items-center justify-between gap-2 px-4 py-3">
             <button
               type="button"
@@ -1674,20 +1674,20 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
         <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col px-4 py-5">
           {/* Problème sélectionné — carte glassmorphism avec emoji coloré */}
           <div className="relative overflow-hidden rounded-2xl bg-white/70 p-4 shadow-lg backdrop-blur-md ring-1 ring-white/60">
-            <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-emerald-500" />
+            <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-[#bc7155] via-[#bc7155] to-[#bc7155]" />
             <div className="flex items-center gap-3">
-              <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white shadow-md">
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#bc7155] to-[#a05f45] text-white shadow-md">
                 <span className="text-2xl" aria-hidden>{problemEmoji}</span>
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-violet-600">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#a05f45]">
                   Problème signalé
                 </p>
                 <p className="mt-0.5 text-sm font-bold leading-snug text-slate-800">
                   {selectedProblem}
                 </p>
               </div>
-              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-md">
+              <div className="flex size-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#c98b72] to-[#a05f45] text-white shadow-md">
                 <CheckCircle2 className="size-4" aria-hidden />
               </div>
             </div>
@@ -1701,7 +1701,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
           <div className="mt-5 space-y-2">
             <div className="flex items-center justify-between gap-2">
               <Label htmlFor="airport-commentaire" className="flex items-center gap-1.5 text-sm font-bold text-slate-700">
-                <span className="inline-block h-1 w-4 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500" />
+                <span className="inline-block h-1 w-4 rounded-full bg-gradient-to-r from-[#bc7155] to-[#bc7155]" />
                 Précisez le problème si besoin
               </Label>
               {/* Task WAHOO-1 — LanguagePicker + bouton dictée Web Speech API */}
@@ -1723,7 +1723,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                   <button
                     type="button"
                     onClick={demarrerDictation}
-                    className="flex items-center gap-1.5 rounded-full bg-white/70 px-2.5 py-1.5 text-xs font-bold text-violet-700 shadow-sm ring-1 ring-white/60 backdrop-blur-md transition-all hover:bg-white/90 hover:ring-violet-200"
+                    className="flex items-center gap-1.5 rounded-full bg-white/70 px-2.5 py-1.5 text-xs font-bold text-[#8a4f3b] shadow-sm ring-1 ring-white/60 backdrop-blur-md transition-all hover:bg-white/90 hover:ring-[#e7c1ae]"
                     aria-label="Dicter votre message dans la langue sélectionnée"
                     title="Dictée vocale (Web Speech API) dans la langue sélectionnée — le texte sera ensuite traduit en français automatiquement."
                   >
@@ -1742,31 +1742,31 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                   ? "Ex: Le tapis est arrêté depuis 10 minutes, environ 30 personnes attendent..."
                   : "Écrivez dans votre langue — votre message sera traduit en français automatiquement."
               }
-              className="min-h-24 resize-none rounded-2xl border-2 border-white bg-white/70 backdrop-blur-md text-sm shadow-sm ring-1 ring-white/60 focus:border-violet-400 focus:ring-violet-200"
+              className="min-h-24 resize-none rounded-2xl border-2 border-white bg-white/70 backdrop-blur-md text-sm shadow-sm ring-1 ring-white/60 focus:border-[#c98b72] focus:ring-[#e7c1ae]"
             />
             {/* Task WAHOO-1 — Boîte de traduction française en temps réel */}
             {selectedLang !== "fr" && (
               <div className="space-y-1.5">
                 {translating ? (
-                  <p className="flex items-center gap-1.5 rounded-xl bg-violet-50/80 px-3 py-2 text-xs font-medium text-violet-700 ring-1 ring-violet-200">
+                  <p className="flex items-center gap-1.5 rounded-xl bg-[#faf1ec]/80 px-3 py-2 text-xs font-medium text-[#8a4f3b] ring-1 ring-[#e7c1ae]">
                     <Loader2 className="size-3.5 animate-spin" aria-hidden />
                     <span>Traduction en cours…</span>
                   </p>
                 ) : translatedComment ? (
-                  <div className="rounded-xl bg-gradient-to-br from-emerald-50 to-teal-50 px-3 py-2 ring-1 ring-emerald-200">
-                    <p className="flex items-start gap-1.5 text-xs font-medium text-emerald-800">
-                      <Languages className="mt-0.5 size-3.5 shrink-0 text-emerald-600" aria-hidden />
+                  <div className="rounded-xl bg-gradient-to-br from-[#faf1ec] to-[#faf1ec] px-3 py-2 ring-1 ring-[#e7c1ae]">
+                    <p className="flex items-start gap-1.5 text-xs font-medium text-[#6f3f30]">
+                      <Languages className="mt-0.5 size-3.5 shrink-0 text-[#a05f45]" aria-hidden />
                       <span className="min-w-0 flex-1">
                         <span className="font-bold">Votre message en français :</span>{" "}
-                        <span className="text-emerald-900">{translatedComment}</span>
+                        <span className="text-[#573125]">{translatedComment}</span>
                       </span>
                     </p>
-                    <p className="mt-1 text-[10px] text-emerald-600">
+                    <p className="mt-1 text-[10px] text-[#a05f45]">
                       Denise annoncera cette version au staff ops.
                     </p>
                   </div>
                 ) : commentaire.trim() ? (
-                  <p className="flex items-center gap-1.5 rounded-xl bg-amber-50/80 px-3 py-2 text-xs font-medium text-amber-700 ring-1 ring-amber-200">
+                  <p className="flex items-center gap-1.5 rounded-xl bg-[#faf1ec]/80 px-3 py-2 text-xs font-medium text-[#8a4f3b] ring-1 ring-[#e7c1ae]">
                     <Languages className="size-3.5" aria-hidden />
                     <span>La traduction apparaîtra ici automatiquement.</span>
                   </p>
@@ -1800,7 +1800,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                       className={cn(
                         "rounded-full px-2.5 py-1 text-[11px] font-bold transition-all",
                         voiceLang === opt.k
-                          ? "bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white shadow-sm"
+                          ? "bg-gradient-to-br from-[#bc7155] to-[#a05f45] text-white shadow-sm"
                           : "text-slate-500 hover:text-slate-800",
                       )}
                       aria-pressed={voiceLang === opt.k}
@@ -1835,7 +1835,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                   <button
                     type="button"
                     onClick={demarrerEnregistrement}
-                    className="group flex items-center gap-2 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-600 px-4 py-2 text-xs font-bold text-white shadow-md transition-all hover:scale-105 hover:shadow-lg"
+                    className="group flex items-center gap-2 rounded-full bg-gradient-to-r from-[#bc7155] to-[#a05f45] px-4 py-2 text-xs font-bold text-white shadow-md transition-all hover:scale-105 hover:shadow-lg"
                     aria-label="Parler votre commentaire (Wolof, Français ou Anglais)"
                     title="Parlez en Wolof, Français ou Anglais — votre voix sera transcrite et traduite en français automatiquement."
                   >
@@ -1847,7 +1847,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
             </div>
             {/* Aperçu voix : langue détectée + traduite */}
             {voicePreview && voiceState === "idle" && !voiceError && (
-              <p className="flex items-center gap-1.5 rounded-lg bg-emerald-50/80 px-3 py-1.5 text-xs font-medium text-emerald-700 ring-1 ring-emerald-200">
+              <p className="flex items-center gap-1.5 rounded-lg bg-[#faf1ec]/80 px-3 py-1.5 text-xs font-medium text-[#8a4f3b] ring-1 ring-[#e7c1ae]">
                 <CheckCircle2 className="size-3.5" aria-hidden />
                 {voicePreview}
               </p>
@@ -1864,7 +1864,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
           {/* Photo optionnelle — glassmorphism avec gradient border */}
           <div className="mt-2 space-y-2">
             <Label htmlFor="airport-photo-input" className="flex items-center gap-1.5 text-sm font-bold text-slate-700">
-              <span className="inline-block h-1 w-4 rounded-full bg-gradient-to-r from-emerald-500 to-teal-500" />
+              <span className="inline-block h-1 w-4 rounded-full bg-gradient-to-r from-[#bc7155] to-[#bc7155]" />
               Photo <span className="font-normal text-slate-400">(optionnel)</span>
             </Label>
             <input
@@ -1881,16 +1881,16 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={photoUploading}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-violet-200 bg-white/60 backdrop-blur-md px-4 py-6 text-sm font-bold text-slate-600 shadow-sm transition-all hover:border-violet-400 hover:bg-white/80 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
+                className="flex w-full items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-[#e7c1ae] bg-white/60 backdrop-blur-md px-4 py-6 text-sm font-bold text-slate-600 shadow-sm transition-all hover:border-[#c98b72] hover:bg-white/80 hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {photoUploading ? (
                   <>
-                    <Loader2 className="size-5 animate-spin text-violet-600" aria-hidden />
+                    <Loader2 className="size-5 animate-spin text-[#a05f45]" aria-hidden />
                     <span>Envoi de la photo…</span>
                   </>
                 ) : (
                   <>
-                    <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white shadow-md">
+                    <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#bc7155] to-[#a05f45] text-white shadow-md">
                       <Camera className="size-5" aria-hidden />
                     </div>
                     <span>Ajouter une photo</span>
@@ -1921,16 +1921,16 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
           {/* Numéro de vol — glassmorphism */}
           <div className="mt-2 space-y-2">
             <Label htmlFor="airport-flight" className="flex items-center gap-1.5 text-sm font-bold text-slate-700">
-              <span className="inline-block h-1 w-4 rounded-full bg-gradient-to-r from-sky-500 to-blue-500" />
+              <span className="inline-block h-1 w-4 rounded-full bg-gradient-to-r from-[#4b4d5e] to-[#4b4d5e]" />
               Numéro de vol{" "}
               {zoneData?.currentFlight ? (
-                <span className="font-normal text-emerald-600">(détecté automatiquement depuis la porte)</span>
+                <span className="font-normal text-[#a05f45]">(détecté automatiquement depuis la porte)</span>
               ) : (
                 <span className="font-normal text-slate-400">(optionnel)</span>
               )}
             </Label>
             <div className="flex items-center gap-2 rounded-2xl border-2 border-white bg-white/70 backdrop-blur-md px-3 py-1 shadow-sm ring-1 ring-white/60">
-              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-sky-500 to-blue-600 text-white shadow-sm">
+              <div className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#4b4d5e] to-[#3c3e4c] text-white shadow-sm">
                 <Plane className="size-4" aria-hidden />
               </div>
               <Input
@@ -1946,25 +1946,25 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                 aria-readonly={!!zoneData?.currentFlight}
               />
               {zoneData?.currentFlight && (
-                <span className="shrink-0 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700 ring-1 ring-emerald-500/30">
+                <span className="shrink-0 rounded-full bg-[#bc7155]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#8a4f3b] ring-1 ring-[#bc7155]/30">
                   Auto
                 </span>
               )}
             </div>
             {zoneData?.currentFlight ? (
-              <div className="flex flex-wrap items-center gap-2 rounded-lg bg-emerald-50/80 px-3 py-1.5 text-xs text-emerald-800 ring-1 ring-emerald-200">
+              <div className="flex flex-wrap items-center gap-2 rounded-lg bg-[#faf1ec]/80 px-3 py-1.5 text-xs text-[#6f3f30] ring-1 ring-[#e7c1ae]">
                 <Plane className="size-3.5" aria-hidden />
                 <span className="font-semibold">{zoneData.currentFlight.flightNumber}</span>
                 {zoneData.currentFlight.airline && (
-                  <span className="text-emerald-700">· {zoneData.currentFlight.airline}</span>
+                  <span className="text-[#8a4f3b]">· {zoneData.currentFlight.airline}</span>
                 )}
                 {zoneData.currentFlight.destination && (
-                  <span className="text-emerald-700">→ {zoneData.currentFlight.destination}</span>
+                  <span className="text-[#8a4f3b]">→ {zoneData.currentFlight.destination}</span>
                 )}
                 {zoneData.currentFlight.scheduledDeparture && (
-                  <span className="text-emerald-700">· décollage {zoneData.currentFlight.scheduledDeparture}</span>
+                  <span className="text-[#8a4f3b]">· décollage {zoneData.currentFlight.scheduledDeparture}</span>
                 )}
-                <span className="ml-auto rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+                <span className="ml-auto rounded-full bg-[#bc7155]/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#8a4f3b]">
                   {zoneData.currentFlight.status}
                 </span>
               </div>
@@ -1990,7 +1990,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
               type="button"
               onClick={envoyerSignalement}
               disabled={submitting}
-              className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-[#003399] via-[#003399] to-[#0044bb] py-5 text-lg font-bold text-white shadow-xl shadow-[#003399]/30 transition-all hover:shadow-2xl hover:shadow-[#003399]/40 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
+              className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-[#000d10] via-[#000d10] to-[#0f0f1c] py-5 text-lg font-bold text-white shadow-xl shadow-[#000d10]/30 transition-all hover:shadow-2xl hover:shadow-[#000d10]/40 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
             >
               {/* Effet shine au hover */}
               <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
@@ -2015,7 +2015,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
   // ---------- Phase : aide_sos (bouton "Demander de l'aide" autonome) ----------
   if (phase === "aide_sos" && zoneData) {
     const SOS_TAGS = [
-      { label: "Bagage perdu", icon: "🧳", color: "from-amber-500 to-orange-600" },
+      { label: "Bagage perdu", icon: "🧳", color: "from-[#bc7155] to-[#a05f45]" },
       { label: "Personne énervée", icon: "😤", color: "from-rose-500 to-red-600" },
       { label: "Affaires volées", icon: "🚨", color: "from-red-500 to-rose-700" },
       { label: "Personne en détresse", icon: "🆘", color: "from-rose-600 to-pink-700" },
@@ -2025,7 +2025,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
         <AirportOfflineBanner />
         {/* Blobs flottants */}
         <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-rose-300/20 blur-3xl" />
-        <div className="pointer-events-none absolute bottom-0 -left-20 h-64 w-64 rounded-full bg-amber-300/15 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 -left-20 h-64 w-64 rounded-full bg-[#dba28a]/15 blur-3xl" />
 
         {/* Header gradient */}
         <header className="sticky top-0 z-10 bg-gradient-to-r from-rose-600 via-pink-600 to-rose-700 text-white shadow-lg shadow-rose-500/20">
@@ -2061,7 +2061,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
         <main className="relative z-10 mx-auto flex w-full max-w-md flex-1 flex-col px-4 py-5">
           {/* Titre */}
           <div className="mb-5 text-center">
-            <div className="mx-auto flex size-16 items-center justify-center rounded-3xl bg-gradient-to-br from-rose-500 to-pink-600 text-white shadow-xl shadow-rose-500/30">
+            <div className="mx-auto flex size-16 items-center justify-center rounded-none bg-gradient-to-br from-rose-500 to-pink-600 text-white shadow-xl shadow-rose-500/30">
               <LifeBuoy className="size-8" strokeWidth={2.5} aria-hidden />
             </div>
             <h1 className="mt-4 text-2xl font-black tracking-tight text-slate-900">
@@ -2103,7 +2103,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                     {tag.label}
                   </span>
                   {isSelected ? (
-                    <div className="absolute top-2.5 right-2.5 flex size-6 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 text-white shadow-md">
+                    <div className="absolute top-2.5 right-2.5 flex size-6 items-center justify-center rounded-full bg-gradient-to-br from-[#c98b72] to-[#a05f45] text-white shadow-md">
                       <CheckCircle2 className="size-4" aria-hidden />
                     </div>
                   ) : null}
@@ -2132,7 +2132,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
               </div>
               <div className="space-y-2">
                 <Label className="flex items-center gap-1.5 text-sm font-bold text-slate-700">
-                  <span className="inline-block h-1 w-4 rounded-full bg-gradient-to-r from-sky-500 to-blue-500" />
+                  <span className="inline-block h-1 w-4 rounded-full bg-gradient-to-r from-[#4b4d5e] to-[#4b4d5e]" />
                   Pour que l&apos;agent vous contacte <span className="font-normal text-slate-400">(optionnel)</span>
                 </Label>
                 <Input
@@ -2141,7 +2141,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                   value={helpPhone}
                   onChange={(e) => setHelpPhone(e.target.value)}
                   placeholder="+33 6 12 34 56 78"
-                  className="h-11 rounded-xl border-2 border-white bg-white/70 backdrop-blur-md text-base ring-1 ring-white/60 focus:border-sky-400 focus:ring-sky-200"
+                  className="h-11 rounded-xl border-2 border-white bg-white/70 backdrop-blur-md text-base ring-1 ring-white/60 focus:border-[#5e6070] focus:ring-[#b9bbc2]"
                 />
               </div>
               {helpError ? (
@@ -2187,14 +2187,14 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
   if (phase === "confirmation" && reportResult) {
     const dateFormatee = formaterDate(reportResult.report.createdAt)
     return (
-      <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-emerald-50/30 to-[#F5F5F5]">
+      <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-[#faf1ec]/30 to-[#F5F5F5]">
         {/* --- Bandeau offline (Phase 2) : sticky en haut --- */}
         <AirportOfflineBanner />
 
         {/* Blobs flottants — ambiance célébration */}
-        <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-emerald-300/20 blur-3xl" />
-        <div className="pointer-events-none absolute top-1/3 -left-20 h-64 w-64 rounded-full bg-violet-300/15 blur-3xl" />
-        <div className="pointer-events-none absolute bottom-0 right-1/4 h-56 w-56 rounded-full bg-sky-300/15 blur-3xl" />
+        <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-[#dba28a]/20 blur-3xl" />
+        <div className="pointer-events-none absolute top-1/3 -left-20 h-64 w-64 rounded-full bg-[#dba28a]/15 blur-3xl" />
+        <div className="pointer-events-none absolute bottom-0 right-1/4 h-56 w-56 rounded-full bg-[#8e8e95]/15 blur-3xl" />
 
         {/* CSS keyframe pour l'onde sonore Denise */}
         <style>{`
@@ -2216,7 +2216,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
               />
             ) : (
               <div className="mb-4 flex h-16 items-center justify-center rounded-2xl bg-white/80 px-4 shadow-md backdrop-blur-md ring-1 ring-white/60">
-                <Plane className="size-8 text-[#003399]" aria-hidden />
+                <Plane className="size-8 text-[#000d10]" aria-hidden />
               </div>
             )}
             {zoneData?.airportName && (
@@ -2225,12 +2225,12 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
               </p>
             )}
             <div className="relative">
-              <div className="absolute inset-0 -m-6 rounded-full bg-gradient-to-br from-emerald-300/40 to-teal-300/30 blur-2xl" />
-              <div className="relative flex size-24 animate-in fade-in zoom-in-50 items-center justify-center rounded-3xl bg-white/70 shadow-xl backdrop-blur-md ring-1 ring-white/60 duration-500">
-                <CheckCircle2 className="size-14 text-emerald-500" strokeWidth={2.5} aria-hidden />
+              <div className="absolute inset-0 -m-6 rounded-full bg-gradient-to-br from-[#dba28a]/40 to-[#dba28a]/30 blur-2xl" />
+              <div className="relative flex size-24 animate-in fade-in zoom-in-50 items-center justify-center rounded-none bg-white/70 shadow-xl backdrop-blur-md ring-1 ring-white/60 duration-500">
+                <CheckCircle2 className="size-14 text-[#bc7155]" strokeWidth={2.5} aria-hidden />
               </div>
             </div>
-            <h1 className="mt-5 text-4xl font-black tracking-tight bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-600 bg-clip-text text-transparent">
+            <h1 className="mt-5 text-4xl font-black tracking-tight bg-gradient-to-r from-[#a05f45] via-[#a05f45] to-[#a05f45] bg-clip-text text-transparent">
               Merci !
             </h1>
             <p className="mt-2 text-sm leading-relaxed text-slate-500">
@@ -2238,13 +2238,13 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
             </p>
 
             {/* ---------- Bloc Denise : confirmation vocale animée ---------- */}
-            <div className="mt-5 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-[#003399]/10 to-[#FCD116]/10 px-4 py-3 ring-1 ring-[#003399]/30 backdrop-blur-md">
+            <div className="mt-5 flex items-center gap-3 rounded-2xl bg-gradient-to-r from-[#000d10]/10 to-[#bc7155]/10 px-4 py-3 ring-1 ring-[#000d10]/30 backdrop-blur-md">
               {/* Onde sonore animée */}
               <div className="flex items-center gap-[3px] h-5" aria-hidden>
                 {[0, 0.1, 0.2, 0.3, 0.15].map((delay, i) => (
                   <span
                     key={i}
-                    className="w-[3px] rounded-full bg-violet-500"
+                    className="w-[3px] rounded-full bg-[#bc7155]"
                     style={{
                       animation: `fbp-denise-wave 1s ${delay}s infinite ease-in-out`,
                       height: '8px',
@@ -2252,7 +2252,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                   />
                 ))}
               </div>
-              <p className="text-left text-xs font-medium leading-snug text-violet-800">
+              <p className="text-left text-xs font-medium leading-snug text-[#6f3f30]">
                 <span className="font-bold">Denise confirme :</span> L&apos;équipe{' '}
                 <span className="font-bold">
                   {serviceLabel(routerVersService(reportResult.report.problemType))}
@@ -2271,20 +2271,20 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
 
           {/* Carte récapitulatif — glassmorphism */}
           <div className="mt-6 relative overflow-hidden rounded-2xl bg-white/70 p-4 shadow-lg backdrop-blur-md ring-1 ring-white/60">
-            <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-emerald-500" />
+            <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-[#bc7155] via-[#bc7155] to-[#bc7155]" />
             {/* Badge statut clignotant */}
             <div className="mb-3 flex justify-end">
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-500/15 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-amber-700 ring-1 ring-amber-400/30 animate-pulse">
-                <span className="size-1.5 rounded-full bg-amber-500 animate-pulse" />
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#bc7155]/15 px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-[#8a4f3b] ring-1 ring-[#c98b72]/30 animate-pulse">
+                <span className="size-1.5 rounded-full bg-[#bc7155] animate-pulse" />
                 En cours de traitement
               </span>
             </div>
             <div className="flex items-center gap-3">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white shadow-md">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#bc7155] to-[#a05f45] text-white shadow-md">
                 <span className="text-xl" aria-hidden>{reportResult.zone.emoji}</span>
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-violet-600">Zone</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-[#a05f45]">Zone</p>
                 <p className="truncate text-sm font-bold text-slate-800">{reportResult.zone.nom}</p>
               </div>
             </div>
@@ -2297,7 +2297,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
               <div className="mt-2 flex items-start gap-2">
                 <span className="mt-0.5 min-w-[64px] text-[10px] font-bold uppercase tracking-wider text-slate-400">Vol</span>
                 <p className="flex-1 inline-flex items-center gap-1.5 text-sm font-bold text-slate-800">
-                  <div className="flex size-5 items-center justify-center rounded-md bg-gradient-to-br from-sky-500 to-blue-600 text-white">
+                  <div className="flex size-5 items-center justify-center rounded-md bg-gradient-to-br from-[#4b4d5e] to-[#3c3e4c] text-white">
                     <Plane className="size-3" aria-hidden />
                   </div>
                   <span className="font-mono">{reportResult.report.flightNumber}</span>
@@ -2305,8 +2305,8 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
               </div>
             ) : null}
             {reportResult.vlmPending ? (
-              <div className="mt-3 flex items-start gap-2 rounded-xl bg-violet-50/80 backdrop-blur-md p-3 text-xs text-violet-800 ring-1 ring-violet-100">
-                <Loader2 className="mt-0.5 size-3.5 shrink-0 animate-spin text-violet-600" aria-hidden />
+              <div className="mt-3 flex items-start gap-2 rounded-xl bg-[#faf1ec]/80 backdrop-blur-md p-3 text-xs text-[#6f3f30] ring-1 ring-[#f3ddd2]">
+                <Loader2 className="mt-0.5 size-3.5 shrink-0 animate-spin text-[#a05f45]" aria-hidden />
                 <p>
                   <strong>Analyse IA de votre photo en cours…</strong> Le système catégorise
                   automatiquement le problème et route vers la bonne équipe ops.
@@ -2335,9 +2335,9 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                 aria-label="Noter votre expérience à l'aéroport"
                 className="mt-4 relative overflow-hidden rounded-2xl bg-white/70 p-5 shadow-lg backdrop-blur-md ring-1 ring-white/60"
               >
-                <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-amber-400 via-orange-400 to-fuchsia-400" />
+                <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-[#c98b72] via-[#c98b72] to-[#c98b72]" />
                 <div className="flex items-start gap-2">
-                  <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-md">
+                  <div className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#c98b72] to-[#bc7155] text-white shadow-md">
                     <Star className="size-4" aria-hidden />
                   </div>
                   <div className="min-w-0">
@@ -2372,7 +2372,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                           className={cn(
                             "size-10 transition-colors",
                             isFilled
-                              ? "fill-amber-400 text-amber-400"
+                              ? "fill-[#c98b72] text-[#c98b72]"
                               : "text-slate-300",
                           )}
                           aria-hidden
@@ -2396,14 +2396,14 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                           <button
                             type="button"
                             onClick={ouvrirAvisGoogle}
-                            className="group relative mt-3 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 text-sm font-bold text-white shadow-lg shadow-orange-500/30 transition-all hover:shadow-xl active:scale-[0.99]"
+                            className="group relative mt-3 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-[#bc7155] via-[#bc7155] to-[#a05f45] text-sm font-bold text-white shadow-lg shadow-[#bc7155]/30 transition-all hover:shadow-xl active:scale-[0.99]"
                           >
                             <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
                             <ExternalLink className="size-4" aria-hidden />
                             Laisser un avis Google ★
                           </button>
                         ) : (
-                          <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50/80 p-3 text-center text-xs font-medium text-amber-800">
+                          <div className="mt-3 rounded-xl border border-[#e7c1ae] bg-[#faf1ec]/80 p-3 text-center text-xs font-medium text-[#6f3f30]">
                             L&apos;aéroport n&apos;a pas encore configuré sa page Google
                             Reviews — merci pour votre note !
                           </div>
@@ -2421,7 +2421,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                             htmlFor="rating-email"
                             className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-slate-500"
                           >
-                            <span className="inline-block h-1 w-3 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500" />
+                            <span className="inline-block h-1 w-3 rounded-full bg-gradient-to-r from-[#bc7155] to-[#bc7155]" />
                             Votre email (optionnel, pour être contacté par l&apos;équipe ops)
                           </Label>
                           <Input
@@ -2431,7 +2431,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                             value={ratingEmail}
                             onChange={(e) => setRatingEmail(e.target.value.slice(0, 120))}
                             placeholder="vous@exemple.com"
-                            className="h-11 rounded-xl border-2 border-white bg-white/60 backdrop-blur-md text-base ring-1 ring-white/40 focus:border-violet-400 focus:ring-violet-200"
+                            className="h-11 rounded-xl border-2 border-white bg-white/60 backdrop-blur-md text-base ring-1 ring-white/40 focus:border-[#c98b72] focus:ring-[#e7c1ae]"
                             autoComplete="email"
                           />
                         </div>
@@ -2439,7 +2439,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                           type="button"
                           onClick={envoyerRetourInterne}
                           disabled={ratingSubmitting}
-                          className="group relative mt-3 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-[#003399] via-[#003399] to-[#0044bb] text-sm font-bold text-white shadow-lg shadow-[#003399]/30 transition-all hover:shadow-xl active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
+                          className="group relative mt-3 flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-[#000d10] via-[#000d10] to-[#0f0f1c] text-sm font-bold text-white shadow-lg shadow-[#000d10]/30 transition-all hover:shadow-xl active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-70"
                         >
                           <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
                           {ratingSubmitting ? (
@@ -2468,9 +2468,9 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
           {ratingSubmitted && rating !== null && rating <= 3 && (
             <div
               role="status"
-              className="mt-4 flex items-center gap-2 rounded-2xl border border-violet-200 bg-violet-50/80 p-3 backdrop-blur-md text-sm font-medium text-violet-900"
+              className="mt-4 flex items-center gap-2 rounded-2xl border border-[#e7c1ae] bg-[#faf1ec]/80 p-3 backdrop-blur-md text-sm font-medium text-[#573125]"
             >
-              <ShieldCheck className="size-4 shrink-0 text-violet-600" aria-hidden />
+              <ShieldCheck className="size-4 shrink-0 text-[#a05f45]" aria-hidden />
               Merci — votre retour a été transmis à l&apos;équipe ops.
             </div>
           )}
@@ -2480,7 +2480,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
             <button
               type="button"
               onClick={signalerAutre}
-              className="group relative flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-[#003399] via-[#003399] to-[#0044bb] text-sm font-bold text-white shadow-xl shadow-[#003399]/30 transition-all hover:shadow-2xl active:scale-[0.99]"
+              className="group relative flex h-12 w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-[#000d10] via-[#000d10] to-[#0f0f1c] text-sm font-bold text-white shadow-xl shadow-[#000d10]/30 transition-all hover:shadow-2xl active:scale-[0.99]"
             >
               <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/20 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
               Signaler un autre problème
@@ -2518,14 +2518,14 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
             className="fixed inset-0 z-50 flex items-center justify-center px-4 py-6"
           >
             {/* Voile gradient sombre avec blobs colorés */}
-            <div className="absolute inset-0 bg-gradient-to-br from-slate-950/95 via-purple-950/90 to-fuchsia-950/95 backdrop-blur-md" />
-            <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-fuchsia-500/20 blur-3xl" />
-            <div className="pointer-events-none absolute bottom-0 -left-20 h-64 w-64 rounded-full bg-violet-500/20 blur-3xl" />
+            <div className="absolute inset-0 bg-gradient-to-br from-slate-950/95 via-[#3f231b]/90 to-[#3f231b]/95 backdrop-blur-md" />
+            <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-[#bc7155]/20 blur-3xl" />
+            <div className="pointer-events-none absolute bottom-0 -left-20 h-64 w-64 rounded-full bg-[#bc7155]/20 blur-3xl" />
 
             {/* Carte publicité — glassmorphism */}
-            <div className="relative z-10 w-full max-w-md overflow-hidden rounded-3xl bg-white/10 shadow-2xl ring-1 ring-white/30 backdrop-blur-xl">
+            <div className="relative z-10 w-full max-w-md overflow-hidden rounded-none bg-white/10 shadow-2xl ring-1 ring-white/30 backdrop-blur-xl">
               {/* Bande gradient en haut */}
-              <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-violet-500 via-fuchsia-500 to-amber-400" />
+              <div className="absolute inset-x-0 top-0 h-1.5 bg-gradient-to-r from-[#bc7155] via-[#bc7155] to-[#c98b72]" />
 
               {/* Image plein écran format téléphone (9:16) si présente */}
               {exitAd.imageUrl && (
@@ -2563,7 +2563,7 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
                 <button
                   type="button"
                   onClick={onAdCtaClick}
-                  className="group relative mt-5 flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-violet-500 via-fuchsia-500 to-amber-400 py-4 text-base font-black text-white shadow-xl shadow-fuchsia-500/30 transition-all hover:shadow-2xl active:scale-[0.99]"
+                  className="group relative mt-5 flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-[#bc7155] via-[#bc7155] to-[#c98b72] py-4 text-base font-black text-white shadow-xl shadow-[#bc7155]/30 transition-all hover:shadow-2xl active:scale-[0.99]"
                 >
                   <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/30 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
                   <span>{exitAd.ctaText || "En savoir plus"}</span>
@@ -2602,8 +2602,8 @@ export function AirportScanView({ tag, onExit }: AirportScanViewProps) {
 
   // ---------- Repli défensif (ne devrait jamais arriver) ----------
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#0F172A] text-white">
-      <Loader2 className="size-6 animate-spin text-amber-300" aria-hidden />
+    <div className="flex min-h-screen items-center justify-center bg-[#0f0f1c] text-white">
+      <Loader2 className="size-6 animate-spin text-[#dba28a]" aria-hidden />
     </div>
   )
 }

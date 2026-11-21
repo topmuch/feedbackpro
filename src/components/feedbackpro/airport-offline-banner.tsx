@@ -28,7 +28,7 @@ export function AirportOfflineBanner({ className }: { className?: string }) {
       <div
         role="status"
         aria-live="polite"
-        className={`sticky top-0 z-50 w-full border-b border-amber-500/30 bg-amber-500/10 px-4 py-2 text-amber-200${extra}`}
+        className={`sticky top-0 z-50 w-full border-b border-[#bc7155]/30 bg-[#bc7155]/10 px-4 py-2 text-[#e7c1ae]${extra}`}
       >
         <div className="flex items-center gap-2 text-sm font-medium">
           <WifiOff className="h-4 w-4 animate-pulse" aria-hidden="true" />
@@ -46,7 +46,7 @@ export function AirportOfflineBanner({ className }: { className?: string }) {
       <div
         role="status"
         aria-live="polite"
-        className={`sticky top-0 z-50 w-full border-b border-sky-500/30 bg-sky-500/10 px-4 py-2 text-sky-200${extra}`}
+        className={`sticky top-0 z-50 w-full border-b border-[#4b4d5e]/30 bg-[#4b4d5e]/10 px-4 py-2 text-[#b9bbc2]${extra}`}
       >
         <div className="flex items-center justify-between gap-3 text-sm font-medium">
           <div className="flex items-center gap-2">
@@ -60,7 +60,7 @@ export function AirportOfflineBanner({ className }: { className?: string }) {
             onClick={() => {
               forceSync().catch(() => undefined)
             }}
-            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-sky-500/40 bg-sky-500/20 px-2 py-1 text-xs font-semibold transition-colors hover:bg-sky-500/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-400/60"
+            className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[#4b4d5e]/40 bg-[#4b4d5e]/20 px-2 py-1 text-xs font-semibold transition-colors hover:bg-[#4b4d5e]/30 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#5e6070]/60"
           >
             <RefreshCw className="h-3 w-3" aria-hidden="true" />
             Forcer la sync maintenant

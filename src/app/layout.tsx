@@ -20,7 +20,7 @@ export default function RootLayout({
             <link rel="manifest"> dans le HTML pour émettre l'événement
             beforeinstallprompt, utilisé par « Garder Nathalie »). */}
         <link rel="manifest" href="/manifest.webmanifest" />
-        <meta name="theme-color" content="#C9A961" />
+        <meta name="theme-color" content="#bc7155" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
         {/* Typographie « Luxe Silencieux » — Playfair Display pour les
             titres (serif élégant, italique pour les accents) et Inter

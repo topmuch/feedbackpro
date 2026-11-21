@@ -236,7 +236,7 @@ export function VipOrchestrationTab() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 className="flex items-center gap-2 text-xl font-bold text-[#2C2C2C]">
-            <Network className="h-5 w-5 text-[#C9A961]" />
+            <Network className="h-5 w-5 text-[#bc7155]" />
             Orchestration temps réel
           </h2>
           <p className="text-sm text-[#8B6F47]">
@@ -244,16 +244,16 @@ export function VipOrchestrationTab() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 rounded-full border border-[#EAE5DC] bg-white px-3 py-1.5">
+          <div className="flex items-center gap-2 rounded-full border border-[#efe7e0] bg-white px-3 py-1.5">
             {deniseOn ? (
-              <Volume2 className="h-4 w-4 text-[#C9A961]" />
+              <Volume2 className="h-4 w-4 text-[#bc7155]" />
             ) : (
               <VolumeX className="h-4 w-4 text-[#8B6F47]" />
             )}
             <span className="text-xs font-medium text-[#2C2C2C]">Denise</span>
             <Switch checked={deniseOn} onCheckedChange={basculerDenise} aria-label="Annonces vocales Denise" />
           </div>
-          <Button variant="outline" size="sm" onClick={() => charger()} className="border-[#C9A961]/40 text-[#8B6F47] hover:bg-[#C9A961]/10">
+          <Button variant="outline" size="sm" onClick={() => charger()} className="border-[#bc7155]/40 text-[#8B6F47] hover:bg-[#bc7155]/10">
             <RefreshCw className={cn('mr-1 h-4 w-4', chargement && 'animate-spin')} />
             Actualiser
           </Button>
@@ -262,7 +262,7 @@ export function VipOrchestrationTab() {
 
       {/* KPI row */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Card className="border-[#EAE5DC] shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <Card className="border-[#efe7e0] shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
           <CardContent className="p-4">
             <p className="flex items-center gap-1.5 text-xs text-[#8B6F47]">
               <Users className="h-3.5 w-3.5" /> Équipe en service
@@ -272,7 +272,7 @@ export function VipOrchestrationTab() {
             </p>
           </CardContent>
         </Card>
-        <Card className="border-[#EAE5DC] shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <Card className="border-[#efe7e0] shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
           <CardContent className="p-4">
             <p className="flex items-center gap-1.5 text-xs text-[#8B6F47]">
               <Timer className="h-3.5 w-3.5" /> Tâches en cours
@@ -280,31 +280,31 @@ export function VipOrchestrationTab() {
             <p className="mt-1 text-2xl font-bold text-[#2C2C2C]">{enCours.length}</p>
           </CardContent>
         </Card>
-        <Card className="border-[#EAE5DC] shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <Card className="border-[#efe7e0] shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
           <CardContent className="p-4">
             <p className="flex items-center gap-1.5 text-xs text-[#8B6F47]">
-              <Zap className="h-3.5 w-3.5 text-[#C9A961]" /> Décision moteur
+              <Zap className="h-3.5 w-3.5 text-[#bc7155]" /> Décision moteur
             </p>
             <p className="mt-1 text-2xl font-bold text-[#2C2C2C]">{data.stats.avgDecisionMs} ms</p>
             <p className="text-[11px] text-[#8B6F47]">{data.stats.tauxAutomatique}% routés auto (7j)</p>
           </CardContent>
         </Card>
-        <Card className="border-[#EAE5DC] shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <Card className="border-[#efe7e0] shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
           <CardContent className="p-4">
             <p className="flex items-center gap-1.5 text-xs text-[#8B6F47]">
-              <AlertTriangle className="h-3.5 w-3.5 text-[#C97B63]" /> Alertes
+              <AlertTriangle className="h-3.5 w-3.5 text-[#bc7155]" /> Alertes
             </p>
-            <p className="mt-1 text-2xl font-bold text-[#C97B63]">{alertes.length}</p>
+            <p className="mt-1 text-2xl font-bold text-[#bc7155]">{alertes.length}</p>
           </CardContent>
         </Card>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         {/* 👷 Équipe en ligne */}
-        <Card className="border-[#EAE5DC] shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <Card className="border-[#efe7e0] shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base text-[#2C2C2C]">
-              <Users className="h-4 w-4 text-[#C9A961]" /> Équipe en ligne
+              <Users className="h-4 w-4 text-[#bc7155]" /> Équipe en ligne
             </CardTitle>
             <CardDescription>Charge en direct — anti-surcharge automatique.</CardDescription>
           </CardHeader>
@@ -344,10 +344,10 @@ export function VipOrchestrationTab() {
                               !emp.isOnDuty
                                 ? 'border-[#D8D2C6] text-[#8B6F47]'
                                 : surcharge
-                                  ? 'border-[#C97B63]/40 bg-[#C97B63]/10 text-[#C97B63]'
+                                  ? 'border-[#bc7155]/40 bg-[#bc7155]/10 text-[#bc7155]'
                                   : elevee
-                                    ? 'border-[#C9A961]/40 bg-[#C9A961]/10 text-[#8B6F47]'
-                                    : 'border-[#4A7C59]/30 bg-[#4A7C59]/10 text-[#4A7C59]',
+                                    ? 'border-[#bc7155]/40 bg-[#bc7155]/10 text-[#8B6F47]'
+                                    : 'border-[#bc7155]/30 bg-[#bc7155]/10 text-[#bc7155]',
                             )}
                           >
                             {emp.isOnDuty ? `${emp.activeTasks}/${emp.maxActiveTasks}` : '—'}
@@ -364,11 +364,11 @@ export function VipOrchestrationTab() {
                               </>
                             ) : surcharge ? (
                               <>
-                                <span className="h-2 w-2 rounded-full bg-[#C97B63]" /> Surcharge
+                                <span className="h-2 w-2 rounded-full bg-[#bc7155]" /> Surcharge
                               </>
                             ) : (
                               <>
-                                <span className="h-2 w-2 rounded-full bg-[#4A7C59]" /> Actif
+                                <span className="h-2 w-2 rounded-full bg-[#bc7155]" /> Actif
                               </>
                             )}
                           </span>
@@ -383,16 +383,16 @@ export function VipOrchestrationTab() {
         </Card>
 
         {/* ⚠️ Alertes */}
-        <Card className={cn('border-[#EAE5DC] shadow-[0_4px_20px_rgba(201,169,97,0.06)]', alertes.length > 0 && 'border-[#C97B63]/40')}>
+        <Card className={cn('border-[#efe7e0] shadow-[0_4px_20px_rgba(201,169,97,0.06)]', alertes.length > 0 && 'border-[#bc7155]/40')}>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-base text-[#2C2C2C]">
-              <AlertTriangle className={cn('h-4 w-4', alertes.length > 0 ? 'text-[#C97B63]' : 'text-[#4A7C59]')} />
+              <AlertTriangle className={cn('h-4 w-4', alertes.length > 0 ? 'text-[#bc7155]' : 'text-[#bc7155]')} />
               Alertes orchestration
             </CardTitle>
           </CardHeader>
           <CardContent className="max-h-80 space-y-2 overflow-y-auto">
             {alertes.length === 0 && (
-              <p className="flex items-center gap-2 py-6 text-sm text-[#4A7C59]">
+              <p className="flex items-center gap-2 py-6 text-sm text-[#bc7155]">
                 <CheckCircle2 className="h-4 w-4" /> Tout est sous contrôle — aucune alerte.
               </p>
             )}
@@ -402,8 +402,8 @@ export function VipOrchestrationTab() {
                 className={cn(
                   'rounded-lg border px-3 py-2 text-sm',
                   a.severity === 'danger'
-                    ? 'border-[#C97B63]/40 bg-[#C97B63]/8 text-[#a35440]'
-                    : 'border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47]',
+                    ? 'border-[#bc7155]/40 bg-[#bc7155]/8 text-[#a35440]'
+                    : 'border-[#bc7155]/40 bg-[#bc7155]/8 text-[#8B6F47]',
                 )}
               >
                 • {a.message}
@@ -414,10 +414,10 @@ export function VipOrchestrationTab() {
       </div>
 
       {/* 🔄 Routage en cours */}
-      <Card className="border-[#EAE5DC] shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+      <Card className="border-[#efe7e0] shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base text-[#2C2C2C]">
-            <Network className="h-4 w-4 text-[#C9A961]" /> Routage en cours
+            <Network className="h-4 w-4 text-[#bc7155]" /> Routage en cours
           </CardTitle>
           <CardDescription>Décisions du moteur — journal temps réel.</CardDescription>
         </CardHeader>
@@ -432,14 +432,14 @@ export function VipOrchestrationTab() {
               key={h.id}
               className={cn(
                 'flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2 text-sm',
-                h.escalated ? 'border-[#C97B63]/40 bg-[#C97B63]/5' : 'border-[#EAE5DC] bg-white',
+                h.escalated ? 'border-[#bc7155]/40 bg-[#bc7155]/5' : 'border-[#efe7e0] bg-white',
               )}
             >
               <span className="w-12 shrink-0 text-xs tabular-nums text-[#8B6F47]">{heureCourte(h.createdAt)}</span>
               <span className="min-w-0 flex-1 truncate text-[#2C2C2C]">
                 {ZONE_EMOJI(h.zoneCode)} {h.incidentLabel ?? `${SIGNAL_LABEL(h.signalType)} — ${ZONE_LABEL(h.zoneCode)}`}
                 {h.incidentKind === 'proactive' && (
-                  <Badge variant="outline" className="ml-1 border-[#C9A961]/40 text-[10px] text-[#8B6F47]">
+                  <Badge variant="outline" className="ml-1 border-[#bc7155]/40 text-[10px] text-[#8B6F47]">
                     proactive
                   </Badge>
                 )}
@@ -450,26 +450,26 @@ export function VipOrchestrationTab() {
                 </span>
               )}
               {h.score > 0 && (
-                <Badge variant="outline" className="shrink-0 border-[#EAE5DC] text-[10px] text-[#8B6F47]">
+                <Badge variant="outline" className="shrink-0 border-[#efe7e0] text-[10px] text-[#8B6F47]">
                   {h.score} pts · {h.decisionMs} ms
                 </Badge>
               )}
               {h.escalated && (
-                <Badge variant="outline" className="shrink-0 border-[#C97B63]/50 text-[10px] text-[#C97B63]">
+                <Badge variant="outline" className="shrink-0 border-[#bc7155]/50 text-[10px] text-[#bc7155]">
                   escaladé
                 </Badge>
               )}
               {/* Statut / actions */}
               {h.open ? (
                 <span className="flex shrink-0 items-center gap-1">
-                  <Badge variant="outline" className="border-[#C9A961]/40 bg-[#C9A961]/10 text-[10px] text-[#8B6F47]">
+                  <Badge variant="outline" className="border-[#bc7155]/40 bg-[#bc7155]/10 text-[10px] text-[#8B6F47]">
                     {h.outcome === 'accepted' ? 'en intervention' : 'à prendre'}
                   </Badge>
                   {h.outcome !== 'accepted' && (
                     <Button
                       size="sm"
                       variant="ghost"
-                      className="h-6 gap-1 px-2 text-[11px] text-[#8B6F47] hover:bg-[#C9A961]/10"
+                      className="h-6 gap-1 px-2 text-[11px] text-[#8B6F47] hover:bg-[#bc7155]/10"
                       disabled={actionEnCours === h.id}
                       onClick={() => actionTache(h.id, 'reassign')}
                     >
@@ -479,7 +479,7 @@ export function VipOrchestrationTab() {
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-6 gap-1 px-2 text-[11px] text-[#4A7C59] hover:bg-[#4A7C59]/10"
+                    className="h-6 gap-1 px-2 text-[11px] text-[#bc7155] hover:bg-[#bc7155]/10"
                     disabled={actionEnCours === h.id}
                     onClick={() => actionTache(h.id, 'resolve')}
                   >
@@ -492,9 +492,9 @@ export function VipOrchestrationTab() {
                   className={cn(
                     'shrink-0 text-[10px]',
                     h.outcome === 'resolved'
-                      ? 'border-[#4A7C59]/30 bg-[#4A7C59]/10 text-[#4A7C59]'
+                      ? 'border-[#bc7155]/30 bg-[#bc7155]/10 text-[#bc7155]'
                       : h.outcome === 'accepted'
-                        ? 'border-[#C9A961]/40 text-[#8B6F47]'
+                        ? 'border-[#bc7155]/40 text-[#8B6F47]'
                         : 'border-[#D8D2C6] text-[#8B6F47]',
                   )}
                 >
@@ -507,10 +507,10 @@ export function VipOrchestrationTab() {
       </Card>
 
       {/* 📊 Heatmap */}
-      <Card className="border-[#EAE5DC] shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+      <Card className="border-[#efe7e0] shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
         <CardHeader className="pb-2">
           <CardTitle className="flex items-center gap-2 text-base text-[#2C2C2C]">
-            <Crown className="h-4 w-4 text-[#C9A961]" /> Heatmap routage (dernière heure)
+            <Crown className="h-4 w-4 text-[#bc7155]" /> Heatmap routage (dernière heure)
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -524,7 +524,7 @@ export function VipOrchestrationTab() {
               </span>
               <div className="h-3 flex-1 overflow-hidden rounded-full bg-[#F0EBE1]">
                 <div
-                  className="h-full rounded-full bg-gradient-to-r from-[#C9A961] to-[#8B6F47]"
+                  className="h-full rounded-full bg-gradient-to-r from-[#bc7155] to-[#8B6F47]"
                   style={{ width: `${(h.count / heatMax) * 100}%` }}
                 />
               </div>

@@ -23,16 +23,16 @@ export default function CasUsagePage() {
   return (
     <MarketingLayout activePath="/cas-usage">
       {/* ---------- Hero ---------- */}
-      <section className="bg-gradient-to-b from-[#002e85]/5 to-white py-14 sm:py-20">
+      <section className="bg-gradient-to-b from-[#0f0f1c]/5 to-white py-14 sm:py-20">
         <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
-          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#002e85] shadow-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#0f0f1c] shadow-sm">
             Cas d&apos;usage
           </span>
           <h1
             className="mt-4 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl"
             style={{ letterSpacing: "-0.03em" }}
           >
-            Pensé pour <span className="bg-gradient-to-br from-[#002e85] to-[#0047c7] bg-clip-text text-transparent">votre secteur</span>
+            Pensé pour <span className="bg-gradient-to-br from-[#0f0f1c] to-[#0f0f1c] bg-clip-text text-transparent">votre secteur</span>
           </h1>
           <p className="mt-4 text-lg text-gray-600">
             Tags contextuels et zones pré-configurées pour chaque métier. Déployez en quelques

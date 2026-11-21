@@ -89,22 +89,22 @@ const BADGES_CONFIG: Record<
   topPerformer: {
     emoji: "🏆",
     label: "Top Performer",
-    classe: "bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-100 dark:bg-amber-950/40 dark:text-amber-300 dark:border-amber-800",
+    classe: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a] hover:bg-[#f3ddd2] dark:bg-[#3f231b]/40 dark:text-[#dba28a] dark:border-[#6f3f30]",
   },
   etoileMontante: {
     emoji: "⭐",
     label: "Étoile montante",
-    classe: "bg-violet-100 text-violet-800 border-violet-300 hover:bg-violet-100 dark:bg-violet-950/40 dark:text-violet-300 dark:border-violet-800",
+    classe: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a] hover:bg-[#f3ddd2] dark:bg-[#3f231b]/40 dark:text-[#dba28a] dark:border-[#6f3f30]",
   },
   regulier: {
     emoji: "🎯",
     label: "Régulier",
-    classe: "bg-blue-100 text-blue-800 border-blue-300 hover:bg-blue-100 dark:bg-blue-950/40 dark:text-blue-300 dark:border-blue-800",
+    classe: "bg-[#dcdee0] text-[#1c1d2c] border-[#8e8e95] hover:bg-[#dcdee0] dark:bg-[#0f0f1c]/40 dark:text-[#8e8e95] dark:border-[#1c1d2c]",
   },
   enProgres: {
     emoji: "📈",
     label: "En progrès",
-    classe: "bg-emerald-100 text-emerald-800 border-emerald-300 hover:bg-emerald-100 dark:bg-emerald-950/40 dark:text-emerald-300 dark:border-emerald-800",
+    classe: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a] hover:bg-[#f3ddd2] dark:bg-[#3f231b]/40 dark:text-[#dba28a] dark:border-[#6f3f30]",
   },
   aSurveiller: {
     emoji: "⚠️",
@@ -120,7 +120,7 @@ function enArray<T>(v: T[] | null | undefined): T[] {
 
 /** Couleur du badge renvoyé par l'API leaderboard */
 function classeBadge(badge: TopLigne["badge"]): string {
-  if (badge === "Employé du mois") return "bg-amber-100 text-amber-800 border-amber-300 hover:bg-amber-100"
+  if (badge === "Employé du mois") return "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a] hover:bg-[#f3ddd2]"
   if (badge === "Entretien recommandé") return "bg-rose-50 text-rose-800 border-rose-300 hover:bg-rose-50"
   return ""
 }
@@ -142,7 +142,7 @@ function formatTendance(t?: number): { texte: string; couleur: string } | null {
   if (t === undefined || t === 0) return null
   const signe = t > 0 ? "+" : ""
   const texte = `${signe}${t.toFixed(2)} vs période précédente`
-  const couleur = t > 0 ? "text-emerald-700 dark:text-emerald-300" : "text-rose-700 dark:text-rose-300"
+  const couleur = t > 0 ? "text-[#8a4f3b] dark:text-[#dba28a]" : "text-rose-700 dark:text-rose-300"
   return { texte, couleur }
 }
 
@@ -365,8 +365,8 @@ export function TeamTab() {
 
   // Message d'upgrade quand la limite d'employés du plan est atteinte
   const messageUpgrade = limiteAtteinte && (
-    <div className="flex flex-col gap-2 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-      <div className="flex items-start gap-2 text-sm text-amber-900">
+    <div className="flex flex-col gap-2 rounded-xl border border-[#dba28a] bg-[#faf1ec] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex items-start gap-2 text-sm text-[#573125]">
         <Lock className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
         <p>
           Limite du plan {PLANS[plan].name} atteinte ({limiteEmployes} employé{limiteEmployes > 1 ? "s" : ""} maximum).
@@ -434,7 +434,7 @@ export function TeamTab() {
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <CardTitle className="text-base sm:text-lg flex items-center gap-2">
-                <Trophy className="h-5 w-5 text-amber-500" aria-hidden />
+                <Trophy className="h-5 w-5 text-[#bc7155]" aria-hidden />
                 {periode === "mois" && "Top 5 du mois"}
                 {periode === "trimestre" && "Top 5 du trimestre"}
                 {periode === "tout" && "Classement global"}
@@ -481,7 +481,7 @@ export function TeamTab() {
                     <div
                       key={l.employeId}
                       className={`flex flex-col items-center gap-1.5 rounded-xl border p-4 text-center ${
-                        i === 0 ? "border-amber-300 bg-amber-50/60 dark:border-amber-800 dark:bg-amber-950/30" : ""
+                        i === 0 ? "border-[#dba28a] bg-[#faf1ec]/60 dark:border-[#6f3f30] dark:bg-[#3f231b]/30" : ""
                       }`}
                     >
                       <span className="text-3xl" aria-hidden>
@@ -534,7 +534,7 @@ export function TeamTab() {
                     <li
                       key={l.employeId}
                       className={`flex items-center gap-3 rounded-xl border p-3 ${
-                        i === 0 && l.noteMoy >= 4 ? "border-amber-300 bg-amber-50/50 dark:border-amber-800 dark:bg-amber-950/20" : ""
+                        i === 0 && l.noteMoy >= 4 ? "border-[#dba28a] bg-[#faf1ec]/50 dark:border-[#6f3f30] dark:bg-[#3f231b]/20" : ""
                       }`}
                     >
                       {i < 3 ? (
@@ -565,7 +565,7 @@ export function TeamTab() {
                             <Stars note={l.noteMoy} size={13} />
                             <span className="text-sm font-bold">{l.noteMoy || "—"}</span>
                           </span>
-                          <Badge variant="outline" className="text-green-700 border-green-300">
+                          <Badge variant="outline" className="text-[#8a4f3b] border-[#dba28a]">
                             +{l.positifs} positif{l.positifs > 1 ? "s" : ""}
                           </Badge>
                           {l.negatifs > 0 && (
@@ -611,11 +611,11 @@ export function TeamTab() {
                 <div
                   key={`${r.employeId}-${i}`}
                   className={`flex items-start gap-3 rounded-xl border p-3.5 ${
-                    positif ? "border-green-200 bg-green-50/60" : "border-rose-200 bg-rose-50/60"
+                    positif ? "border-[#e7c1ae] bg-[#faf1ec]/60" : "border-rose-200 bg-rose-50/60"
                   }`}
                 >
                   {positif ? (
-                    <ThumbsUp className="mt-0.5 h-4 w-4 shrink-0 text-green-600" aria-hidden />
+                    <ThumbsUp className="mt-0.5 h-4 w-4 shrink-0 text-[#a05f45]" aria-hidden />
                   ) : (
                     <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-600" aria-hidden />
                   )}
@@ -700,7 +700,7 @@ export function TeamTab() {
                         <span className="text-sm font-semibold">{e.stats?.noteMoy || "—"}</span>
                       </span>
                       <span className="flex items-center gap-1.5">
-                        <Badge variant="outline" className="text-green-700 border-green-300">
+                        <Badge variant="outline" className="text-[#8a4f3b] border-[#dba28a]">
                           +{e.stats?.positifs ?? 0}
                         </Badge>
                         {(e.stats?.negatifs ?? 0) > 0 && (

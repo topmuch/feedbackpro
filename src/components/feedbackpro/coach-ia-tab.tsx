@@ -214,8 +214,8 @@ function libelleType(type: string | undefined): string {
 
 /** Couleur du badge de score ( historique ) */
 function scoreTone(score: number): string {
-  if (score >= 80) return "border-green-300 text-green-700"
-  if (score >= 60) return "border-amber-300 text-amber-700"
+  if (score >= 80) return "border-[#dba28a] text-[#8a4f3b]"
+  if (score >= 60) return "border-[#dba28a] text-[#8a4f3b]"
   return "border-rose-300 text-rose-700"
 }
 
@@ -240,8 +240,8 @@ function noteFr(note: number): string {
  *  vert ≥ 4 (satisfaction), ambre entre les deux */
 function tonaliteTheme(note: number): string {
   if (note < 3) return "border-rose-300 bg-rose-50 text-rose-700"
-  if (note >= 4) return "border-green-300 bg-green-50 text-green-700"
-  return "border-amber-300 bg-amber-50 text-amber-700"
+  if (note >= 4) return "border-[#dba28a] bg-[#faf1ec] text-[#8a4f3b]"
+  return "border-[#dba28a] bg-[#faf1ec] text-[#8a4f3b]"
 }
 
 /** Styles par niveau de priorité : carte, badge et icône lucide */
@@ -257,15 +257,15 @@ const STYLES_PRIORITE: Record<
     Icon: Flame,
   },
   important: {
-    carte: "border-amber-200 bg-amber-50/40",
-    badge: "border-amber-300 bg-amber-100 text-amber-700",
+    carte: "border-[#e7c1ae] bg-[#faf1ec]/40",
+    badge: "border-[#dba28a] bg-[#f3ddd2] text-[#8a4f3b]",
     libelle: "Important",
     emoji: "⚠️",
     Icon: AlertTriangle,
   },
   suggestion: {
-    carte: "border-violet-200 bg-violet-50/40",
-    badge: "border-violet-300 bg-violet-100 text-violet-700",
+    carte: "border-[#e7c1ae] bg-[#faf1ec]/40",
+    badge: "border-[#dba28a] bg-[#f3ddd2] text-[#8a4f3b]",
     libelle: "Suggestion",
     emoji: "💡",
     Icon: Lightbulb,
@@ -809,19 +809,19 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
       {alertesIA.length > 0 && (
         <section aria-label="Alertes intelligentes du Coach IA" className="space-y-2.5">
           {alertesIA.map((a) => (
-            <Card key={a.id} className="border-amber-300 bg-amber-50">
+            <Card key={a.id} className="border-[#dba28a] bg-[#faf1ec]">
               <CardContent className="flex items-start gap-3 p-3.5">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-amber-200 text-amber-800">
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-[#e7c1ae] text-[#6f3f30]">
                 <AlertTriangle className="h-5 w-5" aria-hidden />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-amber-900">{a.titre}</p>
-                <p className="mt-0.5 text-xs leading-relaxed text-amber-800">{a.message}</p>
+                <p className="text-sm font-semibold text-[#573125]">{a.titre}</p>
+                <p className="mt-0.5 text-xs leading-relaxed text-[#6f3f30]">{a.message}</p>
               </div>
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-8 shrink-0 text-xs text-amber-700 hover:bg-amber-100"
+                className="h-8 shrink-0 text-xs text-[#8a4f3b] hover:bg-[#f3ddd2]"
                 onClick={() => ignorerAlerteIA(a.id)}
               >
                 Ignorer
@@ -862,9 +862,9 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
                         stroke="currentColor"
                         className={
                           scoreJourAffiche >= 80
-                            ? "text-green-500"
+                            ? "text-[#bc7155]"
                             : scoreJourAffiche >= 60
-                              ? "text-amber-500"
+                              ? "text-[#bc7155]"
                               : "text-rose-500"
                         }
                         strokeDasharray={`${scoreJourAffiche * 2.76} 999`}
@@ -874,9 +874,9 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
                       className={cn(
                         "text-2xl font-extrabold tracking-tight",
                         scoreJourAffiche >= 80
-                          ? "text-green-600"
+                          ? "text-[#a05f45]"
                           : scoreJourAffiche >= 60
-                            ? "text-amber-600"
+                            ? "text-[#a05f45]"
                             : "text-rose-600"
                       )}
                     >
@@ -1102,13 +1102,13 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
                   icone={Lightbulb}
                   titre="Recommandations"
                   items={rapportComplet.recommandations ?? []}
-                  tone="text-amber-600"
+                  tone="text-[#a05f45]"
                 />
                 <ListeRapport
                   icone={TrendingUp}
                   titre="Prédictions"
                   items={rapportComplet.predictions ?? []}
-                  tone="text-green-600"
+                  tone="text-[#a05f45]"
                 />
               </div>
             </>
@@ -1202,7 +1202,7 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
                             {z.total} retour{z.total > 1 ? "s" : ""} cette semaine
                           </p>
                         </div>
-                        <Badge variant="outline" className="shrink-0 border-green-300 bg-green-50 text-green-700">
+                        <Badge variant="outline" className="shrink-0 border-[#dba28a] bg-[#faf1ec] text-[#8a4f3b]">
                           {noteFr(z.noteMoy)}/5
                         </Badge>
                       </li>
@@ -1252,10 +1252,10 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
           <h2 id="titre-predictions" className="mb-3 text-base font-semibold sm:text-lg">
             🔮 Prédictions
           </h2>
-          <Card className="border-amber-200 bg-amber-50/50 shadow-sm">
+          <Card className="border-[#e7c1ae] bg-[#faf1ec]/50 shadow-sm">
             <CardHeader className="pb-2">
               <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-                <TrendingUp className="h-4.5 w-4.5 text-amber-600" aria-hidden />
+                <TrendingUp className="h-4.5 w-4.5 text-[#a05f45]" aria-hidden />
                 Prédictions de la semaine
               </CardTitle>
               <CardDescription>
@@ -1264,7 +1264,7 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
               {/* Audit UX : personnalisation — rappel contextuel des vraies données
                   qui alimentent les prédictions (note moyenne 7 j + zone faible). */}
               <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
-                <Badge variant="outline" className="border-amber-300 bg-amber-50 text-amber-800">
+                <Badge variant="outline" className="border-[#dba28a] bg-[#faf1ec] text-[#6f3f30]">
                   Note moyenne 7 j : {(scoreDuJour?.score7j ?? 0).toFixed(2).replace(".", ",")}/5
                 </Badge>
                 {zoneLaPlusFaible && (
@@ -1278,7 +1278,7 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
               <ul className="space-y-2.5">
                 {predictions.map((prediction, i) => (
                   <li key={i} className="flex items-start gap-2.5 text-sm leading-relaxed">
-                    <TrendingUp className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" aria-hidden />
+                    <TrendingUp className="mt-0.5 h-4 w-4 shrink-0 text-[#a05f45]" aria-hidden />
                     <span>{prediction}</span>
                   </li>
                 ))}
@@ -1414,12 +1414,12 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
                 <AreaChart data={courbe} margin={{ top: 5, right: 5, left: -18, bottom: 0 }}>
                   <defs>
                     <linearGradient id="gradScore" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#2563eb" stopOpacity={0.25} />
-                      <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#000d10" stopOpacity={0.25} />
+                      <stop offset="95%" stopColor="#000d10" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="gradRetours" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#93c5fd" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#93c5fd" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#8e8e95" stopOpacity={0.3} />
+                      <stop offset="95%" stopColor="#8e8e95" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e7e5e4" />
@@ -1449,7 +1449,7 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
                     type="monotone"
                     dataKey="score"
                     name="Score global"
-                    stroke="#2563eb"
+                    stroke="#000d10"
                     strokeWidth={2.5}
                     fill="url(#gradScore)"
                     connectNulls
@@ -1461,7 +1461,7 @@ export function CoachIaTab({ onOuvrirRapports }: { onOuvrirRapports?: () => void
                     type="monotone"
                     dataKey="retours"
                     name="Retours"
-                    stroke="#93c5fd"
+                    stroke="#8e8e95"
                     strokeWidth={2}
                     fill="url(#gradRetours)"
                     dot={false}
@@ -1489,7 +1489,7 @@ function BadgeEvolution({ pct, label }: { pct: number | null; label: string }) {
     pct == null || pct === 0
       ? "border-border text-muted-foreground"
       : pct > 0
-        ? "border-green-300 bg-green-50 text-green-700"
+        ? "border-[#dba28a] bg-[#faf1ec] text-[#8a4f3b]"
         : "border-rose-300 bg-rose-50 text-rose-700"
   const texte =
     pct == null
@@ -1631,7 +1631,7 @@ function Etoiles({ note }: { note: number }) {
           key={i}
           className={cn(
             "h-3.5 w-3.5",
-            i <= note ? "fill-amber-400 text-amber-400" : "text-muted-foreground/30"
+            i <= note ? "fill-[#c98b72] text-[#c98b72]" : "text-muted-foreground/30"
           )}
           aria-hidden
         />
@@ -1663,7 +1663,7 @@ function KpiCard({
 }) {
   const HintIcon = hintTone === "up" ? TrendingUp : hintTone === "down" ? TrendingDown : Minus
   const toneClass =
-    hintTone === "up" ? "text-green-600" : hintTone === "down" ? "text-rose-600" : "text-muted-foreground"
+    hintTone === "up" ? "text-[#a05f45]" : hintTone === "down" ? "text-rose-600" : "text-muted-foreground"
   return (
     <Card className="shadow-sm" title={title}>
       <CardContent className="p-4">

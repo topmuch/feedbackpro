@@ -573,7 +573,7 @@ function CarteZone({
         <div className="flex items-start justify-between gap-2">
           <div className="flex min-w-0 items-start gap-2.5">
             <div
-              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#C9A961]/50 bg-gradient-to-br from-[#1E1B15] to-[#0D0B09] text-2xl shadow-[0_4px_12px_rgba(0,0,0,0.25)]"
+              className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-[#bc7155]/50 bg-gradient-to-br from-[#1E1B15] to-[#0D0B09] text-2xl shadow-[0_4px_12px_rgba(0,0,0,0.25)]"
               aria-hidden
             >
               {iconeRubrique(zone.nom)}
@@ -615,14 +615,14 @@ function CarteZone({
             />
           ) : (
             <div className="flex aspect-[3/4] w-full max-w-[240px] items-center justify-center rounded-[20px] bg-[#131315]">
-              <Loader2 className="h-6 w-6 animate-spin text-[#C9A961]" aria-hidden />
+              <Loader2 className="h-6 w-6 animate-spin text-[#bc7155]" aria-hidden />
             </div>
           )}
 
           {/* Statut d'impression : si une commande existe pour cette zone */}
           {derniereCommande && (
             <p
-              className="flex items-center gap-1 text-[11px] font-medium text-green-700"
+              className="flex items-center gap-1 text-[11px] font-medium text-[#8a4f3b]"
               title={`Support : ${derniereCommande.typeSupport}`}
             >
               <Check className="h-3 w-3" aria-hidden /> Commandé le{" "}
@@ -833,7 +833,7 @@ function DialogStickers({
 
             {succes ? (
               <div className="space-y-3">
-                <div className="rounded-xl border border-green-200 bg-green-50 p-4 text-sm text-green-800">
+                <div className="rounded-xl border border-[#e7c1ae] bg-[#faf1ec] p-4 text-sm text-[#6f3f30]">
                   <p className="font-semibold">Merci pour votre commande !</p>
                   <p className="mt-1">
                     Suivez son avancement (À imprimer → Expédié → Livré) dans l&apos;onglet
@@ -1003,7 +1003,7 @@ function DialogQrAgrandi({
               {chargement || !lien ? (
                 <div className="flex h-[520px] w-[420px] max-w-full flex-col items-center justify-center gap-3 rounded-[20px] bg-[#131315]">
                   {chargement ? (
-                    <Loader2 className="h-8 w-8 animate-spin text-[#C9A961]" aria-hidden />
+                    <Loader2 className="h-8 w-8 animate-spin text-[#bc7155]" aria-hidden />
                   ) : (
                     <>
                       <p className="px-6 text-center text-sm text-[#EDE6D4]">

@@ -41,7 +41,7 @@ export function PricingToggle({ plans }: { plans: Plan[] }) {
           aria-label="Basculer en facturation annuelle"
           onClick={() => setAnnuel((v) => !v)}
           className={`relative h-7 w-12 rounded-full transition-colors ${
-            annuel ? "bg-gradient-to-br from-[#003399] to-[#0047c7]" : "bg-gray-300"
+            annuel ? "bg-gradient-to-br from-[#000d10] to-[#0f0f1c]" : "bg-gray-300"
           }`}
         >
           <span
@@ -55,7 +55,7 @@ export function PricingToggle({ plans }: { plans: Plan[] }) {
         >
           Annuel
         </span>
-        <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+        <span className="inline-flex items-center gap-1 rounded-full bg-[#f3ddd2] px-2 py-0.5 text-xs font-medium text-[#8a4f3b]">
           -20 %
         </span>
       </div>
@@ -69,14 +69,14 @@ export function PricingToggle({ plans }: { plans: Plan[] }) {
           return (
             <article
               key={plan.id}
-              className={`relative flex h-full flex-col rounded-3xl p-6 sm:p-8 ${
+              className={`relative flex h-full flex-col rounded-none p-6 sm:p-8 ${
                 plan.populaire
-                  ? "border-2 border-[#003399] bg-white shadow-lg shadow-[#003399]/20 lg:scale-105"
+                  ? "border-2 border-[#000d10] bg-white shadow-lg shadow-[#000d10]/20 lg:scale-105"
                   : "border border-gray-200 bg-white shadow-sm"
               }`}
             >
               {plan.populaire && (
-                <span className="absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-gradient-to-br from-[#003399] to-[#0047c7] px-3 py-1 text-xs font-semibold text-white shadow-lg">
+                <span className="absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1 rounded-full bg-gradient-to-br from-[#000d10] to-[#0f0f1c] px-3 py-1 text-xs font-semibold text-white shadow-lg">
                   <Trophy className="h-3.5 w-3.5" />
                   Recommandé
                 </span>
@@ -99,7 +99,7 @@ export function PricingToggle({ plans }: { plans: Plan[] }) {
                 asChild
                 className={`mt-6 w-full border-0 ${
                   plan.populaire
-                    ? "bg-gradient-to-br from-[#003399] to-[#0047c7] text-white hover:opacity-90"
+                    ? "bg-gradient-to-br from-[#000d10] to-[#0f0f1c] text-white hover:opacity-90"
                     : "bg-gray-100 text-gray-900 hover:bg-gray-200"
                 }`}
               >
@@ -113,7 +113,7 @@ export function PricingToggle({ plans }: { plans: Plan[] }) {
                 {plan.features.map((f) => (
                   <li key={f.texte} className="flex items-start gap-2.5 text-sm">
                     {f.inclus ? (
-                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" aria-hidden />
+                      <Check className="mt-0.5 h-4 w-4 shrink-0 text-[#bc7155]" aria-hidden />
                     ) : (
                       <X className="mt-0.5 h-4 w-4 shrink-0 text-gray-400" aria-hidden />
                     )}

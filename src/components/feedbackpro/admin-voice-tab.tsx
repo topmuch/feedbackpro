@@ -145,16 +145,16 @@ type VoiceTimeMode = {
 
 const PRIORITY_STYLES: Record<Priority, { color: string; label: string }> = {
   critical: { color: "bg-red-500 text-white", label: "Critical" },
-  important: { color: "bg-amber-500 text-white", label: "Important" },
-  info: { color: "bg-emerald-500 text-white", label: "Info" },
+  important: { color: "bg-[#bc7155] text-white", label: "Important" },
+  info: { color: "bg-[#bc7155] text-white", label: "Info" },
   silent: { color: "bg-zinc-400 text-white", label: "Silent" },
 }
 
 const TONE_STYLES: Record<Tone, { color: string; label: string }> = {
   urgent: { color: "bg-red-100 text-red-700 border-red-300", label: "Urgent" },
-  firm: { color: "bg-amber-100 text-amber-800 border-amber-300", label: "Ferme" },
-  soft: { color: "bg-emerald-100 text-emerald-700 border-emerald-300", label: "Doux" },
-  calm: { color: "bg-blue-100 text-blue-700 border-blue-300", label: "Calme" },
+  firm: { color: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a]", label: "Ferme" },
+  soft: { color: "bg-[#f3ddd2] text-[#8a4f3b] border-[#dba28a]", label: "Doux" },
+  calm: { color: "bg-[#dcdee0] text-[#2e3040] border-[#8e8e95]", label: "Calme" },
 }
 
 const REASON_LABELS: Record<string, string> = {
@@ -184,31 +184,31 @@ function modeLabel(mode: string): { label: string; color: string; description: s
     case "opening":
       return {
         label: "Ouverture",
-        color: "bg-sky-100 text-sky-800 border-sky-300",
+        color: "bg-[#dcdee0] text-[#1c1d2c] border-[#8e8e95]",
         description: "Tous les types d'événements parlent (routine d'ouverture).",
       }
     case "service_lunch":
       return {
         label: "Service déjeuner",
-        color: "bg-amber-100 text-amber-800 border-amber-300",
+        color: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a]",
         description: "Seuls critical + important parlent (info filtré).",
       }
     case "quiet":
       return {
         label: "Calme",
-        color: "bg-emerald-100 text-emerald-800 border-emerald-300",
+        color: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a]",
         description: "Seuls critical + important parlent (info filtré).",
       }
     case "service_dinner":
       return {
         label: "Service dîner",
-        color: "bg-orange-100 text-orange-800 border-orange-300",
+        color: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a]",
         description: "Seuls critical + important parlent (info filtré).",
       }
     case "night":
       return {
         label: "Nuit",
-        color: "bg-violet-100 text-violet-800 border-violet-300",
+        color: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a]",
         description: "Uniquement security_sanitary. Le reste est silencieux.",
       }
     default:
@@ -365,7 +365,7 @@ export function AdminVoiceTab({ defaultTab = "matrix" }: { defaultTab?: "matrix"
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white shadow-lg shadow-violet-500/30">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#bc7155] to-[#a05f45] text-white shadow-lg shadow-[#bc7155]/30">
             <Mic className="h-6 w-6" />
           </div>
           <div>
@@ -408,7 +408,7 @@ export function AdminVoiceTab({ defaultTab = "matrix" }: { defaultTab?: "matrix"
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <CardTitle className="flex items-center gap-2">
-                    <Volume2 className="h-5 w-5 text-violet-600" />
+                    <Volume2 className="h-5 w-5 text-[#a05f45]" />
                     Matrice de Décision
                   </CardTitle>
                   <CardDescription>
@@ -460,9 +460,9 @@ export function AdminVoiceTab({ defaultTab = "matrix" }: { defaultTab?: "matrix"
                         <TableCell>
                           <div className="flex items-center gap-2">
                             {rule.sector === "aeroport" ? (
-                              <Plane className="h-4 w-4 text-sky-600" />
+                              <Plane className="h-4 w-4 text-[#3c3e4c]" />
                             ) : (
-                              <Utensils className="h-4 w-4 text-amber-600" />
+                              <Utensils className="h-4 w-4 text-[#a05f45]" />
                             )}
                             <div>
                               <div className="font-mono text-xs font-medium">{rule.eventType}</div>
@@ -541,7 +541,7 @@ export function AdminVoiceTab({ defaultTab = "matrix" }: { defaultTab?: "matrix"
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <CardTitle className="flex items-center gap-2">
-                    <History className="h-5 w-5 text-violet-600" />
+                    <History className="h-5 w-5 text-[#a05f45]" />
                     Historique des Annonces
                   </CardTitle>
                   <CardDescription>
@@ -610,7 +610,7 @@ export function AdminVoiceTab({ defaultTab = "matrix" }: { defaultTab?: "matrix"
                         </TableCell>
                         <TableCell className="text-center">
                           {log.spoken ? (
-                            <CheckCircle2 className="mx-auto h-4 w-4 text-emerald-600" />
+                            <CheckCircle2 className="mx-auto h-4 w-4 text-[#a05f45]" />
                           ) : (
                             <AlertTriangle className="mx-auto h-4 w-4 text-zinc-400" />
                           )}
@@ -703,7 +703,7 @@ function TimeModesSection({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-violet-600" />
+              <Clock className="h-5 w-5 text-[#a05f45]" />
               Contexte Horaire
             </CardTitle>
             <CardDescription>
@@ -738,9 +738,9 @@ function TimeModesSection({
             <div key={tm.id} className="rounded-xl border bg-muted/30 p-4">
               <div className="mb-3 flex items-center gap-2">
                 {tm.sector === "aeroport" ? (
-                  <Plane className="h-4 w-4 text-sky-600" />
+                  <Plane className="h-4 w-4 text-[#3c3e4c]" />
                 ) : (
-                  <Utensils className="h-4 w-4 text-amber-600" />
+                  <Utensils className="h-4 w-4 text-[#a05f45]" />
                 )}
                 <h3 className="font-semibold capitalize">{tm.sector}</h3>
               </div>
@@ -852,7 +852,7 @@ function TestDeniseSection({ timemodes }: { timemodes: VoiceTimeMode[] }) {
       <Card className="lg:col-span-2">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <TestTube2 className="h-5 w-5 text-violet-600" />
+            <TestTube2 className="h-5 w-5 text-[#a05f45]" />
             Tester la voix
           </CardTitle>
           <CardDescription>
@@ -901,7 +901,7 @@ function TestDeniseSection({ timemodes }: { timemodes: VoiceTimeMode[] }) {
             </div>
           </div>
           <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
-            <ShieldAlert className="mb-1 inline h-4 w-4 text-amber-600" />{" "}
+            <ShieldAlert className="mb-1 inline h-4 w-4 text-[#a05f45]" />{" "}
             <strong>Note :</strong> certains navigateurs bloquent l'autoplay audio.
             Clique d'abord n'importe où sur la page si aucun son ne sort.
           </div>
@@ -912,7 +912,7 @@ function TestDeniseSection({ timemodes }: { timemodes: VoiceTimeMode[] }) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-violet-600" />
+            <Clock className="h-5 w-5 text-[#a05f45]" />
             Mode horaire courant
           </CardTitle>
           <CardDescription>Heure : {now.toLocaleTimeString("fr-FR")}</CardDescription>
@@ -926,9 +926,9 @@ function TestDeniseSection({ timemodes }: { timemodes: VoiceTimeMode[] }) {
                 <div className="mb-2 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     {sector === "aeroport" ? (
-                      <Plane className="h-4 w-4 text-sky-600" />
+                      <Plane className="h-4 w-4 text-[#3c3e4c]" />
                     ) : (
-                      <Utensils className="h-4 w-4 text-amber-600" />
+                      <Utensils className="h-4 w-4 text-[#a05f45]" />
                     )}
                     <span className="text-sm font-medium capitalize">{sector}</span>
                   </div>
@@ -985,9 +985,9 @@ function RuleEditDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {draft.sector === "aeroport" ? (
-              <Plane className="h-5 w-5 text-sky-600" />
+              <Plane className="h-5 w-5 text-[#3c3e4c]" />
             ) : (
-              <Utensils className="h-5 w-5 text-amber-600" />
+              <Utensils className="h-5 w-5 text-[#a05f45]" />
             )}
             {draft.sector} · {draft.eventType}
           </DialogTitle>
@@ -1154,12 +1154,12 @@ type SignalementLigne = {
 }
 
 const STATUT_STYLES: Record<string, { label: string; color: string }> = {
-  EN_ATTENTE: { label: "En attente", color: "bg-amber-100 text-amber-800 border-amber-300" },
-  EN_COURS: { label: "En cours", color: "bg-sky-100 text-sky-800 border-sky-300" },
-  RESOLU: { label: "Résolu", color: "bg-emerald-100 text-emerald-800 border-emerald-300" },
-  pending: { label: "En attente", color: "bg-amber-100 text-amber-800 border-amber-300" },
-  in_progress: { label: "En cours", color: "bg-sky-100 text-sky-800 border-sky-300" },
-  done: { label: "Résolu", color: "bg-emerald-100 text-emerald-800 border-emerald-300" },
+  EN_ATTENTE: { label: "En attente", color: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a]" },
+  EN_COURS: { label: "En cours", color: "bg-[#dcdee0] text-[#1c1d2c] border-[#8e8e95]" },
+  RESOLU: { label: "Résolu", color: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a]" },
+  pending: { label: "En attente", color: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a]" },
+  in_progress: { label: "En cours", color: "bg-[#dcdee0] text-[#1c1d2c] border-[#8e8e95]" },
+  done: { label: "Résolu", color: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a]" },
 }
 
 // Libellés pour les types de demandes VIP
@@ -1421,7 +1421,7 @@ function SignalementsDeniseSection() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                <AlertTriangle className="h-5 w-5 text-[#bc7155]" />
                 Gestion des Signalements
               </CardTitle>
               <CardDescription>
@@ -1450,9 +1450,9 @@ function SignalementsDeniseSection() {
         <CardContent>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <KpiPill label="Total" value={total} icon={<Plane className="h-3.5 w-3.5" />} color="bg-zinc-100 text-zinc-700" />
-            <KpiPill label="En attente" value={enAttente} icon={<AlertTriangle className="h-3.5 w-3.5" />} color="bg-amber-100 text-amber-800" />
-            <KpiPill label="En cours" value={enCours} icon={<TrendingUp className="h-3.5 w-3.5" />} color="bg-sky-100 text-sky-800" />
-            <KpiPill label="Résolus" value={resolus} icon={<CheckCircle2 className="h-3.5 w-3.5" />} color="bg-emerald-100 text-emerald-800" />
+            <KpiPill label="En attente" value={enAttente} icon={<AlertTriangle className="h-3.5 w-3.5" />} color="bg-[#f3ddd2] text-[#6f3f30]" />
+            <KpiPill label="En cours" value={enCours} icon={<TrendingUp className="h-3.5 w-3.5" />} color="bg-[#dcdee0] text-[#1c1d2c]" />
+            <KpiPill label="Résolus" value={resolus} icon={<CheckCircle2 className="h-3.5 w-3.5" />} color="bg-[#f3ddd2] text-[#6f3f30]" />
           </div>
         </CardContent>
       </Card>
@@ -1470,8 +1470,8 @@ function SignalementsDeniseSection() {
             </div>
           ) : reports.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-12 text-center">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100" aria-hidden>
-                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f3ddd2]" aria-hidden>
+                <CheckCircle2 className="h-5 w-5 text-[#a05f45]" />
               </span>
               <p className="text-sm font-medium">Aucun signalement pour le moment</p>
               <p className="text-xs text-muted-foreground">
@@ -1502,7 +1502,7 @@ function SignalementsDeniseSection() {
                       <TableRow key={`${r.source}-${r.id}`} className={resolu ? "opacity-60" : ""}>
                         <TableCell>
                           <div className="flex items-start gap-2">
-                            <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-amber-100 text-sm" aria-hidden>
+                            <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-[#f3ddd2] text-sm" aria-hidden>
                               {r.zone?.emoji ?? "⚠"}
                             </span>
                             <div className="min-w-0">
@@ -1513,8 +1513,8 @@ function SignalementsDeniseSection() {
                                   variant="outline"
                                   className={`shrink-0 px-1 py-0 text-[9px] ${
                                     r.source === "vip"
-                                      ? "border-[#C9A961]/40 bg-[#C9A961]/10 text-[#8B6F47]"
-                                      : "border-sky-300 bg-sky-50 text-sky-700"
+                                      ? "border-[#bc7155]/40 bg-[#bc7155]/10 text-[#8B6F47]"
+                                      : "border-[#8e8e95] bg-[#f0f1f2] text-[#2e3040]"
                                   }`}
                                 >
                                   {r.source === "vip" ? "VIP" : "AÉRO"}
@@ -1542,7 +1542,7 @@ function SignalementsDeniseSection() {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="h-8 gap-1.5 border-violet-300 text-violet-700 hover:bg-violet-50"
+                              className="h-8 gap-1.5 border-[#dba28a] text-[#8a4f3b] hover:bg-[#faf1ec]"
                               disabled={isBusy}
                               onClick={() => annoncer(r)}
                               aria-label={`Annoncer ${r.problemType}`}
@@ -1554,7 +1554,7 @@ function SignalementsDeniseSection() {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="h-8 gap-1.5 border-amber-300 text-amber-700 hover:bg-amber-50"
+                              className="h-8 gap-1.5 border-[#dba28a] text-[#8a4f3b] hover:bg-[#faf1ec]"
                               disabled={isBusy || resolu}
                               onClick={() => void escalader(r)}
                               aria-label={`Escalader ${r.problemType}`}
@@ -1565,7 +1565,7 @@ function SignalementsDeniseSection() {
                             </Button>
                             <Button
                               size="sm"
-                              className="h-8 gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700"
+                              className="h-8 gap-1.5 bg-[#a05f45] text-white hover:bg-[#8a4f3b]"
                               disabled={isBusy || resolu}
                               onClick={() => void resoudre(r)}
                               aria-label={`Résoudre ${r.problemType}`}

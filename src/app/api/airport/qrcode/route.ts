@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
     width: TAILLE_QR,
     margin: 2,
     errorCorrectionLevel: 'H',
-    color: { dark: '#0f172a', light: '#ffffff' },
+    color: { dark: '#0f0f1c', light: '#ffffff' },
   })
 
   // Format PDF : poster A4 avec QR + nom zone + instructions

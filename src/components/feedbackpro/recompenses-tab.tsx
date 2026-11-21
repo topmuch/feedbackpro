@@ -226,8 +226,8 @@ export function RecompensesTab() {
           <Card className="shadow-sm">
             <CardContent className="flex items-center justify-between gap-4 p-4 sm:p-5">
               <div className="flex min-w-0 items-start gap-3">
-                <div className="shrink-0 rounded-xl bg-amber-100 p-2.5" aria-hidden>
-                  <Gift className="h-5 w-5 text-amber-600" />
+                <div className="shrink-0 rounded-xl bg-[#f3ddd2] p-2.5" aria-hidden>
+                  <Gift className="h-5 w-5 text-[#a05f45]" />
                 </div>
                 <div className="min-w-0">
                   <Label htmlFor="rc-active" className="cursor-pointer text-sm font-semibold">
@@ -427,12 +427,12 @@ export function RecompensesTab() {
                 <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
                   Étape 3 — avant l&apos;envoi
                 </p>
-                <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/50 dark:bg-amber-950/20">
-                  <p className="text-sm font-medium text-amber-900 dark:text-amber-200">🎁 Petite attention</p>
-                  <p className="mt-1 text-sm text-amber-800 dark:text-amber-300">
+                <div className="rounded-xl border border-[#e7c1ae] bg-[#faf1ec] p-3 dark:border-[#573125]/50 dark:bg-[#3f231b]/20">
+                  <p className="text-sm font-medium text-[#573125] dark:text-[#e7c1ae]">🎁 Petite attention</p>
+                  <p className="mt-1 text-sm text-[#6f3f30] dark:text-[#dba28a]">
                     {active ? texteApercu : "Aucune récompense affichée"}
                   </p>
-                  <p className="mt-1.5 text-xs text-amber-700/80 dark:text-amber-400/80">
+                  <p className="mt-1.5 text-xs text-[#8a4f3b]/80 dark:text-[#c98b72]/80">
                     Merci pour votre retour — votre cadeau s&apos;affiche juste après l&apos;envoi&nbsp;!
                   </p>
                 </div>
@@ -473,29 +473,29 @@ type ApercuRemerciementProps = {
 
 function ApercuRemerciement({ active, texteApercu, codeApercu, code, limite }: ApercuRemerciementProps) {
   return (
-    <div className="rounded-xl border-2 border-amber-300 bg-amber-50 p-3 shadow-sm dark:border-amber-700/60 dark:bg-amber-950/20">
-      <p className="text-sm font-bold text-amber-900 dark:text-amber-200">
+    <div className="rounded-xl border-2 border-[#dba28a] bg-[#faf1ec] p-3 shadow-sm dark:border-[#8a4f3b]/60 dark:bg-[#3f231b]/20">
+      <p className="text-sm font-bold text-[#573125] dark:text-[#e7c1ae]">
         🎁 Votre récompense : {active ? texteApercu : "—"}
       </p>
 
       {/* Coupon stylisé : bordure pointillée, police mono, fond léger — audit UX */}
       {active && code.trim() && (
-        <div className="mt-3 inline-flex flex-col overflow-hidden rounded-lg border-2 border-dashed border-amber-500 bg-background">
-          <div className="flex items-center justify-center gap-1.5 bg-amber-100 px-3 py-0.5 text-[10px] font-bold uppercase tracking-widest text-amber-700 dark:bg-amber-900/40 dark:text-amber-300">
+        <div className="mt-3 inline-flex flex-col overflow-hidden rounded-lg border-2 border-dashed border-[#bc7155] bg-background">
+          <div className="flex items-center justify-center gap-1.5 bg-[#f3ddd2] px-3 py-0.5 text-[10px] font-bold uppercase tracking-widest text-[#8a4f3b] dark:bg-[#573125]/40 dark:text-[#dba28a]">
             <Scissors className="h-3 w-3" aria-hidden />
             Code promo
           </div>
-          <div className="flex items-center gap-2 px-5 py-2 font-mono text-base font-bold tracking-[0.2em] text-amber-900 dark:text-amber-100">
-            <Ticket className="h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+          <div className="flex items-center gap-2 px-5 py-2 font-mono text-base font-bold tracking-[0.2em] text-[#573125] dark:text-[#f3ddd2]">
+            <Ticket className="h-4 w-4 shrink-0 text-[#a05f45] dark:text-[#c98b72]" aria-hidden />
             {codeApercu}
           </div>
         </div>
       )}
 
       {active && limite.trim() && (
-        <p className="mt-2 text-xs text-amber-800/80 dark:text-amber-300/80">⚠️ {limite}</p>
+        <p className="mt-2 text-xs text-[#6f3f30]/80 dark:text-[#dba28a]/80">⚠️ {limite}</p>
       )}
-      <p className="mt-2 text-xs text-amber-800/90 dark:text-amber-300/80">
+      <p className="mt-2 text-xs text-[#6f3f30]/90 dark:text-[#dba28a]/80">
         Montrez cet écran au personnel pour en profiter
       </p>
     </div>

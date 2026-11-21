@@ -5,8 +5,8 @@
 // ------------------------------------------------------------
 // Widget "Live Score" public (hall d'aéroport / bureau direction).
 // Affiche en temps réel le score de satisfaction agrégé sur 24h,
-// avec un gros chiffre animé qui passe du vert (#00A651) à
-// l'orange (#FF6B00) puis au rouge (#E30613) selon le niveau.
+// avec un gros chiffre animé qui passe du vert (#bc7155) à
+// l'orange (#bc7155) puis au rouge (#E30613) selon le niveau.
 //
 // Sources :
 //   GET /api/airport/live-score  (polling toutes les 10s)

@@ -124,12 +124,12 @@ export function OnboardingBanner() {
   }
 
   return (
-    <div className="rounded-2xl border border-[#003399]/20 bg-gradient-to-br from-[#003399]/5 to-[#0047c7]/5 p-4 sm:p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
+    <div className="rounded-2xl border border-[#000d10]/20 bg-gradient-to-br from-[#000d10]/5 to-[#0f0f1c]/5 p-4 sm:p-5 shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
       <div className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-[#003399]" aria-hidden />
+          <Sparkles className="h-5 w-5 text-[#000d10]" aria-hidden />
           <div>
-            <p className="text-sm font-bold text-[#1E1E2E]">
+            <p className="text-sm font-bold text-[#0f0f1c]">
               Bienvenue sur FeedbackPro — votre première semaine
             </p>
             <p className="text-xs text-[#9A9AAE]">
@@ -150,7 +150,7 @@ export function OnboardingBanner() {
       {/* Barre de progression */}
       <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
         <div
-          className="h-full rounded-full bg-[#003399] transition-all duration-500"
+          className="h-full rounded-full bg-[#000d10] transition-all duration-500"
           style={{ width: `${progression}%` }}
         />
       </div>
@@ -167,9 +167,9 @@ export function OnboardingBanner() {
               className={cn(
                 "flex flex-col gap-1 rounded-2xl border p-3 transition-all",
                 faite
-                  ? "border-green-300 bg-green-50"
+                  ? "border-[#dba28a] bg-[#faf1ec]"
                   : active
-                    ? "border-[#003399] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] ring-2 ring-[#003399]/10"
+                    ? "border-[#000d10] bg-white shadow-[0_10px_30px_rgba(0,0,0,0.06)] ring-2 ring-[#000d10]/10"
                     : "border-border bg-muted/30 opacity-60"
               )}
             >
@@ -177,7 +177,7 @@ export function OnboardingBanner() {
                 <span
                   className={cn(
                     "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold",
-                    faite ? "bg-green-500 text-white" : active ? "bg-[#003399] text-white" : "bg-muted-foreground/30 text-muted-foreground"
+                    faite ? "bg-[#bc7155] text-white" : active ? "bg-[#000d10] text-white" : "bg-muted-foreground/30 text-muted-foreground"
                   )}
                 >
                   {faite ? <Check className="h-3 w-3" /> : etape.n}
@@ -186,7 +186,7 @@ export function OnboardingBanner() {
               </div>
               <p className="text-[11px] leading-snug text-muted-foreground">{etape.description}</p>
               {active && etape.tips && (
-                <p className="text-[10px] italic text-[#003399]">💡 {etape.tips}</p>
+                <p className="text-[10px] italic text-[#000d10]">💡 {etape.tips}</p>
               )}
             </a>
           )
@@ -200,7 +200,7 @@ export function OnboardingBanner() {
             size="sm"
             onClick={validerEtape}
             disabled={enCours}
-            className="bg-[#003399] text-white hover:bg-[#003399]/90"
+            className="bg-[#000d10] text-white hover:bg-[#000d10]/90"
           >
             {enCours ? (
               <Loader2 className="mr-1.5 h-4 w-4 animate-spin" />

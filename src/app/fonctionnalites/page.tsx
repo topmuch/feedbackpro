@@ -24,9 +24,9 @@ export default function FonctionnalitesPage() {
   return (
     <MarketingLayout activePath="/fonctionnalites">
       {/* ---------- Hero ---------- */}
-      <section className="bg-gradient-to-b from-[#002e85]/5 to-white py-14 sm:py-20">
+      <section className="bg-gradient-to-b from-[#0f0f1c]/5 to-white py-14 sm:py-20">
         <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
-          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#002e85] shadow-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#0f0f1c] shadow-sm">
             Fonctionnalités
           </span>
           <h1
@@ -34,7 +34,7 @@ export default function FonctionnalitesPage() {
             style={{ letterSpacing: "-0.03em" }}
           >
             Tout pour piloter votre qualité,{" "}
-            <span className="bg-gradient-to-br from-[#002e85] to-[#0047c7] bg-clip-text text-transparent">sans effort</span>
+            <span className="bg-gradient-to-br from-[#0f0f1c] to-[#0f0f1c] bg-clip-text text-transparent">sans effort</span>
           </h1>
           <p className="mt-4 text-lg text-gray-600">
             6 modules qui couvrent l&apos;ensemble du cycle : collecte, analyse, alerte, pilotage,
@@ -51,12 +51,12 @@ export default function FonctionnalitesPage() {
             return (
               <article
                 key={f.titre}
-                className={`group flex h-full flex-col rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:border-[#002e85]/30 hover:shadow-xl sm:p-7 ${
+                className={`group flex h-full flex-col rounded-none border border-gray-200 bg-white p-6 shadow-sm transition-all hover:-translate-y-1 hover:border-[#0f0f1c]/30 hover:shadow-xl sm:p-7 ${
                   f.grand ? "lg:col-span-4 lg:row-span-2" : "lg:col-span-2"
                 }`}
               >
                 <div className="flex items-center justify-between">
-                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#002e85] to-[#0047c7] text-white shadow-[0_0_20px_rgba(0,46,133,0.4)]">
+                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#0f0f1c] to-[#0f0f1c] text-white shadow-[0_0_20px_rgba(0,46,133,0.4)]">
                     <Icone className="h-6 w-6" />
                   </span>
                   <span className="text-2xl opacity-70 transition-transform duration-300 group-hover:scale-110">
@@ -72,7 +72,7 @@ export default function FonctionnalitesPage() {
                     <div className="rounded-2xl border border-gray-200 bg-gray-50 p-4">
                       <div className="flex items-center justify-between text-xs text-gray-500">
                         <span>Évolution du score — 14 jours</span>
-                        <span className="flex items-center gap-1 font-medium text-emerald-600">
+                        <span className="flex items-center gap-1 font-medium text-[#a05f45]">
                           <TrendingUp className="h-3.5 w-3.5" /> +18 %
                         </span>
                       </div>
@@ -82,7 +82,7 @@ export default function FonctionnalitesPage() {
                         ].map((h, idx) => (
                           <div
                             key={idx}
-                            className="flex-1 rounded-t bg-gradient-to-br from-[#002e85] to-[#0047c7]"
+                            className="flex-1 rounded-t bg-gradient-to-br from-[#0f0f1c] to-[#0f0f1c]"
                             style={{ height: `${h}%`, opacity: 0.4 + (idx / 14) * 0.6 }}
                             aria-hidden
                           />
@@ -120,7 +120,7 @@ export default function FonctionnalitesPage() {
             {PROBLEM_CARDS.map((c) => (
               <article
                 key={c.titre}
-                className="group h-full rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition-all hover:border-rose-300 hover:shadow-xl"
+                className="group h-full rounded-none border border-gray-200 bg-white p-6 shadow-sm transition-all hover:border-rose-300 hover:shadow-xl"
               >
                 <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gray-50 text-3xl shadow-inner">
                   {c.emoji}
@@ -130,7 +130,7 @@ export default function FonctionnalitesPage() {
               </article>
             ))}
             {/* 7e card : billet "la solution" pour combler la grille 3×3 */}
-            <article className="flex h-full flex-col justify-center rounded-3xl border-2 border-[#002e85] bg-gradient-to-br from-[#002e85] to-[#0047c7] p-6 text-white shadow-lg">
+            <article className="flex h-full flex-col justify-center rounded-none border-2 border-[#0f0f1c] bg-gradient-to-br from-[#0f0f1c] to-[#0f0f1c] p-6 text-white shadow-lg">
               <p className="text-3xl">✨</p>
               <h3 className="mt-3 text-lg font-bold">La solution ?</h3>
               <p className="mt-2 text-sm leading-relaxed text-white/90">

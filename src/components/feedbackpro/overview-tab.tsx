@@ -4,13 +4,13 @@
 // FeedbackPro - Onglet "Tableau de bord" du dashboard Pro
 // ------------------------------------------------------------
 // V3 PREMIUM — refonte « Luxe Silencieux » :
-//   · Titres en Playfair Display (serif élégant) + filet champagne #C9A961
+//   · Titres en Playfair Display (serif élégant) + filet champagne #bc7155
 //   · KPI cartes premium : dégradés doux, médaillons d'icônes or
 //   · Tableau « Derniers retours » refait : en-tête champagne sur fond
 //     noir chaud, lignes aérées, badges arrondis, score en médaillon
 //   · Courbe 30 j : carte premium avec en-tête serif
-// Palette : #FAFAF7 (fond), #C9A961 (or champagne), #1A1A1A (charbon),
-//           vert #4A7C59 (succès), terracotta #C97B63 (alerte douce)
+// Palette : #ffffff (fond), #bc7155 (or champagne), #0f0f1c (charbon),
+//           vert #bc7155 (succès), terracotta #bc7155 (alerte douce)
 // ============================================================
 
 import { useEffect, useState } from "react"
@@ -61,8 +61,8 @@ type OverviewData = {
 /** Serif premium pour les titres de cartes (Playfair Display chargé en runtime). */
 const SERIF: React.CSSProperties = { fontFamily: '"Playfair Display", Georgia, serif' }
 
-const GOLD = "#C9A961"
-const CHARBON = "#1A1A1A"
+const GOLD = "#bc7155"
+const CHARBON = "#0f0f1c"
 
 export function OverviewTab() {
   const [data, setData] = useState<OverviewData | null>(null)
@@ -94,18 +94,18 @@ export function OverviewTab() {
         </div>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[...Array(4)].map((_, i) => (
-            <Skeleton key={i} className="h-28 rounded-3xl" />
+            <Skeleton key={i} className="h-28 rounded-none" />
           ))}
         </div>
-        <Skeleton className="h-72 rounded-3xl" />
-        <Skeleton className="h-48 rounded-3xl" />
+        <Skeleton className="h-72 rounded-none" />
+        <Skeleton className="h-48 rounded-none" />
       </div>
     )
   }
 
   if (!data) {
     return (
-      <Card className="rounded-3xl">
+      <Card className="rounded-none">
         <CardContent className="py-12 text-center text-sm text-muted-foreground">
           Aucune donnée disponible pour le moment.
         </CardContent>
@@ -117,7 +117,7 @@ export function OverviewTab() {
   const evolution = data.evolutionPct
 
   // Couleur de l'aire du graphique selon le score
-  const couleurCourbe = score >= 80 ? "#4A7C59" : score >= 60 ? GOLD : "#C0392B"
+  const couleurCourbe = score >= 80 ? "#bc7155" : score >= 60 ? GOLD : "#C0392B"
 
   return (
     <div className="space-y-7">
@@ -141,7 +141,7 @@ export function OverviewTab() {
         {/* Score qualité — vert sauge */}
         <div
           className="relative overflow-hidden rounded-2xl border border-black/5 p-5 text-white shadow-[0_14px_34px_rgba(26,26,26,0.14)] sm:p-6"
-          style={{ background: "linear-gradient(145deg, #4A7C59 0%, #3B6648 100%)" }}
+          style={{ background: "linear-gradient(145deg, #bc7155 0%, #3B6648 100%)" }}
         >
           <div className="absolute -right-7 -top-7 h-28 w-28 rounded-full bg-white/10" aria-hidden />
           <div className="absolute right-4 top-4 h-14 w-14 rounded-full border border-white/15" aria-hidden />
@@ -187,19 +187,19 @@ export function OverviewTab() {
         {/* Taux d'interception — ivoire premium avec accents vert */}
         <div
           className="relative overflow-hidden rounded-2xl border p-5 shadow-[0_14px_34px_rgba(26,26,26,0.08)] sm:p-6"
-          style={{ background: "linear-gradient(150deg, #FFFDF8 0%, #FAF6EC 100%)", borderColor: "rgba(201,169,97,0.35)" }}
+          style={{ background: "linear-gradient(150deg, #FFFDF8 0%, #faf1ec 100%)", borderColor: "rgba(201,169,97,0.35)" }}
         >
           <div className="absolute -right-7 -top-7 h-28 w-28 rounded-full" style={{ backgroundColor: "rgba(74,124,89,0.08)" }} aria-hidden />
           <div className="relative flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-xs uppercase tracking-[0.14em] text-[#8A7B5C]">Taux d&apos;interception</p>
               <p className="mt-2 text-3xl font-bold tracking-tight" style={{ color: CHARBON }}>{data.tauxInterception}%</p>
-              <p className="mt-2 flex items-center gap-1 text-xs font-medium" style={{ color: "#4A7C59" }}>
+              <p className="mt-2 flex items-center gap-1 text-xs font-medium" style={{ color: "#bc7155" }}>
                 <Check size={13} aria-hidden /> Réclamations interceptées
               </p>
             </div>
             <div className="shrink-0 rounded-2xl border p-2.5" style={{ borderColor: "rgba(74,124,89,0.3)", backgroundColor: "rgba(74,124,89,0.1)" }} aria-hidden>
-              <TrendingUp className="h-5 w-5" style={{ color: "#4A7C59" }} />
+              <TrendingUp className="h-5 w-5" style={{ color: "#bc7155" }} />
             </div>
           </div>
         </div>
@@ -207,7 +207,7 @@ export function OverviewTab() {
         {/* Alertes — terracotta doux */}
         <div
           className="relative overflow-hidden rounded-2xl border border-black/5 p-5 text-white shadow-[0_14px_34px_rgba(201,123,99,0.25)] sm:p-6"
-          style={{ background: "linear-gradient(145deg, #C97B63 0%, #A85E48 100%)" }}
+          style={{ background: "linear-gradient(145deg, #bc7155 0%, #A85E48 100%)" }}
         >
           <div className="absolute -right-7 -top-7 h-28 w-28 rounded-full bg-white/10" aria-hidden />
           <div className="relative flex items-start justify-between gap-3">
@@ -328,7 +328,7 @@ export function OverviewTab() {
                     >
                       <span
                         className="text-sm font-bold leading-none"
-                        style={{ color: r.note >= 4 ? "#4A7C59" : r.note >= 3 ? "#8A7B5C" : "#C0392B" }}
+                        style={{ color: r.note >= 4 ? "#bc7155" : r.note >= 3 ? "#8A7B5C" : "#C0392B" }}
                       >
                         {r.note}
                       </span>

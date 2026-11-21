@@ -12,8 +12,8 @@
 // L'historique ci-dessous montre le suivi : NOUVEAU → LU → TRAITE.
 //
 // Palette « Luxe Lumineux » identique au dashboard VIP :
-//   fond #FAFAF7 · cartes blanches · or #C9A961 · bronze #8B6F47
-//   texte #2C2C2C · succès #4A7C59 · alerte #C97B63 · bord #EAE5DC
+//   fond #ffffff · cartes blanches · or #bc7155 · bronze #8B6F47
+//   texte #2C2C2C · succès #bc7155 · alerte #bc7155 · bord #efe7e0
 // ============================================================
 
 import { useCallback, useEffect, useState } from 'react'
@@ -61,17 +61,17 @@ const CATEGORIE_LABELS: Record<string, string> = Object.fromEntries(
 const STATUT_META: Record<string, { label: string; className: string; Icon: typeof Clock }> = {
   NOUVEAU: {
     label: 'En attente de lecture',
-    className: 'border-[#C9A961]/40 bg-[#C9A961]/10 text-[#8B6F47]',
+    className: 'border-[#bc7155]/40 bg-[#bc7155]/10 text-[#8B6F47]',
     Icon: Clock,
   },
   LU: {
     label: 'Lu par l\u2019équipe',
-    className: 'border-[#4A7C59]/40 bg-[#4A7C59]/10 text-[#4A7C59]',
+    className: 'border-[#bc7155]/40 bg-[#bc7155]/10 text-[#bc7155]',
     Icon: MailOpen,
   },
   TRAITE: {
     label: 'Traité',
-    className: 'border-[#4A7C59]/40 bg-[#4A7C59]/15 text-[#4A7C59]',
+    className: 'border-[#bc7155]/40 bg-[#bc7155]/15 text-[#bc7155]',
     Icon: CheckCircle2,
   },
 }
@@ -143,7 +143,7 @@ export function AssistanceTab() {
     <div className="mx-auto max-w-7xl space-y-5">
       {/* ---------- En-tête ---------- */}
       <div className="flex items-start gap-3">
-        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white shadow-[0_4px_14px_rgba(201,169,97,0.25)]">
+        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#bc7155] to-[#8B6F47] text-white shadow-[0_4px_14px_rgba(201,169,97,0.25)]">
           <LifeBuoy className="h-5 w-5" aria-hidden />
         </span>
         <div className="min-w-0">
@@ -160,9 +160,9 @@ export function AssistanceTab() {
       </div>
 
       {/* ---------- Bandeau connexion superadmin ---------- */}
-      <div className="flex items-center gap-2.5 rounded-xl border border-[#4A7C59]/30 bg-[#4A7C59]/8 px-4 py-3">
-        <ShieldCheck className="h-4 w-4 shrink-0 text-[#4A7C59]" aria-hidden />
-        <p className="text-xs leading-relaxed text-[#4A7C59]">
+      <div className="flex items-center gap-2.5 rounded-xl border border-[#bc7155]/30 bg-[#bc7155]/8 px-4 py-3">
+        <ShieldCheck className="h-4 w-4 shrink-0 text-[#bc7155]" aria-hidden />
+        <p className="text-xs leading-relaxed text-[#bc7155]">
           <span className="font-semibold">Connexion directe</span> — vos messages arrivent dans
           l&apos;onglet <span className="font-semibold">« Messages » du superadmin</span> et y sont suivis
           (En attente → Lu → Traité). Les demandes urgentes sont marquées <span className="font-semibold">URGENT</span>.
@@ -171,7 +171,7 @@ export function AssistanceTab() {
 
       <div className="grid gap-5 lg:grid-cols-5">
         {/* ---------- Formulaire ---------- */}
-        <Card className="border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)] lg:col-span-2">
+        <Card className="border border-[#efe7e0] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)] lg:col-span-2">
           <h3 className="text-sm font-semibold uppercase tracking-wider text-[#8B6F47]">
             Nouvelle demande
           </h3>
@@ -184,7 +184,7 @@ export function AssistanceTab() {
               <Select value={categorie} onValueChange={setCategorie}>
                 <SelectTrigger
                   id="assistance-categorie"
-                  className="mt-1.5 border-[#EAE5DC] bg-white text-[#2C2C2C]"
+                  className="mt-1.5 border-[#efe7e0] bg-white text-[#2C2C2C]"
                 >
                   <SelectValue />
                 </SelectTrigger>
@@ -205,7 +205,7 @@ export function AssistanceTab() {
               <Select value={priorite} onValueChange={setPriorite}>
                 <SelectTrigger
                   id="assistance-priorite"
-                  className="mt-1.5 border-[#EAE5DC] bg-white text-[#2C2C2C]"
+                  className="mt-1.5 border-[#efe7e0] bg-white text-[#2C2C2C]"
                 >
                   <SelectValue />
                 </SelectTrigger>
@@ -226,12 +226,12 @@ export function AssistanceTab() {
                 onChange={(e) => setMessage(e.target.value.slice(0, MAX_MESSAGE))}
                 placeholder="Ex : le QR de la Table 4 n'ouvre plus la page Nathalie depuis ce matin…"
                 rows={6}
-                className="mt-1.5 resize-none border-[#EAE5DC] bg-white text-sm text-[#2C2C2C] placeholder:text-[#8B6F47]/50"
+                className="mt-1.5 resize-none border-[#efe7e0] bg-white text-sm text-[#2C2C2C] placeholder:text-[#8B6F47]/50"
               />
               <p
                 className={cn(
                   'mt-1 text-right text-[11px] tabular-nums',
-                  restants < 100 ? 'text-[#C97B63]' : 'text-[#8B6F47]/70',
+                  restants < 100 ? 'text-[#bc7155]' : 'text-[#8B6F47]/70',
                 )}
               >
                 {restants} caractères restants
@@ -244,8 +244,8 @@ export function AssistanceTab() {
               className={cn(
                 'h-11 w-full gap-2 text-sm font-semibold',
                 priorite === 'urgente'
-                  ? 'bg-[#C97B63] text-white hover:bg-[#B86A52]'
-                  : 'bg-[#C9A961] text-white hover:bg-[#B8975A]',
+                  ? 'bg-[#bc7155] text-white hover:bg-[#B86A52]'
+                  : 'bg-[#bc7155] text-white hover:bg-[#B8975A]',
               )}
             >
               {envoiBusy ? (
@@ -261,7 +261,7 @@ export function AssistanceTab() {
         </Card>
 
         {/* ---------- Historique / suivi ---------- */}
-        <Card className="border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)] lg:col-span-3">
+        <Card className="border border-[#efe7e0] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)] lg:col-span-3">
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-[#8B6F47]">
               Mes demandes ({historique.length})
@@ -270,7 +270,7 @@ export function AssistanceTab() {
               variant="ghost"
               size="sm"
               onClick={() => void chargerHistorique()}
-              className="gap-1.5 text-xs text-[#8B6F47] hover:bg-[#C9A961]/10"
+              className="gap-1.5 text-xs text-[#8B6F47] hover:bg-[#bc7155]/10"
             >
               <Clock className="h-3.5 w-3.5" aria-hidden /> Actualiser
             </Button>
@@ -303,8 +303,8 @@ export function AssistanceTab() {
                   <li
                     key={m.id}
                     className={cn(
-                      'rounded-xl border bg-[#FAFAF7] transition-colors',
-                      estUrgent ? 'border-[#C97B63]/40' : 'border-[#EAE5DC]',
+                      'rounded-xl border bg-[#ffffff] transition-colors',
+                      estUrgent ? 'border-[#bc7155]/40' : 'border-[#efe7e0]',
                     )}
                   >
                     <button
@@ -319,7 +319,7 @@ export function AssistanceTab() {
                             {CATEGORIE_LABELS[m.categorie] ?? 'Autre'}
                           </span>
                           {estUrgent && (
-                            <Badge className="border-0 bg-[#C97B63] text-[10px] font-bold uppercase tracking-wide text-white">
+                            <Badge className="border-0 bg-[#bc7155] text-[10px] font-bold uppercase tracking-wide text-white">
                               Urgent
                             </Badge>
                           )}
@@ -348,7 +348,7 @@ export function AssistanceTab() {
                       )}
                     </button>
                     {ouvert && (
-                      <div className="border-t border-[#EAE5DC] px-4 pb-4 pt-3">
+                      <div className="border-t border-[#efe7e0] px-4 pb-4 pt-3">
                         <p className="whitespace-pre-wrap text-sm leading-relaxed text-[#2C2C2C]">
                           {contenu}
                         </p>

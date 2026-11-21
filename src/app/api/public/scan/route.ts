@@ -183,7 +183,7 @@ export async function POST(req: NextRequest) {
         googleReviewUrl: zone.pro.googleReviewUrl,
         // Task 4 — White-label : si whiteLabel=true, la page de scan remplace
         // le logo FeedbackPro par brandLogoUrl, le nom par brandName et la
-        // couleur #002e85 par brandColor. Fallback sur les valeurs par défaut.
+        // couleur #0f0f1c par brandColor. Fallback sur les valeurs par défaut.
         whiteLabel:
           (zone.pro as unknown as { whiteLabel?: boolean }).whiteLabel ?? false,
         brandName:

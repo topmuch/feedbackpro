@@ -27,16 +27,16 @@ export default function TarifsPage() {
   return (
     <MarketingLayout activePath="/tarifs">
       {/* ---------- Hero ---------- */}
-      <section className="bg-gradient-to-b from-[#002e85]/5 to-white py-14 sm:py-20">
+      <section className="bg-gradient-to-b from-[#0f0f1c]/5 to-white py-14 sm:py-20">
         <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
-          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#002e85] shadow-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#0f0f1c] shadow-sm">
             Tarifs
           </span>
           <h1
             className="mt-4 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl"
             style={{ letterSpacing: "-0.03em" }}
           >
-            Un prix adapté à <span className="bg-gradient-to-br from-[#002e85] to-[#0047c7] bg-clip-text text-transparent">chaque établissement</span>
+            Un prix adapté à <span className="bg-gradient-to-br from-[#0f0f1c] to-[#0f0f1c] bg-clip-text text-transparent">chaque établissement</span>
           </h1>
           <p className="mt-4 text-lg text-gray-600">
             Sans engagement. Annulation en 1 clic. 14 jours d&apos;essai gratuit, sans carte bancaire.
@@ -50,7 +50,7 @@ export default function TarifsPage() {
 
         <p className="mt-8 text-center text-sm text-gray-600">
           Besoin d&apos;une solution sur-mesure pour un grand groupe ?{" "}
-          <Link href="/contact" className="font-medium text-[#002e85] underline-offset-4 hover:underline">
+          <Link href="/contact" className="font-medium text-[#0f0f1c] underline-offset-4 hover:underline">
             Parlons-en →
           </Link>
         </p>
@@ -65,7 +65,7 @@ export default function TarifsPage() {
               { titre: "Sans engagement", texte: "Annulation en 1 clic depuis votre espace, prorata calculé automatiquement." },
               { titre: "Support inclus", texte: "Réponse sous 72 h, onboarding personnalisé sur le plan Enterprise." },
             ].map((g) => (
-              <div key={g.titre} className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+              <div key={g.titre} className="rounded-none border border-gray-200 bg-white p-6 shadow-sm">
                 <h3 className="text-base font-semibold text-gray-900">✓ {g.titre}</h3>
                 <p className="mt-2 text-sm text-gray-600">{g.texte}</p>
               </div>

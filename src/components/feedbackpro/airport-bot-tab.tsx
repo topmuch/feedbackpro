@@ -103,10 +103,10 @@ const COMMANDS: readonly Command[] = [
 ] as const
 
 const ROLE_META: Record<string, { label: string; cls: string }> = {
-  ops: { label: 'Ops', cls: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600' },
-  manager: { label: 'Manager', cls: 'border-sky-500/30 bg-sky-500/10 text-sky-700' },
-  nettoyage: { label: 'Nettoyage', cls: 'border-amber-500/30 bg-amber-500/10 text-amber-700' },
-  maintenance: { label: 'Maintenance', cls: 'border-orange-500/30 bg-orange-500/10 text-orange-700' },
+  ops: { label: 'Ops', cls: 'border-[#bc7155]/30 bg-[#bc7155]/10 text-[#a05f45]' },
+  manager: { label: 'Manager', cls: 'border-[#4b4d5e]/30 bg-[#4b4d5e]/10 text-[#2e3040]' },
+  nettoyage: { label: 'Nettoyage', cls: 'border-[#bc7155]/30 bg-[#bc7155]/10 text-[#8a4f3b]' },
+  maintenance: { label: 'Maintenance', cls: 'border-[#bc7155]/30 bg-[#bc7155]/10 text-[#8a4f3b]' },
   securite: { label: 'Sécurité', cls: 'border-rose-500/30 bg-rose-500/10 text-rose-700' },
 }
 
@@ -210,15 +210,15 @@ export default function AirportBotTab() {
             className={cn(
               'rounded-lg border p-4',
               modeDemo
-                ? 'border-amber-500/30 bg-amber-500/5'
-                : 'border-emerald-500/30 bg-emerald-500/5',
+                ? 'border-[#bc7155]/30 bg-[#bc7155]/5'
+                : 'border-[#bc7155]/30 bg-[#bc7155]/5',
             )}
           >
             <div className="flex items-start gap-3">
               <div
                 className={cn(
                   'flex h-10 w-10 shrink-0 items-center justify-center rounded-md',
-                  modeDemo ? 'bg-amber-500/15 text-amber-700' : 'bg-emerald-500/15 text-emerald-600',
+                  modeDemo ? 'bg-[#bc7155]/15 text-[#8a4f3b]' : 'bg-[#bc7155]/15 text-[#a05f45]',
                 )}
               >
                 {modeDemo ? <AlertCircle className="h-5 w-5" /> : <Zap className="h-5 w-5" />}
@@ -233,8 +233,8 @@ export default function AirportBotTab() {
                     className={cn(
                       'text-[10px]',
                       modeDemo
-                        ? 'border-amber-500/40 bg-amber-500/10 text-amber-700'
-                        : 'border-emerald-500/40 bg-emerald-500/10 text-emerald-600',
+                        ? 'border-[#bc7155]/40 bg-[#bc7155]/10 text-[#8a4f3b]'
+                        : 'border-[#bc7155]/40 bg-[#bc7155]/10 text-[#a05f45]',
                     )}
                   >
                     {modeDemo ? 'DÉMO' : 'LIVE'}
@@ -259,7 +259,7 @@ export default function AirportBotTab() {
               Configurez cette URL dans la console Twilio → Messaging → A MESSAGE COMES IN → WhatsApp.
             </p>
             <div className="flex items-center gap-2">
-              <code className="min-w-0 flex-1 truncate rounded-md border border-border bg-background px-3 py-2 font-mono text-xs text-emerald-600">
+              <code className="min-w-0 flex-1 truncate rounded-md border border-border bg-background px-3 py-2 font-mono text-xs text-[#a05f45]">
                 {webhookUrl}
               </code>
               <Button
@@ -290,7 +290,7 @@ export default function AirportBotTab() {
                   className="rounded-md border border-border bg-background/60 p-3"
                 >
                   <div className="flex flex-wrap items-center gap-2">
-                    <code className="rounded bg-muted px-2 py-0.5 font-mono text-xs font-semibold text-emerald-600">
+                    <code className="rounded bg-muted px-2 py-0.5 font-mono text-xs font-semibold text-[#a05f45]">
                       {c.cmd}
                     </code>
                     {c.example && (
@@ -379,7 +379,7 @@ export default function AirportBotTab() {
                       </div>
                       <div className="mt-1.5 flex items-center gap-1.5">
                         {c.actif ? (
-                          <span className="inline-flex items-center gap-1 text-[10px] text-emerald-600">
+                          <span className="inline-flex items-center gap-1 text-[10px] text-[#a05f45]">
                             <Check className="h-2.5 w-2.5" /> Actif
                           </span>
                         ) : (
@@ -396,7 +396,7 @@ export default function AirportBotTab() {
 
             <div className="mt-3 flex items-center justify-between border-t border-border pt-2 text-[10px] text-muted-foreground/70">
               <span>{count} contact{count > 1 ? 's' : ''}</span>
-              <span className="text-emerald-600">{actifs} actif{actifs > 1 ? 's' : ''}</span>
+              <span className="text-[#a05f45]">{actifs} actif{actifs > 1 ? 's' : ''}</span>
             </div>
           </div>
 
@@ -417,7 +417,7 @@ export default function AirportBotTab() {
                 { key: 'AIRPORT_OPS_WHATSAPP', desc: 'Numéro ops destinataire (routage alertes)' },
               ].map((v) => (
                 <div key={v.key} className="flex items-center justify-between gap-2 rounded-md border border-border bg-background/60 px-2.5 py-1.5">
-                  <code className="font-mono text-[11px] text-emerald-600">{v.key}</code>
+                  <code className="font-mono text-[11px] text-[#a05f45]">{v.key}</code>
                   <span className="truncate text-[10px] text-muted-foreground/70" title={v.desc}>
                     {v.desc}
                   </span>
@@ -604,7 +604,7 @@ function ShiftsSection() {
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex flex-col gap-1">
           <div className="flex items-center gap-1.5">
-            <Calendar className="h-3.5 w-3.5 text-emerald-600" />
+            <Calendar className="h-3.5 w-3.5 text-[#a05f45]" />
             <Label className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               Planification des quarts
             </Label>
@@ -615,10 +615,10 @@ function ShiftsSection() {
           {/* QUART ACTUEL */}
           <div className="flex items-center gap-2 text-xs">
             {active && active.shift ? (
-              <span className="inline-flex items-center gap-1.5 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-2 py-1 font-medium text-emerald-700">
+              <span className="inline-flex items-center gap-1.5 rounded-md border border-[#bc7155]/40 bg-[#bc7155]/10 px-2 py-1 font-medium text-[#8a4f3b]">
                 <span className="relative flex h-2 w-2">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
-                  <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#c98b72] opacity-75" />
+                  <span className="relative inline-flex h-2 w-2 rounded-full bg-[#bc7155]" />
                 </span>
                 {activeShiftLabel}
               </span>
@@ -639,7 +639,7 @@ function ShiftsSection() {
           size="sm"
           onClick={() => void handleAdd()}
           disabled={creating}
-          className="shrink-0 border-emerald-500/40 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/20 hover:text-emerald-800"
+          className="shrink-0 border-[#bc7155]/40 bg-[#bc7155]/10 text-[#8a4f3b] hover:bg-[#bc7155]/20 hover:text-[#6f3f30]"
         >
           {creating ? (
             <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
@@ -903,8 +903,8 @@ function ShiftRow({ initial, contacts, onUpdate, onDelete }: ShiftRowProps) {
                 className={cn(
                   'flex h-6 w-6 items-center justify-center rounded border text-[10px] font-semibold transition',
                   on
-                    ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-700'
-                    : 'border-border bg-background/60 text-muted-foreground/70 hover:border-emerald-500/30 hover:text-emerald-700',
+                    ? 'border-[#bc7155]/40 bg-[#bc7155]/15 text-[#8a4f3b]'
+                    : 'border-border bg-background/60 text-muted-foreground/70 hover:border-[#bc7155]/30 hover:text-[#8a4f3b]',
                 )}
                 aria-pressed={on}
                 title={`Jour ${dow}`}
@@ -932,8 +932,8 @@ function ShiftRow({ initial, contacts, onUpdate, onDelete }: ShiftRowProps) {
                   className={cn(
                     'inline-flex items-center gap-1 rounded-md border px-1.5 py-0.5 text-[10px] font-medium transition',
                     on
-                      ? 'border-emerald-500/40 bg-emerald-500/15 text-emerald-700'
-                      : 'border-border bg-background/60 text-muted-foreground/70 hover:border-emerald-500/30 hover:text-emerald-700',
+                      ? 'border-[#bc7155]/40 bg-[#bc7155]/15 text-[#8a4f3b]'
+                      : 'border-border bg-background/60 text-muted-foreground/70 hover:border-[#bc7155]/30 hover:text-[#8a4f3b]',
                   )}
                   title={`${c.name} · ${formatPhone(c.phone)}`}
                 >

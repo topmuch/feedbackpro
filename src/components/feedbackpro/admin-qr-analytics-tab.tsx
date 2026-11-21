@@ -16,8 +16,8 @@
 //   4. "Top Performers" : top 5 QRs par scans 30d.
 //
 // Palette V2.0 : fond #F5F5F5, cartes blanches rounded-15px,
-// bleu #003399, jaune #FCD116, rouge #E30613, vert #00A651,
-// orange #FF6B00.
+// bleu #000d10, jaune #bc7155, rouge #E30613, vert #bc7155,
+// orange #bc7155.
 // ============================================================
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -33,11 +33,11 @@ import {
 } from 'lucide-react'
 
 // --- Palette V2.0 ---
-const BLEU = '#003399'
-const JAUNE = '#FCD116'
+const BLEU = '#000d10'
+const JAUNE = '#bc7155'
 const ROUGE = '#E30613'
-const VERT = '#00A651'
-const ORANGE = '#FF6B00'
+const VERT = '#bc7155'
+const ORANGE = '#bc7155'
 
 type QrZone = {
   tag: string

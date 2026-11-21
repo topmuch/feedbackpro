@@ -39,7 +39,7 @@ export function PersonnelTab() {
                   {p.mentionsNegatives} nég.
                 </div>
                 <div className="flex items-center gap-1 justify-end">
-                  <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
+                  <span className="inline-block w-2 h-2 rounded-full bg-[#bc7155]" />
                   {p.mentionsPositives} pos.
                 </div>
               </div>

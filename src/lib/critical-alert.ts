@@ -277,7 +277,7 @@ function buildCriticalAlertHtml(params: {
     globalStatus.status === "critical"
       ? ROUGE_CRITIQUE
       : globalStatus.status === "warning"
-        ? "#d97706"
+        ? "#a05f45"
         : "#16a34a"
 
   const actionsHtml = actions

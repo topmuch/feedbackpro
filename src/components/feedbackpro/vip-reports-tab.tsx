@@ -96,9 +96,9 @@ function DeltaBadge({ value, invert }: { value: number | null; invert?: boolean 
     <span
       className={cn(
         'inline-flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[11px] font-semibold',
-        positif && 'bg-[#4A7C59]/12 text-[#4A7C59]',
-        negatif && 'bg-[#C97B63]/12 text-[#C97B63]',
-        value === 0 && 'bg-[#EAE5DC] text-[#8B6F47]',
+        positif && 'bg-[#bc7155]/12 text-[#bc7155]',
+        negatif && 'bg-[#bc7155]/12 text-[#bc7155]',
+        value === 0 && 'bg-[#efe7e0] text-[#8B6F47]',
       )}
     >
       <Icon className="h-3 w-3" aria-hidden />
@@ -123,9 +123,9 @@ function MetricCard({
   invertDelta?: boolean
 }) {
   return (
-    <Card className="border border-[#EAE5DC] bg-white p-4 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+    <Card className="border border-[#efe7e0] bg-white p-4 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
       <div className="flex items-start justify-between gap-2">
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#C9A961]/12 text-[#8B6F47]">
+        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#bc7155]/12 text-[#8B6F47]">
           <Icon className="h-4.5 w-4.5" aria-hidden />
         </span>
         {delta !== undefined && <DeltaBadge value={delta} invert={invertDelta} />}
@@ -273,24 +273,24 @@ export function VipReportsTab() {
             type="month"
             value={month}
             onChange={(e) => setMonth(e.target.value)}
-            className="h-9 rounded-md border border-[#EAE5DC] bg-white px-3 text-sm text-[#2C2C2C]"
+            className="h-9 rounded-md border border-[#efe7e0] bg-white px-3 text-sm text-[#2C2C2C]"
             aria-label="Mois du rapport"
           />
-          <Button variant="outline" size="sm" className="gap-1.5 border-[#EAE5DC] bg-white text-[#8B6F47]" onClick={charger} aria-label="Actualiser">
+          <Button variant="outline" size="sm" className="gap-1.5 border-[#efe7e0] bg-white text-[#8B6F47]" onClick={charger} aria-label="Actualiser">
             <RefreshCw className="h-3.5 w-3.5" aria-hidden />
           </Button>
-          <Button variant="outline" size="sm" className="gap-1.5 border-[#C9A961]/40 bg-white text-[#8B6F47] hover:bg-[#C9A961]/10" onClick={exporterCsv}>
+          <Button variant="outline" size="sm" className="gap-1.5 border-[#bc7155]/40 bg-white text-[#8B6F47] hover:bg-[#bc7155]/10" onClick={exporterCsv}>
             <FileText className="h-3.5 w-3.5" aria-hidden /> Excel / CSV
           </Button>
-          <Button className="gap-1.5 bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white hover:opacity-90" onClick={exporterPdf}>
+          <Button className="gap-1.5 bg-gradient-to-br from-[#bc7155] to-[#8B6F47] text-white hover:opacity-90" onClick={exporterPdf}>
             <Download className="h-3.5 w-3.5" aria-hidden /> PDF mensuel
           </Button>
         </div>
       </div>
 
       {/* Bandeau cron mensuel */}
-      <div className="flex items-center gap-2 rounded-lg border border-[#C9A961]/25 bg-[#C9A961]/8 px-3 py-2 text-xs text-[#8B6F47]">
-        <FileBarChart className="h-3.5 w-3.5 shrink-0 text-[#C9A961]" aria-hidden />
+      <div className="flex items-center gap-2 rounded-lg border border-[#bc7155]/25 bg-[#bc7155]/8 px-3 py-2 text-xs text-[#8B6F47]">
+        <FileBarChart className="h-3.5 w-3.5 shrink-0 text-[#bc7155]" aria-hidden />
         <span>
           Le 1er de chaque mois à 7h30 UTC, le rapport complet (PDF/Excel) est généré automatiquement et envoyé au manager par email.
         </span>
@@ -358,12 +358,12 @@ export function VipReportsTab() {
       </div>
 
       {/* Heures de pointe */}
-      <Card className="border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+      <Card className="border border-[#efe7e0] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
         <div className="flex items-center justify-between">
           <h3 className="text-base font-semibold text-[#2C2C2C]" style={SERIF}>
             Heures de pointe
           </h3>
-          <Badge variant="outline" className="border-[#C9A961]/40 bg-[#C9A961]/10 text-[#8B6F47]">
+          <Badge variant="outline" className="border-[#bc7155]/40 bg-[#bc7155]/10 text-[#8B6F47]">
             Pic : {String(m.heurePointe).padStart(2, '0')}h
           </Badge>
         </div>
@@ -384,7 +384,7 @@ export function VipReportsTab() {
                 <div
                   className={cn(
                     'w-full rounded-t transition-all',
-                    v === max ? 'bg-gradient-to-t from-[#8B6F47] to-[#C9A961]' : 'bg-[#C9A961]/35 group-hover:bg-[#C9A961]/60',
+                    v === max ? 'bg-gradient-to-t from-[#8B6F47] to-[#bc7155]' : 'bg-[#bc7155]/35 group-hover:bg-[#bc7155]/60',
                   )}
                   style={{ height: `${(v / max) * 100}%`, minHeight: v > 0 ? 4 : 2 }}
                 />
@@ -401,14 +401,14 @@ export function VipReportsTab() {
       </Card>
 
       {/* Comparaison période précédente */}
-      <Card className="border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+      <Card className="border border-[#efe7e0] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
         <h3 className="text-base font-semibold text-[#2C2C2C]" style={SERIF}>
           Comparaison — {data.periodePrecedente.label}
         </h3>
-        <div className="mt-3 overflow-hidden rounded-lg border border-[#EAE5DC]">
+        <div className="mt-3 overflow-hidden rounded-lg border border-[#efe7e0]">
           <table className="w-full text-sm">
             <thead>
-              <tr className="bg-[#FAFAF7] text-left text-[11px] uppercase tracking-wide text-[#8B6F47]">
+              <tr className="bg-[#ffffff] text-left text-[11px] uppercase tracking-wide text-[#8B6F47]">
                 <th className="px-3 py-2 font-semibold">Indicateur</th>
                 <th className="px-3 py-2 text-right font-semibold">{data.periodePrecedente.label}</th>
                 <th className="px-3 py-2 text-right font-semibold">{data.periode.label}</th>
@@ -429,7 +429,7 @@ export function VipReportsTab() {
                   ['Lost & Found', p.lostFoundTotal != null ? String(p.lostFoundTotal) : null, String(m.lostFoundTotal), m.deltas.lostFoundTotal, true],
                 ]
                 return rows.map(([label, avant, apres, d, invert], i) => (
-                  <tr key={label} className={cn('border-t border-[#EAE5DC]', i % 2 === 0 && 'bg-white', i % 2 === 1 && 'bg-[#FAFAF7]/50')}>
+                  <tr key={label} className={cn('border-t border-[#efe7e0]', i % 2 === 0 && 'bg-white', i % 2 === 1 && 'bg-[#ffffff]/50')}>
                     <td className="px-3 py-2">{label}</td>
                     <td className="px-3 py-2 text-right text-[#8B6F47]">{avant ?? '—'}</td>
                     <td className="px-3 py-2 text-right font-medium">{apres}</td>

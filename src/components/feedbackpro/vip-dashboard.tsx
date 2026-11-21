@@ -5,14 +5,14 @@
 // ------------------------------------------------------------
 // Refonte premium du dashboard Salon VIP.
 // Palette "Luxe Lumineux" (clair et élégant) :
-//   - Background   #FAFAF7 (warm off-white)
+//   - Background   #ffffff (warm off-white)
 //   - Cards        #FFFFFF (pure white)
-//   - Accent       #C9A961 (champagne gold)
+//   - Accent       #bc7155 (champagne gold)
 //   - Accent 2     #8B6F47 (bronze)
 //   - Text         #2C2C2C (anthracite gray)
-//   - Success      #4A7C59 (sage green)
-//   - Alert        #C97B63 (terracotta)
-//   - VIP badge    #6B4C9A (amethyst purple)
+//   - Success      #bc7155 (sage green)
+//   - Alert        #bc7155 (terracotta)
+//   - VIP badge    #bc7155 (amethyst purple)
 //
 // Architecture : Sidebar fixe (260px) + 11 onglets.
 //   A. Vue d'ensemble      — KPI + alertes douces
@@ -472,9 +472,9 @@ const SHOWER_STATUS_LABEL: Record<ShowerStatus, string> = {
 }
 
 const SHOWER_STATUS_STYLE: Record<ShowerStatus, { bg: string; ring: string; dot: string; label: string }> = {
-  free: { bg: 'bg-[#4A7C59]/8', ring: 'ring-[#4A7C59]/30', dot: 'bg-[#4A7C59]', label: 'text-[#4A7C59]' },
-  occupied: { bg: 'bg-[#6B4C9A]/8', ring: 'ring-[#6B4C9A]/30', dot: 'bg-[#6B4C9A]', label: 'text-[#6B4C9A]' },
-  cleaning: { bg: 'bg-[#C97B63]/8', ring: 'ring-[#C97B63]/30', dot: 'bg-[#C97B63]', label: 'text-[#C97B63]' },
+  free: { bg: 'bg-[#bc7155]/8', ring: 'ring-[#bc7155]/30', dot: 'bg-[#bc7155]', label: 'text-[#bc7155]' },
+  occupied: { bg: 'bg-[#bc7155]/8', ring: 'ring-[#bc7155]/30', dot: 'bg-[#bc7155]', label: 'text-[#bc7155]' },
+  cleaning: { bg: 'bg-[#bc7155]/8', ring: 'ring-[#bc7155]/30', dot: 'bg-[#bc7155]', label: 'text-[#bc7155]' },
   maintenance: { bg: 'bg-[#8B6F47]/8', ring: 'ring-[#8B6F47]/30', dot: 'bg-[#8B6F47]', label: 'text-[#8B6F47]' },
 }
 
@@ -485,15 +485,15 @@ const INCIDENT_STATUS_LABEL: Record<VipIncident['statut'], string> = {
 }
 
 const INCIDENT_STATUS_STYLE: Record<VipIncident['statut'], string> = {
-  EN_ATTENTE: 'bg-[#C97B63]/12 text-[#C97B63] border-[#C97B63]/25',
-  EN_COURS: 'bg-[#C9A961]/15 text-[#8B6F47] border-[#C9A961]/35',
-  RESOLU: 'bg-[#4A7C59]/12 text-[#4A7C59] border-[#4A7C59]/25',
+  EN_ATTENTE: 'bg-[#bc7155]/12 text-[#bc7155] border-[#bc7155]/25',
+  EN_COURS: 'bg-[#bc7155]/15 text-[#8B6F47] border-[#bc7155]/35',
+  RESOLU: 'bg-[#bc7155]/12 text-[#bc7155] border-[#bc7155]/25',
 }
 
 const CLIENT_LEVEL_STYLE: Record<VipClient['level'], { label: string; bg: string; text: string; Icon: typeof Crown }> = {
-  Gold: { label: 'Gold', bg: 'bg-[#C9A961]/15', text: 'text-[#8B6F47]', Icon: Crown },
-  Platinum: { label: 'Platinum', bg: 'bg-[#6B4C9A]/12', text: 'text-[#6B4C9A]', Icon: Sparkles },
-  Diamond: { label: 'Diamond', bg: 'bg-[#4A7C59]/12', text: 'text-[#4A7C59]', Icon: Diamond },
+  Gold: { label: 'Gold', bg: 'bg-[#bc7155]/15', text: 'text-[#8B6F47]', Icon: Crown },
+  Platinum: { label: 'Platinum', bg: 'bg-[#bc7155]/12', text: 'text-[#bc7155]', Icon: Sparkles },
+  Diamond: { label: 'Diamond', bg: 'bg-[#bc7155]/12', text: 'text-[#bc7155]', Icon: Diamond },
 }
 
 const STAFF_ROLE_ICON: Record<StaffRole, typeof UserCog> = {
@@ -514,45 +514,45 @@ const TABLE_STATUS_STYLE: Record<VipTableStatus, {
   border: string
 }> = {
   free: {
-    dot: 'bg-[#4A7C59]',
-    ring: 'ring-[#4A7C59]/30',
-    bg: 'bg-[#4A7C59]/6',
-    text: 'text-[#4A7C59]',
+    dot: 'bg-[#bc7155]',
+    ring: 'ring-[#bc7155]/30',
+    bg: 'bg-[#bc7155]/6',
+    text: 'text-[#bc7155]',
     label: 'Libre',
-    border: 'border-[#4A7C59]/25',
+    border: 'border-[#bc7155]/25',
   },
   occupied: {
-    dot: 'bg-[#6B4C9A]',
-    ring: 'ring-[#6B4C9A]/30',
-    bg: 'bg-[#6B4C9A]/6',
-    text: 'text-[#6B4C9A]',
+    dot: 'bg-[#bc7155]',
+    ring: 'ring-[#bc7155]/30',
+    bg: 'bg-[#bc7155]/6',
+    text: 'text-[#bc7155]',
     label: 'Occupée',
-    border: 'border-[#6B4C9A]/25',
+    border: 'border-[#bc7155]/25',
   },
   problem: {
-    dot: 'bg-[#C97B63]',
-    ring: 'ring-[#C97B63]/30',
-    bg: 'bg-[#C97B63]/6',
-    text: 'text-[#C97B63]',
+    dot: 'bg-[#bc7155]',
+    ring: 'ring-[#bc7155]/30',
+    bg: 'bg-[#bc7155]/6',
+    text: 'text-[#bc7155]',
     label: 'Problème',
-    border: 'border-[#C97B63]/25',
+    border: 'border-[#bc7155]/25',
   },
   reserved: {
-    dot: 'bg-[#C9A961]',
-    ring: 'ring-[#C9A961]/30',
-    bg: 'bg-[#C9A961]/6',
+    dot: 'bg-[#bc7155]',
+    ring: 'ring-[#bc7155]/30',
+    bg: 'bg-[#bc7155]/6',
     text: 'text-[#8B6F47]',
     label: 'Réservée',
-    border: 'border-[#C9A961]/30',
+    border: 'border-[#bc7155]/30',
   },
 }
 
 // ---- Phase 1 — Table zones (Plan du Salon) ----
 const TABLE_ZONE_META: Record<string, { label: string; emoji: string; accent: string }> = {
-  main: { label: 'Espace Principal', emoji: '🍽️', accent: '#C9A961' },
+  main: { label: 'Espace Principal', emoji: '🍽️', accent: '#bc7155' },
   buffet: { label: 'Buffet & Bar', emoji: '🥂', accent: '#8B6F47' },
-  relaxation: { label: 'Espace Détente', emoji: '🧘', accent: '#4A7C59' },
-  meeting: { label: 'Salles de Réunion', emoji: '💼', accent: '#6B4C9A' },
+  relaxation: { label: 'Espace Détente', emoji: '🧘', accent: '#bc7155' },
+  meeting: { label: 'Salles de Réunion', emoji: '💼', accent: '#bc7155' },
 }
 
 // ---- Phase 1 — Request type metadata ----
@@ -568,9 +568,9 @@ const REQUEST_TYPE_META: Record<string, { label: string; Icon: typeof Wine; tone
 }
 
 const REQUEST_STATUS_META: Record<string, { label: string; style: string }> = {
-  pending: { label: 'En attente', style: 'bg-[#C97B63]/12 text-[#C97B63] border-[#C97B63]/25' },
-  in_progress: { label: 'En cours', style: 'bg-[#C9A961]/15 text-[#8B6F47] border-[#C9A961]/35' },
-  done: { label: 'Terminé', style: 'bg-[#4A7C59]/12 text-[#4A7C59] border-[#4A7C59]/25' },
+  pending: { label: 'En attente', style: 'bg-[#bc7155]/12 text-[#bc7155] border-[#bc7155]/25' },
+  in_progress: { label: 'En cours', style: 'bg-[#bc7155]/15 text-[#8B6F47] border-[#bc7155]/35' },
+  done: { label: 'Terminé', style: 'bg-[#bc7155]/12 text-[#bc7155] border-[#bc7155]/25' },
 }
 
 const NAV_ITEMS: Array<{ id: VipTab; label: string; Icon: typeof LayoutDashboard }> = [
@@ -843,7 +843,7 @@ function SectionTitle({
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div className="flex items-center gap-3">
         {Icon && (
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#C9A961]/12 text-[#8B6F47]">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#bc7155]/12 text-[#8B6F47]">
             <Icon className="h-5 w-5" aria-hidden />
           </span>
         )}
@@ -879,15 +879,15 @@ function KPICard({
   hint?: string
 }) {
   const toneStyles: Record<typeof tone, { iconBg: string; iconText: string; accent: string }> = {
-    gold: { iconBg: 'bg-[#C9A961]/15', iconText: 'text-[#C9A961]', accent: 'text-[#8B6F47]' },
+    gold: { iconBg: 'bg-[#bc7155]/15', iconText: 'text-[#bc7155]', accent: 'text-[#8B6F47]' },
     bronze: { iconBg: 'bg-[#8B6F47]/15', iconText: 'text-[#8B6F47]', accent: 'text-[#8B6F47]' },
-    sage: { iconBg: 'bg-[#4A7C59]/15', iconText: 'text-[#4A7C59]', accent: 'text-[#4A7C59]' },
-    terracotta: { iconBg: 'bg-[#C97B63]/15', iconText: 'text-[#C97B63]', accent: 'text-[#C97B63]' },
-    amethyst: { iconBg: 'bg-[#6B4C9A]/15', iconText: 'text-[#6B4C9A]', accent: 'text-[#6B4C9A]' },
+    sage: { iconBg: 'bg-[#bc7155]/15', iconText: 'text-[#bc7155]', accent: 'text-[#bc7155]' },
+    terracotta: { iconBg: 'bg-[#bc7155]/15', iconText: 'text-[#bc7155]', accent: 'text-[#bc7155]' },
+    amethyst: { iconBg: 'bg-[#bc7155]/15', iconText: 'text-[#bc7155]', accent: 'text-[#bc7155]' },
   }
   const s = toneStyles[tone]
   return (
-    <Card className="gap-0 border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+    <Card className="gap-0 border border-[#efe7e0] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="truncate text-xs font-medium uppercase tracking-wider text-[#8B6F47]">{label}</p>
@@ -915,7 +915,7 @@ function VipBadge({ className }: { className?: string }) {
   return (
     <Badge
       className={cn(
-        'border-[#6B4C9A]/30 bg-[#6B4C9A]/12 text-[#6B4C9A] font-semibold',
+        'border-[#bc7155]/30 bg-[#bc7155]/12 text-[#bc7155] font-semibold',
         className,
       )}
     >
@@ -944,10 +944,10 @@ function VipStarRating({ value, size = 14 }: { value: number; size?: number }) {
             style={{ width: size, height: size }}
             className={cn(
               isFull
-                ? 'fill-[#C9A961] text-[#C9A961]'
+                ? 'fill-[#bc7155] text-[#bc7155]'
                 : isHalf
-                  ? 'fill-[#C9A961]/50 text-[#C9A961]'
-                  : 'fill-transparent text-[#EAE5DC]',
+                  ? 'fill-[#bc7155]/50 text-[#bc7155]'
+                  : 'fill-transparent text-[#efe7e0]',
             )}
             aria-hidden
           />
@@ -974,7 +974,7 @@ function TableCard({
       type="button"
       onClick={onClick}
       className={cn(
-        'group relative flex w-full flex-col items-start gap-1.5 rounded-2xl border bg-white p-3.5 text-left shadow-[0_4px_20px_rgba(201,169,97,0.06)] transition-all hover:shadow-[0_6px_28px_rgba(201,169,97,0.12)] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A961]/40',
+        'group relative flex w-full flex-col items-start gap-1.5 rounded-2xl border bg-white p-3.5 text-left shadow-[0_4px_20px_rgba(201,169,97,0.06)] transition-all hover:shadow-[0_6px_28px_rgba(201,169,97,0.12)] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#bc7155]/40',
         st.border,
         compact ? 'min-h-[100px]' : 'min-h-[120px]',
       )}
@@ -1025,10 +1025,10 @@ function TableCard({
               className={cn(
                 'h-4 px-1.5 text-[10px] font-semibold capitalize',
                 table.clientVipLevel === 'diamond'
-                  ? 'border-[#4A7C59]/30 bg-[#4A7C59]/10 text-[#4A7C59]'
+                  ? 'border-[#bc7155]/30 bg-[#bc7155]/10 text-[#bc7155]'
                   : table.clientVipLevel === 'platinum'
-                    ? 'border-[#6B4C9A]/30 bg-[#6B4C9A]/10 text-[#6B4C9A]'
-                    : 'border-[#C9A961]/30 bg-[#C9A961]/12 text-[#8B6F47]',
+                    ? 'border-[#bc7155]/30 bg-[#bc7155]/10 text-[#bc7155]'
+                    : 'border-[#bc7155]/30 bg-[#bc7155]/12 text-[#8B6F47]',
               )}
             >
               {table.clientVipLevel}
@@ -1168,7 +1168,7 @@ function TableDetailSheet({
             <Badge variant="outline" className={cn('border font-semibold', st.bg, st.text, st.border)}>
               <span className={cn('mr-1 h-1.5 w-1.5 rounded-full', st.dot)} /> {st.label}
             </Badge>
-            <Badge variant="outline" className="border-[#EAE5DC] bg-[#FAFAF7] text-[#8B6F47]">
+            <Badge variant="outline" className="border-[#efe7e0] bg-[#ffffff] text-[#8B6F47]">
               <Armchair className="mr-1 h-3 w-3" aria-hidden /> {table.seats} places
             </Badge>
           </div>
@@ -1179,9 +1179,9 @@ function TableDetailSheet({
           <section>
             <h3 className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">Client</h3>
             {table.clientName ? (
-              <div className="mt-2 rounded-2xl border border-[#EAE5DC] bg-[#FAFAF7] p-4">
+              <div className="mt-2 rounded-2xl border border-[#efe7e0] bg-[#ffffff] p-4">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-xs font-semibold text-white">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#bc7155] to-[#8B6F47] text-xs font-semibold text-white">
                     {initials(table.clientName) || '?'}
                   </span>
                   <div className="min-w-0 flex-1">
@@ -1192,10 +1192,10 @@ function TableDetailSheet({
                         className={cn(
                           'mt-0.5 h-4 px-1.5 text-[10px] font-semibold capitalize',
                           table.clientVipLevel === 'diamond'
-                            ? 'border-[#4A7C59]/30 bg-[#4A7C59]/10 text-[#4A7C59]'
+                            ? 'border-[#bc7155]/30 bg-[#bc7155]/10 text-[#bc7155]'
                             : table.clientVipLevel === 'platinum'
-                              ? 'border-[#6B4C9A]/30 bg-[#6B4C9A]/10 text-[#6B4C9A]'
-                              : 'border-[#C9A961]/30 bg-[#C9A961]/12 text-[#8B6F47]',
+                              ? 'border-[#bc7155]/30 bg-[#bc7155]/10 text-[#bc7155]'
+                              : 'border-[#bc7155]/30 bg-[#bc7155]/12 text-[#8B6F47]',
                         )}
                       >
                         {table.clientVipLevel}
@@ -1213,7 +1213,7 @@ function TableDetailSheet({
                 )}
               </div>
             ) : (
-              <div className="mt-2 rounded-2xl border border-dashed border-[#EAE5DC] bg-[#FAFAF7] p-4 text-center">
+              <div className="mt-2 rounded-2xl border border-dashed border-[#efe7e0] bg-[#ffffff] p-4 text-center">
                 <Users className="mx-auto h-6 w-6 text-[#8B6F47]/50" aria-hidden />
                 <p className="mt-1.5 text-sm text-[#8B6F47]">Aucun client assigné</p>
               </div>
@@ -1225,14 +1225,14 @@ function TableDetailSheet({
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">Demandes à la table</h3>
               {table.activeRequests > 0 && (
-                <Badge variant="outline" className="border-[#C9A961]/30 bg-[#C9A961]/12 text-[#8B6F47]">
+                <Badge variant="outline" className="border-[#bc7155]/30 bg-[#bc7155]/12 text-[#8B6F47]">
                   {table.activeRequests} active{table.activeRequests > 1 ? 's' : ''}
                 </Badge>
               )}
             </div>
             {table.requests.length === 0 ? (
-              <div className="mt-2 rounded-2xl border border-dashed border-[#EAE5DC] bg-[#FAFAF7] p-4 text-center">
-                <CheckCircle2 className="mx-auto h-6 w-6 text-[#4A7C59]" aria-hidden />
+              <div className="mt-2 rounded-2xl border border-dashed border-[#efe7e0] bg-[#ffffff] p-4 text-center">
+                <CheckCircle2 className="mx-auto h-6 w-6 text-[#bc7155]" aria-hidden />
                 <p className="mt-1.5 text-sm text-[#8B6F47]">Aucune demande en cours</p>
               </div>
             ) : (
@@ -1245,9 +1245,9 @@ function TableDetailSheet({
                   const statusMeta = REQUEST_STATUS_META[r.status] ?? REQUEST_STATUS_META.pending
                   const RIcon = meta.Icon
                   return (
-                    <li key={r.id} className="rounded-xl border border-[#EAE5DC] bg-white p-3">
+                    <li key={r.id} className="rounded-xl border border-[#efe7e0] bg-white p-3">
                       <div className="flex items-start gap-2.5">
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#C9A961]/10 text-[#8B6F47]">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#bc7155]/10 text-[#8B6F47]">
                           <RIcon className="h-4 w-4" aria-hidden />
                         </span>
                         <div className="min-w-0 flex-1">
@@ -1275,7 +1275,7 @@ function TableDetailSheet({
           {/* QR code */}
           <section>
             <h3 className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">QR Code de la table</h3>
-            <div className="mt-2 flex items-center gap-4 rounded-2xl border border-[#EAE5DC] bg-[#FAFAF7] p-4">
+            <div className="mt-2 flex items-center gap-4 rounded-2xl border border-[#efe7e0] bg-[#ffffff] p-4">
               <NathalieQrPlaque
                 data={`${appUrl()}/?vipTable=${table.qrToken}`}
                 label={`Table ${table.tableNumber}`}
@@ -1294,7 +1294,7 @@ function TableDetailSheet({
           </section>
 
           {/* Actions staff */}
-          <section className="space-y-2 border-t border-[#EAE5DC] pt-4">
+          <section className="space-y-2 border-t border-[#efe7e0] pt-4">
             <h3 className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">Actions staff</h3>
             <div className="grid grid-cols-2 gap-2">
               <Button
@@ -1302,7 +1302,7 @@ function TableDetailSheet({
                 size="sm"
                 disabled={busy || table.status === 'free'}
                 onClick={() => act('Table libérée', { status: 'free', clientName: null, clientVipLevel: null }, `Table ${table.tableNumber} prête pour le prochain client.`)}
-                className="border-[#4A7C59]/40 bg-[#4A7C59]/8 text-[#4A7C59] hover:bg-[#4A7C59]/15"
+                className="border-[#bc7155]/40 bg-[#bc7155]/8 text-[#bc7155] hover:bg-[#bc7155]/15"
               >
                 <CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> Libérer
               </Button>
@@ -1312,8 +1312,8 @@ function TableDetailSheet({
                 disabled={busy}
                 onClick={() => act('Problème signalé', { status: table.status === 'problem' ? 'occupied' : 'problem' }, `Table ${table.tableNumber} ${table.status === 'problem' ? 'rétablie' : 'marquée problème'}.`)}
                 className={cn(
-                  'border-[#C97B63]/40 text-[#C97B63] hover:bg-[#C97B63]/15',
-                  table.status === 'problem' ? 'bg-[#C97B63]/12' : 'bg-[#C97B63]/8',
+                  'border-[#bc7155]/40 text-[#bc7155] hover:bg-[#bc7155]/15',
+                  table.status === 'problem' ? 'bg-[#bc7155]/12' : 'bg-[#bc7155]/8',
                 )}
               >
                 <AlertTriangle className="h-3.5 w-3.5" aria-hidden /> {table.status === 'problem' ? 'Rétablir' : 'Marquer problème'}
@@ -1324,7 +1324,7 @@ function TableDetailSheet({
               size="sm"
               disabled={busy || table.status === 'occupied'}
               onClick={() => act('Table occupée', { status: 'occupied' }, `Table ${table.tableNumber} marquée occupée.`)}
-              className="w-full border-[#6B4C9A]/40 bg-[#6B4C9A]/8 text-[#6B4C9A] hover:bg-[#6B4C9A]/15"
+              className="w-full border-[#bc7155]/40 bg-[#bc7155]/8 text-[#bc7155] hover:bg-[#bc7155]/15"
             >
               <Users className="h-3.5 w-3.5" aria-hidden /> Marquer occupée
             </Button>
@@ -1333,7 +1333,7 @@ function TableDetailSheet({
               size="sm"
               disabled={busy}
               onClick={() => setAssignDialogOpen(true)}
-              className="w-full border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
+              className="w-full border-[#bc7155]/40 bg-[#bc7155]/8 text-[#8B6F47] hover:bg-[#bc7155]/15"
             >
               <UserPlus className="h-3.5 w-3.5" aria-hidden /> Assigner client
             </Button>
@@ -1360,7 +1360,7 @@ function TableDetailSheet({
                 value={assignName}
                 onChange={(e) => setAssignName(e.target.value)}
                 placeholder="ex. Alexandre Laurent"
-                className="border-[#EAE5DC] bg-[#FAFAF7]"
+                className="border-[#efe7e0] bg-[#ffffff]"
                 autoFocus
               />
             </div>
@@ -1369,7 +1369,7 @@ function TableDetailSheet({
                 Niveau VIP
               </Label>
               <Select value={assignLevel} onValueChange={setAssignLevel}>
-                <SelectTrigger id="client-level" className="border-[#EAE5DC] bg-[#FAFAF7]">
+                <SelectTrigger id="client-level" className="border-[#efe7e0] bg-[#ffffff]">
                   <SelectValue placeholder="Sélectionner un niveau" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1387,7 +1387,7 @@ function TableDetailSheet({
             <Button
               onClick={submitAssign}
               disabled={busy || !assignName.trim()}
-              className="bg-[#C9A961] text-white hover:bg-[#C9A961]/90"
+              className="bg-[#bc7155] text-white hover:bg-[#bc7155]/90"
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <UserPlus className="h-4 w-4" aria-hidden />}
               Assigner
@@ -1453,7 +1453,7 @@ function VIPSidebarContent({
       {/* En-tête : salon + mode discrétion — NOIR profond + écriture MARRON */}
       <div className="shrink-0 border-b border-white/10 px-5 py-5">
         <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white shadow-[0_4px_14px_rgba(201,169,97,0.25)]">
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#bc7155] to-[#8B6F47] text-white shadow-[0_4px_14px_rgba(201,169,97,0.25)]">
             <Wine className="h-5 w-5" aria-hidden />
           </span>
           <div className="min-w-0">
@@ -1464,7 +1464,7 @@ function VIPSidebarContent({
               {salonName}
             </h1>
             <div className="mt-1 flex items-center gap-1.5">
-              <span className="inline-flex h-1.5 w-1.5 rounded-full bg-[#4A7C59]" />
+              <span className="inline-flex h-1.5 w-1.5 rounded-full bg-[#bc7155]" />
               <span className="text-[11px] font-medium uppercase tracking-wider text-[#B08D5F]">
                 Mode Discrétion · Actif
               </span>
@@ -1494,8 +1494,8 @@ function VIPSidebarContent({
               className={cn(
                 'flex h-11 shrink-0 items-center gap-3 rounded-xl px-3.5 text-sm font-medium transition-all',
                 actif
-                  ? 'bg-[#FAFAF7] text-[#5C4526] shadow-[0_6px_18px_rgba(0,0,0,0.45)]'
-                  : 'text-[#B08D5F]/85 hover:bg-white/[0.06] hover:text-[#E3C985]',
+                  ? 'bg-[#ffffff] text-[#5C4526] shadow-[0_6px_18px_rgba(0,0,0,0.45)]'
+                  : 'text-[#B08D5F]/85 hover:bg-white/[0.06] hover:text-[#dba28a]',
               )}
             >
               <Icon
@@ -1507,13 +1507,13 @@ function VIPSidebarContent({
                 <span
                   className={cn(
                     'ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[11px] font-bold tabular-nums text-white animate-pulse',
-                    'bg-[#C97B63] shadow-[0_0_10px_rgba(201,123,99,0.55)]',
+                    'bg-[#bc7155] shadow-[0_0_10px_rgba(201,123,99,0.55)]',
                   )}
                 >
                   {badge > 9 ? '9+' : badge}
                 </span>
               ) : actif ? (
-                <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#C9A961]" />
+                <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#bc7155]" />
               ) : null}
             </button>
           )
@@ -1527,7 +1527,7 @@ function VIPSidebarContent({
             variant="ghost"
             disabled={briefingBusy}
             onClick={onBriefing}
-            className="mb-2 w-full justify-start gap-2.5 rounded-xl border border-[#C9A961]/25 bg-[#C9A961]/8 text-[#E3C985] hover:bg-[#C9A961]/15"
+            className="mb-2 w-full justify-start gap-2.5 rounded-xl border border-[#bc7155]/25 bg-[#bc7155]/8 text-[#dba28a] hover:bg-[#bc7155]/15"
           >
             {briefingBusy ? (
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
@@ -1545,16 +1545,16 @@ function VIPSidebarContent({
             </span>
             {briefingPlaying ? (
               <span className="ml-auto flex items-end gap-0.5" aria-hidden>
-                <span className="h-2.5 w-0.5 animate-pulse rounded bg-[#C9A961]" />
-                <span className="h-3.5 w-0.5 animate-pulse rounded bg-[#C9A961] [animation-delay:150ms]" />
-                <span className="h-2 w-0.5 animate-pulse rounded bg-[#C9A961] [animation-delay:300ms]" />
+                <span className="h-2.5 w-0.5 animate-pulse rounded bg-[#bc7155]" />
+                <span className="h-3.5 w-0.5 animate-pulse rounded bg-[#bc7155] [animation-delay:150ms]" />
+                <span className="h-2 w-0.5 animate-pulse rounded bg-[#bc7155] [animation-delay:300ms]" />
               </span>
             ) : null}
           </Button>
         ) : null}
         <div className="rounded-xl border border-white/10 bg-white/[0.05] px-3.5 py-3">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-xs font-semibold text-white">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#bc7155] to-[#8B6F47] text-xs font-semibold text-white">
               {initials(userEmail) || '—'}
             </span>
             <div className="min-w-0 flex-1">
@@ -1565,7 +1565,7 @@ function VIPSidebarContent({
         </div>
         <Button
           variant="ghost"
-          className="mt-2 w-full justify-start gap-2.5 rounded-xl text-[#B08D5F]/85 hover:bg-white/[0.06] hover:text-[#C97B63]"
+          className="mt-2 w-full justify-start gap-2.5 rounded-xl text-[#B08D5F]/85 hover:bg-white/[0.06] hover:text-[#bc7155]"
           onClick={onLogout}
         >
           <LogOut className="h-4 w-4" aria-hidden />
@@ -1824,7 +1824,7 @@ function OverviewTab({
   return (
     <div className="space-y-6">
       {/* Bandeau d'accueil */}
-      <Card className="overflow-hidden border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+      <Card className="overflow-hidden border border-[#efe7e0] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-xs font-medium uppercase tracking-widest text-[#8B6F47]">
@@ -1840,8 +1840,8 @@ function OverviewTab({
               Salon en service · {clientsCount} clients présents · satisfaction jour {satisfaction.toFixed(1)}/5
             </p>
           </div>
-          <div className="flex items-center gap-3 rounded-2xl bg-[#FAFAF7] px-5 py-3">
-            <Clock className="h-5 w-5 text-[#C9A961]" aria-hidden />
+          <div className="flex items-center gap-3 rounded-2xl bg-[#ffffff] px-5 py-3">
+            <Clock className="h-5 w-5 text-[#bc7155]" aria-hidden />
             <span
               className="text-2xl font-semibold tabular-nums text-[#2C2C2C]"
               style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
@@ -1858,7 +1858,7 @@ function OverviewTab({
           Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-[120px] rounded-2xl" />)
         ) : (
           <>
-            <Card className="gap-0 border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+            <Card className="gap-0 border border-[#efe7e0] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate text-xs font-medium uppercase tracking-wider text-[#8B6F47]">Capacité</p>
@@ -1873,20 +1873,20 @@ function OverviewTab({
                     <span className="ml-1 text-xs text-[#8B6F47]">({capacitePct}%)</span>
                   </div>
                 </div>
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#6B4C9A]/15 text-[#6B4C9A]">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#bc7155]/15 text-[#bc7155]">
                   <Users className="h-4 w-4" aria-hidden />
                 </span>
               </div>
-              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[#FAFAF7] transition-colors duration-500">
+              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[#ffffff] transition-colors duration-500">
                 <div
-                  className="h-full rounded-full bg-[#C9A961] transition-all duration-700"
+                  className="h-full rounded-full bg-[#bc7155] transition-all duration-700"
                   style={{ width: `${capacitePct}%` }}
                 />
               </div>
             </Card>
 
             <KPICard label="Séjour moyen" value={avgStayLabel} Icon={Timer} tone="bronze" hint={`${occupiedTables.length} table${occupiedTables.length > 1 ? 's' : ''} occupée${occupiedTables.length > 1 ? 's' : ''}`} />
-            <Card className="gap-0 border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+            <Card className="gap-0 border border-[#efe7e0] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <p className="truncate text-xs font-medium uppercase tracking-wider text-[#8B6F47]">Satisfaction</p>
@@ -1903,7 +1903,7 @@ function OverviewTab({
                     <VipStarRating value={satisfaction} size={12} />
                   </div>
                 </div>
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#4A7C59]/15 text-[#4A7C59]">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#bc7155]/15 text-[#bc7155]">
                   <Star className="h-4 w-4" aria-hidden />
                 </span>
               </div>
@@ -1916,7 +1916,7 @@ function OverviewTab({
       </div>
 
       {/* Plan Interactif 2D du Salon */}
-      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+      <Card className="border border-[#efe7e0] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
         <CardHeader className="px-0">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -1932,7 +1932,7 @@ function OverviewTab({
                 const st = TABLE_STATUS_STYLE[s]
                 const count = tables.filter((t) => t.status === s).length
                 return (
-                  <div key={s} className="flex items-center gap-1.5 rounded-lg bg-[#FAFAF7] px-2.5 py-1.5">
+                  <div key={s} className="flex items-center gap-1.5 rounded-lg bg-[#ffffff] px-2.5 py-1.5">
                     <span className={cn('h-2 w-2 rounded-full', st.dot)} />
                     <span className="text-[11px] font-medium text-[#8B6F47]">{st.label}</span>
                     <span className="text-xs font-semibold text-[#2C2C2C]">{count}</span>
@@ -1948,7 +1948,7 @@ function OverviewTab({
               {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-[120px] rounded-2xl" />)}
             </div>
           ) : tables.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-[#FAFAF7] py-10 text-center">
+            <div className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-[#ffffff] py-10 text-center">
               <LayoutGrid className="h-8 w-8 text-[#8B6F47]/50" aria-hidden />
               <p className="text-sm font-medium text-[#2C2C2C]">Aucune table</p>
               <p className="text-xs text-[#8B6F47]">Les tables apparaîtront ici une fois la base initialisée.</p>
@@ -1989,7 +1989,7 @@ function OverviewTab({
       </Card>
 
       {/* Alertes douces */}
-      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+      <Card className="border border-[#efe7e0] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
         <CardHeader className="px-0">
           <CardTitle className="text-lg text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
             Alertes Douces
@@ -2000,8 +2000,8 @@ function OverviewTab({
         </CardHeader>
         <CardContent className="px-0">
           {alerts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-[#FAFAF7] py-10 text-center">
-              <CheckCircle2 className="h-8 w-8 text-[#4A7C59]" aria-hidden />
+            <div className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-[#ffffff] py-10 text-center">
+              <CheckCircle2 className="h-8 w-8 text-[#bc7155]" aria-hidden />
               <p className="text-sm font-medium text-[#2C2C2C]">Aucune alerte en cours</p>
               <p className="text-xs text-[#8B6F47]">Tout est sous contrôle. Belle journée.</p>
             </div>
@@ -2009,10 +2009,10 @@ function OverviewTab({
             <ul className="space-y-2.5">
               {alerts.map((a, idx) => {
                 const toneMap: Record<AlertTone, string> = {
-                  terracotta: 'bg-[#C97B63]/8 border-[#C97B63]/25 text-[#C97B63]',
+                  terracotta: 'bg-[#bc7155]/8 border-[#bc7155]/25 text-[#bc7155]',
                   bronze: 'bg-[#8B6F47]/8 border-[#8B6F47]/25 text-[#8B6F47]',
-                  amethyst: 'bg-[#6B4C9A]/8 border-[#6B4C9A]/25 text-[#6B4C9A]',
-                  gold: 'bg-[#C9A961]/10 border-[#C9A961]/30 text-[#8B6F47]',
+                  amethyst: 'bg-[#bc7155]/8 border-[#bc7155]/25 text-[#bc7155]',
+                  gold: 'bg-[#bc7155]/10 border-[#bc7155]/30 text-[#8B6F47]',
                 }
                 const busy = alertBusyId === a.id
                 return (
@@ -2082,7 +2082,7 @@ function OverviewTab({
           <div className="space-y-2 py-2">
             <Label className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">Membre de l&apos;équipe</Label>
             <Select value={assignee} onValueChange={setAssignee}>
-              <SelectTrigger className="border-[#EAE5DC] bg-[#FAFAF7]">
+              <SelectTrigger className="border-[#efe7e0] bg-[#ffffff]">
                 <SelectValue placeholder="Choisir un membre" />
               </SelectTrigger>
               <SelectContent>
@@ -2100,7 +2100,7 @@ function OverviewTab({
             </Button>
             <Button
               disabled={assignBusy}
-              className="bg-[#C9A961] text-white hover:bg-[#C9A961]/90"
+              className="bg-[#bc7155] text-white hover:bg-[#bc7155]/90"
               onClick={async () => {
                 if (!assignIncident) return
                 setAssignBusy(true)
@@ -2204,14 +2204,14 @@ function FloorPlanTab({
           <div className="flex items-center gap-2">
             <Button
               size="sm"
-              className="gap-1.5 bg-[#C9A961] text-white hover:bg-[#B8975A]"
+              className="gap-1.5 bg-[#bc7155] text-white hover:bg-[#B8975A]"
               onClick={() => setShowAddDialog(true)}
             >
               <Plus className="h-4 w-4" />
               Ajouter une table
             </Button>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[150px] border-[#EAE5DC] bg-white text-sm">
+              <SelectTrigger className="w-[150px] border-[#efe7e0] bg-white text-sm">
                 <SelectValue placeholder="Filtrer" />
               </SelectTrigger>
               <SelectContent>
@@ -2227,7 +2227,7 @@ function FloorPlanTab({
       />
 
       {/* Légende */}
-      <Card className="border border-[#EAE5DC] bg-white p-4 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+      <Card className="border border-[#efe7e0] bg-white p-4 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">Légende</span>
           {(['free', 'occupied', 'problem', 'reserved'] as VipTableStatus[]).map((s) => {
@@ -2239,7 +2239,7 @@ function FloorPlanTab({
               </div>
             )
           })}
-          <span className="mx-1 h-4 w-px bg-[#EAE5DC]" />
+          <span className="mx-1 h-4 w-px bg-[#efe7e0]" />
           {Object.entries(TABLE_ZONE_META).map(([k, z]) => (
             <div key={k} className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: z.accent }} />
@@ -2255,7 +2255,7 @@ function FloorPlanTab({
           {Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} className="h-[130px] rounded-2xl" />)}
         </div>
       ) : tables.length === 0 ? (
-        <Card className="border border-[#EAE5DC] bg-white p-10 text-center shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <Card className="border border-[#efe7e0] bg-white p-10 text-center shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
           <LayoutGrid className="mx-auto h-10 w-10 text-[#8B6F47]/40" aria-hidden />
           <p className="mt-3 text-sm font-medium text-[#2C2C2C]">Aucune table en base</p>
           <p className="mt-1 text-xs text-[#8B6F47]">La base de tables s'initialise automatiquement au premier appel API.</p>
@@ -2268,7 +2268,7 @@ function FloorPlanTab({
             return (
               <Card
                 key={zoneKey}
-                className="overflow-hidden border border-[#EAE5DC] bg-white shadow-[0_4px_20px_rgba(201,169,97,0.06)]"
+                className="overflow-hidden border border-[#efe7e0] bg-white shadow-[0_4px_20px_rgba(201,169,97,0.06)]"
               >
                 <div
                   className="flex items-center justify-between px-5 py-3"
@@ -2321,17 +2321,17 @@ function FloorPlanTab({
       {/* Dialog Ajouter une table */}
       {showAddDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowAddDialog(false)}>
-          <Card className="w-full max-w-md border border-[#EAE5DC] bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <Card className="w-full max-w-md border border-[#efe7e0] bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="mb-4 font-serif text-xl font-bold text-[#2C2C2C]">Ajouter une table</h3>
             <div className="space-y-4">
               <div>
                 <Label className="text-sm font-medium text-[#8B6F47]">Numéro de table</Label>
-                <Input placeholder={`T-${String(tables.length + 1).padStart(2, '0')}`} value={newTableNumber} onChange={(e) => setNewTableNumber(e.target.value)} className="mt-1 border-[#EAE5DC] bg-white" />
+                <Input placeholder={`T-${String(tables.length + 1).padStart(2, '0')}`} value={newTableNumber} onChange={(e) => setNewTableNumber(e.target.value)} className="mt-1 border-[#efe7e0] bg-white" />
               </div>
               <div>
                 <Label className="text-sm font-medium text-[#8B6F47]">Zone</Label>
                 <Select value={newZone} onValueChange={setNewZone}>
-                  <SelectTrigger className="mt-1 border-[#EAE5DC] bg-white"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="mt-1 border-[#efe7e0] bg-white"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="main">Main</SelectItem>
                     <SelectItem value="buffet">Buffet</SelectItem>
@@ -2342,11 +2342,11 @@ function FloorPlanTab({
               </div>
               <div>
                 <Label className="text-sm font-medium text-[#8B6F47]">Places</Label>
-                <Input type="number" min={1} max={12} value={newSeats} onChange={(e) => setNewSeats(parseInt(e.target.value) || 4)} className="mt-1 border-[#EAE5DC] bg-white" />
+                <Input type="number" min={1} max={12} value={newSeats} onChange={(e) => setNewSeats(parseInt(e.target.value) || 4)} className="mt-1 border-[#efe7e0] bg-white" />
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <Button variant="outline" size="sm" onClick={() => setShowAddDialog(false)}>Annuler</Button>
-                <Button size="sm" className="bg-[#C9A961] text-white hover:bg-[#B8975A]" disabled={adding} onClick={ajouterTable}>
+                <Button size="sm" className="bg-[#bc7155] text-white hover:bg-[#B8975A]" disabled={adding} onClick={ajouterTable}>
                   {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                   Créer la table
                 </Button>
@@ -2421,7 +2421,7 @@ function IncidentsTab({
       />
 
       {/* Filtres */}
-      <Card className="border border-[#EAE5DC] bg-white p-4 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+      <Card className="border border-[#efe7e0] bg-white p-4 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative min-w-[180px] flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8B6F47]/60" aria-hidden />
@@ -2429,11 +2429,11 @@ function IncidentsTab({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Rechercher (problème, commentaire…)"
-              className="border-[#EAE5DC] bg-[#FAFAF7] pl-9 text-sm"
+              className="border-[#efe7e0] bg-[#ffffff] pl-9 text-sm"
             />
           </div>
           <Select value={filterZone} onValueChange={setFilterZone}>
-            <SelectTrigger className="w-[170px] border-[#EAE5DC] bg-[#FAFAF7] text-sm">
+            <SelectTrigger className="w-[170px] border-[#efe7e0] bg-[#ffffff] text-sm">
               <SelectValue placeholder="Zone" />
             </SelectTrigger>
             <SelectContent>
@@ -2444,7 +2444,7 @@ function IncidentsTab({
             </SelectContent>
           </Select>
           <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-[150px] border-[#EAE5DC] bg-[#FAFAF7] text-sm">
+            <SelectTrigger className="w-[150px] border-[#efe7e0] bg-[#ffffff] text-sm">
               <SelectValue placeholder="Statut" />
             </SelectTrigger>
             <SelectContent>
@@ -2459,10 +2459,10 @@ function IncidentsTab({
             size="sm"
             onClick={() => setFilterVip((v) => (v === 'vip' ? 'all' : 'vip'))}
             className={cn(
-              'gap-1.5 border-[#EAE5DC]',
+              'gap-1.5 border-[#efe7e0]',
               filterVip === 'vip'
-                ? 'border-transparent bg-[#6B4C9A] text-white hover:bg-[#6B4C9A]/90'
-                : 'bg-[#FAFAF7] text-[#8B6F47] hover:bg-[#C9A961]/10',
+                ? 'border-transparent bg-[#bc7155] text-white hover:bg-[#bc7155]/90'
+                : 'bg-[#ffffff] text-[#8B6F47] hover:bg-[#bc7155]/10',
             )}
           >
             <Crown className="h-4 w-4" aria-hidden /> VIP seulement
@@ -2471,21 +2471,21 @@ function IncidentsTab({
       </Card>
 
       {/* Table */}
-      <Card className="border border-[#EAE5DC] bg-white shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+      <Card className="border border-[#efe7e0] bg-white shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
         {loading ? (
           <div className="space-y-2 p-6">
             {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-xl" />)}
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
-            <CheckCircle2 className="h-8 w-8 text-[#4A7C59]" aria-hidden />
+            <CheckCircle2 className="h-8 w-8 text-[#bc7155]" aria-hidden />
             <p className="text-sm font-medium text-[#2C2C2C]">Aucun signalement</p>
             <p className="text-xs text-[#8B6F47]">Aucun incident ne correspond à vos filtres.</p>
           </div>
         ) : (
           <Table>
             <TableHeader>
-              <TableRow className="border-[#EAE5DC] hover:bg-transparent">
+              <TableRow className="border-[#efe7e0] hover:bg-transparent">
                 <TableHead className="text-[#8B6F47]">Zone</TableHead>
                 <TableHead className="text-[#8B6F47]">Problème</TableHead>
                 <TableHead className="text-[#8B6F47]">Statut</TableHead>
@@ -2497,7 +2497,7 @@ function IncidentsTab({
               {filtered.map((i) => {
                 const isVip = hashIsVip(i.id)
                 return (
-                  <TableRow key={i.id} className="border-[#EAE5DC]">
+                  <TableRow key={i.id} className="border-[#efe7e0]">
                     <TableCell className="font-medium text-[#2C2C2C]">
                       <div className="flex items-center gap-2">
                         <span className="text-lg" aria-hidden>{i.zone?.emoji ?? '📍'}</span>
@@ -2530,7 +2530,7 @@ function IncidentsTab({
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-8 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
+                            className="h-8 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#8B6F47] hover:bg-[#bc7155]/15"
                             onClick={() => act(i.id, 'EN_COURS', 'Pris en charge')}
                           >
                             <ArrowDown className="h-3.5 w-3.5" aria-hidden /> Prendre en charge
@@ -2540,7 +2540,7 @@ function IncidentsTab({
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-8 border-[#4A7C59]/40 bg-[#4A7C59]/8 text-[#4A7C59] hover:bg-[#4A7C59]/15"
+                            className="h-8 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#bc7155] hover:bg-[#bc7155]/15"
                             onClick={() => act(i.id, 'RESOLU', 'Résolu')}
                           >
                             <CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> Résoudre
@@ -2550,7 +2550,7 @@ function IncidentsTab({
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-8 border-[#C97B63]/40 bg-[#C97B63]/8 text-[#C97B63] hover:bg-[#C97B63]/15"
+                            className="h-8 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#bc7155] hover:bg-[#bc7155]/15"
                             onClick={() => toast({ title: 'Escalade déclenchée', description: 'Le manager a été notifié (visuel).' })}
                           >
                             <ArrowUp className="h-3.5 w-3.5" aria-hidden /> Escalader
@@ -2567,19 +2567,19 @@ function IncidentsTab({
       </Card>
 
       {/* ---------- Phase 1 — Demandes à la table ---------- */}
-      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+      <Card className="border border-[#efe7e0] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
         <CardHeader className="px-0">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <CardTitle className="flex items-center gap-2 text-lg text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
-                <ConciergeBell className="h-5 w-5 text-[#C9A961]" aria-hidden /> Demandes à la table
+                <ConciergeBell className="h-5 w-5 text-[#bc7155]" aria-hidden /> Demandes à la table
               </CardTitle>
               <CardDescription className="text-[#8B6F47]">
                 Demandes envoyées par les clients depuis le QR code de leur table.
               </CardDescription>
             </div>
             <Select value={filterRequestType} onValueChange={setFilterRequestType}>
-              <SelectTrigger className="w-[200px] border-[#EAE5DC] bg-[#FAFAF7] text-sm">
+              <SelectTrigger className="w-[200px] border-[#efe7e0] bg-[#ffffff] text-sm">
                 <SelectValue placeholder="Type de demande" />
               </SelectTrigger>
               <SelectContent>
@@ -2597,8 +2597,8 @@ function IncidentsTab({
               {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}
             </div>
           ) : tableRequests.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-[#FAFAF7] py-10 text-center">
-              <CheckCircle2 className="h-8 w-8 text-[#4A7C59]" aria-hidden />
+            <div className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-[#ffffff] py-10 text-center">
+              <CheckCircle2 className="h-8 w-8 text-[#bc7155]" aria-hidden />
               <p className="text-sm font-medium text-[#2C2C2C]">Aucune demande à la table</p>
               <p className="text-xs text-[#8B6F47]">Les demandes envoyées par les clients depuis leur QR table apparaîtront ici.</p>
             </div>
@@ -2613,17 +2613,17 @@ function IncidentsTab({
                   return (
                     <li
                       key={r.id}
-                      className="flex flex-wrap items-center gap-3 rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-3"
+                      className="flex flex-wrap items-center gap-3 rounded-xl border border-[#efe7e0] bg-[#ffffff] px-4 py-3"
                     >
                       {/* Type icon */}
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#C9A961]/12 text-[#8B6F47]">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#bc7155]/12 text-[#8B6F47]">
                         <RIcon className="h-5 w-5" aria-hidden />
                       </span>
 
                       {/* Table + type + message */}
                       <div className="min-w-[200px] flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="outline" className="border-[#EAE5DC] bg-white font-mono text-xs font-semibold text-[#2C2C2C]">
+                          <Badge variant="outline" className="border-[#efe7e0] bg-white font-mono text-xs font-semibold text-[#2C2C2C]">
                             {/* QR_ROUTING — table scannée ou zone déclarée (QR d'entrée) */}
                             {requestLocationLabel(r)}
                           </Badge>
@@ -2639,7 +2639,7 @@ function IncidentsTab({
                           <p className="mt-0.5 text-[11px] text-[#8B6F47]/80">
                             Client : <span className="font-medium text-[#2C2C2C]">{r.table.clientName}</span>
                             {r.table.clientVipLevel && (
-                              <span className="ml-1 text-[#6B4C9A]">· {r.table.clientVipLevel}</span>
+                              <span className="ml-1 text-[#bc7155]">· {r.table.clientVipLevel}</span>
                             )}
                           </p>
                         )}
@@ -2657,7 +2657,7 @@ function IncidentsTab({
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-8 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
+                            className="h-8 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#8B6F47] hover:bg-[#bc7155]/15"
                             onClick={async () => {
                               try {
                                 await onPatchRequest(r.id, { status: 'in_progress' })
@@ -2674,7 +2674,7 @@ function IncidentsTab({
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-8 border-[#4A7C59]/40 bg-[#4A7C59]/8 text-[#4A7C59] hover:bg-[#4A7C59]/15"
+                            className="h-8 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#bc7155] hover:bg-[#bc7155]/15"
                             onClick={async () => {
                               try {
                                 await onPatchRequest(r.id, { status: 'done' })
@@ -2688,7 +2688,7 @@ function IncidentsTab({
                           </Button>
                         )}
                         {r.status === 'done' && (
-                          <span className="text-xs text-[#4A7C59]">Clôturée</span>
+                          <span className="text-xs text-[#bc7155]">Clôturée</span>
                         )}
                       </div>
                     </li>
@@ -2753,13 +2753,13 @@ function BuffetTab({
         subtitle="Checklist luxe — Champagne, Saumon, Fruits & Mignardises"
         Icon={Wine}
         action={
-          <div className="flex items-center gap-2 rounded-xl border border-[#EAE5DC] bg-white px-4 py-2.5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-            <Clock className={cn('h-4 w-4', nextTimer?.overdue ? 'text-[#C97B63]' : 'text-[#C9A961]')} aria-hidden />
+          <div className="flex items-center gap-2 rounded-xl border border-[#efe7e0] bg-white px-4 py-2.5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+            <Clock className={cn('h-4 w-4', nextTimer?.overdue ? 'text-[#bc7155]' : 'text-[#bc7155]')} aria-hidden />
             <span className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">
               {nextTimer?.overdue ? 'Vérification' : 'Prochaine vérification'}
             </span>
             {nextTimer?.overdue ? (
-              <span className="text-sm font-semibold text-[#C97B63]">{nextTimer.text}</span>
+              <span className="text-sm font-semibold text-[#bc7155]">{nextTimer.text}</span>
             ) : (
               <span
                 className="text-lg font-semibold tabular-nums text-[#2C2C2C]"
@@ -2780,9 +2780,9 @@ function BuffetTab({
           buffet.map((b) => {
             const label = BUFFET_ITEM_LABELS[b.item] ?? b.item
             const low = b.fillLevel < 30
-            const fillStyle = b.fillLevel < 30 ? 'bg-[#C97B63]' : b.fillLevel < 60 ? 'bg-[#C9A961]' : 'bg-[#4A7C59]'
+            const fillStyle = b.fillLevel < 30 ? 'bg-[#bc7155]' : b.fillLevel < 60 ? 'bg-[#bc7155]' : 'bg-[#bc7155]'
             return (
-              <Card key={b.id} className="border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+              <Card key={b.id} className="border border-[#efe7e0] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <h3 className="text-sm font-semibold text-[#2C2C2C]">{label}</h3>
@@ -2791,7 +2791,7 @@ function BuffetTab({
                     </p>
                   </div>
                   {low && (
-                    <Badge className="border-[#C97B63]/30 bg-[#C97B63]/12 text-[#C97B63]">
+                    <Badge className="border-[#bc7155]/30 bg-[#bc7155]/12 text-[#bc7155]">
                       <AlertTriangle className="h-3 w-3" aria-hidden /> Bas
                     </Badge>
                   )}
@@ -2808,7 +2808,7 @@ function BuffetTab({
                 </div>
 
                 {/* Barre visuelle */}
-                <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-[#FAFAF7]">
+                <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-[#ffffff]">
                   <div className={cn('h-full rounded-full transition-all', fillStyle)} style={{ width: `${b.fillLevel}%` }} />
                 </div>
 
@@ -2835,7 +2835,7 @@ function BuffetTab({
 
                 <p className="mt-3 text-[11px] text-[#8B6F47]">
                   {formatTimerLabel(b.nextCheck).overdue ? (
-                    <span className="font-semibold text-[#C97B63]">{formatTimerLabel(b.nextCheck).text}</span>
+                    <span className="font-semibold text-[#bc7155]">{formatTimerLabel(b.nextCheck).text}</span>
                   ) : (
                     <>
                       Prochaine vérif. dans{' '}
@@ -2850,7 +2850,7 @@ function BuffetTab({
       </div>
 
       {/* Historique */}
-      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+      <Card className="border border-[#efe7e0] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
         <CardHeader className="px-0">
           <CardTitle className="text-lg text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
             Historique des vérifications
@@ -2860,8 +2860,8 @@ function BuffetTab({
         <CardContent className="px-0">
           <ul className="max-h-72 space-y-1.5 overflow-y-auto pr-1">
             {history.map((h) => (
-              <li key={h.id} className="flex items-center gap-3 rounded-xl bg-[#FAFAF7] px-4 py-2.5">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#C9A961]/15 text-xs font-semibold text-[#8B6F47]">
+              <li key={h.id} className="flex items-center gap-3 rounded-xl bg-[#ffffff] px-4 py-2.5">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#bc7155]/15 text-xs font-semibold text-[#8B6F47]">
                   {initials(h.who)}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -2998,7 +2998,7 @@ function ShowersTab({
             return (
               <Card
                 key={s.id}
-                className={cn('border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)] ring-1 ring-transparent', style.ring)}
+                className={cn('border border-[#efe7e0] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)] ring-1 ring-transparent', style.ring)}
               >
                 {/* En-tête cabine */}
                 <div className="flex items-center justify-between">
@@ -3030,7 +3030,7 @@ function ShowersTab({
                     <p>Depuis : <span className="font-semibold text-[#2C2C2C]">{minutesDepuis(s.occupiedSince)} min</span></p>
                   )}
                   {needsCleaning && (
-                    <p className="flex items-center gap-1 text-[#C97B63]">
+                    <p className="flex items-center gap-1 text-[#bc7155]">
                       <AlertTriangle className="h-3 w-3" aria-hidden /> Nettoyage requis
                     </p>
                   )}
@@ -3041,7 +3041,7 @@ function ShowersTab({
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-8 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
+                    className="h-8 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#8B6F47] hover:bg-[#bc7155]/15"
                     onClick={() => setQrShower(s)}
                   >
                     <QrCode className="h-3.5 w-3.5" aria-hidden /> Voir QR
@@ -3050,7 +3050,7 @@ function ShowersTab({
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-8 border-[#4A7C59]/40 bg-[#4A7C59]/8 text-[#4A7C59] hover:bg-[#4A7C59]/15"
+                      className="h-8 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#bc7155] hover:bg-[#bc7155]/15"
                       onClick={() => act(s, 'free', 'Douche libérée')}
                     >
                       Libérer
@@ -3060,7 +3060,7 @@ function ShowersTab({
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-8 border-[#6B4C9A]/40 bg-[#6B4C9A]/8 text-[#6B4C9A] hover:bg-[#6B4C9A]/15"
+                      className="h-8 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#bc7155] hover:bg-[#bc7155]/15"
                       onClick={() => act(s, 'occupied', 'Douche occupée')}
                     >
                       Occuper
@@ -3070,7 +3070,7 @@ function ShowersTab({
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-8 border-[#C97B63]/40 bg-[#C97B63]/8 text-[#C97B63] hover:bg-[#C97B63]/15"
+                      className="h-8 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#bc7155] hover:bg-[#bc7155]/15"
                       onClick={() => act(s, 'cleaning', 'Nettoyage en cours')}
                     >
                       Nettoyer
@@ -3079,7 +3079,7 @@ function ShowersTab({
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-8 text-[#8B6F47] hover:bg-[#FAFAF7]"
+                    className="h-8 text-[#8B6F47] hover:bg-[#ffffff]"
                     onClick={() => toggleMaintenance(s)}
                   >
                     {st === 'maintenance' ? 'Sortir maintenance' : 'Maintenance'}
@@ -3093,7 +3093,7 @@ function ShowersTab({
 
       {/* Dialog QR douche */}
       <Dialog open={qrShower !== null} onOpenChange={(o) => !o && setQrShower(null)}>
-        <DialogContent className="border-[#EAE5DC] bg-white p-6">
+        <DialogContent className="border-[#efe7e0] bg-white p-6">
           <DialogHeader>
             <DialogTitle className="text-xl text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
               QR Réservation — Douche N°{qrShower?.showerNumber}
@@ -3114,7 +3114,7 @@ function ShowersTab({
               <Button
                 variant="outline"
                 disabled={qrPngBusy}
-                className="border-[#C9A961]/40 bg-[#C9A961]/10 text-[#8B6F47] hover:bg-[#C9A961]/20"
+                className="border-[#bc7155]/40 bg-[#bc7155]/10 text-[#8B6F47] hover:bg-[#bc7155]/20"
                 onClick={() =>
                   runQrPng(() =>
                     downloadPlaquePng(
@@ -3195,7 +3195,7 @@ function RewardsTab({ staffName }: { staffName: string }) {
         subtitle="Offres luxe réservées aux clients VIP — Champagne, Massage, Cigar, Spa"
         Icon={Gift}
         action={
-          <div className="rounded-xl border border-[#EAE5DC] bg-white px-4 py-2.5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+          <div className="rounded-xl border border-[#efe7e0] bg-white px-4 py-2.5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
             <p className="text-[11px] font-medium uppercase tracking-wider text-[#8B6F47]">Coût du jour</p>
             <p className="text-xl font-semibold text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
               {totalCostToday} €
@@ -3205,11 +3205,11 @@ function RewardsTab({ staffName }: { staffName: string }) {
       />
 
       {/* Sélection client */}
-      <Card className="border border-[#EAE5DC] bg-white p-4 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+      <Card className="border border-[#efe7e0] bg-white p-4 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
         <div className="flex flex-wrap items-center gap-3">
           <Label className="text-sm font-medium text-[#2C2C2C]">Offrir au client :</Label>
           <Select value={selectedClient} onValueChange={setSelectedClient}>
-            <SelectTrigger className="w-[240px] border-[#EAE5DC] bg-[#FAFAF7] text-sm">
+            <SelectTrigger className="w-[240px] border-[#efe7e0] bg-[#ffffff] text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -3228,8 +3228,8 @@ function RewardsTab({ staffName }: { staffName: string }) {
         {LUXE_REWARDS.map((r) => {
           const Icon = r.Icon
           return (
-            <Card key={r.id} className="flex flex-col border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#C9A961]/15 to-[#8B6F47]/10 text-[#8B6F47]">
+            <Card key={r.id} className="flex flex-col border border-[#efe7e0] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#bc7155]/15 to-[#8B6F47]/10 text-[#8B6F47]">
                 <Icon className="h-7 w-7" aria-hidden />
               </div>
               <h3 className="mt-4 text-base font-semibold text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
@@ -3237,10 +3237,10 @@ function RewardsTab({ staffName }: { staffName: string }) {
               </h3>
               <p className="mt-1 flex-1 text-xs text-[#8B6F47]">{r.description}</p>
               <div className="mt-4 flex items-center justify-between">
-                <span className="text-sm font-semibold text-[#C9A961]">{r.cost} €</span>
+                <span className="text-sm font-semibold text-[#bc7155]">{r.cost} €</span>
                 <Button
                   size="sm"
-                  className="h-8 gap-1.5 bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white hover:opacity-90"
+                  className="h-8 gap-1.5 bg-gradient-to-br from-[#bc7155] to-[#8B6F47] text-white hover:opacity-90"
                   onClick={() => offer(r)}
                 >
                   <Gift className="h-3.5 w-3.5" aria-hidden /> Offrir
@@ -3252,7 +3252,7 @@ function RewardsTab({ staffName }: { staffName: string }) {
       </div>
 
       {/* Historique */}
-      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+      <Card className="border border-[#efe7e0] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
         <CardHeader className="px-0">
           <CardTitle className="text-lg text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
             Offertes aujourd'hui
@@ -3262,8 +3262,8 @@ function RewardsTab({ staffName }: { staffName: string }) {
         <CardContent className="px-0">
           <ul className="space-y-2">
             {given.map((r) => (
-              <li key={r.id} className="flex items-center gap-3 rounded-xl bg-[#FAFAF7] px-4 py-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#C9A961]/15 text-[#8B6F47]">
+              <li key={r.id} className="flex items-center gap-3 rounded-xl bg-[#ffffff] px-4 py-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#bc7155]/15 text-[#8B6F47]">
                   <Gift className="h-4 w-4" aria-hidden />
                 </span>
                 <div className="min-w-0 flex-1">
@@ -3271,7 +3271,7 @@ function RewardsTab({ staffName }: { staffName: string }) {
                   <p className="truncate text-xs text-[#8B6F47]">à {r.clientName} · par {r.staffName}</p>
                 </div>
                 <div className="shrink-0 text-right">
-                  <p className="text-sm font-semibold text-[#C9A961]">{r.cost} €</p>
+                  <p className="text-sm font-semibold text-[#bc7155]">{r.cost} €</p>
                   <p className="text-[11px] text-[#8B6F47]">{formatTimeShort(r.givenAt)}</p>
                 </div>
               </li>
@@ -3341,7 +3341,7 @@ function StaffTab() {
         Icon={UserCog}
         action={
           <Button
-            className="gap-2 bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white hover:opacity-90"
+            className="gap-2 bg-gradient-to-br from-[#bc7155] to-[#8B6F47] text-white hover:opacity-90"
             onClick={() => setFormOpen(true)}
           >
             <Plus className="h-4 w-4" aria-hidden /> Ajouter staff
@@ -3349,10 +3349,10 @@ function StaffTab() {
         }
       />
 
-      <Card className="border border-[#EAE5DC] bg-white shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+      <Card className="border border-[#efe7e0] bg-white shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
         <Table>
           <TableHeader>
-            <TableRow className="border-[#EAE5DC] hover:bg-transparent">
+            <TableRow className="border-[#efe7e0] hover:bg-transparent">
               <TableHead className="text-[#8B6F47]">Staff</TableHead>
               <TableHead className="text-[#8B6F47]">Rôle</TableHead>
               <TableHead className="text-[#8B6F47]">Téléphone</TableHead>
@@ -3365,10 +3365,10 @@ function StaffTab() {
             {staff.map((s) => {
               const RoleIcon = STAFF_ROLE_ICON[s.role]
               return (
-                <TableRow key={s.id} className="border-[#EAE5DC]">
+                <TableRow key={s.id} className="border-[#efe7e0]">
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <Avatar className="h-9 w-9 ring-1 ring-[#EAE5DC]">
+                      <Avatar className="h-9 w-9 ring-1 ring-[#efe7e0]">
                         {s.photoUrl && <AvatarImage src={s.photoUrl} alt={s.name} />}
                         <AvatarFallback className="bg-[#8B6F47]/15 text-xs font-semibold text-[#8B6F47]">
                           {initials(s.name)}
@@ -3379,12 +3379,12 @@ function StaffTab() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2 text-sm text-[#2C2C2C]">
-                      <RoleIcon className="h-4 w-4 text-[#C9A961]" aria-hidden />
+                      <RoleIcon className="h-4 w-4 text-[#bc7155]" aria-hidden />
                       {s.role}
                     </div>
                   </TableCell>
                   <TableCell className="text-sm text-[#8B6F47]">
-                    <a href={`tel:${s.phone.replace(/\s/g, '')}`} className="inline-flex items-center gap-1.5 hover:text-[#C9A961]">
+                    <a href={`tel:${s.phone.replace(/\s/g, '')}`} className="inline-flex items-center gap-1.5 hover:text-[#bc7155]">
                       <Phone className="h-3.5 w-3.5" aria-hidden /> {s.phone}
                     </a>
                   </TableCell>
@@ -3395,8 +3395,8 @@ function StaffTab() {
                       className={cn(
                         'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors',
                         s.present
-                          ? 'border-[#4A7C59]/25 bg-[#4A7C59]/12 text-[#4A7C59]'
-                          : 'border-[#8B6F47]/25 bg-[#FAFAF7] text-[#8B6F47]',
+                          ? 'border-[#bc7155]/25 bg-[#bc7155]/12 text-[#bc7155]'
+                          : 'border-[#8B6F47]/25 bg-[#ffffff] text-[#8B6F47]',
                       )}
                     >
                       <CircleDot className="h-3 w-3" aria-hidden /> {s.present ? 'Présent' : 'Absent'}
@@ -3405,7 +3405,7 @@ function StaffTab() {
                   <TableCell className="text-sm font-semibold text-[#2C2C2C]">{s.incidentsResolved}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1.5">
-                      <span className="text-sm font-semibold text-[#C9A961]">{s.satisfactionScore.toFixed(1)}</span>
+                      <span className="text-sm font-semibold text-[#bc7155]">{s.satisfactionScore.toFixed(1)}</span>
                       <span className="text-xs text-[#8B6F47]">/5</span>
                     </div>
                   </TableCell>
@@ -3418,7 +3418,7 @@ function StaffTab() {
 
       {/* Dialog ajout staff */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="border-[#EAE5DC] bg-white p-6">
+        <DialogContent className="border-[#efe7e0] bg-white p-6">
           <DialogHeader>
             <DialogTitle className="text-xl text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
               Nouveau membre du staff
@@ -3434,13 +3434,13 @@ function StaffTab() {
                   value={form.name}
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                   placeholder="ex. Nadia Cherif"
-                  className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+                  className="mt-1.5 border-[#efe7e0] bg-[#ffffff]"
                 />
               </div>
               <div>
                 <Label htmlFor="s-role" className="text-[#8B6F47]">Rôle</Label>
                 <Select value={form.role} onValueChange={(v) => setForm((f) => ({ ...f, role: v as StaffRole }))}>
-                  <SelectTrigger id="s-role" className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]">
+                  <SelectTrigger id="s-role" className="mt-1.5 border-[#efe7e0] bg-[#ffffff]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -3461,7 +3461,7 @@ function StaffTab() {
                   value={form.phone}
                   onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                   placeholder="+33 6 12 34 56 78"
-                  className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+                  className="mt-1.5 border-[#efe7e0] bg-[#ffffff]"
                 />
               </div>
               <div>
@@ -3471,16 +3471,16 @@ function StaffTab() {
                   value={form.photoUrl}
                   onChange={(e) => setForm((f) => ({ ...f, photoUrl: e.target.value }))}
                   placeholder="https://…"
-                  className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+                  className="mt-1.5 border-[#efe7e0] bg-[#ffffff]"
                 />
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setFormOpen(false)} className="border-[#EAE5DC] bg-[#FAFAF7] text-[#8B6F47]">
+            <Button variant="outline" onClick={() => setFormOpen(false)} className="border-[#efe7e0] bg-[#ffffff] text-[#8B6F47]">
               Annuler
             </Button>
-            <Button onClick={addStaff} className="gap-2 bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white hover:opacity-90">
+            <Button onClick={addStaff} className="gap-2 bg-gradient-to-br from-[#bc7155] to-[#8B6F47] text-white hover:opacity-90">
               <Plus className="h-4 w-4" aria-hidden /> Ajouter
             </Button>
           </DialogFooter>
@@ -3514,7 +3514,7 @@ function QrLinkRow({ url }: { url: string }) {
       })
   }
   return (
-    <div className="mt-3 rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2.5">
+    <div className="mt-3 rounded-xl border border-[#efe7e0] bg-[#ffffff] px-3 py-2.5">
       <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#8B6F47]">
         Lien du QR Code — cliquez pour ouvrir
       </p>
@@ -3524,7 +3524,7 @@ function QrLinkRow({ url }: { url: string }) {
           target="_blank"
           rel="noopener noreferrer"
           title={url}
-          className="min-w-0 flex-1 truncate font-mono text-[11px] text-[#2C2C2C] underline decoration-[#C9A961]/60 decoration-2 underline-offset-2 transition hover:text-[#8B6F47]"
+          className="min-w-0 flex-1 truncate font-mono text-[11px] text-[#2C2C2C] underline decoration-[#bc7155]/60 decoration-2 underline-offset-2 transition hover:text-[#8B6F47]"
         >
           {url}
         </a>
@@ -3533,7 +3533,7 @@ function QrLinkRow({ url }: { url: string }) {
           target="_blank"
           rel="noopener noreferrer"
           aria-label="Ouvrir le lien du QR Code dans un nouvel onglet"
-          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] transition hover:bg-[#C9A961]/15"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[#bc7155]/40 bg-[#bc7155]/8 text-[#8B6F47] transition hover:bg-[#bc7155]/15"
         >
           <ExternalLink className="h-3.5 w-3.5" aria-hidden />
         </a>
@@ -3663,7 +3663,7 @@ function QRTab({
           QR d&apos;Entrée — Chevalet d&apos;accueil
         </h3>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <Card className="border border-[#C9A961]/40 bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.10)]">
+          <Card className="border border-[#bc7155]/40 bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.10)]">
             <div className="flex items-start gap-3">
               <span className="text-2xl" aria-hidden>🥂</span>
               <div className="min-w-0 flex-1">
@@ -3685,7 +3685,7 @@ function QRTab({
                 size="sm"
                 variant="outline"
                 disabled={qrPngBusy}
-                className="h-8 flex-1 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
+                className="h-8 flex-1 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#8B6F47] hover:bg-[#bc7155]/15"
                 onClick={() => downloadQr(entryOpts, 'chevalet-entree-nathalie.png')}
               >
                 <Download className="h-3.5 w-3.5" aria-hidden /> Plaque PNG
@@ -3703,14 +3703,14 @@ function QRTab({
           </Card>
 
           {/* Référence produit — rendu matière du chevalet */}
-          <Card className="overflow-hidden border border-[#EAE5DC] bg-white p-0 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+          <Card className="overflow-hidden border border-[#efe7e0] bg-white p-0 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
             <div className="relative h-52 w-full sm:h-56">
               <img
                 src="/brand/nathalie-qr-stand.png"
                 alt="Chevalet d'accueil du salon VIP : plaque QR en aluminium noir anodisé et or champagne posée sur un socle en marbre Nero Marquina"
                 className="h-full w-full object-cover"
               />
-              <span className="absolute left-3 top-3 rounded-full bg-[#131315]/70 px-2.5 py-1 text-[10px] uppercase tracking-[0.22em] text-[#C9A961] backdrop-blur">
+              <span className="absolute left-3 top-3 rounded-full bg-[#131315]/70 px-2.5 py-1 text-[10px] uppercase tracking-[0.22em] text-[#bc7155] backdrop-blur">
                 Rendu matière
               </span>
             </div>
@@ -3723,7 +3723,7 @@ function QRTab({
               </p>
               <div className="mt-2.5 flex flex-wrap gap-1.5">
                 {['Noir anodisé', 'Or champagne', 'Nero Marquina', 'Médaillon ivoire'].map((m) => (
-                  <span key={m} className="rounded-full border border-[#C9A961]/35 bg-[#C9A961]/8 px-2 py-0.5 text-[10px] font-medium text-[#8B6F47]">
+                  <span key={m} className="rounded-full border border-[#bc7155]/35 bg-[#bc7155]/8 px-2 py-0.5 text-[10px] font-medium text-[#8B6F47]">
                     {m}
                   </span>
                 ))}
@@ -3739,8 +3739,8 @@ function QRTab({
             className={cn(
               'p-5 shadow-[0_4px_20px_rgba(201,169,97,0.10)]',
               wifiPayload
-                ? 'border border-[#C9A961]/40 bg-white'
-                : 'border border-dashed border-[#C9A961]/40 bg-[#FAFAF7]',
+                ? 'border border-[#bc7155]/40 bg-white'
+                : 'border border-dashed border-[#bc7155]/40 bg-[#ffffff]',
             )}
           >
             <div className="flex items-start gap-3">
@@ -3768,7 +3768,7 @@ function QRTab({
                   <button
                     type="button"
                     onClick={copierWifi}
-                    className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#C9A961]/40 bg-[#C9A961]/8 px-3 py-2 text-xs font-semibold text-[#8B6F47] transition hover:bg-[#C9A961]/15"
+                    className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#bc7155]/40 bg-[#bc7155]/8 px-3 py-2 text-xs font-semibold text-[#8B6F47] transition hover:bg-[#bc7155]/15"
                     aria-live="polite"
                   >
                     {wifiCopied ? <Check className="h-3.5 w-3.5" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
@@ -3785,7 +3785,7 @@ function QRTab({
                     size="sm"
                     variant="outline"
                     disabled={qrPngBusy}
-                    className="h-8 flex-1 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
+                    className="h-8 flex-1 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#8B6F47] hover:bg-[#bc7155]/15"
                     onClick={() =>
                       downloadQr(
                         { data: wifiPayload, label: wifiNom.trim(), signature: wifiSignature, emoji: '📶' },
@@ -3815,7 +3815,7 @@ function QRTab({
                   automatique au scan + clé imprimée sur la plaque).
                 </p>
                 {onGoToSettings ? (
-                  <Button size="sm" className="bg-[#C9A961] text-white hover:bg-[#B8975A]" onClick={onGoToSettings}>
+                  <Button size="sm" className="bg-[#bc7155] text-white hover:bg-[#B8975A]" onClick={onGoToSettings}>
                     <Settings className="h-3.5 w-3.5" aria-hidden /> Ouvrir Paramètres
                   </Button>
                 ) : null}
@@ -3841,7 +3841,7 @@ function QRTab({
             }
             const scans = scansForZone(z.code)
             return (
-              <Card key={z.code} className="border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+              <Card key={z.code} className="border border-[#efe7e0] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
                 <div className="flex items-start gap-3">
                   <span className="text-2xl" aria-hidden>{z.emoji}</span>
                   <div className="min-w-0 flex-1">
@@ -3855,14 +3855,14 @@ function QRTab({
                 <QrLinkRow url={url} />
                 <div className="mt-3 flex items-center justify-between text-xs">
                   <span className="text-[#8B6F47]">Scans aujourd'hui</span>
-                  <span className="font-semibold text-[#C9A961]">{scans}</span>
+                  <span className="font-semibold text-[#bc7155]">{scans}</span>
                 </div>
                 <div className="mt-3 flex gap-1.5">
                   <Button
                     size="sm"
                     variant="outline"
                     disabled={qrPngBusy}
-                    className="h-8 flex-1 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
+                    className="h-8 flex-1 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#8B6F47] hover:bg-[#bc7155]/15"
                     onClick={() => downloadQr(opts, `chevalet-${z.code}.png`)}
                   >
                     <Download className="h-3.5 w-3.5" aria-hidden /> Plaque
@@ -3904,14 +3904,14 @@ function QRTab({
               signature: 'NATHALIE · GUIDE PERSONNEL',
             }
             const statusMeta: Record<string, { label: string; style: string }> = {
-              free: { label: 'Libre', style: 'border-[#4A7C59]/40 bg-[#4A7C59]/10 text-[#4A7C59]' },
-              occupied: { label: 'Occupée', style: 'border-[#C9A961]/40 bg-[#C9A961]/12 text-[#8B6F47]' },
-              reserved: { label: 'Réservée', style: 'border-[#6B4C9A]/40 bg-[#6B4C9A]/10 text-[#6B4C9A]' },
-              problem: { label: 'Problème', style: 'border-[#C97B63]/40 bg-[#C97B63]/12 text-[#C97B63]' },
+              free: { label: 'Libre', style: 'border-[#bc7155]/40 bg-[#bc7155]/10 text-[#bc7155]' },
+              occupied: { label: 'Occupée', style: 'border-[#bc7155]/40 bg-[#bc7155]/12 text-[#8B6F47]' },
+              reserved: { label: 'Réservée', style: 'border-[#bc7155]/40 bg-[#bc7155]/10 text-[#bc7155]' },
+              problem: { label: 'Problème', style: 'border-[#bc7155]/40 bg-[#bc7155]/12 text-[#bc7155]' },
             }
             const sm = statusMeta[t.status] ?? statusMeta.free
             return (
-              <Card key={t.id} className="border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+              <Card key={t.id} className="border border-[#efe7e0] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
                 <div className="flex items-start gap-3">
                   <span className="text-2xl" aria-hidden>🍽️</span>
                   <div className="min-w-0 flex-1">
@@ -3933,7 +3933,7 @@ function QRTab({
                     size="sm"
                     variant="outline"
                     disabled={qrPngBusy}
-                    className="h-8 flex-1 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
+                    className="h-8 flex-1 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#8B6F47] hover:bg-[#bc7155]/15"
                     onClick={() => downloadQr(opts, `chevalet-table-${t.tableNumber}.png`)}
                   >
                     <Download className="h-3.5 w-3.5" aria-hidden /> Plaque
@@ -3952,7 +3952,7 @@ function QRTab({
             )
           })}
           {tables.length === 0 && (
-            <Card className="border border-dashed border-[#C9A961]/40 bg-[#FAFAF7] p-6 text-center sm:col-span-2 lg:col-span-3">
+            <Card className="border border-dashed border-[#bc7155]/40 bg-[#ffffff] p-6 text-center sm:col-span-2 lg:col-span-3">
               <p className="text-sm text-[#8B6F47]">Aucune table enregistrée — les QR des tables apparaîtront ici dès leur création.</p>
             </Card>
           )}
@@ -3972,9 +3972,9 @@ function QRTab({
             }
             const scans = scansForStaff(s.id)
             return (
-              <Card key={s.id} className="border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+              <Card key={s.id} className="border border-[#efe7e0] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
                 <div className="flex items-start gap-3">
-                  <Avatar className="h-9 w-9 ring-1 ring-[#EAE5DC]">
+                  <Avatar className="h-9 w-9 ring-1 ring-[#efe7e0]">
                     {s.photoUrl && <AvatarImage src={s.photoUrl} alt={s.name} />}
                     <AvatarFallback className="bg-[#8B6F47]/15 text-xs font-semibold text-[#8B6F47]">
                       {initials(s.name)}
@@ -3991,14 +3991,14 @@ function QRTab({
                 <QrLinkRow url={url} />
                 <div className="mt-3 flex items-center justify-between text-xs">
                   <span className="text-[#8B6F47]">Scans aujourd'hui</span>
-                  <span className="font-semibold text-[#C9A961]">{scans}</span>
+                  <span className="font-semibold text-[#bc7155]">{scans}</span>
                 </div>
                 <div className="mt-3 flex gap-1.5">
                   <Button
                     size="sm"
                     variant="outline"
                     disabled={qrPngBusy}
-                    className="h-8 flex-1 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
+                    className="h-8 flex-1 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#8B6F47] hover:bg-[#bc7155]/15"
                     onClick={() => downloadQr(opts, `chevalet-staff-${s.id}.png`)}
                   >
                     <Download className="h-3.5 w-3.5" aria-hidden /> Plaque
@@ -4506,9 +4506,9 @@ export default function VIPDashboard() {
   const titreOnglet = currentNav?.label ?? 'Vue d\'ensemble'
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-[#FAFAF7] lg:pl-[260px]">
+    <div className="relative flex min-h-screen flex-col bg-[#ffffff] lg:pl-[260px]">
       {/* Filet doré décoratif sur le côté droit de la sidebar */}
-      <div className="pointer-events-none fixed inset-y-0 left-[260px] z-30 hidden w-px bg-gradient-to-b from-[#C9A961]/40 via-white/10 to-[#C9A961]/40 lg:block" aria-hidden />
+      <div className="pointer-events-none fixed inset-y-0 left-[260px] z-30 hidden w-px bg-gradient-to-b from-[#bc7155]/40 via-white/10 to-[#bc7155]/40 lg:block" aria-hidden />
 
       {/* ---------- Sidebar desktop (fixe, 260px) — NOIR + MARRON V3 ---------- */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-[260px] border-r border-white/10 bg-[#0D0B09] lg:block">
@@ -4528,7 +4528,7 @@ export default function VIPDashboard() {
       </aside>
 
       {/* ---------- Header (sticky) ---------- */}
-      <header className="sticky top-0 z-20 border-b border-[#EAE5DC] bg-[#FAFAF7]/95 backdrop-blur-sm">
+      <header className="sticky top-0 z-20 border-b border-[#efe7e0] bg-[#ffffff]/95 backdrop-blur-sm">
         <div className="flex h-16 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-3">
             {/* Menu mobile — ouvre le drawer */}
@@ -4553,7 +4553,7 @@ export default function VIPDashboard() {
             <Button
               variant="ghost"
               size="icon"
-              className="text-[#8B6F47] hover:bg-[#C9A961]/10 lg:hidden"
+              className="text-[#8B6F47] hover:bg-[#bc7155]/10 lg:hidden"
               onClick={() => setDrawerOuvert(true)}
               aria-label="Ouvrir le menu"
             >
@@ -4572,15 +4572,15 @@ export default function VIPDashboard() {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <Badge variant="outline" className="hidden border-[#4A7C59]/30 bg-[#4A7C59]/8 text-[#4A7C59] sm:inline-flex">
-              <span className="mr-1 h-1.5 w-1.5 rounded-full bg-[#4A7C59]" /> En service
+            <Badge variant="outline" className="hidden border-[#bc7155]/30 bg-[#bc7155]/8 text-[#bc7155] sm:inline-flex">
+              <span className="mr-1 h-1.5 w-1.5 rounded-full bg-[#bc7155]" /> En service
             </Badge>
             <Button
               variant="outline"
               size="sm"
               onClick={manualRefresh}
               disabled={refreshing}
-              className="gap-1.5 border-[#EAE5DC] bg-white text-[#8B6F47] hover:bg-[#C9A961]/10"
+              className="gap-1.5 border-[#efe7e0] bg-white text-[#8B6F47] hover:bg-[#bc7155]/10"
             >
               {refreshing ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
@@ -4595,7 +4595,7 @@ export default function VIPDashboard() {
               size="sm"
               onClick={() => void lancerDemoData()}
               disabled={demoBusy}
-              className="gap-1.5 border-[#C9A961]/40 bg-[#C9A961]/10 text-[#8B6F47] hover:bg-[#C9A961]/20"
+              className="gap-1.5 border-[#bc7155]/40 bg-[#bc7155]/10 text-[#8B6F47] hover:bg-[#bc7155]/20"
             >
               {demoBusy ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
@@ -4604,7 +4604,7 @@ export default function VIPDashboard() {
               )}
               <span className="hidden sm:inline">Données démo</span>
             </Button>
-            {/* Phase 2 — Mode Sombre Luxe (anthracite #0F0F0F + accents or) */}
+            {/* Phase 2 — Mode Sombre Luxe (anthracite #0f0f1c + accents or) */}
             <Button
               variant="outline"
               size="icon"
@@ -4612,7 +4612,7 @@ export default function VIPDashboard() {
               aria-pressed={darkMode}
               aria-label={darkMode ? 'Passer en mode clair' : 'Passer en mode sombre'}
               title={darkMode ? 'Passer en mode clair' : 'Mode Sombre Luxe'}
-              className="border-[#EAE5DC] bg-white text-[#8B6F47] hover:bg-[#C9A961]/10"
+              className="border-[#efe7e0] bg-white text-[#8B6F47] hover:bg-[#bc7155]/10"
             >
               {darkMode ? <Sun className="h-4 w-4" aria-hidden /> : <Moon className="h-4 w-4" aria-hidden />}
             </Button>
@@ -4620,7 +4620,7 @@ export default function VIPDashboard() {
               variant="ghost"
               size="icon"
               onClick={() => logout()}
-              className="text-[#8B6F47] hover:bg-[#C97B63]/10 hover:text-[#C97B63] lg:hidden"
+              className="text-[#8B6F47] hover:bg-[#bc7155]/10 hover:text-[#bc7155] lg:hidden"
               aria-label="Déconnexion"
             >
               <LogOut className="h-5 w-5" aria-hidden />
@@ -4693,16 +4693,16 @@ export default function VIPDashboard() {
           {tab === 'wallboard' && (
             <div className="flex min-h-0 w-full flex-1 flex-col gap-3">
               {/* Barre outil — badge signalements + lien TV cliquable */}
-              <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#EAE5DC] bg-white px-4 py-3 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+              <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#efe7e0] bg-white px-4 py-3 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
                 <div className="flex min-w-0 items-center gap-2.5">
                   <Monitor className="h-4 w-4 shrink-0 text-[#8B6F47]" aria-hidden />
                   <span className="truncate text-sm font-semibold text-[#2C2C2C]">Wallboard temps réel</span>
                   {signalementsActifs > 0 ? (
-                    <Badge className="animate-pulse border-0 bg-[#C97B63] text-white">
+                    <Badge className="animate-pulse border-0 bg-[#bc7155] text-white">
                       {signalementsActifs} signalement{signalementsActifs > 1 ? 's' : ''} actif{signalementsActifs > 1 ? 's' : ''}
                     </Badge>
                   ) : (
-                    <span className="hidden text-xs font-medium text-[#4A7C59] sm:inline">Aucun signalement actif</span>
+                    <span className="hidden text-xs font-medium text-[#bc7155] sm:inline">Aucun signalement actif</span>
                   )}
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
@@ -4710,13 +4710,13 @@ export default function VIPDashboard() {
                     size="sm"
                     variant="outline"
                     onClick={copierLienWallboard}
-                    className="gap-1.5 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
+                    className="gap-1.5 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#8B6F47] hover:bg-[#bc7155]/15"
                   >
                     {wallboardCopied ? <Check className="h-3.5 w-3.5" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
                     {wallboardCopied ? 'Lien copié' : 'Copier le lien'}
                   </Button>
                   <a href="/vip-wallboard?tv=1" target="_blank" rel="noopener noreferrer">
-                    <Button size="sm" className="gap-1.5 bg-[#2C2C2C] text-[#E3C985] hover:bg-black">
+                    <Button size="sm" className="gap-1.5 bg-[#2C2C2C] text-[#dba28a] hover:bg-black">
                       <ExternalLink className="h-3.5 w-3.5" aria-hidden />
                       Ouvrir sur la TV
                     </Button>

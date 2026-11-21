@@ -100,16 +100,16 @@ export function VipGuestAlertBanner({ onHandled }: { onHandled?: () => void }) {
             className={cn(
               'relative flex flex-wrap items-center gap-3 overflow-hidden rounded-xl border px-4 py-3',
               isAllergie
-                ? 'border-[#C97B63]/40 bg-gradient-to-r from-[#C97B63]/12 via-white to-white'
-                : 'border-[#C9A961]/50 bg-gradient-to-r from-[#C9A961]/15 via-white to-white shadow-[0_4px_20px_rgba(201,169,97,0.25)]',
+                ? 'border-[#bc7155]/40 bg-gradient-to-r from-[#bc7155]/12 via-white to-white'
+                : 'border-[#bc7155]/50 bg-gradient-to-r from-[#bc7155]/15 via-white to-white shadow-[0_4px_20px_rgba(201,169,97,0.25)]',
             )}
           >
             {/* Fil doré animé à gauche (visuel discret, pas de son) */}
-            <span className={cn('absolute inset-y-0 left-0 w-1', isAllergie ? 'bg-[#C97B63]' : 'bg-gradient-to-b from-[#C9A961] to-[#8B6F47]')} />
+            <span className={cn('absolute inset-y-0 left-0 w-1', isAllergie ? 'bg-[#bc7155]' : 'bg-gradient-to-b from-[#bc7155] to-[#8B6F47]')} />
 
-            <Avatar className="h-11 w-11 shrink-0 ring-2 ring-[#C9A961]/50">
+            <Avatar className="h-11 w-11 shrink-0 ring-2 ring-[#bc7155]/50">
               {a.photo && <AvatarImage src={a.photo} alt={a.clientName} />}
-              <AvatarFallback className="bg-[#C9A961]/20 text-sm font-bold text-[#8B6F47]">
+              <AvatarFallback className="bg-[#bc7155]/20 text-sm font-bold text-[#8B6F47]">
                 {initials(a.clientName)}
               </AvatarFallback>
             </Avatar>
@@ -121,15 +121,15 @@ export function VipGuestAlertBanner({ onHandled }: { onHandled?: () => void }) {
               >
                 <span className="inline-flex min-w-0 items-center gap-1.5">
                   {isAllergie ? (
-                    <ShieldAlert className="h-4 w-4 shrink-0 text-[#C97B63]" aria-hidden />
+                    <ShieldAlert className="h-4 w-4 shrink-0 text-[#bc7155]" aria-hidden />
                   ) : (
-                    <Sparkles className="h-4 w-4 shrink-0 text-[#C9A961]" aria-hidden />
+                    <Sparkles className="h-4 w-4 shrink-0 text-[#bc7155]" aria-hidden />
                   )}
                   <span className="min-w-0 break-words">
                     {isAllergie ? 'Allergie connue' : 'Client VIP détecté'} — {a.clientName}
                   </span>
                 </span>
-                <span className="rounded-full bg-[#C9A961]/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#8B6F47]">
+                <span className="rounded-full bg-[#bc7155]/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[#8B6F47]">
                   {LEVEL_LABEL[a.vipLevel] ?? a.vipLevel}
                 </span>
                 {a.airline && (
@@ -150,7 +150,7 @@ export function VipGuestAlertBanner({ onHandled }: { onHandled?: () => void }) {
                 disabled={busy === a.id}
                 className={cn(
                   'inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-60',
-                  isAllergie ? 'bg-[#C97B63]' : 'bg-gradient-to-br from-[#C9A961] to-[#8B6F47]',
+                  isAllergie ? 'bg-[#bc7155]' : 'bg-gradient-to-br from-[#bc7155] to-[#8B6F47]',
                 )}
               >
                 {busy === a.id ? (
@@ -162,7 +162,7 @@ export function VipGuestAlertBanner({ onHandled }: { onHandled?: () => void }) {
               </button>
               <button
                 onClick={() => setDismissed((d) => new Set(d).add(a.id))}
-                className="rounded-full p-1.5 text-[#8B6F47] hover:bg-[#C9A961]/10"
+                className="rounded-full p-1.5 text-[#8B6F47] hover:bg-[#bc7155]/10"
                 aria-label={`Masquer l'alerte ${a.clientName}`}
               >
                 <X className="h-3.5 w-3.5" aria-hidden />

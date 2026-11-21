@@ -8,7 +8,7 @@
 
 import QRCode from "qrcode"
 
-const BLEU = "#002e85"
+const BLEU = "#0f0f1c"
 const BLANC = "#FFFFFF"
 
 type OptionsPoster = {

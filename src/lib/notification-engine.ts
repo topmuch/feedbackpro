@@ -184,9 +184,9 @@ async function sendViaCanal(
       }
       const sujet = 'Alerte FeedbackPro — Incident'
       const html = `<div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
-        <h2 style="color: #0f172a; margin: 0 0 16px 0;">Alerte FeedbackPro</h2>
+        <h2 style="color: #0f0f1c; margin: 0 0 16px 0;">Alerte FeedbackPro</h2>
         <p style="font-size: 14px; color: #334155; line-height: 1.6;">${renderedMessage.replace(/\n/g, '<br/>')}</p>
-        ${ctx.link ? `<p style="margin-top: 24px;"><a href="${ctx.link}" style="display: inline-block; background: #0f172a; color: #fbbf24; font-weight: 700; padding: 10px 24px; border-radius: 8px; text-decoration: none;">Voir l'incident →</a></p>` : ''}
+        ${ctx.link ? `<p style="margin-top: 24px;"><a href="${ctx.link}" style="display: inline-block; background: #0f0f1c; color: #bc7155; font-weight: 700; padding: 10px 24px; border-radius: 8px; text-decoration: none;">Voir l'incident →</a></p>` : ''}
         <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
         <p style="font-size: 11px; color: #64748b;">Notification automatique FeedbackPro.</p>
       </div>`

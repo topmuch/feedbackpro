@@ -990,3 +990,20 @@ Work Log:
 Stage Summary:
 - feedback.qrbags.com = design Hyer Aviation live avec nouvelle image hero, gate CLIENT_GLOBAL intact, 0 erreur console
 - Tokens Coolify/GitHub réutilisés — rotation toujours recommandée
+
+---
+Task ID: HYER-ALL
+Agent: Z.ai Code (orchestrateur)
+Task: Harmonisation de TOUTES les pages au design Hyer Aviation
+
+Work Log:
+- STRATÉGIE : (1) re-theme globals.css -> tokens Hyer (primary #000d10, accent #bc7155, ash #8e8e95, border #d5d3d4, sidebar Midnight Hull, radius 0, charts monochrome+clay) ; (2) balayage mécanique scripts/hyer_sweep.py (4135 remplacements / 112 fichiers : bleus aéroport -> encre, ors/jaunes/violets/ambre/émeraude/vert -> famille Clay Ember, sky/bleus -> gris-encre ; rouge/rose conservés sémantiques) ; (3) résidus chauds (393 remplacements : crème -> blanc, beiges -> Pebble/clay) ; (4) pass formes (auth pills, rounded-3xl/2rem -> 0px)
+- marketing-shell.tsx réécrit Hyer : wordmark texte + ®, nav pills hairline, CTA pill encre, footer terminal #000d10, CTA final bande Hull carte carrée + point clay — harmonise 14 pages d'un coup
+- shared.tsx : Stars -> Clay Ember, StatCard carte carrée hairline zéro ombre, AppFooter terminal encre
+- auth-view.tsx : serif -> sans editorial, toggle réparé (texte blanc sur pilule encre), wordmark texte remplaçant les PNG bleus (desktop + mobile + admin), champs carrés hairline, témoignage carte carrée, grille fond clay
+- 0 résidu de couleurs héritées vérifié par grep ; lint 0/0 ; tsc exit 0
+- QA locale : /tarifs, /contact (marketing Hyer), /login + /admin-login (auth Hyer), dashboard superadmin (sidebar Hull, KPI carrés encre/clay), /ops-wallboard (tuiles clay/encre, rouge critique conservé), toggle tarifs géométrie saine
+- NOTE : DB locale vide (seed refait via /api/setup/seed pour QA) ; SW PWA purge nécessaire en dev pour voir les chunks frais
+
+Stage Summary:
+- Tout le site (landing, marketing, légal, auth, dashboards Pro/SuperAdmin, wallboards, PWA scans) partage désormais le langage Hyer Aviation : encre + UNE note clay, pills, cartes carrées, hairlines, zéro or/bleu/jaune hérités

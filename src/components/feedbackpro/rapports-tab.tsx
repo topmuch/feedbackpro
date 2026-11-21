@@ -86,8 +86,8 @@ function badgeSource(source?: string): { label: string; variant: "default" | "se
 
 /** Couleur du badge de score (identique à coach-ia-tab scoreTone) */
 function scoreTone(score: number): string {
-  if (score >= 80) return "border-green-300 text-green-700"
-  if (score >= 60) return "border-amber-300 text-amber-700"
+  if (score >= 80) return "border-[#dba28a] text-[#8a4f3b]"
+  if (score >= 60) return "border-[#dba28a] text-[#8a4f3b]"
   return "border-rose-300 text-rose-700"
 }
 
@@ -288,13 +288,13 @@ export function RapportsTab() {
                 icone={Lightbulb}
                 titre="Recommandations"
                 items={rapportOuvert.recommandations ?? []}
-                tone="text-amber-600"
+                tone="text-[#a05f45]"
               />
               <ListeRapport
                 icone={TrendingUp}
                 titre="Prédictions"
                 items={rapportOuvert.predictions ?? []}
-                tone="text-green-600"
+                tone="text-[#a05f45]"
               />
             </div>
           </CardContent>
@@ -303,7 +303,7 @@ export function RapportsTab() {
         {/* Pied : statut envoi email + actions */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           {rapportOuvert.envoyeParEmail ? (
-            <Badge variant="outline" className="border-green-300 text-green-700">
+            <Badge variant="outline" className="border-[#dba28a] text-[#8a4f3b]">
               📧 Envoyé par email
             </Badge>
           ) : (
@@ -414,7 +414,7 @@ export function RapportsTab() {
 
                   {/* Marqueur d'envoi email */}
                   {rapport.envoyeParEmail && (
-                    <Badge variant="outline" className="w-fit border-green-300 text-green-700">
+                    <Badge variant="outline" className="w-fit border-[#dba28a] text-[#8a4f3b]">
                       📧 Envoyé par email
                     </Badge>
                   )}

@@ -78,22 +78,22 @@ const ACTION_BADGE: Record<
   CREATED: {
     label: 'CREATED',
     className:
-      'bg-amber-500/10 dark:bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/40 hover:bg-amber-500/20',
+      'bg-[#bc7155]/10 dark:bg-[#bc7155]/15 text-[#a05f45] dark:text-[#c98b72] border-[#bc7155]/40 hover:bg-[#bc7155]/20',
   },
   TAKE_CHARGE: {
     label: 'TAKE_CHARGE',
     className:
-      'bg-sky-500/10 dark:bg-sky-500/15 text-sky-600 dark:text-sky-400 border-sky-500/40 hover:bg-sky-500/20',
+      'bg-[#4b4d5e]/10 dark:bg-[#4b4d5e]/15 text-[#3c3e4c] dark:text-[#5e6070] border-[#4b4d5e]/40 hover:bg-[#4b4d5e]/20',
   },
   RESOLVED: {
     label: 'RESOLVED',
     className:
-      'bg-emerald-500/10 dark:bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/40 hover:bg-emerald-500/20',
+      'bg-[#bc7155]/10 dark:bg-[#bc7155]/15 text-[#a05f45] dark:text-[#c98b72] border-[#bc7155]/40 hover:bg-[#bc7155]/20',
   },
   ASSIGNED: {
     label: 'ASSIGNED',
     className:
-      'bg-violet-500/10 dark:bg-violet-500/15 text-violet-600 dark:text-violet-400 border-violet-500/40 hover:bg-violet-500/20',
+      'bg-[#bc7155]/10 dark:bg-[#bc7155]/15 text-[#a05f45] dark:text-[#c98b72] border-[#bc7155]/40 hover:bg-[#bc7155]/20',
   },
 }
 
@@ -193,13 +193,13 @@ export function AirportBlackboxTab() {
       {/* ---------- Header ---------- */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-start gap-3">
-          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-amber-500/30 bg-amber-500/10 dark:bg-amber-500/15">
-            <ShieldCheck className="size-5 text-amber-600 dark:text-amber-400" aria-hidden />
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl border border-[#bc7155]/30 bg-[#bc7155]/10 dark:bg-[#bc7155]/15">
+            <ShieldCheck className="size-5 text-[#a05f45] dark:text-[#c98b72]" aria-hidden />
           </div>
           <div>
             <h1 className="font-mono text-xl font-bold tracking-tight text-foreground sm:text-2xl">
               BLACK BOX{' '}
-              <span className="text-amber-600 dark:text-amber-400">— Audit Trail Immuable</span>
+              <span className="text-[#a05f45] dark:text-[#c98b72]">— Audit Trail Immuable</span>
             </h1>
             <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
               <Lock className="size-3" aria-hidden />
@@ -221,7 +221,7 @@ export function AirportBlackboxTab() {
             size="sm"
             onClick={() => load(true)}
             disabled={refreshing}
-            className="border-border bg-card text-foreground hover:border-amber-500/50 hover:bg-muted hover:text-amber-600 dark:hover:text-amber-300"
+            className="border-border bg-card text-foreground hover:border-[#bc7155]/50 hover:bg-muted hover:text-[#a05f45] dark:hover:text-[#dba28a]"
           >
             {refreshing ? (
               <Loader2 className="size-3.5 animate-spin" />
@@ -264,7 +264,7 @@ export function AirportBlackboxTab() {
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Rechercher acteur, reportId, note…"
-              className="border-border bg-background pl-8 text-foreground placeholder:text-muted-foreground focus-visible:border-amber-500/40"
+              className="border-border bg-background pl-8 text-foreground placeholder:text-muted-foreground focus-visible:border-[#bc7155]/40"
             />
           </div>
 
@@ -279,7 +279,7 @@ export function AirportBlackboxTab() {
       <Card className="flex min-h-0 flex-1 flex-col border-border bg-card">
         <CardHeader className="border-b border-border px-4 py-3">
           <CardTitle className="flex items-center gap-2 font-mono text-sm font-semibold text-foreground">
-            <Clock className="size-4 text-amber-600 dark:text-amber-400" aria-hidden />
+            <Clock className="size-4 text-[#a05f45] dark:text-[#c98b72]" aria-hidden />
             Journal d&apos;audit
           </CardTitle>
         </CardHeader>
@@ -360,7 +360,7 @@ export function AirportBlackboxTab() {
                             {e.toStatut}
                           </span>
                         </td>
-                        <td className="px-4 py-2.5 text-right font-mono text-xs tabular-nums text-amber-600 dark:text-amber-400">
+                        <td className="px-4 py-2.5 text-right font-mono text-xs tabular-nums text-[#a05f45] dark:text-[#c98b72]">
                           {e.elapsedMin != null ? `${e.elapsedMin}′` : '—'}
                         </td>
                         <td className="max-w-[200px] truncate px-4 py-2.5 text-xs text-muted-foreground">
@@ -384,7 +384,7 @@ export function AirportBlackboxTab() {
         <DialogContent className="max-w-lg border-border bg-card text-foreground">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 font-mono text-base">
-              <ShieldCheck className="size-4 text-amber-600 dark:text-amber-400" aria-hidden />
+              <ShieldCheck className="size-4 text-[#a05f45] dark:text-[#c98b72]" aria-hidden />
               Entrée d&apos;audit — {selected && truncateId(selected.id, 16)}
             </DialogTitle>
             <DialogDescription className="text-muted-foreground">

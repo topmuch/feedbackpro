@@ -15,11 +15,11 @@
 //   • Écran de confirmation avec n° de suivi + ETA personnel.
 //
 // Palette « Luxe Lumineux » :
-//   - Background   #FAFAF7    - Cards  #FFFFFF + shadow gold 6%
-//   - Gold         #C9A961    - Bronze #8B6F47
-//   - Text         #2C2C2C    - VIP    #6B4C9A
-//   - Success      #4A7C59    - Alert  #C97B63
-//   - Border       #EAE5DC
+//   - Background   #ffffff    - Cards  #FFFFFF + shadow gold 6%
+//   - Gold         #bc7155    - Bronze #8B6F47
+//   - Text         #2C2C2C    - VIP    #bc7155
+//   - Success      #bc7155    - Alert  #bc7155
+//   - Border       #efe7e0
 //
 // APIs consommées :
 //   GET  /api/vip/shower-reservations          → liste réservations
@@ -133,21 +133,21 @@ const STATUS_META: Record<
     label: 'Libre',
     emoji: '🟢',
     badgeClass:
-      'bg-emerald-50 text-emerald-700 border-emerald-200',
-    ringClass: 'ring-emerald-200/60',
+      'bg-[#faf1ec] text-[#8a4f3b] border-[#e7c1ae]',
+    ringClass: 'ring-[#e7c1ae]/60',
   },
   occupied: {
     label: 'Occupée',
     emoji: '🟠',
     badgeClass:
-      'bg-amber-50 text-amber-700 border-amber-200',
-    ringClass: 'ring-amber-200/60',
+      'bg-[#faf1ec] text-[#8a4f3b] border-[#e7c1ae]',
+    ringClass: 'ring-[#e7c1ae]/60',
   },
   cleaning: {
     label: 'Nettoyage',
     emoji: '🔵',
-    badgeClass: 'bg-sky-50 text-sky-700 border-sky-200',
-    ringClass: 'ring-sky-200/60',
+    badgeClass: 'bg-[#f0f1f2] text-[#2e3040] border-[#b9bbc2]',
+    ringClass: 'ring-[#b9bbc2]/60',
   },
 }
 
@@ -283,10 +283,10 @@ function ShowerCard({ view, onReserve, busy }: ShowerCardProps) {
     <article
       className={cn(
         'relative flex flex-col rounded-xl border bg-white p-5 transition-all',
-        'border-[#EAE5DC]',
+        'border-[#efe7e0]',
         view.status === 'free'
-          ? 'hover:border-[#4A7C59]/40 hover:shadow-[0_8px_28px_rgba(74,124,89,0.10)]'
-          : 'hover:border-[#C9A961]/30',
+          ? 'hover:border-[#bc7155]/40 hover:shadow-[0_8px_28px_rgba(74,124,89,0.10)]'
+          : 'hover:border-[#bc7155]/30',
         CARD_SHADOW,
       )}
     >
@@ -295,7 +295,7 @@ function ShowerCard({ view, onReserve, busy }: ShowerCardProps) {
           <div
             className={cn(
               'flex size-11 items-center justify-center rounded-full',
-              'bg-[#FAFAF7] ring-2',
+              'bg-[#ffffff] ring-2',
               meta.ringClass,
             )}
           >
@@ -328,7 +328,7 @@ function ShowerCard({ view, onReserve, busy }: ShowerCardProps) {
       {/* Détail selon le statut */}
       <div className="mt-4 flex-1 text-sm">
         {view.status === 'free' ? (
-          <p className="text-[#4A7C59]">
+          <p className="text-[#bc7155]">
             Cabine disponible immédiatement.
           </p>
         ) : view.status === 'cleaning' ? (
@@ -341,7 +341,7 @@ function ShowerCard({ view, onReserve, busy }: ShowerCardProps) {
         ) : (
           <div className="space-y-1">
             <p className="inline-flex items-center gap-1 text-[#6b6b6b]">
-              <Clock className="size-3 text-[#C97B63]" /> Occupée depuis{' '}
+              <Clock className="size-3 text-[#bc7155]" /> Occupée depuis{' '}
               {fmtMinutes(elapsedMin)}
             </p>
             {view.queueCount > 0 && (
@@ -365,7 +365,7 @@ function ShowerCard({ view, onReserve, busy }: ShowerCardProps) {
           onClick={() => onReserve(view.showerNumber)}
           className={cn(
             'mt-4 h-10 rounded-md px-4 text-sm font-bold uppercase tracking-wide',
-            'bg-[#4A7C59] text-white hover:bg-[#3D6A4B] active:bg-[#34593F]',
+            'bg-[#bc7155] text-white hover:bg-[#3D6A4B] active:bg-[#34593F]',
             'shadow-sm transition-colors',
           )}
         >
@@ -404,10 +404,10 @@ function ConfirmationView({
       <div
         className={cn(
           'flex size-20 items-center justify-center rounded-full',
-          'bg-[#4A7C59]/10 ring-4 ring-[#4A7C59]/15',
+          'bg-[#bc7155]/10 ring-4 ring-[#bc7155]/15',
         )}
       >
-        <Check className="size-10 text-[#4A7C59]" strokeWidth={3} />
+        <Check className="size-10 text-[#bc7155]" strokeWidth={3} />
       </div>
 
       <h2
@@ -426,7 +426,7 @@ function ConfirmationView({
 
       <div
         className={cn(
-          'mt-6 w-full rounded-xl border border-[#EAE5DC] bg-white p-5 text-left',
+          'mt-6 w-full rounded-xl border border-[#efe7e0] bg-white p-5 text-left',
           CARD_SHADOW,
         )}
       >
@@ -435,13 +435,13 @@ function ConfirmationView({
             N° de suivi
           </span>
           <span
-            className="text-lg font-bold tracking-wider text-[#C9A961]"
+            className="text-lg font-bold tracking-wider text-[#bc7155]"
             style={TITLE_FONT}
           >
             #{state.trackingNumber}
           </span>
         </div>
-        <div className="my-3 h-px bg-[#EAE5DC]" />
+        <div className="my-3 h-px bg-[#efe7e0]" />
         <div className="grid grid-cols-3 gap-3 text-center">
           <div>
             <div className="text-[10px] uppercase tracking-wide text-[#8B6F47]">
@@ -472,11 +472,11 @@ function ConfirmationView({
 
       <div
         className={cn(
-          'mt-4 flex items-start gap-2 rounded-lg border border-[#EAE5DC]',
-          'bg-[#FAFAF7] px-4 py-3 text-left text-xs text-[#6b6b6b]',
+          'mt-4 flex items-start gap-2 rounded-lg border border-[#efe7e0]',
+          'bg-[#ffffff] px-4 py-3 text-left text-xs text-[#6b6b6b]',
         )}
       >
-        <Bell className="mt-0.5 size-4 shrink-0 text-[#C9A961]" />
+        <Bell className="mt-0.5 size-4 shrink-0 text-[#bc7155]" />
         <span>
           Nous vous notifierons à votre table{' '}
           <span className="font-semibold text-[#2C2C2C]">
@@ -491,8 +491,8 @@ function ConfirmationView({
           variant="ghost"
           onClick={onReserveAnother}
           className={cn(
-            'flex-1 rounded-md border border-[#EAE5DC] bg-white text-[#8B6F47]',
-            'hover:bg-[#FAFAF7] hover:text-[#2C2C2C]',
+            'flex-1 rounded-md border border-[#efe7e0] bg-white text-[#8B6F47]',
+            'hover:bg-[#ffffff] hover:text-[#2C2C2C]',
           )}
         >
           <ShowerHead className="size-4" /> Réserver une autre cabine
@@ -500,7 +500,7 @@ function ConfirmationView({
         <Button
           onClick={onBack}
           className={cn(
-            'flex-1 rounded-md bg-[#C9A961] px-6 text-sm font-semibold text-white',
+            'flex-1 rounded-md bg-[#bc7155] px-6 text-sm font-semibold text-white',
             'hover:bg-[#B8974A] active:bg-[#A6863C]',
           )}
         >
@@ -723,7 +723,7 @@ export function VipShowerReservation({
   // ----- Render : écran confirmation -----
   if (screen === 'confirm' && confirmation) {
     return (
-      <div className="min-h-screen bg-[#FAFAF7]">
+      <div className="min-h-screen bg-[#ffffff]">
         <ConfirmationView
           state={confirmation}
           onBack={handleBackToTable}
@@ -735,11 +735,11 @@ export function VipShowerReservation({
 
   // ----- Render : écran principal -----
   return (
-    <div className="min-h-screen bg-[#FAFAF7] text-[#2C2C2C]">
+    <div className="min-h-screen bg-[#ffffff] text-[#2C2C2C]">
       {/* ---------- Header ---------- */}
       <header
         className={cn(
-          'sticky top-0 z-10 border-b border-[#EAE5DC] bg-white/90 backdrop-blur',
+          'sticky top-0 z-10 border-b border-[#efe7e0] bg-white/90 backdrop-blur',
           CARD_SHADOW,
         )}
       >
@@ -750,8 +750,8 @@ export function VipShowerReservation({
             aria-label="Retour"
             className={cn(
               'flex size-9 items-center justify-center rounded-full',
-              'border border-[#EAE5DC] bg-white text-[#8B6F47]',
-              'transition-colors hover:border-[#C9A961]/50 hover:text-[#2C2C2C]',
+              'border border-[#efe7e0] bg-white text-[#8B6F47]',
+              'transition-colors hover:border-[#bc7155]/50 hover:text-[#2C2C2C]',
             )}
           >
             <ArrowLeft className="size-4" />
@@ -777,8 +777,8 @@ export function VipShowerReservation({
             aria-label="Rafraîchir"
             className={cn(
               'flex size-9 items-center justify-center rounded-full',
-              'border border-[#EAE5DC] bg-white text-[#8B6F47]',
-              'transition-colors hover:border-[#C9A961]/50 hover:text-[#2C2C2C]',
+              'border border-[#efe7e0] bg-white text-[#8B6F47]',
+              'transition-colors hover:border-[#bc7155]/50 hover:text-[#2C2C2C]',
               'disabled:opacity-50',
             )}
           >
@@ -792,12 +792,12 @@ export function VipShowerReservation({
         {/* Bandeau d'aide */}
         <div
           className={cn(
-            'mb-5 flex items-start gap-3 rounded-xl border border-[#EAE5DC]',
+            'mb-5 flex items-start gap-3 rounded-xl border border-[#efe7e0]',
             'bg-white p-4 text-sm',
             CARD_SHADOW,
           )}
         >
-          <ShowerHead className="mt-0.5 size-5 shrink-0 text-[#C9A961]" />
+          <ShowerHead className="mt-0.5 size-5 shrink-0 text-[#bc7155]" />
           <div>
             <div
               className="font-semibold text-[#2C2C2C]"
@@ -835,13 +835,13 @@ export function VipShowerReservation({
         {!loading && freeCount === 0 && (
           <section
             className={cn(
-              'mt-6 rounded-xl border border-[#EAE5DC] bg-white p-5',
+              'mt-6 rounded-xl border border-[#efe7e0] bg-white p-5',
               CARD_SHADOW,
             )}
           >
             <div className="flex items-start gap-3">
-              <div className="flex size-10 items-center justify-center rounded-full bg-[#6B4C9A]/10">
-                <Users className="size-5 text-[#6B4C9A]" />
+              <div className="flex size-10 items-center justify-center rounded-full bg-[#bc7155]/10">
+                <Users className="size-5 text-[#bc7155]" />
               </div>
               <div className="flex-1">
                 <h3
@@ -856,7 +856,7 @@ export function VipShowerReservation({
                     : 'Aucune file en cours.'}
                 </p>
                 <div className="mt-3 grid grid-cols-2 gap-3">
-                  <div className="rounded-lg bg-[#FAFAF7] p-3 text-center">
+                  <div className="rounded-lg bg-[#ffffff] p-3 text-center">
                     <div className="text-[10px] uppercase tracking-wide text-[#8B6F47]">
                       File d'attente
                     </div>
@@ -870,7 +870,7 @@ export function VipShowerReservation({
                       </span>
                     </div>
                   </div>
-                  <div className="rounded-lg bg-[#FAFAF7] p-3 text-center">
+                  <div className="rounded-lg bg-[#ffffff] p-3 text-center">
                     <div className="text-[10px] uppercase tracking-wide text-[#8B6F47]">
                       ETA estimé
                     </div>
@@ -892,7 +892,7 @@ export function VipShowerReservation({
                   onClick={handleJoinQueue}
                   className={cn(
                     'mt-4 h-11 w-full rounded-md text-sm font-bold uppercase tracking-wide',
-                    'bg-[#6B4C9A] text-white hover:bg-[#5A3F84] active:bg-[#4D3473]',
+                    'bg-[#bc7155] text-white hover:bg-[#5A3F84] active:bg-[#4D3473]',
                   )}
                 >
                   {busyQueue ? (
@@ -945,24 +945,24 @@ function ShowerGridSkeleton() {
         <div
           key={i}
           className={cn(
-            'h-44 animate-pulse rounded-xl border border-[#EAE5DC] bg-white',
+            'h-44 animate-pulse rounded-xl border border-[#efe7e0] bg-white',
             CARD_SHADOW,
           )}
         >
           <div className="flex h-full flex-col p-5">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="size-11 rounded-full bg-[#EAE5DC]" />
+                <div className="size-11 rounded-full bg-[#efe7e0]" />
                 <div>
-                  <div className="h-4 w-12 rounded bg-[#EAE5DC]" />
-                  <div className="mt-2 h-2 w-16 rounded bg-[#EAE5DC]" />
+                  <div className="h-4 w-12 rounded bg-[#efe7e0]" />
+                  <div className="mt-2 h-2 w-16 rounded bg-[#efe7e0]" />
                 </div>
               </div>
-              <div className="h-5 w-16 rounded-full bg-[#EAE5DC]" />
+              <div className="h-5 w-16 rounded-full bg-[#efe7e0]" />
             </div>
-            <div className="mt-4 h-3 w-3/4 rounded bg-[#EAE5DC]" />
-            <div className="mt-2 h-3 w-1/2 rounded bg-[#EAE5DC]" />
-            <div className="mt-auto h-9 w-full rounded bg-[#EAE5DC]" />
+            <div className="mt-4 h-3 w-3/4 rounded bg-[#efe7e0]" />
+            <div className="mt-2 h-3 w-1/2 rounded bg-[#efe7e0]" />
+            <div className="mt-auto h-9 w-full rounded bg-[#efe7e0]" />
           </div>
         </div>
       ))}
