@@ -17,8 +17,9 @@
 // D2 (Photos) : bouton « Ajouter une photo » à l'étape 3
 //   (upload POST /api/public/upload, max 5 Mo).
 // D3 (i18n) : FR / EN / AR avec dir="rtl" pour l'arabe.
-// D8 (Google) : si pro.googleReviewUrl défini ET note ≥ 4★,
-//   l'écran de succès propose « Laisser un avis Google ».
+// D8 + Task 2-a (Google) : si note ≥ 4★, pro.googleReviewUrl défini ET
+//   pro.googleReviewEnabled ≠ false, l'écran de succès (et lui seul —
+//   JAMAIS avant l'envoi) propose la carte « Laisser un avis Google ».
 //
 // Contrat API (PRESERVÉ — aucune casse) :
 //   POST /api/public/scan   { qrToken }
@@ -104,6 +105,10 @@ type ScanData = {
     messageWhatsapp?: string | null
     // D8 : URL d'avis Google (saisie manuelle par le commerçant)
     googleReviewUrl?: string | null
+    // Task 2-a — Réputation Google : interrupteur du CTA « Laisser un avis
+    // Google ». Absent = true (compat : certains payloads — ex
+    // /api/public/scan historique — n'exposent pas encore le champ).
+    googleReviewEnabled?: boolean
     // Task 4 — White-label : personnalisation marque blanche de la page
     // de scan. Si whiteLabel=true, brandName remplace "FeedVoice" dans le
     // pied de page, brandColor remplace #0f0f1c (via la variable CSS
@@ -817,9 +822,14 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
   const recompenseFinale = recompenseGagnee ?? scanData?.pro.recompense ?? null
   const numeroWhatsApp = (scanData?.pro.whatsapp ?? "").replace(/[^0-9]/g, "")
   const aWhatsApp = numeroWhatsApp.length > 0
-  // D8 : avis Google proposé si URL configurée ET note positive
+  // D8 + Task 2-a : avis Google proposé si note positive (≥ 4★) ET flag
+  // activé (absent = true pour compat) ET URL configurée. La carte CTA
+  // n'apparaît que sur l'écran de succès, jamais avant l'envoi.
+  const avisGoogleActif = scanData?.pro.googleReviewEnabled !== false
   const lienAvisGoogle =
-    estPositif && scanData?.pro.googleReviewUrl ? scanData.pro.googleReviewUrl : null
+    estPositif && avisGoogleActif && scanData?.pro.googleReviewUrl
+      ? scanData.pro.googleReviewUrl
+      : null
 
   // ---------- Chargement des infos de la zone scannée ----------
   const chargerScan = useCallback(async () => {
@@ -3316,19 +3326,6 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                   </>
                 )}
               </button>
-
-              {/* D8 : avis Google — lien discret (si 4-5★ + URL configurée) */}
-              {lienAvisGoogle && (
-                <a
-                  href={lienAvisGoogle}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#dba28a] bg-[#faf1ec] text-sm font-semibold text-[#6f3f30] transition-colors hover:bg-[#f3ddd2]"
-                >
-                  <span aria-hidden>⭐</span>
-                  {t.avisGoogle}
-                </a>
-              )}
             </>
           )}
 
@@ -3362,7 +3359,7 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
             </button>
           )}
 
-          {/* Étape 4 — Bouton principal « Envoyer » (flux legacy) + WhatsApp + avis Google */}
+          {/* Étape 4 — Bouton principal « Envoyer » (flux legacy) */}
           {phase === "step4" && (
             <>
               <button
@@ -3388,41 +3385,43 @@ export function ScanView({ token, onExit }: { token: string; onExit: () => void 
                 )}
               </button>
 
-              {/* Canal WhatsApp supprimé — envoi unique via le bouton principal */}
-
-              {/* D8 : avis Google — lien discret (si 4-5★ + URL configurée) */}
-              {lienAvisGoogle && (
-                <a
-                  href={lienAvisGoogle}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#dba28a] bg-[#faf1ec] text-sm font-semibold text-[#6f3f30] transition-colors hover:bg-[#f3ddd2]"
-                >
-                  <span aria-hidden>⭐</span>
-                  {t.avisGoogle}
-                </a>
-              )}
+              {/* Canal WhatsApp supprimé — envoi unique via le bouton principal.
+                  Task 2-a : le lien avis Google pré-envoi (D8) a été retiré —
+                  le CTA n'apparaît désormais que sur l'écran de succès. */}
             </>
           )}
         </footer>
       )}
 
-      {/* ====== Success footer (Fermer + avis Google) ====== */}
+      {/* ====== Success footer (carte avis Google + Fermer) ======
+          Task 2-a — Boucle de réputation Google : la carte CTA n'apparaît
+          qu'APRÈS l'envoi réussi d'un retour ≥ 4★ (jamais avant), et
+          seulement si le Pro a configuré son URL d'avis Google ET laissé
+          le CTA activé (googleReviewEnabled ≠ false). Style Hyer : carte
+          carrée hairline (0px radius, bordure Pebble, aucune ombre) et
+          bouton pill encre — la note clay de cet écran est déjà prise par
+          le titre gradient + les confettis (règle « une note clay par page »). */}
       {phase === "success" && (
         <footer className="space-y-3 px-4 pb-4 sm:px-6">
           {lienAvisGoogle && (
-            <a
-              href={lienAvisGoogle}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex h-12 w-full items-center justify-center gap-2 rounded-2xl border border-[#dba28a] bg-[#faf1ec] text-sm font-semibold text-[#6f3f30] transition-colors hover:bg-[#f3ddd2]"
-            >
-              <span aria-hidden>⭐</span>
-              {t.avisGoogle}
-              <span className="text-xs font-normal text-[#8a4f3b]/80">
-                — {t.avisGoogleAide}
-              </span>
-            </a>
+            <div className="w-full rounded-none border border-[#d5d3d4] bg-white p-4 text-left">
+              <p className="text-[17px] font-bold leading-snug text-[#000d10]">
+                {t.avisGoogleTitre}
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-[#8e8e95]">
+                {t.avisGoogleSousTexte}
+              </p>
+              <a
+                href={lienAvisGoogle}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-3 flex h-12 w-full items-center justify-center gap-2 rounded-full bg-[#000d10] text-sm font-bold text-white transition-colors hover:bg-[#0f0f1c] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#000d10] focus-visible:ring-offset-2"
+              >
+                <Star className="size-4" aria-hidden />
+                {t.avisGoogle}
+                <ArrowRight className="size-4" aria-hidden />
+              </a>
+            </div>
           )}
           <button
             type="button"

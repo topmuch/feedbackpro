@@ -53,6 +53,8 @@ export type ProData = {
   /** D8 : Google Business Profile (saisie manuelle, pas d'API réelle) */
   googlePlaceId: string | null
   googleReviewUrl: string | null
+  /** Task 2-a — Réputation Google : interrupteur du CTA avis Google sur le scan client */
+  googleReviewEnabled: boolean
   /** Task 4 — White-label pour agences */
   whiteLabel: boolean
   brandName: string | null
@@ -101,6 +103,11 @@ export function serializePro(pro: Pro): ProData {
     proId: pro.proId,
     googlePlaceId: pro.googlePlaceId,
     googleReviewUrl: pro.googleReviewUrl,
+    // Task 2-a — Réputation Google (lecture défensive pour la migration :
+    // le client Prisma peut ne pas connaître la colonne tant que le
+    // db:push de l'orchestrateur n'a pas été exécuté). Défaut true.
+    googleReviewEnabled:
+      (pro as unknown as { googleReviewEnabled?: boolean }).googleReviewEnabled ?? true,
     // Task 4 — White-label (lecture défensive pour la migration)
     whiteLabel: (pro as unknown as { whiteLabel?: boolean }).whiteLabel ?? false,
     brandName: (pro as unknown as { brandName?: string | null }).brandName ?? null,

@@ -112,9 +112,12 @@ export interface TraductionsScan {
   reessayer: string
   retourAccueil: string
   propulsePar: string
-  // Google review (D8)
+  // Google review (D8 + Task 2-a — carte CTA de l'écran de succès)
   avisGoogle: string
   avisGoogleAide: string
+  // Task 2-a — Carte CTA « Réputation Google » (écran de succès, notes ≥ 4★)
+  avisGoogleTitre: string
+  avisGoogleSousTexte: string
   // Task M3 — Mode offline : message affiché sur l'écran de succès quand
   // le retour a été stocké hors ligne (sans réseau) plutôt qu'envoyé.
   retourEnregistreHorsLigne: string
@@ -283,8 +286,11 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     reessayer: "Réessayer",
     retourAccueil: "Retour à l'accueil",
     propulsePar: "Propulsé par",
-    avisGoogle: "Laissez un avis Google",
+    avisGoogle: "Laisser un avis Google",
     avisGoogleAide: "Ça aide beaucoup l'établissement — merci !",
+    // Task 2-a — Carte CTA avis Google (écran de succès)
+    avisGoogleTitre: "Votre expérience vous a plu ?",
+    avisGoogleSousTexte: "Un avis Google nous aide énormément. Merci !",
     retourEnregistreHorsLigne: "✓ Retour enregistré hors ligne — sera envoyé à la reconnexion",
     // ---- Refonte QRTags (wizard plein écran bleu) ----
     etapeSur: (n, total, sujet) => `ÉTAPE ${n} SUR ${total} — ${sujet}`,
@@ -429,6 +435,9 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     propulsePar: "Powered by",
     avisGoogle: "Leave a Google review",
     avisGoogleAide: "It really helps the business — thank you!",
+    // Task 2-a — Google review CTA card (success screen)
+    avisGoogleTitre: "Did you enjoy your experience?",
+    avisGoogleSousTexte: "A Google review helps us enormously. Thank you!",
     retourEnregistreHorsLigne: "✓ Feedback saved offline — will be sent when reconnected",
     // ---- QRTags redesign (full-screen blue wizard) ----
     etapeSur: (n, total, sujet) => `STEP ${n} OF ${total} — ${sujet}`,
@@ -573,6 +582,9 @@ export const TRADUCTIONS_SCAN: Record<LangueScan, TraductionsScan> = {
     propulsePar: "مدعوم من",
     avisGoogle: "اترك تقييم Google",
     avisGoogleAide: "هذا يساعد المنشأة كثيراً — شكراً!",
+    // Task 2-a — بطاقة دعوة تقييم Google (شاشة النجاح)
+    avisGoogleTitre: "هل أعجبتك تجربتك؟",
+    avisGoogleSousTexte: "تقييم Google يساعدنا كثيراً. شكراً!",
     retourEnregistreHorsLigne: "✓ تم حفظ رأيك دون اتصال — سيُرسل عند إعادة الاتصال",
     // ---- إعادة تصميم QRTags (معالج ملء الشاشة باللون الأزرق) ----
     etapeSur: (n, total, sujet) => `الخطوة ${n} من ${total} — ${sujet}`,

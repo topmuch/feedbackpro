@@ -75,7 +75,17 @@ model Pro {
   abonnementFin     DateTime?
   proId             String?
   googlePlaceId     String?
+  // Task 2-a — Boucle de réputation Google :
+  //   - googleReviewUrl  : URL publique de la page d'avis Google de
+  //     l'établissement (saisie manuelle dans l'onglet Paramètres →
+  //     « Réputation Google », ex : lien Google Maps « Partager »).
+  //     Proposée au client sur l'écran de succès du scan si note ≥ 4★.
+  //   - googleReviewEnabled : interrupteur du CTA « Laisser un avis
+  //     Google » sur la page de scan client. Défaut true (activé) :
+  //     tant que l'URL n'est pas renseignée le CTA n'apparaît de
+  //     toute façon pas (double condition URL + flag).
   googleReviewUrl   String?
+  googleReviewEnabled Boolean @default(true)
   // Task M1 : lien optionnel vers la fiche secteur (SecteurConfig) — permet
   // à l'onboarding, au Coach IA et aux écrans RGPD de s'adapter dynamiquement
   // au secteur de l'établissement (restaurant, hôtel, hôpital, aéroport…).

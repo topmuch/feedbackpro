@@ -11,7 +11,7 @@
 //   POST /api/pro/coach/email { rapportId } → { envoye, email }
 // ============================================================
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import ReactMarkdown, { type Components } from "react-markdown"
 import {
   Bot,
@@ -23,6 +23,8 @@ import {
   Lightbulb,
   TrendingUp,
   ArrowLeft,
+  Volume2,
+  Square,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -128,8 +130,87 @@ export function RapportsTab() {
   // Rapport ouvert dans le modal de lecture
   const [rapportOuvert, setRapportOuvert] = useState<RapportIA | null>(null)
 
+  // ---------- Lecture vocale du rapport (voix Nathalie, Web Speech API) ----------
+  // Même mécanique que la démo du landing : voix FR féminine, débit posé.
+  // Zéro asset audio : la synthèse est native du navigateur.
+  const [lectureEnCours, setLectureEnCours] = useState(false)
+  const voixRef = useRef<SpeechSynthesisVoice[]>([])
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return
+    const synth = window.speechSynthesis
+    const charger = () => {
+      voixRef.current = synth.getVoices()
+    }
+    charger()
+    synth.addEventListener("voiceschanged", charger)
+    return () => synth.removeEventListener("voiceschanged", charger)
+  }, [])
+
+  // Annule toute lecture en quittant la vue détaillée ou en démontant la page.
+  useEffect(() => {
+    if (rapportOuvert) return
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel()
+    }
+    setLectureEnCours(false)
+  }, [rapportOuvert])
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel()
+      }
+    }
+  }, [])
+
   // Badge de source du rapport ouvert (valeur par défaut si modal fermé, sans effet)
   const sourceOuvert = badgeSource(rapportOuvert?.source)
+
+  // ---------- Texte à énoncer : markdown épuré + blocs structurés ----------
+  const texteRapport = (r: RapportIA): string => {
+    const epure = (r.contenuMarkdown ?? "")
+      .replace(/```[\s\S]*?```/g, " ")
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+      .replace(/[#*_>`|~-]+/g, " ")
+      .replace(/\s{2,}/g, " ")
+      .trim()
+    const intro = `Rapport ${r.type === "hebdomadaire" ? "hebdomadaire" : "quotidien"}, score global ${Math.round(r.scoreGlobal)} sur 100. `
+    const blocs = [
+      r.priorites?.length ? `Priorités. ${r.priorites.join(". ")}.` : "",
+      r.recommandations?.length ? `Recommandations. ${r.recommandations.join(". ")}.` : "",
+      r.predictions?.length ? `Prédictions. ${r.predictions.join(". ")}.` : "",
+    ]
+      .filter(Boolean)
+      .join(" ")
+    return `${intro} ${epure} ${blocs}`.trim().slice(0, 1500)
+  }
+
+  /** Démarre/arrête la lecture vocale du rapport (voix FR féminine « Nathalie »). */
+  const basculerLecture = (r: RapportIA) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return
+    const synth = window.speechSynthesis
+    if (lectureEnCours) {
+      synth.cancel()
+      setLectureEnCours(false)
+      return
+    }
+    synth.cancel()
+    const utterance = new SpeechSynthesisUtterance(texteRapport(r))
+    utterance.lang = "fr-FR"
+    utterance.rate = 0.92
+    utterance.pitch = 1.05
+    utterance.volume = 0.85
+    const francaises = voixRef.current.filter((v) => v.lang.toLowerCase().startsWith("fr"))
+    const feminine =
+      francaises.find((v) =>
+        /amélie|amelie|audrey|julie|marie|céline|celine|virginie|female|femme/i.test(v.name)
+      ) ?? francaises[0]
+    if (feminine) utterance.voice = feminine
+    utterance.onend = () => setLectureEnCours(false)
+    utterance.onerror = () => setLectureEnCours(false)
+    setLectureEnCours(true)
+    synth.speak(utterance)
+  }
 
   // ---------- Chargement de la liste ----------
   const charger = useCallback(async () => {
@@ -310,6 +391,18 @@ export function RapportsTab() {
             <span className="text-xs text-muted-foreground">Pas encore envoyé par email</span>
           )}
           <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => basculerLecture(rapportOuvert)}
+              aria-label={lectureEnCours ? "Arrêter la lecture vocale du rapport" : "Écouter le rapport avec la voix de Nathalie"}
+            >
+              {lectureEnCours ? (
+                <Square className="mr-2 h-4 w-4" aria-hidden />
+              ) : (
+                <Volume2 className="mr-2 h-4 w-4" aria-hidden />
+              )}
+              {lectureEnCours ? "Arrêter la lecture" : "Écouter le rapport"}
+            </Button>
             <Button
               variant="outline"
               onClick={() => envoyerParEmail(rapportOuvert)}

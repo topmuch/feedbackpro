@@ -231,17 +231,23 @@ export const settingsSchema = z.object({
     .transform((v) => v.toUpperCase())
     .optional(),
   smsAlertes: z.boolean().optional(),
-  // D8 : Google Business Profile (saisie manuelle, pas d'API réelle)
+  // D8 + Task 2-a : Google Business Profile (saisie manuelle, pas d'API
+  // réelle). URL d'avis Google : https:// obligatoire si fournie, 500
+  // caractères max (chaîne vide = suppression de l'URL).
   googleReviewUrl: z
     .string()
     .trim()
     .max(500, "URL trop longue")
     .refine(
-      (v) => v === "" || /^https?:\/\/\S+$/i.test(v),
-      "URL invalide (doit commencer par http:// ou https://)"
+      (v) => v === "" || /^https:\/\/\S+$/i.test(v),
+      "URL invalide (doit commencer par https://)"
     )
     .nullable()
     .optional(),
+  // Task 2-a — Réputation Google : interrupteur du CTA « Laisser un avis
+  // Google » sur l'écran de succès du scan client (notes ≥ 4★). Absent =
+  // ne pas modifier (le Pro garde sa valeur courante).
+  googleReviewEnabled: z.boolean().optional(),
   googlePlaceId: z
     .string()
     .trim()

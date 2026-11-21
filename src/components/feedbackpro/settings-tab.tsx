@@ -47,6 +47,9 @@ type ProFinal = {
   // D8 : Google Business Profile (saisie manuelle)
   googleReviewUrl?: string | null
   googlePlaceId?: string | null
+  // Task 2-a — Réputation Google : interrupteur du CTA avis Google
+  // sur l'écran de succès du scan client (défaut true si absent)
+  googleReviewEnabled?: boolean
 }
 
 export function SettingsTab() {
@@ -79,8 +82,12 @@ export function SettingsTab() {
   // éditable ici pour éviter deux sources de vérité.
   const [messageWhatsapp, setMessageWhatsapp] = useState("")
 
-  // ---------- D8 : Google Business Profile ----------
+  // ---------- D8 + Task 2-a : Réputation Google ----------
   const [googleReviewUrl, setGoogleReviewUrl] = useState("")
+  // Interrupteur du CTA « Laisser un avis Google » sur la page de scan.
+  // Défaut true : tant que l'URL n'est pas renseignée, le CTA n'apparaît
+  // de toute façon pas (double condition URL + flag côté client).
+  const [googleReviewEnabled, setGoogleReviewEnabled] = useState(true)
 
   // ---------- D9 : RGPD ----------
   const [rgpdExportEnCours, setRgpdExportEnCours] = useState(false)
@@ -136,8 +143,11 @@ export function SettingsTab() {
     setFrequenceRapport(pro.frequenceRapport === "hebdomadaire" ? "hebdomadaire" : "quotidien")
     setMessageWhatsapp(pro.messageWhatsapp || "Envoyé via FeedVoice ✨")
     setLogoActuel(pro.logoUrl || null)
-    // D8 : Google Business Profile
+    // D8 + Task 2-a : Réputation Google
     setGoogleReviewUrl(pro.googleReviewUrl || "")
+    setGoogleReviewEnabled(
+      (pro as unknown as { googleReviewEnabled?: boolean }).googleReviewEnabled !== false
+    )
     // Task 6 — Webhooks (Slack / Discord)
     const p = pro as unknown as { webhookSlackUrl?: string | null; webhookDiscordUrl?: string | null }
     setWebhookSlackUrl(p.webhookSlackUrl || "")
@@ -190,8 +200,12 @@ export function SettingsTab() {
   }, [pro])
 
   // ---------- Enregistrement : PUT /api/pro/settings ----------
-  async function saveSettings(e: React.FormEvent) {
-    e.preventDefault()
+  // Deux déclencheurs : le bouton global « Enregistrer les modifications »
+  // (form onSubmit) et le bouton « Enregistrer » de la section Réputation
+  // Google (Task 2-a, onClick sans event). La logique et le toast sont
+  // partagés : un seul appel API qui persiste tous les champs modifiés.
+  async function saveSettings(e?: React.FormEvent) {
+    if (e) e.preventDefault()
     setSaving(true)
     try {
       // logoUrl : absent = ne pas modifier · dataUrl = nouveau logo · null = suppression
@@ -205,8 +219,9 @@ export function SettingsTab() {
         messageWhatsapp,
         frequenceRapport,
         smsAlertes,
-        // D8 : Google Business Profile (URL d'avis, saisie manuelle)
+        // D8 + Task 2-a : Réputation Google (URL d'avis, saisie manuelle)
         googleReviewUrl,
+        googleReviewEnabled,
         // Task 6 — Webhooks (Slack / Discord)
         webhookSlackUrl,
         webhookDiscordUrl,
@@ -849,14 +864,22 @@ export function SettingsTab() {
         </CardContent>
       </Card>
 
-      {/* ================= D8 : Google Business Profile ================= */}
-      <Card className="shadow-sm">
+      {/* ============ Task 2-a — Réputation Google ============
+          Ex-D8 « Google Business Profile », étendue avec l'interrupteur du
+          CTA client et un bouton Enregistrer dédié (même logique de sauve-
+          garde + toast que le reste de la page). Style Hyer : carte carrée
+          hairline (0px radius, bordure Pebble, aucune ombre), labels 17px,
+          accent encre (la note clay de la page est déjà prise ailleurs). */}
+      <Card className="rounded-none border shadow-none">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
-            <span className="flex size-6 items-center justify-center rounded-md border border-[#b9bbc2] bg-[#f0f1f2] text-xs font-bold text-[#2e3040]" aria-hidden>
+            <span
+              className="flex size-6 items-center justify-center rounded-none border border-[#b9bbc2] bg-[#f0f1f2] text-xs font-bold text-[#000d10]"
+              aria-hidden
+            >
               G
             </span>
-            Google Business Profile
+            Réputation Google
             {/* Audit UX : la synchronisation automatique (API Google) est à venir.
                 La saisie manuelle de l'URL d'avis est fonctionnelle dès maintenant. */}
             <Badge variant="secondary" className="text-[10px] font-medium text-muted-foreground">
@@ -864,12 +887,15 @@ export function SettingsTab() {
             </Badge>
           </CardTitle>
           <CardDescription>
-            Renseignez l&apos;URL de votre fiche d&apos;avis Google. Elle sera proposée aux clients qui laissent une note ≥ 4★.
+            Renseignez l&apos;URL de votre page d&apos;avis Google : après l&apos;envoi de leur
+            retour, les clients satisfaits (≥ 4★) se voient proposer un avis public.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-3">
+        <CardContent className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="st-google-url">URL d&apos;avis Google</Label>
+            <Label htmlFor="st-google-url" className="text-[17px] font-medium">
+              URL d&apos;avis Google
+            </Label>
             <Input
               id="st-google-url"
               type="url"
@@ -882,25 +908,68 @@ export function SettingsTab() {
               Pour trouver votre URL : Google Maps → votre établissement → « Partager » → copier le lien.
             </p>
           </div>
+          {/* Interrupteur du CTA client (Task 2-a) : coupé, le bouton
+              « Laisser un avis Google » n'apparaît jamais sur l'écran de
+              succès du scan, même si l'URL est renseignée. */}
+          <div className="flex items-center justify-between gap-4 rounded-none border p-3.5">
+            <div className="min-w-0">
+              <Label htmlFor="st-google-cta" className="cursor-pointer text-[17px] font-medium">
+                CTA avis Google sur le scan client
+              </Label>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                Désactivé, le bouton n&apos;apparaît jamais sur l&apos;écran client, même si l&apos;URL est renseignée.
+              </p>
+            </div>
+            <Switch
+              id="st-google-cta"
+              checked={googleReviewEnabled}
+              onCheckedChange={setGoogleReviewEnabled}
+              aria-label="Activer ou désactiver le bouton d'avis Google sur l'écran client"
+            />
+          </div>
           {googleReviewUrl && (
-            <div className="flex items-center gap-2 rounded-lg border border-[#e7c1ae] bg-[#faf1ec] px-3 py-2 text-sm">
-              <Check className="h-4 w-4 shrink-0 text-[#a05f45]" aria-hidden />
-              <span className="min-w-0 flex-1 truncate text-[#6f3f30]">
-                Avis Google activé — proposé aux clients satisfaits (≥ 4★)
-              </span>
+            <div className="flex items-center gap-2 rounded-none border px-3 py-2 text-sm">
+              {googleReviewEnabled ? (
+                <>
+                  <Check className="h-4 w-4 shrink-0 text-[#000d10]" aria-hidden />
+                  <span className="min-w-0 flex-1 truncate">
+                    CTA actif — proposé aux clients satisfaits (≥ 4★)
+                  </span>
+                </>
+              ) : (
+                <span className="min-w-0 flex-1 truncate text-muted-foreground">
+                  CTA désactivé — masqué sur l&apos;écran client
+                </span>
+              )}
               <a
                 href={googleReviewUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-[#8a4f3b] underline underline-offset-2"
+                className="inline-flex shrink-0 items-center gap-1 text-xs font-medium text-[#000d10] underline underline-offset-2"
               >
                 Tester <ExternalLink className="h-3 w-3" aria-hidden />
               </a>
             </div>
           )}
           <p className="text-[11px] leading-relaxed text-muted-foreground">
-            💡 Saisie manuelle — aucune API Google n&apos;est appelée. L&apos;URL est enregistrée telle quelle et proposée aux clients satisfaits.
+            Saisie manuelle — aucune API Google n&apos;est appelée. L&apos;URL doit commencer par
+            https:// (500 caractères maximum).
           </p>
+          {/* Bouton dédié : réutilise la logique de sauvegarde de la page
+              (PUT /api/pro/settings) et le toast de confirmation. */}
+          <Button
+            type="button"
+            disabled={saving}
+            onClick={() => saveSettings()}
+            className="h-11 w-full sm:w-auto"
+          >
+            {saving ? (
+              <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+            ) : (
+              <Save className="mr-2 h-4 w-4" aria-hidden />
+            )}
+            Enregistrer
+          </Button>
         </CardContent>
       </Card>
 

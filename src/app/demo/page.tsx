@@ -4,13 +4,16 @@ export const dynamic = "force-dynamic"
 // FeedVoice - Page Démo (App Router)
 // ------------------------------------------------------------
 // Route réelle : GET /demo
-// Contenu : Vidéo placeholder (mockup rapport) + récap des 4
-// étapes + CTA inscription.
+// Contenu : CTA « Explorer la démo » (composant client → POST
+// /api/demo/login : tenant démo seedé + session posée puis
+// redirection vers /) + vidéo placeholder (mockup rapport) +
+// récap des 4 étapes + CTA inscription.
 // ============================================================
 
 import type { Metadata } from "next"
 import { ArrowRight, BellRing, Bot, BarChart3, Play, QrCode, ScanLine, TrendingUp, Trophy } from "lucide-react"
 import { MarketingLayout, MarketingCTA } from "@/components/feedbackpro/marketing-shell"
+import { DemoExplorerCTA } from "./demo-explorer-cta"
 
 export const metadata: Metadata = {
   title: "Démo FeedVoice — Voir le Coach IA en action",
@@ -48,6 +51,9 @@ export default function DemoPage() {
           </p>
         </div>
       </section>
+
+      {/* ---------- CTA démo cliquable (compte pré-rempli, 1 clic) ---------- */}
+      <DemoExplorerCTA />
 
       {/* ---------- Vidéo placeholder ---------- */}
       <section className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
