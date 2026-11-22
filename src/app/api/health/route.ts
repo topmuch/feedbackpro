@@ -16,6 +16,7 @@ import { TAG_LIB_WIFI } from "@/lib/vip-clients"
 import { db } from "@/lib/db"
 import { ipClient } from "@/lib/rate-limit"
 import { sondeConfigAi } from "@/lib/sonde-ai"
+import { probeReseau } from "@/lib/probe-reseau"
 import pkg from "../../../../package.json"
 
 const DEMARRAGE_MS = Date.now() // module chargé = process démarré (approx)
@@ -37,6 +38,11 @@ export async function GET(req: NextRequest) {
     dbEtat = "down"
   }
 
+  // Sonde réseau IA optionnelle (?probe=1) : reachability des hosts
+  // z-ai depuis CE serveur (diagnostic voix Nathalie, cachée 60 s).
+  const probe =
+    req.nextUrl.searchParams.get("probe") === "1" ? await probeReseau() : undefined
+
   return NextResponse.json(
     {
       ok: true,
@@ -49,6 +55,7 @@ export async function GET(req: NextRequest) {
       ip: ipClient(req),
       db: dbEtat,
       ai: sondeConfigAi(),
+      ...(probe ? { probe } : {}),
       timestamp: new Date().toISOString(),
     },
     { headers: { "Cache-Control": "no-store" } }
