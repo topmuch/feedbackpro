@@ -1,14 +1,23 @@
 // ============================================================
 // scripts/create-admin.cjs
 // ------------------------------------------------------------
-// Crée ou met à jour le superadmin au démarrage du conteneur.
-// Utilise SHA256 (hashPassword) — compatible avec le système
-// de login de FeedbackPro (src/lib/auth.ts).
+// Initialise la base au démarrage du conteneur — DURCI.
 //
-// Utilisé par le Dockerfile CMD :
-//   node scripts/create-admin.cjs
+// HISTORIQUE : la version initiale réinitialisait le mot de passe
+// superadmin à « admin123 » À CHAQUE DÉMARRAGE du conteneur (upsert
+// avec update du passwordHash). Conséquence : toute rotation du mot
+// de passe admin était écrasée au prochain déploiement/redémarrage,
+// laissant la prod perpétuellement accessible avec les identifiants
+// par défaut connus du public (faille critique fermée 2026-11-22).
 //
-// Idempotent : peut être appelé à chaque démarrage sans casser la DB.
+// POLITIQUE ACTUELLE :
+//   1. Bootstrap (DB sans aucun utilisateur) : crée le superadmin
+//      avec le mot de passe temporaire admin123 — À CHANGER
+//      IMMÉDIATEMENT (ou définir ADMIN_PASSWORD dans Coolify).
+//   2. Sinon : le mot de passe EXISTANT n'est JAMAIS touché — on
+//      garantit uniquement le rôle SUPERADMIN.
+//   3. Variable optionnelle ADMIN_PASSWORD (env Coolify) utilisée
+//      uniquement à la création bootstrap.
 // ============================================================
 
 const { PrismaClient } = require('@prisma/client')
@@ -23,20 +32,37 @@ function hashPassword(password) {
 async function main() {
   console.log('🔧 Initialisation de la base de données...')
 
-  // 1. Superadmin (upsert — crée ou met à jour le hash)
-  const admin = await db.user.upsert({
-    where: { email: 'admin@feedbackpro.fr' },
-    create: {
-      email: 'admin@feedbackpro.fr',
-      passwordHash: hashPassword('admin123'),
-      role: 'SUPERADMIN',
-    },
-    update: {
-      passwordHash: hashPassword('admin123'),
-      role: 'SUPERADMIN',
-    },
-  })
-  console.log('✓ Superadmin:', admin.email, '/ admin123')
+  // 1. Superadmin — bootstrap-only : plus JAMAIS de reset de mot de passe.
+  const nbUsers = await db.user.count()
+
+  if (nbUsers === 0) {
+    const motDePasseBootstrap = process.env.ADMIN_PASSWORD || 'admin123'
+    const admin = await db.user.upsert({
+      where: { email: 'admin@feedbackpro.fr' },
+      create: {
+        email: 'admin@feedbackpro.fr',
+        passwordHash: hashPassword(motDePasseBootstrap),
+        role: 'SUPERADMIN',
+      },
+      update: { role: 'SUPERADMIN' }, // mot de passe existant préservé
+    })
+    console.log('✓ Superadmin créé (bootstrap):', admin.email)
+    if (!process.env.ADMIN_PASSWORD) {
+      console.log('⚠️  Mot de passe temporaire admin123 — À CHANGER IMMÉDIATEMENT')
+    }
+  } else {
+    // Base déjà initialisée : garantir le rôle uniquement.
+    const admin = await db.user.upsert({
+      where: { email: 'admin@feedbackpro.fr' },
+      create: {
+        email: 'admin@feedbackpro.fr',
+        passwordHash: hashPassword(process.env.ADMIN_PASSWORD || 'admin123'),
+        role: 'SUPERADMIN',
+      },
+      update: { role: 'SUPERADMIN' }, // NE TOUCHE JAMAIS AU MOT DE PASSE
+    })
+    console.log('✓ Superadmin:', admin.email, '— mot de passe EXISTANT préservé')
+  }
 
   // 2. Modules (upsert)
   const modules = [
@@ -87,7 +113,6 @@ async function main() {
     secteurs: await db.secteurConfig.count(),
   }
   console.log('\n📊 Base de données prête:', JSON.stringify(stats))
-  console.log('\n🔑 Login superadmin: admin@feedbackpro.fr / admin123')
 }
 
 main()
