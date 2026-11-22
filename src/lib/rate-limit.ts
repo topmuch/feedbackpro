@@ -108,13 +108,34 @@ function verifier(cle: string, max: number, fenetreMs: number): { autorise: bool
  * Applique une limite de taux pour la route donnée. Retourne :
  *   - null si la requête est autorisée (continuer le handler) ;
  *   - une Response 429 JSON (header Retry-After) sinon.
+ *
+ * DEUX NIVEAUX (défense en profondeur) :
+ *   1. Plafond GLOBAL par route (toutes IPs confondues) : l'IP cliente peut
+ *      être contournée par un attaquant qui rotate ses IPs de sortie (proxys,
+ *      CDN) — le limiter par IP ne mord alors jamais. Ce plafond global borne
+ *      le débit total d'une route quelle que soit la répartition d'IP.
+ *      Défaut : 40× le max par IP (plafonné à 4000/min pour rester bien
+ *      au-dessus du trafic légitime agrégé).
+ *   2. Limite par IP (fenêtre glissante classique).
+ * Le compteur global n'incrémente QUE si le plafond global est respecté : un
+ * requête bloquée au niveau global ne consomme pas le quota de son IP.
  */
 export function limiteTaux(
   req: NextRequest,
   route: string,
-  opts: { max: number; fenetreMs?: number }
+  opts: { max: number; fenetreMs?: number; globalMax?: number }
 ): NextResponse | null {
   const fenetreMs = opts.fenetreMs ?? 60_000
+  const globalMax = opts.globalMax ?? Math.min(4000, opts.max * 40)
+
+  const globalResult = verifier(`__global__:${route}`, globalMax, fenetreMs)
+  if (!globalResult.autorise) {
+    return NextResponse.json(
+      { ok: false, error: "Trop de requêtes. Réessayez dans quelques instants." },
+      { status: 429, headers: { "Retry-After": String(globalResult.retryApresSec) } }
+    )
+  }
+
   const { autorise, retryApresSec } = verifier(`${route}:${ipClient(req)}`, opts.max, fenetreMs)
   if (autorise) return null
   return NextResponse.json(
