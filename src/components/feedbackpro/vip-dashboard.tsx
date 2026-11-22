@@ -890,7 +890,9 @@ function KPICard({
     <Card className="gap-0 border border-[#efe7e0] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-xs font-medium uppercase tracking-wider text-[#8B6F47]">{label}</p>
+          {/* QA 2026-11-22 : truncate coupait les libellés longs à 6 colonnes
+              ("SIGNALE...", "RÉCOMPE...") → affichage sur 2 lignes. */}
+          <p className="line-clamp-2 break-words text-xs font-medium uppercase leading-tight tracking-wider text-[#8B6F47]">{label}</p>
           <div className="mt-2 flex items-baseline gap-1">
             <span
               className="text-3xl font-semibold leading-none text-[#2C2C2C]"
@@ -1861,7 +1863,7 @@ function OverviewTab({
             <Card className="gap-0 border border-[#efe7e0] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate text-xs font-medium uppercase tracking-wider text-[#8B6F47]">Capacité</p>
+                  <p className="line-clamp-2 break-words text-xs font-medium uppercase leading-tight tracking-wider text-[#8B6F47]">Capacité</p>
                   <div className="mt-2 flex items-baseline gap-1">
                     <span
                       className="text-2xl font-semibold leading-none text-[#2C2C2C]"
@@ -1889,7 +1891,7 @@ function OverviewTab({
             <Card className="gap-0 border border-[#efe7e0] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate text-xs font-medium uppercase tracking-wider text-[#8B6F47]">Satisfaction</p>
+                  <p className="line-clamp-2 break-words text-xs font-medium uppercase leading-tight tracking-wider text-[#8B6F47]">Satisfaction</p>
                   <div className="mt-2 flex items-baseline gap-1">
                     <span
                       className="text-2xl font-semibold leading-none text-[#2C2C2C]"

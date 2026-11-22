@@ -346,7 +346,15 @@ function PaymentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-xl border-[#efe7e0] bg-white p-6 sm:max-w-md">
+      <DialogContent
+        className={cn(
+          'rounded-xl border-[#efe7e0] bg-white p-6 sm:max-w-md',
+          // QA 2026-11-22 : la piste de grille implicite de Radix/shadcn suivait
+          // le min-content de la rangée récap → 14 px de débordement à droite.
+          // minmax(0,1fr) + min-w-0 contraint la grille à la largeur réelle.
+          'grid-cols-[minmax(0,1fr)] [&>*]:min-w-0',
+        )}
+      >
         <DialogHeader>
           <DialogTitle
             className="text-xl text-[#2C2C2C]"
@@ -440,7 +448,7 @@ function PaymentDialog({
           </RadioGroup>
         </div>
 
-        <DialogFooter className="gap-2">
+        <DialogFooter className="flex-wrap justify-end gap-2">
           <Button
             variant="ghost"
             onClick={() => onOpenChange(false)}

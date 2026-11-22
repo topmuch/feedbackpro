@@ -1241,10 +1241,14 @@ export default function VipWallboardPage() {
                 fg='#FFFFFF'
               />
 
-              {/* 5. Temps moyen */}
+              {/* 5. Temps moyen — QA 2026-11-22 : Georgia rend les chiffres en
+                  elzévirs (« 0 » ressemble à « o » → « 0min » illisible). On
+                  affiche « — » quand aucun échantillon, et un espace avant
+                  l'unité sinon. */}
               <KpiCard
                 label="Temps moyen"
-                value={`${data.kpis.avg_resolution_min}min`}
+                value={data.kpis.avg_resolution_min > 0 ? `${data.kpis.avg_resolution_min} min` : '—'}
+                sub={data.kpis.avg_resolution_min > 0 ? undefined : 'aucune résolution'}
                 bg={C.header}
                 fg='#FFFFFF'
               />

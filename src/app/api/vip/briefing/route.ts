@@ -182,6 +182,11 @@ interface BriefingCtx {
   satisfactionScore: number
 }
 
+/** "1 signalement ouvert" / "2 signalements ouverts" — accord au pluriel. */
+function pl(n: number, sing: string, plur: string): string {
+  return `${n} ${n === 1 ? sing : plur}`
+}
+
 /** Construit le texte du briefing selon le rôle du staff. */
 function buildBriefing(role: string, name: string, ctx: BriefingCtx): string {
   const next = ctx.nextFlight
@@ -192,19 +197,19 @@ function buildBriefing(role: string, name: string, ctx: BriefingCtx): string {
   switch (role) {
     case 'manager':
       return (
-        `Bonjour ${name}. ${ctx.passengersCount} passagers présents. ` +
-        `${ctx.openRequestsCount} signalements ouverts. ` +
+        `Bonjour ${name}. ${pl(ctx.passengersCount, 'passager présent', 'passagers présents')}. ` +
+        `${pl(ctx.openRequestsCount, 'signalement ouvert', 'signalements ouverts')}. ` +
         `${ctx.inProgressCount} en cours. ` +
-        `${ctx.showersBusyCount} douches occupées. ` +
+        `${pl(ctx.showersBusyCount, 'douche occupée', 'douches occupées')}. ` +
         `Pic prévu ${next ? next.boardingAt + ' vol ' + next.flightNo : '—'}. ` +
         `Bon service.`
       )
 
     case 'reception':
       return (
-        `Bonjour ${name}. ${ctx.passengersCount} passagers présents. ` +
-        `${ctx.openRequestsCount} demandes en attente. ` +
-        `${ctx.inProgressCount} arrivées prévues. ` +
+        `Bonjour ${name}. ${pl(ctx.passengersCount, 'passager présent', 'passagers présents')}. ` +
+        `${pl(ctx.openRequestsCount, 'demande en attente', 'demandes en attente')}. ` +
+        `${pl(ctx.inProgressCount, 'arrivée prévue', 'arrivées prévues')}. ` +
         `${next ? `Prochain embarquement ${next.flightNo}.` : 'Aucun embarquement imminent.'}`
       )
 
@@ -212,15 +217,15 @@ function buildBriefing(role: string, name: string, ctx: BriefingCtx): string {
       // etage = équipe de niveau (étage / housekeeping)
       // tables à nettoyer = approximées par les demandes "cleanup" + tables occupées
       return (
-        `Bonjour ${name}. ${ctx.doneTodayCount} tables à nettoyer. ` +
-        `${ctx.showersBusyCount} douches occupées. ` +
-        `${ctx.openRequestsCount} signalements propreté. ` +
+        `Bonjour ${name}. ${pl(ctx.doneTodayCount, 'table à nettoyer', 'tables à nettoyer')}. ` +
+        `${pl(ctx.showersBusyCount, 'douche occupée', 'douches occupées')}. ` +
+        `${pl(ctx.openRequestsCount, 'signalement propreté', 'signalements propreté')}. ` +
         `Zone détente prioritaire.`
       )
 
     case 'barman':
       return (
-        `Bonjour ${name}. ${ctx.openRequestsCount} commandes en attente. ` +
+        `Bonjour ${name}. ${pl(ctx.openRequestsCount, 'commande en attente', 'commandes en attente')}. ` +
         `${ctx.inProgressCount} en préparation. ` +
         `Stock OK. ` +
         `Pic prévu ${next ? next.boardingAt : '—'}.`
@@ -228,16 +233,16 @@ function buildBriefing(role: string, name: string, ctx: BriefingCtx): string {
 
     case 'maitre_dhotel':
       return (
-        `Bonjour ${name}. ${ctx.passengersCount} clients VIP présents. ` +
-        `${ctx.openRequestsCount} incidents actifs. ` +
-        `${ctx.rewardGrantsTodayCount} récompenses offertes aujourd'hui. ` +
+        `Bonjour ${name}. ${pl(ctx.passengersCount, 'client VIP présent', 'clients VIP présents')}. ` +
+        `${pl(ctx.openRequestsCount, 'incident actif', 'incidents actifs')}. ` +
+        `${pl(ctx.rewardGrantsTodayCount, 'récompense offerte', 'récompenses offertes')} aujourd'hui. ` +
         `Satisfaction ${ctx.satisfactionScore}/5.`
       )
 
     default:
       return (
-        `Bonjour ${name}. ${ctx.passengersCount} passagers. ` +
-        `${ctx.openRequestsCount} signalements. ` +
+        `Bonjour ${name}. ${pl(ctx.passengersCount, 'passager', 'passagers')}. ` +
+        `${pl(ctx.openRequestsCount, 'signalement', 'signalements')}. ` +
         `${nextFlightStr} Bon service.`
       )
   }

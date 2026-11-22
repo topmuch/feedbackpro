@@ -1173,3 +1173,27 @@ Stage Summary:
 - FeedVoice gagne 4 garde-fous d'exploitation (health, rate limiting anti-spoof, backup DB, journal d'erreurs) + 3 fonctionnalités orientées conversion/rétention (boucle Google, démo sandbox 1 clic, rapports écoutables Nathalie)
 - L'anti-stale PWA garantit que tout déploiement est visible après UNE visite (auto-reload contrôlé) — fin des « ancienne image »
 - Gate CLIENT_GLOBAL intacte, 0 erreur console en prod
+
+---
+## 2026-11-22 — QA-1 : QA prod complète (compte test) + 4 fixes bugs trouvés
+Agent: Z.ai Code
+Task: Tester toutes les fonctionnalités déployées avec le compte de test fourni (ousman@gmail.com) et corriger les bugs découverts
+
+Work Log:
+- QA PROD EXHAUSTIVE (agent-browser, 1440px + 390px mobile) :
+  * BUG HERO RÉSOLU en prod : calque ambiance 14% desktop / 10% mobile visible, dernier commit df0b1a8 déployé (page /securite = 200), SW v9 network-first actif (cache t1795344599711)
+  * Login compte test OK → dashboard Terra Solution (Salon VIP · Mode Discrétion)
+  * 12 sections dashboard validées : Vue d'ensemble (plan 2D interactif, KPIs), Plan du Salon, Signalements (filtres + demandes à la table), Orchestration (moteur routage 5ms, 9/9 équipe, alertes escalade), Buffet & Bar (checklist 68/92/55% + historique), Douches Smart (4 cabines + QR + actions), Récompenses Premium (catalogue + offres du jour 73€), Clients VIP (RGPD), Équipe/Staff (5 membres), QR Codes (CLIENT_GLOBAL intact + Wi-Fi), Rapports & ROI (KPIs FCFA + Excel/PDF), Wallboard TV (LIVE 5s), Assistance, Paramètres (général/Nathalie/discret/notifications/intégrations) — « Enregistrer tout » OK (toast)
+  * Flux client bout en bout : gate CLIENT_GLOBAL (EN by design = langue navigateur) → Nathalie accueil + Wi-Fi copie 1 clic → Report (position → type → envoi → ref #SIG-2026-5302) → sync temps réel dashboard (badge 1→2 + toast) → cycle Prendre en charge → Terminer → Rate 5★ (#NOT-2026-5195) → Exceptional moment (catalogue 2 onglets) → réservation 30 000 FCFA (Wave/OM/Espèces) → « Commande confirmée »
+  * Briefing Nathalie vocal OK ; démo vocale landing OK (« Nathalie parle... ») ; /demo sandbox OK ; logout OK ; console 0 erreur
+- BUGS TROUVÉS À LA QA → 4 FIXES :
+  1. CRITIQUE — Numéro de suivi null : /api/vip/orders POST générait trackingNumber (CMD-YYYY-NNNN) mais ne le persistait JAMAIS dans le create → confirmation affichait « # » et toast « Suivi : null » → fix : trackingNumber ajouté au data du create
+  2. Wallboard « TEMPS MOYEN » affichait « omin » : PAS un clipping — Georgia rend les chiffres en elzévirs (le « 0 » ressemble à un « o ») → fix : « — » + sub « aucune résolution » quand 0, « N min » avec espace sinon
+  3. KPI Vue d'ensemble libellés tronqués (« SIGNALE... », « RÉCOMPE... ») : truncate → line-clamp-2 break-words (KPICard + cartes inline Capacité/Satisfaction)
+  4. Modale paiement catalogue : piste de grille implicite suivait le min-content → 14px de débordement droite (mesuré : enfants 437px dans 400px) → fix grid-cols-[minmax(0,1fr)] + [&>*]:min-w-0 + footer flex-wrap ; Briefing Nathalie « 1 signalements ouverts » → helper pl() accord singulier/pluriel sur les 6 rôles
+- QUALITÉ : lint 0/0, tsc exit 0
+- NOTE : langue EN par défaut de la gate = comportement documenté (langue du navigateur) — laissé tel quel ; sujit mineur observé : sidebar dashboard légèrement coupée en haut quand Paramètres scrollé (non corrigé, cosmétique)
+
+Stage Summary:
+- QA à preuves : 15+ flux validés end-to-end en prod avec le compte de test, screenshots par section
+- 4 bugs corrigés dont 1 critique (tracking commande), gate CLIENT_GLOBAL INTACTE
