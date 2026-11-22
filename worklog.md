@@ -1364,3 +1364,26 @@ Work Log:
   5. Démo vocale Nathalie (section LA TECHNOLOGIE) : clic « Écouter Nathalie » → « Nathalie parle… » + .hy-vdemo-progress 520 px, audio Edge TTS VPS actif, 0 erreur console
   6. /tarifs : logo header + cartes carrées ; /mentions-legales : logo + carte carrée
 - Preuves : /tmp/logo-work/prod-landing.png, prod-footer.png, prod-gate.png, prod-voice.png, prod-tarifs.png, prod-legal.png
+
+---
+Task ID: HP-10
+Agent: Z.ai Code (orchestrateur)
+Task: Homepage 9,5 → 10/10 — typing Nathalie, compteurs animés, hover secteurs
+
+Work Log:
+- DIAGNOSTIC utilisateur (9,5/10) : 3 améliorations demandées pour atteindre 10/10
+- AMÉLIORATION 1 — HERO ANIMÉ (landing-accueil-premium.tsx) :
+  · TypingNathalie : « Je suis Nathalie. » tapé lettre par lettre (55 ms/char, démarrage 1,1 s après fade-in header) + curseur doré clignotant (.fh-typing-caret, step-end 0,85 s) estompé 1,9 s après la fin
+  · Reveal progressif : h3 salutation (0,9 s), carte Wi-Fi (1,3 s), 4 services staggerés (1,55→2 s) — fill-mode backwards (propriétés libérées en fin d'animation → hover services intact)
+  · A11y : texte complet en sr-only + frappe visuelle aria-hidden ; prefers-reduced-motion → message direct sans curseur (usePrefersReducedMotion via useSyncExternalStore, snapshot serveur false)
+- AMÉLIORATION 2 — COMPTEURS ANIMÉS : CountUp (IO threshold 0.4, easeOutCubic 1,4 s, requestAnimationFrame) — 0→15 %, 1→÷2, 1→4x au scroll ; sr-only = valeur cible pour lecteurs d'écran ; reduced-motion/IO absent → valeur finale directe (setState uniquement dans callbacks, règle react-hooks/set-state-in-effect respectée)
+- AMÉLIORATION 3 — HOVER CARTES SECTEURS : déjà présent en CSS (.fh-sector-card:hover → translateY(-5px) + bordure #C9A961 + ombre rgba(201,169,97,0.15) 0 20px 40px) — VÉRIFIÉ avec souris réelle agent-browser : matrix(1,0,0,1,0,-5) + rgb(201,169,97) + ombre dorée OK
+- FIX BONUS (défaut préexistant) : bulle flottante « Incident résolu » recouvrait ~60 % de la carte Gastronomie (icône+libellé illisibles, slot semblant vide) → .fh-float-2 déplacée bottom:15% → top:18% (zone photo, miroir bulle 1) ; masquée ≤1200px (colonne étroite, risque morsure du texte de salutation)
+- LINT : bun run lint 0 erreur (fix backticks dans template CSS + restructuration hooks)
+- VÉRIFICATION agent-browser (localhost:3000, desktop 1440 + mobile 390) :
+  1. Typing échantillonné : 300-1200 ms vide → 1500 ms « Je su » → 2400 ms complet ✓
+  2. Compteurs : mid-animation 9/2/3 → final 15/2/4 ✓
+  3. Hero desktop : 4 services visibles (Gastronomie incluse), bulles sur photo ✓
+  4. Mobile 390px : preview Nathalie complète, bulles masquées, footer OK ✓
+  5. Démo vocale Denise/Nathalie INTACTE : clic « Écouter Nathalie » → « Nathalie parle… » + .hy-vdemo-progress 520 px, 0 erreur console ✓
+- Preuves : /tmp/fv-hero-v4.png, /tmp/fv-hover.png, /tmp/fv-mobile-2.png, /tmp/fv-mobile-footer.png, /tmp/fv-full-final.png

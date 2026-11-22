@@ -35,12 +35,14 @@
 //
 // Interactions : nav scrolled (scrollY > 50), smooth scroll vers
 // les ancres, reveals IntersectionObserver (cartes/témoignages),
+// typing Nathalie dans le hero (curseur doré, reveal progressif
+// Wi-Fi/services), compteurs stats animés au scroll (15 %, ÷2, 4x),
 // copie Wi-Fi avec feedback "✓ Copié !" 2s, toast newsletter.
 // Toutes les classes CSS sont préfixées `fh-` pour éviter toute
 // fuite vers le reste de l'app.
 // ============================================================
 
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useRef, useState, useSyncExternalStore } from "react"
 import {
   ArrowRight,
   BellRing,
@@ -536,7 +538,12 @@ const FH_CSS = `
   z-index: 2;
 }
 .fh-float-1 { top: 10%; right: -24px; animation-delay: 0s; }
-.fh-float-2 { bottom: 15%; left: -24px; animation-delay: 2s; }
+/* La bulle 2 vit sur la zone PHOTO (miroir de la bulle 1) et non sur la
+   grille de services : à bottom:15% elle recouvrait ~60 % de la carte
+   "Gastronomie" (icône + libellé illisibles → slot semblant vide).
+   top:18% la maintient entièrement dans les 200 px du header photo,
+   sans toucher le texte de salutation. */
+.fh-float-2 { top: 18%; left: -24px; animation-delay: 2s; }
 @keyframes fh-float {
   0%, 100% { transform: translateY(0); }
   50% { transform: translateY(-10px); }
@@ -565,6 +572,42 @@ const FH_CSS = `
   opacity: 0.6;
   font-weight: 400;
 }
+
+/* ============================================ */
+/* HERO ANIMATIONS — typing Nathalie + reveal   */
+/* ============================================ */
+/* Le titre du header photo apparaît juste avant le typing. */
+.fh-nathalie-header-content h3 {
+  animation: fh-fadeInUp 0.6s ease 0.9s backwards;
+}
+/* Ligne tapée lettre par lettre ("Je suis Nathalie.") — min-height
+   pour éviter tout saut de layout quand le texte est encore vide. */
+.fh-nathalie-typing { min-height: 1.4em; }
+.fh-typing-caret {
+  display: inline-block;
+  width: 2px;
+  height: 0.95em;
+  background: var(--gold);
+  margin-left: 3px;
+  vertical-align: -0.12em;
+  border-radius: 1px;
+  animation: fh-caret-blink 0.85s step-end infinite;
+}
+@keyframes fh-caret-blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+/* Reveal progressif de la carte Wi-Fi puis des 4 services.
+   fill-mode "backwards" (et non "both") : pendant le délai l'élément
+   est caché, et à la fin de l'animation les propriétés sont LIBÉRÉES —
+   le hover translateY des services continue de fonctionner. */
+.fh-nathalie-wifi {
+  animation: fh-fadeInUp 0.7s cubic-bezier(0.22, 1, 0.36, 1) 1.3s backwards;
+}
+.fh-nathalie-service {
+  animation: fh-fadeInUp 0.55s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+.fh-nathalie-service:nth-child(1) { animation-delay: 1.55s; }
+.fh-nathalie-service:nth-child(2) { animation-delay: 1.7s; }
+.fh-nathalie-service:nth-child(3) { animation-delay: 1.85s; }
+.fh-nathalie-service:nth-child(4) { animation-delay: 2s; }
 
 /* ============================================ */
 /* SECTEURS — UNIFIED DESIGN                    */
@@ -1261,12 +1304,25 @@ const FH_CSS = `
   .fh-nav { position: static; }
 }
 
+/* Accessibilité : mouvement réduit → animations du hero désactivées
+   (le message Nathalie s'affiche directement, curseur masqué). */
+@media (prefers-reduced-motion: reduce) {
+  .fh-nathalie-header-content h3,
+  .fh-nathalie-wifi,
+  .fh-nathalie-service {
+    animation: none;
+  }
+  .fh-typing-caret { display: none; }
+}
+
 /* ============================================ */
 /* RESPONSIVE                                   */
 /* ============================================ */
 @media (max-width: 1200px) {
   .fh-float-1 { right: 0; }
-  .fh-float-2 { left: 0; }
+  /* Colonne visuelle plus étroite : la bulle 2 risquerait de mordre le
+     texte de salutation — on la masque, la bulle 1 suffit. */
+  .fh-float-2 { display: none; }
 }
 @media (max-width: 1024px) {
   .fh-hero-grid { grid-template-columns: 1fr; gap: 3rem; }
@@ -1377,6 +1433,145 @@ const NATHALIE_SERVICES = [
   { icon: "🛎️", label: "Conciergerie" },
   { icon: "✨", label: "Signaler" },
 ]
+
+// ------------------------------------------------------------
+// Animations 9.5 → 10/10 — typing Nathalie + compteurs au scroll
+// ------------------------------------------------------------
+
+/**
+ * true si l'utilisateur préfère un mouvement réduit (client uniquement).
+ * useSyncExternalStore : snapshot serveur = false → aucune erreur
+ * d'hydratation, et mise à jour réactive si le réglage change.
+ */
+function usePrefersReducedMotion(): boolean {
+  return useSyncExternalStore(
+    (onChange) => {
+      const mq = window.matchMedia("(prefers-reduced-motion: reduce)")
+      mq.addEventListener("change", onChange)
+      return () => mq.removeEventListener("change", onChange)
+    },
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    () => false
+  )
+}
+
+/**
+ * Tape le message de Nathalie lettre par lettre dans la preview du hero.
+ * - Démarre après le fade-in du header (1,1 s), 55 ms par caractère.
+ * - Curseur doré clignotant pendant la frappe, estompé ~1,9 s après la fin.
+ * - Accessible : texte complet en sr-only, frappe visuelle aria-hidden.
+ * - prefers-reduced-motion : message affiché directement, sans curseur.
+ */
+function TypingNathalie({ text }: { text: string }) {
+  const CHAR_MS = 55
+  const START_DELAY = 1100
+  const reduced = usePrefersReducedMotion()
+  const [count, setCount] = useState(0)
+  const [caretVisible, setCaretVisible] = useState(true)
+
+  // Frappe lettre par lettre après le fade-in du header. Les setState
+  // vivent dans les callbacks de timers (jamais directement dans l'effet).
+  useEffect(() => {
+    if (reduced) return
+    let interval: ReturnType<typeof setInterval> | null = null
+    const start = setTimeout(() => {
+      let i = 0
+      interval = setInterval(() => {
+        i += 1
+        setCount(i)
+        if (i >= text.length) {
+          if (interval) clearInterval(interval)
+          interval = null
+        }
+      }, CHAR_MS)
+    }, START_DELAY)
+    return () => {
+      clearTimeout(start)
+      if (interval) clearInterval(interval)
+    }
+  }, [text, reduced])
+
+  const done = count >= text.length
+
+  // Le curseur reste ~1,9 s après la fin de la frappe puis disparaît.
+  useEffect(() => {
+    if (reduced || !done) return
+    const t = setTimeout(() => setCaretVisible(false), 1900)
+    return () => clearTimeout(t)
+  }, [done, reduced])
+
+  return (
+    <p className="fh-nathalie-typing">
+      <span className="sr-only">{text}</span>
+      <span aria-hidden="true">{reduced ? text : text.slice(0, count)}</span>
+      {!reduced && caretVisible && (
+        <span className="fh-typing-caret" aria-hidden="true" />
+      )}
+    </p>
+  )
+}
+
+/**
+ * Compteur animé déclenché au scroll (IntersectionObserver, easeOutCubic).
+ * Rendu final identique au HTML statique d'origine (15, 2, 4) ;
+ * accessible : la valeur cible est lue par les lecteurs d'écran.
+ * prefers-reduced-motion ou IO indisponible : valeur finale directe.
+ */
+function CountUp({
+  to,
+  from = 0,
+  duration = 1400,
+}: {
+  to: number
+  from?: number
+  duration?: number
+}) {
+  const reduced = usePrefersReducedMotion()
+  const ref = useRef<HTMLSpanElement>(null)
+  const [val, setVal] = useState(from)
+
+  useEffect(() => {
+    if (reduced) return
+    const el = ref.current
+    if (!el) return
+    let raf = 0
+    let io: IntersectionObserver | null = null
+    // IO absent (très vieux navigateurs) : valeur finale différée d'une
+    // frame (setState dans un callback — jamais directement dans l'effet).
+    if (typeof IntersectionObserver === "undefined") {
+      raf = requestAnimationFrame(() => setVal(to))
+      return () => cancelAnimationFrame(raf)
+    }
+    io = new IntersectionObserver(
+      (entries) => {
+        if (!entries.some((e) => e.isIntersecting)) return
+        io?.disconnect()
+        io = null
+        const t0 = performance.now()
+        const tick = (now: number) => {
+          const p = Math.min(1, (now - t0) / duration)
+          const eased = 1 - Math.pow(1 - p, 3)
+          setVal(Math.round(from + (to - from) * eased))
+          if (p < 1) raf = requestAnimationFrame(tick)
+        }
+        raf = requestAnimationFrame(tick)
+      },
+      { threshold: 0.4 }
+    )
+    io.observe(el)
+    return () => {
+      io?.disconnect()
+      cancelAnimationFrame(raf)
+    }
+  }, [to, from, duration, reduced])
+
+  return (
+    <span ref={ref}>
+      <span className="sr-only">{to}</span>
+      <span aria-hidden="true">{reduced ? to : val}</span>
+    </span>
+  )
+}
 
 // ------------------------------------------------------------
 // Composant
@@ -1576,7 +1771,9 @@ export function LandingAccueilPremium({
                 <div className="fh-nathalie-header-content">
                   <div className="fh-nathalie-logo" aria-hidden>🥂</div>
                   <h3>Bonsoir, Cher Hôte.</h3>
-                  <p>Je suis Nathalie.</p>
+                  {/* 10/10 — le message se tape lettre par lettre (curseur
+                      doré), avec repli accessible et reduced-motion. */}
+                  <TypingNathalie text="Je suis Nathalie." />
                 </div>
               </div>
 
@@ -1746,7 +1943,8 @@ export function LandingAccueilPremium({
                   <Eye size={24} />
                 </div>
                 <div className="fh-stat-value">
-                  15<em>%</em>
+                  <CountUp to={15} />
+                  <em>%</em>
                 </div>
                 <div className="fh-stat-label">
                   d&apos;incidents invisibles
@@ -1762,7 +1960,7 @@ export function LandingAccueilPremium({
                   <Zap size={24} />
                 </div>
                 <div className="fh-stat-value">
-                  ÷<em>2</em>
+                  ÷<em><CountUp to={2} from={1} /></em>
                 </div>
                 <div className="fh-stat-label">
                   temps de résolution
@@ -1778,7 +1976,8 @@ export function LandingAccueilPremium({
                   <Trophy size={24} />
                 </div>
                 <div className="fh-stat-value">
-                  4<em>x</em>
+                  <CountUp to={4} from={1} />
+                  <em>x</em>
                 </div>
                 <div className="fh-stat-label">
                   plus de feedbacks collectés
