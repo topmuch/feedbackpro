@@ -1324,3 +1324,25 @@ Note déploiement : PATCH avec SHA court tronqué → deployment failed immédia
   à la place de la visualisation statique.
 - Gates 0/0 ; QA navigateur : accueil, secteurs (aéroport), contact, démo
   vocale jouée (progression réelle), meta espacée, footer fh OK.
+
+---
+Task ID: LOGO-1
+Agent: Z.ai Code (orchestrateur)
+Task: Logo officiel FeedVoice intégré + rebords harmonisés sur toutes les pages
+
+Work Log:
+- ASSET : logo officiel uploadé (225×57 PNG fond blanc) détouré (alpha par luminance) → variantes régénérées public/feedvoice/logo{,-white}{,@2x,@4x}.png (245×57 base, ratio 4.306) ; hash nouveau logo@2x d30dccafd409a398
+- COMPOSANT UNIQUE : src/components/feedbackpro/brand-mark.tsx — BrandMark({tone: ink|white, className}) → /feedvoice/logo{,-white}@2x.png ; échelle harmonisée h-6 navbars/footers · h-7 panneaux auth/sidebars · h-8 login centré
+- REFACTOR 10 fichiers : shared.tsx (AppHeader wordmark h-7 sans texte redondant + AppFooter tone=white, hack brightness-0 invert supprimé), dashboard-shell (icône carrée MessageSquare supprimée), auth-view ×4, login-screen, legal-layout, marketing-shell (HyerWordmark délègue, header 22px→h-6), landing-view (Logo local délègue), landing-accueil-premium ×3 (fh-nav-logo/fh-cta-logo/footer → fh-nav-logo-img 26px), admin-dashboard (sidebar white h-7), pro-dashboard (carte blanche + shadow supprimées → BrandMark white h-7)
+- REBORDS (doctrine Hyer : cartes carrées · pills rondes) : globals.css @theme --radius-{sm,md,lg,xl,2xl,3xl,4xl}=0px (écrase défauts Tailwind, rounded-full préservé) ; .fp-gradient-border 1.5rem→0 ; .fp-scan-reward-border 1rem→0 ; radius arbitraires aplatis airport-heatmap (15/10/12px), admin-qr-analytics-tab (15/12/10/8px), airport-zones-tab (1.5rem), live-score-widget (20px) → rounded-none ; vip-table-scan (thème or client) et mockups téléphone conservés
+- BRAND ASSETS : src/app/icon.png (128), public/icon-192.png, icon-512.png (Deep Ink #000d10 + wordmark blanc), public/logo.svg (data-URI nouveau logo@2x), public/og-image.png (1344×768 : logo blanc + liseré Clay Ember + « Nathalie — Assistante IA temps réel »)
+- LINT : bun run lint 0 erreur ; warnings sonde-ai Edge Runtime préexistants inchangés
+- VÉRIFICATION agent-browser (localhost:3000) :
+  1. / desktop+iPhone 16 : header/CTA/footer = wordmark officiel, démo vocale « Nathalie parle… » + hy-vdemo-progress OK (chaîne TTS intacte)
+  2. /?auth=login : logo blanc panneau sombre, inputs carrés, pills rondes ; AppFooter img = logo-white@2x.png (confirmé DOM)
+  3. /tarifs : header logo, cartes pricing carrées, CTA final carré
+  4. /mentions-legales : logo header + carte carrée
+  5. Inscription réelle (Brasserie du Parc) → dashboard Pro : sidebar logo blanc h-7, KPI carrés ; DB locale vide avant (comptes test ousman/demo indisponibles en local — compte de test prod inchangé)
+  6. /?qr_type=CLIENT_GLOBAL : gate WELCOME Salon VIP INTACTE (logo aigle, FR/EN, Enter the lounge)
+- GIT : commit 840308b « Logo officiel FeedVoice + harmonisation rebords sur toutes les pages » (27 fichiers, +131/−103) → push origin main OK (23273a4..840308b)
+- DÉPLOIEMENT BLOQUÉ : token API Coolify non persisté (règle sécurité, perdu avec session précédente — procédure PATCH git_commit_sha + POST /api/v1/deploy?force=true impossible) ; auto-deploy GitHub absent (poll 4 min : prod logo@2x toujours 8892b765, uptime 13196 s sans restart) → Redeploy UI Coolify (http://38.247.134.241:8000/, app r10qfvmbotlm4scq5c7d7221) requis — main à jour = 840308b
