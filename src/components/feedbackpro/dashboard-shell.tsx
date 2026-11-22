@@ -10,12 +10,13 @@
 // ============================================================
 
 import { useFpStore } from '@/store/feedbackpro-store'
+import { BrandMark } from '@/components/feedbackpro/brand-mark'
 import { RetoursTab } from '@/components/feedbackpro/retours-tab'
 import { OverviewTab } from '@/components/feedbackpro/overview-tab'
 import { PersonnelTab } from '@/components/feedbackpro/personnel-tab'
 import { ParametresTab } from '@/components/feedbackpro/parametres-tab'
 import { Button } from '@/components/ui/button'
-import { MessageSquare, LayoutDashboard, MessageCircleWarning, Users, Settings, LogOut } from 'lucide-react'
+import { LayoutDashboard, MessageCircleWarning, Users, Settings, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { useDashboardI18n } from '@/lib/i18n-dashboard'
 import { LanguageSelector } from '@/components/feedbackpro/language-selector'
@@ -37,10 +38,7 @@ export function DashboardShell() {
       <header className="sticky top-0 z-30 bg-card/80 backdrop-blur border-b">
         <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 h-14 flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center text-primary-foreground">
-              <MessageSquare className="w-4 h-4" />
-            </div>
-            <img src="/feedvoice/logo.png" alt="FeedVoice" className="h-5 w-auto max-w-none" />
+            <BrandMark className="h-6" />
             {user?.etablissements?.[0] && (
               <span className="hidden sm:inline text-sm text-muted-foreground">
                 · {user.etablissements[0].nom}

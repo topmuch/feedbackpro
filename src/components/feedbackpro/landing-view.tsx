@@ -29,6 +29,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react"
 import { motion } from "framer-motion"
+import { BrandMark } from "@/components/feedbackpro/brand-mark"
 // ACCUEIL PREMIUM B2B — nouvelle page d'accueil autonome (nav + footer dédiés)
 import { LandingAccueilPremium } from "@/components/feedbackpro/landing-accueil-premium"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
@@ -329,15 +330,9 @@ function Logo({
 }: {
   className?: string
 }) {
-  // Logo transparent bleu FeedVoice. Visible sur fond clair.
+  // Logo officiel FeedVoice (wordmark détouré). Visible sur fond clair.
   // Sur fond sombre, l'appelant l'enveloppe dans un conteneur blanc arrondi.
-  return (
-    <img
-      src="/feedvoice/logo.png"
-      alt="FeedVoice"
-      className={className}
-    />
-  )
+  return <BrandMark className={className} />
 }
 
 // Boutons CTA standardises

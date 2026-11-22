@@ -57,6 +57,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { cn } from "@/lib/utils"
+import { BrandMark } from "@/components/feedbackpro/brand-mark"
 import { useAppStore } from "@/store/app-store"
 import { useToast } from "@/hooks/use-toast"
 import { PLANS, type PlanId } from "@/lib/constants"
@@ -707,13 +708,7 @@ function ContenuSidebar({
     <div className="flex h-full min-h-0 flex-col">
       {/* Logo — shrink-0 pour rester visible en haut quand le nav scroll */}
       <div className="flex shrink-0 items-center gap-2.5 border-b border-sidebar-border px-5 py-5">
-        <div className="rounded-lg bg-[#ffffff] px-2 py-1 shadow-[0_2px_10px_rgba(0,0,0,0.4)]">
-          <img
-            src="/feedvoice/logo@2x.png"
-            alt="FeedVoice"
-            className="h-8 w-auto max-w-none"
-          />
-        </div>
+        <BrandMark tone="white" className="h-7" />
         <span className="text-xs font-medium text-sidebar-foreground/75">
           {estAeroport ? "Aéroport Ops" : "Coach qualité continu"}
         </span>

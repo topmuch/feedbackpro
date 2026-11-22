@@ -204,13 +204,13 @@ export function AirportHeatmap({ className, onZoneSelect, selectedZone }: Props)
     return (
       <div className={`w-full ${className ?? ''}`}>
         <div
-          className="rounded-[15px] bg-white p-6"
+          className="rounded-none bg-white p-6"
           style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
         >
           <div className="mb-4 h-7 w-64 animate-pulse rounded bg-[#F5F5F5]" />
           <div className="grid grid-cols-5 gap-3">
             {Array.from({ length: 20 }).map((_, i) => (
-              <div key={i} className="h-24 animate-pulse rounded-[10px] bg-[#F5F5F5]" />
+              <div key={i} className="h-24 animate-pulse rounded-none bg-[#F5F5F5]" />
             ))}
           </div>
         </div>
@@ -223,7 +223,7 @@ export function AirportHeatmap({ className, onZoneSelect, selectedZone }: Props)
     return (
       <div className={`w-full ${className ?? ''}`}>
         <div
-          className="rounded-[15px] p-4 text-white"
+          className="rounded-none p-4 text-white"
           style={{ background: ROUGE, boxShadow: '0 4px 8px rgba(227,6,19,0.2)' }}
         >
           <div className="flex items-center gap-2">
@@ -269,14 +269,14 @@ export function AirportHeatmap({ className, onZoneSelect, selectedZone }: Props)
 
       {/* Carte */}
       <div
-        className="rounded-[15px] bg-white p-4 sm:p-6"
+        className="rounded-none bg-white p-4 sm:p-6"
         style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
       >
         {/* Header */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <div
-              className="flex h-10 w-10 items-center justify-center rounded-[10px] text-white"
+              className="flex h-10 w-10 items-center justify-center rounded-none text-white"
               style={{ background: BLEU }}
             >
               <Thermometer className="h-5 w-5" />
@@ -307,7 +307,7 @@ export function AirportHeatmap({ className, onZoneSelect, selectedZone }: Props)
         {/* Alerte critique globale */}
         {stats.critiqueCount > 0 && (
           <div
-            className="mb-4 flex items-center gap-3 rounded-[12px] px-4 py-2 text-white"
+            className="mb-4 flex items-center gap-3 rounded-none px-4 py-2 text-white"
             style={{
               background: ROUGE,
               boxShadow: '0 4px 8px rgba(227,6,19,0.25)',
@@ -404,7 +404,7 @@ export function AirportHeatmap({ className, onZoneSelect, selectedZone }: Props)
                     key={cell.code}
                     type="button"
                     onClick={() => onZoneSelect?.(isSelected ? null : cell.code)}
-                    className="group relative flex flex-col items-center justify-center rounded-[10px] p-2 text-center transition-transform hover:scale-[1.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                    className="group relative flex flex-col items-center justify-center rounded-none p-2 text-center transition-transform hover:scale-[1.04] focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
                     style={{
                       background: color,
                       gridColumn: `${cell.col + 1} / span 1`,
@@ -463,7 +463,7 @@ export function AirportHeatmap({ className, onZoneSelect, selectedZone }: Props)
 
         {/* Légende */}
         <div
-          className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[10px] px-4 py-2"
+          className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-none px-4 py-2"
           style={{ background: BG }}
         >
           <div className="flex flex-wrap items-center gap-3 sm:gap-4">

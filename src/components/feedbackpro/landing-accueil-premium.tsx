@@ -55,6 +55,7 @@ import {
 } from "lucide-react"
 // Démo vocale interactive « Nathalie » (voix serveur + repli navigateur)
 import { VoiceDemoNathalie } from "@/components/feedbackpro/voice-demo-nathalie"
+import { BrandMark } from "@/components/feedbackpro/brand-mark"
 
 // ------------------------------------------------------------
 // Types
@@ -133,6 +134,9 @@ const FH_CSS = `
   align-items: center;
   gap: 0.6rem;
 }
+/* Logo officiel FeedVoice (image wordmark harmonisée) */
+.fh-nav-logo-img { height: 26px; width: auto; display: block; }
+.fh-cta-logo-img { height: 26px; width: auto; display: block; }
 .fh-nav-logo-icon {
   width: 36px;
   height: 36px;
@@ -1492,8 +1496,7 @@ export function LandingAccueilPremium({
       <nav className={`fh-nav ${scrolled ? "fh-scrolled" : ""}`} aria-label="Navigation principale">
         <div className="fh-nav-container">
           <button className="fh-nav-logo" onClick={scrollTop} aria-label="FeedVoice — Retour en haut">
-            <span className="fh-nav-logo-icon" aria-hidden>&#10022;</span>
-            FeedVoice
+            <BrandMark className="fh-nav-logo-img" />
           </button>
           <div className="fh-nav-links">
             <button className="fh-nav-link" onClick={() => scrollToId("fh-secteurs")}>Secteurs</button>
@@ -1816,8 +1819,7 @@ export function LandingAccueilPremium({
       <section className="fh-cta" id="fh-demo">
         <div className="fh-cta-inner">
           <div className="fh-cta-logo">
-            <span className="fh-cta-logo-icon" aria-hidden>&#10022;</span>
-            FeedVoice
+            <BrandMark className="fh-cta-logo-img" />
           </div>
           <h2 className="fh-cta-title">
             Prêt à transformer vos interactions
@@ -1855,8 +1857,7 @@ export function LandingAccueilPremium({
           <div className="fh-footer-grid">
             <div className="fh-footer-brand">
               <button className="fh-nav-logo" onClick={scrollTop} aria-label="FeedVoice — Retour en haut">
-                <span className="fh-nav-logo-icon" aria-hidden>&#10022;</span>
-                FeedVoice
+                <BrandMark tone="white" className="fh-nav-logo-img" />
               </button>
               <p className="fh-footer-desc">
                 L&apos;excellence opérationnelle pour vos établissements.

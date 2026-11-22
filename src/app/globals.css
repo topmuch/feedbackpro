@@ -38,10 +38,20 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  /* ============================================================
+     REBORDS HARMONISÉS (doctrine Hyer) : TOUTES les cartes,
+     boutons, inputs, panneaux sont CARRÉS (0px). Seules les pills
+     (rounded-full : badges, avatars, dots) restent rondes.
+     Ces tokens écrasent les défauts Tailwind (sm/md/lg/xl/2xl/3xl)
+     pour une cohérence absolue sur toutes les pages.
+     ============================================================ */
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+  --radius-4xl: 0px;
 }
 
 :root {
@@ -342,7 +352,7 @@ html { scroll-behavior: smooth; }
 .fp-gradient-border {
   position: relative;
   background: linear-gradient(180deg, rgba(20, 20, 23, 0.9), rgba(10, 10, 11, 0.95));
-  border-radius: 1.5rem;
+  border-radius: 0px;
 }
 .fp-gradient-border::before {
   content: "";
@@ -538,7 +548,7 @@ html { scroll-behavior: smooth; }
 .fp-scan-reward-border {
   position: relative;
   background: linear-gradient(180deg, #ffffff 0%, #f5f8ff 100%);
-  border-radius: 1rem;
+  border-radius: 0px;
 }
 .dark .fp-scan-reward-border {
   background: linear-gradient(180deg, rgba(20, 20, 23, 0.92) 0%, rgba(20, 30, 60, 0.92) 100%);

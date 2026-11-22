@@ -180,7 +180,7 @@ function LiveScoreCard({
 
   return (
     <div
-      className={`relative overflow-hidden rounded-[20px] text-white ${padY} ${className ?? ""}`}
+      className={`relative overflow-hidden rounded-none text-white ${padY} ${className ?? ""}`}
       style={{
         backgroundColor: data.color,
         boxShadow: "0 12px 30px rgba(0,0,0,0.18), 0 2px 6px rgba(0,0,0,0.08)",
@@ -206,7 +206,7 @@ function LiveScoreCard({
       {hasCritical && (
         <motion.div
           aria-hidden
-          className="pointer-events-none absolute inset-0 rounded-[20px]"
+          className="pointer-events-none absolute inset-0 rounded-none"
           style={{ boxShadow: "inset 0 0 0 3px rgba(255,255,255,0.85)" }}
           animate={{ opacity: [0.25, 0.9, 0.25] }}
           transition={{ duration: 1.6, repeat: Infinity, ease: "easeInOut" }}
@@ -324,7 +324,7 @@ function LiveScoreSkeleton({
   const padY = compact ? "py-4 px-5" : "py-8 px-8"
   return (
     <div
-      className={`relative overflow-hidden rounded-[20px] bg-slate-200 ${padY} ${className ?? ""}`}
+      className={`relative overflow-hidden rounded-none bg-slate-200 ${padY} ${className ?? ""}`}
       style={{ boxShadow: "0 12px 30px rgba(0,0,0,0.10)" }}
       aria-busy="true"
       aria-label="Chargement du score de satisfaction"
@@ -361,7 +361,7 @@ function LiveScoreError({
   const padY = compact ? "py-4 px-5" : "py-8 px-8"
   return (
     <div
-      className={`relative overflow-hidden rounded-[20px] bg-white ${padY} ${className ?? ""}`}
+      className={`relative overflow-hidden rounded-none bg-white ${padY} ${className ?? ""}`}
       style={{
         boxShadow: "0 12px 30px rgba(0,0,0,0.10)",
         border: "2px solid #E30613",

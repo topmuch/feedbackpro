@@ -1730,7 +1730,7 @@ function ZoneEditForm({
             </Label>
             <div className="mx-auto w-full max-w-[240px]">
               <div className="overflow-hidden rounded-none border-[3px] border-slate-300 bg-slate-900 p-1.5 shadow-lg dark:border-slate-700">
-                <div className="relative overflow-hidden rounded-[1.5rem] border border-slate-800 bg-white">
+                <div className="relative overflow-hidden rounded-none border border-slate-800 bg-white">
                   <div className="absolute left-1/2 top-1.5 h-1 w-12 -translate-x-1/2 rounded-full bg-slate-900" aria-hidden />
                   <div className="px-3 pb-3 pt-5">
                     <div className="mb-2 flex items-center gap-2 border-b border-slate-100 pb-2">

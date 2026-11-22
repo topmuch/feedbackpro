@@ -97,6 +97,7 @@ import {
 } from "@/components/ui/table"
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet"
 import { StatCard, formatDate } from "@/components/feedbackpro/shared"
+import { BrandMark } from "@/components/feedbackpro/brand-mark"
 import { useAppStore } from "@/store/app-store"
 import { useToast } from "@/hooks/use-toast"
 import { NotificationsBell } from "@/components/feedbackpro/notifications-bell"
@@ -570,11 +571,7 @@ function ContenuSidebarAdmin({
     <div className="flex h-full flex-col">
       {/* Logo */}
       <div className="flex shrink-0 items-center gap-2.5 px-5 py-4">
-        <img
-          src="/feedvoice/logo-white@2x.png"
-          alt="FeedVoice"
-          className="h-9 w-auto max-w-none"
-        />
+        <BrandMark tone="white" className="h-7" />
         <span className="text-xs text-white/70">Administration</span>
       </div>
 

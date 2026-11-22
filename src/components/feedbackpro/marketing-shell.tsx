@@ -19,6 +19,7 @@
 import Link from "next/link"
 import { ArrowRight, ChevronRight, Menu } from "lucide-react"
 import type { Metadata } from "next"
+import { BrandMark } from "@/components/feedbackpro/brand-mark"
 
 // ---------- Liens de navigation (vrais pages App Router) ----------
 
@@ -46,14 +47,8 @@ export function pageMetadata(titre: string, description: string): Metadata {
 // ---------- Wordmark texte (signature Hyer, ® exposant) ----------
 
 export function HyerWordmark({ className = "", tone = "ink" }: { className?: string; tone?: "ink" | "white" }) {
-  const src = tone === "ink" ? "/feedvoice/logo@2x.png" : "/feedvoice/logo-white@2x.png"
-  return (
-    <img
-      src={src}
-      alt="FeedVoice"
-      className={`inline-block w-auto max-w-none ${className}`}
-    />
-  )
+  // Délègue au composant marque unique (asset officiel harmonisé)
+  return <BrandMark tone={tone} className={className} />
 }
 
 // ---------- Header marketing (logo + nav + CTA) ----------
@@ -67,7 +62,7 @@ export function MarketingHeader({ activePath }: { activePath?: string }) {
           className="flex items-center"
           aria-label="Accueil FeedVoice"
         >
-          <HyerWordmark className="h-[22px]" />
+          <HyerWordmark className="h-6" />
         </Link>
 
         {/* Liens desktop */}

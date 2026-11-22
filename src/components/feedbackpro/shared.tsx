@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { useAppStore } from "@/store/app-store"
+import { BrandMark } from "@/components/feedbackpro/brand-mark"
 import { PLANS, PlanId } from "@/lib/constants"
 
 // ---------- Affichage des étoiles (lecture seule) ----------
@@ -81,12 +82,13 @@ export function AppHeader({ subtitle }: { subtitle?: string }) {
   return (
     <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <img src="/feedvoice/logo.png" alt="FeedVoice" className="h-11 w-auto max-w-none shrink-0" />
-          <div className="min-w-0">
-            <p className="font-bold leading-tight truncate">FeedVoice</p>
-            {subtitle && <p className="text-xs text-muted-foreground truncate">{subtitle}</p>}
-          </div>
+        <div className="flex items-center gap-3 min-w-0">
+          {/* Logo officiel (wordmark) — le texte « FeedVoice » est porté par l'image */}
+          <BrandMark className="h-7 shrink-0" />
+          {subtitle && (
+            <span aria-hidden className="hidden h-7 w-px shrink-0 bg-border sm:block" />
+          )}
+          {subtitle && <p className="hidden text-sm text-muted-foreground truncate md:block">{subtitle}</p>}
           {planName && (
             <Badge variant="secondary" className="hidden sm:inline-flex shrink-0">
               {planName}
@@ -120,8 +122,8 @@ export function AppFooter() {
   return (
     <footer className="mt-auto bg-[#000d10] text-white/60">
       <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-5 text-xs sm:flex-row sm:px-6">
-        <p className="flex items-center gap-1.5">
-          <img src="/feedvoice/logo.png" alt="FeedVoice" className="h-6 w-auto max-w-none brightness-0 invert" />
+        <p className="flex items-center gap-3">
+          <BrandMark tone="white" className="h-6" />
           <span className="text-white/60">© 2026 — Tous droits réservés.</span>
         </p>
         <nav aria-label="Liens légaux" className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">

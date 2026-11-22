@@ -54,6 +54,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/app-store"
+import { BrandMark } from "@/components/feedbackpro/brand-mark"
 
 // ============================================================
 // Design tokens — alignés sur la landing premium
@@ -185,7 +186,7 @@ function PanneauVisuelEtab() {
 
       {/* ---------- En-tête : logo sur carte claire ---------- */}
       <div className="relative flex items-center gap-3">
-        <img src="/feedvoice/logo-white@2x.png" alt="FeedVoice" className="h-7 w-auto max-w-none" />
+        <BrandMark tone="white" className="h-7" />
       </div>
 
       {/* ---------- Centre : tagline + témoignage + secteurs ---------- */}
@@ -268,7 +269,7 @@ function PanneauForm() {
             className="flex items-center gap-2"
             aria-label="Retour à l'accueil"
           >
-            <img src="/feedvoice/logo@2x.png" alt="FeedVoice" className="h-6 w-auto max-w-none" />
+            <BrandMark className="h-6" />
           </button>
           <button
             type="button"
@@ -1005,11 +1006,7 @@ function CarteAdmin() {
             <ShieldCheck className="h-3.5 w-3.5" aria-hidden />
             Espace SuperAdmin
           </span>
-          <img
-            src="/feedvoice/logo-white@2x.png"
-            alt="FeedVoice"
-            className="h-6 w-auto opacity-90"
-          />
+          <BrandMark tone="white" className="h-6 opacity-90" />
         </div>
 
         <form onSubmit={handleSubmit(aLaSoumission)} className="space-y-5" noValidate>
@@ -1281,7 +1278,7 @@ export function TenantSelectionStep() {
             className="flex items-center gap-2"
             aria-label="Se déconnecter"
           >
-            <img src="/feedvoice/logo@2x.png" alt="FeedVoice" className="h-6 w-auto max-w-none" />
+            <BrandMark className="h-6" />
           </button>
           <button
             type="button"

@@ -7,6 +7,7 @@
 import Link from "next/link"
 import { ArrowLeft } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
+import { BrandMark } from "@/components/feedbackpro/brand-mark"
 
 export const PAGES_LEGALES = [
   { href: "/mentions-legales", label: "Mentions légales" },
@@ -54,7 +55,7 @@ export function LegalLayout({
             Retour
           </Link>
           <Link href="/" className="flex items-center gap-2" aria-label="FeedVoice — Accueil">
-            <img src="/feedvoice/logo@2x.png" alt="FeedVoice" className="h-6 w-auto max-w-none" />
+            <BrandMark className="h-6" />
           </Link>
         </div>
       </header>
