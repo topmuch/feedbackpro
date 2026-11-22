@@ -1205,3 +1205,37 @@ Stage Summary:
   * Gate CLIENT_GLOBAL INTACTE (h1 Salon VIP sur /), console 0 erreur
 - INCIDENT DEPLOIEMENT : 2 premiers déploys failed — le PATCH git_commit_sha avait enregistré un SHA tronqué inventé (c223d78f au lieu de c223d78372d1...) → git checkout impossible chez Coolify ; résolu en re-PATCH avec le SHA complet (git rev-parse HEAD) ; le paramètre ?commit= du POST /deploy n'existe pas, seul le PATCH compte
 - COMMITS : c223d78 (4 fixes QA-1) → 128a1eb (KPI 11px) → 24cd586 (KPI 10px) — tous finished en prod
+
+---
+## 2026-11-22 — QA-2 : cause racine bug hero + QA complète + 2 fixes (Wi-Fi QR, /rgpd 500)
+Agent: Z.ai Code
+Task: Le user voit toujours l'ancienne image du hero (navigation privée, ordinateur + téléphone) → diagnostic + déploiement des fixes en attente + QA complète avec le compte de test
+
+Work Log:
+- CAUSE RACINE BUG HERO (preuve par API Coolify) : le dernier build TERMINÉ était e96ed114 (SUG-1, calque 7% = invisible) alors que les commits de fix (e9dd5e2 opacité 14%/10% + SW v9, df0b1a8 rate limiting + SW auto-version) étaient poussés sur GitHub SANS déploiement — la config Coolify pointait git_commit_sha=24cd586 mais aucun build lancé après. Le user voyait donc réellement l'ancien site (ni cache SW ni navigateur en cause)
+- DÉPLOIEMENTS (procédure PATCH SHA complet → POST deploy force → poll) :
+  * a7cqkxxw : 2f2227e (opacité hero 14% + tous fixes QA-1) → finished ✓ — hero ambiance vérifié en prod : opacity 0.14, ambiance.png?v=1 chargée, calque 1280x588 visible desktop + mobile 390px (screenshots)
+  * otzeasfk : b66ffa8 (fix Wi-Fi) → finished ✓
+  * rpfxqai7 : 9aef087 (marqueur build wifi-fix-1 dans /api/health) → finished ✓ — prouve le SHA réellement exécuté
+  * e7rrjqzi / 41cv7wne : rebuilds de vérification + tag lib (wifix-libs-2 exposé via health) → finished ✓
+  * 54bqeqzn : cb99f33 (fix /rgpd) → finished ✓
+- BUGS TROUVÉS → 2 FIXES :
+  1. QR Wi-Fi du salon : les identifiants étaient stockés double-encodés ('"SalonVIP-Guest"' avec guillemets littéraux) → le QR encodait un SSID invalide → connexion auto impossible → fix défensif 2 volets : stripEnvelopingQuotes dans validerConfig (à l'écriture) + normalisation au chargement dans chargerVipConfig (vip-clients) ; donnée prod réécrite proprement via PUT authentifié (SalonVIP-Guest / Bienvenue2026 vérifiés [sans guillemets], carte QR Wi-Fi « clé configurée » OK)
+  2. Page /rgpd → HTTP 500 en prod (200 en local) : parseJson ne validait PAS le type après JSON.parse — un champ SecteurConfig JSON valide de forme inattendue (prod ≠ local) faisait planter le rendu → fix : normaliserRegles + normaliserLangues (garde Array.isArray / typeof object) → prod 200 ✓
+- LEÇON DIAGNOSTIC : mes premières sondes semblaient montrer que le fix ne s'appliquait pas — cause : double JSON.stringify dans l'eval (les guillemets visibles étaient ceux de stringify, pas de la valeur). Vérification fiable : afficher [valeur] + longueur + startsWith(charCode 34). Le tag de build dans /api/health (build + libTag) reste en place comme preuve de fraîcheur des déploiements futurs
+- QA COMPLÈTE avec compte test ousman@gmail.com (Terra Solution, Manager Salon) :
+  * Login OK, session persistante, 14 onglets rendus (Assistance→Paramètres) — le clic raté sur Paramètres était un faux positif de l'automatisation, pas un bug
+  * Table T-09 : cycle Problème → Marquer fait → PATCH 200 → status free en base ✓
+  * Flux client VIP : gate ?qr_type=CLIENT_GLOBAL INTACTE (WELCOME/Salon VIP, dôme doré, FR/EN) → Enter the lounge → accueil personnalisé + Replay Nathalie + Wi-Fi copie 1 clic → Rate 5★ → « Noted. » #NOT-2026-8937 → reçu en temps réel sur le Wallboard (Alertes actives) + /api/vip/requests 200 (type rating, metadata {rating:5}) ✓
+  * Récompenses Premium : offre Coupe de Champagne → historique 2 → 3 récompenses (101 €) ✓
+  * Briefing Nathalie : bouton « Briefing en cours », texte généré dynamique (« Bonjour Ousman. 3 passagers présents… Pic prévu 12:33 vol AF123 ») ✓
+  * QR Codes : 26 QR (chevalet CLIENT_GLOBAL imprimé + Zones 6 + Tables 12 + Staff + QR Wi-Fi) ✓
+  * Rapports & ROI : KPI vivants, période 11/2026 vs 10/2026, Excel/CSV + PDF mensuel, génération auto le 1er du mois ✓
+  * Wallboard TV : LIVE 5s, son, mode TV, plan temps réel ✓
+- QUALITÉ : lint 0/0, tsc exit 0 sur chaque commit ; /api/health {db:up} ; pages marketing toutes 200 (/, /demo, /tarifs, /contact, /securite, /rgpd, /a-propos)
+- NOTE : dev server local retrouvé DOWN (connection refused) → relancé selon le protocole watchdog, health 200
+
+Stage Summary:
+- Le bug « ancienne image » était un INCIDENT DE DÉPLOIEMENT (builds de fix jamais lancés), pas un problème de cache — résolu par la procédure PATCH+deploy et verrouillé par le SW auto-versionné + marqueur de build dans /api/health
+- 2 fixes produit (QR Wi-Fi SSID invalide, /rgpd 500) + QA 15+ flux end-to-end avec le compte test, gate CLIENT_GLOBAL INTACTE, console 0 erreur
+- COMMITS : b66ffa8 (fix Wi-Fi) → 9aef087 (marqueur health) → 14a3e8b (tag lib) → cb99f33 (fix /rgpd) — tous finished en prod
