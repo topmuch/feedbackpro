@@ -35,6 +35,25 @@ function clampRole(v: unknown, fallback: string): string {
   return typeof v === 'string' && ROLES_DESTINATAIRES.has(v) ? v : fallback
 }
 
+// Nettoie une valeur accidentellement double-encodée JSON (ex :
+// '"SalonVIP-Guest"' stockée littéralement avec ses guillemets enrobants).
+// Sans ce nettoyage, le QR Wi-Fi encoderait un SSID contenant des
+// guillemets → la connexion automatique au scan échouerait.
+function stripEnvelopingQuotes(v: string): string {
+  const t = v.trim()
+  if (t.length >= 2 && ((t.startsWith('"') && t.endsWith('"')) || (t.startsWith("'") && t.endsWith("'")))) {
+    return t.slice(1, -1).trim()
+  }
+  return t
+}
+
+// Normalisation défensive des identifiants Wi-Fi (guillemets enrobants
+// issus d'états de données antérieurs). Appliquée à l'écriture ET au
+// chargement pour que le payload QR reste toujours correct.
+function nettoyerWifi(v: unknown): string {
+  return typeof v === 'string' ? stripEnvelopingQuotes(v).slice(0, 64) : ''
+}
+
 // Merge par section avec validation des bornes pour chaque champ.
 // Les valeurs inconnues du patch sont ignorées (schéma contrôlé).
 export function validerConfig(patch: unknown, base: VipLoungeConfig): VipLoungeConfig {
@@ -60,8 +79,9 @@ export function validerConfig(patch: unknown, base: VipLoungeConfig): VipLoungeC
     out.general.capaciteMax = clampInt(g.capaciteMax, 1, 2000, base.general.capaciteMax)
     // Wi-Fi du salon (Écran 1 Nathalie — carte « Copier en 1 clic »).
     // Champ vide → la carte Wi-Fi est masquée côté client.
-    if (typeof g.wifiNom === 'string') out.general.wifiNom = g.wifiNom.trim().slice(0, 64)
-    if (typeof g.wifiMotDePasse === 'string') out.general.wifiMotDePasse = g.wifiMotDePasse.trim().slice(0, 64)
+    // Les guillemets enrobants accidentels sont retirés (QR Wi-Fi valide).
+    if (typeof g.wifiNom === 'string') out.general.wifiNom = nettoyerWifi(g.wifiNom)
+    if (typeof g.wifiMotDePasse === 'string') out.general.wifiMotDePasse = nettoyerWifi(g.wifiMotDePasse)
   }
 
   // Alertes VIP

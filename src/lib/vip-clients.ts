@@ -197,6 +197,17 @@ export async function chargerVipConfig(): Promise<{
   const rawDenise = parseJsonObject(row.deniseSettings, {})
   const config = mergeSection(DEFAUT_CONFIG, rawConfig)
   const deniseSettings = mergeSection(DEFAUT_DENISE, rawDenise)
+  // Défense : des états de données antérieurs ont pu stocker les
+  // identifiants Wi-Fi double-encodés ('"SalonVIP-Guest"'). On retire
+  // les guillemets enrobants au chargement — sinon le QR Wi-Fi encodé
+  // contiendrait un SSID invalide et la connexion auto échouerait.
+  const g = config.general
+  if (g.wifiNom.length >= 2 && g.wifiNom.startsWith('"') && g.wifiNom.endsWith('"')) {
+    g.wifiNom = g.wifiNom.slice(1, -1).trim()
+  }
+  if (g.wifiMotDePasse.length >= 2 && g.wifiMotDePasse.startsWith('"') && g.wifiMotDePasse.endsWith('"')) {
+    g.wifiMotDePasse = g.wifiMotDePasse.slice(1, -1).trim()
+  }
   return { config, deniseSettings, rawConfig, rawDenise, updatedAt: row.updatedAt }
 }
 
