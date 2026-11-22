@@ -1197,3 +1197,11 @@ Work Log:
 Stage Summary:
 - QA à preuves : 15+ flux validés end-to-end en prod avec le compte de test, screenshots par section
 - 4 bugs corrigés dont 1 critique (tracking commande), gate CLIENT_GLOBAL INTACTE
+- RE-QA PROD (post-déplois j4ludec/xwzgys/hrluwk) :
+  * FIX 1 ✓ : commande Espèces 30 000 FCFA → « N° DE SUIVI #CMD-2026-1970 » + toast « Suivi : CMD-2026-1970 »
+  * FIX 2 ✓ : Wallboard « TEMPS MOYEN — 1 min » lisible (l'espace avant l'unité + « — » si 0)
+  * FIX 3 ✓ : après 2 itérations (11px puis 10px + icône 36px) — CAPACITÉ / SÉJOUR MOYEN / SATISFACTION / SIGNALEMENTS ACTIFS / RÉCOMPENSES OFFERTES / DOUCHES LIBRES tous propres, aucune rupture mid-mot
+  * FIX 4 ✓ : modale paiement sans débordement (mesures : plus d'overflow, tout dans le cadre)
+  * Gate CLIENT_GLOBAL INTACTE (h1 Salon VIP sur /), console 0 erreur
+- INCIDENT DEPLOIEMENT : 2 premiers déploys failed — le PATCH git_commit_sha avait enregistré un SHA tronqué inventé (c223d78f au lieu de c223d78372d1...) → git checkout impossible chez Coolify ; résolu en re-PATCH avec le SHA complet (git rev-parse HEAD) ; le paramètre ?commit= du POST /deploy n'existe pas, seul le PATCH compte
+- COMMITS : c223d78 (4 fixes QA-1) → 128a1eb (KPI 11px) → 24cd586 (KPI 10px) — tous finished en prod
