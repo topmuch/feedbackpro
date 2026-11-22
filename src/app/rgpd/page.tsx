@@ -36,6 +36,23 @@ function parseJson<T>(valeur: string | null | undefined, defaut: T): T {
   }
 }
 
+// Normalise les règles de sécurité : la BDD prod peut contenir des JSON
+// valides mais de forme inattendue (chaîne au lieu d'objet, zonesSensibles
+// manquant…) — un type invalide faisait planter le rendu (HTTP 500).
+function normaliserRegles(v: unknown): { photosInterdites: boolean; zonesSensibles: string[] } {
+  const o = typeof v === "object" && v !== null ? (v as Record<string, unknown>) : {}
+  return {
+    photosInterdites: Boolean(o.photosInterdites),
+    zonesSensibles: Array.isArray(o.zonesSensibles)
+      ? o.zonesSensibles.filter((x): x is string => typeof x === "string")
+      : [],
+  }
+}
+
+function normaliserLangues(v: unknown): string[] {
+  return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : ["fr"]
+}
+
 export default async function RgpdPage() {
   // Chargement des fiches secteurs depuis la BDD pour les règles spécifiques
   let secteurs: Array<{
@@ -51,11 +68,8 @@ export default async function RgpdPage() {
       nom: s.nom,
       emoji: s.emoji,
       description: s.description,
-      reglesSecurite: parseJson<{
-        photosInterdites: boolean
-        zonesSensibles: string[]
-      }>(s.reglesSecurite, { photosInterdites: false, zonesSensibles: [] }),
-      languesSupportees: parseJson<string[]>(s.languesSupportees, ["fr"]),
+      reglesSecurite: normaliserRegles(parseJson<unknown>(s.reglesSecurite, null)),
+      languesSupportees: normaliserLangues(parseJson<unknown>(s.languesSupportees, null)),
     }))
   } catch (e) {
     // BDD non initialisée : la page reste consultable (section générique seule)
