@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
       ok: true,
       service: "feedvoice",
       version: pkg.version ?? "0.0.0",
+      build: "wifi-fix-1",
       uptimeSec: Math.round((Date.now() - DEMARRAGE_MS) / 1000),
       hits,
       ip: ipClient(req),
