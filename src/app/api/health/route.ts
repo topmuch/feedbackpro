@@ -15,6 +15,7 @@ import { NextRequest, NextResponse } from "next/server"
 import { TAG_LIB_WIFI } from "@/lib/vip-clients"
 import { db } from "@/lib/db"
 import { ipClient } from "@/lib/rate-limit"
+import { sondeConfigAi } from "@/lib/sonde-ai"
 import pkg from "../../../../package.json"
 
 const DEMARRAGE_MS = Date.now() // module chargé = process démarré (approx)
@@ -47,6 +48,7 @@ export async function GET(req: NextRequest) {
       hits,
       ip: ipClient(req),
       db: dbEtat,
+      ai: sondeConfigAi(),
       timestamp: new Date().toISOString(),
     },
     { headers: { "Cache-Control": "no-store" } }
