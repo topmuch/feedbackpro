@@ -38,25 +38,17 @@ import { limiteTaux } from "@/lib/rate-limit"
 import { parseJsonArray } from "@/lib/ia"
 import { journalErreur } from "@/lib/error-log"
 import { tagLabel } from "@/lib/constants"
+import { synthetiserNathalie } from "@/lib/tts-nathalie"
 
 export const runtime = "nodejs"
 
 // ---------- Constantes ----------
 
-/** Plafond de taille de l'audio brut WAV (≈ 8 Mo ≈ 2 min 45 à 48 Ko/s). */
+/** Plafond de taille de l'audio brut (≈ 8 Mo ≈ 2 min 45 de voix). */
 const MAX_AUDIO_OCTETS = 8_000_000
-
-/** Limite SDK TTS : 1024 caractères par appel → marge de sécurité. */
-const TAILLE_SEGMENT_TTS = 950
-
-/** Fréquence d'échantillonnage du flux PCM du TTS (recommandation API). */
-const FREQUENCE_TTS = 24_000
 
 /** Timeout du LLM pour la rédaction du texte (le TTS a son propre budget). */
 const TIMEOUT_LLM_MS = 20_000
-
-/** Voix féminine chaleureuse de l'API TTS (la plus proche de « Nathalie »). */
-const VOIX_TTS = "tongtong"
 
 // ---------- Validation de l'entrée ----------
 
@@ -330,86 +322,9 @@ function categoriserErreurIa(e: unknown): string {
 }
 
 // ---------- Synthèse vocale (TTS) ----------
-
-/**
- * Découpe un texte en segments ≤ maxLen caractères, sur les frontières de
- * phrases (convention TTS : limite SDK 1024 caractères par appel).
- */
-function decouperSegments(texte: string, maxLen = TAILLE_SEGMENT_TTS): string[] {
-  const phrases = texte.match(/[^.!?]+[.!?]+["»]?\s*/g) ?? [texte]
-  const segments: string[] = []
-  let courant = ""
-  for (const phrase of phrases) {
-    if ((courant + phrase).length <= maxLen) {
-      courant += phrase
-    } else {
-      if (courant.trim()) segments.push(courant.trim())
-      // Phrase individuelle plus longue que maxLen : coupe brut
-      if (phrase.length > maxLen) {
-        for (let i = 0; i < phrase.length; i += maxLen) {
-          segments.push(phrase.slice(i, i + maxLen).trim())
-        }
-        courant = ""
-      } else {
-        courant = phrase
-      }
-    }
-  }
-  if (courant.trim()) segments.push(courant.trim())
-  return segments.filter(Boolean)
-}
-
-/**
- * Enveloppe un flux PCM brut (s16le mono) dans un conteneur WAV valide
- * (en-tête RIFF de 44 octets) — lisible par tous les lecteurs <audio>.
- */
-function envelopperWav(pcm: Buffer, frequence = FREQUENCE_TTS): Buffer {
-  const bitsParEchantillon = 16
-  const blockAlign = 1 * (bitsParEchantillon / 8) // mono, 2 octets par échantillon
-  const byteRate = frequence * blockAlign
-  const entete = Buffer.alloc(44)
-  entete.write("RIFF", 0, "ascii")
-  entete.writeUInt32LE(36 + pcm.length, 4) // taille du reste du fichier
-  entete.write("WAVE", 8, "ascii")
-  entete.write("fmt ", 12, "ascii")
-  entete.writeUInt32LE(16, 16) // taille du chunk fmt
-  entete.writeUInt16LE(1, 20) // format PCM (non compressé)
-  entete.writeUInt16LE(1, 22) // mono
-  entete.writeUInt32LE(frequence, 24)
-  entete.writeUInt32LE(byteRate, 28)
-  entete.writeUInt16LE(blockAlign, 32)
-  entete.writeUInt16LE(bitsParEchantillon, 34)
-  entete.write("data", 36, "ascii")
-  entete.writeUInt32LE(pcm.length, 40)
-  return Buffer.concat([entete, pcm])
-}
-
-/**
- * Génère l'audio du texte via l'API TTS du SDK (voix féminine, format
- * PCM brut) : découpage en segments si le texte dépasse la limite du
- * SDK, concaténation du PCM pur puis enveloppement dans un WAV unique.
- * Jette une Error si aucun audio n'a pu être produit.
- */
-async function synthetiserAudio(texte: string): Promise<Buffer> {
-  const ZAI = (await import("z-ai-web-dev-sdk")).default
-  const zai = await ZAI.create()
-
-  const segments = decouperSegments(texte)
-  const parties: Buffer[] = []
-  for (const segment of segments) {
-    const reponse = await zai.audio.tts.create({
-      input: segment,
-      voice: VOIX_TTS,
-      speed: 1.0,
-      response_format: "pcm",
-      stream: false,
-    })
-    const tampon = Buffer.from(new Uint8Array(await reponse.arrayBuffer()))
-    if (tampon.length === 0) throw new Error("Segment audio vide renvoyé par le TTS")
-    parties.push(tampon)
-  }
-  return envelopperWav(Buffer.concat(parties))
-}
+// Déléguée à src/lib/tts-nathalie.ts : Edge TTS d'abord (fiable depuis
+// tout VPS, ~1 s), SDK Z.ai en repli (config Z_AI_CONFIG). Le moteur
+// choisit lui-même le conteneur (MP3 ou WAV) et le mime correspondant.
 
 // ---------- Route ----------
 
@@ -434,10 +349,13 @@ export async function POST(req: NextRequest) {
     const texte = texteLLM ?? redigerBriefingFallback(kpis, ctx.pro.nomEtablissement)
     const source = texteLLM ? "ia" : "fallback"
 
-    // ---------- Synthèse vocale ----------
+    // ---------- Synthèse vocale (chaîne multi-moteurs) ----------
     let audio: Buffer
+    let mimeType: string
     try {
-      audio = await synthetiserAudio(texte)
+      const resultat = await synthetiserNathalie(texte)
+      audio = resultat.audio
+      mimeType = resultat.mime
     } catch (e) {
       const cause = categoriserErreurIa(e)
       journalErreur({
@@ -464,7 +382,7 @@ export async function POST(req: NextRequest) {
 
     return ok({
       audioBase64: audio.toString("base64"),
-      mimeType: "audio/wav",
+      mimeType,
       texte,
       dureeEstimee,
       source,
