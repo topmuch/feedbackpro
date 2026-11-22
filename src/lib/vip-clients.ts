@@ -182,6 +182,9 @@ function mergeSection<T extends object>(base: T, patch: unknown): T {
 }
 
 // ---------- Chargeur de config tenant (auto-création) ----------
+// Tag de build embarqué DANS LA LIB (preuve de fraîcheur du module
+// compilé — exposé par /api/health).
+export const TAG_LIB_WIFI = "wifix-libs-2"
 export async function chargerVipConfig(): Promise<{
   config: VipLoungeConfig
   deniseSettings: VipDeniseSettings

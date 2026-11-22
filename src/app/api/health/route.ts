@@ -12,6 +12,7 @@
 // ============================================================
 
 import { NextRequest, NextResponse } from "next/server"
+import { TAG_LIB_WIFI } from "@/lib/vip-clients"
 import { db } from "@/lib/db"
 import { ipClient } from "@/lib/rate-limit"
 import pkg from "../../../../package.json"
@@ -41,6 +42,7 @@ export async function GET(req: NextRequest) {
       service: "feedvoice",
       version: pkg.version ?? "0.0.0",
       build: "wifi-fix-1",
+      libTag: TAG_LIB_WIFI,
       uptimeSec: Math.round((Date.now() - DEMARRAGE_MS) / 1000),
       hits,
       ip: ipClient(req),
