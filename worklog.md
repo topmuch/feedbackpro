@@ -1300,3 +1300,27 @@ Note déploiement : PATCH avec SHA court tronqué → deployment failed immédia
 
 ### COMMITS
 0adb420 (PCM→WAV) → dc6c828 (instrumentation+sonde) → 6d0f1ef (cause lisible) → 2329d6f (probe réseau) ; deployments Coolify tous « finished ».
+
+## 2026-11-23 — TTS multi-moteurs + restauration homepage v.14 + harmonisation or
+
+### TTS serveur (audio débloqué en prod)
+- Cause racine (logs Coolify) : `fetch failed` — Z_AI_CONFIG pointe vers
+  l'API interne sandbox (internal-api.z.ai + JWT session), injoignable du VPS.
+- `src/lib/tts-nathalie.ts` : chaîne Edge TTS (fr-FR-DeniseNeural, MP3 ~1 s,
+  sans clé, fiable depuis tout VPS) → repli SDK Z.ai (tongtong PCM→WAV).
+- POST /api/voice/demo (démo landing) + POST /api/voice/report (briefing
+  dashboard) branchés dessus ; mime dynamique MP3/WAV ; cache mémoire.
+- Déploiement 78f4624 finished.
+
+### Homepage v.14 restaurée + harmonisation
+- landing-view.tsx : `<LandingHyer>` → `<LandingAccueilPremium>` (design v.14
+  crème #FAFAF7 + or #C9A961 + anthracite #1A1A1A, branding Nathalie conservé).
+- Palette or appliquée à toute la surface publique : landing-view, accueil
+  premium, auth-view, pages marketing (comparaison, sécurité, démo, à propos,
+  confidentialité), landing-data, layout (theme-color), globals.css (accents),
+  wallboards VIP/ops (écrans d'affichage publics). Back-office inchangé (clay).
+- VoiceDemoNathalie : CSS autonome injecté (vdemo-scope, accent or) — la démo
+  vocale interactive vit dans la section NATHALIE de l'accueil restauré,
+  à la place de la visualisation statique.
+- Gates 0/0 ; QA navigateur : accueil, secteurs (aéroport), contact, démo
+  vocale jouée (progression réelle), meta espacée, footer fh OK.

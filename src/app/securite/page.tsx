@@ -105,9 +105,9 @@ export default function SecuritePage() {
   return (
     <MarketingLayout activePath="/securite">
       {/* ---------- Hero ---------- */}
-      <section className="border-b border-gray-100 bg-gradient-to-b from-[#0f0f1c]/5 to-white py-14 sm:py-20">
+      <section className="border-b border-gray-100 bg-gradient-to-b from-[#1A1A1A]/5 to-white py-14 sm:py-20">
         <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
-          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#0f0f1c] shadow-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#1A1A1A] shadow-sm">
             <ShieldCheck className="h-3.5 w-3.5" />
             Sécurité &amp; conformité
           </span>
@@ -116,7 +116,7 @@ export default function SecuritePage() {
             style={{ letterSpacing: "-0.03em" }}
           >
             Vos données méritent la même exigence que votre{" "}
-            <span className="bg-gradient-to-br from-[#bc7155] to-[#a05f45] bg-clip-text text-transparent">
+            <span className="bg-gradient-to-br from-[#C9A961] to-[#a05f45] bg-clip-text text-transparent">
               service
             </span>
             .
@@ -173,7 +173,7 @@ export default function SecuritePage() {
               const Icone = t.icone
               return (
                 <div key={t.titre} className="relative rounded-none border border-gray-200 bg-white p-6 shadow-sm">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#0f0f1c] to-[#1c2a2e] text-white">
+                  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-[#1A1A1A] to-[#1c2a2e] text-white">
                     <Icone className="h-5 w-5" aria-hidden />
                   </span>
                   <h3 className="mt-3 text-base font-semibold text-gray-900">{t.titre}</h3>
@@ -200,7 +200,7 @@ export default function SecuritePage() {
             const Icone = r.icone
             return (
               <div key={r.titre} className="rounded-none border border-gray-200 bg-white p-6 shadow-sm">
-                <Icone className="h-8 w-8 text-[#0f0f1c]" aria-hidden />
+                <Icone className="h-8 w-8 text-[#1A1A1A]" aria-hidden />
                 <h3 className="mt-3 text-base font-bold text-gray-900">{r.titre}</h3>
                 <p className="mt-2 text-sm leading-relaxed text-gray-600">{r.texte}</p>
               </div>

@@ -42,6 +42,168 @@ import {
 import type { LucideIcon } from "lucide-react"
 import { ANNONCES_DEMO, type ContexteVocalId } from "@/lib/voix-demo"
 
+// ------------------------------------------------------------
+// CSS autonome — injecté par le composant : la démo peut vivre dans
+// N'IMPORTE quelle landing (Hyer, Accueil Premium, …) sans dépendre
+// d'un bloc CSS parent. Accent or #C9A961 (palette Accueil Premium
+// v.14 harmonisée). Préfixe hy- conservé (historique + compatibilité).
+// ------------------------------------------------------------
+const VDEMO_CSS = `
+.vdemo-scope {
+  --vdemo-accent: #C9A961;
+  --vdemo-ink: #000d10;
+  --vdemo-white: #ffffff;
+  --vdemo-deck: #151623;
+}
+.vdemo-scope .hy-denise-panel {
+  background: var(--vdemo-deck);
+  border-radius: 0;
+  padding: 22px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.vdemo-scope .hy-denise-head { display: flex; align-items: center; gap: 14px; }
+.vdemo-scope .hy-denise-avatar {
+  width: 44px; height: 44px; border-radius: 100%;
+  background: var(--vdemo-accent);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 20px; flex-shrink: 0; color: #1A1A1A;
+}
+.vdemo-scope .hy-denise-name { font-size: 17px; font-weight: 700; color: var(--vdemo-white); }
+.vdemo-scope .hy-denise-status { font-size: 17px; color: rgba(255,255,255,0.6); display: flex; align-items: center; gap: 8px; }
+.vdemo-scope .hy-denise-dot { width: 8px; height: 8px; border-radius: 50%; background: #7fce94; display: inline-block; }
+.vdemo-scope .hy-denise-label { font-size: 17px; text-transform: uppercase; letter-spacing: 0.08em; color: rgba(255,255,255,0.5); }
+.vdemo-scope .hy-denise-meta { display: flex; gap: 24px; flex-wrap: wrap; font-size: 15px; color: rgba(255,255,255,0.6); }
+.vdemo-scope .hy-denise-meta span { display: inline-flex; align-items: center; gap: 6px; }
+.vdemo-scope .hy-vdemo-panel {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.vdemo-scope .hy-vdemo-panel::before {
+  content: "";
+  position: absolute;
+  top: -170px;
+  right: -130px;
+  width: 440px;
+  height: 440px;
+  border-radius: 100%;
+  background: radial-gradient(circle, rgba(201,169,97,0.14) 0%, transparent 68%);
+  pointer-events: none;
+}
+.vdemo-scope .hy-vdemo-avatar { position: relative; }
+.vdemo-scope .hy-vdemo-avatar::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 100%;
+  border: 1px solid rgba(201,169,97,0.45);
+  animation: vdemo-avatar-pulse 2.2s ease-in-out infinite;
+}
+@keyframes vdemo-avatar-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.12); opacity: 0.4; }
+}
+.vdemo-scope .hy-vdemo-ctx { display: flex; flex-wrap: wrap; gap: 10px; }
+.vdemo-scope .hy-vdemo-pill {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.18);
+  color: rgba(255,255,255,0.72);
+  padding: 10px 16px 11px;
+  border-radius: 1000px;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  transition: background 0.25s ease, color 0.25s ease, border-color 0.25s ease;
+}
+.vdemo-scope .hy-vdemo-pill:hover { border-color: rgba(201,169,97,0.55); color: var(--vdemo-white); }
+.vdemo-scope .hy-vdemo-pill[data-active="true"] { background: var(--vdemo-accent); border-color: var(--vdemo-accent); color: #1A1A1A; }
+.vdemo-scope .hy-vdemo-group { display: flex; flex-direction: column; gap: 10px; }
+.vdemo-scope .hy-vdemo-quote {
+  background: rgba(201,169,97,0.08);
+  border-left: 3px solid var(--vdemo-accent);
+  padding: 18px 20px;
+  min-height: 108px;
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.6;
+  color: var(--vdemo-white);
+  animation: vdemo-quote-in 0.35s ease;
+}
+@keyframes vdemo-quote-in {
+  from { opacity: 0.3; }
+  to { opacity: 1; }
+}
+.vdemo-scope .hy-vdemo-listen {
+  width: 100%;
+  background: var(--vdemo-white);
+  color: var(--vdemo-ink);
+  border: 1px solid transparent;
+  border-radius: 1000px;
+  padding: 15px 22px 16px;
+  font-size: 17px;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 52px;
+  transition: background 0.25s ease, color 0.25s ease;
+}
+.vdemo-scope .hy-vdemo-listen:hover { background: var(--vdemo-accent); color: #1A1A1A; }
+.vdemo-scope .hy-vdemo-listen[data-playing="true"] { background: var(--vdemo-accent); color: #1A1A1A; }
+.vdemo-scope .hy-vdemo-wave { display: none; align-items: flex-end; gap: 3px; height: 18px; }
+.vdemo-scope .hy-vdemo-listen[data-playing="true"] .hy-vdemo-wave { display: flex; }
+.vdemo-scope .hy-vdemo-wave span {
+  width: 3px;
+  background: currentColor;
+  border-radius: 2px;
+  animation: vdemo-wave-bar 1s ease-in-out infinite;
+}
+.vdemo-scope .hy-vdemo-wave span:nth-child(1) { animation-delay: 0s; height: 7px; }
+.vdemo-scope .hy-vdemo-wave span:nth-child(2) { animation-delay: 0.1s; height: 12px; }
+.vdemo-scope .hy-vdemo-wave span:nth-child(3) { animation-delay: 0.2s; height: 18px; }
+.vdemo-scope .hy-vdemo-wave span:nth-child(4) { animation-delay: 0.3s; height: 12px; }
+.vdemo-scope .hy-vdemo-wave span:nth-child(5) { animation-delay: 0.4s; height: 7px; }
+@keyframes vdemo-wave-bar {
+  0%, 100% { transform: scaleY(0.55); }
+  50% { transform: scaleY(1.3); }
+}
+.vdemo-scope .hy-vdemo-progress {
+  height: 3px;
+  background: rgba(255,255,255,0.12);
+  overflow: hidden;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+.vdemo-scope .hy-vdemo-progress[data-visible="true"] { opacity: 1; }
+.vdemo-scope .hy-vdemo-progress span {
+  display: block;
+  height: 100%;
+  background: var(--vdemo-accent);
+  transition: width 0.12s linear;
+}
+.vdemo-scope .hy-vdemo-fallback {
+  margin: 0;
+  border: 1px solid rgba(255,193,7,0.35);
+  background: rgba(255,193,7,0.08);
+  color: #ffd166;
+  padding: 12px 16px;
+  font-size: 15px;
+  line-height: 1.5;
+}
+@media (prefers-reduced-motion: reduce) {
+  .vdemo-scope .hy-vdemo-avatar::after { animation: none; }
+  .vdemo-scope .hy-vdemo-wave span { animation: none; }
+}
+`
+
 interface VoiceContextDef {
   id: ContexteVocalId
   label: string
@@ -442,7 +604,9 @@ export function VoiceDemoNathalie() {
   }
 
   return (
-    <div className="hy-denise-panel hy-vdemo-panel">
+    <div className="vdemo-scope">
+      <style dangerouslySetInnerHTML={{ __html: VDEMO_CSS }} />
+      <div className="hy-denise-panel hy-vdemo-panel">
       <div className="hy-denise-head">
         <span className="hy-denise-avatar hy-vdemo-avatar" aria-hidden>
           <Mic size={20} strokeWidth={2.2} />
@@ -528,6 +692,7 @@ export function VoiceDemoNathalie() {
           réessayez dans quelques instants.
         </p>
       )}
+      </div>
     </div>
   )
 }

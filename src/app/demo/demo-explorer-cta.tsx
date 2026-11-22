@@ -11,7 +11,7 @@
 //
 // Design Hyer Aviation strict : carte carrée hairline (0px
 // radius), pill 1000px, AUCUNE box-shadow, encre #000d10 + note
-// chaude Clay Ember #bc7155, ash #8e8e95, Pebble #d5d3d4.
+// chaude Clay Ember #C9A961, ash #8e8e95, Pebble #d5d3d4.
 // Touch target ≥ 44px (bouton h-14 = 56px).
 // ============================================================
 
@@ -58,7 +58,7 @@ export function DemoExplorerCTA() {
           {/* Colonne texte */}
           <div>
             <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.08em] text-[#8e8e95]">
-              <span className="inline-block h-2 w-2 rounded-full bg-[#bc7155]" aria-hidden />
+              <span className="inline-block h-2 w-2 rounded-full bg-[#C9A961]" aria-hidden />
               Démonstration interactive
             </p>
             <h2
@@ -66,7 +66,7 @@ export function DemoExplorerCTA() {
               style={{ letterSpacing: "-0.02em" }}
             >
               Essayez FeedVoice maintenant
-              <span className="text-[#bc7155]">.</span>
+              <span className="text-[#C9A961]">.</span>
             </h2>
             <p className="mt-3 max-w-xl text-[17px] leading-relaxed text-[#8e8e95]">
               Un compte de démonstration pré-rempli&nbsp;: retours réels, Coach IA, rapports.
@@ -105,7 +105,7 @@ export function DemoExplorerCTA() {
               <p
                 role="alert"
                 aria-live="polite"
-                className="max-w-sm border border-[#d5d3d4] bg-[#faf6f3] px-4 py-3 text-sm leading-relaxed text-[#bc7155]"
+                className="max-w-sm border border-[#d5d3d4] bg-[#faf6f3] px-4 py-3 text-sm leading-relaxed text-[#C9A961]"
               >
                 {erreur}
               </p>

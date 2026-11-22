@@ -24,9 +24,9 @@ export default function ComparaisonPage() {
   return (
     <MarketingLayout activePath="/comparaison">
       {/* ---------- Hero ---------- */}
-      <section className="bg-gradient-to-b from-[#0f0f1c]/5 to-white py-14 sm:py-20">
+      <section className="bg-gradient-to-b from-[#1A1A1A]/5 to-white py-14 sm:py-20">
         <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
-          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#0f0f1c] shadow-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#1A1A1A] shadow-sm">
             Comparatif
           </span>
           <h1
@@ -34,7 +34,7 @@ export default function ComparaisonPage() {
             style={{ letterSpacing: "-0.03em" }}
           >
             Traditionnel <span className="text-gray-400">vs</span>{" "}
-            <span className="bg-gradient-to-br from-[#0f0f1c] to-[#0f0f1c] bg-clip-text text-transparent">FeedVoice</span>
+            <span className="bg-gradient-to-br from-[#1A1A1A] to-[#1A1A1A] bg-clip-text text-transparent">FeedVoice</span>
           </h1>
           <p className="mt-4 text-lg text-gray-600">
             Même objectif (mesurer votre qualité), mais 10× moins cher, 30× plus rapide et 100×
@@ -54,9 +54,9 @@ export default function ComparaisonPage() {
             <div className="px-4 py-5 text-sm font-semibold text-gray-700 sm:px-6">
               Client Mystère <span className="hidden sm:inline">traditionnel</span>
             </div>
-            <div className="relative border-l border-[#0f0f1c]/30 bg-[#0f0f1c]/10 px-4 py-5 text-sm font-semibold text-gray-900 sm:px-6">
+            <div className="relative border-l border-[#1A1A1A]/30 bg-[#1A1A1A]/10 px-4 py-5 text-sm font-semibold text-gray-900 sm:px-6">
               <span className="flex flex-wrap items-center gap-2">
-                <span className="bg-gradient-to-br from-[#0f0f1c] to-[#0f0f1c] bg-clip-text text-transparent">
+                <span className="bg-gradient-to-br from-[#1A1A1A] to-[#1A1A1A] bg-clip-text text-transparent">
                   FeedVoice
                 </span>
                 <span className="inline-flex items-center gap-1 rounded-full bg-[#f3ddd2] px-2 py-0.5 text-xs font-medium text-[#8a4f3b]">
@@ -79,8 +79,8 @@ export default function ComparaisonPage() {
                 <X className="h-4 w-4 shrink-0 text-rose-500" aria-hidden />
                 <span>{row.traditionnel}</span>
               </div>
-              <div className="flex items-center gap-2 border-l border-[#0f0f1c]/30 bg-[#0f0f1c]/5 px-4 py-4 text-sm font-medium sm:px-6">
-                <Check className="h-4 w-4 shrink-0 text-[#bc7155]" aria-hidden />
+              <div className="flex items-center gap-2 border-l border-[#1A1A1A]/30 bg-[#1A1A1A]/5 px-4 py-4 text-sm font-medium sm:px-6">
+                <Check className="h-4 w-4 shrink-0 text-[#C9A961]" aria-hidden />
                 <span className="text-gray-900">{row.feedvoice}</span>
               </div>
             </div>
@@ -90,15 +90,15 @@ export default function ComparaisonPage() {
         {/* ---------- Bloc ROI ---------- */}
         <div className="mt-12 grid grid-cols-1 gap-6 md:grid-cols-3">
           <div className="rounded-none border border-gray-200 bg-white p-6 text-center shadow-sm">
-            <p className="text-4xl font-extrabold text-[#0f0f1c]">10×</p>
+            <p className="text-4xl font-extrabold text-[#1A1A1A]">10×</p>
             <p className="mt-2 text-sm text-gray-600">moins cher qu&apos;un audit classique</p>
           </div>
           <div className="rounded-none border border-gray-200 bg-white p-6 text-center shadow-sm">
-            <p className="text-4xl font-extrabold text-[#0f0f1c]">30×</p>
+            <p className="text-4xl font-extrabold text-[#1A1A1A]">30×</p>
             <p className="mt-2 text-sm text-gray-600">plus rapide (rapport le lendemain matin)</p>
           </div>
           <div className="rounded-none border border-gray-200 bg-white p-6 text-center shadow-sm">
-            <p className="text-4xl font-extrabold text-[#0f0f1c]">100×</p>
+            <p className="text-4xl font-extrabold text-[#1A1A1A]">100×</p>
             <p className="mt-2 text-sm text-gray-600">plus actionnable (3 priorités/jour par IA)</p>
           </div>
         </div>

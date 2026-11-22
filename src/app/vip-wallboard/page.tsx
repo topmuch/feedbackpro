@@ -4,14 +4,14 @@
 // Affichage TV plein écran pour la salle de supervision du salon
 // VIP (ops room). Palette chaude "Luxe Lumineux" :
 //   - Background   #ffffff (warm off-white)
-//   - Header       #2C2C2C (anthracite) + accent or #bc7155
+//   - Header       #2C2C2C (anthracite) + accent or #C9A961
 //   - Cards        #FFFFFF (white) + shadow rgba(201,169,97,0.06)
-//   - Accent gold  #bc7155
+//   - Accent gold  #C9A961
 //   - Accent bronze #8B6F47
 //   - Text         #2C2C2C
-//   - Success      #bc7155 (sage green)
-//   - Alert        #bc7155 (terracotta)
-//   - VIP badge    #bc7155 (amethyst)
+//   - Success      #C9A961 (sage green)
+//   - Alert        #C9A961 (terracotta)
+//   - VIP badge    #C9A961 (amethyst)
 //   - Border       #efe7e0
 //   - Title font   Georgia, "Playfair Display", serif
 //
@@ -112,25 +112,25 @@ const COLORS = {
   bg: '#ffffff',
   header: '#2C2C2C',
   card: '#FFFFFF',
-  gold: '#bc7155',
+  gold: '#C9A961',
   bronze: '#8B6F47',
   text: '#2C2C2C',
-  success: '#bc7155',
-  alert: '#bc7155',
-  vip: '#bc7155',
+  success: '#C9A961',
+  alert: '#C9A961',
+  vip: '#C9A961',
   border: '#efe7e0',
 } as const
 
 // Palette mode sombre (pour affichage TV en salle ops sombre)
 const COLORS_DARK = {
-  bg: '#0f0f1c',
+  bg: '#1A1A1A',
   header: '#000000',
-  card: '#0f0f1c',
-  gold: '#bc7155',
+  card: '#1A1A1A',
+  gold: '#C9A961',
   bronze: '#8B6F47',
   text: '#ffffff',
-  success: '#bc7155',
-  alert: '#bc7155',
+  success: '#C9A961',
+  alert: '#C9A961',
   vip: '#9B7BC9',
   border: '#333333',
 } as const
@@ -1470,7 +1470,7 @@ export default function VipWallboardPage() {
         style={{
           backgroundColor: C.header,
           color: '#FFFFFF',
-          borderColor: '#0f0f1c',
+          borderColor: '#1A1A1A',
         }}
       >
         <div className="mx-auto flex max-w-[1800px] items-center justify-between gap-4 px-6 py-2.5">

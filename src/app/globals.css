@@ -49,8 +49,8 @@
      HARMONISATION HYER AVIATION (design system Refero)
      Monochrome + UNE note chaude :
        Deep Ink #000d10 · Pure White #ffffff · Cool Ash #8e8e95
-       Pebble #d5d3d4 · Midnight Hull #0f0f1c · Charcoal Deck #151623
-       Clay Ember #bc7155 (accent UNIQUE)
+       Pebble #d5d3d4 · Midnight Hull #1A1A1A · Charcoal Deck #151623
+       Clay Ember #C9A961 (accent UNIQUE)
      Radius : 0 (cartes carrées) · pills 1000px (composants dédiés)
      ============================================================ */
   --radius: 0rem;
@@ -66,62 +66,62 @@
   --secondary-foreground: #000d10;
   --muted: #f2f1ef;
   --muted-foreground: #8e8e95;
-  --accent: #bc7155;
+  --accent: #C9A961;
   --accent-foreground: #ffffff;
   --destructive: #b23b2e;
   --border: #d5d3d4;
   --input: #d5d3d4;
   --ring: #000d10;
-  --chart-1: #bc7155;
+  --chart-1: #C9A961;
   --chart-2: #000d10;
   --chart-3: #8e8e95;
   --chart-4: #d5d3d4;
-  --chart-5: #0f0f1c;
+  --chart-5: #1A1A1A;
   /* Sidebar Midnight Hull + Cool Ash, accent Clay Ember */
-  --sidebar: #0f0f1c;
+  --sidebar: #1A1A1A;
   --sidebar-foreground: #a9adb6;
-  --sidebar-primary: #bc7155;
+  --sidebar-primary: #C9A961;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #151623;
   --sidebar-accent-foreground: #e5e6e9;
   --sidebar-border: rgba(255, 255, 255, 0.10);
-  --sidebar-ring: rgba(188, 113, 85, 0.5);
+  --sidebar-ring: rgba(201, 169, 97, 0.5);
 }
 
 .dark {
   /* Mode sombre Hyer — Midnight Hull / Charcoal Deck, accent Clay Ember */
-  --background: #0f0f1c;
+  --background: #1A1A1A;
   --foreground: #f2f1ef;
   --card: #151623;
   --card-foreground: #f2f1ef;
   --popover: #151623;
   --popover-foreground: #f2f1ef;
   --primary: #f2f1ef;
-  --primary-foreground: #0f0f1c;
+  --primary-foreground: #1A1A1A;
   --secondary: #1c1d2c;
   --secondary-foreground: #f2f1ef;
   --muted: #1c1d2c;
   --muted-foreground: #8e8e95;
-  --accent: #bc7155;
+  --accent: #C9A961;
   --accent-foreground: #ffffff;
   --destructive: #d26a5c;
   --border: rgba(213, 211, 212, 0.18);
   --input: rgba(213, 211, 212, 0.24);
-  --ring: #bc7155;
-  --chart-1: #bc7155;
+  --ring: #C9A961;
+  --chart-1: #C9A961;
   --chart-2: #d5d3d4;
   --chart-3: #8e8e95;
   --chart-4: #4b4d5e;
-  --chart-5: #bc7155;
+  --chart-5: #C9A961;
   /* Sidebar identique en mode sombre (cohérence Hyer) */
-  --sidebar: #0f0f1c;
+  --sidebar: #1A1A1A;
   --sidebar-foreground: #a9adb6;
-  --sidebar-primary: #bc7155;
+  --sidebar-primary: #C9A961;
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: #151623;
   --sidebar-accent-foreground: #e5e6e9;
   --sidebar-border: rgba(255, 255, 255, 0.12);
-  --sidebar-ring: rgba(188, 113, 85, 0.5);
+  --sidebar-ring: rgba(201, 169, 97, 0.5);
 }
 
 @layer base {
@@ -187,7 +187,7 @@
   background-clip: padding-box;
 }
 .admin-sidebar-nav::-webkit-scrollbar-thumb:hover {
-  background: rgba(188, 113, 85, 0.65);
+  background: rgba(201, 169, 97, 0.65);
   background-clip: padding-box;
   border: 2px solid transparent;
 }
@@ -279,7 +279,7 @@ html { scroll-behavior: smooth; }
 
 /* Gradient texte signature (bleu profond FeedVoice) */
 .fp-text-gradient {
-  background: linear-gradient(135deg, #0f0f1c, #0f0f1c, #0f0f1c);
+  background: linear-gradient(135deg, #1A1A1A, #1A1A1A, #1A1A1A);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -287,10 +287,10 @@ html { scroll-behavior: smooth; }
 
 /* Gradient bleu profond pour boutons / surfaces */
 .fp-bg-gradient {
-  background: linear-gradient(135deg, #0f0f1c 0%, #0f0f1c 100%);
+  background: linear-gradient(135deg, #1A1A1A 0%, #1A1A1A 100%);
 }
 .fp-bg-gradient-warm {
-  background: linear-gradient(135deg, #0f0f1c 0%, #0f0f1c 100%);
+  background: linear-gradient(135deg, #1A1A1A 0%, #1A1A1A 100%);
 }
 
 /* Float animation pour mockup 3D */
@@ -350,7 +350,7 @@ html { scroll-behavior: smooth; }
   inset: 0;
   padding: 2px;
   border-radius: inherit;
-  background: linear-gradient(135deg, #0f0f1c, #0f0f1c, #0f0f1c);
+  background: linear-gradient(135deg, #1A1A1A, #1A1A1A, #1A1A1A);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
           mask-composite: exclude;
@@ -549,7 +549,7 @@ html { scroll-behavior: smooth; }
   inset: 0;
   padding: 2px;
   border-radius: inherit;
-  background: linear-gradient(135deg, #0f0f1c, #0f0f1c, #0f0f1c);
+  background: linear-gradient(135deg, #1A1A1A, #1A1A1A, #1A1A1A);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
           mask-composite: exclude;
@@ -657,46 +657,46 @@ html { scroll-behavior: smooth; }
 }
 
 /* ============================================================
-   Task 4 — White-label : surcharge de la couleur #0f0f1c par la
+   Task 4 — White-label : surcharge de la couleur #1A1A1A par la
    couleur de marque du Pro (variable CSS --fp-brand posée sur la
    racine du scan-view). Les classes Tailwind arbitraires
-   text-[#0f0f1c], bg-[#0f0f1c], border-[#0f0f1c] sont redéfinies
+   text-[#1A1A1A], bg-[#1A1A1A], border-[#1A1A1A] sont redéfinies
    pour utiliser var(--fp-brand) lorsque l'attribut data-fp-brand="1"
    est posé sur la racine du scan-view.
    ============================================================ */
 [data-fp-brand="1"] {
-  --fp-brand: #0f0f1c;
+  --fp-brand: #1A1A1A;
   --fp-brand-rgb: 0, 46, 133;
 }
-[data-fp-brand="1"].text-\[\#0f0f1c\],
-[data-fp-brand="1"] .text-\[\#0f0f1c\] {
+[data-fp-brand="1"].text-\[\#1A1A1A\],
+[data-fp-brand="1"] .text-\[\#1A1A1A\] {
   color: var(--fp-brand) !important;
 }
-[data-fp-brand="1"].bg-\[\#0f0f1c\],
-[data-fp-brand="1"] .bg-\[\#0f0f1c\] {
+[data-fp-brand="1"].bg-\[\#1A1A1A\],
+[data-fp-brand="1"] .bg-\[\#1A1A1A\] {
   background-color: var(--fp-brand) !important;
 }
-[data-fp-brand="1"].border-\[\#0f0f1c\],
-[data-fp-brand="1"] .border-\[\#0f0f1c\] {
+[data-fp-brand="1"].border-\[\#1A1A1A\],
+[data-fp-brand="1"] .border-\[\#1A1A1A\] {
   border-color: var(--fp-brand) !important;
 }
-[data-fp-brand="1"].border-2.border-\[\#0f0f1c\],
-[data-fp-brand="1"] .border-2.border-\[\#0f0f1c\] {
+[data-fp-brand="1"].border-2.border-\[\#1A1A1A\],
+[data-fp-brand="1"] .border-2.border-\[\#1A1A1A\] {
   border-color: var(--fp-brand) !important;
 }
-[data-fp-brand="1"] .text-\[\#0f0f1c\]\/85 { color: color-mix(in srgb, var(--fp-brand) 85%, transparent) !important; }
-[data-fp-brand="1"] .text-\[\#0f0f1c\]\/80 { color: color-mix(in srgb, var(--fp-brand) 80%, transparent) !important; }
-[data-fp-brand="1"] .text-\[\#0f0f1c\]\/70 { color: color-mix(in srgb, var(--fp-brand) 70%, transparent) !important; }
-[data-fp-brand="1"] .text-\[\#0f0f1c\]\/60 { color: color-mix(in srgb, var(--fp-brand) 60%, transparent) !important; }
-[data-fp-brand="1"] .text-\[\#0f0f1c\]\/90 { color: color-mix(in srgb, var(--fp-brand) 90%, transparent) !important; }
-[data-fp-brand="1"] .bg-\[\#0f0f1c\]\/10 { background-color: color-mix(in srgb, var(--fp-brand) 10%, transparent) !important; }
-[data-fp-brand="1"] .bg-\[\#0f0f1c\]\/5 { background-color: color-mix(in srgb, var(--fp-brand) 5%, transparent) !important; }
-[data-fp-brand="1"] .bg-\[\#0f0f1c\]\/20 { background-color: color-mix(in srgb, var(--fp-brand) 20%, transparent) !important; }
-[data-fp-brand="1"] .border-\[\#0f0f1c\]\/30 { border-color: color-mix(in srgb, var(--fp-brand) 30%, transparent) !important; }
-[data-fp-brand="1"] .border-\[\#0f0f1c\]\/80 { border-color: color-mix(in srgb, var(--fp-brand) 80%, transparent) !important; }
-[data-fp-brand="1"] .via-\[\#0f0f1c\]\/30 { --tw-gradient-via: color-mix(in srgb, var(--fp-brand) 30%, transparent) !important; }
-[data-fp-brand="1"] .ring-\[\#0f0f1c\] { --tw-ring-color: var(--fp-brand) !important; }
-[data-fp-brand="1"] .ring-offset-\[\#0f0f1c\] { --tw-ring-offset-color: var(--fp-brand) !important; }
+[data-fp-brand="1"] .text-\[\#1A1A1A\]\/85 { color: color-mix(in srgb, var(--fp-brand) 85%, transparent) !important; }
+[data-fp-brand="1"] .text-\[\#1A1A1A\]\/80 { color: color-mix(in srgb, var(--fp-brand) 80%, transparent) !important; }
+[data-fp-brand="1"] .text-\[\#1A1A1A\]\/70 { color: color-mix(in srgb, var(--fp-brand) 70%, transparent) !important; }
+[data-fp-brand="1"] .text-\[\#1A1A1A\]\/60 { color: color-mix(in srgb, var(--fp-brand) 60%, transparent) !important; }
+[data-fp-brand="1"] .text-\[\#1A1A1A\]\/90 { color: color-mix(in srgb, var(--fp-brand) 90%, transparent) !important; }
+[data-fp-brand="1"] .bg-\[\#1A1A1A\]\/10 { background-color: color-mix(in srgb, var(--fp-brand) 10%, transparent) !important; }
+[data-fp-brand="1"] .bg-\[\#1A1A1A\]\/5 { background-color: color-mix(in srgb, var(--fp-brand) 5%, transparent) !important; }
+[data-fp-brand="1"] .bg-\[\#1A1A1A\]\/20 { background-color: color-mix(in srgb, var(--fp-brand) 20%, transparent) !important; }
+[data-fp-brand="1"] .border-\[\#1A1A1A\]\/30 { border-color: color-mix(in srgb, var(--fp-brand) 30%, transparent) !important; }
+[data-fp-brand="1"] .border-\[\#1A1A1A\]\/80 { border-color: color-mix(in srgb, var(--fp-brand) 80%, transparent) !important; }
+[data-fp-brand="1"] .via-\[\#1A1A1A\]\/30 { --tw-gradient-via: color-mix(in srgb, var(--fp-brand) 30%, transparent) !important; }
+[data-fp-brand="1"] .ring-\[\#1A1A1A\] { --tw-ring-color: var(--fp-brand) !important; }
+[data-fp-brand="1"] .ring-offset-\[\#1A1A1A\] { --tw-ring-offset-color: var(--fp-brand) !important; }
 
 /* ============================================================
    « Luxe Silencieux » — Typographie corps de texte
@@ -721,14 +721,14 @@ body {
    classes Tailwind arbitraires utilisées par vip-dashboard.tsx
    (blanc cassé #ffffff, cartes blanches, texte anthracite
    #2C2C2C, bronze #8B6F47, bordure #efe7e0) vers la palette
-   « Mode Sombre Luxe » : anthracite profond #0f0f1c, cartes
+   « Mode Sombre Luxe » : anthracite profond #1A1A1A, cartes
    #1A1814, texte ivoire #F2EDE3, bronze doré éclairci.
    Les plaques QR (styles inline marbre/or) restent inchangées.
    ============================================================ */
 .vip-dark {
   color-scheme: dark;
   /* Tokens shadcn — couvre Dialog/Sheet/Select/Popover/Toast/Skeleton */
-  --background: #0f0f1c;
+  --background: #1A1A1A;
   --foreground: #f2ede3;
   --card: #1a1814;
   --card-foreground: #f2ede3;
@@ -753,7 +753,7 @@ body {
 /* Texte : anthracite → ivoire, bronze → doré éclairci */
 .vip-dark .text-\[\#2C2C2C\] { color: #f2ede3 !important; }
 .vip-dark .text-\[\#2C2C2C\]\/70 { color: rgba(242, 237, 227, 0.72) !important; }
-.vip-dark .text-\[\#8B6F47\] { color: #bc7155 !important; }
+.vip-dark .text-\[\#8B6F47\] { color: #C9A961 !important; }
 .vip-dark .text-\[\#8B6F47\]\/80 { color: rgba(201, 169, 97, 0.8) !important; }
 .vip-dark .text-\[\#8B6F47\]\/70 { color: rgba(201, 169, 97, 0.7) !important; }
 .vip-dark .text-\[\#8B6F47\]\/60 { color: rgba(201, 169, 97, 0.6) !important; }

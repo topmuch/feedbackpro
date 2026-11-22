@@ -9,7 +9,7 @@
 // sur le Salon VIP (carte secteur "featured" sombre + badge
 // Premium) et les 6 secteurs unifiés.
 //
-// Design unifié crème #ffffff + or #bc7155 + anthracite #0f0f1c.
+// Design unifié crème #FAFAF7 + or #C9A961 + anthracite #1A1A1A.
 // Typographie : Playfair Display (titres, italique doré pour les
 // accents) + Inter (corps). Playfair/Inter sont chargées globalement
 // dans src/app/layout.tsx (link runtime, jamais au build).
@@ -53,6 +53,8 @@ import {
   Trophy,
   Zap,
 } from "lucide-react"
+// Démo vocale interactive « Nathalie » (voix serveur + repli navigateur)
+import { VoiceDemoNathalie } from "@/components/feedbackpro/voice-demo-nathalie"
 
 // ------------------------------------------------------------
 // Types
@@ -75,14 +77,14 @@ type NavTarget =
 
 const FH_CSS = `
 .fh-root {
-  --gold: #bc7155;
-  --gold-light: #e7c1ae;
+  --gold: #C9A961;
+  --gold-light: #E5D4A8;
   --gold-deep: #A8893F;
-  --anthracite: #0f0f1c;
+  --anthracite: #1A1A1A;
   --anthracite-soft: #2C2C2C;
-  --cream: #ffffff;
+  --cream: #FAFAF7;
   --cream-dark: #F0EDE5;
-  --sage: #bc7155;
+  --sage: #4A7C59;
   font-family: 'Inter', sans-serif;
   background: var(--cream);
   color: var(--anthracite);
@@ -369,7 +371,7 @@ const FH_CSS = `
 }
 .fh-nathalie-header {
   height: 200px;
-  background: linear-gradient(135deg, #0f0f1c 0%, #2c1810 100%);
+  background: linear-gradient(135deg, #1A1A1A 0%, #2c1810 100%);
   position: relative;
   overflow: hidden;
 }
@@ -997,7 +999,7 @@ const FH_CSS = `
 /* ============================================ */
 .fh-cta {
   padding: 8rem 2rem;
-  background: linear-gradient(135deg, #0f0f1c 0%, #1E293B 50%, #334155 100%);
+  background: linear-gradient(135deg, #0F172A 0%, #1E293B 50%, #334155 100%);
   color: var(--cream);
   text-align: center;
   position: relative;
@@ -1713,38 +1715,10 @@ export function LandingAccueilPremium({
           </div>
 
           <div className="fh-denise-visual">
-            <div className="fh-denise-header">
-              <div className="fh-denise-avatar" aria-hidden>🎙️</div>
-              <div>
-                <div className="fh-denise-name">Nathalie</div>
-                <div className="fh-denise-status">
-                  <span className="fh-status-dot" aria-hidden />
-                  Écoute active · Salon VIP Terra
-                </div>
-              </div>
-            </div>
-
-            <div className="fh-denise-msglabel">Annonce de Nathalie</div>
-            <div className="fh-denise-message">
-              « Point d&apos;attention : Buffet niveau bas à 35%.
-              Rafraîchissement recommandé. Table T-08 signale bruit excessif,
-              intervention discrète en cours. »
-            </div>
-
-            <div className="fh-denise-meta">
-              <span>
-                <Clock size={13} aria-hidden />
-                14:32:08
-              </span>
-              <span>
-                <MapPin size={13} aria-hidden />
-                Salon VIP
-              </span>
-              <span>
-                <Target size={13} aria-hidden />
-                Mode discret
-              </span>
-            </div>
+            {/* Démo vocale INTERACTIVE (voix réelle générée côté serveur,
+                repli Web Speech API) — remplace la visualisation statique.
+                Le composant est autonome (CSS inclus, préfixe hy-). */}
+            <VoiceDemoNathalie />
           </div>
         </div>
       </section>
