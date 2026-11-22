@@ -200,19 +200,21 @@ const HY_CSS = `
   /* Ciel d'aube en CSS — raccord invisible avec le rendu produit */
   background: linear-gradient(180deg, #d9e5ee 0%, #f4e7d7 62%, #ffffff 100%);
 }
-/* Photo d'ambiance VIP lounge — voile discret sous le ciel (7 %),
-   fondu bas pour se dissoudre dans le blanc avant les secteurs */
+/* Photo d'ambiance VIP lounge — voile perceptible sous le ciel (14 %),
+   fondu bas pour se dissoudre dans le blanc avant les secteurs.
+   SUG-2 : 7 % était invisible à l'œil (retour utilisateur « l'ancienne
+   image est toujours là ») → montée à 14 % + activation mobile. */
 .hy-hero-ambiance {
   position: absolute;
   inset: 0;
   background-image: url('/hyer/ambiance.png?v=1');
   background-size: cover;
   background-position: 50% 42%;
-  opacity: 0.07;
+  opacity: 0.14;
   filter: saturate(0.92);
   pointer-events: none;
-  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 76%, transparent 100%);
-  mask-image: linear-gradient(to bottom, black 0%, black 76%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, black 72%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 0%, black 72%, transparent 100%);
 }
 .hy-hero-bg {
   position: absolute;
@@ -737,7 +739,9 @@ const HY_CSS = `
   .hy-hero { min-height: auto; }
   .hy-hero-bg { display: none; }
   .hy-hero-fade { display: none; }
-  .hy-hero-ambiance { display: none; }
+  /* SUG-2 : l'ambiance reste visible sur mobile (voile plus léger que
+     desktop pour préserver la lisibilité du titre) */
+  .hy-hero-ambiance { opacity: 0.10; -webkit-mask-image: linear-gradient(to bottom, black 0%, black 60%, transparent 100%); mask-image: linear-gradient(to bottom, black 0%, black 60%, transparent 100%); }
   .hy-hero-content { min-height: auto; padding-bottom: 24px; }
   .hy-hero-headline { text-align: left; max-width: 100%; margin: 20px 0 0; }
   .hy-hero-badge { align-self: flex-start; }

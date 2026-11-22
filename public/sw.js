@@ -16,11 +16,11 @@
 // servi tel quel par Next.js sans compilation).
 // ============================================================
 
-// CACHE_NAME bumpé v7 → v8 (feedvoice-airport-v8) : purge forcée du cache
-// chez tous les visiteurs — suggestions homepage (photo d'ambiance hero,
-// hover différencié) + features suivantes. Les anciens caches feedvoice-*
-// v≤7 sont supprimés par le handler activate ci-dessous.
-const CACHE_NAME = "feedvoice-airport-v8"
+// CACHE_NAME bumpé v8 → v9 (feedvoice-airport-v9) : purge forcée du cache
+// chez tous les visiteurs — SUG-2 correction visibilité hero (ambiance 14 %
+// desktop / 10 % mobile, calque réactivé ≤1024px). Les anciens caches
+// feedvoice-* v≤8 sont supprimés par le handler activate ci-dessous.
+const CACHE_NAME = "feedvoice-airport-v9"
 const CACHE_API = "feedvoice-api-v4"
 // Cache dédié aux réponses GET /api/airport/zone/* (network-first, pas de
 // TTL : on veut toujours la version réseau si disponible, le cache n'est
