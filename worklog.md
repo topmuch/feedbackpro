@@ -1271,3 +1271,32 @@ Demande : « les améliorations par criticité (Sentry, rate limiting durci, i18
 
 ### COMMITS
 c196393 (seed+rate+i18n+voix) → 3ddbd9c (fix critique create-admin) → sonde health → 111f1f1 (plafond global rate-limit)
+
+---
+
+## Session Z_AI_CONFIG (audio Nathalie en prod) — 2026-11-22 15:30–16:15 UTC
+
+Demande : « ajoutez Z_AI_CONFIG et je vérifierai l'audio en prod. »
+
+### ✅ Fait
+- **Env Coolify Z_AI_CONFIG créée** (runtime, main+preview, 449 car., JSON complet du sandbox : baseUrl/apiKey/chatId/diskRetire/stage/token/userId) — POST /api/v1/applications/{uuid}/envs.
+- **Pipeline TTS corrigé** (bloquant découvert en testant) : l'API TTS répond **400 sur response_format mp3** (« 不支持当前response_format值 », test réel sandbox) → `src/app/api/voice/report/route.ts` passe en **PCM brut → enveloppement WAV unique** (24 kHz mono 16 bits, en-tête RIFF écrit à la main, validé ffprobe pcm_s16le/24000Hz/mono) ; plafond 4 Mo → 8 Mo ; mimeType audio/wav ; téléchargement .wav côté rapports-tab. Commit `0adb420`.
+- **Instrumentation** `src/instrumentation.ts` : au démarrage serveur, si `process.env.Z_AI_CONFIG` est un JSON objet valide → écrit `<cwd>/.z-ai-config` (le SDK ne lit QUE des fichiers ; cwd standalone = /app/.next/standalone). Normalisateur partagé (guillemets d'enrobage + échappements `\"`) dans `src/lib/sonde-ai.ts`. Commit `dc6c828`.
+- **Sonde AI enrichie** (/api/health → ai) : + envPresente / envJsonValide / fichierPresent. Résultat prod après deploy : `{configPresente:true, aApiKey:true, aToken:true, baseUrlHost:"internal-api.z.ai", source:"/app/.next/standalone/.z-ai-config", envPresente:true, envJsonValide:true, fichierPresent:true}` → l'env arrive INTACTE dans le conteneur.
+- **Cause TTS lisible** : `categoriserErreurIa()` (DNS/réseau/auth/refus/quota, cause profonde fetch) dans le message 502 + journalisation superadmin `journalErreur("api:voice/report")`. Commit `6d0f1ef`.
+- **Sonde réseau IA** `src/lib/probe-reseau.ts` + `/api/health?probe=1` (cibles en dur, timeout 4 s, cache 60 s, zéro secret). Commit `2329d6f`.
+
+### 🔴 VERDICT PROD (sonde, à preuve)
+`/api/health?probe=1` depuis le conteneur Coolify :
+`{dnsInterne:"privee", ipsInterne:["172.25.136.213","172.25.150.234"], connexionInterne:"timeout", statusInterneTts:null, statusPublicZai:401, statusPublicBigmodel:200}`
+- **internal-api.z.ai n'annonce que des IP PRIVÉES Aliyun** → inatteignable depuis le serveur prod France (timeout). Les credentials sandbox ne pourront JAMAIS fonctionner en prod avec ce baseUrl.
+- QA réelle : carte Briefing audio en prod → 502 « cause signalée : réseau indisponible » (message + journal) — chaîne KPIs→texte OK, échec au fetch TTS.
+- **api.z.ai (plateforme publique) est joignable depuis la prod** : 401 sans clé ; routes `POST /api/paas/v4/audio/tts` (401 sans auth = route existante) et `/chat/completions` présentes. Le JWT sandbox y est refusé (« token expired or incorrect »).
+
+### ▶️ Pour activer la vraie voix en prod (1 action utilisateur)
+Créer une **clé API publique Z.ai** (console open platform api.z.ai) → je mets à jour Z_AI_CONFIG avec `{baseUrl:"https://api.z.ai/api/paas/v4", apiKey:"<clé>"}` → 1 deploy force → l'audio s'active (code déjà prêt ; format de réponse TTS publique à vérifier au premier appel — adapt. mineure si JSON/base64).
+En attendant : la lecture Web Speech API côté navigateur (déjà dans rapports-tab + démo landing) reste audible.
+Note déploiement : PATCH avec SHA court tronqué → deployment failed immédiat ; toujours `git rev-parse HEAD` complet.
+
+### COMMITS
+0adb420 (PCM→WAV) → dc6c828 (instrumentation+sonde) → 6d0f1ef (cause lisible) → 2329d6f (probe réseau) ; deployments Coolify tous « finished ».
