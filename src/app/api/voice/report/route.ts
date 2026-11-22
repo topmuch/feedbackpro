@@ -36,6 +36,7 @@ import { ok, fail } from "@/lib/session"
 import { requirePro, unauthorized } from "@/lib/guards"
 import { limiteTaux } from "@/lib/rate-limit"
 import { parseJsonArray } from "@/lib/ia"
+import { journalErreur } from "@/lib/error-log"
 import { tagLabel } from "@/lib/constants"
 
 export const runtime = "nodejs"
@@ -237,7 +238,11 @@ async function redigerBriefingLLM(kpis: KpisMois, nomEtablissement: string): Pro
     if (!texte || nbMots(texte) < 80 || nbMots(texte) > 260) return null
     return texte
   } catch (e) {
-    console.warn("[voice/report] Échec LLM Nathalie → template déterministe", e)
+    journalErreur({
+      source: "api:voice/report",
+      message: `Échec LLM Nathalie → fallback déterministe (${categoriserErreurIa(e)})`,
+      stack: e instanceof Error ? e.stack : undefined,
+    })
     return null
   }
 }
@@ -296,6 +301,32 @@ function redigerBriefingFallback(kpis: KpisMois, nomEtablissement: string): stri
   }
 
   return morceaux.join(" ")
+}
+
+/**
+ * Catégorise une erreur TTS/LLM en cause lisible (sans secret) pour le
+ * message d'erreur utilisateur et le journal superadmin : distingue
+ * l'indisponibilité réseau (DNS / connexion) de l'authentification et
+ * des refus d'API. Regarde aussi la cause profonde (fetch → cause).
+ */
+function categoriserErreurIa(e: unknown): string {
+  const message = e instanceof Error ? e.message : String(e)
+  const cause =
+    e instanceof Error && e.cause instanceof Error
+      ? e.cause.message
+      : typeof (e as { cause?: { code?: string } }).cause?.code === "string"
+        ? String((e as { cause?: { code?: string } }).cause?.code)
+        : ""
+  const brut = `${message} ${cause}`
+  if (/getaddrinfo|ENOTFOUND|EAI_AGAIN/i.test(brut)) return "DNS indisponible"
+  if (/ECONNREFUSED|ECONNRESET|EHOSTUNREACH|ENETUNREACH|ETIMEDOUT|fetch failed|socket hang up|network/i.test(brut))
+    return "réseau indisponible"
+  if (/status 40[13]/.test(brut)) return "authentification refusée par l'API"
+  if (/status 400/.test(brut)) return "requête refusée par l'API"
+  if (/status 413/.test(brut)) return "texte trop long pour l'API"
+  if (/status 429/.test(brut)) return "quota API atteint"
+  if (/status 5\d\d/.test(brut)) return "erreur du service vocal"
+  return "cause inconnue"
 }
 
 // ---------- Synthèse vocale (TTS) ----------
@@ -408,14 +439,19 @@ export async function POST(req: NextRequest) {
     try {
       audio = await synthetiserAudio(texte)
     } catch (e) {
-      console.error("[voice/report] Échec TTS", e)
+      const cause = categoriserErreurIa(e)
+      journalErreur({
+        source: "api:voice/report",
+        message: `Échec TTS briefing audio (${cause})`,
+        stack: e instanceof Error ? e.stack : undefined,
+      })
       return fail(
-        "La synthèse vocale n'est pas disponible pour le moment. Réessayez dans quelques instants.",
+        `La synthèse vocale n'est pas disponible pour le moment (cause signalée : ${cause}). Réessayez dans quelques instants.`,
         502
       )
     }
 
-    // ---------- Garde-fou taille (~4 Mo) ----------
+    // ---------- Garde-fou taille (~8 Mo) ----------
     if (audio.length > MAX_AUDIO_OCTETS) {
       return fail(
         "Le briefing audio est trop volumineux pour être servi. Réessayez dans quelques instants.",
