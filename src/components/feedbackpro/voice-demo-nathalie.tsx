@@ -3,29 +3,48 @@
 // ============================================================
 // Nathalie — démo vocale interactive (section sombre du landing)
 // ------------------------------------------------------------
-// Web Speech API native du navigateur : aucun asset audio, aucune
-// dépendance. Le prospect choisit un contexte d'écoute (Salon VIP,
-// aéroport, restaurant, hôtel), lit l'annonce correspondante et
-// entend la voix s'adapter à l'environnement :
-//   · Salon VIP / Hôtel → ton doux (pitch +, rythme −)
+// DEUX MOTEURS DE VOIX, par priorité décroissante :
+//   1. VOIX SERVEUR (vraie voix IA) : POST /api/voice/demo → WAV
+//      généré par le SDK z-ai-web-dev-sdk via Z_AI_CONFIG (voir
+//      src/instrumentation.ts). L'audio du contexte courant est
+//      PRÉCHARGÉ au montage et au changement de contexte : au clic,
+//      play() est appelé directement dans le geste utilisateur —
+//      indispensable sur iOS/Safari (politique d'autoplay stricte).
+//      Le prospect entend donc la MÊME voix de Nathalie sur tous les
+//      appareils, y compris ceux sans aucune voix FR installée (cas
+//      « audio bloqué » historique).
+//   2. WEB SPEECH API (repli navigateur) : si le serveur ne répond
+//      pas (502, réseau…), on retombe sur la synthèse vocale native.
+//
+// Le prospect choisit un contexte d'écoute (Salon VIP, aéroport,
+// restaurant, hôtel) et entend l'annonce correspondante :
+//   · Salon VIP / Hôtel → ton doux (vitesse −)
 //   · Aéroport / Restaurant → ton professionnel neutre
 //
-// États gérés : lecture en cours (onde sonore animée, barre de
-// progression, libellé « Nathalie parle… »), arrêt/reprise au clic,
-// horloge temps réel, repli gracieux si le navigateur ne supporte
-// pas la synthèse vocale, nettoyage complet à l'unmount.
+// États gérés : préparation de la voix (chargement), lecture en cours
+// (onde sonore animée, barre de progression pilotée par la durée réelle
+// du WAV), arrêt/reprise au clic, horloge temps réel, repli gracieux
+// (simulateur visuel si AUCUN moteur ne peut parler), nettoyage complet
+// à l'unmount (URLs objet révoquées, synthèse annulée).
 // ============================================================
 
 import { useEffect, useRef, useState } from "react"
-import { Hotel, Mic, Plane, Play, Square, UtensilsCrossed, Wine } from "lucide-react"
+import {
+  Hotel,
+  Loader2,
+  Mic,
+  Plane,
+  Play,
+  Square,
+  UtensilsCrossed,
+  Wine,
+} from "lucide-react"
 import type { LucideIcon } from "lucide-react"
-
-type VoiceContextId = "vip" | "airport" | "restaurant" | "hotel"
+import { ANNONCES_DEMO, type ContexteVocalId } from "@/lib/voix-demo"
 
 interface VoiceContextDef {
-  id: VoiceContextId
+  id: ContexteVocalId
   label: string
-  text: string
   location: string
   tone: string
   voice: "doux" | "normal" | "urgent"
@@ -37,7 +56,6 @@ const CONTEXTS: VoiceContextDef[] = [
     id: "vip",
     label: "Salon VIP",
     icon: Wine,
-    text: "Point d'attention : Buffet niveau bas à 35 %. Rafraîchissement recommandé. Table T-08 signale un bruit excessif, intervention discrète en cours.",
     location: "Salon VIP Terra",
     tone: "Mode discret",
     voice: "doux",
@@ -46,7 +64,6 @@ const CONTEXTS: VoiceContextDef[] = [
     id: "airport",
     label: "Aéroport",
     icon: Plane,
-    text: "Alerte zone bagages. Tapis numéro 4 arrêté depuis 8 minutes. Équipe maintenance notifiée. Temps d'attente estimé : 15 minutes.",
     location: "Terminal 2 · Bagages",
     tone: "Ton ferme",
     voice: "normal",
@@ -55,7 +72,6 @@ const CONTEXTS: VoiceContextDef[] = [
     id: "restaurant",
     label: "Restaurant",
     icon: UtensilsCrossed,
-    text: "Attention équipe. Table 12 attend son plat depuis 18 minutes. Cuisine, priorité table 12. Service, vérification en salle.",
     location: "Salle principale",
     tone: "Ton direct",
     voice: "normal",
@@ -64,7 +80,6 @@ const CONTEXTS: VoiceContextDef[] = [
     id: "hotel",
     label: "Hôtel",
     icon: Hotel,
-    text: "Bonsoir équipe. Résumé de la nuit : 2 incidents résolus. Chambre 302 a signalé un bruit de climatisation. Maintenance passée, soyez vigilants. Petit-déjeuner : 60 couverts, pic à 8 h 30.",
     location: "Réception · Briefing matin",
     tone: "Ton informatif",
     voice: "doux",
@@ -99,12 +114,22 @@ function pickFrenchVoice(voices: SpeechSynthesisVoice[]): SpeechSynthesisVoice |
   return female ?? french[0] ?? null
 }
 
+/** Élément <audio> prêt pour un contexte donné (blob WAV serveur). */
+interface AudioPrete {
+  id: ContexteVocalId
+  el: HTMLAudioElement
+  url: string
+}
+
 export function VoiceDemoNathalie() {
-  const [contextId, setContextId] = useState<VoiceContextId>("vip")
+  const [contextId, setContextId] = useState<ContexteVocalId>("vip")
   const [playing, setPlaying] = useState(false)
   const [progress, setProgress] = useState(0)
-  // Passe à true uniquement si un clic échoue faute de support navigateur
-  // (posé dans le gestionnaire d'événement — jamais pendant un effet).
+  // true pendant la génération/téléchargement de la voix serveur
+  const [chargement, setChargement] = useState(false)
+  // Passe à true uniquement si AUCUN moteur ne peut parler (ni serveur
+  // ni navigateur) — posé dans un gestionnaire d'événement, jamais
+  // pendant un effet.
   const [speechFailed, setSpeechFailed] = useState(false)
   const [clock, setClock] = useState("--:--:--")
 
@@ -115,8 +140,20 @@ export function VoiceDemoNathalie() {
   const estimatedMsRef = useRef(1)
   const visualPlayingRef = useRef(false)
   const realSpeechRef = useRef(false)
+  /** Moteur de voix en cours : « serveur » (WAV) / « navigateur » (Web Speech) / null. */
+  const moteurActifRef = useRef<"serveur" | "navigateur" | null>(null)
+  // Audio serveur du contexte courant (préchargé) + promesses en cours.
+  const audioRef = useRef<AudioPrete | null>(null)
+  const promesseAudioRef = useRef<Map<ContexteVocalId, Promise<HTMLAudioElement | null>>>(new Map())
+  // Référence « latest » pour appeler la version courante depuis les
+  // effets à dépendances restreintes et les handlers d'éléments audio.
+  const obtenirAudioRef = useRef<(id: ContexteVocalId) => Promise<HTMLAudioElement | null>>(
+    async () => null
+  )
 
   const context = CONTEXTS.find((c) => c.id === contextId) ?? CONTEXTS[0]
+  /** Texte exact affiché ET prononcé — source unique : src/lib/voix-demo.ts. */
+  const texte = ANNONCES_DEMO[context.id].texte
 
   // Horloge temps réel — client uniquement, aucun écart d'hydratation.
   useEffect(() => {
@@ -140,10 +177,95 @@ export function VoiceDemoNathalie() {
     return () => synth.removeEventListener("voiceschanged", loadVoices)
   }, [])
 
+  // ---------- Audio serveur : chargement + libération ----------
+
+  /** Arrête et révoque l'élément audio courant (blob URL). */
+  const libererAudioCourant = () => {
+    const courant = audioRef.current
+    if (!courant) return
+    try {
+      courant.el.pause()
+    } catch {
+      /* déjà arrêté */
+    }
+    try {
+      URL.revokeObjectURL(courant.url)
+    } catch {
+      /* URL déjà révoquée */
+    }
+    audioRef.current = null
+  }
+
+  /**
+   * Récupère (et met en cache local) l'audio serveur d'un contexte.
+   * Retourne null si le serveur ne peut pas produire l'audio —
+   * l'appelant retombe alors sur la Web Speech API.
+   */
+  const obtenirAudio = (id: ContexteVocalId): Promise<HTMLAudioElement | null> => {
+    if (typeof window === "undefined") return Promise.resolve(null)
+    const existant = audioRef.current
+    if (existant && existant.id === id) return Promise.resolve(existant.el)
+    const dejaEnCours = promesseAudioRef.current.get(id)
+    if (dejaEnCours) return dejaEnCours
+
+    const promesse = (async () => {
+      try {
+        const res = await fetch("/api/voice/demo", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ context: id }),
+        })
+        if (!res.ok) return null
+        const type = res.headers.get("content-type") ?? ""
+        if (!type.includes("audio")) return null
+        const blob = await res.blob()
+        if (blob.size === 0) return null
+        libererAudioCourant()
+        const url = URL.createObjectURL(blob)
+        const el = new Audio(url)
+        el.preload = "auto"
+        el.onended = () => stopPlayback()
+        el.onplay = () => {
+          moteurActifRef.current = "serveur"
+          realSpeechRef.current = true
+          beginVisualPlayback()
+        }
+        audioRef.current = { id, el, url }
+        return el
+      } catch {
+        return null
+      } finally {
+        promesseAudioRef.current.delete(id)
+      }
+    })()
+    promesseAudioRef.current.set(id, promesse)
+    return promesse
+  }
+  obtenirAudioRef.current = obtenirAudio
+
+  // Préchargement de la voix du contexte courant : au clic, play() est
+  // appelé directement dans le geste utilisateur (contrainte iOS/Safari).
+  useEffect(() => {
+    if (typeof window === "undefined") return
+    void obtenirAudioRef.current?.(contextId)
+  }, [contextId])
+
+  // ---------- Contrôle de lecture ----------
+
   const stopPlayback = () => {
     if (typeof window !== "undefined" && "speechSynthesis" in window) {
       window.speechSynthesis.cancel()
     }
+    const courant = audioRef.current
+    if (courant) {
+      try {
+        courant.el.pause()
+        courant.el.currentTime = 0
+      } catch {
+        /* élément déjà à l'arrêt */
+      }
+    }
+    moteurActifRef.current = null
     if (progressTimerRef.current !== null) {
       window.clearInterval(progressTimerRef.current)
       progressTimerRef.current = null
@@ -159,27 +281,42 @@ export function VoiceDemoNathalie() {
   }
 
   // Passe l'interface en état « lecture » : onde sonore, barre de
-  // progression. Idempotent — appelé par onstart ou par le filet de
-  // sécurité si l'environnement ne déclenche jamais onstart.
+  // progression. Idempotent — appelé par onplay/onstart ou par le filet
+  // de sécurité si l'environnement ne déclenche jamais ces événements.
   const beginVisualPlayback = () => {
     if (visualPlayingRef.current) return
     visualPlayingRef.current = true
     setPlaying(true)
     startedAtRef.current = Date.now()
-    // Durée estimée : ~60 ms par caractère (borne basse 1,2 s).
-    estimatedMsRef.current = Math.max(context.text.length * 60, 1200)
+    // Durée estimée : ~60 ms par caractère (borne basse 1,2 s) —
+    // remplacée par la durée RÉELLE du WAV dès que les métadonnées
+    // sont connues (voir l'intervalle ci-dessous).
+    estimatedMsRef.current = Math.max(texte.length * 60, 1200)
     if (progressTimerRef.current !== null) window.clearInterval(progressTimerRef.current)
     progressTimerRef.current = window.setInterval(() => {
-      const elapsed = Date.now() - startedAtRef.current
-      const pct = Math.min((elapsed / estimatedMsRef.current) * 100, 100)
+      // Progression pilotée par le WAV (durée réelle) UNIQUEMENT si le
+      // moteur serveur est bien celui qui parle — sinon (repli navigateur
+      // ou simulation visuelle) on garde l'estimation : l'élément audio
+      // reste figé à currentTime 0 et casserait la barre à 0 %.
+      const courant = audioRef.current
+      const el =
+        moteurActifRef.current === "serveur" && courant && courant.id === context.id
+          ? courant.el
+          : null
+      const dureeValide = el !== null && Number.isFinite(el.duration) && el.duration > 0
+      const pct = dureeValide && el
+        ? Math.min((el.currentTime / el.duration) * 100, 100)
+        : Math.min(((Date.now() - startedAtRef.current) / estimatedMsRef.current) * 100, 100)
       setProgress(pct)
-      // Si aucune vraie voix n'a jamais démarré (aucune voix installée,
-      // environnement sans audio), on repose l'interface à 100 % plutôt
-      // que de laisser un état « Nathalie parle… » figé.
+      // Si aucune vraie voix n'a jamais démarré (échec serveur + repli
+      // visuel), on repose l'interface à 100 % plutôt que de laisser un
+      // état « Nathalie parle… » figé.
       if (pct >= 100 && !realSpeechRef.current) stopPlayback()
     }, 100)
   }
 
+  // Moteur 2 — Web Speech API du navigateur (repli si le serveur
+  // d'audio est indisponible ou si la lecture du WAV est bloquée).
   const startPlayback = () => {
     if (typeof window === "undefined" || !("speechSynthesis" in window)) {
       setSpeechFailed(true)
@@ -188,8 +325,9 @@ export function VoiceDemoNathalie() {
     const synth = window.speechSynthesis
     synth.cancel()
     stopPlayback()
+    moteurActifRef.current = "navigateur"
 
-    const utterance = new SpeechSynthesisUtterance(context.text)
+    const utterance = new SpeechSynthesisUtterance(texte)
     utterance.lang = "fr-FR"
     utterance.volume = 0.85
     if (context.voice === "doux") {
@@ -222,9 +360,8 @@ export function VoiceDemoNathalie() {
       if (event.error === "canceled" || event.error === "interrupted") {
         return
       }
-      // Repli : aucune voix exploitable (aucune voix installée, backend
-      // audio absent…) → on simule l'annonce visuellement plutôt que de
-      // laisser un bouton inerte.
+      // Repli ultime : aucun moteur disponible → simulation visuelle
+      // de l'annonce plutôt qu'un bouton inerte.
       beginVisualPlayback()
     }
 
@@ -237,13 +374,46 @@ export function VoiceDemoNathalie() {
     fallbackTimerRef.current = window.setTimeout(beginVisualPlayback, 900)
   }
 
-  const changeContext = (id: VoiceContextId) => {
+  // Moteur 1 — voix serveur (vraie voix IA Nathalie).
+  const demarrerLectureServeur = () => {
+    const pret = audioRef.current && audioRef.current.id === contextId ? audioRef.current : null
+    if (pret) {
+      // Audio déjà préchargé : play() est appelé SYNCHRONEMENT dans le
+      // geste utilisateur (condition requise par iOS/Safari).
+      stopPlayback()
+      pret.el.currentTime = 0
+      pret.el.play().catch(() => startPlayback()) // bloqué → repli navigateur
+      return
+    }
+    // Audio pas encore prêt : chargement puis lecture. Si le serveur
+    // échoue ou si la lecture est refusée → repli Web Speech API.
+    setChargement(true)
+    obtenirAudioRef
+      .current?.(contextId)
+      .then((el) => {
+        setChargement(false)
+        if (!el) {
+          startPlayback()
+          return
+        }
+        stopPlayback()
+        el.currentTime = 0
+        el.play().catch(() => startPlayback())
+      })
+      .catch(() => {
+        setChargement(false)
+        startPlayback()
+      })
+  }
+
+  const changeContext = (id: ContexteVocalId) => {
     if (id === contextId) return
     stopPlayback()
+    setChargement(false)
     setContextId(id)
   }
 
-  // Jamais de voix résiduelle en quittant la page.
+  // Jamais de voix résiduelle ni de fuite mémoire en quittant la page.
   useEffect(() => {
     const cancelSpeech = () => {
       if (typeof window !== "undefined" && "speechSynthesis" in window) {
@@ -256,13 +426,19 @@ export function VoiceDemoNathalie() {
       window.removeEventListener("beforeunload", onUnload)
       if (progressTimerRef.current !== null) window.clearInterval(progressTimerRef.current)
       if (fallbackTimerRef.current !== null) window.clearTimeout(fallbackTimerRef.current)
+      promesseAudioRef.current.clear()
+      libererAudioCourant()
       cancelSpeech()
     }
   }, [])
 
   const toggle = () => {
-    if (playing) stopPlayback()
-    else startPlayback()
+    if (playing || chargement) {
+      setChargement(false)
+      stopPlayback()
+    } else {
+      demarrerLectureServeur()
+    }
   }
 
   return (
@@ -303,7 +479,7 @@ export function VoiceDemoNathalie() {
       <div className="hy-vdemo-group">
         <div className="hy-denise-label">Annonce de Nathalie</div>
         <p className="hy-denise-quote hy-vdemo-quote" key={context.id} aria-live="polite">
-          « {context.text} »
+          « {texte} »
         </p>
       </div>
 
@@ -318,10 +494,21 @@ export function VoiceDemoNathalie() {
         className="hy-vdemo-listen"
         data-playing={playing ? "true" : "false"}
         onClick={toggle}
-        aria-label={playing ? "Arrêter la démonstration vocale" : `Écouter Nathalie — contexte ${context.label}`}
+        aria-busy={chargement}
+        aria-label={
+          playing
+            ? "Arrêter la démonstration vocale"
+            : `Écouter Nathalie — contexte ${context.label}`
+        }
       >
-        {playing ? <Square size={16} aria-hidden /> : <Play size={16} aria-hidden />}
-        {playing ? "Nathalie parle…" : "Écouter Nathalie"}
+        {playing ? (
+          <Square size={16} aria-hidden />
+        ) : chargement ? (
+          <Loader2 size={16} className="animate-spin" aria-hidden />
+        ) : (
+          <Play size={16} aria-hidden />
+        )}
+        {playing ? "Nathalie parle…" : chargement ? "Nathalie arrive…" : "Écouter Nathalie"}
         <span className="hy-vdemo-wave" aria-hidden>
           <span />
           <span />
@@ -337,7 +524,8 @@ export function VoiceDemoNathalie() {
 
       {speechFailed && (
         <p className="hy-vdemo-fallback" role="note">
-          Votre navigateur ne supporte pas la synthèse vocale. Essayez Chrome ou Safari.
+          La lecture audio n'est pas disponible sur cet appareil. Essayez Chrome ou Safari, ou
+          réessayez dans quelques instants.
         </p>
       )}
     </div>
