@@ -1,5 +1,14 @@
 'use client'
 
+// ============================================================
+// FeedVoice - Coque du dashboard Pro (Task 1-c : i18n réelle)
+// ------------------------------------------------------------
+// Nav supérieure + header entièrement traduits via useDashboardI18n()
+// (fr / en / es, persistance cookie fp_locale + localStorage, défaut fr).
+// Le sélecteur de langue est monté dans le header en mode CONTRÔLÉ
+// (locale + onLocaleChange) : changement instantané sans rechargement.
+// ============================================================
+
 import { useFpStore } from '@/store/feedbackpro-store'
 import { RetoursTab } from '@/components/feedbackpro/retours-tab'
 import { OverviewTab } from '@/components/feedbackpro/overview-tab'
@@ -8,15 +17,18 @@ import { ParametresTab } from '@/components/feedbackpro/parametres-tab'
 import { Button } from '@/components/ui/button'
 import { MessageSquare, LayoutDashboard, MessageCircleWarning, Users, Settings, LogOut } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { useDashboardI18n } from '@/lib/i18n-dashboard'
+import { LanguageSelector } from '@/components/feedbackpro/language-selector'
 
 export function DashboardShell() {
   const { user, activeTab, setTab, logout, detailRetourId, retours } = useFpStore()
+  const { t, locale, setLocale } = useDashboardI18n()
 
   const tabs = [
-    { id: 'overview' as const, label: 'Vue d’ensemble', icon: LayoutDashboard },
-    { id: 'retours' as const, label: 'Retours', icon: MessageCircleWarning, badge: retours.filter((r) => r.statut === 'NOUVEAU').length },
-    { id: 'personnel' as const, label: 'Personnel', icon: Users },
-    { id: 'parametres' as const, label: 'Paramètres', icon: Settings },
+    { id: 'overview' as const, label: t('nav.overview'), icon: LayoutDashboard },
+    { id: 'retours' as const, label: t('nav.retours'), icon: MessageCircleWarning, badge: retours.filter((r) => r.statut === 'NOUVEAU').length },
+    { id: 'personnel' as const, label: t('nav.personnel'), icon: Users },
+    { id: 'parametres' as const, label: t('nav.parametres'), icon: Settings },
   ]
 
   return (
@@ -36,15 +48,20 @@ export function DashboardShell() {
             )}
           </div>
           <div className="flex items-center gap-2">
+            {/* Sélecteur de langue (mode contrôlé : i18n instantané) */}
+            <LanguageSelector locale={locale} onLocaleChange={setLocale} />
             <span className="hidden sm:inline text-sm text-muted-foreground">{user?.email}</span>
             <Button variant="ghost" size="sm" onClick={() => logout()}>
               <LogOut className="w-4 h-4 mr-1" />
-              <span className="hidden sm:inline">Déconnexion</span>
+              <span className="hidden sm:inline">{t('shell.deconnexion')}</span>
             </Button>
           </div>
         </div>
         {/* Tabs nav */}
-        <nav className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex gap-1 overflow-x-auto">
+        <nav
+          className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 flex gap-1 overflow-x-auto"
+          aria-label={t('shell.navAria')}
+        >
           {tabs.map((t) => {
             const Icon = t.icon
             const active = activeTab === t.id && !detailRetourId
@@ -81,7 +98,7 @@ export function DashboardShell() {
       </main>
 
       <footer className="mt-auto border-t py-4 text-center text-xs text-muted-foreground">
-        FeedVoice · Espace Pro · {new Date().getFullYear()}
+        {t('shell.footer', { annee: new Date().getFullYear() })}
       </footer>
     </div>
   )

@@ -9,6 +9,9 @@
 //        porte source: "ia" | "fallback" depuis la Session 5)
 //   POST /api/pro/coach { type? } → { rapport } (5-15 s, LLM, avec source)
 //   POST /api/pro/coach/email { rapportId } → { envoye, email }
+//   POST /api/voice/report { mois?: "YYYY-MM" } → briefing audio mensuel
+//        « Nathalie » (vraie voix TTS serveur, mp3 en base64, texte,
+//        KPIs réels du mois — carte dédiée sous l'en-tête)
 // ============================================================
 
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -25,11 +28,23 @@ import {
   ArrowLeft,
   Volume2,
   Square,
+  AudioLines,
+  Mic,
+  Download,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 
@@ -54,7 +69,42 @@ type RapportIA = {
   createdAt: string
 }
 
+// ---------- Types du briefing audio mensuel (contrat POST /api/voice/report) ----------
+
+type BriefingKpis = {
+  mois: string
+  libelleMois: string
+  totalRetours: number
+  noteMoyenne: number
+  repartitionEtoiles: { note: number; count: number }[]
+  topTags: { tag: string; count: number }[]
+  alertes: number
+  recompenses: number
+}
+
+type BriefingAudio = {
+  audioBase64: string
+  mimeType: string
+  texte: string
+  dureeEstimee?: number
+  source?: string
+  kpis: BriefingKpis
+}
+
 // ---------- Petits utilitaires d'affichage ----------
+
+/** Les 12 derniers mois (« YYYY-MM » + libellé français) pour le sélecteur du briefing. */
+function derniersMois(count = 12): { valeur: string; label: string }[] {
+  const now = new Date()
+  const options: { valeur: string; label: string }[] = []
+  for (let i = 0; i < count; i++) {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1))
+    const valeur = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`
+    const label = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric", timeZone: "UTC" }).format(d)
+    options.push({ valeur, label: label.charAt(0).toUpperCase() + label.slice(1) })
+  }
+  return options
+}
 
 /** Date de création : « 12 janv. 2026 · 07:00 » */
 function formatDateCreation(d: string | Date): string {
@@ -129,6 +179,16 @@ export function RapportsTab() {
   const [emailId, setEmailId] = useState<string | null>(null)
   // Rapport ouvert dans le modal de lecture
   const [rapportOuvert, setRapportOuvert] = useState<RapportIA | null>(null)
+
+  // ---------- Briefing audio Nathalie (vraie voix TTS serveur) ----------
+  // POST /api/voice/report → mp3 en base64 + texte + KPIs réels du mois.
+  // Le lecteur <audio> sert le fichier data: — téléchargeable/partageable.
+  const moisDisponibles = derniersMois(12)
+  const [briefingMois, setBriefingMois] = useState<string>(moisDisponibles[0]?.valeur ?? "")
+  const [briefingAudio, setBriefingAudio] = useState<BriefingAudio | null>(null)
+  const [briefingEnCours, setBriefingEnCours] = useState(false)
+  const [briefingErreur, setBriefingErreur] = useState<string | null>(null)
+  const [briefingTexteVisible, setBriefingTexteVisible] = useState(false)
 
   // ---------- Lecture vocale du rapport (voix Nathalie, Web Speech API) ----------
   // Même mécanique que la démo du landing : voix FR féminine, débit posé.
@@ -210,6 +270,38 @@ export function RapportsTab() {
     utterance.onerror = () => setLectureEnCours(false)
     setLectureEnCours(true)
     synth.speak(utterance)
+  }
+
+  // ---------- Génération du briefing audio mensuel (TTS serveur) ----------
+  async function genererBriefing() {
+    setBriefingEnCours(true)
+    setBriefingErreur(null)
+    setBriefingTexteVisible(false)
+    try {
+      const res = await fetch("/api/voice/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mois: briefingMois }),
+      })
+      const json = await res.json()
+      if (res.ok && json?.ok && json.data?.audioBase64) {
+        setBriefingAudio(json.data as BriefingAudio)
+        toast({
+          title: "Briefing audio prêt",
+          description: `Le bilan de ${json.data.kpis?.libelleMois ?? "votre mois"} est prêt à être écouté.`,
+        })
+      } else {
+        const message = json?.error || "Impossible de générer le briefing audio pour le moment."
+        setBriefingErreur(message)
+        toast({ title: "Génération impossible", description: message, variant: "destructive" })
+      }
+    } catch {
+      const message = "Erreur réseau : impossible de contacter le service audio."
+      setBriefingErreur(message)
+      toast({ title: "Erreur réseau", description: message, variant: "destructive" })
+    } finally {
+      setBriefingEnCours(false)
+    }
   }
 
   // ---------- Chargement de la liste ----------
@@ -444,6 +536,132 @@ export function RapportsTab() {
           {generation ? "Analyse en cours…" : "Générer un nouveau rapport"}
         </Button>
       </div>
+
+      {/* ---------- Carte Briefing audio Nathalie (vraie voix TTS serveur) ---------- */}
+      <Card>
+        <CardContent className="space-y-4 p-4 sm:p-6">
+          <div className="flex items-start gap-3">
+            <div className="rounded-2xl bg-primary/10 p-3" aria-hidden>
+              <AudioLines className="h-6 w-6 text-[#bc7155]" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-[23px] font-bold leading-tight tracking-tight">Briefing audio Nathalie.</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Une vraie voix de synthèse vous lit votre bilan mensuel : écoutez-le ici ou
+                téléchargez-le pour le partager.
+              </p>
+            </div>
+          </div>
+
+          {/* Sélecteur de mois + bouton de génération */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={briefingMois} onValueChange={setBriefingMois} disabled={briefingEnCours}>
+              <SelectTrigger
+                className="w-[180px] shrink-0"
+                aria-label="Mois du briefing audio"
+              >
+                <SelectValue placeholder="Choisir un mois" />
+              </SelectTrigger>
+              <SelectContent className="max-h-72">
+                {moisDisponibles.map((m) => (
+                  <SelectItem key={m.valeur} value={m.valeur}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={genererBriefing} disabled={briefingEnCours || !briefingMois}>
+              {briefingEnCours ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <Mic className="mr-2 h-4 w-4" aria-hidden />
+              )}
+              {briefingEnCours ? "Génération en cours…" : "Générer le briefing audio"}
+            </Button>
+          </div>
+
+          {/* Erreur lisible (inline, en complément du toast) */}
+          {briefingErreur && (
+            <p role="alert" className="text-sm font-medium text-destructive">
+              {briefingErreur}
+            </p>
+          )}
+
+          {/* Résultat : lecteur + téléchargement + KPIs + texte repliable */}
+          {briefingAudio && !briefingEnCours && (
+            <div className="space-y-3 border-t pt-4">
+              <audio
+                controls
+                preload="metadata"
+                className="w-full"
+                src={`data:${briefingAudio.mimeType};base64,${briefingAudio.audioBase64}`}
+                aria-label="Lecteur du briefing audio de Nathalie"
+              />
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button asChild variant="outline">
+                  <a
+                    href={`data:${briefingAudio.mimeType};base64,${briefingAudio.audioBase64}`}
+                    download={`briefing-nathalie-${briefingAudio.kpis.mois}.mp3`}
+                    aria-label="Télécharger le briefing audio au format MP3"
+                  >
+                    <Download className="mr-2 h-4 w-4" aria-hidden />
+                    Télécharger
+                  </a>
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => setBriefingTexteVisible((v) => !v)}
+                  aria-expanded={briefingTexteVisible}
+                >
+                  {briefingTexteVisible ? (
+                    <ChevronUp className="mr-2 h-4 w-4" aria-hidden />
+                  ) : (
+                    <ChevronDown className="mr-2 h-4 w-4" aria-hidden />
+                  )}
+                  {briefingTexteVisible ? "Masquer le texte" : "Afficher le texte du briefing"}
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  {briefingAudio.source === "fallback" ? "Analyse locale" : "Généré par IA"}
+                  {briefingAudio.dureeEstimee ? ` · ≈ ${briefingAudio.dureeEstimee} s` : ""}
+                </span>
+              </div>
+
+              {/* KPIs réels du mois servis par l'API */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Badge variant="outline">
+                  {briefingAudio.kpis.totalRetours} retour
+                  {briefingAudio.kpis.totalRetours > 1 ? "s" : ""}
+                </Badge>
+                <Badge variant="outline">
+                  Note moyenne {briefingAudio.kpis.noteMoyenne.toFixed(2).replace(".", ",")}/5
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className={
+                    briefingAudio.kpis.alertes > 0 ? "border-rose-300 text-rose-700" : undefined
+                  }
+                >
+                  {briefingAudio.kpis.alertes} alerte{briefingAudio.kpis.alertes > 1 ? "s" : ""}
+                </Badge>
+                <Badge variant="outline">
+                  {briefingAudio.kpis.recompenses} récompense
+                  {briefingAudio.kpis.recompenses > 1 ? "s" : ""}
+                </Badge>
+              </div>
+
+              {/* Texte du briefing, repliable (déplié : scroll si long) */}
+              {briefingTexteVisible && (
+                <div className="rounded-xl border bg-muted/30 p-3">
+                  <p className="max-h-96 overflow-y-auto whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+                    {briefingAudio.texte}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* ---------- Squelettes / empty state / liste ---------- */}
       {loading ? (

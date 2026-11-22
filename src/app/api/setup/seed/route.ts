@@ -1,27 +1,77 @@
 // ============================================================
 // POST /api/setup/seed
-// Route PUBLIQUE pour initialiser la DB de production.
-// À appeler UNE SEULE FOIS après un déploiement avec DB vide.
+// Route d'initialisation de la DB — durcie (faille critique corrigée).
+//
+// HISTORIQUE : la version initiale était publique et réinitialisait le
+// mot de passe superadmin à « admin123 » À CHAQUE POST — n'importe qui
+// pouvait donc reprendre le contrôle du compte admin d'une prod (faille
+// découverte lors de la revue sécurité 2026-11-22, mot de passe rotaté).
+//
+// POLITIQUE ACTUELLE :
+//   1. Mode bootstrap : si la DB ne contient AUCUN utilisateur (fresh
+//      install), le seed est autorisé sans secret — c'est son rôle.
+//   2. Sinon : exige l'en-tête `x-seed-token` égal à process.env.SEED_SECRET.
+//      Si SEED_SECRET n'est pas défini, la route répond 403 (désactivée).
+//   3. Le mot de passe d'un utilisateur EXISTANT n'est JAMAIS écrasé :
+//      l'upsert ne touche que le rôle en cas de mise à jour.
 // ============================================================
 
-import { NextResponse } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
+import crypto from "crypto"
 import { db } from "@/lib/db"
 import { hashPassword } from "@/lib/auth"
+import { limiteTaux } from "@/lib/rate-limit"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
-export async function POST() {
+export async function POST(req: NextRequest) {
+  // 5 appels/heure/IP : une initialisation n'a pas besoin de plus.
+  const bloque = limiteTaux(req, "setup-seed", { max: 5, fenetreMs: 3_600_000 })
+  if (bloque) return bloque
+
+  // Garde-fou principal : bootstrap-only, ou secret valide.
+  const nbUsers = await db.user.count()
+  const secretFourni = req.headers.get("x-seed-token")
+  const secretAttendu = process.env.SEED_SECRET
+
+  const modeBootstrap = nbUsers === 0
+  const secretValide =
+    typeof secretAttendu === "string" &&
+    secretAttendu.length >= 16 &&
+    typeof secretFourni === "string" &&
+    secretFourni.length === secretAttendu.length &&
+    crypto.timingSafeEqual(Buffer.from(secretFourni), Buffer.from(secretAttendu))
+
+  if (!modeBootstrap && !secretValide) {
+    return NextResponse.json(
+      {
+        ok: false,
+        error:
+          "Seed désactivé : la base contient déjà des utilisateurs. Réinitialisation possible uniquement avec l'en-tête x-seed-token correct.",
+      },
+      { status: 403 }
+    )
+  }
+
   const results: string[] = []
   try {
-    // Toujours upsert le superadmin — le seed du build utilise bcrypt
-    // mais le login utilise hashPassword (SHA256). On force le bon hash.
-    const admin = await db.user.upsert({
-      where: { email: "admin@feedbackpro.fr" },
-      create: { email: "admin@feedbackpro.fr", passwordHash: hashPassword("admin123"), role: "SUPERADMIN" },
-      update: { passwordHash: hashPassword("admin123"), role: "SUPERADMIN" },
-    })
-    results.push(`✓ Superadmin: ${admin.email} / admin123 (hash corrigé)`)
+    // Superadmin : créé UNIQUEMENT en bootstrap (DB vide). En mode secret,
+    // on garantit juste le rôle — jamais le mot de passe.
+    if (modeBootstrap) {
+      const admin = await db.user.upsert({
+        where: { email: "admin@feedbackpro.fr" },
+        create: { email: "admin@feedbackpro.fr", passwordHash: hashPassword("admin123"), role: "SUPERADMIN" },
+        update: { role: "SUPERADMIN" },
+      })
+      results.push(`✓ Superadmin: ${admin.email} (mot de passe temporaire admin123 — À CHANGER immédiatement)`)
+    } else {
+      await db.user.update({
+        where: { email: "admin@feedbackpro.fr" },
+        data: { role: "SUPERADMIN" },
+      })
+      results.push("✓ Superadmin: rôle vérifié (mot de passe INTACT)")
+    }
 
     // Modules
     const modules = [

@@ -7,6 +7,8 @@
 // Détail : en-tête sticky, layout 3 colonnes, recommandation IA dégradée
 // Toute la logique métier (majRetour, envoyerReponse, genererRecommandationIA,
 // statsEmploye, etc.) est conservée à l'identique.
+// Task 1-c : libellés principaux traduits via useDashboardI18n()
+// (fr / en / es) — chaînes composées conservées avec interpolation.
 // ============================================================
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
@@ -74,6 +76,7 @@ import { useToast } from "@/hooks/use-toast"
 import { exportToCsv } from "@/lib/export-csv"
 import { ALL_TAGS, NEGATIVE_TAGS_ETENDUS, POSITIVE_TAGS_ETENDUS, STATUT_RETOUR_LABEL, tagLabel } from "@/lib/constants"
 import { useAppStore } from "@/store/app-store"
+import { useDashboardI18n, type Traducteur } from "@/lib/i18n-dashboard"
 
 type StatutRetour = "NEW" | "IN_PROGRESS" | "RESOLVED"
 
@@ -657,12 +660,41 @@ function tronquer(texte: string, max = 60): string {
   return texte.length > max ? `${texte.slice(0, max)}…` : texte
 }
 
-/** Libellé du canal d'envoi */
-function canalLabel(canal: string | null): string {
+// ---------- Task 1-c : libellés i18n (fr / en / es) ----------
+// Ces helpers remplacent à l'AFFICHAGE les constantes FR codées en dur
+// (STATUT_RETOUR_LABEL, URGENCE_CONFIG.label, NIVEAU_IA_CONFIG.label,
+// canalLabel). Les constantes module restent inchangées : elles servent
+// aux données (export CSV, templates) et ne sont pas des libellés UI.
+
+/** Libellé lisible d'un statut de retour (NEW / IN_PROGRESS / RESOLVED). */
+function labelStatut(t: Traducteur, statut: string): string {
+  if (statut === "RESOLVED") return t("common.statutResolu")
+  if (statut === "IN_PROGRESS") return t("common.statutEnCours")
+  if (statut === "NEW") return t("common.statutNouveau")
+  return statut
+}
+
+/** Libellé d'urgence d'une carte (Urgent / À traiter / Mitigé / Positif). */
+function labelUrgence(t: Traducteur, u: Urgence): string {
+  if (u === "urgent") return t("retours.urgenceUrgent")
+  if (u === "atraiter") return t("retours.urgenceATraiter")
+  if (u === "mitige") return t("retours.urgenceMitige")
+  return t("retours.urgencePositif")
+}
+
+/** Libellé du niveau IA (Urgent/Crise, Mitigé, Positif). */
+function labelNiveauIA(t: Traducteur, n: NiveauIA): string {
+  if (n === "crise") return t("retours.niveauCrise")
+  if (n === "mitige") return t("retours.niveauMitige")
+  return t("retours.niveauPositif")
+}
+
+/** Libellé du canal d'envoi (traduit). */
+function canalLisible(t: Traducteur, canal: string | null): string {
   if (!canal) return "—"
-  if (canal === "whatsapp") return "via WhatsApp"
-  if (canal === "google") return "via Google"
-  return "via formulaire"
+  if (canal === "whatsapp") return t("retours.canalWhatsapp")
+  if (canal === "google") return t("retours.canalGoogle")
+  return t("retours.canalFormulaire")
 }
 
 /** Badge de statut coloré : Nouveau rouge / En cours orange / Résolu vert */
@@ -1050,6 +1082,7 @@ function CarteRetour({
   onFiltrerTag: (tag: string) => void
   onVoirEmploye: (nom: string) => void
 }) {
+  const { t } = useDashboardI18n()
   const urgence = urgenceDe(r, recurrence)
   const cfg = URGENCE_CONFIG[urgence]
   const personnel = r.employe?.nom ?? r.personnelMentionne
@@ -1077,7 +1110,7 @@ function CarteRetour({
               {r.zone.nom}
             </Badge>
           ) : (
-            <span className="text-xs opacity-60">Zone non précisée</span>
+            <span className="text-xs opacity-60">{t("common.zoneNonPrecisee")}</span>
           )}
           <span className="opacity-60">•</span>
           <span className="text-xs opacity-80" title={formatDate(r.createdAt)}>
@@ -1086,34 +1119,34 @@ function CarteRetour({
           {!r.lu && (
             <Badge className="h-5 gap-0.5 border border-white/40 bg-white/30 px-1.5 text-[10px] font-bold text-white shadow-sm">
               <span aria-hidden>✨</span>
-              Nouveau
+              {t("retours.nouveau")}
             </Badge>
           )}
           <Badge variant="outline" className={cn("ml-auto h-6 px-2 text-xs font-bold", cfg.badge)}>
             <span aria-hidden>{cfg.emoji}</span>
-            {cfg.label}
+            {labelUrgence(t, urgence)}
           </Badge>
         </div>
 
         {/* Ligne 2 : tags (cliquables pour filtrage instantané) */}
         {nbTags > 0 && (
           <div className="flex flex-wrap gap-1.5">
-            {r.tags.slice(0, 5).map((t) => {
-              const neg = SET_NEGATIFS.has(t)
-              const pos = SET_POSITIFS.has(t)
+            {r.tags.slice(0, 5).map((tag) => {
+              const neg = SET_NEGATIFS.has(tag)
+              const pos = SET_POSITIFS.has(tag)
               return (
                 <button
-                  key={t}
+                  key={tag}
                   type="button"
-                  onClick={() => onFiltrerTag(t)}
-                  title={`Filtrer par « ${tagLabel(t)} »`}
+                  onClick={() => onFiltrerTag(tag)}
+                  title={t("retours.filtreTagTitle", { tag: tagLabel(tag) })}
                   className={cn(
                     "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-semibold transition-all",
                     "hover:scale-105 hover:shadow-sm",
                     "border-white/30 bg-white/15 text-white hover:bg-white/25"
                   )}
                 >
-                  {tagLabel(t)}
+                  {tagLabel(tag)}
                 </button>
               )
             })}
@@ -1149,7 +1182,7 @@ function CarteRetour({
           {r.photoUrl && (
             <span className="inline-flex items-center gap-1 text-white">
               <Camera className="h-3 w-3" aria-hidden />
-              Photo jointe
+              {t("retours.photoJointe")}
             </span>
           )}
           {recurrence.count >= 2 && recurrence.libelleTag && (
@@ -1158,19 +1191,19 @@ function CarteRetour({
               title={`${ordinalFr(recurrence.count)} signalement « ${recurrence.libelleTag} » sur 30 jours`}
             >
               <RefreshCw className="h-3 w-3" aria-hidden />
-              {ordinalFr(recurrence.count)} similaire
+              {t("retours.similaireBadge", { n: recurrence.count })}
             </span>
           )}
           {r.statut === "RESOLVED" && (
             <span className="inline-flex items-center gap-1 text-white/90">
               <CheckCircle2 className="h-3 w-3" aria-hidden />
-              Résolu
+              {t("retours.resolu")}
             </span>
           )}
           {r.reponsePro && (
             <span className="inline-flex items-center gap-1 text-white">
               <MessageSquareReply className="h-3 w-3" aria-hidden />
-              Répondu
+              {t("retours.repondu")}
             </span>
           )}
         </div>
@@ -1183,7 +1216,7 @@ function CarteRetour({
             onClick={onVoir}
           >
             <Eye className="h-4 w-4" aria-hidden />
-            Voir détail
+            {t("retours.voirDetail")}
           </Button>
           <Button
             variant="outline"
@@ -1192,7 +1225,7 @@ function CarteRetour({
             onClick={onRepondre}
           >
             <MessageSquareReply className="h-4 w-4" aria-hidden />
-            Répondre
+            {t("retours.repondreBtn")}
           </Button>
           {r.statut !== "RESOLVED" && (
             <Button
@@ -1202,7 +1235,7 @@ function CarteRetour({
               onClick={onResoudre}
             >
               <CheckCircle2 className="h-4 w-4" aria-hidden />
-              Marquer résolu
+              {t("retours.marquerResolu")}
             </Button>
           )}
         </div>
@@ -1232,6 +1265,7 @@ function GroupeCartes({
   onFiltrerTag: (tag: string) => void
   onVoirEmploye: (nom: string) => void
 }) {
+  const { t } = useDashboardI18n()
   const tous = groupe.retours
   // Récurrence du premier retour du groupe (représentatif)
   const recurrencePremier = useMemo(
@@ -1252,16 +1286,16 @@ function GroupeCartes({
         </span>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold">
-            📦 {groupe.count} retours similaires « {groupe.libelle} »
+            {t("retours.groupeTitre", { n: groupe.count, tag: groupe.libelle })}
           </p>
           <p className="text-xs text-muted-foreground">
-            {groupe.zone ? `Zone : ${groupe.zone}` : "Zones multiples"}
-            {" — "}note moyenne{" "}
+            {groupe.zone ? t("retours.groupeZone", { zone: groupe.zone }) : t("retours.groupeZonesMultiples")}
+            {" — "}{t("retours.groupeNoteMoyenne")}{" "}
             {(groupe.retours.reduce((s, r) => s + r.note, 0) / groupe.count).toFixed(1)}/5
           </p>
         </div>
         <Badge variant="outline" className="border-transparent bg-[#bc7155] text-white shadow-sm shadow-[#bc7155]/30">
-          🔁 Récurrence
+          {t("retours.groupeRecurrence")}
         </Badge>
         {deploye ? (
           <ChevronDown className="h-5 w-5 shrink-0 text-muted-foreground" aria-hidden />
@@ -1293,30 +1327,31 @@ function GroupeCartes({
 
 /** Rendu compact d'une évolution hebdomadaire (badge coloré selon la tendance). */
 function BadgeEvolution({ evolution }: { evolution: EvolutionSemaine }) {
+  const { t } = useDashboardI18n()
   if (evolution.nouveau) {
     return (
       <span className="inline-flex items-center gap-1 rounded-full border border-[#8e8e95] bg-[#dcdee0] px-2 py-0.5 text-[10px] font-semibold text-[#1c1d2c] dark:border-[#2e3040] dark:bg-[#0f0f1c]/50 dark:text-[#8e8e95]">
-        <span aria-hidden>🆕</span> Nouveau
+        <span aria-hidden>🆕</span> {t("retours.nouveau")}
       </span>
     )
   }
   if (evolution.pct > 0) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-red-300 bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-800 dark:border-red-700 dark:bg-red-950/50 dark:text-red-300" title={`Cette semaine : ${evolution.thisWeek} · Semaine précédente : ${evolution.lastWeek}`}>
+      <span className="inline-flex items-center gap-1 rounded-full border border-red-300 bg-red-100 px-2 py-0.5 text-[10px] font-semibold text-red-800 dark:border-red-700 dark:bg-red-950/50 dark:text-red-300" title={t("retours.evolutionTitle", { actuelle: evolution.thisWeek, precedente: evolution.lastWeek })}>
         <span aria-hidden>↗️</span> +{evolution.pct}%
       </span>
     )
   }
   if (evolution.pct < 0) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full border border-[#dba28a] bg-[#f3ddd2] px-2 py-0.5 text-[10px] font-semibold text-[#6f3f30] dark:border-[#8a4f3b] dark:bg-[#3f231b]/50 dark:text-[#dba28a]" title={`Cette semaine : ${evolution.thisWeek} · Semaine précédente : ${evolution.lastWeek}`}>
+      <span className="inline-flex items-center gap-1 rounded-full border border-[#dba28a] bg-[#f3ddd2] px-2 py-0.5 text-[10px] font-semibold text-[#6f3f30] dark:border-[#8a4f3b] dark:bg-[#3f231b]/50 dark:text-[#dba28a]" title={t("retours.evolutionTitle", { actuelle: evolution.thisWeek, precedente: evolution.lastWeek })}>
         <span aria-hidden>↘️</span> {evolution.pct}%
       </span>
     )
   }
   return (
-    <span className="inline-flex items-center gap-1 rounded-full border border-muted-foreground/20 bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground" title={`Cette semaine : ${evolution.thisWeek} · Semaine précédente : ${evolution.lastWeek}`}>
-      <span aria-hidden>→</span> Stable
+    <span className="inline-flex items-center gap-1 rounded-full border border-muted-foreground/20 bg-muted px-2 py-0.5 text-[10px] font-semibold text-muted-foreground" title={t("retours.evolutionTitle", { actuelle: evolution.thisWeek, precedente: evolution.lastWeek })}>
+      <span aria-hidden>→</span> {t("retours.stable")}
     </span>
   )
 }
@@ -1332,6 +1367,7 @@ function ResumeCoachIA({
   onFiltrerTag: (tag: string) => void
   onVoirEmploye: (nom: string) => void
 }) {
+  const { t } = useDashboardI18n()
   const priorites = useMemo(() => calculerResumeIA(items), [items])
 
   if (priorites.length === 0) return null
@@ -1346,14 +1382,14 @@ function ResumeCoachIA({
           <div>
             <h2 className="text-base font-semibold flex items-center gap-1.5">
               <span aria-hidden>📊</span>
-              Résumé de la semaine
-              <span className="text-xs font-normal text-muted-foreground">(Coach IA)</span>
+              {t("retours.resumeTitre")}
+              <span className="text-xs font-normal text-muted-foreground">{t("retours.resumeCoach")}</span>
             </h2>
-            <p className="text-xs text-muted-foreground">Coach IA — priorités détectées sur les retours chargés</p>
+            <p className="text-xs text-muted-foreground">{t("retours.resumeSousTitre")}</p>
           </div>
           <Badge variant="outline" className="ml-auto h-6 gap-1 px-2 text-xs font-normal">
             <Sparkles className="h-3 w-3" aria-hidden />
-            {priorites.length} priorité{priorites.length > 1 ? "s" : ""}
+            {t("retours.nbPriorites", { n: priorites.length, s: priorites.length > 1 ? "s" : "" })}
           </Badge>
         </div>
 
@@ -1394,7 +1430,7 @@ function ResumeCoachIA({
 
         <Button variant="default" size="sm" className="gap-1.5" onClick={onVoirRapport}>
           <Sparkles className="h-4 w-4" aria-hidden />
-          Voir le rapport complet
+          {t("retours.voirRapportComplet")}
           <ArrowRight className="h-3.5 w-3.5" aria-hidden />
         </Button>
       </CardContent>
@@ -1407,6 +1443,8 @@ function ResumeCoachIA({
 // ============================================================
 
 export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void } = {}) {
+  // Task 1-c — i18n réelle du dashboard Pro (fr / en / es).
+  const { t } = useDashboardI18n()
   const [items, setItems] = useState<Retour[]>([])
   const [zones, setZones] = useState<ZoneFiltre[]>([])
   const [employes, setEmployes] = useState<EmployeFiltre[]>([])
@@ -1595,10 +1633,10 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
           setItems(enArray(json.data.retours))
           setTotal(json.data.total ?? 0)
         } else {
-          toast({ title: "Erreur", description: "Impossible de charger les retours", variant: "destructive" })
+          toast({ title: t("common.erreur"), description: t("retours.toastErreurChargement"), variant: "destructive" })
         }
       } catch {
-        toast({ title: "Erreur", description: "Impossible de charger les retours", variant: "destructive" })
+        toast({ title: t("common.erreur"), description: t("retours.toastErreurChargement"), variant: "destructive" })
       } finally {
         setLoading(false)
       }
@@ -1681,10 +1719,10 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
         setItems((prev) => prev.map((r) => (r.id === id ? { ...r, ...maj } : r)))
         setDetail((prev) => (prev && prev.id === id ? { ...prev, ...maj } : prev))
       } else {
-        toast({ title: "Erreur", description: json.error || "Mise à jour impossible", variant: "destructive" })
+        toast({ title: t("common.erreur"), description: json.error || t("retours.toastMajImpossible"), variant: "destructive" })
       }
     } catch {
-      toast({ title: "Erreur", description: "Mise à jour impossible", variant: "destructive" })
+      toast({ title: t("common.erreur"), description: t("retours.toastMajImpossible"), variant: "destructive" })
     }
   }
 
@@ -1739,12 +1777,12 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
       }
       // Retirer le retour de la liste
       setItems((prev) => prev.filter((r) => r.id !== detail.id))
-      toast({ title: "Retour supprimé", description: "Le retour a été définitivement supprimé." })
+      toast({ title: t("retours.toastRetourSupprime"), description: t("retours.toastRetourSupprimeDesc") })
       fermerDetail()
     } catch (e) {
       toast({
-        title: "Erreur",
-        description: e instanceof Error ? e.message : "Suppression impossible",
+        title: t("common.erreur"),
+        description: e instanceof Error ? e.message : t("retours.toastSuppressionImpossible"),
         variant: "destructive",
       })
     } finally {
@@ -1776,20 +1814,20 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
           setItems((prev) => prev.map((r) => (r.id === detail.id ? { ...r, ...maj } : r)))
           setDetail((prev) => (prev && prev.id === detail.id ? { ...prev, ...maj } : prev))
           toast({
-            title: "Réponse envoyée par email ✓",
-            description: `Le client recevra votre réponse à l'adresse ${detail.emailClient}.`,
+            title: t("retours.toastReponseEmail"),
+            description: t("retours.toastReponseEmailDesc", { email: detail.emailClient }),
           })
         } else {
           toast({
-            title: "Erreur",
-            description: json.error || "Envoi impossible",
+            title: t("common.erreur"),
+            description: json.error || t("retours.toastEnvoiImpossible"),
             variant: "destructive",
           })
           setEnvoiReponse(false)
           return
         }
       } catch {
-        toast({ title: "Erreur", description: "Envoi impossible pour le moment", variant: "destructive" })
+        toast({ title: t("common.erreur"), description: t("retours.toastEnvoiImpossibleMoment"), variant: "destructive" })
         setEnvoiReponse(false)
         return
       }
@@ -1801,10 +1839,10 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
         ...(statutPasse ? { statut: "IN_PROGRESS" as StatutRetour } : {}),
       })
       toast({
-        title: "Réponse enregistrée",
+        title: t("retours.toastReponseEnregistree"),
         description: statutPasse
-          ? "Le statut du retour est passé à « En cours » (le client n'a pas laissé d'email, réponse conservée en interne)."
-          : "Le client n'a pas laissé d'email — réponse conservée en interne.",
+          ? t("retours.toastReponseInterneStatut", { statut: labelStatut(t, "IN_PROGRESS") })
+          : t("retours.toastReponseInterneDesc"),
       })
     }
 
@@ -1831,10 +1869,10 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
     setEnvoiAction(false)
     setEditionAction(false)
     toast({
-      title: "Appréciation du gérant enregistrée",
+      title: t("retours.toastAppreciation"),
       description:
         nouveauStatut !== detail.statut
-          ? `Statut mis à jour : « ${STATUT_RETOUR_LABEL[nouveauStatut] ?? nouveauStatut} ».`
+          ? t("retours.toastAppreciationStatut", { statut: labelStatut(t, nouveauStatut) })
           : undefined,
     })
   }
@@ -1876,8 +1914,8 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
       actionRef.current?.focus()
     }, 80)
     toast({
-      title: "Recommandations appliquées",
-      description: "Le formulaire d'action managériale a été pré-rempli.",
+      title: t("retours.toastRecommandations"),
+      description: t("retours.toastRecommandationsDesc"),
     })
   }
 
@@ -2014,10 +2052,10 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
     // Phrase de contexte affichée dans l'en-tête sticky (NIVEAU 1) selon la note
     const phraseContexte =
       niveau === "crise"
-        ? "Client mécontent — Risque d'avis négatif public"
+        ? t("retours.contexteCrise")
         : niveau === "mitige"
-          ? "Expérience mitigée — Points de friction à adresser"
-          : "Client satisfait — Opportunité de fidélisation et d'avis Google"
+          ? t("retours.contexteMitige")
+          : t("retours.contextePositif")
 
     // Initiales de l'employé pour l'avatar
     const initialesEmploye = (() => {
@@ -2053,16 +2091,16 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                 className="gap-1.5 h-8 bg-white/20 hover:bg-white/30 text-white hover:text-white"
               >
                 <ArrowLeft className="h-4 w-4" aria-hidden />
-                <span className="hidden sm:inline">Retour à la liste</span>
-                <span className="sm:hidden">Retour</span>
+                <span className="hidden sm:inline">{t("retours.retourListe")}</span>
+                <span className="sm:hidden">{t("retours.retourCourt")}</span>
               </Button>
               <Badge className="h-6 px-2 text-xs font-semibold bg-white/20 text-white border-transparent hover:bg-white/25">
-                {STATUT_RETOUR_LABEL[detail.statut] ?? detail.statut}
+                {labelStatut(t, detail.statut)}
               </Badge>
               {!detail.lu && (
                 <Badge className="h-6 gap-0.5 bg-white/25 px-2 text-xs font-semibold text-white border-transparent">
                   <span aria-hidden>✨</span>
-                  Nouveau
+                  {t("retours.nouveau")}
                 </Badge>
               )}
               {typeof detail.nps === "number" && (
@@ -2078,7 +2116,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                     title={recurrence.libelleTag ? `${ordinalFr(recurrence.count)} signalement « ${recurrence.libelleTag} » ce mois-ci` : undefined}
                   >
                     <span aria-hidden>🔁</span>
-                    {ordinalFr(recurrence.count)} signalement similaire
+                    {t("retours.recurrenceBadge", { n: recurrence.count })}
                   </Badge>
                 )}
                 <Badge
@@ -2086,7 +2124,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                   title={recurrence.count >= 2 && recurrence.libelleTag ? `${ordinalFr(recurrence.count)} signalement « ${recurrence.libelleTag} » ce mois` : undefined}
                 >
                   <span aria-hidden className="mr-0.5">{cfgUrgence.emoji}</span>
-                  {urgence === "urgent" ? "URGENT" : urgence === "atraiter" ? "À TRAITER" : urgence === "mitige" ? "MITIGÉ" : "POSITIF"}
+                  {labelUrgence(t, urgence)}
                 </Badge>
               </div>
             </div>
@@ -2113,7 +2151,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                   )}
                 </Badge>
               ) : (
-                <span className="text-xs text-white/80">Zone non précisée</span>
+                <span className="text-xs text-white/80">{t("common.zoneNonPrecisee")}</span>
               )}
               {detail.emailClient && (
                 <>
@@ -2121,11 +2159,11 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                   <a
                     href={`mailto:${detail.emailClient}`}
                     className="inline-flex items-center gap-1 text-xs font-medium text-white/80 underline-offset-2 hover:underline"
-                    title="Envoyer un email au client"
+                    title={t("retours.envoyerEmailTitre")}
                   >
                     <MailOpen className="h-3.5 w-3.5" aria-hidden />
                     <span className="hidden sm:inline">{detail.emailClient}</span>
-                    <span className="sm:hidden">Email client</span>
+                    <span className="sm:hidden">{t("retours.emailClient")}</span>
                   </a>
                 </>
               )}
@@ -2160,7 +2198,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                 }}
               >
                 <MessageSquareReply className="h-4 w-4" aria-hidden />
-                <span>Répondre</span>
+                <span>{t("retours.repondreBtn")}</span>
               </Button>
               {lienWhatsapp && (
                 <a href={lienWhatsapp} target="_blank" rel="noopener noreferrer" className="inline-flex">
@@ -2177,7 +2215,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                 onClick={() => setConfirmSuppression(true)}
               >
                 <Trash2 className="h-4 w-4" aria-hidden />
-                <span className="hidden sm:inline">Supprimer</span>
+                <span className="hidden sm:inline">{t("retours.supprimer")}</span>
               </Button>
               {detail.statut !== "RESOLVED" ? (
                 <Button
@@ -2186,15 +2224,15 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                   onClick={() => majRetour(detail.id, { statut: "RESOLVED", lu: true })}
                 >
                   <CheckCheck className="h-4 w-4" aria-hidden />
-                  <span className="hidden sm:inline">Marquer résolu</span>
-                  <span className="sm:hidden">Résolu</span>
+                  <span className="hidden sm:inline">{t("retours.marquerResolu")}</span>
+                  <span className="sm:hidden">{t("retours.resoluCourt")}</span>
                 </Button>
               ) : (
                 <Badge
                   className="ml-auto h-9 gap-1 px-3 text-xs font-medium bg-white/25 text-white border-transparent"
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" aria-hidden />
-                  Résolu
+                  {t("retours.resolu")}
                 </Badge>
               )}
             </div>
@@ -2208,31 +2246,31 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
             <div className="flex items-center justify-between gap-2 border-b pb-3">
               <h3 className="flex items-center gap-2 text-xl font-bold">
                 <ClipboardCheck className="h-5 w-5 text-primary" aria-hidden />
-                📋 Réponses au questionnaire
+                {t("retours.questionnaireTitre")}
               </h3>
               <span className="text-xs text-muted-foreground">
-                {detail.tags.length} dimension{detail.tags.length > 1 ? "s" : ""} évaluée{detail.tags.length > 1 ? "s" : ""}
+                {t("retours.dimensionsEvaluees", { n: detail.tags.length, s: detail.tags.length > 1 ? "s" : "" })}
               </span>
             </div>
 
             {/* Cards visuelles par dimension (toujours visibles — plus de Collapsible) */}
             {detail.tags.length > 0 ? (
               <div className="grid gap-3 sm:grid-cols-2">
-                {detail.tags.map((t, idx) => {
-                  const neg = SET_NEGATIFS.has(t)
-                  const pos = SET_POSITIFS.has(t)
+                {detail.tags.map((tag, idx) => {
+                  const neg = SET_NEGATIFS.has(tag)
+                  const pos = SET_POSITIFS.has(tag)
                   const gravite = neg
                     ? (detail.note <= 2
-                        ? { label: "Critique", emoji: "🔴", cls: "bg-red-100 text-red-800 border-red-300 dark:bg-red-950/50 dark:text-red-300 dark:border-red-800", borderL: "border-l-red-500", bgLight: "bg-red-50/60 dark:bg-red-950/20" }
+                        ? { label: t("retours.graviteCritique"), emoji: "🔴", cls: "bg-red-100 text-red-800 border-red-300 dark:bg-red-950/50 dark:text-red-300 dark:border-red-800", borderL: "border-l-red-500", bgLight: "bg-red-50/60 dark:bg-red-950/20" }
                         : detail.note === 3
-                          ? { label: "Moyenne", emoji: "🟡", cls: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a] dark:bg-[#3f231b]/50 dark:text-[#dba28a] dark:border-[#6f3f30]", borderL: "border-l-[#bc7155]", bgLight: "bg-[#faf1ec]/60 dark:bg-[#3f231b]/20" }
-                          : { label: "Élevée", emoji: "🟠", cls: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a] dark:bg-[#3f231b]/50 dark:text-[#dba28a] dark:border-[#6f3f30]", borderL: "border-l-[#bc7155]", bgLight: "bg-[#faf1ec]/60 dark:bg-[#3f231b]/20" })
+                          ? { label: t("retours.graviteMoyenne"), emoji: "🟡", cls: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a] dark:bg-[#3f231b]/50 dark:text-[#dba28a] dark:border-[#6f3f30]", borderL: "border-l-[#bc7155]", bgLight: "bg-[#faf1ec]/60 dark:bg-[#3f231b]/20" }
+                          : { label: t("retours.graviteElevee"), emoji: "🟠", cls: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a] dark:bg-[#3f231b]/50 dark:text-[#dba28a] dark:border-[#6f3f30]", borderL: "border-l-[#bc7155]", bgLight: "bg-[#faf1ec]/60 dark:bg-[#3f231b]/20" })
                     : pos
-                      ? { label: "OK", emoji: "🟢", cls: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a] dark:bg-[#3f231b]/50 dark:text-[#dba28a] dark:border-[#6f3f30]", borderL: "border-l-[#bc7155]", bgLight: "bg-[#faf1ec]/60 dark:bg-[#3f231b]/20" }
-                      : { label: "Neutre", emoji: "⚪", cls: "bg-gray-100 text-gray-800 border-gray-300 dark:bg-muted dark:text-muted-foreground dark:border-border", borderL: "border-l-gray-300 dark:border-l-border", bgLight: "" }
+                      ? { label: t("retours.graviteOk"), emoji: "🟢", cls: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a] dark:bg-[#3f231b]/50 dark:text-[#dba28a] dark:border-[#6f3f30]", borderL: "border-l-[#bc7155]", bgLight: "bg-[#faf1ec]/60 dark:bg-[#3f231b]/20" }
+                      : { label: t("retours.graviteNeutre"), emoji: "⚪", cls: "bg-gray-100 text-gray-800 border-gray-300 dark:bg-muted dark:text-muted-foreground dark:border-border", borderL: "border-l-gray-300 dark:border-l-border", bgLight: "" }
                   return (
                     <div
-                      key={t}
+                      key={tag}
                       className={cn(
                         "flex items-start justify-between gap-3 rounded-xl border border-l-4 bg-white p-4 shadow-md transition-all hover:shadow-lg hover:-translate-y-0.5 dark:border-border dark:bg-card",
                         gravite.borderL,
@@ -2244,7 +2282,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                           Q{(idx + 1).toString().padStart(2, "0")}
                         </p>
                         <p className="mt-0.5 text-base font-bold leading-tight">
-                          {tagLabel(t)}
+                          {tagLabel(tag)}
                         </p>
                       </div>
                       <span
@@ -2261,7 +2299,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                 })}
               </div>
             ) : (
-              <p className="text-sm italic text-muted-foreground">Aucune dimension évaluée.</p>
+              <p className="text-sm italic text-muted-foreground">{t("retours.aucuneDimension")}</p>
             )}
 
             {/* Commentaire libre (card séparée — masquée si aucun commentaire) */}
@@ -2269,7 +2307,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
               <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-md dark:border-border dark:bg-card space-y-1.5">
                 <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                   <MessageSquareReply className="h-3.5 w-3.5" aria-hidden />
-                  💬 Commentaire libre
+                  {t("retours.commentaireLibre")}
                 </p>
                 <blockquote className="border-l-4 border-primary/30 bg-muted/40 px-4 py-2 text-sm italic leading-relaxed">
                   &ldquo;{detail.commentaire}&rdquo;
@@ -2282,7 +2320,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
               <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-md dark:border-border dark:bg-card space-y-2">
                 <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                   <Camera className="h-3.5 w-3.5" aria-hidden />
-                  📸 Photo jointe par le client
+                  {t("retours.photoJointeParClient")}
                 </p>
                 <button
                   type="button"
@@ -2291,7 +2329,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                 >
                   <img
                     src={detail.photoUrl}
-                    alt="Photo jointe au retour par le client"
+                    alt={t("retours.photoAlt")}
                     className="max-h-64 w-full object-cover transition-transform group-hover:scale-105"
                   />
                   <span className="absolute inset-0 flex items-center justify-center bg-black/0 transition-colors group-hover:bg-black/30">
@@ -2309,7 +2347,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
               <div className="space-y-1.5 sm:border-r sm:border-gray-200 sm:dark:border-border sm:pr-3">
                 <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                   <MapPin className="h-3.5 w-3.5" aria-hidden />
-                  Zone
+                  {t("retours.zone")}
                 </p>
                 {detail.zone?.nom ? (
                   <div className="flex flex-wrap items-center gap-2">
@@ -2318,13 +2356,13 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                       <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
                         <Stars note={noteZone} size={12} />
                         <span>
-                          note moy. <span className="font-medium text-foreground">{noteZone.toFixed(2)}/5</span>
+                          {t("retours.noteMoyenneCourte")} <span className="font-medium text-foreground">{noteZone.toFixed(2)}/5</span>
                         </span>
                       </span>
                     )}
                   </div>
                 ) : (
-                  <p className="text-sm text-muted-foreground">Non précisée</p>
+                  <p className="text-sm text-muted-foreground">{t("common.nonPrecisee")}</p>
                 )}
               </div>
 
@@ -2332,14 +2370,14 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
               <div className="space-y-1.5 sm:pl-3">
                 <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                   <User className="h-3.5 w-3.5" aria-hidden />
-                  Employé
+                  {t("retours.employe")}
                 </p>
                 {(() => {
                   const emp = detail.employe?.nom ?? null
                   const pers = detail.personnelMentionne ?? null
                   const nomCliquable = emp || pers
                   if (!nomCliquable) {
-                    return <p className="text-sm text-muted-foreground">Non spécifié</p>
+                    return <p className="text-sm text-muted-foreground">{t("common.nonSpecifie")}</p>
                   }
                   const statsDispos = statsEmploye(nomCliquable, items) !== null
                   return (
@@ -2350,7 +2388,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold">{emp ?? pers}</p>
                         {pers && emp && pers !== emp && (
-                          <p className="truncate text-xs text-muted-foreground">Mentionné : {pers}</p>
+                          <p className="truncate text-xs text-muted-foreground">{t("retours.mentionne", { nom: pers })}</p>
                         )}
                         <button
                           type="button"
@@ -2362,10 +2400,10 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                               ? "text-primary underline-offset-2 hover:underline focus-visible:outline-none focus-visible:underline"
                               : "text-muted-foreground cursor-default"
                           )}
-                          title={statsDispos ? "Voir l'historique de l'employé" : undefined}
+                          title={statsDispos ? t("retours.voirHistoriqueEmploye") : undefined}
                         >
                           <GraduationCap className="h-3 w-3" aria-hidden />
-                          Voir le profil
+                          {t("retours.voirProfil")}
                         </button>
                       </div>
                     </div>
@@ -2378,39 +2416,43 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
             <div className="rounded-xl border bg-muted/30 p-4 space-y-1.5">
               <p className="flex items-center gap-1.5 text-xs font-semibold">
                 <TrendingUp className="h-3.5 w-3.5 text-muted-foreground" aria-hidden />
-                📊 Contexte
+                {t("retours.contexteTitre")}
               </p>
               <p className="text-xs text-muted-foreground">
                 • {recurrence.count >= 2
-                  ? `${ordinalFr(recurrence.count)} signalement similaire ce mois`
-                  : "1er signalement similaire ce mois"}
+                  ? t("retours.recurrenceMois", { n: recurrence.count })
+                  : t("retours.recurrencePremier")}
                 {recurrence.libelleTag ? ` (« ${recurrence.libelleTag} »)` : ""}
               </p>
               {detail.zone?.nom && (
                 <p className="text-xs text-muted-foreground">
-                  • Tendance zone {detail.zone.nom} :{" "}
-                  {tendance
-                    ? tendance.nouveau
-                      ? "🆕 nouveau vs semaine dernière"
-                      : tendance.pct > 0
-                        ? `↗️ +${tendance.pct}% vs semaine dernière`
-                        : tendance.pct < 0
-                          ? `↘️ ${tendance.pct}% vs semaine dernière`
-                          : "→ stable vs semaine dernière"
-                    : "—"}
+                  • {t("retours.tendanceZone", {
+                      zone: detail.zone.nom,
+                      tendance: tendance
+                        ? tendance.nouveau
+                          ? t("retours.tendanceNouveau")
+                          : tendance.pct > 0
+                            ? t("retours.tendanceHausse", { pct: `+${tendance.pct}%` })
+                            : tendance.pct < 0
+                              ? t("retours.tendanceBaisse", { pct: `${tendance.pct}%` })
+                              : t("retours.tendanceStable")
+                        : "—",
+                    })}
                 </p>
               )}
               {zoneTouchee && (
                 <p className="text-xs text-muted-foreground">
-                  • Zone la plus touchée (30 j) :{" "}
-                  <span className="font-medium text-foreground">{zoneTouchee.nom}</span>{" "}
-                  ({zoneTouchee.count} signalement{zoneTouchee.count > 1 ? "s" : ""})
+                  • {t("retours.zonePlusTouchee", {
+                      zone: zoneTouchee.nom,
+                      n: zoneTouchee.count,
+                      s: zoneTouchee.count > 1 ? "s" : "",
+                    })}
                 </p>
               )}
               <p className="flex flex-wrap items-center gap-x-1 text-xs text-muted-foreground">
-                <span>• Catégorie IA : <span className="font-medium text-foreground capitalize">{recoIA.categorie}</span></span>
-                <span>· Canal : <span className="font-medium text-foreground">{canalLabel(detail.canalChoisi)}</span></span>
-                <span>· Reçu {formatDate(detail.createdAt)}</span>
+                <span>• {t("retours.categorieIA", { cat: recoIA.categorie })}</span>
+                <span>· {t("retours.canalLabel", { canal: canalLisible(t, detail.canalChoisi) })}</span>
+                <span>· {t("retours.recuLe", { date: formatDate(detail.createdAt) })}</span>
               </p>
             </div>
 
@@ -2418,7 +2460,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
             <div className="space-y-2">
               <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                 <Clock className="h-3.5 w-3.5" aria-hidden />
-                🕐 Timeline
+                {t("retours.timeline")}
               </p>
               {historiqueAffiche.length > 0 ? (
                 <ol>
@@ -2430,7 +2472,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                       <span className={`mt-1 h-3 w-3 shrink-0 rounded-full ${pastilleClass(h.statut)}`} aria-hidden />
                       <div className="min-w-0 text-xs">
                         <Badge variant="outline" className={`h-5 px-1.5 text-[11px] ${statutBadgeClass(h.statut)}`}>
-                          {STATUT_RETOUR_LABEL[h.statut] ?? h.statut}
+                          {labelStatut(t, h.statut)}
                         </Badge>
                         <p className="mt-1 text-muted-foreground">{formatDate(h.at)}</p>
                       </div>
@@ -2438,7 +2480,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                   ))}
                 </ol>
               ) : (
-                <p className="text-sm text-muted-foreground italic">Aucun historique</p>
+                <p className="text-sm text-muted-foreground italic">{t("retours.aucunHistorique")}</p>
               )}
             </div>
           </CardContent>
@@ -2455,34 +2497,34 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                   <span className="text-lg">🎁</span>
                 </span>
                 <h3 className="text-sm font-semibold text-[#573125] dark:text-[#e7c1ae]">
-                  Récompense client
+                  {t("retours.recompenseTitre")}
                 </h3>
                 {detail.recompenseUtilisee ? (
                   <Badge variant="outline" className="ml-auto h-6 gap-1 px-2 text-xs font-semibold border-[#dba28a] bg-[#f3ddd2] text-[#6f3f30] dark:border-[#8a4f3b] dark:bg-[#3f231b]/50 dark:text-[#dba28a]">
-                    ✅ Utilisé
+                    {t("retours.recompenseUtilisee")}
                   </Badge>
                 ) : (
                   <Badge variant="outline" className="ml-auto h-6 gap-1 px-2 text-xs font-semibold border-[#dba28a] bg-[#f3ddd2] text-[#6f3f30] dark:border-[#8a4f3b] dark:bg-[#3f231b]/50 dark:text-[#dba28a]">
-                    ⏳ En attente
+                    {t("retours.recompenseEnAttente")}
                   </Badge>
                 )}
               </div>
               <dl className="grid gap-2 text-sm sm:grid-cols-2">
                 {proRecompenseType && (
                   <div>
-                    <dt className="text-xs font-medium text-[#6f3f30]/70 dark:text-[#dba28a]/70">Type</dt>
+                    <dt className="text-xs font-medium text-[#6f3f30]/70 dark:text-[#dba28a]/70">{t("retours.recompenseType")}</dt>
                     <dd className="font-medium text-[#573125] dark:text-[#f3ddd2]">{proRecompenseType}</dd>
                   </div>
                 )}
                 {proRecompenseCode && (
                   <div>
-                    <dt className="text-xs font-medium text-[#6f3f30]/70 dark:text-[#dba28a]/70">Code</dt>
+                    <dt className="text-xs font-medium text-[#6f3f30]/70 dark:text-[#dba28a]/70">{t("retours.recompenseCode")}</dt>
                     <dd className="font-mono font-semibold text-[#573125] dark:text-[#f3ddd2]">{proRecompenseCode}</dd>
                   </div>
                 )}
                 {proRecompense && (
                   <div className="sm:col-span-2">
-                    <dt className="text-xs font-medium text-[#6f3f30]/70 dark:text-[#dba28a]/70">Texte affiché au client</dt>
+                    <dt className="text-xs font-medium text-[#6f3f30]/70 dark:text-[#dba28a]/70">{t("retours.recompenseTexteClient")}</dt>
                     <dd className="text-[#573125] dark:text-[#f3ddd2]">{proRecompense}</dd>
                   </div>
                 )}
@@ -2509,10 +2551,10 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                 <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-white/15" aria-hidden>
                   <Bot className="h-5 w-5" />
                 </span>
-                <h3 className="text-lg font-bold">🧠 Recommandation du Coach IA</h3>
+                <h3 className="text-lg font-bold">{t("retours.recoTitre")}</h3>
                 <Badge variant="outline" className={cn("ml-auto h-7 border-white/30 px-3 text-sm font-bold text-white", cfgNiveau.badgeBg)}>
                   <span aria-hidden>{cfgNiveau.emoji}</span>
-                  {cfgNiveau.label}
+                  {labelNiveauIA(t, niveau)}
                 </Badge>
               </div>
 
@@ -2520,7 +2562,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
               <div className="space-y-1.5">
                 <p className="flex items-center gap-1.5 text-xs font-medium text-white/80">
                   <AlertTriangle className="h-3.5 w-3.5" aria-hidden />
-                  🔍 Diagnostic
+                  {t("retours.diagnostic")}
                 </p>
                 <p className="text-lg font-medium leading-relaxed">{recoEffective.diagnostic}</p>
               </div>
@@ -2530,7 +2572,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                 <div className="rounded-2xl border border-white/15 bg-white/10 p-3">
                   <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-white/90">
                     <TrendingUp className="h-3.5 w-3.5" aria-hidden />
-                    Tendance sur 30 jours
+                    {t("retours.tendance30j")}
                   </p>
                   <MiniGraphiqueRecurrence
                     retourCourant={detail}
@@ -2544,7 +2586,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
               <div className="space-y-2">
                 <p className="flex items-center gap-1.5 text-xs font-medium text-white/80">
                   <Lightbulb className="h-3.5 w-3.5" aria-hidden />
-                  👉 Actions prioritaires
+                  {t("retours.actionsPrioritaires")}
                 </p>
                 <ol className="space-y-2">
                   {recoEffective.actions.map((a, i) => (
@@ -2560,7 +2602,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
 
               {/* Impact attendu */}
               <div className="flex flex-wrap items-center gap-2">
-                <span className="text-[10px] uppercase tracking-wide text-white/70">📈 Impact prévu</span>
+                <span className="text-[10px] uppercase tracking-wide text-white/70">{t("retours.impactPrevu")}</span>
                 <span className="inline-flex rounded-full bg-white/20 px-4 py-2 text-lg font-bold">
                   {recoEffective.impact}
                 </span>
@@ -2581,7 +2623,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                 }
               >
                 <Sparkles className="h-4 w-4" aria-hidden />
-                Appliquer ces recommandations
+                {t("retours.appliquerRecommandations")}
                 <ArrowRight className="h-3.5 w-3.5" aria-hidden />
               </Button>
 
@@ -2590,17 +2632,17 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                 {recoLLMLoading ? (
                   <>
                     <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
-                    <span>Coach IA en cours d'analyse…</span>
+                    <span>{t("retours.iaAnalyseEnCours")}</span>
                   </>
                 ) : recoEffective.source === "ia" ? (
                   <>
                     <Sparkles className="h-3 w-3" aria-hidden />
-                    <span>Recommandation générée par le Coach IA (LLM)</span>
+                    <span>{t("retours.iaSourceLLM")}</span>
                   </>
                 ) : (
                   <>
                     <Lightbulb className="h-3 w-3" aria-hidden />
-                    <span>Analyse heuristique (LLM indisponible — fallback local)</span>
+                    <span>{t("retours.iaSourceFallback")}</span>
                   </>
                 )}
               </div>
@@ -2616,12 +2658,12 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                 <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10" aria-hidden>
                   <ClipboardCheck className="h-5 w-5 text-primary" />
                 </span>
-                <h3 className="text-lg font-bold">✍️ Appréciation du gérant</h3>
+                <h3 className="text-lg font-bold">{t("retours.appreciationTitre")}</h3>
               </div>
 
               {/* Tags d'action prédéfinis (multi-sélection) */}
               <div className="space-y-2">
-                <p className="text-xs font-medium text-muted-foreground">Actions prises (tags cliquables)</p>
+                <p className="text-xs font-medium text-muted-foreground">{t("retours.actionsPrises")}</p>
                 <div className="flex flex-wrap gap-2">
                   {ACTION_TAGS.map((tag) => {
                     const selected = actionTagsSelectionnes.has(tag.label)
@@ -2656,7 +2698,7 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
               {/* Commentaire libre */}
               <div className="space-y-1.5">
                 <Label htmlFor="action-prise" className="text-xs font-medium text-muted-foreground">
-                  Commentaire libre
+                  {t("retours.commentaireAction")}
                 </Label>
                 <Textarea
                   ref={actionRef}
@@ -2664,14 +2706,14 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                   rows={4}
                   value={texteAction}
                   onChange={(e) => setTexteAction(e.target.value)}
-                  placeholder="Décrivez l'action que vous avez mise en place..."
-                  aria-label="Commentaire libre sur l'action managériale"
+                  placeholder={t("retours.commentaireActionPlaceholder")}
+                  aria-label={t("retours.commentaireActionAria")}
                 />
               </div>
 
               {/* Statut du retour (3 pills) */}
               <div className="space-y-1.5">
-                <Label className="text-xs font-medium text-muted-foreground">Statut du retour</Label>
+                <Label className="text-xs font-medium text-muted-foreground">{t("retours.statutRetour")}</Label>
                 <div className="flex flex-wrap gap-2">
                   {(["NEW", "IN_PROGRESS", "RESOLVED"] as const).map((s) => {
                     const selected = texteActionStatut === s
@@ -2691,14 +2733,17 @@ export function RetoursTab({ onOuvrirCoachIA }: { onOuvrirCoachIA?: () => void }
                           selected ? cls : "border-border bg-background text-foreground hover:bg-muted"
                         )}
                       >
-                        {STATUT_RETOUR_LABEL[s] ?? s}
+                        {labelStatut(t, s)}
                       </button>
                     )
                   })}
                 </div>
                 {texteActionStatut !== detail.statut && (
                   <p className="text-xs text-muted-foreground">
-                    Le statut passera de « {STATUT_RETOUR_LABEL[detail.statut] ?? detail.statut} » à « {STATUT_RETOUR_LABEL[texteActionStatut] ?? texteActionStatut} » à l'enregistrement.
+                    {t("retours.statutPassage", {
+                      de: labelStatut(t, detail.statut),
+                      vers: labelStatut(t, texteActionStatut),
+                    })}
                   </p>
                 )}
               </div>

@@ -11,6 +11,8 @@
 //   · Courbe 30 j : carte premium avec en-tête serif
 // Palette : #ffffff (fond), #bc7155 (or champagne), #0f0f1c (charbon),
 //           vert #bc7155 (succès), terracotta #bc7155 (alerte douce)
+// Task 1-c : libellés principaux traduits via useDashboardI18n()
+// (fr / en / es) — chaînes composées conservées avec interpolation.
 // ============================================================
 
 import { useEffect, useState } from "react"
@@ -28,7 +30,8 @@ import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Stars, formatRelative } from "@/components/feedbackpro/shared"
 import { useToast } from "@/hooks/use-toast"
-import { STATUT_RETOUR_LABEL, tagLabel } from "@/lib/constants"
+import { tagLabel } from "@/lib/constants"
+import { useDashboardI18n } from "@/lib/i18n-dashboard"
 import {
   ResponsiveContainer,
   AreaChart,
@@ -68,6 +71,18 @@ export function OverviewTab() {
   const [data, setData] = useState<OverviewData | null>(null)
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
+  // Task 1-c — i18n réelle du dashboard Pro (fr / en / es).
+  const { t } = useDashboardI18n()
+
+  // Libellé lisible d'un statut de retour (remplace STATUT_RETOUR_LABEL, FR only).
+  const labelStatut = (statut: string): string =>
+    statut === "RESOLVED"
+      ? t("common.statutResolu")
+      : statut === "IN_PROGRESS"
+        ? t("common.statutEnCours")
+        : statut === "NEW"
+          ? t("common.statutNouveau")
+          : statut
 
   async function load() {
     try {
@@ -75,7 +90,7 @@ export function OverviewTab() {
       const json = await res.json()
       if (json.ok) setData(json.data)
     } catch {
-      toast({ title: "Erreur", description: "Impossible de charger les statistiques", variant: "destructive" })
+      toast({ title: t("common.erreur"), description: t("overview.erreurChargement"), variant: "destructive" })
     } finally {
       setLoading(false)
     }
@@ -107,7 +122,7 @@ export function OverviewTab() {
     return (
       <Card className="rounded-none">
         <CardContent className="py-12 text-center text-sm text-muted-foreground">
-          Aucune donnée disponible pour le moment.
+          {t("overview.aucuneDonnee")}
         </CardContent>
       </Card>
     )
@@ -124,12 +139,12 @@ export function OverviewTab() {
       {/* ---------- En-tête premium ---------- */}
       <div>
         <h1 className="text-2xl font-bold tracking-tight sm:text-[28px]" style={{ ...SERIF, color: CHARBON }}>
-          Vue d&apos;ensemble
+          {t("overview.titre")}
         </h1>
         <div className="mt-2 flex items-center gap-3">
           <span className="h-px w-10" style={{ backgroundColor: GOLD }} aria-hidden />
           <p className="text-sm text-muted-foreground">
-            Votre qualité de service, mesurée avec exigence
+            {t("overview.sousTitre")}
           </p>
         </div>
       </div>
@@ -147,16 +162,16 @@ export function OverviewTab() {
           <div className="absolute right-4 top-4 h-14 w-14 rounded-full border border-white/15" aria-hidden />
           <div className="relative flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-xs uppercase tracking-[0.14em] text-white/75">Score qualité · 30 j</p>
+              <p className="text-xs uppercase tracking-[0.14em] text-white/75">{t("overview.scoreQualite")}</p>
               <p className="mt-2 text-3xl font-bold tracking-tight">{score}<span className="text-base font-medium text-white/70">/100</span></p>
               <p className="mt-2 flex items-center gap-1 text-xs text-white/85">
                 {evolution != null ? (
                   <>
                     <TrendingUp size={13} aria-hidden />
-                    {evolution > 0 ? "+" : ""}{evolution}% vs mois précédent
+                    {t("overview.vsMoisPrecedent", { pct: `${evolution > 0 ? "+" : ""}${evolution}%` })}
                   </>
                 ) : (
-                  "Premier mois de mesure"
+                  t("overview.premierMois")
                 )}
               </p>
             </div>
@@ -174,9 +189,9 @@ export function OverviewTab() {
           <div className="absolute -right-7 -top-7 h-28 w-28 rounded-full" style={{ backgroundColor: "rgba(201,169,97,0.12)" }} aria-hidden />
           <div className="relative flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-xs uppercase tracking-[0.14em]" style={{ color: "rgba(201,169,97,0.85)" }}>Retours ce mois</p>
+              <p className="text-xs uppercase tracking-[0.14em]" style={{ color: "rgba(201,169,97,0.85)" }}>{t("overview.retoursMois")}</p>
               <p className="mt-2 text-3xl font-bold tracking-tight">{data.retoursMois}</p>
-              <p className="mt-2 text-xs text-white/60">Retours collectés via QR</p>
+              <p className="mt-2 text-xs text-white/60">{t("overview.retoursMoisAide")}</p>
             </div>
             <div className="shrink-0 rounded-2xl border p-2.5" style={{ borderColor: "rgba(201,169,97,0.4)", backgroundColor: "rgba(201,169,97,0.12)" }} aria-hidden>
               <MessageSquare className="h-5 w-5" style={{ color: GOLD }} />
@@ -192,10 +207,10 @@ export function OverviewTab() {
           <div className="absolute -right-7 -top-7 h-28 w-28 rounded-full" style={{ backgroundColor: "rgba(74,124,89,0.08)" }} aria-hidden />
           <div className="relative flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-xs uppercase tracking-[0.14em] text-[#8A7B5C]">Taux d&apos;interception</p>
+              <p className="text-xs uppercase tracking-[0.14em] text-[#8A7B5C]">{t("overview.tauxInterception")}</p>
               <p className="mt-2 text-3xl font-bold tracking-tight" style={{ color: CHARBON }}>{data.tauxInterception}%</p>
               <p className="mt-2 flex items-center gap-1 text-xs font-medium" style={{ color: "#bc7155" }}>
-                <Check size={13} aria-hidden /> Réclamations interceptées
+                <Check size={13} aria-hidden /> {t("overview.reclamationsInterceptees")}
               </p>
             </div>
             <div className="shrink-0 rounded-2xl border p-2.5" style={{ borderColor: "rgba(74,124,89,0.3)", backgroundColor: "rgba(74,124,89,0.1)" }} aria-hidden>
@@ -212,9 +227,9 @@ export function OverviewTab() {
           <div className="absolute -right-7 -top-7 h-28 w-28 rounded-full bg-white/10" aria-hidden />
           <div className="relative flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-xs uppercase tracking-[0.14em] text-white/80">Alertes non lues</p>
+              <p className="text-xs uppercase tracking-[0.14em] text-white/80">{t("overview.alertesNonLues")}</p>
               <p className="mt-2 text-3xl font-bold tracking-tight">{data.alertesNonLues}</p>
-              <p className="mt-2 text-xs text-white/80">{data.alertesNonLues > 0 ? "À traiter rapidement" : "Tout est à jour"}</p>
+              <p className="mt-2 text-xs text-white/80">{data.alertesNonLues > 0 ? t("overview.aTraiterRapidement") : t("overview.toutAJour")}</p>
             </div>
             <div className="shrink-0 rounded-2xl border border-white/25 bg-white/15 p-2.5" aria-hidden>
               <BellRing className="h-5 w-5 text-white" />
@@ -233,9 +248,9 @@ export function OverviewTab() {
             <span className="h-8 w-1 rounded-full" style={{ backgroundColor: GOLD }} aria-hidden />
             <div>
               <h2 className="text-base font-semibold sm:text-lg" style={{ ...SERIF, color: CHARBON }}>
-                Évolution du score
+                {t("overview.evolutionScore")}
               </h2>
-              <p className="text-xs text-muted-foreground">30 derniers jours · note moyenne pondérée</p>
+              <p className="text-xs text-muted-foreground">{t("overview.evolutionScoreAide")}</p>
             </div>
           </div>
           <div className="h-64 w-full">
@@ -252,7 +267,7 @@ export function OverviewTab() {
                   <XAxis dataKey="date" tick={{ fontSize: 10 }} interval={4} stroke="#9A8F78" />
                   <YAxis allowDecimals={false} tick={{ fontSize: 11 }} stroke="#9A8F78" domain={[0, 100]} />
                   <Tooltip
-                    formatter={(v) => [`${v}/100`, "Score"]}
+                    formatter={(v) => [`${v}/100`, t("overview.scoreTooltip")]}
                     labelStyle={{ color: CHARBON, fontWeight: 600 }}
                     contentStyle={{ borderRadius: 14, border: `1px solid rgba(201,169,97,0.4)`, fontSize: 13, background: "#FFFDF8" }}
                   />
@@ -261,7 +276,7 @@ export function OverviewTab() {
               </ResponsiveContainer>
             ) : (
               <p className="flex h-full items-center justify-center text-sm text-muted-foreground">
-                Pas encore assez de données pour afficher l&apos;évolution
+                {t("overview.pasAssezDonnees")}
               </p>
             )}
           </div>
@@ -279,9 +294,9 @@ export function OverviewTab() {
               <span className="h-8 w-1 rounded-full" style={{ backgroundColor: GOLD }} aria-hidden />
               <div>
                 <h2 className="text-base font-semibold sm:text-lg" style={{ ...SERIF, color: CHARBON }}>
-                  Derniers retours clients
+                  {t("overview.derniersRetours")}
                 </h2>
-                <p className="text-xs text-muted-foreground">Les {Math.min(data.derniersRetours?.length ?? 0, 20)} retours les plus récents</p>
+                <p className="text-xs text-muted-foreground">{t("overview.derniersRetoursAide", { n: Math.min(data.derniersRetours?.length ?? 0, 20) })}</p>
               </div>
             </div>
             <Badge
@@ -290,7 +305,7 @@ export function OverviewTab() {
               style={{ color: "#8A7B5C" }}
             >
               <Inbox className="h-3 w-3" aria-hidden />
-              {data.retoursMois} ce mois
+              {t("overview.ceMoisBadge", { n: data.retoursMois })}
             </Badge>
           </div>
 
@@ -301,11 +316,11 @@ export function OverviewTab() {
                 className="flex items-center gap-3 px-4 py-3 text-[10.5px] font-bold uppercase tracking-[0.16em]"
                 style={{ background: "linear-gradient(135deg, #26221B 0%, #14110C 100%)", color: "rgba(201,169,97,0.9)" }}
               >
-                <span className="w-14 shrink-0">Note</span>
-                <span className="w-28 shrink-0 sm:w-36">Zone</span>
-                <span className="min-w-0 flex-1">Commentaire</span>
-                <span className="hidden w-24 shrink-0 md:block">Statut</span>
-                <span className="hidden w-24 shrink-0 text-right sm:block">Date</span>
+                <span className="w-14 shrink-0">{t("overview.colNote")}</span>
+                <span className="w-28 shrink-0 sm:w-36">{t("overview.colZone")}</span>
+                <span className="min-w-0 flex-1">{t("overview.colCommentaire")}</span>
+                <span className="hidden w-24 shrink-0 md:block">{t("overview.colStatut")}</span>
+                <span className="hidden w-24 shrink-0 text-right sm:block">{t("overview.colDate")}</span>
               </div>
               {/* Lignes — aérées, hover ivoire, score en médaillon */}
               <div className="max-h-96 overflow-y-auto custom-scrollbar">
@@ -318,7 +333,7 @@ export function OverviewTab() {
                     {/* Note — médaillon coloré */}
                     <span
                       className="flex h-11 w-14 shrink-0 flex-col items-center justify-center rounded-xl border"
-                      aria-label={`Note ${r.note} sur 5`}
+                      aria-label={t("overview.noteSur", { note: r.note })}
                       style={{
                         borderColor:
                           r.note >= 4 ? "rgba(74,124,89,0.4)" : r.note >= 3 ? "rgba(201,169,97,0.5)" : "rgba(192,57,43,0.4)",
@@ -353,13 +368,13 @@ export function OverviewTab() {
                       )}
                       {r.tags.length > 0 && (
                         <span className="mt-1 flex flex-wrap gap-1">
-                          {r.tags.slice(0, 3).map((t) => (
+                          {r.tags.slice(0, 3).map((tag) => (
                             <span
-                              key={t}
+                              key={tag}
                               className="rounded-full border px-1.5 py-0.5 text-[9.5px] font-medium"
                               style={{ borderColor: "rgba(201,169,97,0.35)", color: "#8A7B5C", backgroundColor: "rgba(201,169,97,0.06)" }}
                             >
-                              {tagLabel(t)}
+                              {tagLabel(tag)}
                             </span>
                           ))}
                         </span>
@@ -378,7 +393,7 @@ export function OverviewTab() {
                               : "h-6 border-[rgba(201,123,99,0.5)] bg-[rgba(201,123,99,0.08)] text-[#A85E48]"
                         }
                       >
-                        {STATUT_RETOUR_LABEL[r.statut as keyof typeof STATUT_RETOUR_LABEL] ?? r.statut}
+                        {labelStatut(r.statut)}
                       </Badge>
                     </span>
 
@@ -389,8 +404,8 @@ export function OverviewTab() {
                         <span
                           className="ml-1 inline-block size-1.5 rounded-full align-middle"
                           style={{ backgroundColor: "#C0392B" }}
-                          title="Non lu"
-                          aria-label="Non lu"
+                          title={t("overview.nonLu")}
+                          aria-label={t("overview.nonLu")}
                         />
                       )}
                     </span>
@@ -400,7 +415,7 @@ export function OverviewTab() {
             </div>
           ) : (
             <p className="py-8 text-center text-sm text-muted-foreground">
-              Aucun retour pour le moment. Vos premiers retours apparaîtront ici dès qu&apos;un client scannera un QR code.
+              {t("overview.aucunRetour")}
             </p>
           )}
         </CardContent>
@@ -416,10 +431,10 @@ export function OverviewTab() {
           <AlertTriangle className="h-5 w-5 shrink-0" style={{ color: "#A85E48" }} aria-hidden />
           <div className="min-w-0">
             <p className="text-sm font-semibold" style={{ color: "#7A4A3A" }}>
-              {data.alertesNonLues} alerte{data.alertesNonLues > 1 ? "s" : ""} non lue{data.alertesNonLues > 1 ? "s" : ""}
+              {t("overview.alertesTitre", { n: data.alertesNonLues, s: data.alertesNonLues > 1 ? "s" : "" })}
             </p>
             <p className="text-xs" style={{ color: "#A85E48" }}>
-              Consultez l&apos;onglet Coach IA pour les détails
+              {t("overview.alertesAide")}
             </p>
           </div>
         </div>

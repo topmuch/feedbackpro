@@ -16,11 +16,17 @@ import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
 import { ok, fail } from "@/lib/session"
 import { parseJsonArray } from "@/lib/ia"
+import { limiteTaux } from "@/lib/rate-limit"
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ qrToken: string }> }
 ) {
+  // 120 scans/min/IP : au-dessus de tout usage réel (même multi-équipiers),
+  // bloque l'énumération de tokens QR par script.
+  const bloque = limiteTaux(req, "zone-get", { max: 120, fenetreMs: 60_000 })
+  if (bloque) return bloque
+
   try {
     const { qrToken } = await params
     if (!qrToken || qrToken.length < 4) return fail("QR code invalide", 400)

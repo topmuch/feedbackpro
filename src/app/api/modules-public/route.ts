@@ -18,8 +18,13 @@
 import { NextRequest } from "next/server"
 import { ok, fail } from "@/lib/session"
 import { getModulesActifs } from "@/lib/modules"
+import { limiteTaux } from "@/lib/rate-limit"
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
+  // 60/min/IP : la page de scan n'appelle cette route qu'une fois par scan.
+  const bloque = limiteTaux(req, "modules-public", { max: 60, fenetreMs: 60_000 })
+  if (bloque) return bloque
+
   try {
     const actifs = await getModulesActifs()
     return ok({ modules: [...actifs] })
