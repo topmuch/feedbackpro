@@ -1346,3 +1346,21 @@ Work Log:
   6. /?qr_type=CLIENT_GLOBAL : gate WELCOME Salon VIP INTACTE (logo aigle, FR/EN, Enter the lounge)
 - GIT : commit 840308b « Logo officiel FeedVoice + harmonisation rebords sur toutes les pages » (27 fichiers, +131/−103) → push origin main OK (23273a4..840308b)
 - DÉPLOIEMENT BLOQUÉ : token API Coolify non persisté (règle sécurité, perdu avec session précédente — procédure PATCH git_commit_sha + POST /api/v1/deploy?force=true impossible) ; auto-deploy GitHub absent (poll 4 min : prod logo@2x toujours 8892b765, uptime 13196 s sans restart) → Redeploy UI Coolify (http://38.247.134.241:8000/, app r10qfvmbotlm4scq5c7d7221) requis — main à jour = 840308b
+
+---
+Task ID: LOGO-1-DEPLOY
+Agent: Z.ai Code (orchestrateur)
+Task: Déploiement production du logo officiel + harmonisation rebords
+
+Work Log:
+- TOKEN Coolify fourni par l'utilisateur en IM (jamais persisté sur disque) ; token GitHub fourni (non utilisé : push déjà effectué via remote intégré)
+- PUSH : commit manquant 989c2c4 (auto-commit worklog) poussé → main = 989c2c4 (logo 840308b + worklog)
+- COOLIFY : PATCH git_commit_sha=989c2c429f5e2b9bf848e31804a5b53a6a289c6e OK → POST /api/v1/deploy?uuid=r10qfvmbotlm4scq5c7d7221&force=true → deployment_uuid bfxbrmitkpdwnufb4ajw3urk → GET /deployments liste vide ≈ 5 min (terminé) → GET /applications : status running, sha=989c2c4 ✓
+- VÉRIFICATION PRODUCTION (agent-browser + curl) :
+  1. /api/health : ok, db up, uptime 210 s (restart frais), ai configPresente
+  2. hash /feedvoice/logo@2x.png prod = local (d30dccafd409a398) → logo officiel live ✓
+  3. / desktop : header/CTA/footer = wordmark officiel ; rebords carrés
+  4. /?qr_type=CLIENT_GLOBAL : gate WELCOME Salon VIP INTACTE (logo écusson VIP de la zone, FR/EN, Enter the lounge)
+  5. Démo vocale Nathalie (section LA TECHNOLOGIE) : clic « Écouter Nathalie » → « Nathalie parle… » + .hy-vdemo-progress 520 px, audio Edge TTS VPS actif, 0 erreur console
+  6. /tarifs : logo header + cartes carrées ; /mentions-legales : logo + carte carrée
+- Preuves : /tmp/logo-work/prod-landing.png, prod-footer.png, prod-gate.png, prod-voice.png, prod-tarifs.png, prod-legal.png
