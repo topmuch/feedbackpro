@@ -17,6 +17,7 @@
 import { NextRequest } from 'next/server'
 import { ok, fail } from '@/lib/session'
 import { processVoiceCommand } from '@/lib/denise-conversation'
+import { limiteTaux } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -24,6 +25,10 @@ export const dynamic = 'force-dynamic'
 type CommandBody = { text?: unknown }
 
 export async function POST(req: NextRequest) {
+  // Endpoint public LLM (coût par requête) : 20 / min / IP.
+  const bloque = limiteTaux(req, "denise-command", { max: 20, fenetreMs: 60_000 })
+  if (bloque) return bloque
+
   let body: CommandBody
   try {
     body = (await req.json()) as CommandBody

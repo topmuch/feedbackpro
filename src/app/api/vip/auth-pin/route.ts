@@ -17,6 +17,7 @@ import { NextRequest } from 'next/server'
 import crypto from 'crypto'
 import { db } from '@/lib/db'
 import { ok, fail } from '@/lib/session'
+import { limiteTaux } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -90,6 +91,11 @@ export async function GET(_req: NextRequest) {
 
 // POST /api/vip/auth-pin — authentification Tél + PIN
 export async function POST(req: NextRequest) {
+  // Anti brute-force IP (complément du verrouillage compte 5 essais) :
+  // 10 tentatives / min / IP — largement au-dessus d'un usage légitime.
+  const bloque = limiteTaux(req, "vip-auth-pin", { max: 10, fenetreMs: 60_000 })
+  if (bloque) return bloque
+
   // Auto-seed au cas où la base est vide (appel POST sans GET préalable)
   await ensureSeeded()
 

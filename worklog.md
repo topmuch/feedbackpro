@@ -1,6 +1,27 @@
 # Worklog FeedbackPro
 
 ---
+Task ID: SUG-2 + SEC-2
+Agent: Z.ai Code
+Task: Fix visibilité hero en prod (retour utilisateur « ancienne image toujours là ») + compléments rate limiting + SW auto-versionné + page /securite
+
+Work Log:
+- DIAGNOSTIC HERO (SUG-2) : vérif prod (curl + agent-browser session fraîche SANS cache-buster) → le déploiement SUG-1 était BIEN live (.hy-hero-ambiance présent, opacity 0.07, asset 200, SW v8 network-first). Cause réelle du retour utilisateur : opacité 7 % imperceptible à l'œil sur le ciel d'aube clair + calque entièrement masqué ≤1024px (mobile) → aucune différence perceptible = « l'ancienne image est toujours là ». Le SW n'était PAS en cause en ligne (navigations network-first depuis v8).
+- FIX HERO : opacity 0.07 → 0.14 desktop (mask fondu 76 % → 72 %) ; calque RÉACTIVÉ ≤1024px à 0.10 avec mask 60 % (lisibilité titre préservée, vérifiée screenshot 390px) ; SW CACHE_NAME v8 → v9 (purge offline-shell des visiteurs) ; commit e9dd5e2 déployé Coolify zgldwfoqtmdgxxnet6l2zmxu finished ; QA prod : opacity 0.14 desktop / 0.10 mobile confirmées en session fraîche, gate ?qr_type=CLIENT_GLOBAL INTACTE, console 0 erreur, screenshots /tmp/prod-sug2-{desktop,mobile}.png
+- RATE LIMITING COMPLÉMENT (audit d'usage : limiteTaux absent de 6 surfaces réellement exposées) : /api/public/upload 10/min (anti-exfiltration disque), /api/vip/auth-pin POST 10/min (anti brute-force PIN 4 chiffres, complément verrou compte 5 essais), /api/login legacy 8/min (signature Request → NextRequest), /api/airport/translate 20/min (coût LLM), /api/airport/denise-command 20/min (coût LLM), /api/airport/voice/transcribe 15/min (coût ASR) — toutes les surfaces IA publiques coût par requête sont désormais plafonnées
+- SW AUTO-VERSION (fin du bump manuel) : scripts/inject-sw-version.mjs en prebuild — réécrit CACHE_NAME « feedvoice-airport-* » avec SOURCE_COMMIT (Coolify) ou GIT_COMMIT_SHA, fallback timestamp build local ; chaque déploiement Docker (tarball sans .git) purge automatiquement les caches SW ; testé : SOURCE_COMMIT → sha, sans env → t<ts>, dev inchangé (v9 statique)
+- PAGE /SECURITE (gap contenu marketing #6 de la revue) : page réassurance factuelle alignée sur le réel (minimisation, cookie httpOnly, rate limiting, backups VACUUM INTO 7j, SHA-256, verrou PIN, journal audit, /api/health, RGPD effacement/export CSV, IA non-revendue) ; design Hyer (Clay Ember, cards hairline) ; ajoutée au sitemap (priority 0.6 monthly)
+- AUDIT REVUE PRODUIT (corrections d'information) : la revue antérieure citait comme absents des éléments DÉJÀ LIVRÉS (health endpoint, backup cron, sandbox /demo ↔ /api/demo/login, boucle Google ≥4★ scan-view D8, rapports vocaux TTS rapports-tab, portail annonceur ads) — vérifiés un à un dans le code ; restent réellement ouverts : i18n dashboards, benchmarks sectoriels, 2FA admin, Sentry (journal interne actif), Capacitor (plan non exécuté)
+- QUALITÉ : lint 0/0, tsc exit 0 ; deploy QA en attente après push
+- Limites : 2FA admin non implémenté (risque de lockout sans test utilisateur réel — à faire avec l'utilisateur) ; i18n dashboards + benchmarks reportés (chantiers lourds)
+
+Stage Summary:
+- Le hero d'ambiance est enfin PERCEPTIBLE partout (14 % desktop / 10 % mobile) — le retour utilisateur « rien n'a changé » est résolu à la racine (perception, pas cache)
+- Toutes les surfaces publiques à coût (IA/ASR/upload) et à risque (PIN/login/upload) sont rate-limitées
+- Le versionnage SW ne peut plus être oublié : unique par build, purge automatique
+- Page /securite comble le gap de réassurance marketing avec des faits vérifiables
+
+---
 Task ID: 1-2
 Agent: Z.ai Code (orchestrateur)
 Task: Setup projet FeedbackPro - dépendances, schéma Prisma, seed

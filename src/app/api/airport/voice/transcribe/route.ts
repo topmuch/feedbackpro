@@ -34,6 +34,7 @@
 import { NextRequest } from "next/server"
 import { ok, fail } from "@/lib/session"
 import ZAI from "z-ai-web-dev-sdk"
+import { limiteTaux } from "@/lib/rate-limit"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -49,6 +50,10 @@ const MAX_AUDIO_BYTES = 10 * 1024 * 1024
 type AsrResponse = { text?: string }
 
 export async function POST(req: NextRequest) {
+  // Endpoint public ASR (coût par requête) : 15 transcriptions / min / IP.
+  const bloque = limiteTaux(req, "airport-transcribe", { max: 15, fenetreMs: 60_000 })
+  if (bloque) return bloque
+
   // --- Lecture multipart/form-data ---
   let formData: FormData
   try {

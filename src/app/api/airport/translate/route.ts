@@ -30,6 +30,7 @@
 import { NextRequest } from "next/server"
 import { ok, fail } from "@/lib/session"
 import ZAI from "z-ai-web-dev-sdk"
+import { limiteTaux } from "@/lib/rate-limit"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -81,6 +82,11 @@ function buildUserMessage(text: string, sourceLang: SupportedLang): string {
 }
 
 export async function POST(req: NextRequest) {
+  // Endpoint public qui déclenche un appel LLM (coût par requête) :
+  // 20 traductions / min / IP — marge large pour un usage voyageur réel.
+  const bloque = limiteTaux(req, "airport-translate", { max: 20, fenetreMs: 60_000 })
+  if (bloque) return bloque
+
   // --- Lecture JSON ---
   let body: unknown
   try {
