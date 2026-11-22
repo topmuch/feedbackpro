@@ -602,8 +602,8 @@ export function RapportsTab() {
                 <Button asChild variant="outline">
                   <a
                     href={`data:${briefingAudio.mimeType};base64,${briefingAudio.audioBase64}`}
-                    download={`briefing-nathalie-${briefingAudio.kpis.mois}.mp3`}
-                    aria-label="Télécharger le briefing audio au format MP3"
+                    download={`briefing-nathalie-${briefingAudio.kpis.mois}.wav`}
+                    aria-label="Télécharger le briefing audio au format WAV"
                   >
                     <Download className="mr-2 h-4 w-4" aria-hidden />
                     Télécharger
