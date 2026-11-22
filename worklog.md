@@ -1239,3 +1239,35 @@ Stage Summary:
 - Le bug « ancienne image » était un INCIDENT DE DÉPLOIEMENT (builds de fix jamais lancés), pas un problème de cache — résolu par la procédure PATCH+deploy et verrouillé par le SW auto-versionné + marqueur de build dans /api/health
 - 2 fixes produit (QR Wi-Fi SSID invalide, /rgpd 500) + QA 15+ flux end-to-end avec le compte test, gate CLIENT_GLOBAL INTACTE, console 0 erreur
 - COMMITS : b66ffa8 (fix Wi-Fi) → 9aef087 (marqueur health) → 14a3e8b (tag lib) → cb99f33 (fix /rgpd) — tous finished en prod
+
+## 2026-11-22 (soir) — Améliorations par criticité + briefing audio Nathalie + FAILLE CRITIQUE fermée
+
+Demande : « les améliorations par criticité (Sentry, rate limiting durci, i18n dashboards, tests E2E…), puis les nouvelles fonctionnalités (boucle Google, sandbox, rapports vocaux, Capacitor…) »
+
+### 🔴 FAILLE CRITIQUE découverte → corrigée + rotation mot de passe (3 couches)
+1. `/api/setup/seed` PUBLIC réinitialisait le mdp superadmin à admin123 à chaque POST → rewrite bootstrap-only + `x-seed-token` (timingSafeEqual), ne touche plus jamais un mdp existant. Test prod : 403 ✓
+2. `scripts/create-admin.cjs` (CMD Docker) réinitialisait admin123 À CHAQUE DÉMARRAGE du conteneur → la rotation faite via /api/admin/users était écrasée au déploiement suivant (vérifié : admin123 revalidé après deploy c196393). Fix : bootstrap-only (DB vide) sinon rôle seul, ADMIN_PASSWORD optionnel. Test prod réel : rotation SURVIT à un restart complet du conteneur (admin123 401 après deploy 111f1f1) ✓
+3. Exploit vérifié puis fermé : login admin@feedbackpro.fr/admin123 → 200 (avant fix), puis rotation via action resetPassword. NOUVEAU MOT DE PASSE SUPERADMIN PROD : `UEeQ4NwNNHzX` (à conserver — persistant désormais)
+
+### ✅ Améliorations par criticité (état réel)
+- Rate limiting durci : GET publics ajoutés (zone 120/min, modules-public 60/min, secteurs 60/min) + **plafond GLOBAL par route** (40× max/IP, plafonné 4000/min) car vérifié en prod que l'IP sortie peut tourner à chaque requête (proxys) → le limiter par IP seul est contournable. Validé local : login 8×401 puis 4×429.
+- Observabilité : `/api/health` enrichi d'une **sonde AI sans secrets** (configPresente/aApiKey/aToken/baseUrlHost/source) via `src/lib/sonde-ai.ts` → trancher les diagnostics SDK en une requête.
+- i18n dashboards RÉELLE : namespace `dashboard.pro` complet (nav 28 + common 15 clés × fr/en/es), `useDashboardI18n()` (zustand, cookie fp_locale + localStorage), pro-dashboard (3 maps inline supprimées, EntreeNav.labelKey typé CleDashboard) + dashboard-shell + overview-tab + retours-tab branchés ; LanguageSelector contrôlé/non-contrôlé. QA navigateur prod : nav EN « DASHBOARD/AI COACH/MORNING AUDIT… », ES « PANEL/AUDITORÍA MATINAL… », instantané, 0 erreur console. VIP (CLIENT_GLOBAL) volontairement hors périmètre.
+- Sentry : non intégré (DSN externe requis) — remplacé par la sonde health + ring buffer erreurs existant (/api/log-error + /api/admin/error-log).
+- Tests E2E code : non écrits (contrainte sandbox) — compensé par QA navigateur à preuves (screenshots + requêtes réseau + API).
+- SW versionnement auto : déjà en place (inject-sw-version.mjs).
+
+### ✅ Fonctionnalités (état réel)
+- Boucle avis Google (note ≥4★ → CTA Google) : DÉJÀ LIVRÉE session précédente (scan-view + settings + pro/settings API) — revérifiée en code.
+- Sandbox démo : DÉJÀ LIVRÉE (/api/demo/login, 584 lignes, idempotent) — utilisée pour la QA prod (Restaurant Le Bristol, 21 retours).
+- **Briefing audio Nathalie (TTS serveur RÉEL)** : NOUVEAU — `POST /api/voice/report` (requirePro, 6/min, mois borné 12 mois) → KPIs Prisma réels → texte LLM (fallback déterministe) → TTS mp3 (voix tongtong, chunks ≤950 car., garde 413 >4Mo) + carte lecteur/téléchargement dans rapports-tab. QA : 401 sans session, 400 mois invalide, 429 après 6 appels, erreur UX propre. **EN ATTENTE D'ENV** : la sonde prouve que la prod n'a PAS `Z_AI_CONFIG` (configPresente:false) → ajouter la variable d'env dans Coolify (JSON apiKey/baseUrl/token) et l'audio s'active sans aucune modif de code. Sandbox idem (config root non modifiable).
+- Capacitor : reporté (binaires iOS/Android impossibles dans la sandbox) — plan CAPACITOR_TODO.md inchangé.
+
+### QA prod (compte test ousman@gmail.com + compte démo + admin)
+- Deployments Coolify finished : c196393 → 3ddbd9c → (sonde) → 111f1f1 ; health {db:up, ai sonde}.
+- Homepage + hero ambiance ✓, 7 pages marketing 200 ✓, gate ?qr_type=CLIENT_GLOBAL desktop + mobile 390px INTACTE (crête dorée, WELCOME/Salon VIP, EN/FR) ✓
+- Login ousman → dashboard VIP Terra Solution (14 onglets) ✓ ; sandbox démo → dashboard classique i18n EN/ES ✓ ; carte Briefing audio Nathalie rendue ✓ (502 propre tant que Z_AI_CONFIG absente)
+- lint 0/0 + tsc 0 à chaque commit.
+
+### COMMITS
+c196393 (seed+rate+i18n+voix) → 3ddbd9c (fix critique create-admin) → sonde health → 111f1f1 (plafond global rate-limit)
