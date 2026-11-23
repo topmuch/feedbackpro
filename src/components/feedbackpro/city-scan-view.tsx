@@ -489,12 +489,14 @@ export function CityScanView({
     ;(async () => {
       try {
         const params = new URLSearchParams()
-        if (plate?.district) params.set('district', plate.district)
-        // Si la plaque a un GPS, on active le filtre Haversine 500m
+        // Si la plaque a un GPS, on active le filtre Haversine (pas de filtre district)
         if (plate?.lat != null && plate?.lng != null) {
           params.set('lat', String(plate.lat))
           params.set('lng', String(plate.lng))
           params.set('radius', '500')
+        } else if (plate?.district) {
+          // Pas de GPS → fallback sur le filtre district
+          params.set('district', plate.district)
         }
         const res = await fetch(`/api/city/artisans?${params.toString()}`, {
           cache: 'no-store',
