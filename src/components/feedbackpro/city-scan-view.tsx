@@ -364,7 +364,7 @@ function useCurrentHour(): number {
 // Composant principal
 // ============================================================
 
-type Phase = 'loading' | 'error' | 'main' | 'sub' | 'confirmation'
+type Phase = 'loading' | 'welcome' | 'error' | 'main' | 'sub' | 'confirmation'
 
 type Confirmation = {
   emoji: string
@@ -442,15 +442,7 @@ export function CityScanView({
           return
         }
         setPlate(found)
-        setPhase('main')
-        // Voix d'accueil Aminata — parlée automatiquement au scan
-        setTimeout(() => {
-          parler(
-            `Bonjour, je suis Aminata, votre guide. Vous êtes à ${found.label}${
-              found.district ? `, quartier ${found.district}` : ''
-            }. Cliquez sur les rubriques ci-dessous pour accéder aux services.`
-          )
-        }, 500)
+        setPhase('welcome')
       } catch {
         if (cancelled) return
         setPlateError('Connexion impossible. Vérifiez votre réseau.')
@@ -645,6 +637,102 @@ export function CityScanView({
           </p>
           <p className="text-sm text-[#1A1A1A]/50">
             Aminata identifie votre plaque QR
+          </p>
+        </div>
+      </div>
+    )
+  }
+
+  // ---------------------------------------------------------------
+  // 6.1b. Phase welcome — page d'entrée (débloque la voix navigateur)
+  // ---------------------------------------------------------------
+  if (phase === 'welcome' && plate) {
+    const welcomeText = `Bonjour, je suis Aminata, votre guide. Vous êtes à ${plate.label}${
+      plate.district ? `, quartier ${plate.district}` : ''
+    }. Cliquez sur les rubriques ci-dessous pour accéder aux services.`
+
+    const handleActivateVoice = () => {
+      // L'utilisateur a cliqué → le navigateur autorise maintenant le TTS
+      try {
+        parler(welcomeText)
+      } catch { /* ignore */ }
+      setPhase('main')
+    }
+
+    const handleSkipVoice = () => {
+      setPhase('main')
+    }
+
+    return (
+      <div className={rootClass} style={rootStyle}>
+        <div className="flex min-h-screen flex-col items-center justify-center px-6 text-center"
+          style={{
+            background: `linear-gradient(135deg, ${COLORS.purple} 0%, ${COLORS.blue} 100%)`,
+          }}
+        >
+          {/* Avatar Aminata */}
+          <div className="relative mb-6">
+            <div
+              className="flex size-24 items-center justify-center rounded-full text-5xl shadow-lg"
+              style={{ backgroundColor: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)' }}
+            >
+              🎙️
+            </div>
+            {/* Pulsation */}
+            <div
+              className="absolute inset-0 rounded-full"
+              style={{
+                border: '3px solid rgba(255,255,255,0.3)',
+                animation: 'pulse 2s infinite',
+              }}
+            />
+          </div>
+
+          {/* Titre */}
+          <h1
+            className="mb-3 text-2xl font-bold text-white"
+            style={TITLE_FONT}
+          >
+            Bonjour, je suis Aminata
+          </h1>
+          <p className="mb-2 text-sm text-white/85">
+            Votre guide citoyenne pour
+          </p>
+          <p
+            className="mb-6 text-lg font-bold text-white"
+            style={TITLE_FONT}
+          >
+            {plate.label}
+          </p>
+          {plate.district && (
+            <p className="mb-8 text-sm text-white/70">
+              Quartier {plate.district} · Dakar
+            </p>
+          )}
+
+          {/* Bouton principal — débloque la voix */}
+          <button
+            type="button"
+            onClick={handleActivateVoice}
+            className="mb-3 flex items-center gap-3 rounded-2xl bg-white px-8 py-4 text-base font-bold shadow-xl transition-all hover:scale-105 active:scale-95"
+            style={{ color: COLORS.purple }}
+          >
+            <span className="text-2xl">🔊</span>
+            <span>Activer la voix d'Aminata</span>
+          </button>
+
+          {/* Lien passer (sans voix) */}
+          <button
+            type="button"
+            onClick={handleSkipVoice}
+            className="text-sm text-white/60 underline transition hover:text-white/90"
+          >
+            Continuer sans la voix
+          </button>
+
+          {/* Note */}
+          <p className="mt-8 max-w-xs text-xs text-white/50">
+            Cliquez sur le bouton pour entendre Aminata vous accueillir. Activez le son de votre téléphone.
           </p>
         </div>
       </div>
