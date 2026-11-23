@@ -32,7 +32,7 @@
 //   GPS n'est transmis qu'avec consentement explicite).
 // ============================================================
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   Loader2,
   ArrowLeft,
