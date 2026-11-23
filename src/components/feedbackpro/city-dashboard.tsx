@@ -23,7 +23,7 @@
 // Responsive : sidebar se replie en drawer sous lg (toggle burger).
 // ============================================================
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import {
   Loader2,
   RefreshCw,
@@ -50,6 +50,9 @@ import {
   Radio,
   Volume2,
   VolumeX,
+  Plus,
+  Search,
+  Check,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -955,49 +958,14 @@ export default function CityDashboard() {
             </div>
           )}
 
-          {/* ====== VUE GESTION PLAQUES (QR codes premium) ====== */}
+          {/* ====== VUE GESTION PLAQUES (QR codes premium + génération lot + recherche) ====== */}
           {activeNav === 'plates-mgmt' && (
-            <div className="space-y-5">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold text-[#1A1A1A]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
-                  Plaques QR · {plates.length} installées
-                </h2>
-                {cityLogoUrl ? (
-                  <Badge className="bg-[#C9A961]/15 text-[#8B6F47]">Logo intégré ✓</Badge>
-                ) : (
-                  <Badge variant="outline" className="text-[#1A1A1A]/40">Sans logo — configurer dans Paramètres</Badge>
-                )}
-              </div>
-
-              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {plates.slice(0, 12).map((p) => (
-                  <div key={p.id} className="rounded-2xl border border-[#EAE5DC] bg-white p-4 text-center shadow-sm">
-                    {/* QR code avec logo */}
-                    <div className="mx-auto mb-3 flex h-32 w-32 items-center justify-center overflow-hidden rounded-xl bg-white">
-                      {composedQrs[p.id] ? (
-                        <img src={composedQrs[p.id]} alt={`QR ${p.plateNumber}`} className="h-full w-full" />
-                      ) : (
-                        <div className="h-full w-full animate-pulse bg-[#EAE5DC]" />
-                      )}
-                    </div>
-                    <p className="text-sm font-bold text-[#1A1A1A]">{p.plateNumber}</p>
-                    <p className="truncate text-xs text-[#1A1A1A]/60">{p.label}</p>
-                    {p.district && <p className="text-[11px] text-[#1A1A1A]/40">{p.district}</p>}
-                    <div className="mt-2 flex items-center justify-center gap-2">
-                      <Badge className={cn(
-                        'text-[10px]',
-                        p.status === 'active' ? 'bg-[#4A7C59]/12 text-[#4A7C59]' :
-                        p.status === 'maintenance' ? 'bg-[#FF6B00]/12 text-[#FF6B00]' :
-                        'bg-[#E30613]/12 text-[#E30613]'
-                      )}>
-                        {p.status}
-                      </Badge>
-                      <span className="text-[10px] text-[#1A1A1A]/40">{p.scanCount} scans</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <PlatesManagementView
+              plates={plates}
+              composedQrs={composedQrs}
+              cityLogoUrl={cityLogoUrl}
+              onRefresh={handleRefresh}
+            />
           )}
 
           {/* ====== VUE OVERVIEW (défaut) ====== */}
@@ -1520,6 +1488,398 @@ function RevenueRow({
       >
         {value}
       </span>
+    </div>
+  )
+}
+
+// ============================================================
+// PlatesManagementView — Gestion plaques avec lot + recherche + édition GPS
+// ============================================================
+
+function PlatesManagementView({
+  plates,
+  composedQrs,
+  cityLogoUrl,
+  onRefresh,
+}: {
+  plates: CityPlate[]
+  composedQrs: Record<string, string>
+  cityLogoUrl: string | null
+  onRefresh: () => Promise<void>
+}) {
+  const { toast } = useToast()
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [showBatchDialog, setShowBatchDialog] = useState(false)
+  const [batchCount, setBatchCount] = useState(10)
+  const [generating, setGenerating] = useState(false)
+  const [editingPlate, setEditingPlate] = useState<CityPlate | null>(null)
+  const [editLabel, setEditLabel] = useState('')
+  const [editDistrict, setEditDistrict] = useState('')
+  const [editAddress, setEditAddress] = useState('')
+  const [editLat, setEditLat] = useState<string>('')
+  const [editLng, setEditLng] = useState<string>('')
+  const [savingPlate, setSavingPlate] = useState(false)
+  const [locating, setLocating] = useState(false)
+
+  // Filtrage
+  const filtered = useMemo(() => {
+    return plates.filter((p) => {
+      if (statusFilter !== 'all' && p.status !== statusFilter) return false
+      if (search.trim()) {
+        const q = search.trim().toLowerCase()
+        const hay = `${p.plateNumber} ${p.label} ${p.district ?? ''} ${p.address ?? ''}`.toLowerCase()
+        if (!hay.includes(q)) return false
+      }
+      return true
+    })
+  }, [plates, search, statusFilter])
+
+  // Stats par statut
+  const stats = useMemo(() => ({
+    total: plates.length,
+    pending: plates.filter((p) => p.status === 'pending').length,
+    active: plates.filter((p) => p.status === 'active').length,
+    maintenance: plates.filter((p) => p.status === 'maintenance').length,
+    offline: plates.filter((p) => p.status === 'offline').length,
+  }), [plates])
+
+  // Génération de lot
+  const handleGenerateBatch = async () => {
+    setGenerating(true)
+    try {
+      const res = await fetch('/api/city/plates/generate-batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ count: batchCount }),
+      })
+      const json = await res.json()
+      if (json?.ok) {
+        toast({
+          title: 'Lot généré',
+          description: `${json.data.generated} plaques créées (${json.data.range})`,
+        })
+        setShowBatchDialog(false)
+        await onRefresh()
+      } else {
+        toast({ title: 'Erreur', description: json?.error ?? 'Échec', variant: 'destructive' })
+      }
+    } catch {
+      toast({ title: 'Erreur réseau', variant: 'destructive' })
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  // Édition plaque
+  const openEdit = (plate: CityPlate) => {
+    setEditingPlate(plate)
+    setEditLabel(plate.label === 'Plaque non assignée' ? '' : plate.label)
+    setEditDistrict(plate.district ?? '')
+    setEditAddress(plate.address ?? '')
+    setEditLat(plate.lat != null ? String(plate.lat) : '')
+    setEditLng(plate.lng != null ? String(plate.lng) : '')
+  }
+
+  // GPS live
+  const handleLocate = () => {
+    setLocating(true)
+    if (!navigator.geolocation) {
+      toast({ title: 'GPS indisponible', variant: 'destructive' })
+      setLocating(false)
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setEditLat(pos.coords.latitude.toFixed(6))
+        setEditLng(pos.coords.longitude.toFixed(6))
+        setLocating(false)
+        toast({ title: 'Position capturée', description: `${pos.coords.latitude.toFixed(4)}, ${pos.coords.longitude.toFixed(4)}` })
+      },
+      () => {
+        toast({ title: 'GPS refusé ou indisponible', variant: 'destructive' })
+        setLocating(false)
+      },
+      { enableHighAccuracy: true, timeout: 10000 },
+    )
+  }
+
+  // Sauvegarder plaque
+  const handleSavePlate = async () => {
+    if (!editingPlate) return
+    setSavingPlate(true)
+    try {
+      const body: Record<string, unknown> = {
+        label: editLabel.trim() || 'Plaque non assignée',
+        district: editDistrict.trim() || null,
+        address: editAddress.trim() || null,
+      }
+      if (editLat && editLng) {
+        body.lat = parseFloat(editLat)
+        body.lng = parseFloat(editLng)
+      }
+      const res = await fetch(`/api/city/plates/${editingPlate.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const json = await res.json()
+      if (json?.ok) {
+        toast({ title: 'Plaque mise à jour', description: `${editingPlate.plateNumber} → ${editLabel || 'non assignée'}` })
+        setEditingPlate(null)
+        await onRefresh()
+      } else {
+        toast({ title: 'Erreur', description: json?.error ?? 'Échec', variant: 'destructive' })
+      }
+    } catch {
+      toast({ title: 'Erreur réseau', variant: 'destructive' })
+    } finally {
+      setSavingPlate(false)
+    }
+  }
+
+  const SERIF = { fontFamily: 'Georgia, "Playfair Display", serif' } as const
+
+  return (
+    <div className="space-y-5">
+      {/* Header + actions */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h2 className="text-xl font-bold text-[#1A1A1A]" style={SERIF}>
+          Plaques QR · {stats.total} au total
+        </h2>
+        <div className="flex items-center gap-2">
+          {cityLogoUrl && <Badge className="bg-[#C9A961]/15 text-[#8B6F47]">Logo ✓</Badge>}
+          <Button size="sm" onClick={() => setShowBatchDialog(true)} className="bg-[#C9A961] text-[#1A1A1A] hover:bg-[#B8964F]">
+            <Plus className="h-4 w-4 mr-1" /> Générer un lot
+          </Button>
+        </div>
+      </div>
+
+      {/* Stats rapides */}
+      <div className="flex flex-wrap gap-2 text-xs">
+        {[
+          { label: 'Total', value: stats.total, color: 'bg-[#EAE5DC] text-[#1A1A1A]' },
+          { label: 'En attente', value: stats.pending, color: 'bg-amber-100 text-amber-800' },
+          { label: 'Actives', value: stats.active, color: 'bg-[#4A7C59]/12 text-[#4A7C59]' },
+          { label: 'Maintenance', value: stats.maintenance, color: 'bg-[#FF6B00]/12 text-[#FF6B00]' },
+          { label: 'Hors ligne', value: stats.offline, color: 'bg-[#E30613]/12 text-[#E30613]' },
+        ].map((s) => (
+          <button
+            key={s.label}
+            onClick={() => setStatusFilter(s.label === 'Total' ? 'all' : s.label.toLowerCase().replace(' ', '_').replace('hors ligne', 'offline').replace('en attente', 'pending'))}
+            className={cn('rounded-lg px-3 py-1.5 font-medium transition', s.color, statusFilter === (s.label === 'Total' ? 'all' : s.label.toLowerCase().replace(' ', '_').replace('hors ligne', 'offline').replace('en attente', 'pending')) && 'ring-2 ring-[#C9A961]')}
+          >
+            {s.label}: {s.value}
+          </button>
+        ))}
+      </div>
+
+      {/* Barre de recherche */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1A1A1A]/30" />
+        <input
+          type="text"
+          placeholder="Rechercher par numéro, nom, quartier, adresse…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="w-full rounded-xl border border-[#EAE5DC] bg-white py-2.5 pl-10 pr-4 text-sm text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/20"
+        />
+      </div>
+
+      {/* Liste plaques (tableau) */}
+      <div className="overflow-x-auto rounded-2xl border border-[#EAE5DC] bg-white shadow-sm">
+        <table className="w-full text-left text-sm">
+          <thead className="border-b border-[#EAE5DC] bg-[#FAFAF7]">
+            <tr>
+              <th className="px-4 py-3 font-semibold text-[#1A1A1A]/70">N°</th>
+              <th className="px-4 py-3 font-semibold text-[#1A1A1A]/70">Lieu</th>
+              <th className="px-4 py-3 font-semibold text-[#1A1A1A]/70">Quartier</th>
+              <th className="px-4 py-3 font-semibold text-[#1A1A1A]/70">GPS</th>
+              <th className="px-4 py-3 font-semibold text-[#1A1A1A]/70">Statut</th>
+              <th className="px-4 py-3 font-semibold text-[#1A1A1A]/70">Scans</th>
+              <th className="px-4 py-3 text-right font-semibold text-[#1A1A1A]/70">Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.slice(0, 50).map((p) => (
+              <tr key={p.id} className="border-b border-[#EAE5DC]/50 hover:bg-[#FAFAF7]">
+                <td className="px-4 py-3 font-bold text-[#1A1A1A]">{p.plateNumber}</td>
+                <td className="px-4 py-3 text-[#1A1A1A]/80">{p.label}</td>
+                <td className="px-4 py-3 text-[#1A1A1A]/60">{p.district ?? '—'}</td>
+                <td className="px-4 py-3 text-xs text-[#1A1A1A]/50">
+                  {p.lat != null ? `${p.lat.toFixed(4)}, ${p.lng?.toFixed(4)}` : '—'}
+                </td>
+                <td className="px-4 py-3">
+                  <Badge className={cn(
+                    'text-[10px]',
+                    p.status === 'active' ? 'bg-[#4A7C59]/12 text-[#4A7C59]' :
+                    p.status === 'pending' ? 'bg-amber-100 text-amber-800' :
+                    p.status === 'maintenance' ? 'bg-[#FF6B00]/12 text-[#FF6B00]' :
+                    'bg-[#E30613]/12 text-[#E30613]'
+                  )}>
+                    {p.status === 'pending' ? 'En attente' : p.status}
+                  </Badge>
+                </td>
+                <td className="px-4 py-3 text-[#1A1A1A]/60">{p.scanCount}</td>
+                <td className="px-4 py-3 text-right">
+                  <Button size="sm" variant="outline" onClick={() => openEdit(p)} className="border-[#EAE5DC] text-[#1A1A1A] hover:border-[#C9A961]">
+                    Éditer
+                  </Button>
+                </td>
+              </tr>
+            ))}
+            {filtered.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-4 py-12 text-center text-[#1A1A1A]/40">
+                  Aucune plaque trouvée. {search ? 'Affinez votre recherche.' : 'Générez un lot pour commencer.'}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+        {filtered.length > 50 && (
+          <div className="border-t border-[#EAE5DC] px-4 py-3 text-center text-xs text-[#1A1A1A]/50">
+            Affichage de 50 plaques sur {filtered.length}. Affinez la recherche pour voir plus.
+          </div>
+        )}
+      </div>
+
+      {/* Dialog génération lot */}
+      {showBatchDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowBatchDialog(false)}>
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <h3 className="mb-4 text-lg font-bold text-[#1A1A1A]" style={SERIF}>Générer un lot de plaques</h3>
+            <p className="mb-4 text-sm text-[#1A1A1A]/60">
+              Les plaques seront créées avec un numéro auto et un token QR unique. Elles seront en statut "en attente" jusqu'à géolocalisation.
+            </p>
+            <label className="block text-sm font-medium text-[#1A1A1A]/70 mb-2">Nombre de plaques</label>
+            <input
+              type="number"
+              min={1}
+              max={500}
+              value={batchCount}
+              onChange={(e) => setBatchCount(Math.min(500, Math.max(1, parseInt(e.target.value) || 1)))}
+              className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-2.5 text-sm focus:border-[#C9A961] focus:outline-none"
+            />
+            <p className="mt-2 text-xs text-[#1A1A1A]/50">Maximum 500 par lot. Les numéros continuent à partir du dernier existant.</p>
+            <div className="mt-6 flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setShowBatchDialog(false)}>Annuler</Button>
+              <Button onClick={handleGenerateBatch} disabled={generating} className="bg-[#C9A961] text-[#1A1A1A] hover:bg-[#B8964F]">
+                {generating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
+                {generating ? 'Génération…' : `Générer ${batchCount} plaques`}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Dialog édition plaque (géolocalisation) */}
+      {editingPlate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setEditingPlate(null)}>
+          <div className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-[#1A1A1A]" style={SERIF}>
+                Plaque {editingPlate.plateNumber}
+              </h3>
+              <button onClick={() => setEditingPlate(null)} className="text-[#1A1A1A]/40 hover:text-[#1A1A1A]">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* QR preview */}
+            <div className="mb-4 flex justify-center">
+              {composedQrs[editingPlate.id] ? (
+                <img src={composedQrs[editingPlate.id]} alt="QR" className="h-32 w-32 rounded-xl" />
+              ) : (
+                <div className="h-32 w-32 rounded-xl bg-[#FAFAF7] flex items-center justify-center">
+                  <QrCode className="h-12 w-12 text-[#1A1A1A]/20" />
+                </div>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              {/* Nom du lieu */}
+              <div>
+                <label className="block text-sm font-medium text-[#1A1A1A]/70 mb-1.5">Nom du lieu</label>
+                <input
+                  type="text"
+                  value={editLabel}
+                  onChange={(e) => setEditLabel(e.target.value)}
+                  placeholder="ex: Marché Sandaga, Rue Félix Faure…"
+                  className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-2.5 text-sm focus:border-[#C9A961] focus:outline-none"
+                />
+              </div>
+
+              {/* Quartier */}
+              <div>
+                <label className="block text-sm font-medium text-[#1A1A1A]/70 mb-1.5">Quartier</label>
+                <input
+                  type="text"
+                  value={editDistrict}
+                  onChange={(e) => setEditDistrict(e.target.value)}
+                  placeholder="ex: Plateau, Médina, Grand Dakar…"
+                  className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-2.5 text-sm focus:border-[#C9A961] focus:outline-none"
+                />
+              </div>
+
+              {/* Adresse */}
+              <div>
+                <label className="block text-sm font-medium text-[#1A1A1A]/70 mb-1.5">Adresse (optionnel)</label>
+                <input
+                  type="text"
+                  value={editAddress}
+                  onChange={(e) => setEditAddress(e.target.value)}
+                  placeholder="ex: Avenue Léopold Sédar Senghor"
+                  className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-2.5 text-sm focus:border-[#C9A961] focus:outline-none"
+                />
+              </div>
+
+              {/* GPS */}
+              <div>
+                <label className="block text-sm font-medium text-[#1A1A1A]/70 mb-2">Géolocalisation (GPS)</label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={editLat}
+                    onChange={(e) => setEditLat(e.target.value)}
+                    placeholder="Latitude"
+                    className="flex-1 rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2.5 text-sm focus:border-[#C9A961] focus:outline-none"
+                  />
+                  <input
+                    type="text"
+                    value={editLng}
+                    onChange={(e) => setEditLng(e.target.value)}
+                    placeholder="Longitude"
+                    className="flex-1 rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2.5 text-sm focus:border-[#C9A961] focus:outline-none"
+                  />
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleLocate}
+                  disabled={locating}
+                  className="mt-2 border-[#C9A961]/40 text-[#1A1A1A] hover:bg-[#C9A961]/8"
+                >
+                  {locating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <MapPin className="h-4 w-4 mr-2" />}
+                  {locating ? 'Localisation…' : '📍 Ma position GPS'}
+                </Button>
+                <p className="mt-1 text-xs text-[#1A1A1A]/50">
+                  La géolocalisation active automatiquement la plaque (statut → "active").
+                </p>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="mt-6 flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setEditingPlate(null)}>Annuler</Button>
+              <Button onClick={handleSavePlate} disabled={savingPlate} className="bg-[#4A7C59] text-white hover:bg-[#3D6B4D]">
+                {savingPlate ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
+                {savingPlate ? 'Sauvegarde…' : 'Sauvegarder & activer'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
