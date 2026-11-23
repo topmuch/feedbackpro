@@ -60,6 +60,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
 import { parler } from '@/lib/staff-tts'
+import { composeQrPremium, qrServerUrl } from '@/lib/qr-premium'
 
 // ============================================================
 // Types (contrat API — formes sérialisées par /api/city/*)
@@ -421,6 +422,27 @@ export function CityScanView({
   // --- Horloge mairie dynamique ---
   const currentHour = useCurrentHour()
 
+  // --- QR premium côté citoyen ---
+  const [premiumQrUrl, setPremiumQrUrl] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!plate) return
+    const compose = async () => {
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://feedback.qrbags.com'
+      const qrUrl = qrServerUrl(`${origin}/?cityPlate=${plate.qrToken}`, 300)
+      try {
+        // Logo depuis localStorage (configuré par la mairie)
+        let logoUrl: string | null = null
+        try { logoUrl = localStorage.getItem('city_logo_url') } catch { /* ignore */ }
+        const composed = await composeQrPremium(qrUrl, logoUrl, plate.plateNumber, 'Dakar')
+        setPremiumQrUrl(composed)
+      } catch {
+        setPremiumQrUrl(qrUrl)
+      }
+    }
+    compose()
+  }, [plate])
+
   // ---------------------------------------------------------------
   // 1. Chargement initial : résolution de la plaque par qrToken
   // ---------------------------------------------------------------
@@ -689,6 +711,13 @@ export function CityScanView({
             background: `linear-gradient(135deg, ${COLORS.purple} 0%, ${COLORS.blue} 100%)`,
           }}
         >
+          {/* QR Code Premium */}
+          {premiumQrUrl && (
+            <div className="mb-6 overflow-hidden rounded-2xl shadow-2xl" style={{ maxHeight: '320px' }}>
+              <img src={premiumQrUrl} alt={`Plaque ${plate.plateNumber}`} className="h-auto w-full max-w-[280px]" />
+            </div>
+          )}
+
           {/* Avatar Aminata */}
           <div className="relative mb-6">
             <div
@@ -898,23 +927,25 @@ export function CityScanView({
   // ---------------------------------------------------------------
   return (
     <div className={rootClass} style={rootStyle}>
-      <MainView plate={plate} onOpenModule={openModule} onExit={onExit} />
+      <MainView plate={plate} onOpenModule={openModule} onExit={onExit} premiumQrUrl={premiumQrUrl} />
     </div>
   )
 }
 
 // ============================================================
-// MainView — banner d'accueil Aminata + 5 cartes module
+// MainView — banner d'accueil Aminata + 6 cartes module + QR premium
 // ============================================================
 
 function MainView({
   plate,
   onOpenModule,
   onExit,
+  premiumQrUrl,
 }: {
   plate: CityPlate
   onOpenModule: (id: ModuleId) => void
   onExit?: () => void
+  premiumQrUrl: string | null
 }) {
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col">
@@ -1017,6 +1048,18 @@ function MainView({
           </button>
         ))}
       </main>
+
+      {/* --- QR Premium (côté citoyen) --- */}
+      {premiumQrUrl && (
+        <div className="px-4 pb-4">
+          <div className="overflow-hidden rounded-2xl shadow-lg">
+            <img src={premiumQrUrl} alt={`Plaque ${plate.plateNumber}`} className="h-auto w-full max-w-[240px] mx-auto" />
+          </div>
+          <p className="mt-2 text-center text-xs text-[#1A1A1A]/40">
+            Plaque {plate.plateNumber} · {plate.label}
+          </p>
+        </div>
+      )}
 
       {/* --- Footer Aminata --- */}
       <footer className="px-4 pb-6 pt-2 text-center">
