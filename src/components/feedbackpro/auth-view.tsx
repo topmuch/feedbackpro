@@ -664,6 +664,7 @@ function InscriptionForm() {
     { value: "airport", emoji: "✈️", titre: "Aéroport", desc: "Infrastructure & ops — wallboard, supervision", color: "hover:border-[#C9A961]/70 hover:bg-[#f7efe9]" },
     { value: "airline", emoji: "🛫", titre: "Compagnie Aérienne", desc: "Escale & passager — check-in, litiges bagages", color: "hover:border-[#C9A961]/70 hover:bg-[#f7efe9]" },
     { value: "vip_lounge", emoji: "🥂", titre: "Salon VIP", desc: "Luxe & discrétion — buffet, douches, conciergerie", color: "hover:border-[#C9A961]/70 hover:bg-[#f7efe9]" },
+    { value: "city", emoji: "🏙️", titre: "Ville Connectée", desc: "Établissements publics — plaques QR citoyennes, Aminata", color: "hover:border-[#C9A961]/70 hover:bg-[#f7efe9]" },
     { value: "classic", emoji: "🏪", titre: "Commerce classique", desc: "Restaurant, hôtel, boutique — dashboard standard", color: "hover:border-stone-400 hover:bg-[#f7efe9]" },
   ]
 
