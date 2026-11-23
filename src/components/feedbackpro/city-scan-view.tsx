@@ -58,6 +58,7 @@ import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
+import { parler } from '@/lib/staff-tts'
 
 // ============================================================
 // Types (contrat API — formes sérialisées par /api/city/*)
@@ -442,6 +443,14 @@ export function CityScanView({
         }
         setPlate(found)
         setPhase('main')
+        // Voix d'accueil Aminata — parlée automatiquement au scan
+        setTimeout(() => {
+          parler(
+            `Bonjour, je suis Aminata, votre guide. Vous êtes à ${found.label}${
+              found.district ? `, quartier ${found.district}` : ''
+            }. Cliquez sur les rubriques ci-dessous pour accéder aux services.`
+          )
+        }, 500)
       } catch {
         if (cancelled) return
         setPlateError('Connexion impossible. Vérifiez votre réseau.')

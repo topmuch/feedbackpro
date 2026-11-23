@@ -57,6 +57,7 @@ import { Badge } from '@/components/ui/badge'
 import { useAppStore } from '@/store/app-store'
 import { useToast } from '@/hooks/use-toast'
 import { parler } from '@/lib/staff-tts'
+import { composeQrAvecLogo } from '@/lib/qr'
 
 // ---------------------------------------------------------------
 // Types — shape des réponses API
@@ -290,6 +291,39 @@ export default function CityDashboard() {
   const [today, setToday] = useState<Date | null>(null)
   const clock = useClock()
 
+  // --- Logo ville (pour QR codes premium) ---
+  const [cityLogoUrl, setCityLogoUrl] = useState<string | null>(null)
+  const logoInputRef = useRef<HTMLInputElement>(null)
+  const [composedQrs, setComposedQrs] = useState<Record<string, string>>({})
+
+  // Charger le logo depuis localStorage au montage
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('city_logo_url')
+      if (saved) setCityLogoUrl(saved)
+    } catch { /* ignore */ }
+  }, [])
+
+  // Compose les QR codes avec le logo quand les plaques ou le logo changent
+  useEffect(() => {
+    if (!plates.length) return
+    const compose = async () => {
+      const result: Record<string, string> = {}
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://feedback.qrbags.com'
+      for (const p of plates.slice(0, 12)) {
+        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(`${origin}/?cityPlate=${p.qrToken}`)}`
+        try {
+          const composed = await composeQrAvecLogo(qrUrl, cityLogoUrl)
+          result[p.id] = composed
+        } catch {
+          result[p.id] = qrUrl
+        }
+      }
+      setComposedQrs(result)
+    }
+    compose()
+  }, [plates, cityLogoUrl])
+
   // --- Store & toast ---
   const session = useAppStore((s) => s.session)
   const logout = useAppStore((s) => s.logout)
@@ -464,6 +498,24 @@ export default function CityDashboard() {
     })
   }, [playDing])
 
+  // --- Upload logo ville ---
+  const handleLogoUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (file.size > 2 * 1024 * 1024) {
+      toast({ title: 'Fichier trop volumineux', description: 'Maximum 2 Mo.', variant: 'destructive' })
+      return
+    }
+    const reader = new FileReader()
+    reader.onload = () => {
+      const dataUrl = reader.result as string
+      setCityLogoUrl(dataUrl)
+      try { localStorage.setItem('city_logo_url', dataUrl) } catch { /* ignore */ }
+      toast({ title: 'Logo enregistré', description: 'Le logo apparaîtra au centre des QR codes.' })
+    }
+    reader.readAsDataURL(file)
+  }, [toast])
+
   // --- Actions ---
   const handleRefresh = useCallback(async () => {
     setRefreshing(true)
@@ -563,9 +615,13 @@ export default function CityDashboard() {
       >
         {/* Logo */}
         <div className="flex items-center gap-2.5 px-5 pb-4 pt-5">
-          <span className="text-2xl" aria-hidden>
-            🏙️
-          </span>
+          {cityLogoUrl ? (
+            <img src={cityLogoUrl} alt="Logo ville" className="h-8 w-8 rounded-lg object-cover" />
+          ) : (
+            <span className="text-2xl" aria-hidden>
+              🏙️
+            </span>
+          )}
           <div className="min-w-0 flex-1">
             <h1
               className="truncate text-sm font-bold leading-tight text-[#FAFAF7]"
@@ -787,6 +843,166 @@ export default function CityDashboard() {
 
         {/* Contenu principal */}
         <main className="px-4 py-5 sm:px-6 lg:px-8">
+
+          {/* ====== VUE PARAMÈTRES ====== */}
+          {activeNav === 'settings' && (
+            <div className="mx-auto max-w-2xl space-y-5">
+              <h2 className="text-xl font-bold text-[#1A1A1A]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
+                Paramètres · Ville Connectée
+              </h2>
+
+              {/* Logo ville */}
+              <div className="rounded-2xl border border-[#EAE5DC] bg-white p-6 shadow-sm">
+                <h3 className="mb-4 text-sm font-bold uppercase tracking-wide text-[#1A1A1A]/60">
+                  Logo de la ville
+                </h3>
+                <p className="mb-4 text-sm text-[#1A1A1A]/60">
+                  Ce logo s'affiche au centre de tous les QR codes des plaques citoyennes.
+                </p>
+
+                <div className="flex items-center gap-6">
+                  {/* Preview logo */}
+                  <div className="flex h-24 w-24 shrink-0 items-center justify-center overflow-hidden rounded-xl border-2 border-[#EAE5DC] bg-[#FAFAF7]">
+                    {cityLogoUrl ? (
+                      <img src={cityLogoUrl} alt="Logo ville" className="h-full w-full object-cover" />
+                    ) : (
+                      <Building2 className="h-8 w-8 text-[#1A1A1A]/30" />
+                    )}
+                  </div>
+
+                  <div className="flex-1 space-y-3">
+                    <input
+                      ref={logoInputRef}
+                      type="file"
+                      accept="image/png,image/jpeg,image/svg+xml"
+                      onChange={handleLogoUpload}
+                      className="hidden"
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => logoInputRef.current?.click()}
+                      className="border-[#C9A961]/40 text-[#1A1A1A] hover:bg-[#C9A961]/8"
+                    >
+                      📷 {cityLogoUrl ? 'Changer le logo' : 'Uploader un logo'}
+                    </Button>
+                    {cityLogoUrl && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => {
+                          setCityLogoUrl(null)
+                          try { localStorage.removeItem('city_logo_url') } catch { /* ignore */ }
+                          toast({ title: 'Logo supprimé' })
+                        }}
+                        className="text-[#E30613]"
+                      >
+                        Supprimer
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                {/* QR preview avec logo */}
+                {cityLogoUrl && plates[0] && (
+                  <div className="mt-4 rounded-xl bg-[#FAFAF7] p-4">
+                    <p className="mb-2 text-xs font-medium text-[#1A1A1A]/50">Aperçu QR code premium :</p>
+                    {composedQrs[plates[0].id] ? (
+                      <img src={composedQrs[plates[0].id]} alt="QR preview" className="h-32 w-32 rounded-lg" />
+                    ) : (
+                      <div className="h-32 w-32 animate-pulse rounded-lg bg-[#EAE5DC]" />
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {/* Configuration Denise */}
+              <div className="rounded-2xl border border-[#EAE5DC] bg-white p-6 shadow-sm">
+                <h3 className="mb-4 text-sm font-bold uppercase tracking-wide text-[#1A1A1A]/60">
+                  Voix Denise (supervision)
+                </h3>
+                <div className="flex items-center justify-between rounded-xl bg-[#FAFAF7] px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    {soundOn ? <Volume2 className="h-5 w-5 text-[#C9A961]" /> : <VolumeX className="h-5 w-5 text-[#1A1A1A]/40" />}
+                    <div>
+                      <p className="text-sm font-medium text-[#1A1A1A]">Alertes vocales</p>
+                      <p className="text-xs text-[#1A1A1A]/50">Ding + annonces à chaque nouveau signalement</p>
+                    </div>
+                  </div>
+                  <Button size="sm" variant={soundOn ? 'default' : 'outline'} onClick={toggleSound}
+                    className={soundOn ? 'bg-[#4A7C59] text-white' : 'border-[#EAE5DC]'}>
+                    {soundOn ? 'ON' : 'OFF'}
+                  </Button>
+                </div>
+              </div>
+
+              {/* Configuration Aminata */}
+              <div className="rounded-2xl border border-[#EAE5DC] bg-white p-6 shadow-sm">
+                <h3 className="mb-4 text-sm font-bold uppercase tracking-wide text-[#1A1A1A]/60">
+                  Voix Aminata (citoyen)
+                </h3>
+                <div className="flex items-center justify-between rounded-xl bg-[#FAFAF7] px-4 py-3">
+                  <div className="flex items-center gap-3">
+                    <Radio className="h-5 w-5 text-[#6B4C9A]" />
+                    <div>
+                      <p className="text-sm font-medium text-[#1A1A1A]">Message d'accueil automatique</p>
+                      <p className="text-xs text-[#1A1A1A]/50">"Bonjour, je suis Aminata, votre guide..."</p>
+                    </div>
+                  </div>
+                  <Badge className="bg-[#4A7C59]/12 text-[#4A7C59]">Activé</Badge>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ====== VUE GESTION PLAQUES (QR codes premium) ====== */}
+          {activeNav === 'plates-mgmt' && (
+            <div className="space-y-5">
+              <div className="flex items-center justify-between">
+                <h2 className="text-xl font-bold text-[#1A1A1A]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
+                  Plaques QR · {plates.length} installées
+                </h2>
+                {cityLogoUrl ? (
+                  <Badge className="bg-[#C9A961]/15 text-[#8B6F47]">Logo intégré ✓</Badge>
+                ) : (
+                  <Badge variant="outline" className="text-[#1A1A1A]/40">Sans logo — configurer dans Paramètres</Badge>
+                )}
+              </div>
+
+              <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                {plates.slice(0, 12).map((p) => (
+                  <div key={p.id} className="rounded-2xl border border-[#EAE5DC] bg-white p-4 text-center shadow-sm">
+                    {/* QR code avec logo */}
+                    <div className="mx-auto mb-3 flex h-32 w-32 items-center justify-center overflow-hidden rounded-xl bg-white">
+                      {composedQrs[p.id] ? (
+                        <img src={composedQrs[p.id]} alt={`QR ${p.plateNumber}`} className="h-full w-full" />
+                      ) : (
+                        <div className="h-full w-full animate-pulse bg-[#EAE5DC]" />
+                      )}
+                    </div>
+                    <p className="text-sm font-bold text-[#1A1A1A]">{p.plateNumber}</p>
+                    <p className="truncate text-xs text-[#1A1A1A]/60">{p.label}</p>
+                    {p.district && <p className="text-[11px] text-[#1A1A1A]/40">{p.district}</p>}
+                    <div className="mt-2 flex items-center justify-center gap-2">
+                      <Badge className={cn(
+                        'text-[10px]',
+                        p.status === 'active' ? 'bg-[#4A7C59]/12 text-[#4A7C59]' :
+                        p.status === 'maintenance' ? 'bg-[#FF6B00]/12 text-[#FF6B00]' :
+                        'bg-[#E30613]/12 text-[#E30613]'
+                      )}>
+                        {p.status}
+                      </Badge>
+                      <span className="text-[10px] text-[#1A1A1A]/40">{p.scanCount} scans</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* ====== VUE OVERVIEW (défaut) ====== */}
+          {activeNav === 'overview' && (
+            <>
           {/* ---------- KPI GRID ---------- */}
           <section className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-6">
             <KpiCard
@@ -1130,6 +1346,8 @@ export default function CityDashboard() {
               </div>
             </div>
           </section>
+          </>
+          )}
 
           {/* ---------- Footer ---------- */}
           <footer className="mt-8 flex flex-col items-start justify-between gap-2 border-t border-[#EAE5DC] py-4 text-[11px] text-[#1A1A1A]/55 sm:flex-row sm:items-center">
