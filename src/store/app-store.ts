@@ -9,7 +9,7 @@
 
 import { create } from "zustand"
 
-export type View = "loading" | "landing" | "auth" | "auth-admin" | "dashboard" | "admin" | "scan" | "airport" | "airport-staff" | "airport-ops" | "airline" | "vip" | "vip-table" | "vip-staff" | "onboarding-tenant"
+export type View = "loading" | "landing" | "auth" | "auth-admin" | "dashboard" | "admin" | "scan" | "airport" | "airport-staff" | "airport-ops" | "airline" | "vip" | "vip-table" | "vip-staff" | "city" | "onboarding-tenant"
 
 /** Établissement (Pro) tel que renvoyé par /api/auth/me et les routes de session */
 export type ProData = {
@@ -153,6 +153,7 @@ function deriveView(scanToken: string | null, airportTag: string | null, staffTa
   const tenant = (session.user.tenantType ?? 'classic').toLowerCase()
   if (tenant === 'airline') return 'airline'
   if (tenant === 'vip_lounge' || tenant === 'vip') return 'vip'
+  if (tenant === 'city') return 'city'
   return 'dashboard'
 }
 
