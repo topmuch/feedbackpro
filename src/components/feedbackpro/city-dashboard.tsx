@@ -23,7 +23,7 @@
 // Responsive : sidebar se replie en drawer sous lg (toggle burger).
 // ============================================================
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
 import {
   Loader2,
   RefreshCw,
@@ -48,12 +48,15 @@ import {
   FileBarChart,
   Settings,
   Radio,
+  Volume2,
+  VolumeX,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { useAppStore } from '@/store/app-store'
 import { useToast } from '@/hooks/use-toast'
+import { parler } from '@/lib/staff-tts'
 
 // ---------------------------------------------------------------
 // Types — shape des réponses API
@@ -273,6 +276,13 @@ export default function CityDashboard() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
+  // --- Voix Denise (TTS) + sons ---
+  const [soundOn, setSoundOn] = useState(false)
+  const [showSoundBanner, setShowSoundBanner] = useState(false)
+  const seenIdsRef = useRef<Set<string>>(new Set())
+  const firstPollRef = useRef(true)
+  const alertedLateRef = useRef<Set<string>>(new Set())
+
   // --- États UI ---
   const [activeNav, setActiveNav] = useState('overview')
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -323,6 +333,136 @@ export default function CityDashboard() {
     }, 0)
     return () => clearTimeout(t)
   }, [mounted, loadData])
+
+  // --- Préférence son (localStorage) ---
+  useEffect(() => {
+    const t = setTimeout(() => {
+      try {
+        const saved = localStorage.getItem('city_sound')
+        if (saved === '1') {
+          setSoundOn(true)
+        } else {
+          setShowSoundBanner(true)
+          const dismiss = setTimeout(() => setShowSoundBanner(false), 15000)
+          return () => clearTimeout(dismiss)
+        }
+      } catch { /* ignore */ }
+    }, 0)
+    return () => clearTimeout(t)
+  }, [])
+
+  // --- Sons (Web Audio API) ---
+  const playDing = useCallback(() => {
+    try {
+      const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+      const osc = ctx.createOscillator()
+      const gain = ctx.createGain()
+      osc.connect(gain); gain.connect(ctx.destination)
+      osc.frequency.value = 880; osc.type = 'sine'
+      gain.gain.setValueAtTime(0.3, ctx.currentTime)
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5)
+      osc.start(); osc.stop(ctx.currentTime + 0.5)
+    } catch { /* ignore */ }
+  }, [])
+
+  const playEscalation = useCallback(() => {
+    try {
+      const ctx = new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)()
+      const freqs = [990, 880, 990]
+      freqs.forEach((freq, i) => {
+        const osc = ctx.createOscillator()
+        const gain = ctx.createGain()
+        osc.connect(gain); gain.connect(ctx.destination)
+        osc.frequency.value = freq; osc.type = 'sine'
+        const start = ctx.currentTime + i * 0.22
+        gain.gain.setValueAtTime(0.3, start)
+        gain.gain.exponentialRampToValueAtTime(0.01, start + 0.18)
+        osc.start(start); osc.stop(start + 0.18)
+      })
+    } catch { /* ignore */ }
+  }, [])
+
+  // --- Détection nouveaux incidents + rappel retard (Denise TTS) ---
+  useEffect(() => {
+    if (!incidents || incidents.length === 0) return
+    const isFirst = firstPollRef.current
+    firstPollRef.current = false
+    const nowMs = Date.now()
+
+    for (const inc of incidents) {
+      if (inc.status === 'resolved') continue
+      // Nouvel incident détecté
+      if (!seenIdsRef.current.has(inc.id)) {
+        seenIdsRef.current.add(inc.id)
+        if (!isFirst && soundOn) {
+          playDing()
+          const isEmergency = inc.type === 'emergency'
+          const categoryLabel = inc.category || inc.type
+          const serviceLabel = inc.assignedTo || 'Mairie'
+          setTimeout(() => {
+            parler(
+              isEmergency
+                ? `Urgence signalée. ${categoryLabel}. ${serviceLabel} alerté. Intervention requise.`
+                : `Nouveau signalement. ${categoryLabel}. Routé vers ${serviceLabel}.`
+            )
+          }, 300)
+        }
+      }
+      // Rappel retard (> 10 min sans résolution)
+      const elapsedMin = Math.floor((nowMs - new Date(inc.createdAt).getTime()) / 60000)
+      if (elapsedMin >= 10) {
+        const lateKey = `${inc.id}-${Math.floor(elapsedMin / 5) * 5}min`
+        if (!alertedLateRef.current.has(lateKey)) {
+          alertedLateRef.current.add(lateKey)
+          if (soundOn && !isFirst) {
+            playEscalation()
+            setTimeout(() => {
+              parler(
+                `Signalement en retard. ${elapsedMin} minutes écoulées. ${inc.category || inc.type}. ${inc.assignedTo || 'Mairie'}. Intervention requise.`
+              )
+            }, 300)
+          }
+        }
+      }
+    }
+    // Nettoie les IDs résolus
+    for (const id of [...seenIdsRef.current]) {
+      const inc = incidents.find((i) => i.id === id)
+      if (!inc || inc.status === 'resolved') {
+        seenIdsRef.current.delete(id)
+      }
+    }
+  }, [incidents, soundOn, playDing, playEscalation])
+
+  // --- Polling 10s (incidents temps réel) ---
+  useEffect(() => {
+    if (!mounted || loading) return
+    const interval = setInterval(() => {
+      fetch('/api/city/incidents', { cache: 'no-store' })
+        .then((r) => r.json())
+        .then((json) => {
+          if (json?.ok && json.data?.incidents) {
+            setIncidents(json.data.incidents)
+          }
+        })
+        .catch(() => {})
+    }, 10000)
+    return () => clearInterval(interval)
+  }, [mounted, loading])
+
+  // --- Toggle son ---
+  const toggleSound = useCallback(() => {
+    setSoundOn((prev) => {
+      const next = !prev
+      try { localStorage.setItem('city_sound', next ? '1' : '0') } catch { /* ignore */ }
+      setShowSoundBanner(false)
+      if (next) {
+        playDing()
+        setTimeout(() => parler('Voix Denise activée. Je surveille les alertes de la ville.'), 300)
+      }
+      return next
+    })
+  }, [playDing])
 
   // --- Actions ---
   const handleRefresh = useCallback(async () => {
@@ -577,6 +717,20 @@ export default function CityDashboard() {
           </div>
 
           <div className="flex items-center gap-2">
+            {/* Toggle son Denise */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleSound}
+              title={soundOn ? "Désactiver la voix Denise" : "Activer la voix Denise"}
+              className={cn(
+                "border-[#EAE5DC] bg-white hover:border-[#C9A961]",
+                soundOn ? "text-[#C9A961] border-[#C9A961]/40 bg-[#C9A961]/8" : "text-[#1A1A1A]"
+              )}
+            >
+              {soundOn ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
+              <span className="hidden sm:inline">{soundOn ? "Son ON" : "Son OFF"}</span>
+            </Button>
             <Button
               variant="outline"
               size="sm"
@@ -599,6 +753,37 @@ export default function CityDashboard() {
             </Button>
           </div>
         </header>
+
+        {/* Bannière activation sonore */}
+        {showSoundBanner && !soundOn && (
+          <div className="mb-4 flex items-center justify-between rounded-xl border border-[#C9A961]/30 bg-[#C9A961]/8 px-4 py-3">
+            <div className="flex items-center gap-3">
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#C9A961]/15">
+                <Volume2 className="h-4 w-4 text-[#C9A961]" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold text-[#1A1A1A]">
+                  Activez la voix Denise pour les alertes vocales
+                </p>
+                <p className="text-xs text-[#1A1A1A]/60">
+                  Ding + annonces vocales à chaque nouveau signalement
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button size="sm" onClick={toggleSound} className="bg-[#4A7C59] text-white hover:bg-[#3D6B4D]">
+                <Volume2 className="h-3.5 w-3.5 mr-1" /> Activer
+              </Button>
+              <button
+                type="button"
+                onClick={() => setShowSoundBanner(false)}
+                className="text-[#1A1A1A]/40 hover:text-[#1A1A1A] p-1"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Contenu principal */}
         <main className="px-4 py-5 sm:px-6 lg:px-8">
