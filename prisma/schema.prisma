@@ -1813,6 +1813,7 @@ model CityPlate {
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   incidents       CityIncident[]
+  taxReports      CityTaxReport[]
 
   @@index([status])
   @@index([district])
@@ -1876,4 +1877,52 @@ model CityReport {
   createdAt       DateTime @default(now())
 
   @@index([type, period])
+}
+
+// ============================================================
+// RADAR TAXES & DÉPÔTS — Signalements de déchargement sauvage
+// ============================================================
+
+model CityTaxReport {
+  id              String   @id @default(cuid())
+  qrToken         String?                         // plaque scannée
+  plateId         String?
+  plate           CityPlate? @relation(fields: [plateId], references: [id], onDelete: SetNull)
+  photoUrl        String?                         // photo du camion/conteneur (dataURL ou URL)
+  vehiclePlate    String?                         // plaque d'immatriculation du véhicule signalé
+  description     String?
+  gpsLat          Float?
+  gpsLng          Float?
+  status          String   @default("reported")   // reported → verified → tax_collected → rewarded
+  taxAmount       Int      @default(0)             // FCFA encaissés par la mairie
+  rewardAmount    Int      @default(0)             // FCFA envoyés au citoyen
+  rewardMethod    String?                          // wave | orange_money | internet_pass | points
+  citizenPhone    String?                         // téléphone du citoyen (pour la récompense)
+  agentName       String?                         // agent municipal qui a traité
+  verifiedAt      DateTime?
+  resolvedAt      DateTime?
+  rewardedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  reward          CityReward?                     // relation inverse
+
+  @@index([status])
+  @@index([plateId])
+}
+
+model CityReward {
+  id              String   @id @default(cuid())
+  taxReportId     String?  @unique
+  taxReport       CityTaxReport? @relation(fields: [taxReportId], references: [id], onDelete: SetNull)
+  citizenPhone    String
+  amount          Int                             // FCFA
+  method          String   @default("wave")       // wave | orange_money | internet_pass | points
+  reason          String   @default("tax_report")
+  status          String   @default("pending")    // pending → sent
+  transactionRef  String?
+  sentAt          DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([citizenPhone])
+  @@index([status])
 }

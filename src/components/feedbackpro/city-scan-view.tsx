@@ -52,6 +52,7 @@ import {
   Lightbulb,
   Lock,
   Shield,
+  Camera,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -124,7 +125,7 @@ const TITLE_FONT: React.CSSProperties = {
 // Configuration des 5 modules (banner d'accueil Aminata)
 // ============================================================
 
-type ModuleId = 'urgence' | 'signalement' | 'orientation' | 'artisans' | 'mairie'
+type ModuleId = 'urgence' | 'signalement' | 'orientation' | 'artisans' | 'mairie' | 'tax_fraud'
 
 type ModuleConfig = {
   id: ModuleId
@@ -175,6 +176,14 @@ const MODULES: ReadonlyArray<ModuleConfig> = [
     desc: 'Horaires · Services · Annonces municipales',
     sub: "Selon l'heure du jour",
     color: COLORS.purple,
+  },
+  {
+    id: 'tax_fraud',
+    emoji: '🚨',
+    title: 'RADAR TAXES & DÉPÔTS',
+    desc: 'Camion · Conteneur · Chantier non déclaré',
+    sub: 'Photo + GPS + récompense',
+    color: '#8B0000',
   },
 ]
 
@@ -847,6 +856,27 @@ export function CityScanView({
           )}
           {activeModule === 'mairie' && (
             <MairieView currentHour={currentHour} />
+          )}
+          {activeModule === 'tax_fraud' && (
+            <TaxFraudView
+              plate={plate}
+              gpsConsent={gpsConsent}
+              setGpsConsent={setGpsConsent}
+              gpsLoading={gpsLoading}
+              setGpsLoading={setGpsLoading}
+              submitting={submitting}
+              setSubmitting={setSubmitting}
+              onSubmitSuccess={(data) => {
+                setConfirmation({
+                  emoji: '🚨',
+                  title: 'Signalement envoyé',
+                  service: data.reward ? `Récompense: ${data.reward.amount} FCFA` : 'Agent de recouvrement notifié',
+                  gpsSent: !!data.gpsLat,
+                  timestamp: new Date().toLocaleTimeString('fr-FR'),
+                })
+                setPhase('confirmation')
+              }}
+            />
           )}
         </SubViewShell>
       </div>
@@ -1770,6 +1800,238 @@ function ConfirmationView({
         <ArrowLeft className="size-4" />
         Faire une autre demande
       </Button>
+    </div>
+  )
+}
+
+// ============================================================
+// TaxFraudView — Module 🚨 Radar Taxes & Dépôts
+// ============================================================
+
+function TaxFraudView({
+  plate,
+  gpsConsent,
+  setGpsConsent,
+  gpsLoading,
+  setGpsLoading,
+  submitting,
+  setSubmitting,
+  onSubmitSuccess,
+}: {
+  plate: CityPlate
+  gpsConsent: boolean
+  setGpsConsent: (v: boolean) => void
+  gpsLoading: boolean
+  setGpsLoading: (v: boolean) => void
+  submitting: boolean
+  setSubmitting: (v: boolean) => void
+  onSubmitSuccess: (data: { gpsLat?: number; gpsLng?: number; reward?: { amount: number } }) => void
+}) {
+  const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null)
+  const [vehiclePlate, setVehiclePlate] = useState('')
+  const [description, setDescription] = useState('')
+  const [citizenPhone, setCitizenPhone] = useState('')
+  const [gpsLat, setGpsLat] = useState<number | null>(null)
+  const [gpsLng, setGpsLng] = useState<number | null>(null)
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      // Resize image to max 800px to keep dataURL manageable
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const maxDim = 800
+        const ratio = Math.min(maxDim / img.width, maxDim / img.height, 1)
+        canvas.width = Math.round(img.width * ratio)
+        canvas.height = Math.round(img.height * ratio)
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+          setPhotoDataUrl(canvas.toDataURL('image/jpeg', 0.7))
+        }
+      }
+      img.src = reader.result as string
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleCaptureGps = () => {
+    setGpsLoading(true)
+    if (!navigator.geolocation) {
+      setGpsLoading(false)
+      return
+    }
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGpsLat(pos.coords.latitude)
+        setGpsLng(pos.coords.longitude)
+        setGpsConsent(true)
+        setGpsLoading(false)
+      },
+      () => setGpsLoading(false),
+      { enableHighAccuracy: true, timeout: 10000 },
+    )
+  }
+
+  const handleSubmit = async () => {
+    if (!photoDataUrl) return
+    setSubmitting(true)
+    try {
+      const res = await fetch('/api/city/tax-reports', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          qrToken: plate.qrToken,
+          photoUrl: photoDataUrl,
+          vehiclePlate: vehiclePlate.trim() || null,
+          description: description.trim() || null,
+          gpsLat: gpsConsent ? gpsLat : null,
+          gpsLng: gpsConsent ? gpsLng : null,
+          citizenPhone: citizenPhone.trim() || null,
+        }),
+      })
+      const json = await res.json()
+      if (json?.ok) {
+        onSubmitSuccess({
+          gpsLat: gpsConsent ? gpsLat ?? undefined : undefined,
+          gpsLng: gpsConsent ? gpsLng ?? undefined : undefined,
+        })
+      }
+    } catch {
+      // ignore
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-[#1A1A1A]/70">
+        Photographiez le camion, conteneur ou chantier non déclaré. Avec la plaque d'immatriculation visible si possible.
+      </p>
+
+      {/* Photo capture */}
+      <div>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handlePhoto}
+          className="hidden"
+        />
+        {photoDataUrl ? (
+          <div className="relative rounded-2xl overflow-hidden">
+            <img src={photoDataUrl} alt="Signalement" className="w-full rounded-2xl" />
+            <button
+              onClick={() => setPhotoDataUrl(null)}
+              className="absolute top-2 right-2 rounded-full bg-black/60 px-3 py-1.5 text-xs font-medium text-white"
+            >
+              Changer
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="flex w-full flex-col items-center gap-3 rounded-2xl border-2 border-dashed border-[#8B0000]/30 bg-[#8B0000]/5 py-12 transition hover:border-[#8B0000]/60 hover:bg-[#8B0000]/8"
+          >
+            <Camera className="size-10 text-[#8B0000]/50" />
+            <span className="text-sm font-bold text-[#8B0000]">📷 Prendre une photo</span>
+            <span className="text-xs text-[#1A1A1A]/50">Camion, conteneur, dépôt sauvage…</span>
+          </button>
+        )}
+      </div>
+
+      {/* Plaque véhicule (optionnel) */}
+      <div>
+        <label className="block text-sm font-medium text-[#1A1A1A]/70 mb-1.5">
+          Plaque d'immatriculation du véhicule (optionnel)
+        </label>
+        <input
+          type="text"
+          value={vehiclePlate}
+          onChange={(e) => setVehiclePlate(e.target.value.toUpperCase())}
+          placeholder="ex: DK-2024-AB"
+          className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-2.5 text-sm uppercase focus:border-[#8B0000] focus:outline-none"
+        />
+        <p className="mt-1 text-xs text-[#1A1A1A]/50">+500 FCFA de récompense si la plaque est fournie</p>
+      </div>
+
+      {/* Description */}
+      <div>
+        <label className="block text-sm font-medium text-[#1A1A1A]/70 mb-1.5">Description (optionnel)</label>
+        <Textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="ex: Camion de gravats déchargé sur le trottoir depuis 2h…"
+          rows={2}
+          className="border-[#EAE5DC] bg-[#FAFAF7]"
+        />
+      </div>
+
+      {/* GPS */}
+      <div className="rounded-xl bg-[#FAFAF7] p-3">
+        <label className="flex items-center gap-3">
+          <input
+            type="checkbox"
+            checked={gpsConsent}
+            onChange={(e) => {
+              if (e.target.checked) {
+                handleCaptureGps()
+              } else {
+                setGpsConsent(false)
+                setGpsLat(null)
+                setGpsLng(null)
+              }
+            }}
+            className="size-5 accent-[#8B0000]"
+          />
+          <span className="text-sm font-medium text-[#1A1A1A]">
+            {gpsLoading ? 'Localisation en cours…' : gpsConsent ? `GPS capté: ${gpsLat?.toFixed(4)}, ${gpsLng?.toFixed(4)}` : 'Partager ma position GPS'}
+          </span>
+        </label>
+        <p className="mt-1 pl-8 text-xs text-[#1A1A1A]/50">Le GPS est envoyé à l'agent de recouvrement pour intervention rapide.</p>
+      </div>
+
+      {/* Téléphone (pour récompense) */}
+      <div>
+        <label className="block text-sm font-medium text-[#1A1A1A]/70 mb-1.5">
+          Votre numéro (pour la récompense)
+        </label>
+        <input
+          type="tel"
+          value={citizenPhone}
+          onChange={(e) => setCitizenPhone(e.target.value)}
+          placeholder="+221 77 000 00 00"
+          className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-2.5 text-sm focus:border-[#8B0000] focus:outline-none"
+        />
+        <p className="mt-1 text-xs text-[#1A1A1A]/50">Récompense envoyée via Wave / Orange Money si la taxe est recouvrée.</p>
+      </div>
+
+      {/* Récompense info */}
+      <div className="rounded-xl bg-[#4A7C59]/8 border border-[#4A7C59]/20 px-4 py-3">
+        <p className="text-sm font-bold text-[#4A7C59]">💰 Récompense citoyenne</p>
+        <p className="mt-1 text-xs text-[#1A1A1A]/60">
+          500 FCFA (signalement simple) ou 1000 FCFA (avec plaque véhicule). Crédit téléphonique envoyé dès que l'agent municipal encaisse la taxe.
+        </p>
+      </div>
+
+      {/* Submit */}
+      <Button
+        onClick={handleSubmit}
+        disabled={!photoDataUrl || submitting}
+        className="w-full rounded-xl bg-[#8B0000] py-5 text-base text-white hover:bg-[#6B0000] disabled:opacity-50"
+      >
+        {submitting ? <Loader2 className="size-5 animate-spin" /> : <Send className="size-5" />}
+        {submitting ? 'Envoi en cours…' : '🚨 ENVOYER L\'ALERTE'}
+      </Button>
+      {!photoDataUrl && (
+        <p className="text-center text-xs text-[#1A1A1A]/40">Prenez une photo pour activer l'envoi</p>
+      )}
     </div>
   )
 }
