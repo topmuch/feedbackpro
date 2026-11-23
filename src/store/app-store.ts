@@ -149,6 +149,13 @@ function deriveView(scanToken: string | null, airportTag: string | null, staffTa
   // soit le mode GLOBAL du QR d'entrée (aucun token, vipQrType seul).
   if (vipTableToken || vipQrType === 'CLIENT_GLOBAL') return "vip-table"
   if (vipStaffTag) return "vip-staff"
+  // Ville Connectée — Aminata citoyen + Staff municipal
+  // (doit être checked AVANT !session pour ne pas être écrasé par refreshSession)
+  if (typeof window !== "undefined") {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get("cityPlate")) return "city-scan"
+    if (params.get("cityStaff")) return "city-staff"
+  }
   // TENANT-3 — Vérifie localStorage EN PREMIER (avant !session) car
   // refreshSession/boot peuvent écraser justRegistered. Le flag
   // localStorage persiste entre les re-renders.
