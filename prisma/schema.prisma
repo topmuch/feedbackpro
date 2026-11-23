@@ -1545,3 +1545,89 @@ model ClientSession {
   @@index([token])
   @@index([deviceId])
 }
+
+// ============================================================
+// MODULE VILLE CONNECTÉE — Établissements Publics
+// Plaques QR citoyennes + Aminata (guide citoyen)
+// ============================================================
+
+model CityPlate {
+  id              String   @id @default(cuid())
+  plateNumber     String   @unique               // #0001, #0234, etc.
+  qrToken         String   @unique               // token unique pour le QR code
+  label           String                          // "Place de l'Indépendance", "Marché Sandaga"
+  district        String?                         // "Plateau", "Médina", "Grand Dakar"
+  address         String?
+  lat             Float?
+  lng             Float?
+  status          String   @default("active")     // active | maintenance | offline
+  installedAt     DateTime @default(now())
+  lastScanAt      DateTime?
+  scanCount       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  incidents       CityIncident[]
+
+  @@index([status])
+  @@index([district])
+}
+
+model CityIncident {
+  id              String   @id @default(cuid())
+  plateId         String?
+  plate           CityPlate? @relation(fields: [plateId], references: [id], onDelete: SetNull)
+  qrToken         String?                         // token de la plaque scannée
+  type            String                          // emergency | report | orientation | artisan | mairie
+  category        String?                         // "propreté", "voirie", "éclairage", "sécurité", "eau", "transport"
+  description     String?
+  gpsLat          Float?
+  gpsLng          Float?
+  status          String   @default("pending")    // pending | assigned | in_progress | resolved
+  assignedTo      String?                         // "Police", "ONAS", "Senelec", "Mairie"
+  staffName       String?
+  resolvedAt      DateTime?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+  @@index([type])
+  @@index([plateId])
+}
+
+model CityArtisan {
+  id              String   @id @default(cuid())
+  name            String
+  trade           String                          // "Plombier", "Électricien", "Menuisier"
+  phone           String
+  district        String?
+  address         String?
+  verified        Boolean  @default(false)        // validation mairie OBLIGATOIRE
+  premium         Boolean  @default(false)        // premium = monétisé
+  rating          Float    @default(5.0)
+  reviewCount     Int      @default(0)
+  contactCount    Int      @default(0)            // nombre de fois contacté via Aminata
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([verified, active])
+  @@index([district])
+  @@index([trade])
+}
+
+model CityReport {
+  id              String   @id @default(cuid())
+  type            String                          // daily | weekly | monthly
+  period          String                          // "2026-11" or "2026-11-20"
+  totalIncidents  Int      @default(0)
+  resolvedCount   Int      @default(0)
+  avgResolutionMin Int     @default(0)
+  satisfaction    Float    @default(0)
+  orientationCount Int     @default(0)
+  artisanRevenue  Int      @default(0)            // FCFA
+  cityShare       Int      @default(0)            // FCFA (30%)
+  data            String   @default("{}")         // JSON: detailed metrics
+  createdAt       DateTime @default(now())
+
+  @@index([type, period])
+}

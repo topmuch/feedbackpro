@@ -860,7 +860,7 @@ function ErreurChamp({ message }: { message?: string }) {
 // ============================================================
 
 type TenantOption = {
-  value: "airport" | "airline" | "vip_lounge" | "classic"
+  value: "airport" | "airline" | "vip_lounge" | "city" | "classic"
   emoji: string
   titre: string
   description: string
@@ -892,6 +892,14 @@ const TENANT_OPTIONS: readonly TenantOption[] = [
     description: "Luxe & discrétion — buffet, douches, conciergerie",
     icon: Wine,
     accent: "hover:border-[#D4AF37]/60 hover:bg-[#D4AF37]/5",
+  },
+  {
+    value: "city",
+    emoji: "🏙️",
+    titre: "Ville Connectée",
+    description: "Établissements publics — plaques QR citoyennes, Aminata",
+    icon: Building2,
+    accent: "hover:border-[#C9A961]/60 hover:bg-[#C9A961]/5",
   },
   {
     value: "classic",

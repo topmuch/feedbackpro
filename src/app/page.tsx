@@ -23,6 +23,7 @@ import { ProDashboard } from "@/components/feedbackpro/pro-dashboard"
 import { AdminDashboard } from "@/components/feedbackpro/admin-dashboard"
 import AirlineDashboard from "@/components/feedbackpro/airline-dashboard"
 import VIPDashboard from "@/components/feedbackpro/vip-dashboard"
+import CityDashboard from "@/components/feedbackpro/city-dashboard"
 import { VipTableScan } from "@/components/feedbackpro/vip-table-scan"
 import { VipStaffView } from "@/components/feedbackpro/vip-staff-view"
 import { AppFooter } from "@/components/feedbackpro/shared"
@@ -229,6 +230,13 @@ export default function Home() {
     return (
       <main className="min-h-screen bg-background">
         <VIPDashboard />
+      </main>
+    )
+  }
+  if (view === "city") {
+    return (
+      <main className="min-h-screen bg-background">
+        <CityDashboard />
       </main>
     )
   }
