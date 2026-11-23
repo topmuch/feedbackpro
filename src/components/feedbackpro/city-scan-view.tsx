@@ -686,6 +686,7 @@ export function CityScanView({
 
   // ---------------------------------------------------------------
   // 6.1b. Phase welcome — page d'entrée (débloque la voix navigateur)
+  // Design refondu A à Z — premium, coloré, accueillant
   // ---------------------------------------------------------------
   if (phase === 'welcome' && plate) {
     const welcomeText = `Bonjour, je suis Aminata, votre guide. Vous êtes à ${plate.label}${
@@ -693,7 +694,6 @@ export function CityScanView({
     }. Cliquez sur les rubriques ci-dessous pour accéder aux services.`
 
     const handleActivateVoice = () => {
-      // L'utilisateur a cliqué → le navigateur autorise maintenant le TTS
       try {
         parler(welcomeText)
       } catch { /* ignore */ }
@@ -706,82 +706,126 @@ export function CityScanView({
 
     return (
       <div className={rootClass} style={rootStyle}>
-        <div className="flex min-h-screen flex-col items-center justify-center px-6 text-center"
+        {/* Fond dégradé multi-couleurs */}
+        <div
+          className="flex min-h-screen flex-col items-center justify-center px-6 text-center"
           style={{
-            background: `linear-gradient(135deg, ${COLORS.purple} 0%, ${COLORS.blue} 100%)`,
+            background: `
+              radial-gradient(ellipse at top left, ${COLORS.purple}40 0%, transparent 50%),
+              radial-gradient(ellipse at bottom right, ${COLORS.blue}40 0%, transparent 50%),
+              radial-gradient(ellipse at center, ${COLORS.green}20 0%, transparent 60%),
+              linear-gradient(135deg, ${COLORS.purple} 0%, #4A2C7A 30%, ${COLORS.blue} 70%, #004499 100%)
+            `,
           }}
         >
-          {/* QR Code Premium */}
-          {premiumQrUrl && (
-            <div className="mb-6 overflow-hidden rounded-2xl shadow-2xl" style={{ maxHeight: '320px' }}>
-              <img src={premiumQrUrl} alt={`Plaque ${plate.plateNumber}`} className="h-auto w-full max-w-[280px]" />
-            </div>
-          )}
-
-          {/* Avatar Aminata */}
-          <div className="relative mb-6">
-            <div
-              className="flex size-24 items-center justify-center rounded-full text-5xl shadow-lg"
-              style={{ backgroundColor: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(10px)' }}
-            >
-              🎙️
-            </div>
-            {/* Pulsation */}
-            <div
-              className="absolute inset-0 rounded-full"
-              style={{
-                border: '3px solid rgba(255,255,255,0.3)',
-                animation: 'pulse 2s infinite',
-              }}
-            />
+          {/* Décor flottant — cercles colorés */}
+          <div className="pointer-events-none fixed inset-0 overflow-hidden" aria-hidden>
+            <div className="absolute -top-20 -left-20 h-64 w-64 rounded-full opacity-20" style={{ background: COLORS.orange }} />
+            <div className="absolute top-1/3 -right-16 h-48 w-48 rounded-full opacity-15" style={{ background: COLORS.green }} />
+            <div className="absolute -bottom-16 left-1/4 h-56 w-56 rounded-full opacity-10" style={{ background: COLORS.gold }} />
           </div>
 
-          {/* Titre */}
-          <h1
-            className="mb-3 text-2xl font-bold text-white"
-            style={TITLE_FONT}
-          >
-            Bonjour, je suis Aminata
-          </h1>
-          <p className="mb-2 text-sm text-white/85">
-            Votre guide citoyenne pour
-          </p>
-          <p
-            className="mb-6 text-lg font-bold text-white"
-            style={TITLE_FONT}
-          >
-            {plate.label}
-          </p>
-          {plate.district && (
-            <p className="mb-8 text-sm text-white/70">
-              Quartier {plate.district} · Dakar
-            </p>
-          )}
+          {/* Carte d'accueil premium */}
+          <div className="relative z-10 w-full max-w-sm">
+            {/* Avatar Aminata — grand, coloré, pulsant */}
+            <div className="relative mx-auto mb-5">
+              <div
+                className="flex size-28 items-center justify-center rounded-full text-6xl shadow-2xl"
+                style={{
+                  background: `linear-gradient(135deg, #FFD700 0%, ${COLORS.orange} 50%, ${COLORS.red} 100%)`,
+                  border: '4px solid rgba(255,255,255,0.4)',
+                }}
+              >
+                👋
+              </div>
+              {/* Anneaux pulsants */}
+              <div
+                className="absolute inset-0 rounded-full"
+                style={{ border: '3px solid rgba(255,215,0,0.4)', animation: 'pulse 2s infinite' }}
+              />
+              <div
+                className="absolute -inset-2 rounded-full"
+                style={{ border: '2px solid rgba(255,255,255,0.2)', animation: 'pulse 2s infinite 0.5s' }}
+              />
+            </div>
 
-          {/* Bouton principal — débloque la voix */}
-          <button
-            type="button"
-            onClick={handleActivateVoice}
-            className="mb-3 flex items-center gap-3 rounded-2xl bg-white px-8 py-4 text-base font-bold shadow-xl transition-all hover:scale-105 active:scale-95"
-            style={{ color: COLORS.purple }}
-          >
-            <span className="text-2xl">🔊</span>
-            <span>Activer la voix d'Aminata</span>
-          </button>
+            {/* Titre principal */}
+            <h1
+              className="mb-2 text-3xl font-bold text-white"
+              style={TITLE_FONT}
+            >
+              Bonjour, je suis Aminata
+            </h1>
 
-          {/* Lien passer (sans voix) */}
-          <button
-            type="button"
-            onClick={handleSkipVoice}
-            className="text-sm text-white/60 underline transition hover:text-white/90"
-          >
-            Continuer sans la voix
-          </button>
+            {/* Sous-titre animé */}
+            <div className="mb-6 overflow-hidden">
+              <p
+                className="text-lg font-bold text-white"
+                style={{ ...TITLE_FONT, textShadow: '0 2px 12px rgba(0,0,0,0.3)' }}
+              >
+                ✨ Votre guide citoyenne ✨
+              </p>
+            </div>
 
-          {/* Note */}
-          <p className="mt-8 max-w-xs text-xs text-white/50">
-            Cliquez sur le bouton pour entendre Aminata vous accueillir. Activez le son de votre téléphone.
-          </p>
+            {/* Carte lieu — premium avec glassmorphism */}
+            <div
+              className="mb-8 rounded-3xl p-5 backdrop-blur-md"
+              style={{
+                background: 'rgba(255,255,255,0.12)',
+                border: '1px solid rgba(255,255,255,0.2)',
+                boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+              }}
+            >
+              <div className="flex items-center justify-center gap-2">
+                <span className="text-2xl" aria-hidden>📍</span>
+                <div className="text-left">
+                  <p className="text-xl font-bold text-white" style={TITLE_FONT}>
+                    {plate.label}
+                  </p>
+                  {plate.district && (
+                    <p className="text-sm text-white/70">
+                      {plate.district} · Dakar
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Bouton principal — débloque la voix */}
+            <button
+              type="button"
+              onClick={handleActivateVoice}
+              className="mb-3 flex w-full items-center justify-center gap-3 rounded-2xl px-8 py-5 text-lg font-bold shadow-2xl transition-all hover:scale-105 active:scale-95"
+              style={{
+                background: `linear-gradient(135deg, ${COLORS.green} 0%, #00C961 100%)`,
+                color: '#FFFFFF',
+                boxShadow: `0 8px 24px ${COLORS.green}40`,
+              }}
+            >
+              <span className="text-3xl">🔊</span>
+              <span>Activer la voix d'Aminata</span>
+            </button>
+
+            {/* Lien passer */}
+            <button
+              type="button"
+              onClick={handleSkipVoice}
+              className="mx-auto block rounded-full bg-white/10 px-6 py-2 text-sm font-medium text-white/70 backdrop-blur-sm transition hover:bg-white/20 hover:text-white"
+            >
+              Continuer sans la voix →
+            </button>
+
+            {/* Note avec icône */}
+            <div
+              className="mt-8 flex items-center gap-2 rounded-2xl px-4 py-3 backdrop-blur-sm"
+              style={{ background: 'rgba(255,255,255,0.08)' }}
+            >
+              <span className="text-xl">📱</span>
+              <p className="text-left text-xs text-white/60">
+                Activez le son de votre téléphone puis cliquez sur le bouton vert pour entendre Aminata.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     )
@@ -923,46 +967,57 @@ export function CityScanView({
   }
 
   // ---------------------------------------------------------------
-  // 6.5. Phase main (banner Aminata + 5 cartes module)
+  // 6.5. Phase main (banner Aminata + 6 cartes module)
   // ---------------------------------------------------------------
   return (
     <div className={rootClass} style={rootStyle}>
-      <MainView plate={plate} onOpenModule={openModule} onExit={onExit} premiumQrUrl={premiumQrUrl} />
+      <MainView plate={plate} onOpenModule={openModule} onExit={onExit} />
     </div>
   )
 }
 
 // ============================================================
-// MainView — banner d'accueil Aminata + 6 cartes module + QR premium
+// MainView — banner d'accueil Aminata + 6 cartes module (design refondu)
 // ============================================================
 
 function MainView({
   plate,
   onOpenModule,
   onExit,
-  premiumQrUrl,
 }: {
   plate: CityPlate
   onOpenModule: (id: ModuleId) => void
   onExit?: () => void
-  premiumQrUrl: string | null
 }) {
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col">
-      {/* --- Banner Aminata --- */}
+    <div className="mx-auto flex min-h-screen max-w-md flex-col bg-[#FAFAF7]">
+      {/* --- Banner Aminata — refondu coloré --- */}
       <header
-        className="rounded-b-3xl px-6 pb-7 pt-8 text-white shadow-lg"
+        className="relative overflow-hidden rounded-b-[2rem] px-6 pb-8 pt-7 text-white shadow-xl"
         style={{
-          background: `linear-gradient(135deg, ${COLORS.purple} 0%, ${COLORS.blue} 100%)`,
+          background: `
+            radial-gradient(ellipse at top right, ${COLORS.orange}30 0%, transparent 50%),
+            radial-gradient(ellipse at bottom left, ${COLORS.green}25 0%, transparent 50%),
+            linear-gradient(135deg, ${COLORS.purple} 0%, #3A2070 40%, ${COLORS.blue} 100%)
+          `,
         }}
       >
-        <div className="flex items-center justify-between">
+        {/* Décor cercles flottants */}
+        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
+          <div className="absolute -right-8 top-2 h-24 w-24 rounded-full opacity-20" style={{ background: COLORS.gold }} />
+          <div className="absolute left-2 bottom-4 h-16 w-16 rounded-full opacity-15" style={{ background: COLORS.red }} />
+        </div>
+
+        <div className="relative z-10 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <span className="text-2xl" aria-hidden>
-              🏙️
-            </span>
+            <div
+              className="flex h-10 w-10 items-center justify-center rounded-xl text-xl shadow-lg"
+              style={{ background: `linear-gradient(135deg, #FFD700 0%, ${COLORS.orange} 100%)` }}
+            >
+              👋
+            </div>
             <span
-              className="text-xs font-bold uppercase tracking-[0.18em] text-white/80"
+              className="text-xs font-bold uppercase tracking-[0.15em] text-white/90"
               style={TITLE_FONT}
             >
               Aminata · Votre quartier
@@ -971,7 +1026,7 @@ function MainView({
           {onExit && (
             <button
               onClick={onExit}
-              className="rounded-full bg-white/15 px-3 py-1 text-xs font-semibold text-white transition hover:bg-white/25"
+              className="rounded-full bg-white/15 px-4 py-1.5 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-white/25"
             >
               Quitter
             </button>
@@ -979,69 +1034,81 @@ function MainView({
         </div>
 
         <h1
-          className="mt-5 text-2xl leading-tight font-bold text-white"
-          style={TITLE_FONT}
+          className="relative z-10 mt-4 text-2xl font-bold text-white"
+          style={{ ...TITLE_FONT, textShadow: '0 2px 8px rgba(0,0,0,0.2)' }}
         >
           Bonjour, je suis Aminata.
         </h1>
-        <p className="mt-2 text-sm leading-relaxed text-white/85">
-          Je suis là pour vous aider dans votre quartier. Choisissez un module
-          ci-dessous.
+        <p className="relative z-10 mt-1 text-sm text-white/85">
+          Je suis là pour vous aider dans votre quartier. 🌟
         </p>
 
-        {/* Plaque info */}
-        <div className="mt-5 rounded-2xl bg-white/15 px-4 py-3 backdrop-blur-sm">
+        {/* Plaque info — premium glassmorphism */}
+        <div
+          className="relative z-10 mt-4 rounded-2xl px-4 py-3 backdrop-blur-md"
+          style={{
+            background: 'rgba(255,255,255,0.12)',
+            border: '1px solid rgba(255,255,255,0.15)',
+          }}
+        >
           <div className="flex items-center gap-2 text-sm font-semibold">
-            <span className="text-base" aria-hidden>
-              📍
-            </span>
-            <span style={TITLE_FONT}>Plaque {plate.plateNumber}</span>
-            <span className="text-white/70">·</span>
-            <span className="text-white/90">{plate.label}</span>
+            <span className="text-lg" aria-hidden>📍</span>
+            <span style={TITLE_FONT}>{plate.label}</span>
           </div>
           {plate.district && (
-            <p className="mt-1 pl-6 text-xs text-white/70">
-              {plate.district} · Dakar
+            <p className="mt-0.5 pl-7 text-xs text-white/70">
+              {plate.district} · Dakar · Plaque {plate.plateNumber}
             </p>
           )}
         </div>
       </header>
 
-      {/* --- 5 cartes module --- */}
+      {/* --- 6 cartes module — design coloré --- */}
       <main className="flex-1 space-y-3 px-4 py-6">
         {MODULES.map((mod) => (
           <button
             key={mod.id}
             onClick={() => onOpenModule(mod.id)}
-            className="group w-full rounded-2xl bg-white p-4 text-left shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+            className="group relative w-full overflow-hidden rounded-2xl p-4 text-left shadow-md transition-all hover:-translate-y-1 hover:shadow-xl focus:outline-none focus-visible:ring-2"
             style={{
-              borderLeft: `5px solid ${mod.color}`,
+              background: `linear-gradient(135deg, ${mod.color}08 0%, ${mod.color}03 100%)`,
+              border: `1px solid ${mod.color}25`,
               // @ts-expect-error -- focus ring color via CSS var
               '--tw-ring-color': mod.color,
             }}
           >
-            <div className="flex items-start gap-4">
+            {/* Barre colorée gauche */}
+            <div
+              className="absolute inset-y-0 left-0 w-1.5"
+              style={{ background: mod.color }}
+            />
+
+            <div className="flex items-center gap-4 pl-2">
+              {/* Emoji dans un cercle coloré */}
               <span
-                className="flex size-12 shrink-0 items-center justify-center rounded-xl text-2xl"
-                style={{ backgroundColor: `${mod.color}18` }}
+                className="flex size-14 shrink-0 items-center justify-center rounded-2xl text-3xl shadow-md"
+                style={{
+                  background: `linear-gradient(135deg, ${mod.color}20 0%, ${mod.color}10 100%)`,
+                  border: `1px solid ${mod.color}30`,
+                }}
                 aria-hidden
               >
                 {mod.emoji}
               </span>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <h2
-                  className="text-base font-bold leading-tight text-[#1A1A1A]"
-                  style={TITLE_FONT}
+                  className="text-base font-bold leading-tight"
+                  style={{ ...TITLE_FONT, color: mod.color }}
                 >
                   {mod.title}
                 </h2>
-                <p className="mt-1 text-sm text-[#1A1A1A]/65">{mod.desc}</p>
-                <p className="mt-1 text-xs font-medium" style={{ color: mod.color }}>
+                <p className="mt-0.5 text-sm text-[#1A1A1A]/70">{mod.desc}</p>
+                <p className="mt-1 text-xs font-semibold" style={{ color: mod.color }}>
                   {mod.sub}
                 </p>
               </div>
               <ArrowLeft
-                className="size-5 rotate-180 text-[#1A1A1A]/30 transition-transform group-hover:translate-x-1"
+                className="size-5 shrink-0 rotate-180 text-[#1A1A1A]/25 transition-transform group-hover:translate-x-1"
                 aria-hidden
               />
             </div>
@@ -1049,26 +1116,23 @@ function MainView({
         ))}
       </main>
 
-      {/* --- QR Premium (côté citoyen) --- */}
-      {premiumQrUrl && (
-        <div className="px-4 pb-4">
-          <div className="overflow-hidden rounded-2xl shadow-lg">
-            <img src={premiumQrUrl} alt={`Plaque ${plate.plateNumber}`} className="h-auto w-full max-w-[240px] mx-auto" />
-          </div>
-          <p className="mt-2 text-center text-xs text-[#1A1A1A]/40">
-            Plaque {plate.plateNumber} · {plate.label}
+      {/* --- Footer Aminata --- */}
+      <footer className="px-4 pb-8 pt-3 text-center">
+        <div
+          className="mx-auto inline-flex items-center gap-2 rounded-full px-5 py-2"
+          style={{
+            background: `linear-gradient(135deg, ${COLORS.purple}10 0%, ${COLORS.blue}10 100%)`,
+            border: `1px solid ${COLORS.purple}20`,
+          }}
+        >
+          <span className="text-sm">✨</span>
+          <p
+            className="text-sm font-medium"
+            style={{ ...TITLE_FONT, color: COLORS.purple }}
+          >
+            Aminata — votre quartier connecté
           </p>
         </div>
-      )}
-
-      {/* --- Footer Aminata --- */}
-      <footer className="px-4 pb-6 pt-2 text-center">
-        <p
-          className="text-sm font-medium text-[#1A1A1A]/50"
-          style={TITLE_FONT}
-        >
-          ✨ Aminata — votre quartier connecté
-        </p>
       </footer>
     </div>
   )
