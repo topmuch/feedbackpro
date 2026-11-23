@@ -100,6 +100,7 @@ type CityArtisan = {
   rating: number
   reviewCount: number
   contactCount: number
+  distance?: number | null // distance en mètres depuis la plaque (Haversine)
 }
 
 // ============================================================
@@ -479,6 +480,7 @@ export function CityScanView({
 
   // ---------------------------------------------------------------
   // 3. Chargement paresseux des artisans (module 🛠️)
+  //    Utilise Haversine : si la plaque a un GPS, on filtre à ≤500m
   // ---------------------------------------------------------------
   useEffect(() => {
     if (activeModule !== 'artisans' || artisansLoaded) return
@@ -488,6 +490,12 @@ export function CityScanView({
       try {
         const params = new URLSearchParams()
         if (plate?.district) params.set('district', plate.district)
+        // Si la plaque a un GPS, on active le filtre Haversine 500m
+        if (plate?.lat != null && plate?.lng != null) {
+          params.set('lat', String(plate.lat))
+          params.set('lng', String(plate.lng))
+          params.set('radius', '500')
+        }
         const res = await fetch(`/api/city/artisans?${params.toString()}`, {
           cache: 'no-store',
         })
@@ -508,7 +516,7 @@ export function CityScanView({
     return () => {
       cancelled = true
     }
-  }, [activeModule, artisansLoaded, plate?.district])
+  }, [activeModule, artisansLoaded, plate?.district, plate?.lat, plate?.lng])
 
   // ---------------------------------------------------------------
   // 4. Gestionnaire d'envoi d'incident (centralisé)
@@ -1569,12 +1577,11 @@ function ArtisansView({
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-bold uppercase tracking-wide text-[#1A1A1A]/60">
-          {artisans.length} artisan{artisans.length > 1 ? 's' : ''} vérifié
-          {artisans.length > 1 ? 's' : ''}
+          {artisans.length} artisan{artisans.length > 1 ? 's' : ''} à moins de 500m
         </h2>
         <Badge className="bg-[#00A651]/10 text-[#00A651]">
           <Check className="size-3" />
-          Mairie
+          Trié par distance
         </Badge>
       </div>
 
@@ -1585,7 +1592,14 @@ function ArtisansView({
           style={{ borderLeft: '4px solid #00A651' }}
         >
           <div className="flex items-start justify-between">
-            <div className="flex-1">
+            {/* Distance badge */}
+            {a.distance != null && (
+              <div className="flex flex-col items-center rounded-xl bg-[#00A651]/8 px-2 py-1.5 shrink-0">
+                <span className="text-sm font-bold text-[#00A651]">{a.distance}</span>
+                <span className="text-[9px] text-[#00A651]/70">m</span>
+              </div>
+            )}
+            <div className="flex-1 ml-2">
               <div className="flex items-center gap-2">
                 <h3 className="text-base font-bold text-[#1A1A1A]" style={TITLE_FONT}>
                   {a.name}
