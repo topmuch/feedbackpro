@@ -60,7 +60,7 @@ import { Badge } from '@/components/ui/badge'
 import { useAppStore } from '@/store/app-store'
 import { useToast } from '@/hooks/use-toast'
 import { parler } from '@/lib/staff-tts'
-import { composeQrAvecLogo } from '@/lib/qr'
+import { composeQrPremium, qrServerUrl } from '@/lib/qr-premium'
 
 // ---------------------------------------------------------------
 // Types — shape des réponses API
@@ -307,16 +307,16 @@ export default function CityDashboard() {
     } catch { /* ignore */ }
   }, [])
 
-  // Compose les QR codes avec le logo quand les plaques ou le logo changent
+  // Compose les QR codes premium avec le logo quand les plaques ou le logo changent
   useEffect(() => {
     if (!plates.length) return
     const compose = async () => {
       const result: Record<string, string> = {}
       const origin = typeof window !== 'undefined' ? window.location.origin : 'https://feedback.qrbags.com'
-      for (const p of plates.slice(0, 12)) {
-        const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=400x400&data=${encodeURIComponent(`${origin}/?cityPlate=${p.qrToken}`)}`
+      for (const p of plates.slice(0, 24)) {
+        const qrUrl = qrServerUrl(`${origin}/?cityPlate=${p.qrToken}`, 400)
         try {
-          const composed = await composeQrAvecLogo(qrUrl, cityLogoUrl)
+          const composed = await composeQrPremium(qrUrl, cityLogoUrl, p.plateNumber, 'Dakar')
           result[p.id] = composed
         } catch {
           result[p.id] = qrUrl
@@ -911,7 +911,7 @@ export default function CityDashboard() {
                   <div className="mt-4 rounded-xl bg-[#FAFAF7] p-4">
                     <p className="mb-2 text-xs font-medium text-[#1A1A1A]/50">Aperçu QR code premium :</p>
                     {composedQrs[plates[0].id] ? (
-                      <img src={composedQrs[plates[0].id]} alt="QR preview" className="h-32 w-32 rounded-lg" />
+                      <img src={composedQrs[plates[0].id]} alt="QR premium preview" className="h-56 w-auto rounded-xl shadow-md" />
                     ) : (
                       <div className="h-32 w-32 animate-pulse rounded-lg bg-[#EAE5DC]" />
                     )}
@@ -1789,7 +1789,7 @@ function PlatesManagementView({
             {/* QR preview */}
             <div className="mb-4 flex justify-center">
               {composedQrs[editingPlate.id] ? (
-                <img src={composedQrs[editingPlate.id]} alt="QR" className="h-32 w-32 rounded-xl" />
+                <img src={composedQrs[editingPlate.id]} alt="QR premium" className="h-48 w-auto rounded-xl shadow-lg" />
               ) : (
                 <div className="h-32 w-32 rounded-xl bg-[#FAFAF7] flex items-center justify-center">
                   <QrCode className="h-12 w-12 text-[#1A1A1A]/20" />
