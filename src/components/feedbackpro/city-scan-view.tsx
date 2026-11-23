@@ -141,7 +141,7 @@ type ModuleConfig = {
 const MODULES: ReadonlyArray<ModuleConfig> = [
   {
     id: 'urgence',
-    emoji: '🆘',
+    emoji: '🚨',
     title: 'URGENCE & SÉCURITÉ',
     desc: 'Police · Pompiers · SAMU',
     sub: 'GPS sur consentement',
@@ -149,42 +149,42 @@ const MODULES: ReadonlyArray<ModuleConfig> = [
   },
   {
     id: 'signalement',
-    emoji: '🟠',
+    emoji: '📢',
     title: 'SIGNALER UN INCIDENT',
-    desc: 'Voirie · Éclairage · Eau · Propreté · Sécurité',
+    desc: 'Voirie · Éclairage · Eau · Propreté',
     sub: 'Routage automatique',
     color: COLORS.orange,
   },
   {
     id: 'orientation',
-    emoji: '🔵',
+    emoji: '🧭',
     title: 'ORIENTATION & MOBILITÉ',
-    desc: 'Transports · Position · Pharmacie de garde',
+    desc: 'Transports · Pharmacie de garde',
     sub: 'Aminata vous guide',
     color: COLORS.blue,
   },
   {
     id: 'artisans',
-    emoji: '🛠️',
+    emoji: '🔨',
     title: 'ARTISANS DU QUARTIER',
-    desc: 'Plombier · Électricien · Menuisier vérifiés',
-    sub: 'Annuaire municipal',
+    desc: 'Plombier · Électricien vérifiés',
+    sub: 'Triés par distance',
     color: COLORS.green,
   },
   {
     id: 'mairie',
     emoji: '🏛️',
     title: 'MAIRIE DYNAMIQUE',
-    desc: 'Horaires · Services · Annonces municipales',
+    desc: 'Horaires · Services · Annonces',
     sub: "Selon l'heure du jour",
     color: COLORS.purple,
   },
   {
     id: 'tax_fraud',
-    emoji: '🚨',
+    emoji: '📡',
     title: 'RADAR TAXES & DÉPÔTS',
-    desc: 'Camion · Conteneur · Chantier non déclaré',
-    sub: 'Photo + GPS + récompense',
+    desc: 'Camion · Conteneur · Chantier',
+    sub: 'Photo + récompense',
     color: '#8B0000',
   },
 ]
@@ -967,173 +967,274 @@ export function CityScanView({
   }
 
   // ---------------------------------------------------------------
-  // 6.5. Phase main (banner Aminata + 6 cartes module)
+  // 6.5. Phase main — BENTO GRID multicolore WAAHOU
   // ---------------------------------------------------------------
   return (
     <div className={rootClass} style={rootStyle}>
-      <MainView plate={plate} onOpenModule={openModule} onExit={onExit} />
+      <MainView plate={plate} onOpenModule={openModule} onExit={onExit} currentHour={currentHour} />
     </div>
   )
 }
 
 // ============================================================
-// MainView — banner d'accueil Aminata + 6 cartes module (design refondu)
+// MainView — BENTO GRID multicolore "WAAHOU"
 // ============================================================
 
 function MainView({
   plate,
   onOpenModule,
   onExit,
+  currentHour,
 }: {
   plate: CityPlate
   onOpenModule: (id: ModuleId) => void
   onExit?: () => void
+  currentHour: number
 }) {
+  const isNight = currentHour >= 22 || currentHour < 6
+
+  // Couleurs Bento — dégradés pleins par module
+  const BENTO_COLORS: Record<ModuleId, { bg: string; dark: string }> = {
+    urgence: { bg: '#D64545', dark: '#A03030' },
+    signalement: { bg: '#E8913A', dark: '#C07020' },
+    orientation: { bg: '#1B3A4B', dark: '#0F2535' },
+    artisans: { bg: '#2D8B6F', dark: '#1F6B50' },
+    mairie: { bg: '#C4785A', dark: '#A85D3F' },
+    tax_fraud: { bg: '#D4A574', dark: '#B89060' },
+  }
+
+  // Modules en pleine largeur
+  const fullWidth: ModuleId[] = ['urgence', 'tax_fraud']
+
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col bg-[#FAFAF7]">
-      {/* --- Banner Aminata — refondu coloré --- */}
+    <div className="mx-auto min-h-screen max-w-md bg-[#FDF6EC]">
+      {/* === HEADER IMMERSIF === */}
       <header
-        className="relative overflow-hidden rounded-b-[2rem] px-6 pb-8 pt-7 text-white shadow-xl"
+        className="relative overflow-hidden px-6 pb-8 pt-7 text-white"
         style={{
-          background: `
-            radial-gradient(ellipse at top right, ${COLORS.orange}30 0%, transparent 50%),
-            radial-gradient(ellipse at bottom left, ${COLORS.green}25 0%, transparent 50%),
-            linear-gradient(135deg, ${COLORS.purple} 0%, #3A2070 40%, ${COLORS.blue} 100%)
-          `,
+          background: isNight
+            ? 'linear-gradient(135deg, #1B3A4B 0%, #0F2535 100%)'
+            : 'linear-gradient(135deg, #C4785A 0%, #A85D3F 100%)',
+          borderBottomLeftRadius: '0',
+          borderBottomRightRadius: '0',
         }}
       >
-        {/* Décor cercles flottants */}
-        <div className="pointer-events-none absolute inset-0 overflow-hidden" aria-hidden>
-          <div className="absolute -right-8 top-2 h-24 w-24 rounded-full opacity-20" style={{ background: COLORS.gold }} />
-          <div className="absolute left-2 bottom-4 h-16 w-16 rounded-full opacity-15" style={{ background: COLORS.red }} />
-        </div>
+        {/* Pattern diagonal */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-15"
+          style={{
+            backgroundImage: `
+              repeating-linear-gradient(45deg, transparent, transparent 35px, rgba(255,255,255,0.1) 35px, rgba(255,255,255,0.1) 70px),
+              repeating-linear-gradient(-45deg, transparent, transparent 35px, rgba(255,255,255,0.1) 35px, rgba(255,255,255,0.1) 70px)
+            `,
+          }}
+          aria-hidden
+        />
 
         <div className="relative z-10 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div
-              className="flex h-10 w-10 items-center justify-center rounded-xl text-xl shadow-lg"
-              style={{ background: `linear-gradient(135deg, #FFD700 0%, ${COLORS.orange} 100%)` }}
-            >
-              👋
+          <div className="flex items-center gap-3">
+            {/* Avatar Aminata — doré pulsant */}
+            <div className="relative">
+              <div
+                className="flex h-12 w-12 items-center justify-center rounded-full text-2xl shadow-lg"
+                style={{
+                  background: 'linear-gradient(135deg, #D4A574 0%, #E8C9A0 100%)',
+                  border: '3px solid rgba(255,255,255,0.3)',
+                }}
+              >
+                👋
+              </div>
+              <div
+                className="absolute -inset-1.5 rounded-full"
+                style={{ border: '2px solid rgba(255,255,255,0.2)', animation: 'pulse 2s infinite' }}
+              />
             </div>
-            <span
-              className="text-xs font-bold uppercase tracking-[0.15em] text-white/90"
-              style={TITLE_FONT}
-            >
-              Aminata · Votre quartier
-            </span>
+            <div>
+              <p className="text-base font-bold text-white" style={TITLE_FONT}>Aminata</p>
+              <p className="text-[10px] uppercase tracking-[0.15em] text-white/80 font-semibold">
+                Votre Quartier
+              </p>
+            </div>
           </div>
           {onExit && (
             <button
               onClick={onExit}
-              className="rounded-full bg-white/15 px-4 py-1.5 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-white/25"
+              className="rounded-full bg-white/20 px-4 py-1.5 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-white/30"
             >
               Quitter
             </button>
           )}
         </div>
 
-        <h1
-          className="relative z-10 mt-4 text-2xl font-bold text-white"
-          style={{ ...TITLE_FONT, textShadow: '0 2px 8px rgba(0,0,0,0.2)' }}
-        >
-          Bonjour, je suis Aminata.
-        </h1>
-        <p className="relative z-10 mt-1 text-sm text-white/85">
-          Je suis là pour vous aider dans votre quartier. 🌟
-        </p>
+        {/* Greeting */}
+        <div className="relative z-10 mt-5">
+          <h1
+            className="text-2xl font-bold leading-tight text-white"
+            style={{ ...TITLE_FONT, textShadow: '0 2px 10px rgba(0,0,0,0.2)' }}
+          >
+            {isNight ? 'Bonsoir, je suis Aminata. 🌙' : 'Bonjour, je suis Aminata.'}
+          </h1>
+          <p className="mt-1 text-sm text-white/90">
+            Je suis là pour vous aider dans votre quartier. 🌟
+          </p>
+        </div>
 
-        {/* Plaque info — premium glassmorphism */}
+        {/* Location card — glassmorphism */}
         <div
-          className="relative z-10 mt-4 rounded-2xl px-4 py-3 backdrop-blur-md"
+          className="relative z-10 mt-4 flex items-center gap-3 rounded-2xl p-3 backdrop-blur-md"
           style={{
-            background: 'rgba(255,255,255,0.12)',
-            border: '1px solid rgba(255,255,255,0.15)',
+            background: 'rgba(255,255,255,0.15)',
+            border: '1px solid rgba(255,255,255,0.25)',
           }}
         >
-          <div className="flex items-center gap-2 text-sm font-semibold">
-            <span className="text-lg" aria-hidden>📍</span>
-            <span style={TITLE_FONT}>{plate.label}</span>
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/25">
+            <span className="text-xl" aria-hidden>📍</span>
           </div>
-          {plate.district && (
-            <p className="mt-0.5 pl-7 text-xs text-white/70">
-              {plate.district} · Dakar · Plaque {plate.plateNumber}
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-bold text-white">{plate.label}</p>
+            <p className="truncate text-xs text-white/85">
+              {plate.district ? `${plate.district} · ` : ''}Dakar · Plaque {plate.plateNumber}
             </p>
-          )}
+          </div>
         </div>
       </header>
 
-      {/* --- 6 cartes module — design coloré --- */}
-      <main className="flex-1 space-y-3 px-4 py-6">
-        {MODULES.map((mod) => (
-          <button
-            key={mod.id}
-            onClick={() => onOpenModule(mod.id)}
-            className="group relative w-full overflow-hidden rounded-2xl p-4 text-left shadow-md transition-all hover:-translate-y-1 hover:shadow-xl focus:outline-none focus-visible:ring-2"
-            style={{
-              background: `linear-gradient(135deg, ${mod.color}08 0%, ${mod.color}03 100%)`,
-              border: `1px solid ${mod.color}25`,
-              // @ts-expect-error -- focus ring color via CSS var
-              '--tw-ring-color': mod.color,
-            }}
-          >
-            {/* Barre colorée gauche */}
-            <div
-              className="absolute inset-y-0 left-0 w-1.5"
-              style={{ background: mod.color }}
-            />
+      {/* === LIVE BAR === */}
+      <div
+        className="flex items-center justify-between px-6 py-2.5 text-xs font-semibold text-white"
+        style={{ background: '#1A1412' }}
+      >
+        <div className="flex items-center gap-2">
+          <span
+            className="h-2 w-2 rounded-full"
+            style={{ background: '#D64545', animation: 'pulse 1.5s infinite' }}
+          />
+          <span>EN DIRECT</span>
+        </div>
+        <div className="flex items-center gap-1.5" style={{ color: '#D4A574' }}>
+          <span>👥</span>
+          <span>1 247 citoyens connectés</span>
+        </div>
+      </div>
 
-            <div className="flex items-center gap-4 pl-2">
-              {/* Emoji dans un cercle coloré */}
-              <span
-                className="flex size-14 shrink-0 items-center justify-center rounded-2xl text-3xl shadow-md"
-                style={{
-                  background: `linear-gradient(135deg, ${mod.color}20 0%, ${mod.color}10 100%)`,
-                  border: `1px solid ${mod.color}30`,
-                }}
-                aria-hidden
-              >
-                {mod.emoji}
-              </span>
-              <div className="flex-1 min-w-0">
+      {/* === BENTO GRID MULTICOLORE === */}
+      <main className="grid grid-cols-2 gap-3 p-4">
+        {MODULES.map((mod, idx) => {
+          const colors = BENTO_COLORS[mod.id]
+          const isFullWidth = fullWidth.includes(mod.id)
+          return (
+            <button
+              key={mod.id}
+              onClick={() => onOpenModule(mod.id)}
+              className={cn(
+                'group relative flex flex-col justify-between overflow-hidden rounded-3xl p-4 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-2xl',
+                isFullWidth && 'col-span-2',
+              )}
+              style={{
+                background: `linear-gradient(135deg, ${colors.bg} 0%, ${colors.dark} 100%)`,
+                minHeight: isFullWidth ? '140px' : '160px',
+                animation: `popIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) ${idx * 0.1}s forwards`,
+                opacity: 0,
+                transform: 'translateY(30px) scale(0.95)',
+              }}
+            >
+              {/* Reflet radial au hover */}
+              <div
+                className="pointer-events-none absolute -right-1/2 -top-1/2 h-[200%] w-[200%] opacity-0 transition-opacity duration-400 group-hover:opacity-100"
+                style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%)' }}
+              />
+
+              {/* Header carte */}
+              <div className="relative z-10 mb-3 flex items-start justify-between">
+                <div
+                  className="flex h-14 w-14 items-center justify-center rounded-2xl text-3xl transition-all group-hover:scale-110 group-hover:rotate-[-5deg]"
+                  style={{
+                    background: 'rgba(255,255,255,0.2)',
+                    backdropFilter: 'blur(10px)',
+                  }}
+                >
+                  {mod.emoji}
+                </div>
+                {/* Badges spéciaux */}
+                {mod.id === 'urgence' && (
+                  <span
+                    className="rounded-xl px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white"
+                    style={{ background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(10px)' }}
+                  >
+                    SOS
+                  </span>
+                )}
+                {mod.id === 'tax_fraud' && (
+                  <span
+                    className="rounded-xl px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white"
+                    style={{ background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(10px)' }}
+                  >
+                    Récompense
+                  </span>
+                )}
+              </div>
+
+              {/* Contenu */}
+              <div className="relative z-10 flex-1">
                 <h2
-                  className="text-base font-bold leading-tight"
-                  style={{ ...TITLE_FONT, color: mod.color }}
+                  className="mb-1 text-lg font-bold leading-tight text-white"
+                  style={TITLE_FONT}
                 >
                   {mod.title}
                 </h2>
-                <p className="mt-0.5 text-sm text-[#1A1A1A]/70">{mod.desc}</p>
-                <p className="mt-1 text-xs font-semibold" style={{ color: mod.color }}>
-                  {mod.sub}
+                <p className="text-xs leading-snug text-white/85">
+                  {mod.desc}
                 </p>
               </div>
-              <ArrowLeft
-                className="size-5 shrink-0 rotate-180 text-[#1A1A1A]/25 transition-transform group-hover:translate-x-1"
-                aria-hidden
-              />
-            </div>
-          </button>
-        ))}
+
+              {/* Footer carte */}
+              <div className="relative z-10 mt-2 flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-white/90">
+                  {mod.sub}
+                </span>
+                <div
+                  className="flex h-8 w-8 items-center justify-center rounded-full transition-all group-hover:translate-x-1"
+                  style={{ background: 'rgba(255,255,255,0.2)' }}
+                >
+                  <ArrowLeft className="size-4 rotate-180 text-white" aria-hidden />
+                </div>
+              </div>
+            </button>
+          )
+        })}
       </main>
 
-      {/* --- Footer Aminata --- */}
-      <footer className="px-4 pb-8 pt-3 text-center">
-        <div
-          className="mx-auto inline-flex items-center gap-2 rounded-full px-5 py-2"
-          style={{
-            background: `linear-gradient(135deg, ${COLORS.purple}10 0%, ${COLORS.blue}10 100%)`,
-            border: `1px solid ${COLORS.purple}20`,
-          }}
-        >
-          <span className="text-sm">✨</span>
-          <p
-            className="text-sm font-medium"
-            style={{ ...TITLE_FONT, color: COLORS.purple }}
-          >
-            Aminata — votre quartier connecté
-          </p>
-        </div>
+      {/* === SOS FLOATING === */}
+      <button
+        onClick={() => onOpenModule('urgence')}
+        className="fixed bottom-6 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full text-white shadow-2xl transition-transform hover:scale-110"
+        style={{
+          background: 'linear-gradient(135deg, #D64545 0%, #A03030 100%)',
+          border: '4px solid white',
+          animation: 'sosPulse 2s infinite',
+        }}
+        aria-label="SOS Urgence"
+      >
+        <span className="text-sm font-bold">SOS</span>
+      </button>
+
+      {/* === FOOTER === */}
+      <footer className="px-4 pb-24 pt-4 text-center">
+        <p className="text-xs font-medium text-[#1A1412]/50">
+          ✨ <span className="font-bold" style={{ ...TITLE_FONT, color: '#C4785A' }}>Aminata</span> — votre quartier connecté
+        </p>
       </footer>
+
+      {/* Animations CSS inline */}
+      <style>{`
+        @keyframes popIn {
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes sosPulse {
+          0%, 100% { box-shadow: 0 15px 40px rgba(214,69,69,0.5); transform: scale(1); }
+          50% { box-shadow: 0 15px 50px rgba(214,69,69,0.8); transform: scale(1.05); }
+        }
+      `}</style>
     </div>
   )
 }
