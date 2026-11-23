@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Store global (Zustand)
+// FeedVoice - Store global (Zustand)
 // Gère : la vue courante (SPA), la session, le mode auth, le token de scan
 // Pivot Session 1 : chaque client réel devient un Client Mystère,
 // le Pro gère des ZONES et reçoit des rapports du Coach IA.
@@ -9,7 +9,7 @@
 
 import { create } from "zustand"
 
-export type View = "loading" | "landing" | "auth" | "dashboard" | "admin" | "scan" | "airport" | "airport-staff" | "airport-ops" | "airline" | "vip" | "vip-table" | "vip-staff" | "city" | "onboarding-tenant"
+export type View = "loading" | "landing" | "auth" | "auth-admin" | "dashboard" | "admin" | "scan" | "airport" | "airport-staff" | "airport-ops" | "airline" | "vip" | "vip-table" | "vip-staff" | "onboarding-tenant"
 
 /** Établissement (Pro) tel que renvoyé par /api/auth/me et les routes de session */
 export type ProData = {
@@ -55,6 +55,15 @@ type AppState = {
   staffTag: string | null
   /** Token QR d'une table VIP scannée par un client (?vipTable=<token>) */
   vipTableToken: string | null
+  /**
+   * QR_ROUTING — Type de QR scanné pour la vue Nathalie :
+   *  - 'CLIENT_GLOBAL' → QR d'ENTRÉE (chevalet) : AUCUNE table assignée,
+   *    écran d'accueil global + sélection de zone à la demande.
+   *  - 'CLIENT_ZONE'   → QR de table contextuel : table assignée
+   *    (comportement historique conservé).
+   *  - null → aucune vue VIP active.
+   */
+  vipQrType: 'CLIENT_GLOBAL' | 'CLIENT_ZONE' | null
   /** Tag staff VIP scanné (?vipStaff=<tag>) — pour le PWA staff salon VIP */
   vipStaffTag: string | null
   session: SessionData | null
@@ -80,8 +89,10 @@ type AppState = {
   /** Ouvre la PWA Staff Only (QR employé scanné : ?staff=<tag>) */
   openStaff: (tag: string) => void
   closeStaff: () => void
-  /** Ouvre la vue client VIP Table (scan QR table : ?vipTable=<token>) */
+  /** Ouvre la vue client VIP Table (scan QR table : ?vipTable=<token> ou ?qr_type=CLIENT_ZONE&zone_id=<token>) */
   openVipTable: (token: string) => void
+  /** QR_ROUTING — Ouvre Nathalie en mode GLOBAL (QR d'entrée : ?qr_type=CLIENT_GLOBAL) sans table */
+  openVipGlobal: () => void
   closeVipTable: () => void
   /** Ouvre le PWA Staff VIP (?vipStaff=<tag>) */
   openVipStaff: (tag: string) => void
@@ -120,11 +131,13 @@ type AppState = {
  *   - vip_lounge          → "vip"
  *   - valeur inconnue     → "dashboard" (fallback sûr, évite un écran blanc)
  */
-function deriveView(scanToken: string | null, airportTag: string | null, staffTag: string | null, vipTableToken: string | null, vipStaffTag: string | null, session: SessionData | null, justRegistered: boolean): View {
+function deriveView(scanToken: string | null, airportTag: string | null, staffTag: string | null, vipTableToken: string | null, vipStaffTag: string | null, session: SessionData | null, justRegistered: boolean, vipQrType: 'CLIENT_GLOBAL' | 'CLIENT_ZONE' | null = null): View {
   if (scanToken) return "scan"
   if (airportTag) return "airport"
   if (staffTag) return "airport-staff"
-  if (vipTableToken) return "vip-table"
+  // QR_ROUTING — vue Nathalie : soit un token de table (CLIENT_ZONE),
+  // soit le mode GLOBAL du QR d'entrée (aucun token, vipQrType seul).
+  if (vipTableToken || vipQrType === 'CLIENT_GLOBAL') return "vip-table"
   if (vipStaffTag) return "vip-staff"
   // TENANT-3 — Vérifie localStorage EN PREMIER (avant !session) car
   // refreshSession/boot peuvent écraser justRegistered. Le flag
@@ -140,7 +153,6 @@ function deriveView(scanToken: string | null, airportTag: string | null, staffTa
   const tenant = (session.user.tenantType ?? 'classic').toLowerCase()
   if (tenant === 'airline') return 'airline'
   if (tenant === 'vip_lounge' || tenant === 'vip') return 'vip'
-  if (tenant === 'city') return 'city'
   return 'dashboard'
 }
 
@@ -180,15 +192,42 @@ export function airportTagDepuisUrl(): string | null {
 }
 
 /**
- * Extrait le token de table VIP de l'URL courante (?vipTable=<token>).
- * Retourne null si absent.
+ * QR_ROUTING — Parse les paramètres d'URL du QR scanné pour Nathalie.
+ *
+ * DEUX FORMES SUPPORTÉES :
+ *  1. QR d'ENTRÉE (chevalet d'accueil, global) :
+ *       ?qr_type=CLIENT_GLOBAL
+ *     → { qrType: 'CLIENT_GLOBAL', token: null } — AUCUNE table.
+ *  2. QR de TABLE (contextuel, historique conservé) :
+ *       ?qr_type=CLIENT_ZONE&zone_id=<token>   (nouvelle forme)
+ *       ?vipTable=<token>                      (forme historique)
+ *     → { qrType: 'CLIENT_ZONE', token: '<token>' }
+ *
+ * Retourne { qrType: null, token: null } si aucun QR VIP détecté.
  */
-export function vipTableTokenDepuisUrl(): string | null {
-  if (typeof window === "undefined") return null
+export function vipQrDepuisUrl(): {
+  qrType: 'CLIENT_GLOBAL' | 'CLIENT_ZONE' | null
+  token: string | null
+} {
+  if (typeof window === "undefined") return { qrType: null, token: null }
   try {
-    return new URLSearchParams(window.location.search).get("vipTable")
+    const params = new URLSearchParams(window.location.search)
+    const qrType = params.get("qr_type")
+    if (qrType === "CLIENT_GLOBAL") {
+      // QR d'entrée — Nathalie s'ouvre SANS table assignée
+      return { qrType: 'CLIENT_GLOBAL', token: null }
+    }
+    if (qrType === "CLIENT_ZONE") {
+      // QR de table (nouvelle forme) — zone_id = token de la table
+      const token = params.get("zone_id") ?? params.get("vipTable")
+      if (token) return { qrType: 'CLIENT_ZONE', token }
+    }
+    // Forme historique (?vipTable=<token>) — reste fonctionnelle
+    const legacy = params.get("vipTable")
+    if (legacy) return { qrType: 'CLIENT_ZONE', token: legacy }
+    return { qrType: null, token: null }
   } catch {
-    return null
+    return { qrType: null, token: null }
   }
 }
 
@@ -199,6 +238,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   airportTag: null,
   staffTag: null,
   vipTableToken: null,
+  vipQrType: null,
   vipStaffTag: null,
   session: null,
   booted: false,
@@ -250,7 +290,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch {
       /* ignore */
     }
-    set({ view: deriveView(null, get().airportTag, get().staffTag, get().vipTableToken, get().session, get().justRegistered) })
+    set({ view: deriveView(null, get().airportTag, get().staffTag, get().vipTableToken, get().vipStaffTag, get().session, get().justRegistered, get().vipQrType) })
   },
 
   // Ouvre la PWA aéroport (depuis /aeroport/<tag> ou ?airport=<tag>)
@@ -282,7 +322,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch {
       /* ignore */
     }
-    set({ view: deriveView(get().scanToken, null, get().staffTag, get().vipTableToken, get().vipStaffTag, get().session, get().justRegistered) })
+    set({ view: deriveView(get().scanToken, null, get().staffTag, get().vipTableToken, get().vipStaffTag, get().session, get().justRegistered, get().vipQrType) })
   },
 
   // Ouvre la PWA Staff Only (QR employé scanné : ?staff=<tag>)
@@ -310,29 +350,50 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ view: "auth", authMode: "login" })
   },
 
-  // Ouvre la vue client VIP Table (scan QR table : ?vipTable=<token>)
+  // Ouvre la vue client VIP Table (scan QR de table : CLIENT_ZONE)
   openVipTable: (token) => {
-    set({ vipTableToken: token, view: "vip-table" })
+    set({ vipTableToken: token, vipQrType: 'CLIENT_ZONE', view: "vip-table" })
     try {
       const url = new URL(window.location.href)
-      url.searchParams.set("vipTable", token)
-      window.history.pushState({}, "", url.toString())
+      // QR_ROUTING — si le client est arrivé via la nouvelle forme
+      // ?qr_type=CLIENT_ZONE&zone_id=<token>, on PRÉSERVE l'URL d'origine
+      // (le token est déjà dedans) ; sinon on pose la forme historique.
+      if (!url.searchParams.has("qr_type")) {
+        url.searchParams.set("vipTable", token)
+        window.history.pushState({}, "", url.toString())
+      }
+    } catch {
+      /* ignore */
+    }
+  },
+
+  // QR_ROUTING — Ouvre Nathalie en mode GLOBAL (QR d'entrée sur le
+  // chevalet d'accueil) : AUCUNE table assignée, current_zone = null.
+  openVipGlobal: () => {
+    set({ vipTableToken: null, vipQrType: 'CLIENT_GLOBAL', view: "vip-table" })
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.set("qr_type", "CLIENT_GLOBAL")
+      window.history.replaceState({}, "", url.toString())
     } catch {
       /* ignore */
     }
   },
 
   closeVipTable: () => {
-    set({ vipTableToken: null })
+    set({ vipTableToken: null, vipQrType: null })
     try {
       const url = new URL(window.location.href)
+      // Nettoie les DEUX formes d'URL (historique + nouvelle)
       url.searchParams.delete("vipTable")
+      url.searchParams.delete("qr_type")
+      url.searchParams.delete("zone_id")
       window.history.replaceState({}, "", url.toString())
     } catch {
       /* ignore */
     }
     // Après fermeture du scan VIP Table → retour sur la landing
-    set({ view: deriveView(get().scanToken, get().airportTag, get().staffTag, null, get().vipStaffTag, get().session, get().justRegistered) })
+    set({ view: deriveView(get().scanToken, get().airportTag, get().staffTag, null, get().vipStaffTag, get().session, get().justRegistered, null) })
   },
 
   // Ouvre le PWA Staff VIP (?vipStaff=<tag>)
@@ -356,11 +417,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch {
       /* ignore */
     }
-    set({ view: deriveView(get().scanToken, get().airportTag, get().staffTag, get().vipTableToken, null, get().session, get().justRegistered) })
+    set({ view: deriveView(get().scanToken, get().airportTag, get().staffTag, get().vipTableToken, null, get().session, get().justRegistered, get().vipQrType) })
   },
 
   setSession: (s) => {
-    set({ session: s, view: deriveView(get().scanToken, get().airportTag, get().staffTag, get().vipTableToken, get().vipStaffTag, s, get().justRegistered), booted: true })
+    set({ session: s, view: deriveView(get().scanToken, get().airportTag, get().staffTag, get().vipTableToken, get().vipStaffTag, s, get().justRegistered, get().vipQrType), booted: true })
   },
 
   // Charge la session courante depuis le serveur
@@ -372,7 +433,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     } catch {
       set({ session: null })
     }
-    set({ booted: true, view: deriveView(get().scanToken, get().airportTag, get().staffTag, get().vipTableToken, get().vipStaffTag, get().session, get().justRegistered) })
+    set({ booted: true, view: deriveView(get().scanToken, get().airportTag, get().staffTag, get().vipTableToken, get().vipStaffTag, get().session, get().justRegistered, get().vipQrType) })
   },
 
   logout: async () => {
@@ -398,7 +459,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const s = get().session
     if (!s) return
     const session = { ...s, pro }
-    set({ session, view: deriveView(get().scanToken, get().airportTag, get().staffTag, get().vipTableToken, get().vipStaffTag, session, get().justRegistered) })
+    set({ session, view: deriveView(get().scanToken, get().airportTag, get().staffTag, get().vipTableToken, get().vipStaffTag, session, get().justRegistered, get().vipQrType) })
   },
 
   setJustRegistered: (v) => set({ justRegistered: v }),

@@ -1,7 +1,7 @@
 // ============================================================
 // voice-rules-seed.ts — Règles par défaut de la Voice Decision Engine
 // ------------------------------------------------------------
-// Denise "naît" avec une matrice de règles par secteur. Cette fonction
+// Nathalie "naît" avec une matrice de règles par secteur. Cette fonction
 // est appelée au premier GET /api/admin/voice/rules si la table est
 // vide (auto-seed). Elle insère :
 //   - 7 règles "aeroport" (security_sanitary, incident_service, new_scan,
@@ -15,7 +15,7 @@
 //   opening (06-10), service_lunch (10-14), quiet (14-18),
 //   service_dinner (18-22), night (22-06).
 //
-// Une fois seedés, l'admin peut tout éditer depuis l'onglet "Voix Denise".
+// Une fois seedés, l'admin peut tout éditer depuis l'onglet "Voix Nathalie".
 // ============================================================
 
 import { db } from '@/lib/db'
@@ -207,7 +207,7 @@ const RESTAURANT_RULES: RuleSeed[] = [
     priority: 'silent',
     tone: 'calm',
     volumeAdjustment: '0%',
-    template: 'Mode rush activé. Denise silencieuse.',
+    template: 'Mode rush activé. Nathalie silencieuse.',
     aggregationWindowSec: 0,
     maxAnnouncementsPerWindow: 1,
     active: true,

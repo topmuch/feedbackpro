@@ -33,6 +33,7 @@ import { sendEmail } from '@/lib/email'
 import { triggerPushNotification } from '@/lib/push-notifier'
 import { dispatchNotification } from '@/lib/notification-engine'
 import { dispatchWebhook } from '@/lib/webhook-dispatcher'
+import { routerIncident } from '@/lib/routing-engine'
 
 export const runtime = 'nodejs'
 
@@ -65,7 +66,7 @@ export async function POST(req: NextRequest) {
     tag?: string
     problemType?: string
     commentaire?: string
-    // --- Task WAHOO-1 — Denise Traducteur Universel ---
+    // --- Task WAHOO-1 — Nathalie Traducteur Universel ---
     // commentaireOriginal : texte original saisi par le voyageur dans sa
     //   langue (avant traduction). Préservé pour référence (audit, email).
     // commentaireLang : code langue source (fr, en, zh, ar, es, de, pt,
@@ -171,7 +172,7 @@ export async function POST(req: NextRequest) {
   // `commentaire` = version FR). On encode dans le champ DB `commentaire` :
   //   - un préfixe `[origine:XX]` parsable par le wallboard pour annoncer
   //     « Message original en [langue] »
-  //   - la traduction française (Denise lit cette partie en français)
+  //   - la traduction française (Nathalie lit cette partie en français)
   //   - le texte original pour référence (audit, email, ops)
   //
   // Format : `[origine:en] Bagage oublié à la porte B4 — Original (en): I forgot my bag at gate B4`
@@ -323,6 +324,25 @@ export async function POST(req: NextRequest) {
     console.log('[airport] Deep link :', whatsappLink.slice(0, 120) + '...')
   }
 
+  // --- MOTEUR DE ROUTAGE INTELLIGENT (zones Salon VIP) ---
+  // Pour les zones vip_lounge, le signalement est routé automatiquement
+  // vers le bon employé (QUI, OÙ, POURQUOI) : règle match → scoring →
+  // assignation → Nathalie. Fire-and-forget : ne bloque jamais la réponse
+  // au voyageur et ne peut pas faire échouer la création.
+  if (zone.code.startsWith('vip_') || zone.code === 'com_lounge') {
+    routerIncident({
+      tenantKey: 'vip_lounge',
+      incidentKind: 'airport_report',
+      incidentId: report.id,
+      incidentLabel: `${b.problemType} — ${zone.nom}`,
+      zone: zone.code,
+      signalType: b.problemType,
+      priority: null,
+    }).catch((err) => {
+      console.warn('[airport-report] Routage VIP échoué (non bloquant):', err instanceof Error ? err.message : String(err))
+    })
+  }
+
   return ok({
     report: {
       id: report.id,
@@ -386,20 +406,20 @@ async function notifierManagersEmail(
   const html = `
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto; background: #F5F5F5; border-radius: 12px; overflow: hidden;">
       <!-- Header -->
-      <div style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 24px 32px;">
+      <div style="background: linear-gradient(135deg, #0f0f1c 0%, #1e293b 100%); padding: 24px 32px;">
         <div style="display: flex; align-items: center; gap: 12px;">
           <div style="font-size: 32px;">✈️</div>
           <div>
-            <h1 style="color: #fbbf24; font-size: 20px; font-weight: 800; margin: 0;">Nouveau signalement aéroport</h1>
-            <p style="color: #94a3b8; font-size: 12px; margin: 4px 0 0 0;">FeedbackPro — Système de signalement voyageur</p>
+            <h1 style="color: #bc7155; font-size: 20px; font-weight: 800; margin: 0;">Nouveau signalement aéroport</h1>
+            <p style="color: #94a3b8; font-size: 12px; margin: 4px 0 0 0;">FeedVoice — Système de signalement voyageur</p>
           </div>
         </div>
       </div>
 
       <!-- Corps -->
       <div style="padding: 24px 32px;">
-        <div style="background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
-          <p style="margin: 0; font-size: 14px; color: #78350f;">
+        <div style="background: #f3ddd2; border-left: 4px solid #bc7155; border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+          <p style="margin: 0; font-size: 14px; color: #573125;">
             <strong>⚠ Action requise :</strong> Un voyageur vient de signaler un problème. Veuillez intervenir rapidement.
           </p>
         </div>
@@ -407,29 +427,29 @@ async function notifierManagersEmail(
         <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
           <tr>
             <td style="padding: 10px 0; color: #64748b; font-weight: 600; width: 140px;">Zone</td>
-            <td style="padding: 10px 0; color: #0f172a;">${zone.emoji} ${zone.nom}</td>
+            <td style="padding: 10px 0; color: #0f0f1c;">${zone.emoji} ${zone.nom}</td>
           </tr>
           <tr style="border-top: 1px solid #e2e8f0;">
             <td style="padding: 10px 0; color: #64748b; font-weight: 600;">Emplacement</td>
-            <td style="padding: 10px 0; color: #0f172a; font-family: monospace;">${tag}</td>
+            <td style="padding: 10px 0; color: #0f0f1c; font-family: monospace;">${tag}</td>
           </tr>
           <tr style="border-top: 1px solid #e2e8f0;">
             <td style="padding: 10px 0; color: #64748b; font-weight: 600;">Problème</td>
-            <td style="padding: 10px 0; color: #0f172a; font-weight: 700;">${report.problemType}</td>
+            <td style="padding: 10px 0; color: #0f0f1c; font-weight: 700;">${report.problemType}</td>
           </tr>
           ${flightNumber ? `
           <tr style="border-top: 1px solid #e2e8f0;">
             <td style="padding: 10px 0; color: #64748b; font-weight: 600;">Vol</td>
-            <td style="padding: 10px 0; color: #0f172a; font-family: monospace; font-weight: 700;">✈️ ${flightNumber}</td>
+            <td style="padding: 10px 0; color: #0f0f1c; font-family: monospace; font-weight: 700;">✈️ ${flightNumber}</td>
           </tr>` : ''}
           <tr style="border-top: 1px solid #e2e8f0;">
             <td style="padding: 10px 0; color: #64748b; font-weight: 600;">Heure</td>
-            <td style="padding: 10px 0; color: #0f172a;">${heure}</td>
+            <td style="padding: 10px 0; color: #0f0f1c;">${heure}</td>
           </tr>
           ${commentaire ? `
           <tr style="border-top: 1px solid #e2e8f0;">
             <td style="padding: 10px 0; color: #64748b; font-weight: 600; vertical-align: top;">Précision</td>
-            <td style="padding: 10px 0; color: #0f172a; font-style: italic;">« ${commentaire} »</td>
+            <td style="padding: 10px 0; color: #0f0f1c; font-style: italic;">« ${commentaire} »</td>
           </tr>` : ''}
           <tr style="border-top: 1px solid #e2e8f0;">
             <td style="padding: 10px 0; color: #64748b; font-weight: 600;">Signalement #</td>
@@ -440,16 +460,16 @@ async function notifierManagersEmail(
         <!-- CTA -->
         <div style="margin-top: 24px; text-align: center;">
           <a href="${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/airport-dashboard?tab=signalements"
-             style="display: inline-block; background: #0f172a; color: #fbbf24; font-weight: 700; font-size: 14px; padding: 12px 32px; border-radius: 8px; text-decoration: none;">
+             style="display: inline-block; background: #0f0f1c; color: #bc7155; font-weight: 700; font-size: 14px; padding: 12px 32px; border-radius: 8px; text-decoration: none;">
             Voir sur le dashboard ops →
           </a>
         </div>
       </div>
 
       <!-- Footer -->
-      <div style="background: #0f172a; padding: 16px 32px; text-align: center;">
+      <div style="background: #0f0f1c; padding: 16px 32px; text-align: center;">
         <p style="color: #475569; font-size: 11px; margin: 0;">
-          Cet email a été envoyé automatiquement par FeedbackPro — Système de signalement aéroport.
+          Cet email a été envoyé automatiquement par FeedVoice — Système de signalement aéroport.
         </p>
       </div>
     </div>

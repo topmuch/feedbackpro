@@ -12,6 +12,7 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { ok, fail, getSessionUser } from '@/lib/session'
+import { cloturerRoutagePourIncident } from '@/lib/routing-engine'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -60,18 +61,28 @@ export async function PATCH(
   // Ajuster le compteur activeRequests de la table :
   // - Si on passe à "done" alors que la demande était active → décrémenter
   // - Si on repasse à pending/in_progress depuis done → incrémenter
+  // QR_ROUTING — une demande CLIENT_GLOBAL n'a pas de table : rien à
+  // décrémenter/incrementer dans ce cas.
   const wasActive = current.status === 'pending' || current.status === 'in_progress'
   const isNowActive = updated.status === 'pending' || updated.status === 'in_progress'
-  if (!wasActive && isNowActive) {
+  if (current.tableId && !wasActive && isNowActive) {
     await db.vipTable.update({
       where: { id: current.tableId },
       data: { activeRequests: { increment: 1 } },
     })
-  } else if (wasActive && !isNowActive) {
+  } else if (current.tableId && wasActive && !isNowActive) {
     await db.vipTable.update({
       where: { id: current.tableId },
       data: { activeRequests: { decrement: 1 } },
     })
+  }
+
+  // --- MOTEUR DE ROUTAGE — clôture du cycle de vie de la tâche ---
+  // in_progress → prise en charge ; done → résolu (stats + charge).
+  if (updated.status === 'in_progress') {
+    cloturerRoutagePourIncident(id, 'accepted').catch(() => {})
+  } else if (updated.status === 'done') {
+    cloturerRoutagePourIncident(id, 'resolved').catch(() => {})
   }
 
   return ok({

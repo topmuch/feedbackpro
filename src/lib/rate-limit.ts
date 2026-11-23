@@ -1,0 +1,148 @@
+// ============================================================
+// FeedVoice - Rate limiting en mémoire (sliding window)
+// ------------------------------------------------------------
+// Protection simple et sans dépendance des endpoints publics contre
+// l'abus (scans automatisés, brute-force login, spam de retours/loterie).
+//
+// Fenêtre glissante en mémoire process : suffisante pour une instance
+// unique Coolify ; en cas de redémarrage, le compteur repart de zéro
+// (acceptable : on bloque les rafales, pas la forensique).
+//
+// Usage dans une route POST :
+//   const bloque = limiteTaux(req, "login", { max: 8, fenetreMs: 60_000 })
+//   if (bloque) return bloque
+//   // ... suite du handler
+// ============================================================
+
+import { NextRequest, NextResponse } from "next/server"
+
+/**
+ * Retire un port éventuel d'une adresse IPv4 fournie par un proxy
+ * (certains reverse proxies émettent « 1.2.3.4:56789 » — le port change
+ * À CHAQUE CONNEXION et rendait la clé du rate limiter unique par requête).
+ */
+function nettoyerIp(valeur: string): string {
+  const ipv4AvecPort = valeur.match(/^(\d{1,3}(?:\.\d{1,3}){3})(?::\d+)?$/)
+  if (ipv4AvecPort) return ipv4AvecPort[1]
+  return valeur
+}
+
+/**
+ * Meilleure IP client disponible. On prend le DERNIER élément de
+ * x-forwarded-for : c'est celui ajouté par NOTRE proxy de confiance
+ * (Coolify/Traefik) — les premiers éléments peuvent être forgés par le
+ * client et permettre de contourner la limite en les rotatant.
+ */
+export function ipClient(req: NextRequest): string {
+  const xff = req.headers.get("x-forwarded-for")
+  if (xff) {
+    const parties = xff
+      .split(",")
+      .map((p) => nettoyerIp(p.trim()))
+      .filter(Boolean)
+    if (parties.length > 0) return parties[parties.length - 1]
+  }
+  const xr = req.headers.get("x-real-ip")
+  if (xr) return nettoyerIp(xr.trim())
+  return "inconnu"
+}
+
+type FenetreGlissante = {
+  /** Horodatages (ms) des requêtes acceptées dans la fenêtre courante. */
+  horodatages: number[]
+}
+
+/**
+ * Store sur globalThis pour survivre au HMR en dev (même pattern que
+ * le client Prisma de src/lib/db.ts).
+ */
+const CLE_GLOBAL = "__fv_rate_limit_store__"
+
+function store(): Map<string, FenetreGlissante> {
+  const g = globalThis as { [CLE_GLOBAL]?: Map<string, FenetreGlissante> }
+  if (!g[CLE_GLOBAL]) g[CLE_GLOBAL] = new Map()
+  return g[CLE_GLOBAL]
+}
+
+/** Plafond de clés suivies (anti-fuite mémoire si scan d'IP spoofée). */
+const MAX_CLES = 10_000
+
+/**
+ * Vérifie la fenêtre glissante pour une clé. Mutation : ajoute l'horodatage
+ * si autorisé, purge les entrées expirées de la clé concernée.
+ */
+function verifier(cle: string, max: number, fenetreMs: number): { autorise: boolean; retryApresSec: number } {
+  const maintenant = Date.now()
+  const s = store()
+
+  // Purge globale légère quand le store grossit trop (O(n) sur les clés).
+  if (s.size > MAX_CLES) {
+    for (const [k, f] of s) {
+      const vivants = f.horodatages.filter((t) => maintenant - t < fenetreMs)
+      if (vivants.length === 0) s.delete(k)
+      else f.horodatages = vivants
+    }
+    // Si toujours trop gros (rares clés actives), on coupe les plus anciennes.
+    if (s.size > MAX_CLES) {
+      const aSupprimer = [...s.keys()].slice(0, s.size - MAX_CLES)
+      for (const k of aSupprimer) s.delete(k)
+    }
+  }
+
+  const f = s.get(cle) ?? { horodatages: [] }
+  f.horodatages = f.horodatages.filter((t) => maintenant - t < fenetreMs)
+
+  if (f.horodatages.length >= max) {
+    const plusAncien = f.horodatages[0]
+    const retryApresSec = Math.max(1, Math.ceil((plusAncien + fenetreMs - maintenant) / 1000))
+    s.set(cle, f)
+    return { autorise: false, retryApresSec }
+  }
+
+  f.horodatages.push(maintenant)
+  s.set(cle, f)
+  return { autorise: true, retryApresSec: 0 }
+}
+
+/**
+ * Applique une limite de taux pour la route donnée. Retourne :
+ *   - null si la requête est autorisée (continuer le handler) ;
+ *   - une Response 429 JSON (header Retry-After) sinon.
+ *
+ * DEUX NIVEAUX (défense en profondeur) :
+ *   1. Plafond GLOBAL par route (toutes IPs confondues) : l'IP cliente peut
+ *      être contournée par un attaquant qui rotate ses IPs de sortie (proxys,
+ *      CDN) — le limiter par IP ne mord alors jamais. Ce plafond global borne
+ *      le débit total d'une route quelle que soit la répartition d'IP.
+ *      Défaut : 40× le max par IP (plafonné à 4000/min pour rester bien
+ *      au-dessus du trafic légitime agrégé).
+ *   2. Limite par IP (fenêtre glissante classique).
+ * Le compteur global n'incrémente QUE si le plafond global est respecté : un
+ * requête bloquée au niveau global ne consomme pas le quota de son IP.
+ */
+export function limiteTaux(
+  req: NextRequest,
+  route: string,
+  opts: { max: number; fenetreMs?: number; globalMax?: number }
+): NextResponse | null {
+  const fenetreMs = opts.fenetreMs ?? 60_000
+  const globalMax = opts.globalMax ?? Math.min(4000, opts.max * 40)
+
+  const globalResult = verifier(`__global__:${route}`, globalMax, fenetreMs)
+  if (!globalResult.autorise) {
+    return NextResponse.json(
+      { ok: false, error: "Trop de requêtes. Réessayez dans quelques instants." },
+      { status: 429, headers: { "Retry-After": String(globalResult.retryApresSec) } }
+    )
+  }
+
+  const { autorise, retryApresSec } = verifier(`${route}:${ipClient(req)}`, opts.max, fenetreMs)
+  if (autorise) return null
+  return NextResponse.json(
+    { ok: false, error: "Trop de requêtes. Réessayez dans quelques instants." },
+    {
+      status: 429,
+      headers: { "Retry-After": String(retryApresSec) },
+    }
+  )
+}

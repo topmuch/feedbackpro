@@ -15,6 +15,7 @@ import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
 import { ok, fail } from "@/lib/session"
 import { retourSchema, firstError } from "@/lib/validation"
+import { limiteTaux } from "@/lib/rate-limit"
 import { tagLabel } from "@/lib/constants"
 import { parseJsonArray, detecterAlertesIntelligentes } from "@/lib/ia"
 import { analyserEtAlerterRetour } from "@/lib/alertes"
@@ -55,7 +56,7 @@ async function villeDepuisIp(req: NextRequest): Promise<string | null> {
     if (!ip || estIpPrivee(ip)) return null
     const res = await fetch(`https://ipapi.co/${encodeURIComponent(ip)}/json/`, {
       signal: AbortSignal.timeout(1500),
-      headers: { "User-Agent": "FeedbackPro/1.0" },
+      headers: { "User-Agent": "FeedVoice/1.0" },
     })
     if (!res.ok) return null
     const json = (await res.json().catch(() => null)) as { city?: unknown } | null
@@ -104,6 +105,9 @@ async function resoudreMacroSecteurDuPro(pro: {
 }
 
 export async function POST(req: NextRequest) {
+  // Anti-spam retours : 20/min/IP (couvre aussi l'alias /api/public/retour).
+  const bloque = limiteTaux(req, "public-retour", { max: 20, fenetreMs: 60_000 })
+  if (bloque) return bloque
   try {
     // ---------- Validation Zod du corps de requête ----------
     const brut = await req.json().catch(() => null)
@@ -236,7 +240,7 @@ export async function POST(req: NextRequest) {
         const cfg = await getModuleConfig<CfgAlertes>(MODULE_KEYS.ALERTES_TEMPS_REEL)
         const cible = cfg?.phone || pro.whatsapp
         if (pro.smsAlertes && cible) {
-          const smsTxt = `🚨 FeedbackPro : retour ${note}/5 sur « ${zone.nom} » (${pro.nomEtablissement}).${retour.commentaire ? ` Commentaire : ${retour.commentaire.slice(0, 120)}` : ""}`
+          const smsTxt = `🚨 FeedVoice : retour ${note}/5 sur « ${zone.nom} » (${pro.nomEtablissement}).${retour.commentaire ? ` Commentaire : ${retour.commentaire.slice(0, 120)}` : ""}`
           await sendSMS(cible, smsTxt).catch((e) =>
             console.warn("SMS alertes_temps_reel non envoyé (non bloquant)", e)
           )

@@ -1,7 +1,7 @@
 // ============================================================
 // POST /api/airport/autopilot
 // ------------------------------------------------------------
-// Auto-Pilot Denise — décisions automatiques quand personne ne
+// Auto-Pilot Nathalie — décisions automatiques quand personne ne
 // réagit sur le wallboard ops.
 //
 // Trois types de décisions évaluées à chaque appel (60s polling) :
@@ -13,12 +13,12 @@
 //      trace dans l'audit trail (actor "denise-autopilot").
 //
 //   2. PATTERN_ALERT — 3+ signalements similaires (même zone) dans
-//      la dernière heure → Denise annonce "problème systémique".
+//      la dernière heure → Nathalie annonce "problème systémique".
 //      Aucun effet de bord BDD : juste une action retournée pour
 //      que le wallboard l'annonce vocalement.
 //
 //   3. PREPOSITION — Une zone a un score de prédiction > 80
-//      (risque imminent de pic de plaintes) → Denise annonce
+//      (risque imminent de pic de plaintes) → Nathalie annonce
 //      "pic imminent, renforts demandés". Reproduit l'heuristique
 //      du radar prédiction (/api/airport/predict) de façon allégée.
 //

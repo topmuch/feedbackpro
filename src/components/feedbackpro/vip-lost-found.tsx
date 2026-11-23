@@ -10,11 +10,11 @@
 //   • Déclarer un nouvel objet trouvé (dialog avec formulaire).
 //
 // Palette « Luxe Lumineux » :
-//   - Background   #FAFAF7    - Cards  #FFFFFF + shadow gold 6%
-//   - Gold         #C9A961    - Bronze #8B6F47
-//   - Text         #2C2C2C    - VIP    #6B4C9A
-//   - Success      #4A7C59    - Alert  #C97B63
-//   - Border       #EAE5DC
+//   - Background   #ffffff    - Cards  #FFFFFF + shadow gold 6%
+//   - Gold         #bc7155    - Bronze #8B6F47
+//   - Text         #2C2C2C    - VIP    #bc7155
+//   - Success      #bc7155    - Alert  #bc7155
+//   - Border       #efe7e0
 //
 // APIs consommées :
 //   GET   /api/vip/lost-found                → liste des objets
@@ -116,13 +116,13 @@ const STATUS_META: Record<
   found: {
     label: 'Trouvé',
     badgeClass:
-      'bg-emerald-50 text-emerald-700 border-emerald-200',
-    dotClass: 'bg-emerald-500',
+      'bg-[#faf1ec] text-[#8a4f3b] border-[#e7c1ae]',
+    dotClass: 'bg-[#bc7155]',
   },
   claimed: {
     label: 'Réclamé',
-    badgeClass: 'bg-amber-50 text-amber-700 border-amber-200',
-    dotClass: 'bg-amber-500',
+    badgeClass: 'bg-[#faf1ec] text-[#8a4f3b] border-[#e7c1ae]',
+    dotClass: 'bg-[#bc7155]',
   },
   returned: {
     label: 'Retourné',
@@ -197,8 +197,8 @@ function ItemCard({ item, onMark, busy }: ItemCardProps) {
   return (
     <article
       className={cn(
-        'flex flex-col rounded-xl border border-[#EAE5DC] bg-white p-5',
-        'transition-all hover:border-[#C9A961]/30 hover:shadow-[0_8px_28px_rgba(201,169,97,0.10)]',
+        'flex flex-col rounded-xl border border-[#efe7e0] bg-white p-5',
+        'transition-all hover:border-[#bc7155]/30 hover:shadow-[0_8px_28px_rgba(201,169,97,0.10)]',
         CARD_SHADOW,
       )}
     >
@@ -207,7 +207,7 @@ function ItemCard({ item, onMark, busy }: ItemCardProps) {
         <div
           className={cn(
             'flex size-11 shrink-0 items-center justify-center rounded-full',
-            'bg-[#FAFAF7] ring-1 ring-[#EAE5DC]',
+            'bg-[#ffffff] ring-1 ring-[#efe7e0]',
           )}
         >
           <span
@@ -234,7 +234,7 @@ function ItemCard({ item, onMark, busy }: ItemCardProps) {
               className={cn(
                 'inline-flex items-center gap-1 rounded-full border px-2 py-0.5',
                 'text-[11px] font-medium text-[#8B6F47]',
-                'border-[#EAE5DC] bg-[#FAFAF7]',
+                'border-[#efe7e0] bg-[#ffffff]',
               )}
             >
               {cat.label}
@@ -297,8 +297,8 @@ function ItemCard({ item, onMark, busy }: ItemCardProps) {
           disabled={busy || item.status === 'returned'}
           onClick={() => onMark(item, 'claimed')}
           className={cn(
-            'flex-1 rounded-md border-amber-200 bg-amber-50 text-xs font-semibold',
-            'text-amber-700 hover:bg-amber-100 hover:text-amber-800',
+            'flex-1 rounded-md border-[#e7c1ae] bg-[#faf1ec] text-xs font-semibold',
+            'text-[#8a4f3b] hover:bg-[#f3ddd2] hover:text-[#6f3f30]',
             'disabled:opacity-50',
           )}
         >
@@ -422,7 +422,7 @@ function AddItemDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-xl border-[#EAE5DC] bg-white p-6 sm:max-w-md">
+      <DialogContent className="rounded-xl border-[#efe7e0] bg-white p-6 sm:max-w-md">
         <DialogHeader>
           <DialogTitle
             className="text-xl text-[#2C2C2C]"
@@ -440,7 +440,7 @@ function AddItemDialog({
           {/* Titre */}
           <div className="space-y-1.5">
             <Label htmlFor="lf-title" className="text-[#8B6F47]">
-              Objet <span className="text-[#C97B63]">*</span>
+              Objet <span className="text-[#bc7155]">*</span>
             </Label>
             <Input
               id="lf-title"
@@ -451,13 +451,13 @@ function AddItemDialog({
               maxLength={120}
               aria-invalid={touched && !titleValid}
               className={cn(
-                'border-[#EAE5DC] bg-white text-[#2C2C2C]',
-                'focus-visible:border-[#C9A961] focus-visible:ring-[#C9A961]/30',
-                touched && !titleValid && 'border-[#C97B63]',
+                'border-[#efe7e0] bg-white text-[#2C2C2C]',
+                'focus-visible:border-[#bc7155] focus-visible:ring-[#bc7155]/30',
+                touched && !titleValid && 'border-[#bc7155]',
               )}
             />
             {touched && !titleValid && (
-              <p className="text-xs text-[#C97B63]">
+              <p className="text-xs text-[#bc7155]">
                 Le titre est obligatoire.
               </p>
             )}
@@ -466,7 +466,7 @@ function AddItemDialog({
           {/* Catégorie */}
           <div className="space-y-1.5">
             <Label htmlFor="lf-category" className="text-[#8B6F47]">
-              Catégorie <span className="text-[#C97B63]">*</span>
+              Catégorie <span className="text-[#bc7155]">*</span>
             </Label>
             <Select
               value={category}
@@ -475,8 +475,8 @@ function AddItemDialog({
               <SelectTrigger
                 id="lf-category"
                 className={cn(
-                  'w-full border-[#EAE5DC] bg-white text-[#2C2C2C]',
-                  'focus-visible:border-[#C9A961] focus-visible:ring-[#C9A961]/30',
+                  'w-full border-[#efe7e0] bg-white text-[#2C2C2C]',
+                  'focus-visible:border-[#bc7155] focus-visible:ring-[#bc7155]/30',
                 )}
               >
                 <SelectValue placeholder="Choisir…" />
@@ -506,8 +506,8 @@ function AddItemDialog({
               placeholder="Ex. T-04"
               maxLength={20}
               className={cn(
-                'border-[#EAE5DC] bg-white text-[#2C2C2C]',
-                'focus-visible:border-[#C9A961] focus-visible:ring-[#C9A961]/30',
+                'border-[#efe7e0] bg-white text-[#2C2C2C]',
+                'focus-visible:border-[#bc7155] focus-visible:ring-[#bc7155]/30',
               )}
             />
           </div>
@@ -524,14 +524,14 @@ function AddItemDialog({
               placeholder="Couleur, état distinctif, contenu…"
               maxLength={1000}
               className={cn(
-                'min-h-20 border-[#EAE5DC] bg-white text-[#2C2C2C]',
-                'focus-visible:border-[#C9A961] focus-visible:ring-[#C9A961]/30',
+                'min-h-20 border-[#efe7e0] bg-white text-[#2C2C2C]',
+                'focus-visible:border-[#bc7155] focus-visible:ring-[#bc7155]/30',
               )}
             />
           </div>
 
           {/* Found by */}
-          <div className="rounded-lg bg-[#FAFAF7] px-3 py-2 text-xs text-[#8B6F47]">
+          <div className="rounded-lg bg-[#ffffff] px-3 py-2 text-xs text-[#8B6F47]">
             Déclaré par :{' '}
             <span className="font-semibold text-[#2C2C2C]">
               {staffName || 'Comptoir'}
@@ -544,7 +544,7 @@ function AddItemDialog({
               variant="ghost"
               onClick={() => onOpenChange(false)}
               disabled={submitting}
-              className="text-[#8B6F47] hover:bg-[#FAFAF7] hover:text-[#2C2C2C]"
+              className="text-[#8B6F47] hover:bg-[#ffffff] hover:text-[#2C2C2C]"
             >
               Annuler
             </Button>
@@ -552,7 +552,7 @@ function AddItemDialog({
               type="submit"
               disabled={!canSubmit}
               className={cn(
-                'h-10 rounded-md bg-[#C9A961] px-6 text-sm font-bold uppercase tracking-wide',
+                'h-10 rounded-md bg-[#bc7155] px-6 text-sm font-bold uppercase tracking-wide',
                 'text-white hover:bg-[#B8974A] active:bg-[#A6863C]',
               )}
             >
@@ -738,16 +738,16 @@ export function VipLostFound({ staffName }: { staffName: string }) {
 
   // ----- Render -----
   return (
-    <div className="min-h-screen bg-[#FAFAF7] text-[#2C2C2C]">
+    <div className="min-h-screen bg-[#ffffff] text-[#2C2C2C]">
       {/* ---------- Header ---------- */}
       <header
         className={cn(
-          'sticky top-0 z-10 border-b border-[#EAE5DC] bg-white/90 backdrop-blur',
+          'sticky top-0 z-10 border-b border-[#efe7e0] bg-white/90 backdrop-blur',
           CARD_SHADOW,
         )}
       >
         <div className="mx-auto flex max-w-5xl flex-wrap items-center gap-3 px-4 py-3">
-          <div className="flex size-10 items-center justify-center rounded-full bg-[#FAFAF7] ring-1 ring-[#EAE5DC]">
+          <div className="flex size-10 items-center justify-center rounded-full bg-[#ffffff] ring-1 ring-[#efe7e0]">
             <Package className="size-5 text-[#8B6F47]" />
           </div>
           <div className="min-w-0 flex-1">
@@ -769,8 +769,8 @@ export function VipLostFound({ staffName }: { staffName: string }) {
             aria-label="Rafraîchir"
             className={cn(
               'flex size-9 items-center justify-center rounded-full',
-              'border border-[#EAE5DC] bg-white text-[#8B6F47]',
-              'transition-colors hover:border-[#C9A961]/50 hover:text-[#2C2C2C]',
+              'border border-[#efe7e0] bg-white text-[#8B6F47]',
+              'transition-colors hover:border-[#bc7155]/50 hover:text-[#2C2C2C]',
               'disabled:opacity-50',
             )}
           >
@@ -781,7 +781,7 @@ export function VipLostFound({ staffName }: { staffName: string }) {
             type="button"
             onClick={() => setAddOpen(true)}
             className={cn(
-              'h-9 rounded-md bg-[#C9A961] px-4 text-sm font-semibold text-white',
+              'h-9 rounded-md bg-[#bc7155] px-4 text-sm font-semibold text-white',
               'hover:bg-[#B8974A] active:bg-[#A6863C]',
             )}
           >
@@ -794,7 +794,7 @@ export function VipLostFound({ staffName }: { staffName: string }) {
       <div className="mx-auto max-w-5xl px-4 pt-6">
         <div
           className={cn(
-            'flex flex-col gap-3 rounded-xl border border-[#EAE5DC] bg-white p-4',
+            'flex flex-col gap-3 rounded-xl border border-[#efe7e0] bg-white p-4',
             'sm:flex-row sm:items-center',
             CARD_SHADOW,
           )}
@@ -812,8 +812,8 @@ export function VipLostFound({ staffName }: { staffName: string }) {
                   className={cn(
                     'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-all',
                     active
-                      ? 'border-[#C9A961] bg-[#C9A961]/10 text-[#2C2C2C]'
-                      : 'border-[#EAE5DC] bg-[#FAFAF7] text-[#8B6F47] hover:border-[#C9A961]/40',
+                      ? 'border-[#bc7155] bg-[#bc7155]/10 text-[#2C2C2C]'
+                      : 'border-[#efe7e0] bg-[#ffffff] text-[#8B6F47] hover:border-[#bc7155]/40',
                   )}
                 >
                   {f.label}
@@ -821,7 +821,7 @@ export function VipLostFound({ staffName }: { staffName: string }) {
                     className={cn(
                       'rounded-full px-1.5 text-[10px] font-semibold',
                       active
-                        ? 'bg-[#C9A961] text-white'
+                        ? 'bg-[#bc7155] text-white'
                         : 'bg-white text-[#8B6F47]',
                     )}
                   >
@@ -840,8 +840,8 @@ export function VipLostFound({ staffName }: { staffName: string }) {
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Rechercher (titre, table, catégorie…)"
               className={cn(
-                'h-9 rounded-md border-[#EAE5DC] bg-white pl-9 pr-9 text-sm text-[#2C2C2C]',
-                'focus-visible:border-[#C9A961] focus-visible:ring-[#C9A961]/30',
+                'h-9 rounded-md border-[#efe7e0] bg-white pl-9 pr-9 text-sm text-[#2C2C2C]',
+                'focus-visible:border-[#bc7155] focus-visible:ring-[#bc7155]/30',
               )}
             />
             {search && (
@@ -849,7 +849,7 @@ export function VipLostFound({ staffName }: { staffName: string }) {
                 type="button"
                 aria-label="Effacer"
                 onClick={() => setSearch('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-[#8B6F47] hover:bg-[#FAFAF7] hover:text-[#2C2C2C]"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full p-1 text-[#8B6F47] hover:bg-[#ffffff] hover:text-[#2C2C2C]"
               >
                 <X className="size-3.5" />
               </button>
@@ -907,23 +907,23 @@ function ItemGridSkeleton() {
         <div
           key={i}
           className={cn(
-            'h-56 animate-pulse rounded-xl border border-[#EAE5DC] bg-white',
+            'h-56 animate-pulse rounded-xl border border-[#efe7e0] bg-white',
             CARD_SHADOW,
           )}
         >
           <div className="flex h-full flex-col p-5">
             <div className="flex items-center gap-3">
-              <div className="size-11 rounded-full bg-[#EAE5DC]" />
+              <div className="size-11 rounded-full bg-[#efe7e0]" />
               <div className="flex-1">
-                <div className="h-4 w-3/4 rounded bg-[#EAE5DC]" />
-                <div className="mt-2 h-3 w-1/2 rounded bg-[#EAE5DC]" />
+                <div className="h-4 w-3/4 rounded bg-[#efe7e0]" />
+                <div className="mt-2 h-3 w-1/2 rounded bg-[#efe7e0]" />
               </div>
             </div>
-            <div className="mt-4 h-3 w-full rounded bg-[#EAE5DC]" />
-            <div className="mt-2 h-3 w-2/3 rounded bg-[#EAE5DC]" />
+            <div className="mt-4 h-3 w-full rounded bg-[#efe7e0]" />
+            <div className="mt-2 h-3 w-2/3 rounded bg-[#efe7e0]" />
             <div className="mt-auto flex gap-2">
-              <div className="h-8 flex-1 rounded bg-[#EAE5DC]" />
-              <div className="h-8 flex-1 rounded bg-[#EAE5DC]" />
+              <div className="h-8 flex-1 rounded bg-[#efe7e0]" />
+              <div className="h-8 flex-1 rounded bg-[#efe7e0]" />
             </div>
           </div>
         </div>
@@ -944,16 +944,16 @@ function EmptyState({
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center rounded-xl border border-dashed border-[#EAE5DC]',
+        'flex flex-col items-center justify-center rounded-xl border border-dashed border-[#efe7e0]',
         'bg-white px-6 py-14 text-center',
         CARD_SHADOW,
       )}
     >
-      <div className="flex size-14 items-center justify-center rounded-full bg-[#FAFAF7]">
+      <div className="flex size-14 items-center justify-center rounded-full bg-[#ffffff]">
         {hasItems ? (
           <Search className="size-7 text-[#8B6F47]" />
         ) : (
-          <Package className="size-7 text-[#C9A961]" />
+          <Package className="size-7 text-[#bc7155]" />
         )}
       </div>
       <h3
@@ -974,14 +974,14 @@ function EmptyState({
           <Button
             variant="ghost"
             onClick={onReset}
-            className="rounded-md border border-[#EAE5DC] bg-white text-[#8B6F47] hover:bg-[#FAFAF7] hover:text-[#2C2C2C]"
+            className="rounded-md border border-[#efe7e0] bg-white text-[#8B6F47] hover:bg-[#ffffff] hover:text-[#2C2C2C]"
           >
             <RotateCcw className="size-4" /> Réinitialiser les filtres
           </Button>
         ) : (
           <Button
             onClick={onAdd}
-            className="rounded-md bg-[#C9A961] px-5 text-sm font-semibold text-white hover:bg-[#B8974A]"
+            className="rounded-md bg-[#bc7155] px-5 text-sm font-semibold text-white hover:bg-[#B8974A]"
           >
             <Plus className="size-4" /> Déclarer un objet
           </Button>

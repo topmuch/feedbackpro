@@ -4,7 +4,7 @@
 // FlashRewardOverlay — Carte à gratter post-signalement
 // ------------------------------------------------------------
 // Overlay plein écran affiché au voyageur APRÈS qu'il a signalé
-// un incident (et ~3,5 s après que Denise a parlé).
+// un incident (et ~3,5 s après que Nathalie a parlé).
 //
 // Flux :
 //   1. On mount → POST /api/airport/flash-rewards/redeem
@@ -21,7 +21,7 @@
 //      et "Partager sur WhatsApp".
 //   6. Bouton X en haut à droite.
 //
-// Palette aéroport : navy #003399 + gold #FCD116.
+// Palette aéroport : navy #000d10 + gold #bc7155.
 // ============================================================
 
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -40,8 +40,8 @@ import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
 // ---------- Palette ----------
-const NAVY = "#003399"
-const GOLD = "#FCD116"
+const NAVY = "#000d10"
+const GOLD = "#bc7155"
 
 // ---------- Types (mirror API) ----------
 type RedeemResponse =

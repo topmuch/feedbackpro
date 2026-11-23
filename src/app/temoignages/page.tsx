@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 
 // ============================================================
-// FeedbackPro - Page Témoignages (App Router)
+// FeedVoice - Page Témoignages (App Router)
 // ------------------------------------------------------------
 // Route réelle : GET /temoignages
 // Contenu : 3 témoignages clients + stats clés + CTA final.
@@ -13,9 +13,9 @@ import { MarketingLayout, MarketingCTA } from "@/components/feedbackpro/marketin
 import { TESTIMONIALS } from "@/lib/landing-data"
 
 export const metadata: Metadata = {
-  title: "Témoignages clients FeedbackPro — Bistrot, Hôtel, Boutique",
+  title: "Témoignages clients FeedVoice — Bistrot, Hôtel, Boutique",
   description:
-    "127+ établissements utilisent FeedbackPro au quotidien. Découvrez les témoignages de Sophie (Bistrot Marais), Karim (Hôtel Royal Lyon) et Émilie (Maison Vert).",
+    "127+ établissements utilisent FeedVoice au quotidien. Découvrez les témoignages de Sophie (Bistrot Marais), Karim (Hôtel Royal Lyon) et Émilie (Maison Vert).",
   alternates: { canonical: "/temoignages" },
 }
 
@@ -25,7 +25,7 @@ function Etoiles({ note }: { note: number }) {
       {Array.from({ length: 5 }).map((_, i) => (
         <Star
           key={i}
-          className={`h-4 w-4 ${i < note ? "fill-amber-400 text-amber-400" : "fill-gray-200 text-gray-300"}`}
+          className={`h-4 w-4 ${i < note ? "fill-[#c98b72] text-[#c98b72]" : "fill-gray-200 text-gray-300"}`}
           aria-hidden
         />
       ))}
@@ -37,19 +37,19 @@ export default function TemoignagesPage() {
   return (
     <MarketingLayout activePath="/temoignages">
       {/* ---------- Hero ---------- */}
-      <section className="bg-gradient-to-b from-[#002e85]/5 to-white py-14 sm:py-20">
+      <section className="bg-gradient-to-b from-[#0f0f1c]/5 to-white py-14 sm:py-20">
         <div className="mx-auto max-w-3xl px-4 text-center sm:px-6 lg:px-8">
-          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-amber-600 shadow-sm">
+          <span className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-xs font-medium text-[#a05f45] shadow-sm">
             Témoignages
           </span>
           <h1
             className="mt-4 text-4xl font-extrabold tracking-tight text-gray-900 sm:text-5xl"
             style={{ letterSpacing: "-0.03em" }}
           >
-            Ils ont <span className="bg-gradient-to-br from-[#002e85] to-[#0047c7] bg-clip-text text-transparent">transformé leur qualité</span>
+            Ils ont <span className="bg-gradient-to-br from-[#0f0f1c] to-[#0f0f1c] bg-clip-text text-transparent">transformé leur qualité</span>
           </h1>
           <p className="mt-4 text-lg text-gray-600">
-            127+ établissements utilisent FeedbackPro au quotidien. Voici ce qu&apos;ils en disent.
+            127+ établissements utilisent FeedVoice au quotidien. Voici ce qu&apos;ils en disent.
           </p>
         </div>
       </section>
@@ -63,8 +63,8 @@ export default function TemoignagesPage() {
             { valeur: "3 sem.", label: "ROI moyen constaté" },
             { valeur: "-73 %", label: "avis négatifs Google" },
           ].map((s) => (
-            <div key={s.label} className="rounded-3xl border border-gray-200 bg-white p-5 text-center shadow-sm">
-              <p className="text-3xl font-extrabold text-[#002e85]">{s.valeur}</p>
+            <div key={s.label} className="rounded-none border border-gray-200 bg-white p-5 text-center shadow-sm">
+              <p className="text-3xl font-extrabold text-[#0f0f1c]">{s.valeur}</p>
               <p className="mt-1 text-xs text-gray-600">{s.label}</p>
             </div>
           ))}
@@ -77,11 +77,11 @@ export default function TemoignagesPage() {
           {TESTIMONIALS.map((t) => (
             <article
               key={t.nom}
-              className="flex h-full flex-col rounded-3xl border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:border-[#0047c7] hover:shadow-xl"
+              className="flex h-full flex-col rounded-none border border-gray-200 bg-white p-6 shadow-sm transition-shadow hover:border-[#0f0f1c] hover:shadow-xl"
             >
               <div className="flex items-center justify-between">
                 <Etoiles note={t.note} />
-                <Quote className="h-6 w-6 text-[#002e85]/30" aria-hidden />
+                <Quote className="h-6 w-6 text-[#0f0f1c]/30" aria-hidden />
               </div>
               <blockquote className="mt-4 flex-1">
                 <p className="text-sm italic leading-relaxed text-gray-700">
@@ -110,7 +110,7 @@ export default function TemoignagesPage() {
       <section className="border-t border-gray-200 bg-gray-50">
         <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
           <div className="flex flex-col items-center gap-4 text-center">
-            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#002e85] to-[#0047c7] text-white">
+            <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#0f0f1c] to-[#0f0f1c] text-white">
               <Users className="h-6 w-6" />
             </span>
             <h2 className="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">

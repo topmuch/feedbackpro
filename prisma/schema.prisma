@@ -75,7 +75,17 @@ model Pro {
   abonnementFin     DateTime?
   proId             String?
   googlePlaceId     String?
+  // Task 2-a — Boucle de réputation Google :
+  //   - googleReviewUrl  : URL publique de la page d'avis Google de
+  //     l'établissement (saisie manuelle dans l'onglet Paramètres →
+  //     « Réputation Google », ex : lien Google Maps « Partager »).
+  //     Proposée au client sur l'écran de succès du scan si note ≥ 4★.
+  //   - googleReviewEnabled : interrupteur du CTA « Laisser un avis
+  //     Google » sur la page de scan client. Défaut true (activé) :
+  //     tant que l'URL n'est pas renseignée le CTA n'apparaît de
+  //     toute façon pas (double condition URL + flag).
   googleReviewUrl   String?
+  googleReviewEnabled Boolean @default(true)
   // Task M1 : lien optionnel vers la fiche secteur (SecteurConfig) — permet
   // à l'onboarding, au Coach IA et aux écrans RGPD de s'adapter dynamiquement
   // au secteur de l'établissement (restaurant, hôtel, hôpital, aéroport…).
@@ -900,9 +910,9 @@ model SystemHealthLog {
 }
 
 // ============================================================
-// Task VDE — Voice Decision Engine (Denise's Brain)
+// Task VDE — Voice Decision Engine (Nathalie's Brain)
 // ------------------------------------------------------------
-// Denise = la voix de la plateforme. Elle ne parle pas pour
+// Nathalie = la voix de la plateforme. Elle ne parle pas pour
 // chaque événement : elle décide si elle doit parler, dans quel
 // ton, à quel volume, et si elle doit agréger plusieurs signaux
 // proches pour éviter la cacophonie.
@@ -929,7 +939,7 @@ model VoiceDecisionRule {
   // "staff_connect" | "plate_error" | "service_slow" | "negative_feedback" |
   // "product_out_of_stock" | "reservation_cancelled" | "rush_hour"
   eventType                  String
-  // shouldSpeak : true = Denise parle, false = silence (notification visuelle seule)
+  // shouldSpeak : true = Nathalie parle, false = silence (notification visuelle seule)
   shouldSpeak                Boolean  @default(true)
   // Priorité : "critical" | "important" | "info" | "silent"
   priority                   String   @default("info")
@@ -1128,7 +1138,7 @@ model AirportStaffLocation {
 // Flash Rewards — Cartes à gratter post-signalement
 // ------------------------------------------------------------
 // Module de récompenses voyageurs : après qu'un passager a signalé
-// un incident (et 3s après la voix de Denise), une carte à gratter
+// un incident (et 3s après la voix de Nathalie), une carte à gratter
 // s'affiche. Le voyageur gratte → révèle une récompense (ex: -15%
 // au Café Teranga) avec un code unique. L'annonceur paie uniquement
 // les codes UTILISÉS (prix par code).
@@ -1267,24 +1277,125 @@ model VipClient {
   id          String   @id @default(cuid())
   name        String
   photo       String?
-  airline     String?
+  airline     String?                        // compagnie d'origine / partenaire
   vipLevel    String   @default("gold") // gold, platinum, diamond
   boardingPassId String?
-  preferences String   @default("[]")   // JSON: ["champagne rosé", "allergie arachides"]
+  preferences String   @default("[]")   // JSON: ["préfère rosé", "coin calme"]
+  allergies   String   @default("[]")   // JSON: ["arachides", "fruits de mer"]
+  // RGPD — consentements explicites (photo + profil) obligatoires
+  consentPhoto  Boolean @default(false) // consentement explicite photo
+  consentProfil Boolean @default(false) // consentement explicite profil/visites
+  // Multi-tenant — lounge propriétaire (null = données de démo partagées)
+  ownerUserId String?
   visitCount  Int      @default(0)
   lastVisit   DateTime?
   notes       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  visits        VipVisit[]
+  conciergeNotes VipClientNote[]
+  guestAlerts   VipGuestAlert[]
+
   @@index([name])
   @@index([vipLevel])
+  @@index([ownerUserId])
+  @@index([airline])
+}
+
+// VIP — Notes concierge horodatées ("préfère rosé", "allergie arachides")
+model VipClientNote {
+  id          String   @id @default(cuid())
+  vipClientId String
+  client      VipClient @relation(fields: [vipClientId], references: [id], onDelete: Cascade)
+  auteur      String   @default("Concierge")
+  contenu     String
+  // type: concierge | allergie | preference | service
+  type        String   @default("concierge")
+  createdAt   DateTime @default(now())
+
+  @@index([vipClientId, createdAt])
+}
+
+// VIP — Historique de visites détaillé (une ligne par venue détectée)
+model VipVisit {
+  id          String   @id @default(cuid())
+  vipClientId String
+  client      VipClient @relation(fields: [vipClientId], references: [id], onDelete: Cascade)
+  // canal: scan (QR table) | reception (saisie réception) | session (device reconnu)
+  canal       String   @default("scan")
+  tableNumber String?
+  deviceToken String?
+  detection   String?                          // détail du critère de match (token, nom+tél, deviceId)
+  createdAt   DateTime @default(now())
+
+  @@index([vipClientId, createdAt])
+}
+
+// VIP — Alerte Maître d'Hôtel (détection VIP au scan / à la saisie réception)
+// Mode discrétion : alerte VISUELLE uniquement (jamais de son fort)
+model VipGuestAlert {
+  id          String   @id @default(cuid())
+  vipClientId String?
+  client      VipClient? @relation(fields: [vipClientId], references: [id], onDelete: Cascade)
+  clientName  String
+  photo       String?
+  vipLevel    String   @default("gold")
+  airline     String?
+  tableNumber String?
+  // motif: vip_detected | allergie | retour_client | anniversaire
+  motif       String   @default("vip_detected")
+  detail      String?
+  // statut: nouvelle | prise_en_charge | traitee
+  status      String   @default("nouvelle")
+  destinataire String  @default("maitre_dhotel")
+  takenBy     String?
+  takenAt     DateTime?
+  createdAt   DateTime @default(now())
+
+  @@index([status, createdAt])
+  @@index([vipClientId])
+}
+
+// VIP — Configuration du tenant lounge (JSONB-like : pas de migration par option)
+// config        → general, alertesVip, buffet, douches, recompenses, notifications,
+//                 integrations, modulesEnabled (toggles modules optionnels)
+// deniseSettings→ alertes vocales ON/OFF, volume (PLAFONNÉ 30%), ton doux, langues, message bienvenue
+model VipTenantConfig {
+  id            String   @id @default(cuid())
+  loungeKey     String   @unique @default("lounge")
+  config        String   @default("{}")
+  deniseSettings String  @default("{}")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+// VIP — Journal d'audit des actions staff (traçabilité checklist livraison)
+model VipAuditTrail {
+  id         String   @id @default(cuid())
+  actor      String                       // nom du staff
+  actorRole  String?
+  action     String                       // VIP_DETECTE | ALERTE_PRISE | PURGE_RGPD | IMPORT_CSV | CLIENT_CREE | CLIENT_MODIFIE | NOTE_AJOUTEE | SETTINGS_MODIFIEES ...
+  cible      String?                      // id ou libellé de la cible
+  detail     String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([actor])
 }
 
 model VipTableRequest {
   id              String   @id @default(cuid())
-  tableId         String
-  table           VipTable @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  // QR_GLOBAL : une demande créée depuis le QR d'entrée (chevalet
+  // d'accueil) n'est rattachée à AUCUNE table — le client choisit
+  // son emplacement dynamiquement. tableId devient nullable.
+  tableId         String?
+  table           VipTable? @relation(fields: [tableId], references: [id], onDelete: Cascade)
+  // Emplacement libre saisi via la modale Nathalie en mode
+  // CLIENT_GLOBAL : "Zone Buffet", "Espace Détente", "Terrasse",
+  // "Salles de Réunion" ou "Fauteuil 12". Null pour CLIENT_ZONE
+  // (la table porte déjà l'information).
+  contextZone     String?
   type            String                       // refreshment, menu, shower, charger, concierge, problem, rating, cleanup
   message         String?
   // Numéro de suivi unique lisible (ex: CMD-2026-0847, SIG-2026-0234)
@@ -1322,8 +1433,143 @@ model StaffAccount {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  // MOTEUR DE ROUTAGE — compétence 1:1 (zones, types maîtrisés, catégorie,
+  // disponibilité, capacité max, préférences Nathalie)
+  competency StaffCompetency?
+  routingHistory RoutingHistory[]
+
   @@index([phone])
   @@index([role])
+}
+
+// ============================================================
+// MOTEUR DE ROUTAGE INTELLIGENT (Routing Engine)
+// Cartographie 4D : Zones × Signalements × Employés × Tâches
+// Adaptation SQLite : les listes (TEXT[]/UUID[]/TIME[]/JSONB du cahier
+// des charges PostgreSQL) sont sérialisées en chaînes JSON.
+// ============================================================
+
+// TABLE 1 — COMPÉTENCES DES EMPLOYÉS
+model StaffCompetency {
+  id             String       @id @default(cuid())
+  staffId        String       @unique
+  staff          StaffAccount @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  tenantKey      String       @default("vip_lounge") // vip_lounge | airport | restaurant
+  zones          String       @default("[]")   // JSON codes de zones canoniques
+  signalTypes    String       @default("[]")   // JSON codes de types de signalements maîtrisés
+  category       String       @default("serveur") // serveur|barman|nettoyage|maintenance|securite|reception|maitre_dhotel|manager
+  // DISPONIBILITÉ
+  isOnDuty       Boolean      @default(false)
+  shiftStart     String?      // "08:00"
+  shiftEnd       String?      // "16:00"
+  shiftDays      String       @default("[1,2,3,4,5]") // JSON 0=dim … 6=sam
+  // ANTI-SURCHARGE
+  maxActiveTasks Int          @default(3)
+  // Zone où l'employé se trouve actuellement (bonus scoring +30)
+  currentZone    String?
+  // NATHALIE
+  deniseEnabled  Boolean      @default(true)
+  deniseTone     String       @default("normal") // soft|normal|urgent
+
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([tenantKey, category])
+  @@index([tenantKey, isOnDuty])
+}
+
+// TABLE 2 — MATRICE DE ROUTAGE (Le Cerveau)
+model RoutingRule {
+  id                 String   @id @default(cuid())
+  tenantKey          String   @default("vip_lounge")
+  zoneCode           String?  // null = toutes zones
+  signalType         String?  // null = tous types
+  priority           String   @default("medium") // low|medium|high|critical
+  // ACTIONS (le "ALORS")
+  targetCategory     String   @default("serveur")
+  targetStaffIds     String   @default("[]") // JSON ciblage direct optionnel
+  fallbackCategory   String?  // si personne dispo : ex 'manager'
+  // ESCALADE
+  escalationAfterMin Int      @default(10)
+  escalationTarget   String   @default("manager") // manager | director
+  // NATHALIE
+  deniseAnnounce     Boolean  @default(true)
+  deniseTone         String   @default("normal") // soft|normal|urgent
+  // PRIORITÉ DE LA RÈGLE (si plusieurs matchent) + spécificité implicite
+  rulePriority       Int      @default(1)
+  active             Boolean  @default(true)
+
+  history            RoutingHistory[]
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([tenantKey, active])
+}
+
+// TABLE 3 — TÂCHES PROACTIVES (au-delà des signalements)
+model ProactiveTask {
+  id              String    @id @default(cuid())
+  tenantKey       String    @default("vip_lounge")
+  title           String              // "Vérification buffet"
+  description     String?
+  // ASSIGNATION
+  targetZone      String?   // code canonique
+  targetCategory  String?   // 'serveur', 'nettoyage'…
+  targetStaffId   String?   // ou assignation automatique
+  // PLANIFICATION
+  recurrence      String    @default("interval") // once|daily|weekly|interval
+  intervalMinutes Int?
+  scheduledTimes  String    @default("[]") // JSON ["08:00","12:00","18:00"]
+  // CHECKLIST
+  checklistItems  String    @default("[]") // JSON [{item,required}]
+  // NOTIFICATION
+  notifyVia       String    @default("[]") // JSON ["push","denise"]
+  deniseMessage   String?   // "Vérification buffet requise"
+
+  lastRunAt       DateTime?
+  nextRunAt       DateTime?
+  active          Boolean   @default(true)
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  @@index([tenantKey, active, nextRunAt])
+}
+
+// TABLE 4 — HISTORIQUE DE ROUTAGE (pour IA + compteur de charge)
+// open=true tant que la tâche assignée n'est pas clôturée → sert de
+// compteur current_active_tasks pour l'anti-surcharge.
+model RoutingHistory {
+  id                String        @id @default(cuid())
+  tenantKey         String        @default("vip_lounge")
+  incidentKind      String        @default("airport_report") // airport_report | vip_request | proactive
+  incidentId        String?
+  incidentLabel     String?       // ex: "Niveau sonore élevé — Espace Détente"
+  zoneCode          String?
+  signalType        String?
+  priority          String        @default("medium") // low|medium|high|critical
+  staffId           String?
+  staff             StaffAccount? @relation(fields: [staffId], references: [id], onDelete: SetNull)
+  staffName         String?
+  ruleId            String?
+  rule              RoutingRule?  @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  matchedConditions String        @default("{}") // JSON {zone,type,rulePriority}
+  scoreBreakdown    String        @default("[]") // JSON [{label,points}]
+  score             Int           @default(0)
+  decisionMs        Int           @default(0)   // temps de décision du moteur
+  escalated         Boolean       @default(false)
+  open              Boolean       @default(true) // tâche active (charge)
+  responseTimeSec   Int?          // création → prise en charge
+  resolutionTimeSec Int?          // création → résolution
+  outcome           String        @default("assigned") // assigned|accepted|resolved|escalated|failed|timeout
+
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  @@index([tenantKey, createdAt])
+  @@index([staffId, open])
+  @@index([incidentId])
 }
 
 // ============================================================

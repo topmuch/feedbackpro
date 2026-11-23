@@ -17,14 +17,14 @@ import { seedVoiceRulesIfEmpty } from '@/lib/voice-rules-seed'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-// Auto-seed : crée les zones + règles Denise en BDD si elles n'existent pas.
+// Auto-seed : crée les zones + règles Nathalie en BDD si elles n'existent pas.
 // Lancé en fire-and-forget au premier appel API (idempotent).
 let seeded = false
 async function autoSeed() {
   if (seeded) return
   seeded = true
   try {
-    // Seed les règles Denise
+    // Seed les règles Nathalie
     await seedVoiceRulesIfEmpty().catch(() => undefined)
     // Seed les zones aéroport (upsert idempotent)
     for (const z of AIRPORT_ZONES) {
@@ -60,7 +60,7 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ tag: strin
     return fail('Tag manquant', 400)
   }
 
-  // Auto-seed les zones + règles Denise si BDD vide (fire-and-forget)
+  // Auto-seed les zones + règles Nathalie si BDD vide (fire-and-forget)
   void autoSeed()
 
   // 1. Résolution par la config statique (source de vérité)

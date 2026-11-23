@@ -20,8 +20,10 @@
 // sensible, seulement des templates de configuration.
 // ============================================================
 
+import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
 import { ok, fail } from "@/lib/session"
+import { limiteTaux } from "@/lib/rate-limit"
 
 /** Forme publique d'un SecteurConfig (JSON parsé côté serveur) */
 type ZoneDefaut = { nom: string; tagsPos: string[]; tagsNeg: string[] }
@@ -56,7 +58,11 @@ function parseJson<T>(valeur: string | null | undefined, defaut: T): T {
   }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  // 60/min/IP : templates publics statiques, aucun usage légitime au-delà.
+  const bloque = limiteTaux(req, "secteurs-public", { max: 60, fenetreMs: 60_000 })
+  if (bloque) return bloque
+
   try {
     const secteurs = await db.secteurConfig.findMany({
       orderBy: { nom: "asc" },

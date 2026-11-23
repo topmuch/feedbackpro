@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Page « Rapports IA » (Session 4, §3)
+// FeedVoice - Page « Rapports IA » (Session 4, §3)
 // Liste complète des rapports du Coach IA (quotidiens + hebdo) :
 // ouverture détaillée (markdown), régénération, envoi par email.
 // Contrats :
@@ -9,9 +9,12 @@
 //        porte source: "ia" | "fallback" depuis la Session 5)
 //   POST /api/pro/coach { type? } → { rapport } (5-15 s, LLM, avec source)
 //   POST /api/pro/coach/email { rapportId } → { envoye, email }
+//   POST /api/voice/report { mois?: "YYYY-MM" } → briefing audio mensuel
+//        « Nathalie » (vraie voix TTS serveur, mp3 en base64, texte,
+//        KPIs réels du mois — carte dédiée sous l'en-tête)
 // ============================================================
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import ReactMarkdown, { type Components } from "react-markdown"
 import {
   Bot,
@@ -23,11 +26,25 @@ import {
   Lightbulb,
   TrendingUp,
   ArrowLeft,
+  Volume2,
+  Square,
+  AudioLines,
+  Mic,
+  Download,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Skeleton } from "@/components/ui/skeleton"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { useToast } from "@/hooks/use-toast"
 import { cn } from "@/lib/utils"
 
@@ -52,7 +69,42 @@ type RapportIA = {
   createdAt: string
 }
 
+// ---------- Types du briefing audio mensuel (contrat POST /api/voice/report) ----------
+
+type BriefingKpis = {
+  mois: string
+  libelleMois: string
+  totalRetours: number
+  noteMoyenne: number
+  repartitionEtoiles: { note: number; count: number }[]
+  topTags: { tag: string; count: number }[]
+  alertes: number
+  recompenses: number
+}
+
+type BriefingAudio = {
+  audioBase64: string
+  mimeType: string
+  texte: string
+  dureeEstimee?: number
+  source?: string
+  kpis: BriefingKpis
+}
+
 // ---------- Petits utilitaires d'affichage ----------
+
+/** Les 12 derniers mois (« YYYY-MM » + libellé français) pour le sélecteur du briefing. */
+function derniersMois(count = 12): { valeur: string; label: string }[] {
+  const now = new Date()
+  const options: { valeur: string; label: string }[] = []
+  for (let i = 0; i < count; i++) {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1))
+    const valeur = `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`
+    const label = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric", timeZone: "UTC" }).format(d)
+    options.push({ valeur, label: label.charAt(0).toUpperCase() + label.slice(1) })
+  }
+  return options
+}
 
 /** Date de création : « 12 janv. 2026 · 07:00 » */
 function formatDateCreation(d: string | Date): string {
@@ -86,8 +138,8 @@ function badgeSource(source?: string): { label: string; variant: "default" | "se
 
 /** Couleur du badge de score (identique à coach-ia-tab scoreTone) */
 function scoreTone(score: number): string {
-  if (score >= 80) return "border-green-300 text-green-700"
-  if (score >= 60) return "border-amber-300 text-amber-700"
+  if (score >= 80) return "border-[#dba28a] text-[#8a4f3b]"
+  if (score >= 60) return "border-[#dba28a] text-[#8a4f3b]"
   return "border-rose-300 text-rose-700"
 }
 
@@ -128,8 +180,129 @@ export function RapportsTab() {
   // Rapport ouvert dans le modal de lecture
   const [rapportOuvert, setRapportOuvert] = useState<RapportIA | null>(null)
 
+  // ---------- Briefing audio Nathalie (vraie voix TTS serveur) ----------
+  // POST /api/voice/report → mp3 en base64 + texte + KPIs réels du mois.
+  // Le lecteur <audio> sert le fichier data: — téléchargeable/partageable.
+  const moisDisponibles = derniersMois(12)
+  const [briefingMois, setBriefingMois] = useState<string>(moisDisponibles[0]?.valeur ?? "")
+  const [briefingAudio, setBriefingAudio] = useState<BriefingAudio | null>(null)
+  const [briefingEnCours, setBriefingEnCours] = useState(false)
+  const [briefingErreur, setBriefingErreur] = useState<string | null>(null)
+  const [briefingTexteVisible, setBriefingTexteVisible] = useState(false)
+
+  // ---------- Lecture vocale du rapport (voix Nathalie, Web Speech API) ----------
+  // Même mécanique que la démo du landing : voix FR féminine, débit posé.
+  // Zéro asset audio : la synthèse est native du navigateur.
+  const [lectureEnCours, setLectureEnCours] = useState(false)
+  const voixRef = useRef<SpeechSynthesisVoice[]>([])
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return
+    const synth = window.speechSynthesis
+    const charger = () => {
+      voixRef.current = synth.getVoices()
+    }
+    charger()
+    synth.addEventListener("voiceschanged", charger)
+    return () => synth.removeEventListener("voiceschanged", charger)
+  }, [])
+
+  // Annule toute lecture en quittant la vue détaillée ou en démontant la page.
+  useEffect(() => {
+    if (rapportOuvert) return
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel()
+    }
+    setLectureEnCours(false)
+  }, [rapportOuvert])
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel()
+      }
+    }
+  }, [])
+
   // Badge de source du rapport ouvert (valeur par défaut si modal fermé, sans effet)
   const sourceOuvert = badgeSource(rapportOuvert?.source)
+
+  // ---------- Texte à énoncer : markdown épuré + blocs structurés ----------
+  const texteRapport = (r: RapportIA): string => {
+    const epure = (r.contenuMarkdown ?? "")
+      .replace(/```[\s\S]*?```/g, " ")
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+      .replace(/[#*_>`|~-]+/g, " ")
+      .replace(/\s{2,}/g, " ")
+      .trim()
+    const intro = `Rapport ${r.type === "hebdomadaire" ? "hebdomadaire" : "quotidien"}, score global ${Math.round(r.scoreGlobal)} sur 100. `
+    const blocs = [
+      r.priorites?.length ? `Priorités. ${r.priorites.join(". ")}.` : "",
+      r.recommandations?.length ? `Recommandations. ${r.recommandations.join(". ")}.` : "",
+      r.predictions?.length ? `Prédictions. ${r.predictions.join(". ")}.` : "",
+    ]
+      .filter(Boolean)
+      .join(" ")
+    return `${intro} ${epure} ${blocs}`.trim().slice(0, 1500)
+  }
+
+  /** Démarre/arrête la lecture vocale du rapport (voix FR féminine « Nathalie »). */
+  const basculerLecture = (r: RapportIA) => {
+    if (typeof window === "undefined" || !("speechSynthesis" in window)) return
+    const synth = window.speechSynthesis
+    if (lectureEnCours) {
+      synth.cancel()
+      setLectureEnCours(false)
+      return
+    }
+    synth.cancel()
+    const utterance = new SpeechSynthesisUtterance(texteRapport(r))
+    utterance.lang = "fr-FR"
+    utterance.rate = 0.92
+    utterance.pitch = 1.05
+    utterance.volume = 0.85
+    const francaises = voixRef.current.filter((v) => v.lang.toLowerCase().startsWith("fr"))
+    const feminine =
+      francaises.find((v) =>
+        /amélie|amelie|audrey|julie|marie|céline|celine|virginie|female|femme/i.test(v.name)
+      ) ?? francaises[0]
+    if (feminine) utterance.voice = feminine
+    utterance.onend = () => setLectureEnCours(false)
+    utterance.onerror = () => setLectureEnCours(false)
+    setLectureEnCours(true)
+    synth.speak(utterance)
+  }
+
+  // ---------- Génération du briefing audio mensuel (TTS serveur) ----------
+  async function genererBriefing() {
+    setBriefingEnCours(true)
+    setBriefingErreur(null)
+    setBriefingTexteVisible(false)
+    try {
+      const res = await fetch("/api/voice/report", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mois: briefingMois }),
+      })
+      const json = await res.json()
+      if (res.ok && json?.ok && json.data?.audioBase64) {
+        setBriefingAudio(json.data as BriefingAudio)
+        toast({
+          title: "Briefing audio prêt",
+          description: `Le bilan de ${json.data.kpis?.libelleMois ?? "votre mois"} est prêt à être écouté.`,
+        })
+      } else {
+        const message = json?.error || "Impossible de générer le briefing audio pour le moment."
+        setBriefingErreur(message)
+        toast({ title: "Génération impossible", description: message, variant: "destructive" })
+      }
+    } catch {
+      const message = "Erreur réseau : impossible de contacter le service audio."
+      setBriefingErreur(message)
+      toast({ title: "Erreur réseau", description: message, variant: "destructive" })
+    } finally {
+      setBriefingEnCours(false)
+    }
+  }
 
   // ---------- Chargement de la liste ----------
   const charger = useCallback(async () => {
@@ -288,13 +461,13 @@ export function RapportsTab() {
                 icone={Lightbulb}
                 titre="Recommandations"
                 items={rapportOuvert.recommandations ?? []}
-                tone="text-amber-600"
+                tone="text-[#a05f45]"
               />
               <ListeRapport
                 icone={TrendingUp}
                 titre="Prédictions"
                 items={rapportOuvert.predictions ?? []}
-                tone="text-green-600"
+                tone="text-[#a05f45]"
               />
             </div>
           </CardContent>
@@ -303,13 +476,25 @@ export function RapportsTab() {
         {/* Pied : statut envoi email + actions */}
         <div className="flex flex-wrap items-center justify-between gap-2">
           {rapportOuvert.envoyeParEmail ? (
-            <Badge variant="outline" className="border-green-300 text-green-700">
+            <Badge variant="outline" className="border-[#dba28a] text-[#8a4f3b]">
               📧 Envoyé par email
             </Badge>
           ) : (
             <span className="text-xs text-muted-foreground">Pas encore envoyé par email</span>
           )}
           <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              onClick={() => basculerLecture(rapportOuvert)}
+              aria-label={lectureEnCours ? "Arrêter la lecture vocale du rapport" : "Écouter le rapport avec la voix de Nathalie"}
+            >
+              {lectureEnCours ? (
+                <Square className="mr-2 h-4 w-4" aria-hidden />
+              ) : (
+                <Volume2 className="mr-2 h-4 w-4" aria-hidden />
+              )}
+              {lectureEnCours ? "Arrêter la lecture" : "Écouter le rapport"}
+            </Button>
             <Button
               variant="outline"
               onClick={() => envoyerParEmail(rapportOuvert)}
@@ -351,6 +536,132 @@ export function RapportsTab() {
           {generation ? "Analyse en cours…" : "Générer un nouveau rapport"}
         </Button>
       </div>
+
+      {/* ---------- Carte Briefing audio Nathalie (vraie voix TTS serveur) ---------- */}
+      <Card>
+        <CardContent className="space-y-4 p-4 sm:p-6">
+          <div className="flex items-start gap-3">
+            <div className="rounded-2xl bg-primary/10 p-3" aria-hidden>
+              <AudioLines className="h-6 w-6 text-[#bc7155]" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <h2 className="text-[23px] font-bold leading-tight tracking-tight">Briefing audio Nathalie.</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Une vraie voix de synthèse vous lit votre bilan mensuel : écoutez-le ici ou
+                téléchargez-le pour le partager.
+              </p>
+            </div>
+          </div>
+
+          {/* Sélecteur de mois + bouton de génération */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Select value={briefingMois} onValueChange={setBriefingMois} disabled={briefingEnCours}>
+              <SelectTrigger
+                className="w-[180px] shrink-0"
+                aria-label="Mois du briefing audio"
+              >
+                <SelectValue placeholder="Choisir un mois" />
+              </SelectTrigger>
+              <SelectContent className="max-h-72">
+                {moisDisponibles.map((m) => (
+                  <SelectItem key={m.valeur} value={m.valeur}>
+                    {m.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <Button onClick={genererBriefing} disabled={briefingEnCours || !briefingMois}>
+              {briefingEnCours ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" aria-hidden />
+              ) : (
+                <Mic className="mr-2 h-4 w-4" aria-hidden />
+              )}
+              {briefingEnCours ? "Génération en cours…" : "Générer le briefing audio"}
+            </Button>
+          </div>
+
+          {/* Erreur lisible (inline, en complément du toast) */}
+          {briefingErreur && (
+            <p role="alert" className="text-sm font-medium text-destructive">
+              {briefingErreur}
+            </p>
+          )}
+
+          {/* Résultat : lecteur + téléchargement + KPIs + texte repliable */}
+          {briefingAudio && !briefingEnCours && (
+            <div className="space-y-3 border-t pt-4">
+              <audio
+                controls
+                preload="metadata"
+                className="w-full"
+                src={`data:${briefingAudio.mimeType};base64,${briefingAudio.audioBase64}`}
+                aria-label="Lecteur du briefing audio de Nathalie"
+              />
+
+              <div className="flex flex-wrap items-center gap-2">
+                <Button asChild variant="outline">
+                  <a
+                    href={`data:${briefingAudio.mimeType};base64,${briefingAudio.audioBase64}`}
+                    download={`briefing-nathalie-${briefingAudio.kpis.mois}.wav`}
+                    aria-label="Télécharger le briefing audio au format WAV"
+                  >
+                    <Download className="mr-2 h-4 w-4" aria-hidden />
+                    Télécharger
+                  </a>
+                </Button>
+                <Button
+                  variant="ghost"
+                  onClick={() => setBriefingTexteVisible((v) => !v)}
+                  aria-expanded={briefingTexteVisible}
+                >
+                  {briefingTexteVisible ? (
+                    <ChevronUp className="mr-2 h-4 w-4" aria-hidden />
+                  ) : (
+                    <ChevronDown className="mr-2 h-4 w-4" aria-hidden />
+                  )}
+                  {briefingTexteVisible ? "Masquer le texte" : "Afficher le texte du briefing"}
+                </Button>
+                <span className="text-xs text-muted-foreground">
+                  {briefingAudio.source === "fallback" ? "Analyse locale" : "Généré par IA"}
+                  {briefingAudio.dureeEstimee ? ` · ≈ ${briefingAudio.dureeEstimee} s` : ""}
+                </span>
+              </div>
+
+              {/* KPIs réels du mois servis par l'API */}
+              <div className="flex flex-wrap items-center gap-1.5">
+                <Badge variant="outline">
+                  {briefingAudio.kpis.totalRetours} retour
+                  {briefingAudio.kpis.totalRetours > 1 ? "s" : ""}
+                </Badge>
+                <Badge variant="outline">
+                  Note moyenne {briefingAudio.kpis.noteMoyenne.toFixed(2).replace(".", ",")}/5
+                </Badge>
+                <Badge
+                  variant="outline"
+                  className={
+                    briefingAudio.kpis.alertes > 0 ? "border-rose-300 text-rose-700" : undefined
+                  }
+                >
+                  {briefingAudio.kpis.alertes} alerte{briefingAudio.kpis.alertes > 1 ? "s" : ""}
+                </Badge>
+                <Badge variant="outline">
+                  {briefingAudio.kpis.recompenses} récompense
+                  {briefingAudio.kpis.recompenses > 1 ? "s" : ""}
+                </Badge>
+              </div>
+
+              {/* Texte du briefing, repliable (déplié : scroll si long) */}
+              {briefingTexteVisible && (
+                <div className="rounded-xl border bg-muted/30 p-3">
+                  <p className="max-h-96 overflow-y-auto whitespace-pre-line text-sm leading-relaxed text-muted-foreground">
+                    {briefingAudio.texte}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* ---------- Squelettes / empty state / liste ---------- */}
       {loading ? (
@@ -414,7 +725,7 @@ export function RapportsTab() {
 
                   {/* Marqueur d'envoi email */}
                   {rapport.envoyeParEmail && (
-                    <Badge variant="outline" className="w-fit border-green-300 text-green-700">
+                    <Badge variant="outline" className="w-fit border-[#dba28a] text-[#8a4f3b]">
                       📧 Envoyé par email
                     </Badge>
                   )}

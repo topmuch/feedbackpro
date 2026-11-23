@@ -1,21 +1,32 @@
 "use client"
 
 // ============================================================
-// FeedbackPro — Vue Authentification (Refonte Premium)
+// FeedVoice — LOGIN-2 : DEUX pages de connexion distinctes
 // ------------------------------------------------------------
-// Layout split-screen desktop :
-//   - Panneau gauche (lg+) : dégradé bleu aéroport #003399 → jaune
-//     IATA #FCD116, 3 aurora blobs flous (CSS keyframes), logo blanc,
-//     tagline, témoignage glass dark, ligne de stats sociales.
-//   - Panneau droit : formulaire sur fond #F5F5F5, max-w-md,
-//     toggle à pastille coulissante (framer-motion layoutId)
-//     entre Connexion / Inscription.
-// Mobile : colonne unique, formulaire seul (panneau visuel caché).
+// 1. <AuthView />          — ÉTABLISSEMENTS (/login)
+//    Design premium crème #ffffff + or #C9A961 + anthracite,
+//    Playfair Display (titres) + Inter (corps) — aligné sur la
+//    landing premium. Split-screen desktop (panneau noir/or à
+//    gauche), formulaire + toggle Connexion/Inscription à droite.
+//    Comptes démo Restaurant + lien discret vers l'espace admin.
+//
+// 2. <AuthViewAdmin />     — SUPERADMIN (/admin-login)
+//    Design exclusif noir #1A1A1A + or, carte centrée, AUCUNE
+//    inscription ni bouton démo restaurant. Si des identifiants
+//    non-SUPERADMIN sont saisis ici : session refusée + nettoyée.
+//
+// 3. <TenantSelectionStep /> — onboarding post-inscription (TENANT-3),
+//    logique inchangée, surface restylée crème/or.
 //
 // Le store reste la source de vérité : authMode / setAuthMode /
 // demoLogin / prefillLogin / refreshSession / setView. Après un
-// succès : refreshSession() puis setView(role === "SUPERADMIN"
-// ? "admin" : "dashboard").
+// succès : refreshSession() puis setView selon le rôle.
+//
+// BUG « identifiants saisis 2 fois » — corrigé côté SW (network-first
+// sur /api/*) et ceinture de sécurité côté formulaire : après login,
+// on navigue selon le rôle RENVOYÉ PAR L'API (pas seulement la
+// session re-fetchée), et un filet de sécurité force la sortie de
+// la vue auth si refreshSession échoue.
 // ============================================================
 
 import { useEffect, useState } from "react"
@@ -25,6 +36,7 @@ import { z } from "zod"
 import { AnimatePresence, motion } from "framer-motion"
 import {
   AlertCircle,
+  ArrowLeft,
   ArrowRight,
   Building2,
   Eye,
@@ -32,7 +44,7 @@ import {
   Loader2,
   Lock,
   Mail,
-  Sparkles,
+  ShieldCheck,
   Star,
   Store,
   Plane,
@@ -42,12 +54,12 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import { useAppStore } from "@/store/app-store"
+import { BrandMark } from "@/components/feedbackpro/brand-mark"
 
 // ============================================================
-// CSS keyframes — aurora blobs (3, flous, loops lents) +
-// shimmer dégradé bouton. Injecté via <style> pour rester
-// scoped au composant et éviter toute collision de classes.
-// Respect de prefers-reduced-motion.
+// Design tokens — alignés sur la landing premium
+//   crème #ffffff · or #C9A961 / #C9A961 · anthracite #1A1A1A
+//   noir #1A1A1A · Playfair Display (titres) · Inter (corps)
 // ============================================================
 
 const AUTH_CSS = `
@@ -57,10 +69,13 @@ const AUTH_CSS = `
 .fbp-aurora1 { animation: fbp-aurora1 22s ease-in-out infinite; }
 .fbp-aurora2 { animation: fbp-aurora2 27s ease-in-out infinite; }
 .fbp-aurora3 { animation: fbp-aurora3 32s ease-in-out infinite; }
-@keyframes fbp-shimmer { 0%{background-position:0% 50%} 100%{background-position:200% 50%} }
-.fbp-shimmer { background-size:200% auto; animation: fbp-shimmer 3.5s linear infinite; }
+@keyframes fbp-shimmer { 0%{background-position:200% 0} 100%{background-position:-200% 0} }
+.fbp-shimmer { background-size:200% auto; animation: fbp-shimmer 3.2s linear infinite; }
+@keyframes fbp-glow { 0%,100%{opacity:.55} 50%{opacity:.95} }
+.fbp-glow { animation: fbp-glow 5s ease-in-out infinite; }
+.fbp-serif { font-family:'Playfair Display', Georgia, serif; }
 @media (prefers-reduced-motion: reduce) {
-  .fbp-aurora1, .fbp-aurora2, .fbp-aurora3, .fbp-shimmer { animation: none; }
+  .fbp-aurora1, .fbp-aurora2, .fbp-aurora3, .fbp-shimmer, .fbp-glow { animation: none; }
 }
 `
 
@@ -110,86 +125,116 @@ type ValeursConnexion = z.infer<typeof connexionSchema>
 type ValeursInscription = z.infer<typeof inscriptionSchema>
 
 // ============================================================
-// Vue racine — split screen 50/50 sur lg+, colonne unique sur mobile.
-// Pas de props : tout est piloté par le store (authMode, setAuthMode).
+// Retour landing avec nettoyage de l'URL (/login → /)
+// ============================================================
+
+function retourLanding(setView: (v: "landing") => void) {
+  try {
+    if (typeof window !== "undefined" && window.location.pathname === "/login") {
+      window.history.replaceState({}, "", "/")
+    }
+  } catch {
+    /* ignore */
+  }
+  setView("landing")
+}
+
+// ============================================================
+// VUE 1 — ÉTABLISSEMENTS (crème/or premium, split screen)
+// Page /login — restaurants, hôtels, aéroports, salons VIP…
 // ============================================================
 
 export function AuthView() {
   return (
-    <div className="relative grid min-h-screen grid-cols-1 bg-[#F5F5F5] lg:grid-cols-2">
+    <div className="relative grid grid-cols-1 bg-[#ffffff] lg:grid-cols-2">
       <style dangerouslySetInnerHTML={{ __html: AUTH_CSS }} />
-      <PanneauVisuel />
+      <PanneauVisuelEtab />
       <PanneauForm />
     </div>
   )
 }
 
 // ============================================================
-// Panneau visuel (gauche, desktop uniquement)
-// Dégradé indigo → violet, 3 aurora blobs flous, grille subtile,
-// logo blanc, tagline, témoignage glass dark, ligne de stats.
-// Masqué en mobile (lg:flex) pour laisser toute la place au formulaire.
+// Panneau visuel (gauche, desktop) — noir & or, aurora dorées,
+// grille subtile, logo, tagline Playfair, témoignage glass,
+// rangée de secteurs desservis, stats sociales.
 // ============================================================
 
-function PanneauVisuel() {
+function PanneauVisuelEtab() {
   return (
     <aside
       aria-hidden="true"
-      className="relative hidden overflow-hidden bg-gradient-to-br from-[#003399] to-[#FCD116] lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16"
+      className="relative hidden overflow-hidden bg-gradient-to-br from-[#1A1A1A] via-[#1A1A1A] to-[#1A1A1A] lg:flex lg:flex-col lg:justify-between lg:p-12 xl:p-16"
     >
-      {/* Aurora blobs (3, flous, loops lents) */}
-      <div className="fbp-aurora1 pointer-events-none absolute -top-32 -left-24 h-[40rem] w-[40rem] rounded-full bg-white/15 blur-[120px]" />
-      <div className="fbp-aurora2 pointer-events-none absolute top-1/4 -right-32 h-[36rem] w-[36rem] rounded-full bg-[#FCD116]/30 blur-[120px]" />
-      <div className="fbp-aurora3 pointer-events-none absolute -bottom-32 left-1/3 h-[32rem] w-[32rem] rounded-full bg-[#06B6D4]/20 blur-[120px]" />
+      {/* Aurora dorées (3, floues, loops lents) */}
+      <div className="fbp-aurora1 pointer-events-none absolute -top-32 -left-24 h-[40rem] w-[40rem] rounded-full bg-[#C9A961]/15 blur-[120px]" />
+      <div className="fbp-aurora2 pointer-events-none absolute top-1/4 -right-32 h-[36rem] w-[36rem] rounded-full bg-[#C9A961]/10 blur-[120px]" />
+      <div className="fbp-aurora3 pointer-events-none absolute -bottom-32 left-1/3 h-[32rem] w-[32rem] rounded-full bg-[#8a4f3b]/10 blur-[120px]" />
 
       {/* Grille subtile en arrière-plan */}
       <div
-        className="pointer-events-none absolute inset-0 opacity-[0.08]"
+        className="pointer-events-none absolute inset-0 opacity-[0.06]"
         style={{
           backgroundImage:
-            "linear-gradient(rgba(255,255,255,0.6) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.6) 1px, transparent 1px)",
+            "linear-gradient(rgba(201,169,97,0.7) 1px, transparent 1px), linear-gradient(90deg, rgba(201,169,97,0.7) 1px, transparent 1px)",
           backgroundSize: "40px 40px",
         }}
       />
 
-      {/* ---------- En-tête : logo sur fond blanc arrondi ---------- */}
+      {/* Liseré doré vertical */}
+      <div className="pointer-events-none absolute inset-y-0 right-0 w-px bg-gradient-to-b from-transparent via-[#C9A961]/40 to-transparent" />
+
+      {/* ---------- En-tête : logo sur carte claire ---------- */}
       <div className="relative flex items-center gap-3">
-        <div className="rounded-xl bg-white px-4 py-2 shadow-lg">
-          <img
-            src="/logo-feedbackpro.png"
-            alt="FeedbackPro"
-            className="h-10 w-auto"
-          />
-        </div>
+        <BrandMark tone="white" className="h-7" />
       </div>
 
-      {/* ---------- Centre : tagline + témoignage ---------- */}
+      {/* ---------- Centre : tagline + témoignage + secteurs ---------- */}
       <div className="relative space-y-8">
-        <h2 className="max-w-md text-4xl font-bold leading-tight text-white xl:text-5xl">
-          L&apos;audit qualité continu pour votre établissement
+        <h2 className="max-w-lg text-4xl font-bold leading-[1.05] tracking-[-0.02em] text-white xl:text-5xl">
+          L&apos;excellence opérationnelle,{" "}
+          <em className="italic text-[#C9A961]">mesurée en temps réel</em>.
         </h2>
 
         {/* Témoignage glass dark */}
-        <figure className="max-w-md rounded-2xl border border-white/15 bg-white/10 p-6 shadow-2xl shadow-black/20 backdrop-blur-md">
+        <figure className="max-w-md rounded-none border border-white/15 bg-white/5 p-6 backdrop-blur-md">
           <div className="mb-3 flex gap-1" aria-hidden>
             {Array.from({ length: 5 }).map((_, i) => (
-              <Star key={i} className="h-4 w-4 fill-amber-300 text-amber-300" />
+              <Star key={i} className="h-4 w-4 fill-[#C9A961] text-[#C9A961]" />
             ))}
           </div>
           <blockquote className="text-lg font-medium leading-relaxed text-white/95">
-            « FeedbackPro a transformé notre gestion des incidents. Nous réagissons avant
+            « FeedVoice a transformé notre gestion des incidents. Nous réagissons avant
             même que le client ne parte. »
           </blockquote>
-          <figcaption className="mt-4 text-sm font-medium text-white/80">
+          <figcaption className="mt-4 text-sm font-medium text-[#C9A961]">
             — Gérant de restaurant
           </figcaption>
         </figure>
+
+        {/* Secteurs desservis */}
+        <div className="flex flex-wrap gap-2">
+          {[
+            { emoji: "✈️", label: "Aéroports" },
+            { emoji: "🥂", label: "Salons VIP" },
+            { emoji: "🏪", label: "Commerces" },
+            { emoji: "🍽️", label: "Restaurants" },
+          ].map((s) => (
+            <span
+              key={s.label}
+              className="inline-flex items-center gap-2 rounded-full border border-[#C9A961]/30 bg-white/5 px-3.5 py-1.5 text-xs font-medium text-white/85 backdrop-blur-sm"
+            >
+              <span aria-hidden>{s.emoji}</span>
+              {s.label}
+            </span>
+          ))}
+        </div>
       </div>
 
       {/* ---------- Bas : ligne de stats sociales ---------- */}
       <div className="relative flex items-center gap-6 text-white">
         <div className="flex items-center gap-2">
-          <Star className="h-4 w-4 fill-amber-300 text-amber-300" aria-hidden />
+          <Star className="h-4 w-4 fill-[#C9A961] text-[#C9A961]" aria-hidden />
           <span className="text-sm font-semibold">4.9/5</span>
         </div>
         <div className="h-4 w-px bg-white/25" aria-hidden />
@@ -202,10 +247,10 @@ function PanneauVisuel() {
 }
 
 // ============================================================
-// Panneau formulaire (droite, toujours visible)
-// Fond #F5F5F5, formulaire max-w-md centré verticalement.
-// Logo mobile en haut (lg:hidden), toggle pastille coulissante,
-// puis AnimatePresence pour le slide-in du formulaire actif.
+// Panneau formulaire (droite, toujours visible) — fond crème.
+// Logo mobile en haut (lg:hidden), toggle pastille dorée
+// coulissante, puis AnimatePresence pour le slide-in du
+// formulaire actif.
 // ============================================================
 
 function PanneauForm() {
@@ -214,29 +259,29 @@ function PanneauForm() {
   const setView = useAppStore((s) => s.setView)
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F5F5F5] px-4 py-8 sm:px-6 lg:px-8">
+    <div className="flex min-h-screen items-center justify-center bg-[#ffffff] px-4 py-10 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-6">
         {/* Logo mobile (panneau visuel caché sur petit écran) */}
         <div className="flex items-center justify-between lg:hidden">
           <button
             type="button"
-            onClick={() => setView("landing")}
-            className="flex items-center gap-2 text-sm font-medium text-slate-500 transition-colors hover:text-[#003399]"
+            onClick={() => retourLanding(setView)}
+            className="flex items-center gap-2"
             aria-label="Retour à l'accueil"
           >
-            <img src="/logo-feedbackpro.png" alt="FeedbackPro" className="h-9" />
+            <BrandMark className="h-6" />
           </button>
           <button
             type="button"
-            onClick={() => setView("landing")}
-            className="text-xs font-medium text-slate-400 hover:text-[#003399]"
+            onClick={() => retourLanding(setView)}
+            className="text-xs font-medium text-stone-400 transition-colors hover:text-[#1A1A1A]"
           >
             Accueil
           </button>
         </div>
 
-        {/* ---------- Toggle Connexion / Inscription (pastille coulissante) ---------- */}
-        <div className="relative flex rounded-xl bg-slate-100 p-1">
+        {/* ---------- Toggle Connexion / Inscription (pastille dorée coulissante) ---------- */}
+        <div className="relative flex rounded-full border border-[#000d10]/15 bg-[#f2f1ef] p-1">
           {(["login", "signup"] as const).map((mode) => {
             const actif = authMode === mode
             const label = mode === "login" ? "Connexion" : "Inscription"
@@ -245,15 +290,15 @@ function PanneauForm() {
                 key={mode}
                 type="button"
                 onClick={() => setAuthMode(mode)}
-                className={`relative z-10 flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold transition-colors ${
-                  actif ? "text-white" : "text-slate-600 hover:text-slate-900"
+                className={`relative z-10 flex-1 rounded-full px-4 py-2.5 text-sm font-semibold transition-colors ${
+                  actif ? "text-white" : "text-[#8e8e95] hover:text-[#1A1A1A]"
                 }`}
                 aria-pressed={actif}
               >
                 {actif && (
                   <motion.div
                     layoutId="auth-tab-pill"
-                    className="absolute inset-0 rounded-lg bg-gradient-to-r from-[#003399] to-[#FCD116] shadow-lg shadow-[#003399]/25"
+                    className="absolute inset-0 rounded-full bg-[#000d10]"
                     transition={{ type: "spring", stiffness: 380, damping: 32 }}
                   />
                 )}
@@ -281,10 +326,15 @@ function PanneauForm() {
 }
 
 // ============================================================
-// FORMULAIRE DE CONNEXION
-// Email + mot de passe (show/hide) + bouton gradient glow +
-// mot de passe oublié + divider « ou » + 2 boutons démo (quick login).
+// FORMULAIRE DE CONNEXION ÉTABLISSEMENTS
+// Email + mot de passe (show/hide) + bouton anthracite/or +
+// mot de passe oublié + divider « ou » + compte démo Restaurant
+// + lien discret vers l'espace SuperAdmin (/admin-login).
 // ============================================================
+
+// Classe utilitaire des champs (crème premium)
+const CHAMP_ETAB =
+  "h-12 rounded-none border border-[#d5d3d4] bg-white pl-11 pr-11 text-[#1A1A1A] placeholder:text-stone-400 focus-visible:border-[#000d10] focus-visible:ring-2 focus-visible:ring-[#000d10]/15"
 
 function ConnexionForm() {
   const prefillLogin = useAppStore((s) => s.prefillLogin)
@@ -300,7 +350,7 @@ function ConnexionForm() {
 
   const [showPassword, setShowPassword] = useState(false)
   const [erreurApi, setErreurApi] = useState<string | null>(null)
-  const [demoLoading, setDemoLoading] = useState<"pro" | "admin" | null>(null)
+  const [demoLoading, setDemoLoading] = useState<"pro" | null>(null)
 
   const {
     register,
@@ -327,11 +377,8 @@ function ConnexionForm() {
   }
 
   /** Quick login démo : pré-remplit + envoie directement la requête. */
-  async function demoRapide(kind: "pro" | "admin") {
-    const creds =
-      kind === "pro"
-        ? { email: "demo@pizzeria.fr", password: "demo1234" }
-        : { email: "admin@feedbackpro.fr", password: "admin123" }
+  async function demoRapide(kind: "pro") {
+    const creds = { email: "demo@pizzeria.fr", password: "demo1234" }
     // Synchronise le store (au cas où d'autres composants suivent prefillLogin)
     demoLogin(kind)
     // Reflète les valeurs dans le formulaire (transparence UX)
@@ -343,7 +390,7 @@ function ConnexionForm() {
   }
 
   /** Appel réel à /api/auth/login + refreshSession + redirection. */
-  async function tenterConnexion(email: string, password: string, kindDemo?: "pro" | "admin") {
+  async function tenterConnexion(email: string, password: string, kindDemo?: "pro") {
     setErreurApi(null)
     try {
       const res = await fetch("/api/auth/login", {
@@ -363,17 +410,19 @@ function ConnexionForm() {
         }
         return
       }
-      // Succès : refreshSession() appelle deriveView() qui calcule la bonne
-      // vue selon le rôle (admin pour SUPERADMIN, dashboard pour les Pro).
-      // TENANT-3 — Login classique : justRegistered=false (pas d'étape tenant).
+      // Succès : rôle renvoyé par l'API (source de vérité immédiate).
+      // refreshSession() recharge la session complète puis deriveView
+      // route vers la bonne vue (admin pour SUPERADMIN, dashboard sinon).
+      // LOGIN-2 — Ceinture de sécurité anti « double saisie » : si
+      // refreshSession échouait (réponse périmée), on force quand même
+      // la sortie de la vue auth vers le bon dashboard.
+      const roleApi: string = json?.data?.user?.role ?? ""
       setJustRegistered(false)
       await refreshSession()
-      // Safety net : si deriveView n'a pas changé la vue, on force au moins
-      // la sortie de la vue "auth" vers le dashboard Pro classique.
       const st = useAppStore.getState()
-      if (st.view === "auth") {
-        const role = st.session?.user.role
-        setView(role === "SUPERADMIN" ? "admin" : "dashboard")
+      const roleFinal = roleApi || st.session?.user.role || ""
+      if (st.view === "auth" || st.view === "auth-admin") {
+        setView(roleFinal === "SUPERADMIN" ? "admin" : "dashboard")
       }
     } catch {
       setErreurApi("Impossible de contacter le serveur. Vérifiez votre connexion.")
@@ -384,18 +433,20 @@ function ConnexionForm() {
     <form onSubmit={handleSubmit(aLaSoumission)} className="space-y-5" noValidate>
       {/* Titre + sous-titre */}
       <div className="space-y-1">
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900">Connexion</h2>
-        <p className="text-sm text-slate-500">Accédez à votre dashboard</p>
+        <h2 className="text-3xl font-bold tracking-[-0.02em] text-[#1A1A1A]">
+          Bon retour <em className="italic text-[#C9A961]">!</em>
+        </h2>
+        <p className="text-sm text-stone-500">Accédez à votre espace établissement</p>
       </div>
 
       {/* Email */}
       <div className="space-y-1.5">
-        <Label htmlFor="email-connexion" className="text-sm font-medium text-slate-700">
+        <Label htmlFor="email-connexion" className="text-sm font-medium text-[#1A1A1A]">
           Email
         </Label>
         <div className="relative">
           <Mail
-            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400"
             aria-hidden
           />
           <Input
@@ -406,7 +457,7 @@ function ConnexionForm() {
             autoComplete="email"
             aria-invalid={!!errors.email}
             {...register("email")}
-            className="h-12 rounded-xl border-2 border-slate-200 bg-white pl-11 pr-4 text-slate-900 placeholder:text-slate-400 focus-visible:border-[#003399] focus-visible:ring-2 focus-visible:ring-[#003399]/20"
+            className={CHAMP_ETAB}
           />
         </div>
         <ErreurChamp message={errors.email?.message} />
@@ -414,12 +465,12 @@ function ConnexionForm() {
 
       {/* Mot de passe (show/hide) */}
       <div className="space-y-1.5">
-        <Label htmlFor="password-connexion" className="text-sm font-medium text-slate-700">
+        <Label htmlFor="password-connexion" className="text-sm font-medium text-[#1A1A1A]">
           Mot de passe
         </Label>
         <div className="relative">
           <Lock
-            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400"
             aria-hidden
           />
           <Input
@@ -429,12 +480,12 @@ function ConnexionForm() {
             autoComplete="current-password"
             aria-invalid={!!errors.password}
             {...register("password")}
-            className="h-12 rounded-xl border-2 border-slate-200 bg-white pl-11 pr-11 text-slate-900 placeholder:text-slate-400 focus-visible:border-[#003399] focus-visible:ring-2 focus-visible:ring-[#003399]/20"
+            className={CHAMP_ETAB}
           />
           <button
             type="button"
             onClick={() => setShowPassword((v) => !v)}
-            className="absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+            className="absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-stone-100 hover:text-[#1A1A1A]"
             aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
           >
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -445,30 +496,36 @@ function ConnexionForm() {
 
       {erreurApi && <ErreurApi message={erreurApi} />}
 
-      {/* Bouton « Se connecter » — gradient indigo + glow shadow */}
+      {/* Bouton « Se connecter » — anthracite avec reflet doré animé */}
       <button
         type="submit"
         disabled={isSubmitting || !!demoLoading}
-        className="fbp-shimmer flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#003399] to-[#FCD116] px-4 py-3.5 text-base font-semibold text-white shadow-lg shadow-[#003399]/25 transition-all hover:scale-[1.02] hover:shadow-xl hover:shadow-[#003399]/35 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100"
+        className="group relative flex w-full items-center justify-center overflow-hidden rounded-full bg-[#000d10] px-4 py-3.5 text-base font-bold text-white transition-colors hover:bg-[#1A1A1A] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100"
       >
-        {isSubmitting ? (
-          <>
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-            Connexion en cours…
-          </>
-        ) : (
-          <>
-            Se connecter
-            <ArrowRight className="h-4 w-4" aria-hidden />
-          </>
-        )}
+        <span
+          className="fbp-shimmer pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-[#C9A961]/30 to-transparent"
+          aria-hidden
+        />
+        <span className="relative z-10 flex items-center gap-2">
+          {isSubmitting ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              Connexion en cours…
+            </>
+          ) : (
+            <>
+              Se connecter
+              <ArrowRight className="h-4 w-4" aria-hidden />
+            </>
+          )}
+        </span>
       </button>
 
       {/* Mot de passe oublié */}
       <p className="text-center">
         <a
-          href="mailto:support@feedbackpro.fr?subject=Mot%20de%20passe%20oubli%C3%A9"
-          className="text-sm font-medium text-slate-500 transition-colors hover:text-[#003399] hover:underline"
+          href="mailto:support@feedvoice.fr?subject=Mot%20de%20passe%20oubli%C3%A9"
+          className="text-sm font-medium text-stone-500 transition-colors hover:text-[#C9A961] hover:underline"
         >
           Mot de passe oublié ?
         </a>
@@ -477,52 +534,47 @@ function ConnexionForm() {
       {/* Divider « ou » */}
       <div className="relative py-1">
         <div className="absolute inset-0 flex items-center">
-          <div className="w-full border-t border-slate-200" />
+          <div className="w-full border-t border-[#d5d3d4]" />
         </div>
         <div className="relative flex justify-center">
-          <span className="bg-[#F5F5F5] px-3 text-xs font-medium uppercase tracking-wide text-slate-400">
+          <span className="bg-[#ffffff] px-3 text-xs font-medium uppercase tracking-wide text-stone-400">
             ou
           </span>
         </div>
       </div>
 
-      {/* Comptes démo (quick login) */}
-      <div className="grid grid-cols-2 gap-3">
-        <button
-          type="button"
-          onClick={() => demoRapide("pro")}
-          disabled={!!demoLoading || isSubmitting}
-          className="flex items-center justify-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 transition-all hover:border-[#003399]/40 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {demoLoading === "pro" ? (
-            <Loader2 className="h-4 w-4 animate-spin text-[#003399]" aria-hidden />
-          ) : (
-            <Building2 className="h-4 w-4 text-[#003399]" aria-hidden />
-          )}
-          Démo Restaurant
-        </button>
-        <button
-          type="button"
-          onClick={() => demoRapide("admin")}
-          disabled={!!demoLoading || isSubmitting}
-          className="flex items-center justify-center gap-2 rounded-xl border-2 border-slate-200 bg-white px-3 py-2.5 text-sm font-semibold text-slate-700 transition-all hover:border-[#FCD116]/40 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60"
-        >
-          {demoLoading === "admin" ? (
-            <Loader2 className="h-4 w-4 animate-spin text-[#FCD116]" aria-hidden />
-          ) : (
-            <Sparkles className="h-4 w-4 text-[#FCD116]" aria-hidden />
-          )}
-          Démo Admin
-        </button>
-      </div>
+      {/* Compte démo (quick login Restaurant) */}
+      <button
+        type="button"
+        onClick={() => demoRapide("pro")}
+        disabled={!!demoLoading || isSubmitting}
+        className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-[#d5d3d4] bg-white px-3 py-2.5 text-sm font-semibold text-[#1A1A1A] transition-all hover:border-[#C9A961]/50 hover:bg-[#faf1ec] disabled:cursor-not-allowed disabled:opacity-60"
+      >
+        {demoLoading === "pro" ? (
+          <Loader2 className="h-4 w-4 animate-spin text-[#C9A961]" aria-hidden />
+        ) : (
+          <Building2 className="h-4 w-4 text-[#C9A961]" aria-hidden />
+        )}
+        Essayer la démo Restaurant
+      </button>
+
+      {/* ---------- Accès SuperAdmin (page dédiée) ---------- */}
+      <a
+        href="/admin-login"
+        className="group flex items-center justify-center gap-2 rounded-xl border border-dashed border-[#C9A961]/40 bg-[#f7efe9] px-3 py-2.5 text-sm font-medium text-[#6f3f30] transition-all hover:border-[#C9A961] hover:bg-[#E5D4A8]"
+      >
+        <ShieldCheck className="h-4 w-4 text-[#C9A961]" aria-hidden />
+        Vous êtes SuperAdmin ? Espace dédié
+        <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" aria-hidden />
+      </a>
 
       {/* Lien bascule vers l'inscription */}
-      <p className="text-center text-sm text-slate-500">
+      <p className="text-center text-sm text-stone-500">
         Pas encore de compte ?{" "}
         <button
           type="button"
           onClick={() => setAuthMode("signup")}
-          className="font-semibold text-[#003399] transition-colors hover:underline"
+          className="font-semibold text-[#a05f45] transition-colors hover:text-[#C9A961] hover:underline"
         >
           S&apos;inscrire
         </button>
@@ -542,7 +594,6 @@ function ConnexionForm() {
 
 function InscriptionForm() {
   const refreshSession = useAppStore((s) => s.refreshSession)
-  const setView = useAppStore((s) => s.setView)
   const setAuthMode = useAppStore((s) => s.setAuthMode)
   const setJustRegistered = useAppStore((s) => s.setJustRegistered)
   const { toast } = useToast()
@@ -600,7 +651,7 @@ function InscriptionForm() {
       try { localStorage.removeItem("fp_just_registered") } catch {}
       await refreshSession()
       toast({
-        title: "Bienvenue sur FeedbackPro",
+        title: "Bienvenue sur FeedVoice",
         description: "Votre compte est créé. Votre dashboard est prêt.",
       })
     } catch {
@@ -610,23 +661,25 @@ function InscriptionForm() {
 
   // 4 cartes tenant — remplace le select secteur
   const TENANT_CARDS = [
-    { value: "airport", emoji: "✈️", titre: "Aéroport", desc: "Infrastructure & ops — wallboard, supervision", color: "hover:border-[#003399]/60 hover:bg-[#003399]/5" },
-    { value: "airline", emoji: "🛫", titre: "Compagnie Aérienne", desc: "Escale & passager — check-in, litiges bagages", color: "hover:border-sky-500/60 hover:bg-sky-50" },
-    { value: "vip_lounge", emoji: "🥂", titre: "Salon VIP", desc: "Luxe & discrétion — buffet, douches, conciergerie", color: "hover:border-[#D4AF37]/60 hover:bg-[#D4AF37]/5" },
-    { value: "classic", emoji: "🏪", titre: "Commerce classique", desc: "Restaurant, hôtel, boutique — dashboard standard", color: "hover:border-slate-400 hover:bg-slate-50" },
+    { value: "airport", emoji: "✈️", titre: "Aéroport", desc: "Infrastructure & ops — wallboard, supervision", color: "hover:border-[#C9A961]/70 hover:bg-[#f7efe9]" },
+    { value: "airline", emoji: "🛫", titre: "Compagnie Aérienne", desc: "Escale & passager — check-in, litiges bagages", color: "hover:border-[#C9A961]/70 hover:bg-[#f7efe9]" },
+    { value: "vip_lounge", emoji: "🥂", titre: "Salon VIP", desc: "Luxe & discrétion — buffet, douches, conciergerie", color: "hover:border-[#C9A961]/70 hover:bg-[#f7efe9]" },
+    { value: "classic", emoji: "🏪", titre: "Commerce classique", desc: "Restaurant, hôtel, boutique — dashboard standard", color: "hover:border-stone-400 hover:bg-[#f7efe9]" },
   ]
 
   return (
     <form onSubmit={handleSubmit(aLaSoumission)} className="space-y-5" noValidate>
       {/* Titre + sous-titre */}
       <div className="space-y-1">
-        <h2 className="text-2xl font-bold tracking-tight text-slate-900">Créer un compte</h2>
-        <p className="text-sm text-slate-500">5 minutes de setup. Pas de carte bancaire.</p>
+        <h2 className="text-3xl font-bold tracking-[-0.02em] text-[#1A1A1A]">
+          Créer votre <em className="italic text-[#C9A961]">compte</em>
+        </h2>
+        <p className="text-sm text-stone-500">5 minutes de setup. Pas de carte bancaire.</p>
       </div>
 
       {/* CHOIX DU TENANT — 4 cartes au début du formulaire */}
       <div className="space-y-3">
-        <Label className="text-sm font-medium text-slate-700">
+        <Label className="text-sm font-medium text-[#1A1A1A]">
           Quel type d&apos;établissement gérez-vous ?
         </Label>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -638,17 +691,17 @@ function InscriptionForm() {
               aria-pressed={tenantChoice === card.value}
               className={`group relative flex flex-col items-start gap-2 rounded-2xl border-2 p-4 text-left transition-all hover:scale-[1.02] ${card.color} ${
                 tenantChoice === card.value
-                  ? "border-[#003399] ring-2 ring-[#003399]/20 bg-white"
-                  : "border-slate-200 bg-white"
+                  ? "border-[#C9A961] bg-white ring-2 ring-[#C9A961]/20"
+                  : "border-[#d5d3d4] bg-white"
               }`}
             >
               <span className="text-2xl" aria-hidden>{card.emoji}</span>
               <div className="space-y-0.5">
-                <h3 className="text-sm font-bold text-slate-900">{card.titre}</h3>
-                <p className="text-xs leading-snug text-slate-500">{card.desc}</p>
+                <h3 className="text-sm font-bold text-[#1A1A1A]">{card.titre}</h3>
+                <p className="text-xs leading-snug text-stone-500">{card.desc}</p>
               </div>
               {tenantChoice === card.value && (
-                <span className="absolute right-3 top-3 flex size-5 items-center justify-center rounded-full bg-[#003399] text-white text-xs font-bold">✓</span>
+                <span className="absolute right-3 top-3 flex size-5 items-center justify-center rounded-full bg-[#C9A961] text-white text-xs font-bold">✓</span>
               )}
             </button>
           ))}
@@ -660,12 +713,12 @@ function InscriptionForm() {
 
       {/* Nom de l'établissement */}
       <div className="space-y-1.5">
-        <Label htmlFor="nom-etablissement" className="text-sm font-medium text-slate-700">
+        <Label htmlFor="nom-etablissement" className="text-sm font-medium text-[#1A1A1A]">
           Nom de l&apos;établissement
         </Label>
         <div className="relative">
           <Building2
-            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400"
             aria-hidden
           />
           <Input
@@ -674,7 +727,7 @@ function InscriptionForm() {
             autoComplete="organization"
             aria-invalid={!!errors.nomEtablissement}
             {...register("nomEtablissement")}
-            className="h-12 rounded-xl border-2 border-slate-200 bg-white pl-11 pr-4 text-slate-900 placeholder:text-slate-400 focus-visible:border-[#003399] focus-visible:ring-2 focus-visible:ring-[#003399]/20"
+            className={`${CHAMP_ETAB} pr-4`}
           />
         </div>
         <ErreurChamp message={errors.nomEtablissement?.message} />
@@ -682,12 +735,12 @@ function InscriptionForm() {
 
       {/* Email */}
       <div className="space-y-1.5">
-        <Label htmlFor="email-inscription" className="text-sm font-medium text-slate-700">
+        <Label htmlFor="email-inscription" className="text-sm font-medium text-[#1A1A1A]">
           Email
         </Label>
         <div className="relative">
           <Mail
-            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400"
             aria-hidden
           />
           <Input
@@ -698,7 +751,7 @@ function InscriptionForm() {
             autoComplete="email"
             aria-invalid={!!errors.email}
             {...register("email")}
-            className="h-12 rounded-xl border-2 border-slate-200 bg-white pl-11 pr-4 text-slate-900 placeholder:text-slate-400 focus-visible:border-[#003399] focus-visible:ring-2 focus-visible:ring-[#003399]/20"
+            className={`${CHAMP_ETAB} pr-4`}
           />
         </div>
         <ErreurChamp message={errors.email?.message} />
@@ -706,12 +759,12 @@ function InscriptionForm() {
 
       {/* Mot de passe (show/hide) */}
       <div className="space-y-1.5">
-        <Label htmlFor="password-inscription" className="text-sm font-medium text-slate-700">
+        <Label htmlFor="password-inscription" className="text-sm font-medium text-[#1A1A1A]">
           Mot de passe
         </Label>
         <div className="relative">
           <Lock
-            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400"
             aria-hidden
           />
           <Input
@@ -721,12 +774,12 @@ function InscriptionForm() {
             autoComplete="new-password"
             aria-invalid={!!errors.password}
             {...register("password")}
-            className="h-12 rounded-xl border-2 border-slate-200 bg-white pl-11 pr-11 text-slate-900 placeholder:text-slate-400 focus-visible:border-[#003399] focus-visible:ring-2 focus-visible:ring-[#003399]/20"
+            className={CHAMP_ETAB}
           />
           <button
             type="button"
             onClick={() => setShowPassword((v) => !v)}
-            className="absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+            className="absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-stone-400 transition-colors hover:bg-stone-100 hover:text-[#1A1A1A]"
             aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
           >
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -737,19 +790,19 @@ function InscriptionForm() {
 
       {/* Secteur (select natif stylé) */}
       <div className="space-y-1.5">
-        <Label htmlFor="secteur" className="text-sm font-medium text-slate-700">
+        <Label htmlFor="secteur" className="text-sm font-medium text-[#1A1A1A]">
           Secteur
         </Label>
         <div className="relative">
           <Store
-            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400"
             aria-hidden
           />
           <select
             id="secteur"
             aria-invalid={!!errors.secteur}
             {...register("secteur")}
-            className="flex h-12 w-full appearance-none rounded-xl border-2 border-slate-200 bg-white pl-11 pr-10 text-slate-900 transition-colors focus:border-[#003399] focus:outline-none focus:ring-2 focus:ring-[#003399]/20"
+            className="flex h-12 w-full appearance-none rounded-xl border-2 border-[#d5d3d4] bg-white pl-11 pr-10 text-[#1A1A1A] transition-colors focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/25"
             defaultValue=""
           >
             <option value="" disabled>
@@ -763,7 +816,7 @@ function InscriptionForm() {
           </select>
           {/* Chevron natif custom (à droite) */}
           <svg
-            className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400"
+            className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400"
             viewBox="0 0 20 20"
             fill="currentColor"
             aria-hidden
@@ -780,11 +833,11 @@ function InscriptionForm() {
 
       {erreurApi && <ErreurApi message={erreurApi} />}
 
-      {/* Bouton « Créer mon compte » — gradient indigo + glow shadow */}
+      {/* Bouton « Créer mon compte » — gradient doré + glow */}
       <button
         type="submit"
         disabled={isSubmitting}
-        className="fbp-shimmer flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#003399] to-[#FCD116] px-4 py-3.5 text-base font-semibold text-white shadow-lg shadow-[#003399]/25 transition-all hover:scale-[1.02] hover:shadow-xl hover:shadow-[#003399]/35 disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100"
+        className="fbp-shimmer flex w-full items-center justify-center gap-2 rounded-full bg-[#C9A961] px-4 py-3.5 text-base font-bold text-white transition-colors hover:bg-[#a05f45] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100"
       >
         {isSubmitting ? (
           <>
@@ -800,12 +853,12 @@ function InscriptionForm() {
       </button>
 
       {/* Lien bascule vers la connexion */}
-      <p className="text-center text-sm text-slate-500">
+      <p className="text-center text-sm text-stone-500">
         Déjà un compte ?{" "}
         <button
           type="button"
           onClick={() => setAuthMode("login")}
-          className="font-semibold text-[#003399] transition-colors hover:underline"
+          className="font-semibold text-[#a05f45] transition-colors hover:text-[#C9A961] hover:underline"
         >
           Se connecter
         </button>
@@ -815,13 +868,274 @@ function InscriptionForm() {
 }
 
 // ============================================================
-// Blocs d'erreur (API + champ)
+// VUE 2 — SUPERADMIN (/admin-login)
+// Design exclusif noir #1A1A1A + or : carte centrée, badge
+// « Espace SuperAdmin », AUCUNE inscription, aucun bouton démo
+// restaurant. Les identifiants non-SUPERADMIN sont refusés et
+// la session créée est immédiatement nettoyée côté serveur.
 // ============================================================
 
-function ErreurApi({ message }: { message: string }) {
+export function AuthViewAdmin() {
+  return (
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#1A1A1A] px-4 py-10 sm:px-6">
+      <style dangerouslySetInnerHTML={{ __html: AUTH_CSS }} />
+
+      {/* Halo doré central + aurora */}
+      <div className="fbp-glow pointer-events-none absolute left-1/2 top-1/3 h-[30rem] w-[30rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#C9A961]/10 blur-[130px]" />
+      <div className="fbp-aurora2 pointer-events-none absolute -bottom-40 -left-24 h-[28rem] w-[28rem] rounded-full bg-[#8a4f3b]/10 blur-[120px]" />
+      <div className="fbp-aurora3 pointer-events-none absolute -top-40 right-0 h-[26rem] w-[26rem] rounded-full bg-[#C9A961]/8 blur-[120px]" />
+
+      {/* Grille subtile */}
+      <div
+        className="pointer-events-none absolute inset-0 opacity-[0.05]"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(201,169,97,0.8) 1px, transparent 1px), linear-gradient(90deg, rgba(201,169,97,0.8) 1px, transparent 1px)",
+          backgroundSize: "44px 44px",
+        }}
+      />
+
+      {/* Lien retour (haut gauche) */}
+      <a
+        href="/login"
+        className="absolute left-4 top-4 inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-white/50 transition-colors hover:text-[#C9A961] sm:left-6 sm:top-6"
+      >
+        <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+        Espace établissement
+      </a>
+
+      <CarteAdmin />
+    </div>
+  )
+}
+
+function CarteAdmin() {
+  const refreshSession = useAppStore((s) => s.refreshSession)
+  const setView = useAppStore((s) => s.setView)
+  const setJustRegistered = useAppStore((s) => s.setJustRegistered)
+
+  const [showPassword, setShowPassword] = useState(false)
+  const [erreurApi, setErreurApi] = useState<string | null>(null)
+  const [demoLoading, setDemoLoading] = useState(false)
+
+  const {
+    register,
+    handleSubmit,
+    setValue,
+    formState: { errors, isSubmitting },
+  } = useForm<ValeursConnexion>({
+    resolver: zodResolver(connexionSchema),
+    defaultValues: { email: "", password: "" },
+  })
+
+  async function aLaSoumission(valeurs: ValeursConnexion) {
+    await tenterConnexionAdmin(valeurs.email, valeurs.password)
+  }
+
+  /** Pré-remplit + soumet le compte démo SuperAdmin. */
+  async function demoAdmin() {
+    const creds = { email: "admin@feedbackpro.fr", password: "admin123" }
+    setValue("email", creds.email)
+    setValue("password", creds.password)
+    setDemoLoading(true)
+    await tenterConnexionAdmin(creds.email, creds.password)
+    setDemoLoading(false)
+  }
+
+  /**
+   * Connexion SuperAdmin :
+   *  - identifiants invalides → erreur classique
+   *  - identifiants valides MAIS rôle ≠ SUPERADMIN → session refusée,
+   *    nettoyée côté serveur (logout) et erreur dédiée : un Pro ne doit
+   *    PAS se retrouver connecté en revenant sur la landing.
+   *  - SUPERADMIN → refreshSession (network-first) → deriveView route
+   *    vers "admin" ; filet de sécurité si la vue n'a pas changé.
+   */
+  async function tenterConnexionAdmin(email: string, password: string) {
+    setErreurApi(null)
+    try {
+      const res = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password }),
+      })
+      const json = await res.json().catch(() => null)
+      if (!res.ok || !json?.ok) {
+        const brut = typeof json?.error === "string" ? json.error : ""
+        if (brut.toLowerCase().includes("suspendu")) {
+          setErreurApi("Votre compte a été suspendu. Contactez le support.")
+        } else {
+          setErreurApi(brut || "Identifiants incorrects.")
+        }
+        return
+      }
+
+      const role: string = json?.data?.user?.role ?? ""
+      if (role !== "SUPERADMIN") {
+        // Refus : ces identifiants ne sont pas ceux du back-office.
+        // On supprime la session qui vient d'être créée pour ce compte Pro
+        // (sinon il resterait connecté en arrière-plan côté navigateur).
+        try {
+          await fetch("/api/auth/logout", { method: "POST" })
+        } catch {
+          /* ignore */
+        }
+        setErreurApi("Ces identifiants ne donnent pas accès à l'espace SuperAdmin.")
+        return
+      }
+
+      // Succès SUPERADMIN
+      setJustRegistered(false)
+      await refreshSession()
+      const st = useAppStore.getState()
+      if (st.view === "auth-admin" || st.view === "auth" || st.view === "landing") {
+        setView("admin")
+      }
+    } catch {
+      setErreurApi("Impossible de contacter le serveur. Vérifiez votre connexion.")
+    }
+  }
+
+  return (
+    <div className="relative z-10 w-full max-w-md">
+      {/* Carte noir/or */}
+      <div className="rounded-none border border-[#C9A961]/35 bg-[#1A1A1A]/90 p-8 shadow-2xl shadow-black/60 backdrop-blur-md sm:p-10">
+        {/* Badge espace superadmin */}
+        <div className="mb-6 flex items-center justify-between">
+          <span className="inline-flex items-center gap-2 rounded-full border border-[#C9A961]/40 bg-[#C9A961]/10 px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-[0.14em] text-[#a05f45]">
+            <ShieldCheck className="h-3.5 w-3.5" aria-hidden />
+            Espace SuperAdmin
+          </span>
+          <BrandMark tone="white" className="h-6 opacity-90" />
+        </div>
+
+        <form onSubmit={handleSubmit(aLaSoumission)} className="space-y-5" noValidate>
+          {/* Titre */}
+          <div className="space-y-1.5">
+            <h1 className="text-3xl font-bold tracking-[-0.02em] text-white">
+              Accès <em className="italic text-[#C9A961]">Direction</em>
+            </h1>
+            <p className="text-sm text-white/50">
+              Back-office FeedVoice — accès restreint.
+            </p>
+          </div>
+
+          {/* Email */}
+          <div className="space-y-1.5">
+            <Label htmlFor="admin-email" className="text-sm font-medium text-[#E5D4A8]">
+              Email administrateur
+            </Label>
+            <div className="relative">
+              <Mail
+                className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35"
+                aria-hidden
+              />
+              <Input
+                id="admin-email"
+                type="email"
+                inputMode="email"
+                placeholder="admin@feedbackpro.fr"
+                autoComplete="email"
+                autoFocus
+                aria-invalid={!!errors.email}
+                {...register("email")}
+                className="h-12 rounded-xl border border-[#C9A961]/25 bg-[#1A1A1A] pl-11 pr-4 text-[#f7efe9] placeholder:text-white/30 focus-visible:border-[#C9A961] focus-visible:ring-2 focus-visible:ring-[#C9A961]/30"
+              />
+            </div>
+            <ErreurChamp message={errors.email?.message} />
+          </div>
+
+          {/* Mot de passe */}
+          <div className="space-y-1.5">
+            <Label htmlFor="admin-password" className="text-sm font-medium text-[#E5D4A8]">
+              Mot de passe
+            </Label>
+            <div className="relative">
+              <Lock
+                className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-white/35"
+                aria-hidden
+              />
+              <Input
+                id="admin-password"
+                type={showPassword ? "text" : "password"}
+                placeholder="Votre mot de passe"
+                autoComplete="current-password"
+                aria-invalid={!!errors.password}
+                {...register("password")}
+                className="h-12 rounded-xl border border-[#C9A961]/25 bg-[#1A1A1A] pl-11 pr-11 text-[#f7efe9] placeholder:text-white/30 focus-visible:border-[#C9A961] focus-visible:ring-2 focus-visible:ring-[#C9A961]/30"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                className="absolute right-3 top-1/2 flex h-7 w-7 -translate-y-1/2 items-center justify-center rounded-md text-white/35 transition-colors hover:bg-white/5 hover:text-[#C9A961]"
+                aria-label={showPassword ? "Masquer le mot de passe" : "Afficher le mot de passe"}
+              >
+                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+            <ErreurChamp message={errors.password?.message} />
+          </div>
+
+          {erreurApi && <ErreurApi message={erreurApi} sombre />}
+
+          {/* Bouton « Accéder » — gradient doré */}
+          <button
+            type="submit"
+            disabled={isSubmitting || demoLoading}
+            className="fbp-shimmer flex w-full items-center justify-center gap-2 rounded-full bg-[#C9A961] px-4 py-3.5 text-base font-bold text-white transition-colors hover:bg-[#a05f45] disabled:cursor-not-allowed disabled:opacity-70 disabled:hover:scale-100"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                Vérification…
+              </>
+            ) : (
+              <>
+                Accéder au back-office
+                <ArrowRight className="h-4 w-4" aria-hidden />
+              </>
+            )}
+          </button>
+        </form>
+
+        {/* Accès démo (discret) */}
+        <div className="mt-6 border-t border-[#C9A961]/15 pt-4">
+          <button
+            type="button"
+            onClick={demoAdmin}
+            disabled={demoLoading || isSubmitting}
+            className="flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-medium text-white/40 transition-colors hover:text-[#C9A961] disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {demoLoading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+            ) : (
+              <ShieldCheck className="h-3.5 w-3.5" aria-hidden />
+            )}
+            Pré-remplir l&apos;accès démo SuperAdmin
+          </button>
+        </div>
+      </div>
+
+      {/* Mention bas de carte */}
+      <p className="mt-6 text-center text-xs text-white/30">
+        Connexion surveillée — FeedVoice Direction
+      </p>
+    </div>
+  )
+}
+
+// ============================================================
+// Blocs d'erreur (API + champ) — variante sombre pour /admin-login
+// ============================================================
+
+function ErreurApi({ message, sombre = false }: { message: string; sombre?: boolean }) {
   return (
     <p
-      className="flex items-start gap-2 rounded-xl bg-rose-50 px-3 py-2.5 text-sm leading-snug text-rose-700"
+      className={`flex items-start gap-2 rounded-xl px-3 py-2.5 text-sm leading-snug ${
+        sombre
+          ? "border border-rose-500/30 bg-rose-500/10 text-rose-300"
+          : "bg-rose-50 text-rose-700"
+      }`}
       role="alert"
     >
       <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
@@ -875,7 +1189,7 @@ const TENANT_OPTIONS: readonly TenantOption[] = [
     titre: "Aéroport",
     description: "Infrastructure & ops — wallboard, salle de supervision",
     icon: Plane,
-    accent: "hover:border-[#003399]/60 hover:bg-[#003399]/5",
+    accent: "hover:border-[#C9A961]/70 hover:bg-[#f7efe9]",
   },
   {
     value: "airline",
@@ -883,7 +1197,7 @@ const TENANT_OPTIONS: readonly TenantOption[] = [
     titre: "Compagnie Aérienne",
     description: "Escale & passager — check-in, embarquement, litiges bagages",
     icon: Plane,
-    accent: "hover:border-sky-500/60 hover:bg-sky-50",
+    accent: "hover:border-[#C9A961]/70 hover:bg-[#f7efe9]",
   },
   {
     value: "vip_lounge",
@@ -891,7 +1205,7 @@ const TENANT_OPTIONS: readonly TenantOption[] = [
     titre: "Salon VIP",
     description: "Luxe & discrétion — buffet, douches, conciergerie",
     icon: Wine,
-    accent: "hover:border-[#D4AF37]/60 hover:bg-[#D4AF37]/5",
+    accent: "hover:border-[#C9A961]/70 hover:bg-[#f7efe9]",
   },
   {
     value: "city",
@@ -905,9 +1219,9 @@ const TENANT_OPTIONS: readonly TenantOption[] = [
     value: "classic",
     emoji: "🏪",
     titre: "Commerce classique",
-    description: "Restaurant, hôtel, etc. — dashboard FeedbackPro standard",
+    description: "Restaurant, hôtel, etc. — dashboard FeedVoice standard",
     icon: Store,
-    accent: "hover:border-slate-400 hover:bg-slate-50",
+    accent: "hover:border-stone-400 hover:bg-[#f7efe9]",
   },
 ] as const
 
@@ -961,22 +1275,23 @@ export function TenantSelectionStep() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-[#F5F5F5] px-4 py-8 sm:px-6 lg:px-8">
+    <div className="flex min-h-screen items-center justify-center bg-[#ffffff] px-4 py-8 sm:px-6 lg:px-8">
+      <style dangerouslySetInnerHTML={{ __html: AUTH_CSS }} />
       <div className="w-full max-w-2xl space-y-6">
         {/* Logo + retour */}
         <div className="flex items-center justify-between">
           <button
             type="button"
             onClick={() => logout()}
-            className="flex items-center gap-2 text-sm font-medium text-slate-500 transition-colors hover:text-[#003399]"
+            className="flex items-center gap-2"
             aria-label="Se déconnecter"
           >
-            <img src="/logo-feedbackpro.png" alt="FeedbackPro" className="h-9" />
+            <BrandMark className="h-6" />
           </button>
           <button
             type="button"
             onClick={() => logout()}
-            className="text-xs font-medium text-slate-400 hover:text-[#003399]"
+            className="text-xs font-medium text-stone-400 hover:text-[#1A1A1A]"
           >
             Se déconnecter
           </button>
@@ -984,10 +1299,10 @@ export function TenantSelectionStep() {
 
         {/* Titre */}
         <div className="space-y-2 text-center">
-          <h2 className="text-3xl font-bold tracking-tight text-slate-900">
-            Quel type d&apos;établissement gérez-vous ?
+          <h2 className="text-3xl font-bold tracking-[-0.02em] text-[#1A1A1A]">
+            Quel type d&apos;établissement <em className="italic text-[#C9A961]">gérez-vous</em> ?
           </h2>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-stone-500">
             Votre tableau de bord sera adapté à votre activité. Vous pourrez le modifier
             plus tard dans les Paramètres.
           </p>
@@ -1005,22 +1320,22 @@ export function TenantSelectionStep() {
                 onClick={() => choisirTenant(opt.value)}
                 disabled={submitting}
                 aria-pressed={actif}
-                className={`group relative flex flex-col items-start gap-3 rounded-2xl border-2 border-slate-200 bg-white p-6 text-left transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-70 ${opt.accent} ${
-                  actif ? "border-[#003399] ring-2 ring-[#003399]/20" : ""
+                className={`group relative flex flex-col items-start gap-3 rounded-2xl border-2 border-[#d5d3d4] bg-white p-6 text-left transition-all hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-70 ${opt.accent} ${
+                  actif ? "border-[#C9A961] ring-2 ring-[#C9A961]/20" : ""
                 }`}
               >
                 <div className="flex items-center gap-3">
                   <span className="text-3xl" aria-hidden>
                     {opt.emoji}
                   </span>
-                  <Icon className="h-6 w-6 text-slate-400 transition-colors group-hover:text-slate-700" aria-hidden />
+                  <Icon className="h-6 w-6 text-stone-400 transition-colors group-hover:text-[#C9A961]" aria-hidden />
                 </div>
                 <div className="space-y-1">
-                  <h3 className="text-lg font-bold text-slate-900">{opt.titre}</h3>
-                  <p className="text-sm leading-snug text-slate-500">{opt.description}</p>
+                  <h3 className="text-lg font-bold text-[#1A1A1A]">{opt.titre}</h3>
+                  <p className="text-sm leading-snug text-stone-500">{opt.description}</p>
                 </div>
                 {actif && submitting && (
-                  <Loader2 className="absolute right-4 top-4 h-4 w-4 animate-spin text-[#003399]" aria-hidden />
+                  <Loader2 className="absolute right-4 top-4 h-4 w-4 animate-spin text-[#C9A961]" aria-hidden />
                 )}
               </button>
             )
@@ -1030,8 +1345,8 @@ export function TenantSelectionStep() {
         {erreurApi && <ErreurApi message={erreurApi} />}
 
         {/* Lien bas */}
-        <p className="text-center text-xs text-slate-400">
-          FeedbackPro s&apos;adapte à votre métier — aéroport, compagnie, salon VIP ou commerce.
+        <p className="text-center text-xs text-stone-400">
+          FeedVoice s&apos;adapte à votre métier — aéroport, compagnie, salon VIP ou commerce.
         </p>
       </div>
     </div>

@@ -17,7 +17,7 @@
 //
 // `getTeamCompetition()` compte les résolutions par quart sur 24h.
 //
-// Le wallboard annonce vocalement chaque nouveau badge via Denise :
+// Le wallboard annonce vocalement chaque nouveau badge via Nathalie :
 //   "Achievement débloqué: Speed Demon! 5 incidents résolus en moins
 //    de 5 minutes!"
 // ============================================================

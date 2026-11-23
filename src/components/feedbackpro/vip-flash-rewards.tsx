@@ -32,11 +32,11 @@
 //   • Polling 30 s de l'historique (rafraîchit après chaque offre).
 //
 // Palette « Luxe Lumineux » :
-//   - Background   #FAFAF7    - Cards  #FFFFFF + shadow gold 6%
-//   - Gold         #C9A961    - Bronze #8B6F47
-//   - Text         #2C2C2C    - Success #4A7C59
-//   - Alert        #C97B63    - VIP     #6B4C9A
-//   - Border       #EAE5DC    - Title font Georgia / Playfair
+//   - Background   #ffffff    - Cards  #FFFFFF + shadow gold 6%
+//   - Gold         #bc7155    - Bronze #8B6F47
+//   - Text         #2C2C2C    - Success #bc7155
+//   - Alert        #bc7155    - VIP     #bc7155
+//   - Border       #efe7e0    - Title font Georgia / Playfair
 //
 // APIs consommées :
 //   GET  /api/vip/premium-rewards
@@ -127,14 +127,14 @@ const CARD_SHADOW = 'shadow-[0_4px_20px_rgba(201,169,97,0.06)]'
 const POLL_INTERVAL_MS = 30_000
 
 // Couleurs palette « Luxe Lumineux »
-const GOLD = '#C9A961'
+const GOLD = '#bc7155'
 const BRONZE = '#8B6F47'
 const TEXT = '#2C2C2C'
-const SUCCESS = '#4A7C59'
-const ALERT = '#C97B63'
-const VIP = '#6B4C9A'
-const BG = '#FAFAF7'
-const BORDER = '#EAE5DC'
+const SUCCESS = '#bc7155'
+const ALERT = '#bc7155'
+const VIP = '#bc7155'
+const BG = '#ffffff'
+const BORDER = '#efe7e0'
 
 // Déclencheurs d'offre (libellé FR → clé API).
 // La clé est envoyée telle-quelle au POST ; le serveur l'enregistre
@@ -460,7 +460,7 @@ export function VipFlashRewards({
         <header className="mb-6 flex flex-col gap-3 sm:mb-8 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
             <div
-              className="flex size-12 shrink-0 items-center justify-center rounded-full ring-1 ring-[#EAE5DC]"
+              className="flex size-12 shrink-0 items-center justify-center rounded-full ring-1 ring-[#efe7e0]"
               style={{ backgroundColor: '#FFFFFF' }}
               aria-hidden
             >
@@ -520,7 +520,7 @@ export function VipFlashRewards({
             <RewardsSkeleton />
           ) : rewardsError ? (
             <div
-              className="rounded-xl border border-[#EAE5DC] bg-white p-6 text-center"
+              className="rounded-xl border border-[#efe7e0] bg-white p-6 text-center"
               style={{ boxShadow: '0 4px 20px rgba(201,169,97,0.06)' }}
             >
               <p className="text-sm" style={{ color: ALERT }}>
@@ -539,7 +539,7 @@ export function VipFlashRewards({
             </div>
           ) : rewards.length === 0 ? (
             <div
-              className="rounded-xl border border-dashed border-[#EAE5DC] bg-white p-8 text-center"
+              className="rounded-xl border border-dashed border-[#efe7e0] bg-white p-8 text-center"
               style={{ boxShadow: '0 4px 20px rgba(201,169,97,0.06)' }}
             >
               <Sparkles
@@ -588,7 +588,7 @@ export function VipFlashRewards({
           </div>
 
           <div
-            className="rounded-xl border border-[#EAE5DC] bg-white"
+            className="rounded-xl border border-[#efe7e0] bg-white"
             style={{ boxShadow: '0 4px 20px rgba(201,169,97,0.06)' }}
           >
             {grantsLoading ? (
@@ -603,7 +603,7 @@ export function VipFlashRewards({
                 </p>
               </div>
             ) : (
-              <ul role="list" className="divide-y divide-[#EAE5DC]">
+              <ul role="list" className="divide-y divide-[#efe7e0]">
                 {grants.map((g) => (
                   <GrantRow key={g.id} grant={g} />
                 ))}
@@ -665,8 +665,8 @@ function RewardCard({ reward, onOffer }: RewardCardProps) {
     <article
       className={cn(
         'group flex flex-col rounded-xl border bg-white p-5 transition-all',
-        'border-[#EAE5DC]',
-        'hover:border-[#C9A961]/40 hover:shadow-[0_8px_28px_rgba(201,169,97,0.10)]',
+        'border-[#efe7e0]',
+        'hover:border-[#bc7155]/40 hover:shadow-[0_8px_28px_rgba(201,169,97,0.10)]',
         CARD_SHADOW,
       )}
     >
@@ -675,7 +675,7 @@ function RewardCard({ reward, onOffer }: RewardCardProps) {
         <div
           className={cn(
             'flex size-14 shrink-0 items-center justify-center rounded-full',
-            'bg-[#FAFAF7] ring-2 ring-[#EAE5DC]',
+            'bg-[#ffffff] ring-2 ring-[#efe7e0]',
           )}
           aria-hidden
         >
@@ -795,7 +795,7 @@ function OfferDialog({
       <div
         className={cn(
           'relative z-10 w-full max-w-lg overflow-hidden rounded-2xl bg-white',
-          'border border-[#EAE5DC]',
+          'border border-[#efe7e0]',
         )}
         style={{ boxShadow: '0 12px 40px rgba(201,169,97,0.18)' }}
       >
@@ -832,11 +832,11 @@ function OfferDialog({
           {/* Aperçu de la récompense sélectionnée */}
           <div
             className={cn(
-              'mb-5 flex items-center gap-4 rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] p-4',
+              'mb-5 flex items-center gap-4 rounded-xl border border-[#efe7e0] bg-[#ffffff] p-4',
             )}
           >
             <div
-              className="flex size-12 shrink-0 items-center justify-center rounded-full bg-white ring-2 ring-[#EAE5DC]"
+              className="flex size-12 shrink-0 items-center justify-center rounded-full bg-white ring-2 ring-[#efe7e0]"
               aria-hidden
             >
               <span className="text-2xl leading-none">{emoji}</span>
@@ -854,7 +854,7 @@ function OfferDialog({
             </div>
             <Badge
               variant="outline"
-              className="shrink-0 border-[#EAE5DC] text-[#8B6F47]"
+              className="shrink-0 border-[#efe7e0] text-[#8B6F47]"
             >
               {formatFcfa(reward.costFcfa)}
             </Badge>
@@ -881,12 +881,12 @@ function OfferDialog({
               aria-invalid={tableTouched && !tableValid}
               aria-required="true"
               className={cn(
-                'border-[#EAE5DC] bg-white text-[#2C2C2C]',
-                'focus-visible:border-[#C9A961]',
+                'border-[#efe7e0] bg-white text-[#2C2C2C]',
+                'focus-visible:border-[#bc7155]',
                 tableTouched &&
                   !tableValid && [
-                    'border-[#C97B63]',
-                    'focus-visible:border-[#C97B63]',
+                    'border-[#bc7155]',
+                    'focus-visible:border-[#bc7155]',
                   ],
               )}
             />
@@ -921,7 +921,7 @@ function OfferDialog({
               disabled={submitting}
               maxLength={80}
               onChange={(e) => setClientName(e.target.value)}
-              className="border-[#EAE5DC] bg-white text-[#2C2C2C] focus-visible:border-[#C9A961]"
+              className="border-[#efe7e0] bg-white text-[#2C2C2C] focus-visible:border-[#bc7155]"
             />
           </div>
 
@@ -937,8 +937,8 @@ function OfferDialog({
             >
               <SelectTrigger
                 className={cn(
-                  'w-full border-[#EAE5DC] bg-white text-[#2C2C2C]',
-                  'focus-visible:border-[#C9A961]',
+                  'w-full border-[#efe7e0] bg-white text-[#2C2C2C]',
+                  'focus-visible:border-[#bc7155]',
                 )}
                 aria-label="Déclencheur de l'offre"
               >
@@ -965,7 +965,7 @@ function OfferDialog({
           </div>
 
           {/* Footer : actions */}
-          <div className="flex items-center justify-between gap-3 border-t border-[#EAE5DC] pt-4">
+          <div className="flex items-center justify-between gap-3 border-t border-[#efe7e0] pt-4">
             <span className="text-xs text-[#8B6F47]">
               Par{' '}
               <span className="font-semibold text-[#2C2C2C]">
@@ -978,7 +978,7 @@ function OfferDialog({
                 variant="outline"
                 onClick={() => onClose(false)}
                 disabled={submitting}
-                className="border-[#EAE5DC] text-[#2C2C2C] hover:bg-[#FAFAF7]"
+                className="border-[#efe7e0] text-[#2C2C2C] hover:bg-[#ffffff]"
               >
                 Annuler
               </Button>
@@ -1061,7 +1061,7 @@ function ConfirmationOverlay({
       <div
         className={cn(
           'relative z-10 w-full max-w-md overflow-hidden rounded-2xl bg-white',
-          'border border-[#EAE5DC]',
+          'border border-[#efe7e0]',
         )}
         style={{ boxShadow: '0 12px 40px rgba(201,169,97,0.18)' }}
       >
@@ -1087,11 +1087,11 @@ function ConfirmationOverlay({
           {/* Résumé de l'offre */}
           <div
             className={cn(
-              'mb-4 flex items-center gap-3 rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] p-4',
+              'mb-4 flex items-center gap-3 rounded-xl border border-[#efe7e0] bg-[#ffffff] p-4',
             )}
           >
             <div
-              className="flex size-12 shrink-0 items-center justify-center rounded-full bg-white ring-2 ring-[#EAE5DC]"
+              className="flex size-12 shrink-0 items-center justify-center rounded-full bg-white ring-2 ring-[#efe7e0]"
               aria-hidden
             >
               <span className="text-2xl leading-none">{emoji}</span>
@@ -1108,7 +1108,7 @@ function ConfirmationOverlay({
 
           {/* Notification détaillée */}
           <div
-            className="rounded-xl border border-[#EAE5DC] p-3"
+            className="rounded-xl border border-[#efe7e0] p-3"
             style={{ backgroundColor: `${VIP}0A` }}
             role="status"
             aria-live="polite"
@@ -1147,7 +1147,7 @@ function ConfirmationOverlay({
               type="button"
               variant="outline"
               onClick={onClose}
-              className="flex-1 border-[#EAE5DC] text-[#2C2C2C] hover:bg-[#FAFAF7]"
+              className="flex-1 border-[#efe7e0] text-[#2C2C2C] hover:bg-[#ffffff]"
             >
               Fermer
             </Button>
@@ -1185,7 +1185,7 @@ function GrantRow({ grant }: GrantRowProps) {
   const triggerBadgeStyle = (() => {
     switch (grant.triggeredBy) {
       case 'manual':
-        return { bg: '#F3EEDF', color: BRONZE }
+        return { bg: '#f7efe9', color: BRONZE }
       case 'vip_discontent_resolved':
       case 'incident_quick_resolution':
         return { bg: '#FBEAE4', color: ALERT }
@@ -1194,7 +1194,7 @@ function GrantRow({ grant }: GrantRowProps) {
       case 'birthday':
         return { bg: '#EFE8F6', color: VIP }
       default:
-        return { bg: '#F3EEDF', color: BRONZE }
+        return { bg: '#f7efe9', color: BRONZE }
     }
   })()
 
@@ -1202,7 +1202,7 @@ function GrantRow({ grant }: GrantRowProps) {
     <li className="flex items-center gap-3 px-4 py-3 sm:px-5">
       {/* Emoji */}
       <div
-        className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#FAFAF7] ring-1 ring-[#EAE5DC]"
+        className="flex size-10 shrink-0 items-center justify-center rounded-full bg-[#ffffff] ring-1 ring-[#efe7e0]"
         aria-hidden
       >
         <span className="text-lg leading-none">{emoji}</span>
@@ -1254,19 +1254,19 @@ function RewardsSkeleton() {
         <div
           key={i}
           className={cn(
-            'flex flex-col rounded-xl border border-[#EAE5DC] bg-white p-5',
+            'flex flex-col rounded-xl border border-[#efe7e0] bg-white p-5',
             CARD_SHADOW,
           )}
         >
           <div className="flex items-start gap-3">
-            <div className="size-14 shrink-0 animate-pulse rounded-full bg-[#F3EEDF]" />
+            <div className="size-14 shrink-0 animate-pulse rounded-full bg-[#f7efe9]" />
             <div className="flex-1 space-y-2">
-              <div className="h-4 w-2/3 animate-pulse rounded bg-[#F3EEDF]" />
-              <div className="h-3 w-full animate-pulse rounded bg-[#F3EEDF]" />
-              <div className="h-3 w-4/5 animate-pulse rounded bg-[#F3EEDF]" />
+              <div className="h-4 w-2/3 animate-pulse rounded bg-[#f7efe9]" />
+              <div className="h-3 w-full animate-pulse rounded bg-[#f7efe9]" />
+              <div className="h-3 w-4/5 animate-pulse rounded bg-[#f7efe9]" />
             </div>
           </div>
-          <div className="mt-4 h-8 w-full animate-pulse rounded-md bg-[#F3EEDF]" />
+          <div className="mt-4 h-8 w-full animate-pulse rounded-md bg-[#f7efe9]" />
         </div>
       ))}
     </div>
@@ -1275,15 +1275,15 @@ function RewardsSkeleton() {
 
 function GrantsSkeleton() {
   return (
-    <ul role="list" className="divide-y divide-[#EAE5DC]">
+    <ul role="list" className="divide-y divide-[#efe7e0]">
       {[0, 1, 2].map((i) => (
         <li key={i} className="flex items-center gap-3 px-4 py-3 sm:px-5">
-          <div className="size-10 shrink-0 animate-pulse rounded-full bg-[#F3EEDF]" />
+          <div className="size-10 shrink-0 animate-pulse rounded-full bg-[#f7efe9]" />
           <div className="flex-1 space-y-2">
-            <div className="h-3.5 w-1/2 animate-pulse rounded bg-[#F3EEDF]" />
-            <div className="h-3 w-1/3 animate-pulse rounded bg-[#F3EEDF]" />
+            <div className="h-3.5 w-1/2 animate-pulse rounded bg-[#f7efe9]" />
+            <div className="h-3 w-1/3 animate-pulse rounded bg-[#f7efe9]" />
           </div>
-          <div className="h-3 w-12 animate-pulse rounded bg-[#F3EEDF]" />
+          <div className="h-3 w-12 animate-pulse rounded bg-[#f7efe9]" />
         </li>
       ))}
     </ul>

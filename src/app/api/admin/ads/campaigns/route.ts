@@ -126,10 +126,10 @@ export async function POST(req: NextRequest) {
     console.warn(
       `[AD1-VERROU] Tentative de création de campagne sur zone interdite : ` +
         `zoneCode=${zoneCode} (${zoneNom}), advertiserId=${advertiserId}, ` +
-        `title="${title}". Refus 403 (règle FeedbackPro : jamais sur urgence).`,
+        `title="${title}". Refus 403 (règle FeedVoice : jamais sur urgence).`,
     )
     return fail(
-      `Zone ${zoneNom} interdite à la publicité. Règle FeedbackPro : jamais sur urgence.`,
+      `Zone ${zoneNom} interdite à la publicité. Règle FeedVoice : jamais sur urgence.`,
       403,
     )
   }

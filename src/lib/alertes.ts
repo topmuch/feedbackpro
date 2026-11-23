@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Alertes temps réel (Session 5 §4)
+// FeedVoice - Alertes temps réel (Session 5 §4)
 // ------------------------------------------------------------
 // Quand un retour avec note ≤ 2 est créé :
 //   1. Sauvegarde en BDD (déjà faite par /api/retour)
@@ -56,7 +56,7 @@ export async function analyserEtAlerterRetour(
     const recurrente = nbSignalements >= SEUIL_RECURRENCE
 
     const motifTxt = tagsLabels.length ? tagsLabels.join(", ") : "non précisé"
-    const dashboardUrl = `${(process.env.NEXT_PUBLIC_APP_URL || "https://feedbackpro.fr").replace(/\/$/, "")}/dashboard`
+    const dashboardUrl = `${(process.env.NEXT_PUBLIC_APP_URL || "https://feedvoice.fr").replace(/\/$/, "")}/dashboard`
 
     if (recurrente) {
       // ---------- 2a. Problème RÉCURRENT → SMS d'alerte (Twilio) ----------
@@ -70,7 +70,7 @@ export async function analyserEtAlerterRetour(
       })
 
       if (pro.smsAlertes && pro.whatsapp) {
-        const sms = `🚨 FeedbackPro - PROBLÈME RÉCURRENT : ${nbSignalements} alertes ≤2★ zone ${zone.nom} en 48h (motif : ${motifTxt}). Intervenez : ${dashboardUrl}`
+        const sms = `🚨 FeedVoice - PROBLÈME RÉCURRENT : ${nbSignalements} alertes ≤2★ zone ${zone.nom} en 48h (motif : ${motifTxt}). Intervenez : ${dashboardUrl}`
         await sendSMS(pro.whatsapp, sms).catch((e) => console.warn("SMS de récurrence non envoyé (non bloquant)", e))
       } else if (pro.email) {
         // Secours : SMS désactivé ou numéro manquant → email

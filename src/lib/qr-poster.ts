@@ -1,14 +1,14 @@
 // ============================================================
-// FeedbackPro - Générateur d'affiche QR code (design original)
+// FeedVoice - Générateur d'affiche QR code (design original)
 // ------------------------------------------------------------
-// Utilise l'affiche originale FeedbackPro comme image de fond
+// Utilise l'affiche originale FeedVoice comme image de fond
 // et insère le QR code dans la zone blanche prévue à cet effet.
 // Export PNG (canvas.toDataURL).
 // ============================================================
 
 import QRCode from "qrcode"
 
-const BLEU = "#002e85"
+const BLEU = "#0f0f1c"
 const BLANC = "#FFFFFF"
 
 type OptionsPoster = {

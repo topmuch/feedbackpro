@@ -3,7 +3,8 @@
 // PUT /api/pro/settings
 // { nomEtablissement, typeEtablissement, adresse, ville, whatsapp,
 //   email, logoUrl?, messageWhatsapp?, frequenceRapport, recompense?,
-//   recompenseActive?, recompenseType?, recompenseCode?, smsAlertes? } → { pro }
+//   recompenseActive?, recompenseType?, recompenseCode?, smsAlertes?,
+//   googleReviewUrl?, googleReviewEnabled? } → { pro }
 // ============================================================
 
 import { NextRequest } from "next/server"
@@ -50,9 +51,14 @@ export async function PUT(req: NextRequest) {
         ...(champs.recompenseCode !== undefined ? { recompenseCode: champs.recompenseCode } : {}),
         logoUrl,
         ...(champs.smsAlertes !== undefined ? { smsAlertes: champs.smsAlertes } : {}),
-        // D8 : Google Business Profile (saisie manuelle, pas d'API réelle)
+        // D8 + Task 2-a — Réputation Google : URL d'avis Google (saisie
+        // manuelle, https validé par settingsSchema) + interrupteur du CTA
+        // « Laisser un avis Google » sur l'écran de succès du scan client.
         ...(champs.googleReviewUrl !== undefined
           ? { googleReviewUrl: champs.googleReviewUrl || null }
+          : {}),
+        ...(champs.googleReviewEnabled !== undefined
+          ? { googleReviewEnabled: champs.googleReviewEnabled }
           : {}),
         ...(champs.googlePlaceId !== undefined
           ? { googlePlaceId: champs.googlePlaceId || null }

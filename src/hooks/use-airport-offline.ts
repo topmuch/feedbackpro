@@ -2,7 +2,7 @@
 
 // ============================================================
 // useAirportOffline — Hook React pour la PWA aéroport hors ligne
-// (Task 3 Phase 2 — FeedbackPro airport)
+// (Task 3 Phase 2 — FeedVoice airport)
 // ------------------------------------------------------------
 // Fournit à la PWA voyageur :
 //   • isOnline       — état réseau (navigator.onLine + events online/offline)

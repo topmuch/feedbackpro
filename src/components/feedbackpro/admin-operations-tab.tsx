@@ -3,7 +3,7 @@
 // ============================================================
 // Task O1 — Centre Opérationnel (NOC SuperAdmin)
 // ------------------------------------------------------------
-// "Tour de contrôle" temps réel de la plateforme FeedbackPro.
+// "Tour de contrôle" temps réel de la plateforme FeedVoice.
 // Sondes les 7 services critiques toutes les 10s et affiche un
 // flux d'alertes rafraîchi toutes les 5s.
 //
@@ -115,7 +115,7 @@ const SERVICE_META: Record<
     description: "Web Push (FCM/APNS/Mozilla)",
   },
   denise_tts: {
-    label: "Denise TTS",
+    label: "Nathalie TTS",
     icon: Mic,
     description: "Synthèse vocale client-side",
   },
@@ -143,17 +143,17 @@ function statusColor(status: ServiceStatus): {
   switch (status) {
     case "ok":
       return {
-        text: "text-emerald-700 dark:text-emerald-400",
-        bg: "bg-emerald-50 dark:bg-emerald-950/40",
-        border: "border-emerald-200 dark:border-emerald-900",
-        dot: "bg-emerald-500",
+        text: "text-[#8a4f3b] dark:text-[#c98b72]",
+        bg: "bg-[#faf1ec] dark:bg-[#3f231b]/40",
+        border: "border-[#e7c1ae] dark:border-[#573125]",
+        dot: "bg-[#bc7155]",
       }
     case "warning":
       return {
-        text: "text-amber-700 dark:text-amber-400",
-        bg: "bg-amber-50 dark:bg-amber-950/40",
-        border: "border-amber-200 dark:border-amber-900",
-        dot: "bg-amber-500",
+        text: "text-[#8a4f3b] dark:text-[#c98b72]",
+        bg: "bg-[#faf1ec] dark:bg-[#3f231b]/40",
+        border: "border-[#e7c1ae] dark:border-[#573125]",
+        dot: "bg-[#bc7155]",
       }
     case "critical":
       return {
@@ -184,19 +184,19 @@ function globalStatusMeta(status: "ok" | "warning" | "critical"): {
     case "ok":
       return {
         label: "OPÉRATIONNEL",
-        color: "text-emerald-700 dark:text-emerald-300",
-        bg: "bg-emerald-50 dark:bg-emerald-950/50",
-        border: "border-emerald-300 dark:border-emerald-800",
-        dot: "bg-emerald-500",
+        color: "text-[#8a4f3b] dark:text-[#dba28a]",
+        bg: "bg-[#faf1ec] dark:bg-[#3f231b]/50",
+        border: "border-[#dba28a] dark:border-[#6f3f30]",
+        dot: "bg-[#bc7155]",
         pulse: false,
       }
     case "warning":
       return {
         label: "DÉGRADÉ",
-        color: "text-amber-700 dark:text-amber-300",
-        bg: "bg-amber-50 dark:bg-amber-950/50",
-        border: "border-amber-300 dark:border-amber-800",
-        dot: "bg-amber-500",
+        color: "text-[#8a4f3b] dark:text-[#dba28a]",
+        bg: "bg-[#faf1ec] dark:bg-[#3f231b]/50",
+        border: "border-[#dba28a] dark:border-[#6f3f30]",
+        dot: "bg-[#bc7155]",
         pulse: true,
       }
     case "critical":
@@ -384,7 +384,7 @@ export function AdminOperationsTab() {
             className={`flex flex-col gap-4 p-6 sm:flex-row sm:items-center sm:justify-between ${globalMeta?.bg ?? "bg-slate-50 dark:bg-slate-900/40"} ${globalMeta?.border ?? "border-slate-200 dark:border-slate-800"} border-b-2`}
           >
             <div className="flex items-center gap-4">
-              <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-white dark:bg-[#0F172A] shadow-sm">
+              <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-white dark:bg-[#0f0f1c] shadow-sm">
                 {globalMeta ? (
                   <span
                     className={`h-4 w-4 rounded-full ${globalMeta.dot} ${globalMeta.pulse ? "animate-pulse" : ""}`}
@@ -504,7 +504,7 @@ export function AdminOperationsTab() {
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="flex items-center gap-2 text-sm">
-              <AlertTriangle className="h-4 w-4 text-amber-500" aria-hidden />
+              <AlertTriangle className="h-4 w-4 text-[#bc7155]" aria-hidden />
               Alertes récentes (warning + critical)
             </CardTitle>
             <CardDescription className="text-xs">
@@ -520,8 +520,8 @@ export function AdminOperationsTab() {
               </div>
             ) : alerts.length === 0 ? (
               <div className="flex flex-col items-center gap-3 px-6 py-12 text-center">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-50 dark:bg-emerald-950/40">
-                  <CheckCircle2 className="h-6 w-6 text-emerald-600 dark:text-emerald-400" aria-hidden />
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[#faf1ec] dark:bg-[#3f231b]/40">
+                  <CheckCircle2 className="h-6 w-6 text-[#a05f45] dark:text-[#c98b72]" aria-hidden />
                 </div>
                 <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
                   Aucune alerte active
@@ -604,7 +604,7 @@ function ServiceCard({ service }: { service: ServiceHealth }) {
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-center gap-2.5">
             <div
-              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#0F172A] shadow-sm`}
+              className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-white dark:bg-[#0f0f1c] shadow-sm`}
             >
               <Icon className={`h-5 w-5 ${colors.text}`} aria-hidden />
             </div>
@@ -743,10 +743,10 @@ function AlertFeed({ alerts }: { alerts: AlertEntry[] }) {
         const Icon = isCritical ? OctagonAlert : AlertTriangle
         const rowColor = isCritical
           ? "border-rose-200 dark:border-rose-900 bg-rose-50/50 dark:bg-rose-950/20"
-          : "border-amber-200 dark:border-amber-900 bg-amber-50/50 dark:bg-amber-950/20"
+          : "border-[#e7c1ae] dark:border-[#573125] bg-[#faf1ec]/50 dark:bg-[#3f231b]/20"
         const iconColor = isCritical
           ? "text-rose-600 dark:text-rose-400"
-          : "text-amber-600 dark:text-amber-400"
+          : "text-[#a05f45] dark:text-[#c98b72]"
         const serviceLabel = SERVICE_META[alert.serviceName]?.label ?? alert.serviceName
 
         return (
@@ -773,7 +773,7 @@ function AlertFeed({ alerts }: { alerts: AlertEntry[] }) {
                   className={`h-4 px-1.5 text-[9px] font-bold ${
                     isCritical
                       ? "border-rose-400 text-rose-700 dark:text-rose-400"
-                      : "border-amber-400 text-amber-700 dark:text-amber-400"
+                      : "border-[#c98b72] text-[#8a4f3b] dark:text-[#c98b72]"
                   }`}
                 >
                   {isCritical ? "CRITICAL" : "WARNING"}
@@ -786,7 +786,7 @@ function AlertFeed({ alerts }: { alerts: AlertEntry[] }) {
                 {isResolved && (
                   <Badge
                     variant="outline"
-                    className="h-4 border-emerald-400 px-1.5 text-[9px] font-bold text-emerald-700 dark:text-emerald-400"
+                    className="h-4 border-[#c98b72] px-1.5 text-[9px] font-bold text-[#8a4f3b] dark:text-[#c98b72]"
                   >
                     Auto-rétablie
                   </Badge>
@@ -830,7 +830,7 @@ function ActionButton({
       type="button"
       onClick={onClick}
       disabled={loading}
-      className="group flex flex-col items-start gap-1.5 rounded-xl border border-slate-200 bg-white p-3.5 text-left transition-all hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-800 dark:bg-[#0F172A] dark:hover:border-slate-700 dark:hover:bg-slate-900"
+      className="group flex flex-col items-start gap-1.5 rounded-xl border border-slate-200 bg-white p-3.5 text-left transition-all hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-800 dark:bg-[#0f0f1c] dark:hover:border-slate-700 dark:hover:bg-slate-900"
     >
       <div className="flex w-full items-center justify-between">
         <Icon className="h-4 w-4 text-slate-700 dark:text-slate-300" aria-hidden />

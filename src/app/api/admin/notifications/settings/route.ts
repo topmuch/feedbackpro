@@ -24,8 +24,8 @@ type Canal = (typeof CANAUX)[number]
 const CONFIG_DEFAUT: Record<Canal, Record<string, string>> = {
   email: {
     provider: 'resend',
-    fromName: 'FeedbackPro Alertes',
-    fromEmail: 'alertes@feedbackpro.sn',
+    fromName: 'FeedVoice Alertes',
+    fromEmail: 'alertes@feedvoice.sn',
   },
   whatsapp: {
     provider: 'meta',

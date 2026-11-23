@@ -132,7 +132,7 @@ export async function POST(req: NextRequest) {
 
     // Renvoie le JSON en pièce téléchargeable (Content-Disposition attachment)
     const jsonStr = JSON.stringify(data, null, 2)
-    const nomFichier = `feedbackpro-rgpd-${ctx.pro.id}-${new Date().toISOString().slice(0, 10)}.json`
+    const nomFichier = `feedvoice-rgpd-${ctx.pro.id}-${new Date().toISOString().slice(0, 10)}.json`
     return new Response(jsonStr, {
       status: 200,
       headers: {

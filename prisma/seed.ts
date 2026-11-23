@@ -433,6 +433,90 @@ async function main() {
   console.log(`✅ Seed terminé : ${totalRetours} retours, ${totalZones} zones au total.`)
   console.log("   Superadmin : admin@feedbackpro.fr / admin123")
   console.log("   Démo Pro   : demo@pizzeria.fr / demo1234 (3 zones : Accueil, Salle / Restaurant, Toilettes RDC)")
+
+  // ---------- Base Clients VIP (module fondamental) ----------
+  // Démo salon VIP : profils avec consentements RGPD, préférences,
+  // allergies, notes concierge et historique de visites.
+  const vipDemo = [
+    {
+      name: "Aminata Diallo",
+      airline: "Air Sénégal",
+      vipLevel: "diamond",
+      preferences: ["Préfère rosé", "Coin calme près de la fenêtre", "Thé vert menthe"],
+      allergies: ["Arachides"],
+      notes: "Cliente fidèle — toujours accueillir par son prénom.",
+      visits: 14,
+    },
+    {
+      name: "Jean-Baptiste Moreau",
+      airline: "Air France",
+      vipLevel: "platinum",
+      preferences: ["Espresso double", "Presse économique"],
+      allergies: ["Fruits de mer"],
+      notes: "Voyage d'affaires hebdomadaire, très pressé.",
+      visits: 9,
+    },
+    {
+      name: "Fatou Ndiaye",
+      airline: "Air Sénégal",
+      vipLevel: "gold",
+      preferences: ["Jus de bissap", "Lit de massage si disponible"],
+      allergies: [],
+      notes: "",
+      visits: 4,
+    },
+    {
+      name: "Carlos Mendes",
+      airline: "TAP Portugal",
+      vipLevel: "gold",
+      preferences: ["Vin rouge portugais"],
+      allergies: ["Lactose"],
+      notes: "",
+      visits: 2,
+    },
+  ]
+  for (const v of vipDemo) {
+    const existing = await db.vipClient.findFirst({ where: { name: v.name } })
+    if (existing) continue
+    await db.vipClient.create({
+      data: {
+        name: v.name,
+        airline: v.airline,
+        vipLevel: v.vipLevel,
+        preferences: JSON.stringify(v.preferences),
+        allergies: JSON.stringify(v.allergies),
+        consentPhoto: true,
+        consentProfil: true,
+        notes: v.notes || null,
+        visitCount: v.visits,
+        lastVisit: new Date(Date.now() - v.visits * 24 * 3600 * 1000),
+        ownerUserId: null, // démo partagée
+      },
+    })
+  }
+  const aminata = await db.vipClient.findFirst({ where: { name: "Aminata Diallo" } })
+  if (aminata) {
+    const nbNotes = await db.vipClientNote.count({ where: { vipClientId: aminata.id } })
+    if (nbNotes === 0) {
+      await db.vipClientNote.createMany({
+        data: [
+          { vipClientId: aminata.id, auteur: "Nafi (Concierge)", contenu: "Préfère le rosé bien frais — toujours proposer en arrivant.", type: "preference" },
+          { vipClientId: aminata.id, auteur: "Chef Ibra", contenu: "ALLERGIE ARACHIDES — vérifier systématiquement les amuse-bouches.", type: "allergie" },
+          { vipClientId: aminata.id, auteur: "Nafi (Concierge)", contenu: "Anniversaire le 12 du mois — prévoir l'attention du salon.", type: "concierge" },
+        ],
+      })
+      await db.vipVisit.createMany({
+        data: [0, 3, 8].map((days) => ({
+          vipClientId: aminata.id,
+          canal: days === 0 ? "scan" : "reception",
+          tableNumber: days === 0 ? "T-01" : null,
+          detection: days === 0 ? "nom reconnu" : "saisie réception",
+          createdAt: new Date(Date.now() - days * 24 * 3600 * 1000),
+        })),
+      })
+    }
+  }
+  console.log("   VIP : 4 clients de démo (consentements RGPD + notes concierge)")
 }
 
 main()

@@ -110,10 +110,10 @@ const CANAL_META: Record<
   Canal,
   { label: string; icon: React.ComponentType<{ className?: string }>; color: string; desc: string }
 > = {
-  email: { label: "Email", icon: Mail, color: "text-blue-600", desc: "Notifications par email (Resend / SendGrid)" },
-  whatsapp: { label: "WhatsApp", icon: MessageCircle, color: "text-green-600", desc: "WhatsApp Business API (Meta / Twilio)" },
-  sms_mtarget: { label: "SMS Mtarget", icon: Smartphone, color: "text-amber-600", desc: "SMS Mtarget (Afrique de l'Ouest) — 25 FCFA / SMS" },
-  push_pwa: { label: "Push PWA", icon: Bell, color: "text-purple-600", desc: "Web Push notifications (service worker)" },
+  email: { label: "Email", icon: Mail, color: "text-[#3c3e4c]", desc: "Notifications par email (Resend / SendGrid)" },
+  whatsapp: { label: "WhatsApp", icon: MessageCircle, color: "text-[#a05f45]", desc: "WhatsApp Business API (Meta / Twilio)" },
+  sms_mtarget: { label: "SMS Mtarget", icon: Smartphone, color: "text-[#a05f45]", desc: "SMS Mtarget (Afrique de l'Ouest) — 25 FCFA / SMS" },
+  push_pwa: { label: "Push PWA", icon: Bell, color: "text-[#a05f45]", desc: "Web Push notifications (service worker)" },
 }
 
 const CANAL_ORDER: Canal[] = ["email", "sms_mtarget", "whatsapp", "push_pwa"]
@@ -138,16 +138,16 @@ const RECIPIENT_LABELS: Record<string, string> = {
 }
 
 const URGENCY_COLOR: Record<string, string> = {
-  low: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
-  medium: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
-  high: "bg-orange-100 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
+  low: "bg-[#f3ddd2] text-[#8a4f3b] dark:bg-[#573125]/40 dark:text-[#dba28a]",
+  medium: "bg-[#f3ddd2] text-[#8a4f3b] dark:bg-[#573125]/40 dark:text-[#dba28a]",
+  high: "bg-[#f3ddd2] text-[#8a4f3b] dark:bg-[#573125]/40 dark:text-[#dba28a]",
   critical: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
 }
 
 const STATUS_COLOR: Record<string, string> = {
-  sent: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
-  delivered: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
-  read: "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
+  sent: "bg-[#f3ddd2] text-[#8a4f3b] dark:bg-[#573125]/40 dark:text-[#dba28a]",
+  delivered: "bg-[#dcdee0] text-[#2e3040] dark:bg-[#14152a]/40 dark:text-[#8e8e95]",
+  read: "bg-[#f3ddd2] text-[#8a4f3b] dark:bg-[#573125]/40 dark:text-[#dba28a]",
   failed: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
 }
 
@@ -375,8 +375,8 @@ function SectionCanaux() {
                     <Badge
                       className={cn(
                         s.active
-                          ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
-                          : "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+                          ? "bg-[#f3ddd2] text-[#8a4f3b] dark:bg-[#573125]/40 dark:text-[#dba28a]"
+                          : "bg-[#f3ddd2] text-[#8a4f3b] dark:bg-[#573125]/40 dark:text-[#dba28a]",
                       )}
                     >
                       {s.active ? (
@@ -481,8 +481,8 @@ function DialogConfigCanal({
       : canal === "email"
         ? [
             { key: "provider", label: "Provider", placeholder: "resend | sendgrid" },
-            { key: "fromName", label: "Nom expéditeur", placeholder: "FeedbackPro Alertes" },
-            { key: "fromEmail", label: "Email expéditeur", placeholder: "alertes@feedbackpro.sn" },
+            { key: "fromName", label: "Nom expéditeur", placeholder: "FeedVoice Alertes" },
+            { key: "fromEmail", label: "Email expéditeur", placeholder: "alertes@feedvoice.sn" },
             { key: "apiKey", label: "Clé API", placeholder: "re_… / SG.…", type: "password" },
           ]
         : canal === "whatsapp"

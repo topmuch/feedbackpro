@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Service Worker (Phase 2 — Mode Offline étendu)
+// FeedVoice - Service Worker (Phase 2 — Mode Offline étendu)
 // ------------------------------------------------------------
 // Stratégies de cache hybrides :
 //   1. POST /api/public/retour (offline) → IndexedDB + Background Sync
@@ -7,22 +7,26 @@
 //   2. Cache-first (TTL 1h) pour /api/zone/[qrToken] (configs restaurant)
 //   2b. Network-first (repli cache) pour /api/airport/zone/* (configs aéroport)
 //   3. Network-first pour la page de scan /r/[qrToken]
+//   3b. Network-first pour TOUTE navigation HTML (/, /?qr_type=…, etc.)
+//       → les visiteurs voient toujours la dernière version déployée
+//         (repli cache uniquement hors ligne)
 //   4. Stale-while-revalidate pour les assets same-origin
 //
 // Fichier PLAIN JAVASCRIPT (aucune annotation TypeScript — un SW est
 // servi tel quel par Next.js sans compilation).
 // ============================================================
 
-// CACHE_NAME bumpé v3 → v4 (feedbackpro-airport-v4) pour forcer le
-// refresh du shell suite à l'ajout du handler push (Task P1 —
-// notifications always-on via Service Worker + Push API).
-const CACHE_NAME = "feedbackpro-airport-v4"
-const CACHE_API = "feedbackpro-api-v2"
+// CACHE_NAME bumpé v8 → v9 (feedvoice-airport-v9) : purge forcée du cache
+// chez tous les visiteurs — SUG-2 correction visibilité hero (ambiance 14 %
+// desktop / 10 % mobile, calque réactivé ≤1024px). Les anciens caches
+// feedvoice-* v≤8 sont supprimés par le handler activate ci-dessous.
+const CACHE_NAME = "feedvoice-airport-v9"
+const CACHE_API = "feedvoice-api-v4"
 // Cache dédié aux réponses GET /api/airport/zone/* (network-first, pas de
 // TTL : on veut toujours la version réseau si disponible, le cache n'est
 // qu'un repli offline). Séparé de CACHE_API pour ne pas mélanger avec les
 // réponses TTL-marquées de /api/zone/[qrToken].
-const CACHE_AIRPORT_API = "feedbackpro-airport-api-v4"
+const CACHE_AIRPORT_API = "feedvoice-airport-api-v6"
 const PRECACHE_URLS = [
   "/",
   "/manifest.webmanifest",
@@ -250,6 +254,37 @@ self.addEventListener("fetch", (event) => {
     return
   }
 
+  // 2c) NETWORK-FIRST STRICT pour TOUTES les autres réponses API GET
+  // (/api/auth/me, /api/pro/*, /api/admin/*, /api/me, /api/notifications…).
+  // Ces réponses sont DYNAMIQUES et liées au cookie de session : les servir
+  // depuis un cache (stale-while-revalidate) provoquait le bug
+  // « il faut saisir ses identifiants 2 fois » — après le POST /auth/login
+  // (cookie posé), le SW renvoyait depuis le cache le /api/auth/me « non
+  // connecté » capturé avant la connexion. Aucune mise en cache : le réseau
+  // est toujours la source de vérité ; le cache n'est qu'un repli offline.
+  if (url.pathname.startsWith("/api/")) {
+    event.respondWith(
+      (async () => {
+        try {
+          return await fetch(req)
+        } catch {
+          // Hors ligne : repli best-effort sur un éventuel cache ancien,
+          // sinon réponse JSON 503 exploitable par le client.
+          const cache = await caches.open(CACHE_API)
+          const fallback = await cache.match(req)
+          return (
+            fallback ??
+            new Response(JSON.stringify({ ok: false, error: "Hors ligne" }), {
+              status: 503,
+              headers: { "Content-Type": "application/json" },
+            })
+          )
+        }
+      })()
+    )
+    return
+  }
+
   // 3) Network-first pour la page de scan /r/[qrToken]
   if (url.pathname.startsWith("/r/")) {
     event.respondWith(
@@ -269,7 +304,40 @@ self.addEventListener("fetch", (event) => {
     return
   }
 
+  // 3b) NETWORK-FIRST pour toute navigation (pages HTML : /, /?qr_type=…,
+  // /aeroport/…, /auth…). Chaque visiteur reçoit TOUJOURS la version à
+  // jour servie par le serveur ; le cache n'est qu'un repli hors ligne.
+  // (Avant : les navigations tombaient dans la règle 4 stale-while-
+  // revalidate → l'ancien shell restait affiché après chaque déploiement.)
+  if (req.mode === "navigate" || req.destination === "document") {
+    event.respondWith(
+      (async () => {
+        try {
+          const res = await fetch(req)
+          if (res && res.status === 200 && res.type === "basic") {
+            const copy = res.clone()
+            caches
+              .open(CACHE_NAME)
+              .then((cache) => cache.put(req, copy))
+              .catch(() => undefined)
+          }
+          return res
+        } catch {
+          // Hors ligne : repli sur le shell en cache (PWA utilisable)
+          const cached = await caches.match(req)
+          if (cached) return cached
+          const shell = await caches.match("/")
+          return shell ?? new Response("Offline", { status: 503 })
+        }
+      })()
+    )
+    return
+  }
+
   // 4) Stale-while-revalidate pour les assets statiques same-origin
+  // (JS/CSS/images — noms hashés, donc jamais obsolètes en pratique).
+  // NB : toutes les routes /api/* sont déjà traitées plus haut (règles 1,
+  // 2, 2b et 2c) — aucune réponse API dynamique ne passe par ici.
   if (url.origin === self.location.origin) {
     event.respondWith(
       (async () => {
@@ -501,7 +569,7 @@ async function notifieClientsAirportPendingChanged() {
 // ============================================================
 
 self.addEventListener("push", function (event) {
-  let data = { title: "FeedbackPro", body: "Nouvel incident", url: "/" }
+  let data = { title: "FeedVoice", body: "Nouvel incident", url: "/" }
   try {
     if (event.data) {
       const parsed = event.data.json()

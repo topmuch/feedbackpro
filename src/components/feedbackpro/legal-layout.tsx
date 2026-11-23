@@ -1,12 +1,13 @@
 // ============================================================
-// FeedbackPro - Gabarit commun des pages légales (Session 6 §4)
+// FeedVoice - Gabarit commun des pages légales (Session 6 §4)
 // Composant serveur : aucun état, aucun "use client" requis.
 // Utilisé par /mentions-legales, /cgu, /confidentialite, /cookies.
 // ============================================================
 
 import Link from "next/link"
-import { ArrowLeft, QrCode } from "lucide-react"
+import { ArrowLeft } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
+import { BrandMark } from "@/components/feedbackpro/brand-mark"
 
 export const PAGES_LEGALES = [
   { href: "/mentions-legales", label: "Mentions légales" },
@@ -48,19 +49,13 @@ export function LegalLayout({
           <Link
             href="/"
             className="flex items-center gap-2 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-            aria-label="Retour à l'accueil FeedbackPro"
+            aria-label="Retour à l'accueil FeedVoice"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden />
             Retour
           </Link>
-          <Link href="/" className="flex items-center gap-2" aria-label="FeedbackPro — Accueil">
-            <span
-              className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary text-primary-foreground"
-              aria-hidden
-            >
-              <QrCode className="h-4 w-4" />
-            </span>
-            <span className="font-bold">FeedbackPro</span>
+          <Link href="/" className="flex items-center gap-2" aria-label="FeedVoice — Accueil">
+            <BrandMark className="h-6" />
           </Link>
         </div>
       </header>
@@ -80,7 +75,7 @@ export function LegalLayout({
       {/* Pied : liens vers les autres pages légales */}
       <footer className="mt-auto border-t bg-muted/30">
         <div className="mx-auto flex max-w-3xl flex-col items-center gap-3 px-4 py-6 text-xs text-muted-foreground sm:flex-row sm:justify-between sm:px-6">
-          <p>© {new Date().getFullYear()} FeedbackPro — Tous droits réservés.</p>
+          <p>© {new Date().getFullYear()} FeedVoice — Tous droits réservés.</p>
           <nav aria-label="Pages légales" className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
             {PAGES_LEGALES.map((p) => (
               <Link

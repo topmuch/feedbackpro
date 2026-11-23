@@ -1,11 +1,22 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Sélecteur de langue (Task M2)
+// FeedVoice - Sélecteur de langue (Task M2 + Task 1-c)
 // ------------------------------------------------------------
-// 3 drapeaux FR / EN / ES au clic : set le cookie `fp_locale` puis
-// recharge la page pour que le serveur renvoie la nouvelle locale
-// (NextIntlClientProvider re-monte avec les messages MAJ).
+// Deux modes (Task 1-c : rétro-compatible) :
+//
+//   1. HÉRITÉ (aucune prop) : 3 drapeaux FR / EN / ES au clic -> set
+//      du cookie `fp_locale` puis rechargement de la page pour que le
+//      serveur renvoie la nouvelle locale (NextIntlClientProvider
+//      re-monte avec les messages MAJ). Utilisé par pro-dashboard et
+//      admin-dashboard.
+//
+//   2. CONTRÔLÉ (props `locale` + `onLocaleChange`) : la valeur
+//      affichée vient du parent (store i18n du dashboard Pro) et le
+//      clic délègue au parent -> changement INSTANTANÉ, sans
+//      rechargement. La persistance (cookie `fp_locale` + miroir
+//      localStorage) est assurée par le parent via
+//      `memoriserLocaleDashboard()` (src/lib/i18n-dashboard.ts).
 //
 // Tone "dark" : sur fond bleu (header des dashboards).
 // Tone "light" : sur fond clair (header public, page de scan).
@@ -15,41 +26,59 @@ import { useState } from "react"
 import { Check, Globe } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { LOCALES, LOCALE_LABELS, LOCALE_COOKIE, type Locale } from "@/i18n/config"
+import { useDashboardI18n } from "@/lib/i18n-dashboard"
 
 type Tone = "dark" | "light"
+
+type LanguageSelectorProps = {
+  tone?: Tone
+  className?: string
+  /** Mode contrôlé : locale courante affichée (dashboard Pro). */
+  locale?: Locale
+  /** Mode contrôlé : appelé au clic ; le parent persiste et applique. */
+  onLocaleChange?: (l: Locale) => void
+}
+
+// Helper module-scope : l'écriture du cookie est une mutation globale
+// volontaire (évènement utilisateur) — sortie du corps du composant pour
+// rester compatible avec les règles de pureté du compilateur React.
+function ecrireCookieLocale(l: Locale) {
+  // 1 an d'expiration, path=/ pour qu'il soit envoyé à toutes les routes
+  document.cookie = `${LOCALE_COOKIE}=${l}; path=/; max-age=${365 * 24 * 3600}; SameSite=Lax`
+}
 
 export function LanguageSelector({
   tone = "light",
   className,
-}: {
-  tone?: Tone
-  className?: string
-}) {
+  locale,
+  onLocaleChange,
+}: LanguageSelectorProps) {
   const [ouvert, setOuvert] = useState(false)
+  // Hook i18n du dashboard : traduit l'aria-label du bouton (fr/en/es).
+  const { t } = useDashboardI18n()
+
+  // Mode contrôlé si ET SEULEMENT SI les deux props sont fournies.
+  const controle = locale !== undefined && typeof onLocaleChange === "function"
 
   function choisir(l: Locale) {
     setOuvert(false)
-    // 1 an d'expiration, path=/ pour qu'il soit envoyé à toutes les routes
-    document.cookie = `${LOCALE_COOKIE}=${l}; path=/; max-age=${365 * 24 * 3600}; SameSite=Lax`
-    // Recharge pour appliquer la nouvelle locale côté serveur (messages + <html lang>)
-    window.location.reload()
-  }
-
-  // Locale courante : on lit le cookie côté client (sinon défaut fr)
-  function lireLocaleCourante(): Locale {
-    try {
-      const match = document.cookie
-        .split("; ")
-        .find((c) => c.startsWith(`${LOCALE_COOKIE}=`))
-      const v = match?.split("=")?.[1]
-      if (v === "fr" || v === "en" || v === "es") return v
-    } catch {
-      /* ignore */
+    if (controle) {
+      // Mode contrôlé : le parent (useDashboardI18n().setLocale) écrit
+      // cookie + localStorage et re-rend l'arbre instantanément.
+      onLocaleChange(l)
+    } else {
+      // Mode hérité : cookie + rechargement (flux serveur next-intl).
+      ecrireCookieLocale(l)
+      // Recharge pour appliquer la nouvelle locale côté serveur (messages + <html lang>)
+      window.location.reload()
     }
-    return "fr"
   }
 
-  const courant = lireLocaleCourante()
+  // Locale courante : contrôlée par le parent, sinon lue depuis le cookie
+  // (sinon défaut fr).
+  const courant: Locale = controle
+    ? (locale as Locale)
+    : lireLocaleCourante()
   const courantInfo = LOCALE_LABELS[courant]
 
   return (
@@ -57,7 +86,7 @@ export function LanguageSelector({
       <button
         type="button"
         onClick={() => setOuvert((o) => !o)}
-        aria-label="Changer de langue"
+        aria-label={t("shell.changerLangue")}
         aria-expanded={ouvert}
         className={cn(
           "inline-flex items-center gap-1 rounded-full px-2.5 py-1.5 text-xs font-medium transition-colors",
@@ -100,4 +129,18 @@ export function LanguageSelector({
       )}
     </div>
   )
+}
+
+/** Lit la locale depuis le cookie côté client (mode hérité), sinon défaut fr. */
+function lireLocaleCourante(): Locale {
+  try {
+    const match = document.cookie
+      .split("; ")
+      .find((c) => c.startsWith(`${LOCALE_COOKIE}=`))
+    const v = match?.split("=")?.[1]
+    if (v === "fr" || v === "en" || v === "es") return v
+  } catch {
+    /* ignore */
+  }
+  return "fr"
 }

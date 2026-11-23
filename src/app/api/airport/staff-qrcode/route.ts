@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     width: TAILLE_QR,
     margin: 2,
     errorCorrectionLevel: 'H',
-    color: { dark: '#003399', light: '#ffffff' },
+    color: { dark: '#000d10', light: '#ffffff' },
   })
 
   if (format === 'pdf') {
@@ -45,7 +45,7 @@ export async function GET(req: NextRequest) {
     pdf.setFont('helvetica', 'normal')
     pdf.setFontSize(11)
     pdf.setTextColor(200, 200, 220)
-    pdf.text('QR code employé — FeedbackPro', pageWidth / 2, 40, { align: 'center' })
+    pdf.text('QR code employé — FeedVoice', pageWidth / 2, 40, { align: 'center' })
 
     // QR code
     const qrSize = 120

@@ -17,17 +17,17 @@
 //   3. Une fois chargé → affichage du briefing dans une carte
 //      « Luxe Lumineux »
 //   4. Bouton « ▶ ÉCOUTER » (or) → parle(content) via @/lib/staff-tts
-//      (voix « Denise » : française, grave, débit rapide)
+//      (voix « Nathalie » : française, grave, débit rapide)
 //   5. Bouton « PASSER » (outline) → onDismiss()
 //   6. Auto-play : tenté au montage si le navigateur l'autorise,
 //      mais la plupart des navigateurs bloquent l'autoplay sans
 //      interaction. Le bouton « ÉCOUTER » reste donc proéminent.
 //
 // Palette « Luxe Lumineux » :
-//   - Background   #FAFAF7    - Cards  #FFFFFF + shadow gold 6%
-//   - Gold         #C9A961    - Bronze #8B6F47
-//   - Text         #2C2C2C    - Success #4A7C59
-//   - Border       #EAE5DC    - Title font Georgia / Playfair
+//   - Background   #ffffff    - Cards  #FFFFFF + shadow gold 6%
+//   - Gold         #bc7155    - Bronze #8B6F47
+//   - Text         #2C2C2C    - Success #bc7155
+//   - Border       #efe7e0    - Title font Georgia / Playfair
 //
 // API consommée :
 //   GET /api/vip/briefing?role=reception&name=Moussa
@@ -78,13 +78,13 @@ const TITLE_FONT = {
 const CARD_SHADOW = 'shadow-[0_4px_20px_rgba(201,169,97,0.06)]'
 
 // Palette « Luxe Lumineux »
-const GOLD = '#C9A961'
+const GOLD = '#bc7155'
 const BRONZE = '#8B6F47'
 const TEXT = '#2C2C2C'
-const SUCCESS = '#4A7C59'
-const ALERT = '#C97B63'
-const BG = '#FAFAF7'
-const BORDER = '#EAE5DC'
+const SUCCESS = '#bc7155'
+const ALERT = '#bc7155'
+const BG = '#ffffff'
+const BORDER = '#efe7e0'
 
 /**
  * Tente de récupérer le flag localStorage « auto-play briefing ».
@@ -301,7 +301,7 @@ export function VipBriefing({
       <div
         className={cn(
           'relative z-10 w-full max-w-2xl overflow-hidden rounded-2xl bg-white',
-          'border border-[#EAE5DC]',
+          'border border-[#efe7e0]',
         )}
         style={{ boxShadow: '0 12px 40px rgba(201,169,97,0.18)' }}
       >
@@ -368,7 +368,7 @@ export function VipBriefing({
 
           {/* Footer actions — toujours visibles sauf pendant le loading initial */}
           {!loading && !error && briefing && (
-            <div className="mt-5 flex flex-col-reverse gap-2 border-t border-[#EAE5DC] pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mt-5 flex flex-col-reverse gap-2 border-t border-[#efe7e0] pt-4 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-xs text-[#8B6F47]">
                 {listened ? (
                   <span
@@ -387,7 +387,7 @@ export function VipBriefing({
                   type="button"
                   variant="outline"
                   onClick={handleSkip}
-                  className="border-[#EAE5DC] text-[#2C2C2C] hover:bg-[#FAFAF7]"
+                  className="border-[#efe7e0] text-[#2C2C2C] hover:bg-[#ffffff]"
                 >
                   Passer
                 </Button>
@@ -427,7 +427,7 @@ function LoadingState() {
   return (
     <div className="flex flex-col items-center justify-center py-10 text-center">
       <div
-        className="flex size-12 items-center justify-center rounded-full ring-2 ring-[#EAE5DC]"
+        className="flex size-12 items-center justify-center rounded-full ring-2 ring-[#efe7e0]"
         style={{ backgroundColor: BG }}
         aria-hidden
       >
@@ -456,7 +456,7 @@ function ErrorState({
 }) {
   return (
     <div
-      className="flex flex-col items-center justify-center rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] py-8 text-center"
+      className="flex flex-col items-center justify-center rounded-xl border border-[#efe7e0] bg-[#ffffff] py-8 text-center"
     >
       <p className="text-sm" style={{ color: ALERT }}>
         {message}
@@ -465,7 +465,7 @@ function ErrorState({
         type="button"
         variant="outline"
         onClick={onRetry}
-        className="mt-3 border-[#EAE5DC] text-[#2C2C2C] hover:bg-white"
+        className="mt-3 border-[#efe7e0] text-[#2C2C2C] hover:bg-white"
       >
         Réessayer
       </Button>
@@ -539,18 +539,18 @@ function BriefingContent({
       <div className="mb-4 flex flex-wrap items-center gap-2 text-xs">
         <span
           className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 font-medium"
-          style={{ backgroundColor: '#F3EEDF', color: BRONZE }}
+          style={{ backgroundColor: '#f7efe9', color: BRONZE }}
         >
           <Mic className="size-3" aria-hidden />
           {roleLabel(briefing.role)}
         </span>
         {briefing.createdAt && (
-          <span className="inline-flex items-center gap-1 rounded-full bg-[#FAFAF7] px-2.5 py-1 text-[#8B6F47] ring-1 ring-[#EAE5DC]">
+          <span className="inline-flex items-center gap-1 rounded-full bg-[#ffffff] px-2.5 py-1 text-[#8B6F47] ring-1 ring-[#efe7e0]">
             Généré à {formatTime(briefing.createdAt)}
           </span>
         )}
         {briefing.durationSec ? (
-          <span className="inline-flex items-center gap-1 rounded-full bg-[#FAFAF7] px-2.5 py-1 text-[#8B6F47] ring-1 ring-[#EAE5DC]">
+          <span className="inline-flex items-center gap-1 rounded-full bg-[#ffffff] px-2.5 py-1 text-[#8B6F47] ring-1 ring-[#efe7e0]">
             ⏱ {formatDuration(briefing.durationSec)}
           </span>
         ) : null}
@@ -559,15 +559,15 @@ function BriefingContent({
       {/* Texte du briefing — carte « Luxe Lumineux » */}
       <article
         className={cn(
-          'rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] p-4 sm:p-5',
+          'rounded-xl border border-[#efe7e0] bg-[#ffffff] p-4 sm:p-5',
           CARD_SHADOW,
         )}
         aria-live="polite"
       >
         <div className="flex items-start gap-3">
-          {/* Avatar « Denise » (voix de synthèse) */}
+          {/* Avatar « Nathalie » (voix de synthèse) */}
           <div
-            className="flex size-10 shrink-0 items-center justify-center rounded-full ring-2 ring-[#EAE5DC]"
+            className="flex size-10 shrink-0 items-center justify-center rounded-full ring-2 ring-[#efe7e0]"
             style={{ backgroundColor: '#FFFFFF' }}
             aria-hidden
           >
@@ -575,7 +575,7 @@ function BriefingContent({
           </div>
           <div className="min-w-0 flex-1">
             <p className="text-xs uppercase tracking-wider text-[#8B6F47]">
-              Denise · Voix de service
+              Nathalie · Voix de service
             </p>
             <p
               className="mt-1.5 text-sm leading-relaxed text-[#2C2C2C] sm:text-[15px]"
@@ -597,7 +597,7 @@ function BriefingContent({
             {kpiChips.map((chip, i) => (
               <span
                 key={`${chip.label}-${i}`}
-                className="inline-flex items-center gap-1.5 rounded-md border border-[#EAE5DC] bg-white px-2.5 py-1 text-xs"
+                className="inline-flex items-center gap-1.5 rounded-md border border-[#efe7e0] bg-white px-2.5 py-1 text-xs"
               >
                 <span
                   className="size-1.5 rounded-full"

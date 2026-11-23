@@ -14,11 +14,11 @@
 // confirmation renvoie un n° de suivi #CMD-2026-XXXX.
 //
 // Palette « Luxe Lumineux » :
-//   - Background   #FAFAF7    - Cards  #FFFFFF + shadow gold 6%
-//   - Gold         #C9A961    - Bronze #8B6F47
-//   - Text         #2C2C2C    - VIP    #6B4C9A
-//   - Success      #4A7C59    - Alert  #C97B63
-//   - Border       #EAE5DC
+//   - Background   #ffffff    - Cards  #FFFFFF + shadow gold 6%
+//   - Gold         #bc7155    - Bronze #8B6F47
+//   - Text         #2C2C2C    - VIP    #bc7155
+//   - Success      #bc7155    - Alert  #bc7155
+//   - Border       #efe7e0
 //
 // APIs consommées :
 //   GET  /api/vip/upsell-offers?type=upsell|dutyfree
@@ -112,7 +112,7 @@ const PAYMENT_METHODS: Array<{
     label: 'Wave',
     emoji: '🌊',
     hint: 'Paiement mobile instantané',
-    badgeClass: 'bg-sky-50 text-sky-700 border-sky-200',
+    badgeClass: 'bg-[#f0f1f2] text-[#2e3040] border-[#b9bbc2]',
   },
   {
     value: 'orange_money',
@@ -120,16 +120,28 @@ const PAYMENT_METHODS: Array<{
     emoji: '🟠',
     hint: 'Compte Orange Money',
     badgeClass:
-      'bg-orange-50 text-orange-700 border-orange-200',
+      'bg-[#faf1ec] text-[#8a4f3b] border-[#e7c1ae]',
   },
   {
     value: 'cash',
     label: 'Espèces',
     emoji: '💵',
     hint: 'Règlement au staff à votre table',
-    badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+    badgeClass: 'bg-[#faf1ec] text-[#8a4f3b] border-[#e7c1ae]',
   },
 ]
+
+/**
+ * QR_ROUTING — Libellé d'emplacement affiché :
+ *   - n° de table ("T-05")  → « Table T-05 » (mode CLIENT_ZONE)
+ *   - zone/fauteuil ("Zone Buffet", "Fauteuil 12", "Salon VIP")
+ *     → affiché tel quel (mode CLIENT_GLOBAL, QR d'entrée).
+ */
+function displayLocation(t: string): string {
+  const raw = (t ?? '').trim()
+  if (!raw) return 'Salon VIP'
+  return /^t[-\s]?\d+/i.test(raw) ? `Table ${raw}` : raw
+}
 
 /** Formate un montant en FCFA avec séparateur de milliers (espace). */
 function formatFcfa(amount: number): string {
@@ -172,12 +184,12 @@ function OfferCard({ offer, onReserve, busy }: OfferCardProps) {
   return (
     <article
       className={cn(
-        'flex flex-col rounded-xl border border-[#EAE5DC] bg-white p-5',
+        'flex flex-col rounded-xl border border-[#efe7e0] bg-white p-5',
         'transition-all duration-200',
         CARD_SHADOW,
         outOfStock
           ? 'opacity-60'
-          : 'hover:border-[#C9A961]/40 hover:shadow-[0_8px_28px_rgba(201,169,97,0.12)]',
+          : 'hover:border-[#bc7155]/40 hover:shadow-[0_8px_28px_rgba(201,169,97,0.12)]',
       )}
     >
       <div className="flex items-start justify-between gap-3">
@@ -192,7 +204,7 @@ function OfferCard({ offer, onReserve, busy }: OfferCardProps) {
           <span
             className={cn(
               'rounded-full border px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
-              'border-[#EAE5DC] bg-[#FAFAF7] text-[#8B6F47]',
+              'border-[#efe7e0] bg-[#ffffff] text-[#8B6F47]',
             )}
           >
             {prettyCategory(offer.category)}
@@ -232,7 +244,7 @@ function OfferCard({ offer, onReserve, busy }: OfferCardProps) {
           onClick={() => onReserve(offer)}
           className={cn(
             'h-9 rounded-md px-4 text-sm font-semibold text-white',
-            'bg-[#C9A961] hover:bg-[#B8974A] active:bg-[#A6863C]',
+            'bg-[#bc7155] hover:bg-[#B8974A] active:bg-[#A6863C]',
             'shadow-sm transition-colors',
             'disabled:cursor-not-allowed disabled:opacity-50',
           )}
@@ -334,7 +346,15 @@ function PaymentDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="rounded-xl border-[#EAE5DC] bg-white p-6 sm:max-w-md">
+      <DialogContent
+        className={cn(
+          'rounded-xl border-[#efe7e0] bg-white p-6 sm:max-w-md',
+          // QA 2026-11-22 : la piste de grille implicite de Radix/shadcn suivait
+          // le min-content de la rangée récap → 14 px de débordement à droite.
+          // minmax(0,1fr) + min-w-0 contraint la grille à la largeur réelle.
+          'grid-cols-[minmax(0,1fr)] [&>*]:min-w-0',
+        )}
+      >
         <DialogHeader>
           <DialogTitle
             className="text-xl text-[#2C2C2C]"
@@ -343,15 +363,15 @@ function PaymentDialog({
             Paiement de votre réservation
           </DialogTitle>
           <DialogDescription className="text-[#6b6b6b]">
-            Table {tableNumber} · Choisissez votre moyen de paiement.
+            {displayLocation(tableNumber)} · Choisissez votre moyen de paiement.
           </DialogDescription>
         </DialogHeader>
 
         {/* Récap offre */}
         <div
           className={cn(
-            'flex items-center gap-3 rounded-lg border border-[#EAE5DC]',
-            'bg-[#FAFAF7] p-4',
+            'flex items-center gap-3 rounded-lg border border-[#efe7e0]',
+            'bg-[#ffffff] p-4',
           )}
         >
           <span
@@ -375,7 +395,7 @@ function PaymentDialog({
             )}
           </div>
           <div
-            className="text-lg font-semibold text-[#C9A961]"
+            className="text-lg font-semibold text-[#bc7155]"
             style={TITLE_FONT}
           >
             {formatFcfa(offer.priceFcfa)}
@@ -399,14 +419,14 @@ function PaymentDialog({
                 className={cn(
                   'flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-all',
                   method === pm.value
-                    ? 'border-[#C9A961] bg-[#C9A961]/5 ring-1 ring-[#C9A961]/30'
-                    : 'border-[#EAE5DC] bg-white hover:border-[#C9A961]/40',
+                    ? 'border-[#bc7155] bg-[#bc7155]/5 ring-1 ring-[#bc7155]/30'
+                    : 'border-[#efe7e0] bg-white hover:border-[#bc7155]/40',
                 )}
               >
                 <RadioGroupItem
                   id={`pm-${pm.value}`}
                   value={pm.value}
-                  className="border-[#C9A961] text-[#C9A961]"
+                  className="border-[#bc7155] text-[#bc7155]"
                 />
                 <span
                   className="text-2xl"
@@ -428,12 +448,12 @@ function PaymentDialog({
           </RadioGroup>
         </div>
 
-        <DialogFooter className="gap-2">
+        <DialogFooter className="flex-wrap justify-end gap-2">
           <Button
             variant="ghost"
             onClick={() => onOpenChange(false)}
             disabled={submitting}
-            className="text-[#8B6F47] hover:bg-[#FAFAF7] hover:text-[#2C2C2C]"
+            className="text-[#8B6F47] hover:bg-[#ffffff] hover:text-[#2C2C2C]"
           >
             Annuler
           </Button>
@@ -441,7 +461,7 @@ function PaymentDialog({
             onClick={handleConfirm}
             disabled={submitting}
             className={cn(
-              'h-10 rounded-md bg-[#C9A961] px-6 text-sm font-bold uppercase tracking-wide',
+              'h-10 rounded-md bg-[#bc7155] px-6 text-sm font-bold uppercase tracking-wide',
               'text-white hover:bg-[#B8974A] active:bg-[#A6863C]',
             )}
           >
@@ -477,10 +497,10 @@ function ConfirmationView({ order, onBack }: ConfirmationViewProps) {
       <div
         className={cn(
           'flex size-20 items-center justify-center rounded-full',
-          'bg-[#4A7C59]/10 ring-4 ring-[#4A7C59]/15',
+          'bg-[#bc7155]/10 ring-4 ring-[#bc7155]/15',
         )}
       >
-        <Check className="size-10 text-[#4A7C59]" strokeWidth={3} />
+        <Check className="size-10 text-[#bc7155]" strokeWidth={3} />
       </div>
 
       <h2
@@ -496,7 +516,7 @@ function ConfirmationView({ order, onBack }: ConfirmationViewProps) {
 
       <div
         className={cn(
-          'mt-6 w-full rounded-xl border border-[#EAE5DC] bg-white p-5 text-left',
+          'mt-6 w-full rounded-xl border border-[#efe7e0] bg-white p-5 text-left',
           CARD_SHADOW,
         )}
       >
@@ -505,13 +525,13 @@ function ConfirmationView({ order, onBack }: ConfirmationViewProps) {
             N° de suivi
           </span>
           <span
-            className="text-lg font-bold tracking-wider text-[#C9A961]"
+            className="text-lg font-bold tracking-wider text-[#bc7155]"
             style={TITLE_FONT}
           >
             #{order.trackingNumber}
           </span>
         </div>
-        <div className="my-3 h-px bg-[#EAE5DC]" />
+        <div className="my-3 h-px bg-[#efe7e0]" />
         <div className="flex items-center justify-between text-sm">
           <span className="text-[#6b6b6b]">Total payé</span>
           <span className="font-semibold text-[#2C2C2C]">
@@ -520,7 +540,7 @@ function ConfirmationView({ order, onBack }: ConfirmationViewProps) {
         </div>
         <div className="mt-2 flex items-center justify-between text-sm">
           <span className="text-[#6b6b6b]">Statut</span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-[#4A7C59]/10 px-2 py-0.5 text-xs font-semibold text-[#4A7C59]">
+          <span className="inline-flex items-center gap-1 rounded-full bg-[#bc7155]/10 px-2 py-0.5 text-xs font-semibold text-[#bc7155]">
             <Check className="size-3" /> Payé
           </span>
         </div>
@@ -529,7 +549,7 @@ function ConfirmationView({ order, onBack }: ConfirmationViewProps) {
       <Button
         onClick={onBack}
         className={cn(
-          'mt-6 h-10 rounded-md bg-[#C9A961] px-6 text-sm font-semibold text-white',
+          'mt-6 h-10 rounded-md bg-[#bc7155] px-6 text-sm font-semibold text-white',
           'hover:bg-[#B8974A] active:bg-[#A6863C]',
         )}
       >
@@ -637,7 +657,7 @@ export function VipUpsellCatalog({
   // ----- Render : écran confirmation -----
   if (screen === 'confirm' && confirmedOrder) {
     return (
-      <div className="min-h-screen bg-[#FAFAF7]">
+      <div className="min-h-screen bg-[#ffffff]">
         <ConfirmationView
           order={confirmedOrder}
           onBack={handleBackToCatalog}
@@ -653,11 +673,11 @@ export function VipUpsellCatalog({
     activeTab === 'upsell' ? loadingUpsell : loadingDutyfree
 
   return (
-    <div className="min-h-screen bg-[#FAFAF7] text-[#2C2C2C]">
+    <div className="min-h-screen bg-[#ffffff] text-[#2C2C2C]">
       {/* ---------- Header ---------- */}
       <header
         className={cn(
-          'sticky top-0 z-10 border-b border-[#EAE5DC] bg-white/90 backdrop-blur',
+          'sticky top-0 z-10 border-b border-[#efe7e0] bg-white/90 backdrop-blur',
           CARD_SHADOW,
         )}
       >
@@ -668,8 +688,8 @@ export function VipUpsellCatalog({
             aria-label="Retour"
             className={cn(
               'flex size-9 items-center justify-center rounded-full',
-              'border border-[#EAE5DC] bg-white text-[#8B6F47]',
-              'transition-colors hover:border-[#C9A961]/50 hover:text-[#2C2C2C]',
+              'border border-[#efe7e0] bg-white text-[#8B6F47]',
+              'transition-colors hover:border-[#bc7155]/50 hover:text-[#2C2C2C]',
             )}
           >
             <ArrowLeft className="size-4" />
@@ -685,7 +705,7 @@ export function VipUpsellCatalog({
                 Catalogue d'exception
               </h1>
               <p className="text-xs text-[#8B6F47]">
-                Table {tableNumber}
+                {displayLocation(tableNumber)}
               </p>
             </div>
           </div>
@@ -693,7 +713,7 @@ export function VipUpsellCatalog({
           <span
             className={cn(
               'hidden items-center gap-1 rounded-full border px-3 py-1 text-xs font-semibold sm:inline-flex',
-              'border-[#EAE5DC] bg-[#FAFAF7] text-[#6B4C9A]',
+              'border-[#efe7e0] bg-[#ffffff] text-[#bc7155]',
             )}
           >
             <Crown className="size-3" /> VIP
@@ -705,11 +725,11 @@ export function VipUpsellCatalog({
       <div className="mx-auto max-w-5xl px-4 pt-6">
         <div
           className={cn(
-            'flex items-start gap-3 rounded-xl border border-[#EAE5DC] bg-white p-4',
+            'flex items-start gap-3 rounded-xl border border-[#efe7e0] bg-white p-4',
             CARD_SHADOW,
           )}
         >
-          <Sparkles className="mt-0.5 size-5 shrink-0 text-[#C9A961]" />
+          <Sparkles className="mt-0.5 size-5 shrink-0 text-[#bc7155]" />
           <div>
             <div
               className="text-sm font-semibold text-[#2C2C2C]"
@@ -733,7 +753,7 @@ export function VipUpsellCatalog({
         >
           <TabsList
             className={cn(
-              'h-auto w-full gap-1 rounded-xl border border-[#EAE5DC] bg-white p-1',
+              'h-auto w-full gap-1 rounded-xl border border-[#efe7e0] bg-white p-1',
               CARD_SHADOW,
             )}
           >
@@ -741,7 +761,7 @@ export function VipUpsellCatalog({
               value="upsell"
               className={cn(
                 'flex-1 rounded-lg py-2 text-sm font-semibold transition-colors',
-                'data-[state=active]:bg-[#C9A961]/10 data-[state=active]:text-[#2C2C2C]',
+                'data-[state=active]:bg-[#bc7155]/10 data-[state=active]:text-[#2C2C2C]',
                 'text-[#8B6F47]',
               )}
             >
@@ -752,7 +772,7 @@ export function VipUpsellCatalog({
               value="dutyfree"
               className={cn(
                 'flex-1 rounded-lg py-2 text-sm font-semibold transition-colors',
-                'data-[state=active]:bg-[#C9A961]/10 data-[state=active]:text-[#2C2C2C]',
+                'data-[state=active]:bg-[#bc7155]/10 data-[state=active]:text-[#2C2C2C]',
                 'text-[#8B6F47]',
               )}
             >
@@ -767,7 +787,7 @@ export function VipUpsellCatalog({
               <LoadingGrid />
             ) : upsellOffers.length === 0 ? (
               <EmptyState
-                icon={<Crown className="size-7 text-[#C9A961]" />}
+                icon={<Crown className="size-7 text-[#bc7155]" />}
                 title="Aucune offre disponible"
                 description="Notre catalogue d'expériences est en cours d'enrichissement. Revenez dans quelques minutes."
               />
@@ -790,11 +810,11 @@ export function VipUpsellCatalog({
             {!loadingDutyfree && dutyfreeOffers.length > 0 && (
               <div
                 className={cn(
-                  'mb-4 flex items-center gap-3 rounded-lg border border-[#EAE5DC]',
-                  'bg-[#FAFAF7] px-4 py-3 text-sm',
+                  'mb-4 flex items-center gap-3 rounded-lg border border-[#efe7e0]',
+                  'bg-[#ffffff] px-4 py-3 text-sm',
                 )}
               >
-                <Plane className="size-4 shrink-0 text-[#6B4C9A]" />
+                <Plane className="size-4 shrink-0 text-[#bc7155]" />
                 <span className="text-[#6b6b6b]">
                   <span className="font-semibold text-[#2C2C2C]">
                     Livraison à votre place
@@ -809,7 +829,7 @@ export function VipUpsellCatalog({
               <LoadingGrid />
             ) : dutyfreeOffers.length === 0 ? (
               <EmptyState
-                icon={<Gift className="size-7 text-[#C9A961]" />}
+                icon={<Gift className="size-7 text-[#bc7155]" />}
                 title="Boutique en réassort"
                 description="La sélection duty-free est en cours de mise à jour. Notre concierge vous tient informé."
               />
@@ -833,17 +853,17 @@ export function VipUpsellCatalog({
       <footer className="mx-auto max-w-5xl px-4 pb-10 pt-8">
         <div
           className={cn(
-            'flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#EAE5DC]',
+            'flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#efe7e0]',
             'bg-white px-4 py-3 text-xs text-[#6b6b6b]',
             CARD_SHADOW,
           )}
         >
           <div className="flex items-center gap-2">
-            <ShoppingBag className="size-4 text-[#C9A961]" />
+            <ShoppingBag className="size-4 text-[#bc7155]" />
             Paiement 100% sécurisé · Wave · Orange Money · Espèces
           </div>
           <div className="flex items-center gap-1.5">
-            <Check className="size-3 text-[#4A7C59]" />
+            <Check className="size-3 text-[#bc7155]" />
             Confirmation instantanée à votre table
           </div>
         </div>
@@ -875,17 +895,17 @@ function LoadingGrid() {
         <div
           key={i}
           className={cn(
-            'h-56 animate-pulse rounded-xl border border-[#EAE5DC] bg-white',
+            'h-56 animate-pulse rounded-xl border border-[#efe7e0] bg-white',
             CARD_SHADOW,
           )}
         >
           <div className="flex h-full flex-col p-5">
-            <div className="size-10 rounded-full bg-[#EAE5DC]" />
-            <div className="mt-4 h-4 w-3/4 rounded bg-[#EAE5DC]" />
-            <div className="mt-2 h-3 w-full rounded bg-[#EAE5DC]" />
+            <div className="size-10 rounded-full bg-[#efe7e0]" />
+            <div className="mt-4 h-4 w-3/4 rounded bg-[#efe7e0]" />
+            <div className="mt-2 h-3 w-full rounded bg-[#efe7e0]" />
             <div className="mt-auto flex items-center justify-between">
-              <div className="h-6 w-20 rounded bg-[#EAE5DC]" />
-              <div className="h-8 w-24 rounded bg-[#EAE5DC]" />
+              <div className="h-6 w-20 rounded bg-[#efe7e0]" />
+              <div className="h-8 w-24 rounded bg-[#efe7e0]" />
             </div>
           </div>
         </div>
@@ -906,12 +926,12 @@ function EmptyState({
   return (
     <div
       className={cn(
-        'flex flex-col items-center justify-center rounded-xl border border-dashed border-[#EAE5DC]',
+        'flex flex-col items-center justify-center rounded-xl border border-dashed border-[#efe7e0]',
         'bg-white px-6 py-12 text-center',
         CARD_SHADOW,
       )}
     >
-      <div className="flex size-14 items-center justify-center rounded-full bg-[#FAFAF7]">
+      <div className="flex size-14 items-center justify-center rounded-full bg-[#ffffff]">
         {icon}
       </div>
       <h3

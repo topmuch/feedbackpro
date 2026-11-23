@@ -109,7 +109,7 @@ export async function PATCH(req: NextRequest, ctx: { params: Promise<{ id: strin
           `campaignId=${id}, zoneCode=${zoneCode} (${zoneNom}). Refus 403.`,
       )
       return fail(
-        `Zone ${zoneNom} interdite à la publicité. Règle FeedbackPro : jamais sur urgence.`,
+        `Zone ${zoneNom} interdite à la publicité. Règle FeedVoice : jamais sur urgence.`,
         403,
       )
     }

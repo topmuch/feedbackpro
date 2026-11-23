@@ -12,7 +12,6 @@
 // On charge @prisma/client via un require dynamique pour éviter que
 // Turbopack ne bundle l'import statique — cela permet de rebondir en dev
 // même si le chunk Turbopack d'@prisma/client a été invalidé.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function getRequire(): NodeRequire | undefined {
   // Plusieurs stratégies pour récupérer require() en contexte ESM/Turbopack
   try {
@@ -50,11 +49,10 @@ if (process.env.NODE_ENV !== 'production' && dynamicRequire.cache) {
 const PrismaClientCtor: typeof import('@prisma/client').PrismaClient =
   dynamicRequire('@prisma/client').PrismaClient
 
-// Version bumpé à v25 (VIP modules — VipOrder.trackingNumber + auth-pin / 
-// shower-reservations / upsell-offers / orders / lost-found routes). Incrémenter 
-// la version force la création d'une nouvelle instance PrismaClient qui connaît 
-// le nouveau champ trackingNumber sur VipOrder.
-const PRISMA_CACHE_KEY = 'prisma_v25_vip_modules'
+// Version bumpé à v26 (Base Clients VIP + Paramètres + Rapports : consentements
+// RGPD, allergies, VipClientNote, VipVisit, VipGuestAlert, VipTenantConfig,
+// VipAuditTrail). Incrémenter la version force une instance PrismaClient à jour.
+const PRISMA_CACHE_KEY = 'prisma_v26_vip_clients_settings_reports'
 
 const globalForPrisma = globalThis as unknown as {
   [key: string]: import('@prisma/client').PrismaClient | undefined

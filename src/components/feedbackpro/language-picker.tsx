@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - LanguagePicker (Task WAHOO-1 — Denise Traducteur)
+// FeedVoice - LanguagePicker (Task WAHOO-1 — Nathalie Traducteur)
 // ------------------------------------------------------------
 // Sélecteur de langue compact pour la PWA voyageur aéroport.
 // Le voyageur choisit sa langue maternellle parmi 11 langues + auto.
@@ -110,11 +110,11 @@ export function LanguagePicker({ value, onChange, className }: Props) {
         aria-expanded={open}
         aria-label="Choisir la langue du message"
         className={cn(
-          "inline-flex items-center gap-1.5 rounded-full bg-white/70 px-2.5 py-1.5 text-xs font-bold text-slate-700 shadow-sm ring-1 ring-white/60 backdrop-blur-md transition-all hover:bg-white/90 hover:ring-violet-200",
-          open && "ring-2 ring-violet-300 bg-white/90",
+          "inline-flex items-center gap-1.5 rounded-full bg-white/70 px-2.5 py-1.5 text-xs font-bold text-slate-700 shadow-sm ring-1 ring-white/60 backdrop-blur-md transition-all hover:bg-white/90 hover:ring-[#e7c1ae]",
+          open && "ring-2 ring-[#dba28a] bg-white/90",
         )}
       >
-        <Languages className="size-3.5 text-violet-500" aria-hidden />
+        <Languages className="size-3.5 text-[#bc7155]" aria-hidden />
         <span aria-hidden className="text-sm leading-none">
           {current.flag}
         </span>
@@ -125,10 +125,10 @@ export function LanguagePicker({ value, onChange, className }: Props) {
         <div
           role="listbox"
           aria-label="Langues disponibles"
-          className="absolute end-0 z-30 mt-1 max-h-72 w-48 overflow-y-auto rounded-2xl border border-white/60 bg-white/95 p-1 shadow-xl backdrop-blur-md ring-1 ring-violet-100"
+          className="absolute end-0 z-30 mt-1 max-h-72 w-48 overflow-y-auto rounded-2xl border border-white/60 bg-white/95 p-1 shadow-xl backdrop-blur-md ring-1 ring-[#f3ddd2]"
         >
           {/* En-tête */}
-          <div className="flex items-center gap-1.5 px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-violet-500">
+          <div className="flex items-center gap-1.5 px-2 py-1.5 text-[10px] font-bold uppercase tracking-wider text-[#bc7155]">
             <Globe className="size-3" aria-hidden />
             <span>Langue du message</span>
           </div>
@@ -148,15 +148,15 @@ export function LanguagePicker({ value, onChange, className }: Props) {
                 className={cn(
                   "flex w-full items-center gap-2 rounded-xl px-2.5 py-2 text-left text-sm transition-colors",
                   actif
-                    ? "bg-gradient-to-r from-violet-50 to-fuchsia-50 font-bold text-violet-700 ring-1 ring-violet-200"
-                    : "text-slate-700 hover:bg-violet-50/60",
+                    ? "bg-gradient-to-r from-[#faf1ec] to-[#faf1ec] font-bold text-[#8a4f3b] ring-1 ring-[#e7c1ae]"
+                    : "text-slate-700 hover:bg-[#faf1ec]/60",
                 )}
               >
                 <span aria-hidden className="text-base leading-none">
                   {l.flag}
                 </span>
                 <span className="min-w-0 flex-1 truncate">{l.label}</span>
-                {actif && <Check className="size-3.5 text-violet-600" aria-hidden />}
+                {actif && <Check className="size-3.5 text-[#a05f45]" aria-hidden />}
               </button>
             )
           })}

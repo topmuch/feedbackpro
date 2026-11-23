@@ -164,7 +164,7 @@ function escapeHtml(v: string): string {
 }
 
 function baseUrl(): string {
-  return (process.env.NEXT_PUBLIC_APP_URL || "https://feedbackpro.fr").replace(/\/$/, "")
+  return (process.env.NEXT_PUBLIC_APP_URL || "https://feedvoice.fr").replace(/\/$/, "")
 }
 
 const SERVICE_LABELS: Record<string, string> = {
@@ -173,7 +173,7 @@ const SERVICE_LABELS: Record<string, string> = {
   whatsapp_api: "API WhatsApp Business",
   smtp_email: "SMTP / Resend Email",
   push_pwa: "Notifications Push PWA (Web Push)",
-  denise_tts: "Synthèse vocale Denise TTS",
+  denise_tts: "Synthèse vocale Nathalie TTS",
   service_worker: "Service Worker PWA (/sw.js)",
 }
 
@@ -277,7 +277,7 @@ function buildCriticalAlertHtml(params: {
     globalStatus.status === "critical"
       ? ROUGE_CRITIQUE
       : globalStatus.status === "warning"
-        ? "#d97706"
+        ? "#a05f45"
         : "#16a34a"
 
   const actionsHtml = actions
@@ -287,7 +287,7 @@ function buildCriticalAlertHtml(params: {
   const corps = `
     <h1 style="margin:0 0 16px;font-size:22px;line-height:1.3;color:${ROUGE_CRITIQUE};">🚨 Alerte Critique — ${escapeHtml(serviceLabel)}</h1>
     <p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:${GRIS_FONCE};">
-      Le Centre Opérationnel FeedbackPro a détecté une défaillance critique sur
+      Le Centre Opérationnel FeedVoice a détecté une défaillance critique sur
       l'un des services surveillés. Cette alerte est envoyée automatiquement.
     </p>
 
@@ -347,7 +347,7 @@ function buildCriticalAlertHtml(params: {
     ${actionsHtml}
 
     <p style="margin:24px 0 0;font-size:12px;color:${GRIS_CLAIR};line-height:1.6;">
-      Cet email a été envoyé automatiquement par le Centre Opérationnel FeedbackPro.
+      Cet email a été envoyé automatiquement par le Centre Opérationnel FeedVoice.
       Vous recevez cette alerte car le service <strong>${escapeHtml(serviceName)}</strong> est passé
       au statut <strong>CRITIQUE</strong>. Aucune action de votre part n'est requise pour réceptionner
       ce message — il vous suffit de diagnostiquer et résoudre l'incident.
@@ -362,13 +362,13 @@ function buildCriticalAlertHtml(params: {
     <tr><td align="center">
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
         <tr><td style="background-color:${ROUGE_CRITIQUE};padding:20px 32px;">
-          <p style="margin:0;font-size:18px;font-weight:700;color:#ffffff;">⚠ FeedbackPro — Centre Opérationnel</p>
+          <p style="margin:0;font-size:18px;font-weight:700;color:#ffffff;">⚠ FeedVoice — Centre Opérationnel</p>
           <p style="margin:4px 0 0;font-size:12px;color:#fee2e2;">Alerte automatique de défaillance service</p>
         </td></tr>
         <tr><td style="padding:28px 32px;">${corps}</td></tr>
         <tr><td style="background-color:#fafaf9;padding:16px 32px;border-top:1px solid #e7e5e4;">
           <p style="margin:0;font-size:11px;color:${GRIS_CLAIR};line-height:1.6;">
-            © ${new Date().getFullYear()} FeedbackPro — Centre Opérationnel NOC.
+            © ${new Date().getFullYear()} FeedVoice — Centre Opérationnel NOC.
           </p>
         </td></tr>
       </table>

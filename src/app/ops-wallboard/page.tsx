@@ -3,22 +3,22 @@
 // ------------------------------------------------------------
 // Style "Aéroport Premium V2.0" — refoundation visuelle complète :
 //   - Fond global GRIS CLAIR #F5F5F5 (makes panels pop)
-//   - Header BLEU #003399 (rounded bottom 20px) + logo JAUNE #FCD116
+//   - Header BLEU #000d10 (rounded bottom 20px) + logo JAUNE #C9A961
 //   - KPI ROW : 6 cartes colorées (red/yellow/green/blue/yellow/green)
 //   - MAIN LAYOUT 2fr/1fr : zones (white card) | alertes (white card)
 //   - Zone panels : panneaux horizontaux colorés selon statut
-//       · Calme (0)        → BLEU #003399 texte blanc
-//       · Attention (1-2)  → ORANGE #FF6B00 texte blanc
+//       · Calme (0)        → BLEU #000d10 texte blanc
+//       · Attention (1-2)  → ORANGE #C9A961 texte blanc
 //       · Critique (3+)    → ROUGE #E30613 texte blanc + flash
-//       · Default          → JAUNE #FCD116 texte noir
+//       · Default          → JAUNE #C9A961 texte noir
 //   - Incidents table : lignes séparées (gap 8px) avec coins arrondis
 //   - Radar prédiction : wrapper premium blanc
 //   - Legend bar : white card avec box colors + hint
 //
 // Palette V2.0 :
-//   --jaune  #FCD116   --bleu  #003399   --noir #000000
-//   --blanc  #FFFFFF   --rouge #E30613   --vert #00A651
-//   --orange #FF6B00   --page-bg #F5F5F5
+//   --jaune  #C9A961   --bleu  #000d10   --noir #000000
+//   --blanc  #FFFFFF   --rouge #E30613   --vert #C9A961
+//   --orange #C9A961   --page-bg #F5F5F5
 //
 // Police : Roboto Condensed (700/900) via Google Fonts @import
 // Tout en MAJUSCULES, letter-spacing 1-4px selon élément
@@ -32,14 +32,14 @@
 // Fonctionnalités préservées (100% — AUCUNE EXCEPTION) :
 //   - Sons (ding-dong.mp3, ding-critical.wav, resolved.wav)
 //   - Escalade sonore Web Audio (660/880/990 Hz)
-//   - TTS Denise (decideAndSpeakForWallboard + race-condition fix)
+//   - TTS Nathalie (decideAndSpeakForWallboard + race-condition fix)
 //   - Rappel 15 min (alertedLateRef + badge EN RETARD + escalade)
 //   - Toggle son (persisté localStorage "wallboard_sound")
 //   - Mode crise (filtre incidents critiques + timer + overlay)
 //   - Actions rapides par ligne : [ASSIGNER] [APPELER] [ESCALADER]
 //   - Filtre zone (clic panneau zone → filtre le tableau)
 //   - SOS help requests (HelpRequestAlertCard)
-//   - recently_resolved (son + annonce Denise)
+//   - recently_resolved (son + annonce Nathalie)
 //   - firstLoadRef + seenIdsRef (détection nouveaux signalements)
 //   - announcedResolvedRef + announcedAlertsRef (dédup annonces)
 // ============================================================
@@ -83,6 +83,19 @@ const AIRPORT_ZONE_CODES = new Set(
 // Types — match exact du contrat /api/airport/wallboard
 // ---------------------------------------------------------------
 type Statut = 'EN_ATTENTE' | 'EN_COURS' | 'RESOLU'
+
+// --- V3 — Notifications VISUELLES du wallboard (demande du directeur) ---
+// Chaque événement opérationnel (nouveau signalement, SOS, résolution,
+// retard) déclenche une carte overlay premium en haut à droite — visible
+// même si le son est coupé. Auto-dismiss 9 s, pile de 4 cartes max.
+type OverlayKind = 'nouveau' | 'sos' | 'resolu' | 'retard'
+type OverlayNotif = {
+  id: string
+  kind: OverlayKind
+  titre: string
+  detail: string
+  meta: string
+}
 type Trend = 'up' | 'down' | 'stable'
 type TeamKey = 'nettoyage' | 'maintenance' | 'securite' | 'accueil' | 'logistique' | 'other'
 
@@ -108,10 +121,10 @@ type RecentReport = {
   flightNumber?: string | null
   createdAt: string
   isHelpRequest?: boolean
-  // Task WAHOO-1 — Denise Traducteur Universel
+  // Task WAHOO-1 — Nathalie Traducteur Universel
   // Code langue source du commentaire (fr, en, zh, ar, es, de, pt, it,
   // ru, ja, wo, auto) ou null si le voyageur a écrit en français.
-  // Utilisé pour annoncer « Message original en [langue] » via Denise.
+  // Utilisé pour annoncer « Message original en [langue] » via Nathalie.
   commentaireLang?: string | null
 }
 
@@ -203,7 +216,7 @@ type AlertsCheckResponse = {
 }
 
 // ---------------------------------------------------------------
-// Types — Feature F1/F2/F3 (Denise conversationnelle, auto-pilot, achievements)
+// Types — Feature F1/F2/F3 (Nathalie conversationnelle, auto-pilot, achievements)
 // ---------------------------------------------------------------
 
 /** Sous-ensemble du SpeechRecognition (Web Speech API) — la lib DOM TS ne
@@ -267,7 +280,7 @@ type AchievementsData = {
 }
 
 // ---------------------------------------------------------------
-// Task WAHOO-4 — Mode Prédictif de Denise
+// Task WAHOO-4 — Mode Prédictif de Nathalie
 // Contrat /api/airport/predictive-alert → predictions[].
 // ---------------------------------------------------------------
 type PredictiveAlert = {
@@ -284,13 +297,13 @@ type PredictiveAlert = {
 // ---------------------------------------------------------------
 // Constantes — palette V2.0 PREMIUM
 // ---------------------------------------------------------------
-const JAUNE = '#FCD116' // Yellow IATA
-const BLEU = '#003399' // Airport blue
+const JAUNE = '#C9A961' // Yellow IATA
+const BLEU = '#000d10' // Airport blue
 const NOIR = '#000000'
 const BLANC = '#FFFFFF'
 const ROUGE = '#E30613' // Alert red
-const VERT = '#00A651' // Success green
-const ORANGE = '#FF6B00' // Warning orange
+const VERT = '#C9A961' // Success green
+const ORANGE = '#C9A961' // Warning orange
 const PAGE_BG = '#F5F5F5' // Light gray (makes panels pop)
 
 // ---------------------------------------------------------------
@@ -477,7 +490,7 @@ const SOUND_CRITICAL = '/sounds/ding-critical.wav'
 const SOUND_RESOLVED = '/sounds/resolved.wav'
 
 /**
- * Task WAHOO-1 — Denise Traducteur Universel
+ * Task WAHOO-1 — Nathalie Traducteur Universel
  * Mappe un code langue (fr, en, zh, ar, es, de, pt, it, ru, ja, wo, auto)
  * vers son nom en français, pour l'annonce vocale :
  *   « Nouvel incident signalé. [...] Message original en anglais. »
@@ -544,7 +557,7 @@ function speak(text: string, enabled: boolean) {
 }
 
 // ============================================================
-// Voice Decision Engine — Denise
+// Voice Decision Engine — Nathalie
 // ============================================================
 type VoiceEvent = {
   sector: 'aeroport' | 'restaurant'
@@ -683,12 +696,12 @@ function ZonePanel({
   const isCritical = st === 'critical'
   const bgClass =
     st === 'calm'
-      ? 'bg-[#003399] text-white'
+      ? 'bg-[#000d10] text-white'
       : st === 'attention'
-        ? 'bg-[#FF6B00] text-white'
+        ? 'bg-[#C9A961] text-white'
         : st === 'critical'
           ? 'bg-[#E30613] text-white'
-          : 'bg-[#FCD116] text-black'
+          : 'bg-[#C9A961] text-black'
   const statusLabel = ZONE_STATUS_META_V2[st].label
   const hasOngoing = (zone.count_en_cours ?? 0) > 0
   return (
@@ -732,12 +745,12 @@ function ZonePanel({
         {hasOngoing && (
           <span
             className="ops-pulse-soft flex items-center gap-1 rounded-[10px] bg-white/90 px-1.5 py-0.5 font-black tabular-nums"
-            style={{ fontSize: '13px', color: '#003399', lineHeight: 1.1 }}
+            style={{ fontSize: '13px', color: '#000d10', lineHeight: 1.1 }}
             title={`${zone.count_en_cours} incident(s) en cours`}
             suppressHydrationWarning
           >
             <span
-              className="inline-block size-2 rounded-full bg-[#003399]"
+              className="inline-block size-2 rounded-full bg-[#000d10]"
               style={{ animation: 'ops-pulse-dot 1.2s ease-in-out infinite' }}
               aria-hidden
             />
@@ -765,13 +778,62 @@ function ZonePanel({
   )
 }
 
+// ============================================================
+// V3 — Carte overlay de notification (haut-droite, pile)
+// ------------------------------------------------------------
+// Nouveau signalement (orange), SOS (rouge), résolution (vert),
+// retard/alerte critique (rouge pulsé). Premium : coins arrondis,
+// barre latérale colorée, entrée animée opsFlapIn.
+// ============================================================
+
+const OVERLAY_META: Record<OverlayKind, { emoji: string; barre: string; bg: string; texte: string; meta: string }> = {
+  nouveau: { emoji: '⚠', barre: ORANGE, bg: '#FFF4E5', texte: '#7A3E00', meta: 'rgba(122,62,0,0.75)' },
+  sos: { emoji: '🆘', barre: ROUGE, bg: '#FFE5E7', texte: '#7A0613', meta: 'rgba(122,6,19,0.75)' },
+  resolu: { emoji: '✓', barre: VERT, bg: '#E3F7E9', texte: '#03531F', meta: 'rgba(3,83,31,0.7)' },
+  retard: { emoji: '⏰', barre: ROUGE, bg: '#FFE5E7', texte: '#7A0613', meta: 'rgba(122,6,19,0.75)' },
+}
+
+function OverlayNotifCard({ n }: { n: OverlayNotif }) {
+  const meta = OVERLAY_META[n.kind]
+  return (
+    <div
+      role="status"
+      className="ops-flap-in pointer-events-auto flex items-stretch gap-3 overflow-hidden rounded-[14px] pr-4"
+      style={{
+        backgroundColor: meta.bg,
+        boxShadow: '0 10px 30px rgba(0,0,0,0.28)',
+        borderLeft: `6px solid ${meta.barre}`,
+      }}
+    >
+      <span
+        className="flex w-12 shrink-0 items-center justify-center self-stretch font-black"
+        style={{ backgroundColor: meta.barre, color: '#FFFFFF', fontSize: '20px' }}
+        aria-hidden
+      >
+        {meta.emoji}
+      </span>
+      <span className="flex min-w-0 flex-col justify-center gap-0.5 py-2.5">
+        <span className="font-black uppercase" style={{ fontSize: '13px', letterSpacing: '1.5px', color: meta.texte }}>
+          {n.titre}
+        </span>
+        <span className="truncate font-bold" style={{ fontSize: '12px', letterSpacing: '0.5px', color: '#111111' }}>
+          {n.detail}
+        </span>
+        <span className="truncate font-bold uppercase" style={{ fontSize: '9.5px', letterSpacing: '1px', color: meta.meta }}>
+          {n.meta}
+        </span>
+      </span>
+    </div>
+  )
+}
+
 /**
  * AlertCard — carte pleine largeur pour une alerte seuil (TriggeredAlert).
  * Critical → bg rouge, Warning → bg orange.
  */
 function AlertCard({ alert }: { alert: TriggeredAlert }) {
   const isCritical = alert.severity === 'critical'
-  const bgClass = isCritical ? 'bg-[#E30613] text-white' : 'bg-[#FF6B00] text-white'
+  const bgClass = isCritical ? 'bg-[#E30613] text-white' : 'bg-[#C9A961] text-white'
   return (
     <div
       role="alert"
@@ -807,14 +869,14 @@ function AlertCard({ alert }: { alert: TriggeredAlert }) {
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
-          className="rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#FCD116]"
+          className="rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#C9A961]"
           style={{ fontSize: '11px', letterSpacing: '1px', color: NOIR }}
         >
           APPELER
         </button>
         <button
           type="button"
-          className="rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#FCD116]"
+          className="rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#C9A961]"
           style={{ fontSize: '11px', letterSpacing: '1px', color: NOIR }}
         >
           ESCALADER
@@ -844,7 +906,7 @@ function ReportAlertCard({
 }) {
   const elapsedMin = Math.floor((Date.now() - new Date(r.createdAt).getTime()) / 60000)
   const isLate = elapsedMin > 15 && r.statut !== 'RESOLU'
-  const bgClass = isLate ? 'bg-[#E30613] text-white' : 'bg-[#FF6B00] text-white'
+  const bgClass = isLate ? 'bg-[#E30613] text-white' : 'bg-[#C9A961] text-white'
   const [showAssignMenu, setShowAssignMenu] = useState(false)
   return (
     <div
@@ -882,7 +944,7 @@ function ReportAlertCard({
         <button
           type="button"
           onClick={onCall}
-          className="inline-flex items-center gap-1 rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#FCD116]"
+          className="inline-flex items-center gap-1 rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#C9A961]"
           style={{ fontSize: '11px', letterSpacing: '1px', color: NOIR }}
         >
           <Phone className="size-3" aria-hidden />
@@ -893,7 +955,7 @@ function ReportAlertCard({
             type="button"
             onClick={() => setShowAssignMenu((v) => !v)}
             disabled={busy}
-            className="inline-flex items-center gap-1 rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#FCD116] disabled:opacity-50"
+            className="inline-flex items-center gap-1 rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#C9A961] disabled:opacity-50"
             style={{ fontSize: '11px', letterSpacing: '1px', color: NOIR }}
           >
             <Wrench className="size-3" aria-hidden />
@@ -906,7 +968,7 @@ function ReportAlertCard({
               style={{ boxShadow: '0 6px 14px rgba(0,0,0,0.2)' }}
             >
               <p
-                className="px-2 py-1 font-black uppercase text-[#003399]"
+                className="px-2 py-1 font-black uppercase text-[#000d10]"
                 style={{ fontSize: '10px', letterSpacing: '2px' }}
               >
                 REROUTER VERS
@@ -922,7 +984,7 @@ function ReportAlertCard({
                       onAssign(k)
                       setShowAssignMenu(false)
                     }}
-                    className="flex w-full items-center gap-2 rounded-[8px] px-2 py-1.5 text-left font-bold uppercase text-black transition-colors hover:bg-[#FCD116]"
+                    className="flex w-full items-center gap-2 rounded-[8px] px-2 py-1.5 text-left font-bold uppercase text-black transition-colors hover:bg-[#C9A961]"
                     style={{ fontSize: '11px', letterSpacing: '1px' }}
                   >
                     <span aria-hidden>{TEAM_META[k].emoji}</span>
@@ -936,7 +998,7 @@ function ReportAlertCard({
           type="button"
           onClick={onEscalate}
           disabled={busy}
-          className="inline-flex items-center gap-1 rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#FCD116] disabled:opacity-50"
+          className="inline-flex items-center gap-1 rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#C9A961] disabled:opacity-50"
           style={{ fontSize: '11px', letterSpacing: '1px', color: NOIR }}
         >
           <Megaphone className="size-3" aria-hidden />
@@ -951,7 +1013,7 @@ function ReportAlertCard({
 function HelpRequestAlertCard({ h }: { h: HelpRequestLite }) {
   const elapsedMin = Math.floor((Date.now() - new Date(h.createdAt).getTime()) / 60000)
   const isLate = elapsedMin > 15
-  const bgClass = isLate ? 'bg-[#E30613] text-white' : 'bg-[#FF6B00] text-white'
+  const bgClass = isLate ? 'bg-[#E30613] text-white' : 'bg-[#C9A961] text-white'
   return (
     <div
       role="alert"
@@ -984,7 +1046,7 @@ function HelpRequestAlertCard({ h }: { h: HelpRequestLite }) {
       {h.travelerPhone && (
         <a
           href={`tel:${h.travelerPhone}`}
-          className="inline-flex w-fit items-center gap-1 rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#FCD116]"
+          className="inline-flex w-fit items-center gap-1 rounded-[10px] bg-white px-3 py-1.5 font-black uppercase transition-colors hover:bg-[#C9A961]"
           style={{ fontSize: '11px', letterSpacing: '1px', color: NOIR }}
         >
           <Phone className="size-3" aria-hidden />
@@ -1019,12 +1081,12 @@ function IncidentRow({
   // Status badge classes
   const statusBadgeCls =
     r.statut === 'RESOLU'
-      ? 'bg-[#00A651] text-white'
+      ? 'bg-[#C9A961] text-white'
       : r.statut === 'EN_ATTENTE'
         ? 'bg-[#E30613] text-white'
         : r.statut === 'EN_COURS'
-          ? 'bg-[#FCD116] text-black'
-          : 'bg-[#003399] text-white'
+          ? 'bg-[#C9A961] text-black'
+          : 'bg-[#000d10] text-white'
   const statusLabel = isLate
     ? 'EN RETARD'
     : r.statut === 'EN_ATTENTE'
@@ -1088,7 +1150,7 @@ function IncidentRow({
       })
       const json = (await res.json()) as { ok?: boolean; error?: string }
       if (json?.ok) {
-        onActionFeedback?.(`ESCALADE DENISE → ${(r.zone?.nom ?? 'ZONE').toUpperCase()}`, 'ok')
+        onActionFeedback?.(`ESCALADE NATHALIE → ${(r.zone?.nom ?? 'ZONE').toUpperCase()}`, 'ok')
       } else {
         onActionFeedback?.(json?.error ?? 'ÉCHEC ESCALADE', 'err')
       }
@@ -1191,7 +1253,7 @@ function IncidentRow({
               disabled={busy}
               aria-label="Assigner ou rerouter le signalement"
               title="ASSIGNER / REROUTER"
-              className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-[#003399] text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+              className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-[#000d10] text-white transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               <Wrench className="size-4" aria-hidden />
             </button>
@@ -1202,7 +1264,7 @@ function IncidentRow({
                 style={{ boxShadow: '0 6px 14px rgba(0,0,0,0.2)' }}
               >
                 <p
-                  className="px-2 py-1 font-black uppercase text-[#003399]"
+                  className="px-2 py-1 font-black uppercase text-[#000d10]"
                   style={{ fontSize: '10px', letterSpacing: '2px' }}
                 >
                   REROUTER VERS
@@ -1215,7 +1277,7 @@ function IncidentRow({
                       type="button"
                       role="menuitem"
                       onClick={() => void handleAssign(k)}
-                      className="flex w-full items-center gap-2 rounded-[8px] px-2 py-1.5 text-left font-bold uppercase text-black transition-colors hover:bg-[#FCD116]"
+                      className="flex w-full items-center gap-2 rounded-[8px] px-2 py-1.5 text-left font-bold uppercase text-black transition-colors hover:bg-[#C9A961]"
                       style={{ fontSize: '11px', letterSpacing: '1px' }}
                     >
                       <span aria-hidden>{TEAM_META[k].emoji}</span>
@@ -1231,7 +1293,7 @@ function IncidentRow({
           onClick={handleCall}
           aria-label="Appeler le PC ops"
           title="APPELER PC OPS (+221 78 485 8226)"
-          className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-[#003399] text-white transition-opacity hover:opacity-90"
+          className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-[#000d10] text-white transition-opacity hover:opacity-90"
         >
           <Phone className="size-4" aria-hidden />
         </button>
@@ -1240,8 +1302,8 @@ function IncidentRow({
             type="button"
             onClick={handleEscalate}
             disabled={busy}
-            aria-label="Escalader auprès de Denise"
-            title="ESCALADER (DENISE TAKE_CHARGE)"
+            aria-label="Escalader auprès de Nathalie"
+            title="ESCALADER (NATHALIE TAKE_CHARGE)"
             className="flex h-8 w-8 items-center justify-center rounded-[8px] bg-[#E30613] text-white transition-opacity hover:opacity-90 disabled:opacity-50"
           >
             <Megaphone className="size-4" aria-hidden />
@@ -1284,7 +1346,7 @@ function SlaRow({ zone, sla }: { zone: ZoneAgg; sla?: SlaStats }) {
           {zone.nom}
         </span>
         <span
-          className="rounded-[8px] bg-[#003399] px-2 py-0.5 font-black uppercase text-white"
+          className="rounded-[8px] bg-[#000d10] px-2 py-0.5 font-black uppercase text-white"
           style={{ fontSize: '10px', letterSpacing: '1px' }}
         >
           N/A
@@ -1296,11 +1358,11 @@ function SlaRow({ zone, sla }: { zone: ZoneAgg; sla?: SlaStats }) {
   const hasResolutions = sla.resolvedCount > 0
   const pctCls =
     !hasResolutions
-      ? 'bg-[#003399] text-white'
+      ? 'bg-[#000d10] text-white'
       : pct >= 80
-        ? 'bg-[#00A651] text-white'
+        ? 'bg-[#C9A961] text-white'
         : pct >= 60
-          ? 'bg-[#FCD116] text-black'
+          ? 'bg-[#C9A961] text-black'
           : 'bg-[#E30613] text-white'
   return (
     <div className="flex items-center gap-2 rounded-[8px] bg-[#F5F5F5] px-2.5 py-1.5">
@@ -1334,8 +1396,8 @@ function ChargeRow({ zone, max }: { zone: ZoneAgg; max: number }) {
     zone.count_en_attente > 5
       ? 'bg-[#E30613] text-white'
       : zone.count_en_attente > 0
-        ? 'bg-[#FF6B00] text-white'
-        : 'bg-[#003399] text-white'
+        ? 'bg-[#C9A961] text-white'
+        : 'bg-[#000d10] text-white'
   const barColor =
     zone.count_en_attente > 5
       ? ROUGE
@@ -1455,7 +1517,7 @@ function CrisisButtonV2({
           aria-pressed={active}
           aria-label="Désactiver le mode crise"
           title="Terminer la crise"
-          className="flex items-center gap-1.5 rounded-[15px] bg-[#00A651] px-3 py-2 font-black uppercase text-white transition-opacity hover:opacity-90"
+          className="flex items-center gap-1.5 rounded-[15px] bg-[#C9A961] px-3 py-2 font-black uppercase text-white transition-opacity hover:opacity-90"
           style={{ border: '3px solid #FFFFFF', fontSize: '11px', letterSpacing: '1px' }}
         >
           <ShieldAlert className="size-4" aria-hidden />
@@ -1495,13 +1557,33 @@ export default function OpsWallboardPage() {
   const alertedLateRef = useRef<Set<string>>(new Set())
   const escalationStartedRef = useRef<boolean>(false)
 
-  const [soundOn, setSoundOn] = useState<boolean>(false)
+  // --- DIAGNOSTIC V3 — Annonces vocales du wallboard ---
+  // ANCIEN BUG (rapporté par le directeur) : soundOn démarrait à FALSE et la
+  // bannière « Activer le son » ne s'affichait que 10 s au chargement. Si
+  // personne ne cliquait à temps, AUCUNE annonce de nouveau signalement ni
+  // de résolution n'était diffusée — seuls les rappels « EN RETARD »
+  // (badges rouges visuels, indépendants du son) semblaient fonctionner.
+  // FIX : le son est désormais ACTIVÉ PAR DÉFAUT (ops room = TV dédiée),
+  // désactivable via le bouton haut-droite (préférence persistée), et un
+  // premier clic/touche n'importe où déverrouille l'audio (autoplay policy).
+  const [soundOn, setSoundOn] = useState<boolean>(true)
   const audioRef = useRef<HTMLAudioElement | null>(null)
   const announcedAlertsRef = useRef<Set<string>>(new Set())
+  const audioUnlockedRef = useRef<boolean>(false)
   const [showSoundBanner, setShowSoundBanner] = useState<boolean>(false)
 
   const [alerts, setAlerts] = useState<TriggeredAlert[]>([])
   const [alertsError, setAlertsError] = useState<string | null>(null)
+
+  // --- V3 — pile des notifications visuelles (overlays haut-droite) ---
+  const [overlayNotifs, setOverlayNotifs] = useState<OverlayNotif[]>([])
+  const pushOverlay = useCallback((n: Omit<OverlayNotif, 'id'>) => {
+    const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
+    setOverlayNotifs((prev) => [{ ...n, id }, ...prev].slice(0, 4))
+    setTimeout(() => {
+      setOverlayNotifs((prev) => prev.filter((o) => o.id !== id))
+    }, 9000)
+  }, [])
 
   const [filterZone, setFilterZone] = useState<string | null>(null)
   const [crisisMode, setCrisisMode] = useState<boolean>(false)
@@ -1510,12 +1592,12 @@ export default function OpsWallboardPage() {
   const [leaderboard, setLeaderboard] = useState<LeaderboardData | null>(null)
   const [actionToast, setActionToast] = useState<{ msg: string; kind: 'ok' | 'err' } | null>(null)
 
-  // --- Feature F1 : Denise IA Conversationnelle (micro + SpeechRecognition) ---
+  // --- Feature F1 : Nathalie IA Conversationnelle (micro + SpeechRecognition) ---
   const [listening, setListening] = useState<boolean>(false)
   const [deniseTranscript, setDeniseTranscript] = useState<string>('')
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null)
 
-  // --- Feature F2 : Auto-Pilot Denise (polling 60s) ---
+  // --- Feature F2 : Auto-Pilot Nathalie (polling 60s) ---
   const [autopilotActive, setAutopilotActive] = useState<boolean>(false)
   const [autopilotActions, setAutopilotActions] = useState<AutopilotAction[]>([])
   const announcedAutopilotRef = useRef<Map<string, number>>(new Map())
@@ -1524,13 +1606,13 @@ export default function OpsWallboardPage() {
   const [achievementsData, setAchievementsData] = useState<AchievementsData | null>(null)
   const announcedAchievementsRef = useRef<Set<string>>(new Set())
 
-  // --- Task WAHOO-4 — Mode Prédictif de Denise (polling 5 min) ---
+  // --- Task WAHOO-4 — Mode Prédictif de Nathalie (polling 5 min) ---
   // predictiveAlerts : liste des prédictions HIGH/MEDIUM renvoyées par
   //   /api/airport/predictive-alert (max 3, triées par priorité).
   // predictiveTick : index de la prédiction actuellement affichée dans
   //   le bandeau — cycle toutes les 8s si plusieurs prédictions.
   // announcedPredictionsRef : Set des IDs déjà annoncés vocalement par
-  //   Denise (dédup — évite de répéter la même prédiction toutes les 5 min).
+  //   Nathalie (dédup — évite de répéter la même prédiction toutes les 5 min).
   const [predictiveAlerts, setPredictiveAlerts] = useState<PredictiveAlert[]>([])
   const [predictiveTick, setPredictiveTick] = useState(0)
   const announcedPredictionsRef = useRef<Set<string>>(new Set())
@@ -1555,7 +1637,7 @@ export default function OpsWallboardPage() {
         setFreshIds(newFresh)
         if (newFresh.size > 0) {
           setTimeout(() => setFreshIds(new Set()), 1500)
-          if (soundOn && newReports.length > 0) {
+          if (newReports.length > 0) {
             const latest = newReports[0]
             playSound(SOUND_NORMAL, audioRef)
             const zoneNom = latest.zone?.nom ?? latest.tagScanne
@@ -1563,10 +1645,10 @@ export default function OpsWallboardPage() {
             const tempsMin = Math.max(1, Math.floor(elapsedMs / 60000))
             const team = latest.routedTeam
             const equipeLabel = team ? ` Équipe ${team}.` : ''
-            // Task WAHOO-1 — Denise Traducteur Universel
+            // Task WAHOO-1 — Nathalie Traducteur Universel
             // Si le voyageur a écrit dans une langue ≠ français (commentaireLang
             // !== 'fr' et non null), on ajoute « Message original en [langue] »
-            // à l'annonce vocale. Denise parle en français (le commentaire stocké
+            // à l'annonce vocale. Nathalie parle en français (le commentaire stocké
             // est la traduction FR), mais signale la langue d'origine au staff
             // pour contexte culturel (touriste chinois, voyageur wolof, etc.).
             const langueOrigine = langueEnFrancais(latest.commentaireLang)
@@ -1574,17 +1656,39 @@ export default function OpsWallboardPage() {
             const annonce = latest.isHelpRequest
               ? `Demande d'aide SOS voyageur. ${zoneNom}. ${latest.problemType}. En attente depuis ${tempsMin} minute${tempsMin > 1 ? 's' : ''}.${origineLabel}`
               : `Nouvel incident signalé. ${zoneNom}. Type: ${latest.problemType}.${equipeLabel} En attente depuis ${tempsMin} minute${tempsMin > 1 ? 's' : ''}.${origineLabel}`
+            // V3 — annonce vocale TOUJOURS tentée (le son n'est coupable que
+            // d'un choix explicite de l'opérateur via le bouton haut-droite).
             setTimeout(() => speak(annonce, soundOn), 300)
+            // V3 — notification VISUELLE pour chaque nouveau signalement
+            // (jusqu'à 3 par cycle) : carte overlay premium, indépendante du son.
+            for (const r of newReports.slice(0, 3)) {
+              const znom = r.zone?.nom ?? r.tagScanne
+              pushOverlay({
+                kind: r.isHelpRequest ? 'sos' : 'nouveau',
+                titre: r.isHelpRequest ? 'SOS VOYAGEUR' : 'NOUVEAU SIGNALEMENT',
+                detail: `${znom} — ${r.problemType}`,
+                meta: r.isHelpRequest ? 'Demande d\'aide · Appuyez sur Appeler' : team ? `Équipe ${team} · en attente ${tempsMin} min` : `En attente ${tempsMin} min`,
+              })
+            }
           }
         }
       }
 
-      if (soundOn && d.recently_resolved && d.recently_resolved.length > 0) {
+      // --- Annonce de RÉSOLUTION (Issue 6 + demande directeur V3) ---
+      // « Le signalement déclaré résolu doit s'annoncer dans le wallboard » :
+      // son resolved.wav + voix Nathalie + carte verte overlay systématiques.
+      if (d.recently_resolved && d.recently_resolved.length > 0) {
         for (const r of d.recently_resolved) {
           if (!announcedResolvedRef.current.has(r.id)) {
             announcedResolvedRef.current.add(r.id)
-            playSound(SOUND_RESOLVED, audioRef)
             const zoneNom = r.zone?.nom ?? r.tagScanne
+            pushOverlay({
+              kind: 'resolu',
+              titre: 'SIGNALEMENT RÉSOLU',
+              detail: `${zoneNom} — ${r.problemType}`,
+              meta: 'Intervention terminée · Merci à l\'équipe',
+            })
+            playSound(SOUND_RESOLVED, audioRef)
             setTimeout(
               () => speak(`Signalement résolu. ${zoneNom}. ${r.problemType}. Bien fait.`, soundOn),
               400,
@@ -1608,7 +1712,7 @@ export default function OpsWallboardPage() {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'erreur inconnue')
     }
-  }, [soundOn])
+  }, [soundOn, pushOverlay])
 
   useEffect(() => {
     const initial = setTimeout(() => void poll(), 0)
@@ -1623,27 +1727,33 @@ export default function OpsWallboardPage() {
   const pollAlerts = useCallback(async () => {
     try {
       const a = await fetchAlerts()
-      if (soundOn) {
-        for (const alert of a) {
-          const alertKey = `${alert.thresholdId}-${alert.type}`
-          if (!announcedAlertsRef.current.has(alertKey) && alert.severity === 'critical') {
-            announcedAlertsRef.current.add(alertKey)
-            playSound(SOUND_CRITICAL, audioRef)
-            setTimeout(() => speak(`Alerte critique. ${alert.message}`, soundOn), 500)
-            break
-          }
+      // V3 — les alertes critiques s'annoncent TOUJOURS (son + voix + carte
+      // overlay), indépendamment du bouton mute (sécurité ops room).
+      for (const alert of a) {
+        const alertKey = `${alert.thresholdId}-${alert.type}`
+        if (!announcedAlertsRef.current.has(alertKey) && alert.severity === 'critical') {
+          announcedAlertsRef.current.add(alertKey)
+          pushOverlay({
+            kind: 'retard',
+            titre: 'ALERTE CRITIQUE',
+            detail: alert.message,
+            meta: 'Seuil franchi · Action immédiate',
+          })
+          playSound(SOUND_CRITICAL, audioRef)
+          setTimeout(() => speak(`Alerte critique. ${alert.message}`, soundOn), 500)
+          break
         }
-        const activeKeys = new Set(a.map((al) => `${al.thresholdId}-${al.type}`))
-        for (const k of [...announcedAlertsRef.current]) {
-          if (!activeKeys.has(k)) announcedAlertsRef.current.delete(k)
-        }
+      }
+      const activeKeys = new Set(a.map((al) => `${al.thresholdId}-${al.type}`))
+      for (const k of [...announcedAlertsRef.current]) {
+        if (!activeKeys.has(k)) announcedAlertsRef.current.delete(k)
       }
       setAlerts(a)
       setAlertsError(null)
     } catch (e) {
       setAlertsError(e instanceof Error ? e.message : 'erreur alertes')
     }
-  }, [soundOn])
+  }, [soundOn, pushOverlay])
 
   useEffect(() => {
     const initial = setTimeout(() => void pollAlerts(), 1500)
@@ -1674,11 +1784,11 @@ export default function OpsWallboardPage() {
     }
   }, [])
 
-  // --- Feature F2 : Auto-Pilot Denise (polling 60s) ---
+  // --- Feature F2 : Auto-Pilot Nathalie (polling 60s) ---
   // Vérifie les incidents orphelins (> 10min), les motifs systémiques (3+
   // même zone en 1h) et les pics imminents (score prédiction > 80). Le
   // serveur exécute les auto-affectations ; le wallboard annonce chaque
-  // action via parler() (voix Denise).
+  // action via parler() (voix Nathalie).
   const pollAutopilot = useCallback(async () => {
     try {
       const res = await fetch('/api/airport/autopilot', { method: 'POST' })
@@ -1772,15 +1882,15 @@ export default function OpsWallboardPage() {
     }
   }, [pollAchievements])
 
-  // --- Task WAHOO-4 — Polling prédictions Denise (5 min) ---
+  // --- Task WAHOO-4 — Polling prédictions Nathalie (5 min) ---
   //
   // Toutes les 5 min, on récupère les prédictions HIGH/MEDIUM calculées
   // côté serveur (vols aux portes + patterns historiques + charge actuelle).
-  // Pour chaque NOUVELLE prédiction HIGH (non encore annoncée), Denise
+  // Pour chaque NOUVELLE prédiction HIGH (non encore annoncée), Nathalie
   // l'énonce après un délai de 1,5 s pour éviter le chevauchement avec
   // d'autres annonces (nouvel incident, résolution, escalade, etc.).
   // Les prédictions MEDIUM ne sont pas annoncées vocalement (anti-spam) —
-  // elles s'affichent juste dans le bandeau "PRÉDICTION DENISE".
+  // elles s'affichent juste dans le bandeau "PRÉDICTION NATHALIE".
   useEffect(() => {
     const fetchPredictive = async () => {
       try {
@@ -1796,7 +1906,7 @@ export default function OpsWallboardPage() {
         if (preds.length > 0) {
           setPredictiveTick((t) => t % preds.length)
         }
-        // Annonce vocale des NOUVELLES prédictions HIGH via Denise.
+        // Annonce vocale des NOUVELLES prédictions HIGH via Nathalie.
         for (const pred of preds) {
           if (pred.priority !== 'high') continue
           if (announcedPredictionsRef.current.has(pred.id)) continue
@@ -1842,7 +1952,7 @@ export default function OpsWallboardPage() {
       setTimeout(
         () =>
           speak(
-            'Mode crise activé. Board filtré sur incidents critiques. Denise en mode crise.',
+            'Mode crise activé. Board filtré sur incidents critiques. Nathalie en mode crise.',
             true,
           ),
         300,
@@ -1891,9 +2001,16 @@ export default function OpsWallboardPage() {
         const key = `${r.id}-${t}min`
         if (!alertedLateRef.current.has(key)) {
           alertedLateRef.current.add(key)
-          if (soundOn && !isFirstCheck) {
+          if (!isFirstCheck) {
             playEscalationDing()
             const zoneNom = r.zone?.nom ?? r.tagScanne
+            // V3 — notification visuelle de retard + annonce vocale
+            pushOverlay({
+              kind: 'retard',
+              titre: 'SIGNALEMENT EN RETARD',
+              detail: `${zoneNom} — ${r.problemType}`,
+              meta: `${elapsedMin} minutes écoulées · Intervention requise`,
+            })
             setTimeout(
               () =>
                 speak(
@@ -1914,7 +2031,7 @@ export default function OpsWallboardPage() {
         alertedLateRef.current.delete(key)
       }
     }
-  }, [now, data, soundOn])
+  }, [now, data, soundOn, pushOverlay])
 
   // --- Horloge 1s ---
   useEffect(() => {
@@ -1923,23 +2040,57 @@ export default function OpsWallboardPage() {
   }, [])
 
   // --- Chargement de la préférence son (localStorage) ---
+  // V3 : si aucune préférence n'existe → son ACTIVÉ (comportement attendu
+  // d'un wallboard TV). La bannière d'activation reste visible jusqu'au
+  // premier clic (déverrouillage audio navigateur), sans timeout agressif.
   useEffect(() => {
     const t = setTimeout(() => {
-      let alreadyOn = false
+      let pref: string | null = null
       try {
-        alreadyOn = localStorage.getItem('wallboard_sound') === '1'
+        pref = localStorage.getItem('wallboard_sound')
       } catch {
         /* localStorage indisponible */
       }
-      if (alreadyOn) {
-        setSoundOn(true)
+      if (pref === '0') {
+        setSoundOn(false)
       } else {
+        // pref === '1' ou absent → son activé + bannière de déverrouillage
+        // (auto-dismiss 8 s : elle ne doit pas manger de la place sur la TV)
+        setSoundOn(true)
         setShowSoundBanner(true)
-        const dismiss = setTimeout(() => setShowSoundBanner(false), 10000)
-        return () => clearTimeout(dismiss)
+        setTimeout(() => setShowSoundBanner(false), 8000)
       }
     }, 0)
     return () => clearTimeout(t)
+  }, [])
+
+  // --- Déverrouillage audio au premier geste (autoplay policy navigateur) ---
+  // Un simple clic n'importe où sur le wallboard (ou une touche) joue le ding
+  // d'accueil une unique fois : les <audio> et le TTS deviennent autorisés.
+  useEffect(() => {
+    const unlock = () => {
+      if (audioUnlockedRef.current) return
+      audioUnlockedRef.current = true
+      setShowSoundBanner(false)
+      try {
+        const a = audioRef.current
+        if (a) {
+          a.src = SOUND_NORMAL
+          a.volume = 0.35
+          a.play().catch(() => {})
+        }
+      } catch {
+        /* ignore */
+      }
+      window.removeEventListener('pointerdown', unlock)
+      window.removeEventListener('keydown', unlock)
+    }
+    window.addEventListener('pointerdown', unlock)
+    window.addEventListener('keydown', unlock)
+    return () => {
+      window.removeEventListener('pointerdown', unlock)
+      window.removeEventListener('keydown', unlock)
+    }
   }, [])
 
   const toggleSound = useCallback(() => {
@@ -1965,7 +2116,7 @@ export default function OpsWallboardPage() {
   // Bouton micro dans le header : démarre la reconnaissance vocale (fr-FR),
   // transcrit la phrase, l'envoie à /api/airport/denise-command (qui exécute
   // `processVoiceCommand()` côté serveur — la lib faisant des requêtes Prisma)
-  // et énonce la réponse via parler() (voix Denise). Si l'action retournée
+  // et énonce la réponse via parler() (voix Nathalie). Si l'action retournée
   // est 'crisis', déclenche handleCrisisStart() (qui énonce son propre message).
   const toggleListening = useCallback(() => {
     if (typeof window === 'undefined') return
@@ -2205,7 +2356,7 @@ export default function OpsWallboardPage() {
         })
         const json = (await res.json()) as { ok?: boolean; error?: string }
         if (json?.ok) {
-          handleActionFeedback(`ESCALADE DENISE → ${(r.zone?.nom ?? 'ZONE').toUpperCase()}`, 'ok')
+          handleActionFeedback(`ESCALADE NATHALIE → ${(r.zone?.nom ?? 'ZONE').toUpperCase()}`, 'ok')
         } else {
           handleActionFeedback(json?.error ?? 'ÉCHEC ESCALADE', 'err')
         }
@@ -2218,16 +2369,16 @@ export default function OpsWallboardPage() {
 
   const slaCardCls =
     overallSlaPctNum === null
-      ? 'bg-[#FCD116] text-black'
+      ? 'bg-[#C9A961] text-black'
       : overallSlaPctNum >= 80
-        ? 'bg-[#00A651] text-white'
+        ? 'bg-[#C9A961] text-white'
         : overallSlaPctNum < 60
           ? 'bg-[#E30613] text-white'
-          : 'bg-[#FCD116] text-black'
+          : 'bg-[#C9A961] text-black'
 
   return (
     <div
-      className="flex min-h-screen flex-col overflow-x-hidden uppercase"
+      className="flex h-[100dvh] flex-col overflow-hidden uppercase"
       style={{
         backgroundColor: PAGE_BG,
         fontFamily: "'Roboto Condensed', Arial, sans-serif",
@@ -2266,7 +2417,7 @@ export default function OpsWallboardPage() {
         .ops-crisis-overlay { background-color: rgba(227,6,19,0.04); }
         .ops-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
         .ops-scroll::-webkit-scrollbar-track { background: #E0E0E0; border-radius: 4px; }
-        .ops-scroll::-webkit-scrollbar-thumb { background: #003399; border-radius: 4px; }
+        .ops-scroll::-webkit-scrollbar-thumb { background: #000d10; border-radius: 4px; }
         .ops-scroll::-webkit-scrollbar-thumb:hover { background: #002277; }
         @keyframes opsPredMarquee {
           0% { transform: translateX(0); }
@@ -2290,10 +2441,24 @@ export default function OpsWallboardPage() {
       <audio ref={audioRef} preload="auto" />
 
       {/* ============================================================
+          V3 — PILE DES NOTIFICATIONS VISUELLES (haut-droite)
+          Nouveau signalement / SOS / résolution / retard — visible même
+          son coupé. aria-live pour les lecteurs d'écran.
+          ============================================================ */}
+      <div
+        className="pointer-events-none fixed right-6 top-28 z-[70] flex w-[360px] max-w-[calc(100vw-60px)] flex-col gap-2.5"
+        aria-live="polite"
+      >
+        {overlayNotifs.map((n) => (
+          <OverlayNotifCard key={n.id} n={n} />
+        ))}
+      </div>
+
+      {/* ============================================================
           1. HEADER — bandeau BLEU avec logo JAUNE + horloge JAUNE
           ============================================================ */}
       <header
-        className="flex shrink-0 flex-wrap items-center justify-between gap-4 px-[30px] py-5 text-white"
+        className="flex shrink-0 flex-wrap items-center justify-between gap-4 px-[30px] py-3 text-white"
         style={{
           backgroundColor: BLEU,
           borderRadius: '0 0 20px 20px',
@@ -2310,7 +2475,7 @@ export default function OpsWallboardPage() {
             className="flex h-[50px] w-[50px] shrink-0 items-center justify-center rounded-[10px] bg-white"
             aria-hidden
           >
-            <Plane className="size-7 text-[#003399]" />
+            <Plane className="size-7 text-[#000d10]" />
           </span>
           {/* Title + subtitle */}
           <div className="flex flex-col">
@@ -2378,7 +2543,7 @@ export default function OpsWallboardPage() {
             </span>
           </div>
 
-          {/* Feature F2 — Badge AUTO-PILOT (actif tant que Denise a pris des décisions auto) */}
+          {/* Feature F2 — Badge AUTO-PILOT (actif tant que Nathalie a pris des décisions auto) */}
           {autopilotActive && (
             <div
               className="ops-pulse flex items-center gap-1.5 rounded-[25px] px-3 py-1.5 text-black"
@@ -2386,7 +2551,7 @@ export default function OpsWallboardPage() {
               title={
                 autopilotActions.length > 0
                   ? autopilotActions.map((a) => a.description).join('\n')
-                  : 'Denise prend des décisions automatiques'
+                  : 'Nathalie prend des décisions automatiques'
               }
             >
               <span className="font-black uppercase" style={{ fontSize: '11px', letterSpacing: '2px' }}>
@@ -2445,18 +2610,18 @@ export default function OpsWallboardPage() {
             )}
           </button>
 
-          {/* Feature F1 — Micro Denise (SpeechRecognition) */}
+          {/* Feature F1 — Micro Nathalie (SpeechRecognition) */}
           <button
             type="button"
             onClick={toggleListening}
             aria-pressed={listening}
             aria-label={
-              listening ? 'Arrêter Denise' : 'Parler à Denise (commande vocale)'
+              listening ? 'Arrêter Nathalie' : 'Parler à Nathalie (commande vocale)'
             }
             title={
               listening
-                ? 'Denise écoute — clic pour couper'
-                : 'Parler à Denise (bilan, zone, assigne, alerte, calme, top performer, crise)'
+                ? 'Nathalie écoute — clic pour couper'
+                : 'Parler à Nathalie (bilan, zone, assigne, alerte, calme, top performer, crise)'
             }
             className={`flex items-center gap-1.5 rounded-[15px] px-3 py-2 font-black uppercase text-white transition-opacity hover:opacity-90 ${listening ? 'ops-pulse' : ''}`}
             style={{
@@ -2467,12 +2632,12 @@ export default function OpsWallboardPage() {
             }}
           >
             <Mic className="size-4" aria-hidden />
-            <span>{listening ? 'DENISE' : 'MIC'}</span>
+            <span>{listening ? 'NATHALIE' : 'MIC'}</span>
           </button>
         </div>
       </header>
 
-      {/* ---------- Feature F1 — Indicateur "Denise écoute…" ---------- */}
+      {/* ---------- Feature F1 — Indicateur "Nathalie écoute…" ---------- */}
       {listening && (
         <div
           role="status"
@@ -2488,7 +2653,7 @@ export default function OpsWallboardPage() {
             className="font-black uppercase text-black"
             style={{ fontSize: '12px', letterSpacing: '2px' }}
           >
-            DENISE ÉCOUTE…
+            NATHALIE ÉCOUTE…
           </span>
           {deniseTranscript && (
             <span
@@ -2501,8 +2666,11 @@ export default function OpsWallboardPage() {
         </div>
       )}
 
-      {/* ---------- BANNIÈRE D'ACTIVATION DU SON ---------- */}
-      {showSoundBanner && !soundOn && (
+      {/* ---------- BANNIÈRE DE DÉVERROUILLAGE AUDIO (V3) ----------
+          Le son est ON par défaut : cette bannière informe simplement que le
+          navigateur exige UN clic pour autoriser l'audio. Elle disparaît au
+          premier geste (listener global) ou via le bouton. */}
+      {showSoundBanner && soundOn && (
         <div
           className="mx-[30px] mt-4 flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-[15px] px-5 py-3"
           style={{ backgroundColor: BLANC, boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
@@ -2510,7 +2678,7 @@ export default function OpsWallboardPage() {
           <div className="flex items-center gap-3">
             <span
               className="ops-pulse size-2.5 rounded-full"
-              style={{ backgroundColor: ROUGE }}
+              style={{ backgroundColor: VERT }}
               aria-hidden
             />
             <div className="flex flex-col">
@@ -2518,13 +2686,13 @@ export default function OpsWallboardPage() {
                 className="font-black uppercase text-black"
                 style={{ fontSize: '13px', letterSpacing: '1px' }}
               >
-                ACTIVEZ LE SON POUR LES ALERTES VOCALES
+                SON ACTIVÉ — UN CLIC N'IMPORTE OÙ POUR DÉBLOQUER L'AUDIO
               </p>
               <p
                 className="font-bold text-black"
                 style={{ fontSize: '10px', letterSpacing: '1px', opacity: 0.6 }}
               >
-                DING + ANNONCES VOCALES À CHAQUE NOUVEAU SIGNALEMENT
+                DING + ANNONCES VOCALES À CHAQUE NOUVEAU SIGNALEMENT, RÉSOLUTION ET RETARD
               </p>
             </div>
           </div>
@@ -2532,17 +2700,17 @@ export default function OpsWallboardPage() {
             <button
               type="button"
               onClick={toggleSound}
-              className="flex items-center gap-1.5 rounded-[10px] bg-[#00A651] px-4 py-2 font-black uppercase text-white transition-opacity hover:opacity-90"
+              className="flex items-center gap-1.5 rounded-[10px] bg-[#E30613] px-4 py-2 font-black uppercase text-white transition-opacity hover:opacity-90"
               style={{ fontSize: '11px', letterSpacing: '1px' }}
             >
-              <Volume2 className="size-4" aria-hidden />
-              ACTIVER LE SON
+              <VolumeX className="size-4" aria-hidden />
+              COUPER LE SON
             </button>
             <button
               type="button"
               onClick={() => setShowSoundBanner(false)}
               aria-label="Fermer la bannière"
-              className="flex items-center justify-center rounded-[10px] bg-[#003399] px-3 py-2 font-black text-white transition-opacity hover:opacity-90"
+              className="flex items-center justify-center rounded-[10px] bg-[#000d10] px-3 py-2 font-black text-white transition-opacity hover:opacity-90"
             >
               <span style={{ fontSize: '16px', lineHeight: 1 }} aria-hidden>×</span>
             </button>
@@ -2599,7 +2767,7 @@ export default function OpsWallboardPage() {
           ============================================================ */}
       <section
         aria-label="KPI temps réel"
-        className="grid shrink-0 gap-[15px] px-[30px] py-5"
+        className="grid shrink-0 gap-[15px] px-[30px] py-3"
         style={{ gridTemplateColumns: 'repeat(8, 1fr)' }}
       >
         {/* Live Score — hero temps réel, occupe 2 colonnes (prominent) */}
@@ -2618,19 +2786,19 @@ export default function OpsWallboardPage() {
             <KpiCard
               label="EN ATTENTE"
               value={data.stats.en_attente}
-              bgClass="bg-[#FCD116]"
+              bgClass="bg-[#C9A961]"
               textClass="text-black"
             />
             <KpiCard
               label="RÉSOLUS"
               value={data.stats.resolus_24h}
-              bgClass="bg-[#00A651]"
+              bgClass="bg-[#C9A961]"
               textClass="text-white"
             />
             <KpiCard
               label="TEMPS MOY"
               value={formatDurationMin(data.stats.avg_resolution_minutes)}
-              bgClass="bg-[#003399]"
+              bgClass="bg-[#000d10]"
               textClass="text-white"
             />
             <KpiCard
@@ -2642,7 +2810,7 @@ export default function OpsWallboardPage() {
             <KpiCard
               label="STAFF"
               value={`${staffActive.count}/${staffActive.total}`}
-              bgClass="bg-[#00A651]"
+              bgClass="bg-[#C9A961]"
               textClass="text-white"
             />
           </>
@@ -2652,7 +2820,7 @@ export default function OpsWallboardPage() {
       </section>
 
       {/* ============================================================
-          Task WAHOO-4 — BANDEAU PRÉDICTION DENISE
+          Task WAHOO-4 — BANDEAU PRÉDICTION NATHALIE
           ------------------------------------------------------------
           Slim banner navy/gold affichant les prédictions HIGH/MEDIUM
           renvoyées par /api/airport/predictive-alert. Cycle de 8 s
@@ -2662,7 +2830,7 @@ export default function OpsWallboardPage() {
           ============================================================ */}
       {predictiveAlerts.length > 0 && (
         <section
-          aria-label="Prédictions Denise"
+          aria-label="Prédictions Nathalie"
           aria-live="polite"
           className="mx-[30px] mb-1 shrink-0"
         >
@@ -2680,7 +2848,7 @@ export default function OpsWallboardPage() {
                   boxShadow: '0 4px 10px rgba(0,0,0,0.15)',
                 }}
               >
-                {/* LEFT — label or + PRÉDICTION DENISE */}
+                {/* LEFT — label or + PRÉDICTION NATHALIE */}
                 <div
                   className="flex shrink-0 items-center gap-2 px-4 py-2"
                   style={{ backgroundColor: BLEU }}
@@ -2696,7 +2864,7 @@ export default function OpsWallboardPage() {
                     className="font-black uppercase"
                     style={{ fontSize: '11px', letterSpacing: '2px', color: JAUNE }}
                   >
-                    PRÉDICTION DENISE
+                    PRÉDICTION NATHALIE
                   </span>
                 </div>
                 {/* RIGHT — priority badge + scrolling message + dots */}
@@ -2763,194 +2931,127 @@ export default function OpsWallboardPage() {
       )}
 
       {/* ============================================================
-          Feature F3 — CLASSEMENT (compétition d'équipes + top performer + série SLA)
+          Feature F3 — CLASSEMENT (V3 : bandeau compact sur UNE ligne)
           ============================================================ */}
       <section
         aria-label="Classement staff et achievements"
-        className="px-[30px] pb-5"
+        className="shrink-0 px-[30px] pb-2"
       >
         <div
-          className="rounded-[20px] bg-white p-[25px]"
+          className="flex flex-wrap items-center gap-x-6 gap-y-1.5 rounded-[16px] bg-white px-5 py-2.5"
           style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
         >
           <h2
-            className="mb-4 font-black uppercase leading-none"
-            style={{ fontSize: 'clamp(16px, 1.8vw, 20px)', letterSpacing: '3px', color: BLEU }}
+            className="shrink-0 font-black uppercase leading-none"
+            style={{ fontSize: '13px', letterSpacing: '2px', color: BLEU }}
           >
             🏆 CLASSEMENT
           </h2>
-          <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-            {/* --- Compétition d'équipes (24h) --- */}
-            <div className="rounded-[15px] bg-[#F5F5F5] p-4">
-              <p
-                className="mb-3 font-black uppercase text-black"
-                style={{ fontSize: '11px', letterSpacing: '2px' }}
-              >
-                COMPÉTITION D'ÉQUIPES (24H)
-              </p>
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex flex-col items-center">
-                  <span
-                    className="font-black tabular-nums leading-none text-[#003399]"
-                    style={{ fontSize: '28px' }}
-                    suppressHydrationWarning
-                  >
-                    {competition?.morning ?? 0}
-                  </span>
-                  <span
-                    className="mt-1 font-black uppercase"
-                    style={{ fontSize: '10px', letterSpacing: '1px' }}
-                  >
-                    MATIN
-                  </span>
-                </div>
-                <span className="font-black text-black" style={{ fontSize: '16px', opacity: 0.3 }}>
-                  |
-                </span>
-                <div className="flex flex-col items-center">
-                  <span
-                    className="font-black tabular-nums leading-none text-[#FF6B00]"
-                    style={{ fontSize: '28px' }}
-                    suppressHydrationWarning
-                  >
-                    {competition?.evening ?? 0}
-                  </span>
-                  <span
-                    className="mt-1 font-black uppercase"
-                    style={{ fontSize: '10px', letterSpacing: '1px' }}
-                  >
-                    SOIR
-                  </span>
-                </div>
-                <span className="font-black text-black" style={{ fontSize: '16px', opacity: 0.3 }}>
-                  |
-                </span>
-                <div className="flex flex-col items-center">
-                  <span
-                    className="font-black tabular-nums leading-none text-[#003399]"
-                    style={{ fontSize: '28px' }}
-                    suppressHydrationWarning
-                  >
-                    {competition?.night ?? 0}
-                  </span>
-                  <span
-                    className="mt-1 font-black uppercase"
-                    style={{ fontSize: '10px', letterSpacing: '1px' }}
-                  >
-                    NUIT
-                  </span>
-                </div>
-              </div>
-            </div>
 
-            {/* --- Top performer + badges --- */}
-            <div className="rounded-[15px] bg-[#F5F5F5] p-4">
-              <p
-                className="mb-3 font-black uppercase text-black"
-                style={{ fontSize: '11px', letterSpacing: '2px' }}
-              >
-                TOP PERFORMER
-              </p>
-              {topPerformer ? (
-                <div className="flex flex-col gap-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span
-                      className="truncate font-black uppercase text-black"
-                      style={{ fontSize: '15px', letterSpacing: '1px' }}
-                    >
-                      🥇 {truncateName(topPerformer.staffName, 18)}
-                    </span>
-                    <span
-                      className="shrink-0 font-black tabular-nums text-[#003399]"
-                      style={{ fontSize: '20px' }}
-                    >
-                      {topPerformer.points}pts
-                    </span>
-                  </div>
-                  <div className="flex flex-wrap gap-1.5">
-                    {topPerformer.achievements.length > 0 ? (
-                      topPerformer.achievements.map((a) => (
-                        <span
-                          key={a.id}
-                          title={a.meta ? `${a.description} — ${a.meta}` : a.description}
-                          className="inline-flex items-center gap-1 rounded-[8px] bg-[#FCD116] px-2 py-1 font-black uppercase text-black"
-                          style={{ fontSize: '10px', letterSpacing: '1px' }}
-                        >
-                          {a.emoji} {a.label}
-                        </span>
-                      ))
-                    ) : (
-                      <span
-                        className="font-bold uppercase text-black"
-                        style={{ fontSize: '10px', letterSpacing: '1px', opacity: 0.5 }}
-                      >
-                        AUCUN BADGE ENCORE
-                      </span>
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <span
-                  className="font-bold uppercase text-black"
-                  style={{ fontSize: '11px', letterSpacing: '1px', opacity: 0.5 }}
-                >
-                  AUCUN CLASSEMENT CE MOIS-CI
-                </span>
-              )}
-            </div>
+          {/* --- Compétition d'équipes (24h) — inline --- */}
+          <div className="flex items-center gap-2">
+            <span
+              className="font-black uppercase text-black"
+              style={{ fontSize: '9.5px', letterSpacing: '1px', opacity: 0.55 }}
+            >
+              ÉQUIPES 24H
+            </span>
+            <span className="font-black tabular-nums text-[#000d10]" style={{ fontSize: '15px' }} suppressHydrationWarning>
+              {competition?.morning ?? 0}
+              <span className="ml-0.5 font-black uppercase text-black" style={{ fontSize: '9px', opacity: 0.6 }}>MAT</span>
+            </span>
+            <span className="font-black text-black" style={{ fontSize: '11px', opacity: 0.3 }} aria-hidden>|</span>
+            <span className="font-black tabular-nums text-[#C9A961]" style={{ fontSize: '15px' }} suppressHydrationWarning>
+              {competition?.evening ?? 0}
+              <span className="ml-0.5 font-black uppercase text-black" style={{ fontSize: '9px', opacity: 0.6 }}>SOIR</span>
+            </span>
+            <span className="font-black text-black" style={{ fontSize: '11px', opacity: 0.3 }} aria-hidden>|</span>
+            <span className="font-black tabular-nums text-[#000d10]" style={{ fontSize: '15px' }} suppressHydrationWarning>
+              {competition?.night ?? 0}
+              <span className="ml-0.5 font-black uppercase text-black" style={{ fontSize: '9px', opacity: 0.6 }}>NUIT</span>
+            </span>
+          </div>
 
-            {/* --- Série SLA --- */}
-            <div className="rounded-[15px] bg-[#F5F5F5] p-4">
-              <p
-                className="mb-3 font-black uppercase text-black"
-                style={{ fontSize: '11px', letterSpacing: '2px' }}
-              >
-                SÉRIE SLA
-              </p>
-              <div className="flex items-center gap-2">
-                <span className="font-black" style={{ fontSize: '28px', lineHeight: 1 }} aria-hidden>
-                  🔥
-                </span>
+          {/* --- Top performer — inline --- */}
+          <div className="flex min-w-0 items-center gap-1.5">
+            <span
+              className="font-black uppercase text-black"
+              style={{ fontSize: '9.5px', letterSpacing: '1px', opacity: 0.55 }}
+            >
+              TOP
+            </span>
+            {topPerformer ? (
+              <span className="flex min-w-0 items-center gap-1.5">
                 <span
-                  className="font-black tabular-nums leading-none text-[#E30613]"
-                  style={{ fontSize: '28px' }}
-                  suppressHydrationWarning
+                  className="truncate font-black uppercase text-black"
+                  style={{ fontSize: '13px', letterSpacing: '1px' }}
                 >
-                  {streakDays}
+                  🥇 {truncateName(topPerformer.staffName, 16)}
                 </span>
-                <span
-                  className="font-black uppercase text-black"
-                  style={{ fontSize: '11px', letterSpacing: '1px' }}
-                >
-                  JOURS SLA {'>'} 90%
+                <span className="shrink-0 font-black tabular-nums text-[#000d10]" style={{ fontSize: '13px' }}>
+                  {topPerformer.points}pts
                 </span>
-              </div>
-              <p
-                className="mt-2 font-bold uppercase text-black"
-                style={{ fontSize: '10px', letterSpacing: '1px', opacity: 0.6 }}
+                {topPerformer.achievements.slice(0, 2).map((a) => (
+                  <span
+                    key={a.id}
+                    title={a.meta ? `${a.description} — ${a.meta}` : a.description}
+                    className="inline-flex shrink-0 items-center gap-1 rounded-[8px] bg-[#C9A961] px-1.5 py-0.5 font-black uppercase text-black"
+                    style={{ fontSize: '9px', letterSpacing: '1px' }}
+                  >
+                    {a.emoji} {a.label}
+                  </span>
+                ))}
+              </span>
+            ) : (
+              <span
+                className="font-bold uppercase text-black"
+                style={{ fontSize: '10px', letterSpacing: '1px', opacity: 0.5 }}
               >
-                SLA GLOBAL: {streakSlaPct}%
-              </p>
-            </div>
+                AUCUN CLASSEMENT CE MOIS-CI
+              </span>
+            )}
+          </div>
+
+          {/* --- Série SLA — inline --- */}
+          <div className="ml-auto flex items-center gap-1.5">
+            <span style={{ fontSize: '16px', lineHeight: 1 }} aria-hidden>🔥</span>
+            <span className="font-black tabular-nums leading-none text-[#E30613]" style={{ fontSize: '15px' }} suppressHydrationWarning>
+              {streakDays}
+            </span>
+            <span
+              className="font-black uppercase text-black"
+              style={{ fontSize: '9.5px', letterSpacing: '1px', opacity: 0.7 }}
+            >
+              JOURS SLA {'>'} 90%
+            </span>
+            <span
+              className="font-bold uppercase text-black"
+              style={{ fontSize: '9.5px', letterSpacing: '1px', opacity: 0.45 }}
+            >
+              (GLOBAL {streakSlaPct}%)
+            </span>
           </div>
         </div>
       </section>
 
       {/* ============================================================
           3. MAIN LAYOUT — 2 colonnes (2fr zones | 1fr alertes)
+             V3 PLEIN ÉCRAN : la grille occupe tout l'espace restant
+             (flex-1 min-h-0) et les DEUX panneaux scrollent en interne —
+             plus aucun scroll de page.
           ============================================================ */}
       <div
-        className={`grid shrink-0 gap-5 px-[30px] pb-5 ${crisisMode ? 'ops-crisis-overlay' : ''}`}
+        className={`grid min-h-0 flex-1 gap-4 px-[30px] pb-3 ${crisisMode ? 'ops-crisis-overlay' : ''}`}
         style={{ gridTemplateColumns: '2fr 1fr' }}
       >
         {/* ---------- LEFT : Zones section ---------- */}
         <section
           aria-label="Carte zones temps réel"
-          className="rounded-[20px] bg-white p-[25px]"
+          className="flex min-h-0 flex-col overflow-hidden rounded-[20px] bg-white p-[20px]"
           style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
         >
           {/* Section title */}
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+          <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-2">
             <h2
               className="font-black uppercase leading-none"
               style={{ fontSize: 'clamp(18px, 2vw, 24px)', letterSpacing: '3px', color: BLEU }}
@@ -2970,9 +3071,9 @@ export default function OpsWallboardPage() {
           </div>
 
           {/* Familles de zones — panneaux colorés (design original restauré)
-              Pas de max-h ni overflow-y-auto : toutes les cartes sont visibles
-              sans scroll interne, la page défile naturellement. */}
-          <div className="flex flex-col gap-4">
+              V3 : scroll INTERNE stylé (ops-scroll) — le wallboard tient sur
+              un seul écran sans jamais scroller la page. */}
+          <div className="ops-scroll flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto pr-1">
             {families.map((fam) => {
               const famZones = zonesByFamily[fam] ?? []
               if (famZones.length === 0) return null
@@ -3004,7 +3105,7 @@ export default function OpsWallboardPage() {
             })}
             {data && data.zones.length === 0 && (
               <div
-                className="rounded-[15px] bg-[#FCD116] px-5 py-6 text-center font-black uppercase text-black"
+                className="rounded-[15px] bg-[#C9A961] px-5 py-6 text-center font-black uppercase text-black"
                 style={{ fontSize: '14px', letterSpacing: '1px' }}
               >
                 AUCUNE ZONE CONFIGURÉE
@@ -3032,7 +3133,7 @@ export default function OpsWallboardPage() {
               <div className="flex items-center gap-1.5">
                 <span
                   className="inline-block rounded-[3px]"
-                  style={{ width: '12px', height: '12px', background: '#003399' }}
+                  style={{ width: '12px', height: '12px', background: '#000d10' }}
                   aria-hidden
                 />
                 <span className="font-black uppercase text-black" style={{ fontSize: '10px', letterSpacing: '1px' }}>
@@ -3042,7 +3143,7 @@ export default function OpsWallboardPage() {
               <div className="flex items-center gap-1.5">
                 <span
                   className="inline-block rounded-[3px]"
-                  style={{ width: '12px', height: '12px', background: '#FF6B00' }}
+                  style={{ width: '12px', height: '12px', background: '#C9A961' }}
                   aria-hidden
                 />
                 <span className="font-black uppercase text-black" style={{ fontSize: '10px', letterSpacing: '1px' }}>
@@ -3064,7 +3165,7 @@ export default function OpsWallboardPage() {
               <span className="flex items-center gap-1">
                 <span
                   className="inline-block size-2 rounded-full"
-                  style={{ background: '#003399', animation: 'opsPulseDot 1.2s ease-in-out infinite' }}
+                  style={{ background: '#000d10', animation: 'opsPulseDot 1.2s ease-in-out infinite' }}
                   aria-hidden
                 />
                 EN COURS
@@ -3077,16 +3178,16 @@ export default function OpsWallboardPage() {
         {/* ---------- RIGHT : Alertes section ---------- */}
         <section
           aria-label="Alertes actives"
-          className="flex max-h-[calc(100vh-300px)] flex-col rounded-[20px] bg-white p-[25px]"
+          className="flex min-h-0 flex-col rounded-[20px] bg-white p-[20px]"
           style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
         >
           <h2
-            className="mb-4 font-black uppercase leading-none"
+            className="mb-3 shrink-0 font-black uppercase leading-none"
             style={{ fontSize: 'clamp(16px, 1.8vw, 20px)', letterSpacing: '3px', color: BLEU }}
           >
             ⚠ ALERTES ACTIVES
           </h2>
-          <div className="ops-scroll flex flex-1 flex-col overflow-y-auto pr-1">
+          <div className="ops-scroll flex min-h-0 flex-1 flex-col overflow-y-auto pr-1">
             {topAlerts.map((a, idx) => (
               <AlertCard key={`alert-${a.thresholdId}-${a.zoneCode}-${idx}`} alert={a} />
             ))}
@@ -3107,7 +3208,7 @@ export default function OpsWallboardPage() {
               activeReportAlerts.length === 0 &&
               (data?.help_requests?.length ?? 0) === 0 && (
                 <div
-                  className="flex items-center justify-center rounded-[15px] bg-[#00A651] px-5 py-6 text-center font-black uppercase text-white"
+                  className="flex items-center justify-center rounded-[15px] bg-[#C9A961] px-5 py-6 text-center font-black uppercase text-white"
                   style={{ fontSize: '13px', letterSpacing: '1px' }}
                 >
                   AUCUNE ALERTE ACTIVE
@@ -3118,19 +3219,23 @@ export default function OpsWallboardPage() {
       </div>
 
       {/* ============================================================
-          4. INCIDENTS TABLE — lignes séparées avec coins arrondis
+          4-6. BLOC BAS V3 — INCIDENTS | RADAR + SLA/CHARGE sur UNE ligne
+          Hauteur bornée (min(288px, 30vh)) : tout tient à l'écran,
+          scroll interne uniquement — plus de scroll de page.
           ============================================================ */}
-      <section
-        aria-label="Incidents du jour"
-        className="px-[30px] pb-5"
+      <div
+        className="grid h-[min(264px,28vh)] shrink-0 gap-4 px-[30px]"
+        style={{ gridTemplateColumns: '3fr 2fr' }}
       >
-        <div
-          className="rounded-[20px] bg-white p-[25px]"
+        {/* ---------- INCIDENTS DU JOUR ---------- */}
+        <section
+          aria-label="Incidents du jour"
+          className="flex min-h-0 flex-col rounded-[20px] bg-white p-[18px]"
           style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
         >
           <h2
-            className="mb-4 font-black uppercase leading-none"
-            style={{ fontSize: 'clamp(18px, 2vw, 24px)', letterSpacing: '3px', color: BLEU }}
+            className="mb-3 shrink-0 font-black uppercase leading-none"
+            style={{ fontSize: 'clamp(16px, 1.6vw, 20px)', letterSpacing: '3px', color: BLEU }}
           >
             📋 INCIDENTS DU JOUR
           </h2>
@@ -3138,7 +3243,7 @@ export default function OpsWallboardPage() {
           {/* En-tête table — bg bleu, coins arrondis haut */}
           <div
             role="row"
-            className="mb-2 flex items-center gap-2 rounded-[10px_10px_0_0] px-5 py-3.5 text-white"
+            className="mb-2 flex shrink-0 items-center gap-2 rounded-[10px_10px_0_0] px-4 py-2.5 text-white"
             style={{ backgroundColor: BLEU }}
           >
             <div
@@ -3185,8 +3290,8 @@ export default function OpsWallboardPage() {
             </div>
           </div>
 
-          {/* Lignes — séparées par gap (margin-bottom sur chaque ligne) */}
-          <div className="flex flex-col gap-2">
+          {/* Lignes — séparées par gap ; scroll INTERNE (V3 plein écran) */}
+          <div className="ops-scroll flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto pr-1">
             {data ? (
               filledRows.length > 0 ? (
                 <>
@@ -3204,7 +3309,7 @@ export default function OpsWallboardPage() {
                 </>
               ) : (
                 <div
-                  className="flex items-center justify-center rounded-[15px] bg-[#FCD116] px-6 py-8 text-center font-black uppercase text-black"
+                  className="flex items-center justify-center rounded-[15px] bg-[#C9A961] px-6 py-8 text-center font-black uppercase text-black"
                   style={{ fontSize: '14px', letterSpacing: '1px' }}
                 >
                   {crisisMode
@@ -3226,94 +3331,85 @@ export default function OpsWallboardPage() {
               className="pointer-events-none fixed left-1/2 top-24 z-30 -translate-x-1/2"
             >
               <div
-                className={`rounded-[12px] px-5 py-2.5 font-black uppercase text-white ${actionToast.kind === 'ok' ? 'bg-[#00A651]' : 'bg-[#E30613]'}`}
+                className={`rounded-[12px] px-5 py-2.5 font-black uppercase text-white ${actionToast.kind === 'ok' ? 'bg-[#C9A961]' : 'bg-[#E30613]'}`}
                 style={{ fontSize: '12px', letterSpacing: '1px', boxShadow: '0 4px 10px rgba(0,0,0,0.2)' }}
               >
                 {actionToast.msg}
               </div>
             </div>
           )}
-        </div>
-      </section>
+        </section>
 
-      {/* ============================================================
-          5. RADAR PRÉDICTION — wrapper premium blanc
-          ============================================================ */}
-      <section
-        aria-label="Radar prédiction des pics de plaintes"
-        className="px-[30px] pb-5"
-      >
-        <div
-          className="rounded-[20px] bg-white p-[25px]"
-          style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
-        >
-          <h2
-            className="mb-4 font-black uppercase leading-none"
-            style={{ fontSize: 'clamp(16px, 1.8vw, 20px)', letterSpacing: '3px', color: BLEU }}
+        {/* ---------- COLONNE DROITE : RADAR + SLA / CHARGE ---------- */}
+        <div className="flex min-h-0 flex-col gap-3">
+          {/* RADAR PRÉDICTION — compact */}
+          <div
+            className="flex shrink-0 flex-col rounded-[16px] bg-white px-4 py-2.5"
+            style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
           >
-            🔮 RADAR PRÉDICTION — ÇA VA PÉTER DANS 20 MIN ?
-          </h2>
-          <div className="rounded-[15px] bg-[#F5F5F5] p-3">
-            <AirportPredictionRadar className="w-full" />
+            <h2
+              className="shrink-0 font-black uppercase leading-none"
+              style={{ fontSize: '12px', letterSpacing: '2px', color: BLEU }}
+            >
+              🔮 RADAR PRÉDICTION · 20 MIN
+            </h2>
+            <div className="mt-1 min-h-0 overflow-hidden rounded-[10px] bg-[#F5F5F5] p-1">
+              <AirportPredictionRadar className="h-[96px] w-full" />
+            </div>
+          </div>
+
+          {/* SLA + CHARGE — 2 mini-colonnes, scroll interne */}
+          <div className="grid min-h-0 flex-1 grid-cols-2 gap-3">
+            <div
+              className="flex min-h-0 flex-col rounded-[16px] bg-white p-[14px]"
+              style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
+            >
+              <h2
+                className="mb-2 shrink-0 font-black uppercase leading-none"
+                style={{ fontSize: '11px', letterSpacing: '2px', color: BLEU }}
+              >
+                📊 SLA PAR ZONE
+              </h2>
+              <div className="ops-scroll flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto pr-1">
+                {data ? (
+                  data.zones.slice(0, 6).map((z) => (
+                    <SlaRow key={`sla-${z.code}`} zone={z} sla={data.sla?.[z.code]} />
+                  ))
+                ) : (
+                  Array.from({ length: 4 }).map((_, i) => <MiniRowSkeleton key={i} />)
+                )}
+              </div>
+            </div>
+
+            <div
+              className="flex min-h-0 flex-col rounded-[16px] bg-white p-[14px]"
+              style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
+            >
+              <h2
+                className="mb-2 shrink-0 font-black uppercase leading-none"
+                style={{ fontSize: '11px', letterSpacing: '2px', color: BLEU }}
+              >
+                ⚡ CHARGE PAR ZONE
+              </h2>
+              <div className="ops-scroll flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto pr-1">
+                {data ? (
+                  data.zones.slice(0, 6).map((z) => (
+                    <ChargeRow key={`chg-${z.code}`} zone={z} max={maxEnAttente} />
+                  ))
+                ) : (
+                  Array.from({ length: 4 }).map((_, i) => <MiniRowSkeleton key={i} />)
+                )}
+              </div>
+            </div>
           </div>
         </div>
-      </section>
+      </div>
 
       {/* ============================================================
-          6. BOTTOM STRIP — SLA + Charge par zone (2 colonnes)
-          ============================================================ */}
-      <section
-        aria-label="Synthèse SLA et charge par zone"
-        className="grid gap-5 px-[30px] pb-5 lg:grid-cols-2"
-      >
-        <div
-          className="rounded-[20px] bg-white p-[20px]"
-          style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
-        >
-          <h2
-            className="mb-3 font-black uppercase leading-none"
-            style={{ fontSize: '14px', letterSpacing: '2px', color: BLEU }}
-          >
-            📊 SLA PAR ZONE
-          </h2>
-          <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-            {data ? (
-              data.zones.slice(0, 6).map((z) => (
-                <SlaRow key={`sla-${z.code}`} zone={z} sla={data.sla?.[z.code]} />
-              ))
-            ) : (
-              Array.from({ length: 6 }).map((_, i) => <MiniRowSkeleton key={i} />)
-            )}
-          </div>
-        </div>
-
-        <div
-          className="rounded-[20px] bg-white p-[20px]"
-          style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
-        >
-          <h2
-            className="mb-3 font-black uppercase leading-none"
-            style={{ fontSize: '14px', letterSpacing: '2px', color: BLEU }}
-          >
-            ⚡ CHARGE PAR ZONE · EN ATTENTE
-          </h2>
-          <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-            {data ? (
-              data.zones.slice(0, 6).map((z) => (
-                <ChargeRow key={`chg-${z.code}`} zone={z} max={maxEnAttente} />
-              ))
-            ) : (
-              Array.from({ length: 6 }).map((_, i) => <MiniRowSkeleton key={i} />)
-            )}
-          </div>
-        </div>
-      </section>
-
-      {/* ============================================================
-          7. LEGEND BAR — white card avec box colors + hint
+          7. LEGEND BAR — compacte, collée en bas (V3 plein écran)
           ============================================================ */}
       <div
-        className="mx-[30px] mb-5 flex shrink-0 flex-wrap items-center gap-8 rounded-[15px] px-[30px] py-5"
+        className="mx-[30px] mb-3 flex shrink-0 flex-wrap items-center gap-6 rounded-[15px] px-[24px] py-3"
         style={{ backgroundColor: BLANC, boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
       >
         <span className="flex items-center gap-2">

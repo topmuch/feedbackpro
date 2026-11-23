@@ -166,6 +166,9 @@ export async function POST(req: NextRequest) {
       status: 'paid', // paiement simulé réussi
       paymentRef,
       paymentMethod,
+      // FIX QA-2026-11-22 : le numéro de suivi était généré mais jamais
+      // persisté → confirmation affichait "#" et toast "Suivi : null".
+      trackingNumber,
     },
   })
 

@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Webhook Stripe (Session 6 §1)
+// FeedVoice - Webhook Stripe (Session 6 §1)
 // POST /api/webhooks/stripe
 // ------------------------------------------------------------
 // PRODUCTION-READY SANS CLÉS : tant que STRIPE_SECRET_KEY /
@@ -13,10 +13,10 @@
 //
 // ─── Comment créer les Price IDs Stripe ──────────────────────
 // 1. Dashboard Stripe → Produits → "Ajouter un produit"
-//    - "FeedbackPro Pro"        : prix récurrent 99 € / mois  → price_xxx → STRIPE_PRICE_PRO
-//    - "FeedbackPro Enterprise" : prix récurrent 249 € / mois → price_xxx → STRIPE_PRICE_ENTERPRISE
+//    - "FeedVoice Pro"        : prix récurrent 99 € / mois  → price_xxx → STRIPE_PRICE_PRO
+//    - "FeedVoice Enterprise" : prix récurrent 249 € / mois → price_xxx → STRIPE_PRICE_ENTERPRISE
 // 2. Copier les deux `price_...` dans les variables d'env (.env / Vercel)
-// 3. Créer un endpoint webhook (https://feedbackpro.fr/api/webhooks/stripe)
+// 3. Créer un endpoint webhook (https://feedvoice.fr/api/webhooks/stripe)
 //    avec les événements ci-dessous → copier le secret (whsec_...)
 //    dans STRIPE_WEBHOOK_SECRET
 // 4. En local : stripe listen --forward-to localhost:3000/api/webhooks/stripe

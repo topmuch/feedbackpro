@@ -28,6 +28,35 @@ const SHOWER_USAGE_MIN = 20 // durée d'utilisation
 const SHOWER_CLEANING_MIN = 10 // durée de nettoyage
 const SLOT_MIN = SHOWER_USAGE_MIN + SHOWER_CLEANING_MIN // 30 min par créneau
 const READY_WINDOW_MIN = 10 // fenêtre d'expiration une fois la douche "ready"
+// Usage fantôme : un "using" jamais clôturé depuis plus de 60 min est
+// réputé terminé (no-show staff) — sinon la file reste bloquée des jours.
+const USING_STALE_MIN = 60
+
+/**
+ * Purge idempotente des réservations périmées (exécutée avant chaque
+ * lecture/écriture) :
+ *   • queued/ready dont expiresAt est dépassé → cancelled (no-show)
+ *   • using dont reservedAt a plus de 60 min → done (usage fantôme)
+ * Garantit qu'aucune douche n'apparaît indisponible indéfiniment
+ * (bug « indisponible pendant 3373 minutes »).
+ */
+async function purgerReservationsPerimees(): Promise<void> {
+  const now = new Date()
+  await db.showerReservation.updateMany({
+    where: {
+      status: { in: ['queued', 'ready'] },
+      expiresAt: { lt: now },
+    },
+    data: { status: 'cancelled' },
+  })
+  await db.showerReservation.updateMany({
+    where: {
+      status: 'using',
+      reservedAt: { lt: new Date(now.getTime() - USING_STALE_MIN * 60_000) },
+    },
+    data: { status: 'done' },
+  })
+}
 
 const VALID_STATUSES = new Set(['queued', 'ready', 'using', 'done', 'cancelled'])
 
@@ -46,6 +75,7 @@ async function ensureShowerStatusSeeded(): Promise<void> {
 // GET /api/vip/shower-reservations
 export async function GET(req: NextRequest) {
   await ensureShowerStatusSeeded()
+  await purgerReservationsPerimees()
 
   const url = new URL(req.url)
   const status = url.searchParams.get('status')
@@ -80,6 +110,7 @@ export async function GET(req: NextRequest) {
 // POST /api/vip/shower-reservations
 export async function POST(req: NextRequest) {
   await ensureShowerStatusSeeded()
+  await purgerReservationsPerimees()
 
   const body = await req.json().catch(() => null)
   if (!body || typeof body !== 'object') {

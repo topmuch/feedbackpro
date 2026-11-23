@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro — WhatsApp Bot 2.0 Conversational (Task F3)
+// FeedVoice — WhatsApp Bot 2.0 Conversational (Task F3)
 // ------------------------------------------------------------
 // Version enrichie du bot ops aéroport. Au lieu d'exiger des
 // commandes strictes ("/zone bagages"), le bot comprend le

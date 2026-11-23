@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
 
   if (b.action === 'REPORT_ISSUE') {
     // Signalement interne — créer un AirportReport aussi pour que ça
-    // apparaisse sur le wallboard ET déclenche la voix Denise
+    // apparaisse sur le wallboard ET déclenche la voix Nathalie
     const zone = await db.airportZone.findFirst({
       where: { code: zoneCode ?? undefined },
     })
@@ -187,16 +187,16 @@ async function notifyManagerStaffIssue(staffTag: string, message: string, staffN
   const sujet = `📢 Signalement interne staff — ${staffTag}`
   const html = `
     <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
-      <div style="background: #003399; padding: 20px; color: white;">
+      <div style="background: #000d10; padding: 20px; color: white;">
         <h2 style="margin: 0;">📢 Signalement interne staff</h2>
-        <p style="margin: 5px 0 0; opacity: 0.8;">FeedbackPro — QR Staff Only</p>
+        <p style="margin: 5px 0 0; opacity: 0.8;">FeedVoice — QR Staff Only</p>
       </div>
       <div style="padding: 20px;">
         <p><strong>Employé :</strong> ${staffName}</p>
         <p><strong>QR scanné :</strong> ${staffTag}</p>
         <p><strong>Message :</strong> ${message}</p>
         <p style="margin-top: 20px; font-size: 12px; color: #999;">
-          Cet email a été envoyé automatiquement par FeedbackPro.
+          Cet email a été envoyé automatiquement par FeedVoice.
         </p>
       </div>
     </div>

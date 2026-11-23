@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Webhooks sortants (Slack / Discord) (Task 6)
+// FeedVoice - Webhooks sortants (Slack / Discord) (Task 6)
 // ------------------------------------------------------------
 // envoyerWebhook(url, type, donnees) :
 //   - url    : URL webhook (Slack ou Discord)
@@ -38,7 +38,7 @@ export type WebhookDonnees = {
   fields?: { key: string; value: string }[]
   /** Couleur de la bande gauche (hex sans #, ex : "dc2626" pour rouge) */
   color?: string
-  /** Lien optionnel vers le dashboard FeedbackPro */
+  /** Lien optionnel vers le dashboard FeedVoice */
   url?: string
   /** Nom de l'établissement (contexte) */
   nomEtablissement?: string
@@ -118,7 +118,7 @@ function payloadDiscord(d: WebhookDonnees): Record<string, unknown> {
     embed.footer = { text: `🏢 ${d.nomEtablissement}` }
   }
   return {
-    username: "FeedbackPro",
+    username: "FeedVoice",
     embeds: [embed],
   }
 }

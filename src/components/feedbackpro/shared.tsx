@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Composants partagés du dashboard
+// FeedVoice - Composants partagés du dashboard
 // Étoiles, carte KPI, en-tête applicatif, pied de page
 // ============================================================
 
@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { useAppStore } from "@/store/app-store"
+import { BrandMark } from "@/components/feedbackpro/brand-mark"
 import { PLANS, PlanId } from "@/lib/constants"
 
 // ---------- Affichage des étoiles (lecture seule) ----------
@@ -21,7 +22,7 @@ export function Stars({ note, size = 16, className = "" }: { note: number; size?
         <Star
           key={i}
           size={size}
-          className={i <= Math.round(note) ? "fill-amber-400 text-amber-400" : "fill-stone-200 text-stone-200"}
+          className={i <= Math.round(note) ? "fill-[#bc7155] text-[#bc7155]" : "fill-[#e4e2e1] text-[#e4e2e1]"}
           aria-hidden
         />
       ))}
@@ -46,9 +47,9 @@ export function StatCard({
 }) {
   const HintIcon = hintTone === "up" ? TrendingUp : hintTone === "down" ? TrendingDown : Minus
   const toneClass =
-    hintTone === "up" ? "text-green-600" : hintTone === "down" ? "text-rose-600" : "text-muted-foreground"
+    hintTone === "up" ? "text-[#a05f45]" : hintTone === "down" ? "text-rose-600" : "text-muted-foreground"
   return (
-    <Card className="rounded-3xl border-none shadow-sm">
+    <Card className="rounded-none border border-[#d5d3d4] shadow-none">
       <CardContent className="p-5 sm:p-6">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
@@ -60,8 +61,8 @@ export function StatCard({
               </p>
             )}
           </div>
-          <div className="shrink-0 rounded-2xl bg-primary/10 p-2.5" aria-hidden>
-            <Icon className="h-5 w-5 text-primary" />
+          <div className="shrink-0 rounded-none bg-[#bc7155]/10 p-2.5" aria-hidden>
+            <Icon className="h-5 w-5 text-[#bc7155]" />
           </div>
         </div>
       </CardContent>
@@ -81,12 +82,13 @@ export function AppHeader({ subtitle }: { subtitle?: string }) {
   return (
     <header className="sticky top-0 z-40 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2.5 min-w-0">
-          <img src="/logo-feedbackpro.png" alt="FeedbackPro" className="h-11 w-auto shrink-0" />
-          <div className="min-w-0">
-            <p className="font-bold leading-tight truncate">FeedbackPro</p>
-            {subtitle && <p className="text-xs text-muted-foreground truncate">{subtitle}</p>}
-          </div>
+        <div className="flex items-center gap-3 min-w-0">
+          {/* Logo officiel (wordmark) — le texte « FeedVoice » est porté par l'image */}
+          <BrandMark className="h-7 shrink-0" />
+          {subtitle && (
+            <span aria-hidden className="hidden h-7 w-px shrink-0 bg-border sm:block" />
+          )}
+          {subtitle && <p className="hidden text-sm text-muted-foreground truncate md:block">{subtitle}</p>}
           {planName && (
             <Badge variant="secondary" className="hidden sm:inline-flex shrink-0">
               {planName}
@@ -118,18 +120,18 @@ export function AppFooter() {
     { label: "Cookies", href: "/cookies" },
   ]
   return (
-    <footer className="mt-auto border-t border-border/60 bg-muted/30">
-      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-5 text-xs text-muted-foreground sm:flex-row sm:px-6">
-        <p className="flex items-center gap-1.5">
-          <img src="/logo-feedbackpro.png" alt="FeedbackPro" className="h-6 w-auto" />
-          © 2026 — Tous droits réservés.
+    <footer className="mt-auto bg-[#000d10] text-white/60">
+      <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-3 px-4 py-5 text-xs sm:flex-row sm:px-6">
+        <p className="flex items-center gap-3">
+          <BrandMark tone="white" className="h-6" />
+          <span className="text-white/60">© 2026 — Tous droits réservés.</span>
         </p>
         <nav aria-label="Liens légaux" className="flex flex-wrap items-center justify-center gap-3 sm:gap-4">
           {liens.map((l) => (
             <a
               key={l.href}
               href={l.href}
-              className="transition-colors hover:text-primary"
+              className="transition-colors hover:text-white"
             >
               {l.label}
             </a>

@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Construction du message WhatsApp structuré
+// FeedVoice - Construction du message WhatsApp structuré
 // Utilisé côté client (lien wa.me) après enregistrement du retour
 // ============================================================
 
@@ -33,7 +33,7 @@ export function formatDateFr(d: Date): string {
  * ⭐ Note : X/5
  * 📅 Date + heure
  * 🏷️ Tags · 👤 Personnel · 💬 Détails
- * Pied : messageWhatsapp personnalisé ou mention FeedbackPro ✨
+ * Pied : messageWhatsapp personnalisé ou mention FeedVoice ✨
  */
 export function buildWhatsAppMessage(
   pro: ProInfo,
@@ -62,8 +62,8 @@ export function buildWhatsAppMessage(
   }
 
   lignes.push("")
-  // Signature personnalisée de l'établissement si configurée, sinon mention FeedbackPro
-  lignes.push(pro.messageWhatsapp || "Envoyé via FeedbackPro ✨")
+  // Signature personnalisée de l'établissement si configurée, sinon mention FeedVoice
+  lignes.push(pro.messageWhatsapp || "Envoyé via FeedVoice ✨")
 
   return lignes.join("\n")
 }

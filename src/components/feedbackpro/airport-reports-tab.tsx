@@ -128,18 +128,18 @@ type ZoneLite = { code: string; nom: string; emoji: string }
 const STATUT_META: Record<Statut, { label: string; cls: string; dot: string }> = {
   EN_ATTENTE: {
     label: 'EN ATTENTE',
-    cls: 'bg-amber-500/15 text-amber-700 border-amber-500/30',
-    dot: 'bg-amber-400',
+    cls: 'bg-[#bc7155]/15 text-[#8a4f3b] border-[#bc7155]/30',
+    dot: 'bg-[#c98b72]',
   },
   EN_COURS: {
     label: 'EN COURS',
-    cls: 'bg-sky-500/15 text-sky-700 border-sky-500/30',
-    dot: 'bg-sky-400',
+    cls: 'bg-[#4b4d5e]/15 text-[#2e3040] border-[#4b4d5e]/30',
+    dot: 'bg-[#5e6070]',
   },
   RESOLU: {
     label: 'RÉSOLU',
-    cls: 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30',
-    dot: 'bg-emerald-400',
+    cls: 'bg-[#bc7155]/15 text-[#a05f45] border-[#bc7155]/30',
+    dot: 'bg-[#c98b72]',
   },
 }
 
@@ -154,10 +154,10 @@ function statutMeta(s: string): { label: string; cls: string; dot: string } {
 }
 
 const TEAM_META: Record<string, { emoji: string; label: string; cls: string }> = {
-  nettoyage: { emoji: '🧹', label: 'Nettoyage', cls: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-600' },
-  maintenance: { emoji: '🔧', label: 'Maintenance', cls: 'border-amber-500/30 bg-amber-500/10 text-amber-700' },
+  nettoyage: { emoji: '🧹', label: 'Nettoyage', cls: 'border-[#bc7155]/30 bg-[#bc7155]/10 text-[#a05f45]' },
+  maintenance: { emoji: '🔧', label: 'Maintenance', cls: 'border-[#bc7155]/30 bg-[#bc7155]/10 text-[#8a4f3b]' },
   securite: { emoji: '🛡️', label: 'Sécurité', cls: 'border-rose-500/30 bg-rose-500/10 text-rose-700' },
-  accueil: { emoji: '👋', label: 'Accueil', cls: 'border-sky-500/30 bg-sky-500/10 text-sky-700' },
+  accueil: { emoji: '👋', label: 'Accueil', cls: 'border-[#4b4d5e]/30 bg-[#4b4d5e]/10 text-[#2e3040]' },
   other: { emoji: '❓', label: 'Autre', cls: 'border-border/40 bg-muted/30 text-muted-foreground' },
 }
 
@@ -182,15 +182,15 @@ type PhotoAnalysis = {
 const URGENCY_META: Record<string, { label: string; cls: string }> = {
   faible: {
     label: 'Faible',
-    cls: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-700',
+    cls: 'border-[#bc7155]/30 bg-[#bc7155]/10 text-[#8a4f3b]',
   },
   moyenne: {
     label: 'Moyenne',
-    cls: 'border-amber-500/30 bg-amber-500/10 text-amber-700',
+    cls: 'border-[#bc7155]/30 bg-[#bc7155]/10 text-[#8a4f3b]',
   },
   elevee: {
     label: 'Élevée',
-    cls: 'border-orange-500/30 bg-orange-500/10 text-orange-700',
+    cls: 'border-[#bc7155]/30 bg-[#bc7155]/10 text-[#8a4f3b]',
   },
   critique: {
     label: 'Critique',
@@ -348,6 +348,15 @@ export default function AirportReportsTab() {
   // Ref pour éviter un poll en cours
   const pollingRef = useRef<boolean>(false)
 
+  // --- V3 — NOTIFICATIONS VISUELLES des nouveaux signalements ---
+  // Diff par Set d'ids (même pattern que la cloche de notifications) : au
+  // premier chargement on amorce silencieusement, ensuite tout report
+  // EN_ATTENTE inconnu déclenche un toast + surlignage de la ligne 9 s.
+  const idsVusRef = useRef<Set<string>>(new Set())
+  const premierChargementRef = useRef<boolean>(true)
+  const [nouveauxIds, setNouveauxIds] = useState<Set<string>>(new Set())
+  const [nouveauxCount, setNouveauxCount] = useState<number>(0)
+
   // --- Chargement initial des zones (pour le filtre) ---
   useEffect(() => {
     let cancelled = false
@@ -383,6 +392,33 @@ export default function AirportReportsTab() {
     setError(null)
     try {
       const r = await fetchReports(zoneFilter, statutFilter, 100)
+      // V3 — détection des NOUVEAUX signalements (poll 10 s)
+      const nouveaux: Report[] = []
+      for (const rep of r) {
+        if (!idsVusRef.current.has(rep.id)) {
+          idsVusRef.current.add(rep.id)
+          if (!premierChargementRef.current && rep.statut === 'EN_ATTENTE') {
+            nouveaux.push(rep)
+          }
+        }
+      }
+      premierChargementRef.current = false
+      if (nouveaux.length > 0) {
+        setNouveauxIds(new Set(nouveaux.map((x) => x.id)))
+        setNouveauxCount(nouveaux.length)
+        setTimeout(() => {
+          setNouveauxIds(new Set())
+          setNouveauxCount(0)
+        }, 9000)
+        const first = nouveaux[0]
+        toast({
+          title:
+            nouveaux.length === 1
+              ? '🚨 Nouveau signalement'
+              : `🚨 ${nouveaux.length} nouveaux signalements`,
+          description: `${first.zone?.nom ?? 'Zone'} — ${first.problemType}`,
+        })
+      }
       setReports(r)
       setLastFetch(new Date())
     } catch (e) {
@@ -550,8 +586,16 @@ export default function AirportReportsTab() {
             <span className="ml-1.5 hidden sm:inline">Exporter CSV</span>
           </Button>
 
-          {/* Compteur + last fetch */}
+          {/* Compteur + pill NOUVEAUX (V3) + last fetch */}
           <div className="ml-auto flex items-center gap-2 text-[11px] text-muted-foreground/70">
+            {nouveauxCount > 0 && (
+              <span
+                className="notification-pulse inline-flex items-center gap-1 rounded-full bg-[#C0392B] px-2.5 py-1 font-bold text-white"
+                aria-live="polite"
+              >
+                🔔 {nouveauxCount} NOUVEAU{nouveauxCount > 1 ? 'X' : ''}
+              </span>
+            )}
             <span className="tabular-nums">
               {filteredReports.length} signalement{filteredReports.length > 1 ? 's' : ''}
             </span>
@@ -603,6 +647,7 @@ export default function AirportReportsTab() {
                 report={r}
                 onResolve={handleResolve}
                 resolving={resolvingId === r.id}
+                fresh={nouveauxIds.has(r.id)}
               />
             ))}
           </div>
@@ -620,9 +665,11 @@ type ReportRowProps = {
   report: Report
   onResolve: (id: string) => void
   resolving: boolean
+  /** V3 — signalé comme NOUVEAU (poll 10 s) → surlignage animé */
+  fresh?: boolean
 }
 
-function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
+function ReportRow({ report, onResolve, resolving, fresh }: ReportRowProps) {
   const s = statutMeta(report.statut)
   const team = teamMeta(report.routedTeam)
   const isResolved = report.statut === 'RESOLU'
@@ -638,7 +685,12 @@ function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
   const [detailsOpen, setDetailsOpen] = useState<boolean>(false)
 
   return (
-    <div className="px-4 py-3 transition hover:bg-card/40 sm:px-6">
+    <div
+      className={cn(
+        'px-4 py-3 transition hover:bg-card/40 sm:px-6',
+        fresh && 'notification-pulse bg-[#C0392B]/[0.07]',
+      )}
+    >
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
         {/* Photo thumbnail (si présente) */}
         <div className="shrink-0 sm:order-1">
@@ -682,13 +734,13 @@ function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
           <div className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-muted-foreground/70">
             <span className="font-mono">{report.tagScanne}</span>
             {report.flightNumber && (
-              <span className="inline-flex items-center gap-1 rounded border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 font-medium text-sky-700">
+              <span className="inline-flex items-center gap-1 rounded border border-[#4b4d5e]/30 bg-[#4b4d5e]/10 px-1.5 py-0.5 font-medium text-[#2e3040]">
                 <Plane className="h-3 w-3" />
                 {report.flightNumber}
               </span>
             )}
             {report.photoCategory && (
-              <span className="inline-flex items-center gap-1 rounded border border-fuchsia-500/30 bg-fuchsia-500/10 px-1.5 py-0.5 font-medium text-fuchsia-700">
+              <span className="inline-flex items-center gap-1 rounded border border-[#bc7155]/30 bg-[#bc7155]/10 px-1.5 py-0.5 font-medium text-[#8a4f3b]">
                 📷 {report.photoCategory}
               </span>
             )}
@@ -703,13 +755,13 @@ function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
               </span>
             )}
             {report.whatsappOptin && report.whatsappPhone && (
-              <span className="inline-flex items-center gap-1 rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 font-medium text-emerald-600">
+              <span className="inline-flex items-center gap-1 rounded border border-[#bc7155]/30 bg-[#bc7155]/10 px-1.5 py-0.5 font-medium text-[#a05f45]">
                 💬 notifié
               </span>
             )}
             {report.assignedTo && (
               <span
-                className="inline-flex items-center gap-1 rounded border border-violet-500/30 bg-violet-500/10 px-1.5 py-0.5 font-medium text-violet-700"
+                className="inline-flex items-center gap-1 rounded border border-[#bc7155]/30 bg-[#bc7155]/10 px-1.5 py-0.5 font-medium text-[#8a4f3b]"
                 title={`Affecté à ${report.assignedTo}`}
               >
                 <UserCog className="h-3 w-3" />
@@ -719,7 +771,7 @@ function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
             {/* Task B (Phase 3) — badge photos staff avant/après */}
             {staffPhotos.count === 2 && (
               <span
-                className="inline-flex items-center gap-1 rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 font-medium text-emerald-600"
+                className="inline-flex items-center gap-1 rounded border border-[#bc7155]/30 bg-[#bc7155]/10 px-1.5 py-0.5 font-medium text-[#a05f45]"
                 title="Photo AVANT et APRÈS jointes par le staff"
               >
                 <Camera className="h-3 w-3" />
@@ -728,7 +780,7 @@ function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
             )}
             {staffPhotos.count === 1 && (
               <span
-                className="inline-flex items-center gap-1 rounded border border-amber-500/30 bg-amber-500/10 px-1.5 py-0.5 font-medium text-amber-700"
+                className="inline-flex items-center gap-1 rounded border border-[#bc7155]/30 bg-[#bc7155]/10 px-1.5 py-0.5 font-medium text-[#8a4f3b]"
                 title={
                   staffPhotos.before
                     ? 'Photo AVANT jointe — résolution en cours'
@@ -762,7 +814,7 @@ function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
             </span>
             {report.resolvedAt && (
               <span
-                className="tabular-nums text-emerald-500/80"
+                className="tabular-nums text-[#bc7155]/80"
                 title={new Date(report.resolvedAt).toLocaleString('fr-FR')}
               >
                 Résolu {relativeTime(report.resolvedAt)}
@@ -785,7 +837,7 @@ function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
                 size="sm"
                 onClick={() => onResolve(report.id)}
                 disabled={resolving}
-                className="bg-emerald-600 text-white hover:bg-emerald-500 disabled:bg-muted"
+                className="bg-[#a05f45] text-white hover:bg-[#bc7155] disabled:bg-muted"
               >
                 {resolving ? (
                   <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
@@ -798,7 +850,7 @@ function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
             {isResolved && (
               <Badge
                 variant="outline"
-                className="border-emerald-500/30 bg-emerald-500/10 text-emerald-600"
+                className="border-[#bc7155]/30 bg-[#bc7155]/10 text-[#a05f45]"
               >
                 <CheckCircle2 className="mr-1 h-3 w-3" />
                 Traité
@@ -816,7 +868,7 @@ function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
               <ChevronRight className="mr-1 h-3 w-3" />
               Détails
               {(staffPhotos.count > 0 || report.photoUrl) && (
-                <Camera className="ml-1.5 h-3 w-3 text-fuchsia-600" />
+                <Camera className="ml-1.5 h-3 w-3 text-[#a05f45]" />
               )}
             </Button>
           </div>
@@ -834,8 +886,8 @@ function ReportRow({ report, onResolve, resolving }: ReportRowProps) {
 
       {/* VLM photo analysis (dépliable) */}
       {analysis && (
-        <details className="mt-2 rounded-md border border-fuchsia-500/20 bg-fuchsia-500/5 px-3 py-2 text-xs open:bg-fuchsia-500/10">
-          <summary className="flex cursor-pointer items-center gap-1.5 text-[11px] font-semibold text-fuchsia-700 marker:content-none">
+        <details className="mt-2 rounded-md border border-[#bc7155]/20 bg-[#bc7155]/5 px-3 py-2 text-xs open:bg-[#bc7155]/10">
+          <summary className="flex cursor-pointer items-center gap-1.5 text-[11px] font-semibold text-[#8a4f3b] marker:content-none">
             <Sparkles className="h-3.5 w-3.5" />
             Analyse VLM de la photo
             {urgency && (
@@ -1032,7 +1084,7 @@ function AssignButtons({ report }: { report: Report }) {
           type="button"
           size="sm"
           onClick={() => openDialog('whatsapp')}
-          className="h-7 bg-emerald-600 px-2 text-[11px] text-white hover:bg-emerald-500"
+          className="h-7 bg-[#a05f45] px-2 text-[11px] text-white hover:bg-[#bc7155]"
           title="Affecter via WhatsApp"
         >
           <MessageCircle className="mr-1 h-3 w-3" aria-hidden />
@@ -1042,7 +1094,7 @@ function AssignButtons({ report }: { report: Report }) {
           type="button"
           size="sm"
           onClick={() => openDialog('email')}
-          className="h-7 bg-sky-600 px-2 text-[11px] text-white hover:bg-sky-500"
+          className="h-7 bg-[#3c3e4c] px-2 text-[11px] text-white hover:bg-[#4b4d5e]"
           title="Affecter via Email"
         >
           <Mail className="mr-1 h-3 w-3" aria-hidden />
@@ -1056,14 +1108,14 @@ function AssignButtons({ report }: { report: Report }) {
             <DialogTitle className="flex items-center gap-2">
               {method === 'whatsapp' ? (
                 <>
-                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-700">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#bc7155]/15 text-[#8a4f3b]">
                     <MessageCircle className="h-4 w-4" aria-hidden />
                   </span>
                   Affecter via WhatsApp
                 </>
               ) : (
                 <>
-                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-sky-500/15 text-sky-700">
+                  <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[#4b4d5e]/15 text-[#2e3040]">
                     <Mail className="h-4 w-4" aria-hidden />
                   </span>
                   Affecter via Email
@@ -1144,8 +1196,8 @@ function AssignButtons({ report }: { report: Report }) {
                 disabled={sending}
                 className={
                   method === 'whatsapp'
-                    ? 'bg-emerald-600 text-white hover:bg-emerald-500'
-                    : 'bg-sky-600 text-white hover:bg-sky-500'
+                    ? 'bg-[#a05f45] text-white hover:bg-[#bc7155]'
+                    : 'bg-[#3c3e4c] text-white hover:bg-[#4b4d5e]'
                 }
               >
                 {sending ? (
@@ -1185,7 +1237,7 @@ function PhotoLightbox({ src, alt }: PhotoLightboxProps) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="block h-16 w-16 cursor-zoom-in overflow-hidden rounded-md border border-border bg-muted transition hover:border-fuchsia-500/40 hover:ring-2 hover:ring-fuchsia-500/30"
+        className="block h-16 w-16 cursor-zoom-in overflow-hidden rounded-md border border-border bg-muted transition hover:border-[#bc7155]/40 hover:ring-2 hover:ring-[#bc7155]/30"
         title="Agrandir la photo"
         aria-label={`Agrandir la photo : ${alt}`}
       >
@@ -1297,7 +1349,7 @@ function ReportDetailsDialog({
                 {report.tagScanne}
               </span>
               {report.flightNumber && (
-                <span className="inline-flex items-center gap-1 rounded border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 font-medium text-sky-700">
+                <span className="inline-flex items-center gap-1 rounded border border-[#4b4d5e]/30 bg-[#4b4d5e]/10 px-1.5 py-0.5 font-medium text-[#2e3040]">
                   <Plane className="h-3 w-3" />
                   {report.flightNumber}
                 </span>
@@ -1313,7 +1365,7 @@ function ReportDetailsDialog({
                 </span>
               )}
               {report.photoCategory && (
-                <span className="inline-flex items-center gap-1 rounded border border-fuchsia-500/30 bg-fuchsia-500/10 px-1.5 py-0.5 font-medium text-fuchsia-700">
+                <span className="inline-flex items-center gap-1 rounded border border-[#bc7155]/30 bg-[#bc7155]/10 px-1.5 py-0.5 font-medium text-[#8a4f3b]">
                   📷 {report.photoCategory}
                 </span>
               )}
@@ -1330,7 +1382,7 @@ function ReportDetailsDialog({
               </span>
               {report.resolvedAt && (
                 <span
-                  className="inline-flex items-center gap-1 tabular-nums text-emerald-500/80"
+                  className="inline-flex items-center gap-1 tabular-nums text-[#bc7155]/80"
                   title={new Date(report.resolvedAt).toLocaleString('fr-FR')}
                 >
                   <CheckCircle2 className="h-3 w-3" />
@@ -1371,8 +1423,8 @@ function ReportDetailsDialog({
 
           {/* ---------- Analyse VLM ---------- */}
           {analysis && (
-            <section className="rounded-lg border border-fuchsia-500/20 bg-fuchsia-500/5 p-3">
-              <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-fuchsia-700">
+            <section className="rounded-lg border border-[#bc7155]/20 bg-[#bc7155]/5 p-3">
+              <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[#8a4f3b]">
                 <Sparkles className="h-3.5 w-3.5" />
                 Analyse VLM
                 {urgency && (
@@ -1426,7 +1478,7 @@ function ReportDetailsDialog({
                 onResolve(report.id)
               }}
               disabled={resolving}
-              className="bg-emerald-600 text-white hover:bg-emerald-500 disabled:bg-muted"
+              className="bg-[#a05f45] text-white hover:bg-[#bc7155] disabled:bg-muted"
             >
               {resolving ? (
                 <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
@@ -1481,13 +1533,13 @@ function StaffPhotoCard({
     <div className="overflow-hidden rounded-lg border border-border bg-card">
       <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-2">
         {/* Issue 5 — légendes AVANT / APRÈS en style signalétique jaune
-            IATA #FCD116 (cohérent avec le wallboard ops room). */}
+            IATA #bc7155 (cohérent avec le wallboard ops room). */}
         <span
           className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase"
           style={{
-            backgroundColor: '#FCD116',
+            backgroundColor: '#bc7155',
             color: '#0A0A0A',
-            border: '1px solid #FCD116',
+            border: '1px solid #bc7155',
             letterSpacing: '0.08em',
           }}
         >
@@ -1792,7 +1844,7 @@ function HelpRequestCard({
         'flex shrink-0 flex-col gap-2 rounded-lg border bg-card p-3 lg:w-80',
         isPending
           ? 'border-rose-500/40 bg-rose-500/5'
-          : 'border-amber-500/40 bg-amber-500/5',
+          : 'border-[#bc7155]/40 bg-[#bc7155]/5',
       )}
     >
       <div className="flex items-center justify-between gap-2">
@@ -1808,7 +1860,7 @@ function HelpRequestCard({
             'shrink-0 text-[9px] font-bold uppercase',
             isPending
               ? 'border-rose-500/40 bg-rose-500/15 text-rose-700'
-              : 'border-amber-500/40 bg-amber-500/15 text-amber-700',
+              : 'border-[#bc7155]/40 bg-[#bc7155]/15 text-[#8a4f3b]',
           )}
         >
           {isPending ? 'En attente' : 'En cours'}
@@ -1823,7 +1875,7 @@ function HelpRequestCard({
 
       <div className="flex flex-wrap items-center gap-2 text-[10px] text-muted-foreground">
         {help.travelerPhone && (
-          <span className="inline-flex items-center gap-1 rounded border border-emerald-500/30 bg-emerald-500/10 px-1.5 py-0.5 font-medium text-emerald-700">
+          <span className="inline-flex items-center gap-1 rounded border border-[#bc7155]/30 bg-[#bc7155]/10 px-1.5 py-0.5 font-medium text-[#8a4f3b]">
             <Phone className="h-3 w-3" />
             +{help.travelerPhone}
           </span>
@@ -1838,7 +1890,7 @@ function HelpRequestCard({
             size="sm"
             onClick={onTake}
             disabled={actionLoading}
-            className="h-7 flex-1 bg-amber-600 text-[11px] text-white hover:bg-amber-500"
+            className="h-7 flex-1 bg-[#a05f45] text-[11px] text-white hover:bg-[#bc7155]"
           >
             {actionLoading ? (
               <Loader2 className="mr-1 h-3 w-3 animate-spin" />
@@ -1853,7 +1905,7 @@ function HelpRequestCard({
           size="sm"
           onClick={onResolve}
           disabled={actionLoading}
-          className="h-7 flex-1 bg-emerald-600 text-[11px] text-white hover:bg-emerald-500"
+          className="h-7 flex-1 bg-[#a05f45] text-[11px] text-white hover:bg-[#bc7155]"
         >
           {actionLoading ? (
             <Loader2 className="mr-1 h-3 w-3 animate-spin" />

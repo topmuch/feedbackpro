@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
     return fail('body requis', 400)
   }
 
-  const title = typeof b.title === 'string' && b.title ? b.title : 'FeedbackPro'
+  const title = typeof b.title === 'string' && b.title ? b.title : 'FeedVoice'
   const payload = JSON.stringify({
     title,
     body: b.body,
@@ -106,7 +106,7 @@ export async function POST(req: NextRequest) {
   // --- Configuration web-push (clés VAPID) ---
   const vapidPrivateKey = process.env.VAPID_PRIVATE_KEY
   const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
-  const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:ops@feedbackpro.local'
+  const vapidSubject = process.env.VAPID_SUBJECT || 'mailto:ops@feedvoice.local'
 
   const webpush = await getWebPush()
 

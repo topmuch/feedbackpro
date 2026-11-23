@@ -15,7 +15,7 @@
 //   - affiche la compétition d'équipes (MATIN X | SOIR Y | NUIT Z)
 //   - met en avant le top performer avec ses badges
 //   - affiche le compteur de série ("🔥 N jours SLA > 90%")
-//   - annonce vocalement chaque nouveau badge débloqué via Denise
+//   - annonce vocalement chaque nouveau badge débloqué via Nathalie
 //
 // Route publique (wallboard ops). runtime = nodejs + force-dynamic.
 // ============================================================

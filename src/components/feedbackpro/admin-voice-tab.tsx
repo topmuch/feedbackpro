@@ -1,9 +1,9 @@
 "use client"
 
 // ============================================================
-// AdminVoiceTab — Voix Denise (SuperAdmin)
+// AdminVoiceTab — Voix Nathalie (SuperAdmin)
 // ------------------------------------------------------------
-// 4 sections premium pour piloter le cerveau vocal de Denise :
+// 4 sections premium pour piloter le cerveau vocal de Nathalie :
 //
 //   A. Matrice de Décision
 //      Table des VoiceDecisionRule (filtre par secteur). Édition
@@ -20,16 +20,16 @@
 //      Table des 100 derniers VoiceAnnouncementLog (filtres secteur +
 //      spoken/not-spoken). Affiche le reason humainement lisible.
 //
-//   D. Test Denise
+//   D. Test Nathalie
 //      Tester la voix : sélection du ton (urgent/firm/soft/calm) +
 //      message custom → TTS navigateur. Affiche aussi le mode
 //      horaire courant par secteur.
 //
 //   E. Gestion des Signalements (Feature 2 — FIX-4-FEATURES)
-//      Command center Denise : liste les 10 derniers signalements
+//      Command center Nathalie : liste les 10 derniers signalements
 //      aéroport (polling 15s) avec boutons Annoncer / Résoudre /
 //      Escalader. « Annoncer » déclenche parler() côté navigateur
-//      (voix grave + débit rapide = « Denise »).
+//      (voix grave + débit rapide = « Nathalie »).
 //
 // Contrats :
 //   GET    /api/admin/voice/rules[?sector=]
@@ -145,20 +145,20 @@ type VoiceTimeMode = {
 
 const PRIORITY_STYLES: Record<Priority, { color: string; label: string }> = {
   critical: { color: "bg-red-500 text-white", label: "Critical" },
-  important: { color: "bg-amber-500 text-white", label: "Important" },
-  info: { color: "bg-emerald-500 text-white", label: "Info" },
+  important: { color: "bg-[#bc7155] text-white", label: "Important" },
+  info: { color: "bg-[#bc7155] text-white", label: "Info" },
   silent: { color: "bg-zinc-400 text-white", label: "Silent" },
 }
 
 const TONE_STYLES: Record<Tone, { color: string; label: string }> = {
   urgent: { color: "bg-red-100 text-red-700 border-red-300", label: "Urgent" },
-  firm: { color: "bg-amber-100 text-amber-800 border-amber-300", label: "Ferme" },
-  soft: { color: "bg-emerald-100 text-emerald-700 border-emerald-300", label: "Doux" },
-  calm: { color: "bg-blue-100 text-blue-700 border-blue-300", label: "Calme" },
+  firm: { color: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a]", label: "Ferme" },
+  soft: { color: "bg-[#f3ddd2] text-[#8a4f3b] border-[#dba28a]", label: "Doux" },
+  calm: { color: "bg-[#dcdee0] text-[#2e3040] border-[#8e8e95]", label: "Calme" },
 }
 
 const REASON_LABELS: Record<string, string> = {
-  spoken: "Denise a parlé.",
+  spoken: "Nathalie a parlé.",
   no_rule: "Aucune règle pour ce couple secteur / eventType.",
   rule_inactive: "Règle désactivée (active=false).",
   rule_silent: "shouldSpeak=false — notification visuelle seule.",
@@ -184,31 +184,31 @@ function modeLabel(mode: string): { label: string; color: string; description: s
     case "opening":
       return {
         label: "Ouverture",
-        color: "bg-sky-100 text-sky-800 border-sky-300",
+        color: "bg-[#dcdee0] text-[#1c1d2c] border-[#8e8e95]",
         description: "Tous les types d'événements parlent (routine d'ouverture).",
       }
     case "service_lunch":
       return {
         label: "Service déjeuner",
-        color: "bg-amber-100 text-amber-800 border-amber-300",
+        color: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a]",
         description: "Seuls critical + important parlent (info filtré).",
       }
     case "quiet":
       return {
         label: "Calme",
-        color: "bg-emerald-100 text-emerald-800 border-emerald-300",
+        color: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a]",
         description: "Seuls critical + important parlent (info filtré).",
       }
     case "service_dinner":
       return {
         label: "Service dîner",
-        color: "bg-orange-100 text-orange-800 border-orange-300",
+        color: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a]",
         description: "Seuls critical + important parlent (info filtré).",
       }
     case "night":
       return {
         label: "Nuit",
-        color: "bg-violet-100 text-violet-800 border-violet-300",
+        color: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a]",
         description: "Uniquement security_sanitary. Le reste est silencieux.",
       }
     default:
@@ -365,13 +365,13 @@ export function AdminVoiceTab({ defaultTab = "matrix" }: { defaultTab?: "matrix"
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-violet-500 to-fuchsia-600 text-white shadow-lg shadow-violet-500/30">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#bc7155] to-[#a05f45] text-white shadow-lg shadow-[#bc7155]/30">
             <Mic className="h-6 w-6" />
           </div>
           <div>
-            <h2 className="text-xl font-semibold tracking-tight">Voix Denise</h2>
+            <h2 className="text-xl font-semibold tracking-tight">Voix Nathalie</h2>
             <p className="text-sm text-muted-foreground">
-              Le cerveau vocal qui décide quand et comment Denise parle.
+              Le cerveau vocal qui décide quand et comment Nathalie parle.
             </p>
           </div>
         </div>
@@ -395,7 +395,7 @@ export function AdminVoiceTab({ defaultTab = "matrix" }: { defaultTab?: "matrix"
           <TabsTrigger value="test" className="gap-2">
             <TestTube2 className="h-4 w-4" /> Test
           </TabsTrigger>
-          {/* Feature 2 — Gestion des Signalements (Denise command center) */}
+          {/* Feature 2 — Gestion des Signalements (Nathalie command center) */}
           <TabsTrigger value="signalements" className="gap-2">
             <AlertTriangle className="h-4 w-4" /> Signalements
           </TabsTrigger>
@@ -408,7 +408,7 @@ export function AdminVoiceTab({ defaultTab = "matrix" }: { defaultTab?: "matrix"
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <CardTitle className="flex items-center gap-2">
-                    <Volume2 className="h-5 w-5 text-violet-600" />
+                    <Volume2 className="h-5 w-5 text-[#a05f45]" />
                     Matrice de Décision
                   </CardTitle>
                   <CardDescription>
@@ -460,9 +460,9 @@ export function AdminVoiceTab({ defaultTab = "matrix" }: { defaultTab?: "matrix"
                         <TableCell>
                           <div className="flex items-center gap-2">
                             {rule.sector === "aeroport" ? (
-                              <Plane className="h-4 w-4 text-sky-600" />
+                              <Plane className="h-4 w-4 text-[#3c3e4c]" />
                             ) : (
-                              <Utensils className="h-4 w-4 text-amber-600" />
+                              <Utensils className="h-4 w-4 text-[#a05f45]" />
                             )}
                             <div>
                               <div className="font-mono text-xs font-medium">{rule.eventType}</div>
@@ -541,11 +541,11 @@ export function AdminVoiceTab({ defaultTab = "matrix" }: { defaultTab?: "matrix"
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <CardTitle className="flex items-center gap-2">
-                    <History className="h-5 w-5 text-violet-600" />
+                    <History className="h-5 w-5 text-[#a05f45]" />
                     Historique des Annonces
                   </CardTitle>
                   <CardDescription>
-                    100 dernières annonces — pourquoi Denise a parlé (ou s'est tue).
+                    100 dernières annonces — pourquoi Nathalie a parlé (ou s'est tue).
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
@@ -610,7 +610,7 @@ export function AdminVoiceTab({ defaultTab = "matrix" }: { defaultTab?: "matrix"
                         </TableCell>
                         <TableCell className="text-center">
                           {log.spoken ? (
-                            <CheckCircle2 className="mx-auto h-4 w-4 text-emerald-600" />
+                            <CheckCircle2 className="mx-auto h-4 w-4 text-[#a05f45]" />
                           ) : (
                             <AlertTriangle className="mx-auto h-4 w-4 text-zinc-400" />
                           )}
@@ -634,7 +634,7 @@ export function AdminVoiceTab({ defaultTab = "matrix" }: { defaultTab?: "matrix"
           </Card>
         </TabsContent>
 
-        {/* ---------------- SECTION D : Test Denise ---------------- */}
+        {/* ---------------- SECTION D : Test Nathalie ---------------- */}
         <TabsContent value="test">
           <TestDeniseSection timemodes={timemodes} />
         </TabsContent>
@@ -703,11 +703,11 @@ function TimeModesSection({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-violet-600" />
+              <Clock className="h-5 w-5 text-[#a05f45]" />
               Contexte Horaire
             </CardTitle>
             <CardDescription>
-              5 modes par secteur. Denise s'adapte : en service, elle filtre les infos ;
+              5 modes par secteur. Nathalie s'adapte : en service, elle filtre les infos ;
               la nuit, elle ne parle que pour la sécurité.
             </CardDescription>
           </div>
@@ -738,9 +738,9 @@ function TimeModesSection({
             <div key={tm.id} className="rounded-xl border bg-muted/30 p-4">
               <div className="mb-3 flex items-center gap-2">
                 {tm.sector === "aeroport" ? (
-                  <Plane className="h-4 w-4 text-sky-600" />
+                  <Plane className="h-4 w-4 text-[#3c3e4c]" />
                 ) : (
-                  <Utensils className="h-4 w-4 text-amber-600" />
+                  <Utensils className="h-4 w-4 text-[#a05f45]" />
                 )}
                 <h3 className="font-semibold capitalize">{tm.sector}</h3>
               </div>
@@ -790,11 +790,11 @@ function TimeModesSection({
 }
 
 // ============================================================
-// Sub-section : Test Denise
+// Sub-section : Test Nathalie
 // ============================================================
 
 function TestDeniseSection({ timemodes }: { timemodes: VoiceTimeMode[] }) {
-  const [message, setMessage] = useState("Denise à l'écoute. Système opérationnel.")
+  const [message, setMessage] = useState("Nathalie à l'écoute. Système opérationnel.")
   const [tone, setTone] = useState<Tone>("firm")
   const [speaking, setSpeaking] = useState(false)
 
@@ -852,11 +852,11 @@ function TestDeniseSection({ timemodes }: { timemodes: VoiceTimeMode[] }) {
       <Card className="lg:col-span-2">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <TestTube2 className="h-5 w-5 text-violet-600" />
+            <TestTube2 className="h-5 w-5 text-[#a05f45]" />
             Tester la voix
           </CardTitle>
           <CardDescription>
-            Vérifie le rendu sonore de Denise. Sélectionne un ton et tape un message.
+            Vérifie le rendu sonore de Nathalie. Sélectionne un ton et tape un message.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
@@ -901,7 +901,7 @@ function TestDeniseSection({ timemodes }: { timemodes: VoiceTimeMode[] }) {
             </div>
           </div>
           <div className="rounded-lg border bg-muted/30 p-3 text-xs text-muted-foreground">
-            <ShieldAlert className="mb-1 inline h-4 w-4 text-amber-600" />{" "}
+            <ShieldAlert className="mb-1 inline h-4 w-4 text-[#a05f45]" />{" "}
             <strong>Note :</strong> certains navigateurs bloquent l'autoplay audio.
             Clique d'abord n'importe où sur la page si aucun son ne sort.
           </div>
@@ -912,7 +912,7 @@ function TestDeniseSection({ timemodes }: { timemodes: VoiceTimeMode[] }) {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-violet-600" />
+            <Clock className="h-5 w-5 text-[#a05f45]" />
             Mode horaire courant
           </CardTitle>
           <CardDescription>Heure : {now.toLocaleTimeString("fr-FR")}</CardDescription>
@@ -926,9 +926,9 @@ function TestDeniseSection({ timemodes }: { timemodes: VoiceTimeMode[] }) {
                 <div className="mb-2 flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     {sector === "aeroport" ? (
-                      <Plane className="h-4 w-4 text-sky-600" />
+                      <Plane className="h-4 w-4 text-[#3c3e4c]" />
                     ) : (
-                      <Utensils className="h-4 w-4 text-amber-600" />
+                      <Utensils className="h-4 w-4 text-[#a05f45]" />
                     )}
                     <span className="text-sm font-medium capitalize">{sector}</span>
                   </div>
@@ -985,9 +985,9 @@ function RuleEditDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             {draft.sector === "aeroport" ? (
-              <Plane className="h-5 w-5 text-sky-600" />
+              <Plane className="h-5 w-5 text-[#3c3e4c]" />
             ) : (
-              <Utensils className="h-5 w-5 text-amber-600" />
+              <Utensils className="h-5 w-5 text-[#a05f45]" />
             )}
             {draft.sector} · {draft.eventType}
           </DialogTitle>
@@ -1005,7 +1005,7 @@ function RuleEditDialog({
 
         <div className="grid grid-cols-1 gap-4 py-2 sm:grid-cols-2">
           <div className="flex items-center justify-between rounded-lg border p-3">
-            <Label>Denise parle ?</Label>
+            <Label>Nathalie parle ?</Label>
             <Switch
               checked={draft.shouldSpeak}
               onCheckedChange={(v) => setDraft({ ...draft, shouldSpeak: v })}
@@ -1124,14 +1124,14 @@ function RuleEditDialog({
 }
 
 // ============================================================
-// Feature 2 — Sub-section : Gestion des Signalements (Denise)
+// Feature 2 — Sub-section : Gestion des Signalements (Nathalie)
 // ------------------------------------------------------------
-// Command center Denise pour piloter les signalements aéroport :
+// Command center Nathalie pour piloter les signalements aéroport :
 //   - Liste les 10 derniers signalements (tous statuts confondus)
 //     via GET /api/airport/reports?limit=10
 //   - Polling 15 s pour afficher un feed temps réel
 //   - Boutons par ligne :
-//       • Annoncer   → parler() (TTS navigateur voix « Denise »)
+//       • Annoncer   → parler() (TTS navigateur voix « Nathalie »)
 //       • Résoudre   → POST /api/airport/ops/resolve { reportId }
 //       • Escalader  → POST /api/airport/ops/take-charge { reportId }
 //   - KPIs en haut : total / en attente / en cours / résolus
@@ -1154,12 +1154,12 @@ type SignalementLigne = {
 }
 
 const STATUT_STYLES: Record<string, { label: string; color: string }> = {
-  EN_ATTENTE: { label: "En attente", color: "bg-amber-100 text-amber-800 border-amber-300" },
-  EN_COURS: { label: "En cours", color: "bg-sky-100 text-sky-800 border-sky-300" },
-  RESOLU: { label: "Résolu", color: "bg-emerald-100 text-emerald-800 border-emerald-300" },
-  pending: { label: "En attente", color: "bg-amber-100 text-amber-800 border-amber-300" },
-  in_progress: { label: "En cours", color: "bg-sky-100 text-sky-800 border-sky-300" },
-  done: { label: "Résolu", color: "bg-emerald-100 text-emerald-800 border-emerald-300" },
+  EN_ATTENTE: { label: "En attente", color: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a]" },
+  EN_COURS: { label: "En cours", color: "bg-[#dcdee0] text-[#1c1d2c] border-[#8e8e95]" },
+  RESOLU: { label: "Résolu", color: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a]" },
+  pending: { label: "En attente", color: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a]" },
+  in_progress: { label: "En cours", color: "bg-[#dcdee0] text-[#1c1d2c] border-[#8e8e95]" },
+  done: { label: "Résolu", color: "bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a]" },
 }
 
 // Libellés pour les types de demandes VIP
@@ -1282,14 +1282,14 @@ function SignalementsDeniseSection() {
     return () => clearInterval(t)
   }, [load])
 
-  /** Annonce vocale via Denise (parler) — voix grave + débit rapide. */
+  /** Annonce vocale via Nathalie (parler) — voix grave + débit rapide. */
   function annoncer(r: SignalementLigne) {
     const zoneNom = r.zone?.nom ?? r.tagScanne
     const texte = `Nouveau signalement. Zone ${zoneNom}. ${r.problemType}.`
     try {
       parler(texte)
       toast({
-        title: "Annonce Denise ✓",
+        title: "Annonce Nathalie ✓",
         description: texte,
       })
     } catch (e) {
@@ -1421,12 +1421,12 @@ function SignalementsDeniseSection() {
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <CardTitle className="flex items-center gap-2">
-                <AlertTriangle className="h-5 w-5 text-amber-500" />
+                <AlertTriangle className="h-5 w-5 text-[#bc7155]" />
                 Gestion des Signalements
               </CardTitle>
               <CardDescription>
-                Command center Denise — feed temps réel (polling 15 s). Signalements Aéroport + Salon VIP.
-                « Annoncer » déclenche la voix Denise sur ce navigateur.
+                Command center Nathalie — feed temps réel (polling 15 s). Signalements Aéroport + Salon VIP.
+                « Annoncer » déclenche la voix Nathalie sur ce navigateur.
               </CardDescription>
             </div>
             <Button
@@ -1450,9 +1450,9 @@ function SignalementsDeniseSection() {
         <CardContent>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <KpiPill label="Total" value={total} icon={<Plane className="h-3.5 w-3.5" />} color="bg-zinc-100 text-zinc-700" />
-            <KpiPill label="En attente" value={enAttente} icon={<AlertTriangle className="h-3.5 w-3.5" />} color="bg-amber-100 text-amber-800" />
-            <KpiPill label="En cours" value={enCours} icon={<TrendingUp className="h-3.5 w-3.5" />} color="bg-sky-100 text-sky-800" />
-            <KpiPill label="Résolus" value={resolus} icon={<CheckCircle2 className="h-3.5 w-3.5" />} color="bg-emerald-100 text-emerald-800" />
+            <KpiPill label="En attente" value={enAttente} icon={<AlertTriangle className="h-3.5 w-3.5" />} color="bg-[#f3ddd2] text-[#6f3f30]" />
+            <KpiPill label="En cours" value={enCours} icon={<TrendingUp className="h-3.5 w-3.5" />} color="bg-[#dcdee0] text-[#1c1d2c]" />
+            <KpiPill label="Résolus" value={resolus} icon={<CheckCircle2 className="h-3.5 w-3.5" />} color="bg-[#f3ddd2] text-[#6f3f30]" />
           </div>
         </CardContent>
       </Card>
@@ -1470,8 +1470,8 @@ function SignalementsDeniseSection() {
             </div>
           ) : reports.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-12 text-center">
-              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100" aria-hidden>
-                <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f3ddd2]" aria-hidden>
+                <CheckCircle2 className="h-5 w-5 text-[#a05f45]" />
               </span>
               <p className="text-sm font-medium">Aucun signalement pour le moment</p>
               <p className="text-xs text-muted-foreground">
@@ -1487,7 +1487,7 @@ function SignalementsDeniseSection() {
                     <TableHead className="min-w-[120px]">Zone</TableHead>
                     <TableHead className="text-center">Statut</TableHead>
                     <TableHead className="text-right min-w-[110px]">Signalé</TableHead>
-                    <TableHead className="text-right min-w-[260px]">Actions Denise</TableHead>
+                    <TableHead className="text-right min-w-[260px]">Actions Nathalie</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -1502,7 +1502,7 @@ function SignalementsDeniseSection() {
                       <TableRow key={`${r.source}-${r.id}`} className={resolu ? "opacity-60" : ""}>
                         <TableCell>
                           <div className="flex items-start gap-2">
-                            <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-amber-100 text-sm" aria-hidden>
+                            <span className="mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md bg-[#f3ddd2] text-sm" aria-hidden>
                               {r.zone?.emoji ?? "⚠"}
                             </span>
                             <div className="min-w-0">
@@ -1513,8 +1513,8 @@ function SignalementsDeniseSection() {
                                   variant="outline"
                                   className={`shrink-0 px-1 py-0 text-[9px] ${
                                     r.source === "vip"
-                                      ? "border-[#C9A961]/40 bg-[#C9A961]/10 text-[#8B6F47]"
-                                      : "border-sky-300 bg-sky-50 text-sky-700"
+                                      ? "border-[#bc7155]/40 bg-[#bc7155]/10 text-[#8B6F47]"
+                                      : "border-[#8e8e95] bg-[#f0f1f2] text-[#2e3040]"
                                   }`}
                                 >
                                   {r.source === "vip" ? "VIP" : "AÉRO"}
@@ -1542,11 +1542,11 @@ function SignalementsDeniseSection() {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="h-8 gap-1.5 border-violet-300 text-violet-700 hover:bg-violet-50"
+                              className="h-8 gap-1.5 border-[#dba28a] text-[#8a4f3b] hover:bg-[#faf1ec]"
                               disabled={isBusy}
                               onClick={() => annoncer(r)}
                               aria-label={`Annoncer ${r.problemType}`}
-                              title="Denise parle (TTS)"
+                              title="Nathalie parle (TTS)"
                             >
                               <Megaphone className="h-3.5 w-3.5" aria-hidden />
                               Annoncer
@@ -1554,7 +1554,7 @@ function SignalementsDeniseSection() {
                             <Button
                               size="sm"
                               variant="outline"
-                              className="h-8 gap-1.5 border-amber-300 text-amber-700 hover:bg-amber-50"
+                              className="h-8 gap-1.5 border-[#dba28a] text-[#8a4f3b] hover:bg-[#faf1ec]"
                               disabled={isBusy || resolu}
                               onClick={() => void escalader(r)}
                               aria-label={`Escalader ${r.problemType}`}
@@ -1565,7 +1565,7 @@ function SignalementsDeniseSection() {
                             </Button>
                             <Button
                               size="sm"
-                              className="h-8 gap-1.5 bg-emerald-600 text-white hover:bg-emerald-700"
+                              className="h-8 gap-1.5 bg-[#a05f45] text-white hover:bg-[#8a4f3b]"
                               disabled={isBusy || resolu}
                               onClick={() => void resoudre(r)}
                               aria-label={`Résoudre ${r.problemType}`}

@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Schémas de validation partagés (client + serveur)
+// FeedVoice - Schémas de validation partagés (client + serveur)
 // Une seule source de vérité : zod (v4) — mêmes messages d'erreur
 // affichés dans les formulaires et appliqués par les API routes.
 // Pivot Session 1 : « Le Coach IA d'Audit Qualité Continu »
@@ -231,17 +231,23 @@ export const settingsSchema = z.object({
     .transform((v) => v.toUpperCase())
     .optional(),
   smsAlertes: z.boolean().optional(),
-  // D8 : Google Business Profile (saisie manuelle, pas d'API réelle)
+  // D8 + Task 2-a : Google Business Profile (saisie manuelle, pas d'API
+  // réelle). URL d'avis Google : https:// obligatoire si fournie, 500
+  // caractères max (chaîne vide = suppression de l'URL).
   googleReviewUrl: z
     .string()
     .trim()
     .max(500, "URL trop longue")
     .refine(
-      (v) => v === "" || /^https?:\/\/\S+$/i.test(v),
-      "URL invalide (doit commencer par http:// ou https://)"
+      (v) => v === "" || /^https:\/\/\S+$/i.test(v),
+      "URL invalide (doit commencer par https://)"
     )
     .nullable()
     .optional(),
+  // Task 2-a — Réputation Google : interrupteur du CTA « Laisser un avis
+  // Google » sur l'écran de succès du scan client (notes ≥ 4★). Absent =
+  // ne pas modifier (le Pro garde sa valeur courante).
+  googleReviewEnabled: z.boolean().optional(),
   googlePlaceId: z
     .string()
     .trim()
@@ -326,7 +332,7 @@ export const adminProActionSchema = z.object({
     .max(20, "Couleur trop longue")
     .refine(
       (v) => v === "" || /^#[0-9a-fA-F]{6}$/.test(v),
-      "Couleur invalide (format attendu : #002e85)"
+      "Couleur invalide (format attendu : #0f0f1c)"
     )
     .nullable()
     .optional(),

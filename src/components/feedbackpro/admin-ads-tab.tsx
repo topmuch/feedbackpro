@@ -180,8 +180,8 @@ const STATUS_LABEL: Record<string, string> = {
 
 const STATUS_TONE: Record<string, string> = {
   draft: "bg-muted text-muted-foreground",
-  active: "bg-emerald-100 text-emerald-700",
-  paused: "bg-amber-100 text-amber-700",
+  active: "bg-[#f3ddd2] text-[#8a4f3b]",
+  paused: "bg-[#f3ddd2] text-[#8a4f3b]",
   completed: "bg-slate-200 text-slate-700",
 }
 
@@ -200,7 +200,7 @@ export function AdminAdsTab() {
             Régie Publicitaire
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Plateforme AdTech aéroport — leaderboard 916×90. Triple verrou FeedbackPro : jamais de
+            Plateforme AdTech aéroport — leaderboard 916×90. Triple verrou FeedVoice : jamais de
             publicité sur les zones d&apos;urgence (SOS).
           </p>
         </div>
@@ -379,11 +379,11 @@ function DashboardSection() {
                     {formatNumber(stats.topZone.impressions)} impressions
                   </p>
                 </div>
-                <Badge className="bg-emerald-100 text-emerald-700">Top</Badge>
+                <Badge className="bg-[#f3ddd2] text-[#8a4f3b]">Top</Badge>
               </div>
             ) : (
               <div className="flex items-center gap-3 py-4 text-sm text-muted-foreground">
-                <AlertTriangle className="h-5 w-5 text-amber-500" aria-hidden />
+                <AlertTriangle className="h-5 w-5 text-[#bc7155]" aria-hidden />
                 Aucune impression enregistrée pour le moment. Créez une campagne active pour
                 commencer à collecter des statistiques.
               </div>
@@ -422,10 +422,10 @@ function KpiCard({
   tone: "emerald" | "sky" | "violet" | "amber"
 }) {
   const toneClass = {
-    emerald: "bg-emerald-500/10 text-emerald-600",
-    sky: "bg-sky-500/10 text-sky-600",
-    violet: "bg-violet-500/10 text-violet-600",
-    amber: "bg-amber-500/10 text-amber-600",
+    emerald: "bg-[#bc7155]/10 text-[#a05f45]",
+    sky: "bg-[#4b4d5e]/10 text-[#3c3e4c]",
+    violet: "bg-[#bc7155]/10 text-[#a05f45]",
+    amber: "bg-[#bc7155]/10 text-[#a05f45]",
   }[tone]
   return (
     <Card>
@@ -686,8 +686,8 @@ function CampaignsSection() {
       </div>
 
       {advertisers.length === 0 && (
-        <Card className="border-amber-200 bg-amber-50">
-          <CardContent className="flex items-center gap-3 py-3 text-sm text-amber-800">
+        <Card className="border-[#e7c1ae] bg-[#faf1ec]">
+          <CardContent className="flex items-center gap-3 py-3 text-sm text-[#6f3f30]">
             <AlertTriangle className="h-5 w-5 shrink-0" aria-hidden />
             <span>
               Aucun annonceur enregistré. Créez d&apos;abord un annonceur dans l&apos;onglet
@@ -821,7 +821,7 @@ function CampaignsSection() {
             </DialogTitle>
             <DialogDescription>
               Leaderboard 916×90. Les zones d&apos;urgence (SOS) sont interdites — triple verrou
-              FeedbackPro.
+              FeedVoice.
             </DialogDescription>
           </DialogHeader>
 
@@ -1476,12 +1476,12 @@ function ZonesSection() {
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Colonnes gauche : Zones autorisées */}
-        <Card className="border-emerald-200">
+        <Card className="border-[#e7c1ae]">
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base text-emerald-700">
+            <CardTitle className="flex items-center gap-2 text-base text-[#8a4f3b]">
               <CheckCircle2 className="h-5 w-5" aria-hidden />
               Zones Autorisées
-              <Badge className="bg-emerald-100 text-emerald-700">{eligible.length}</Badge>
+              <Badge className="bg-[#f3ddd2] text-[#8a4f3b]">{eligible.length}</Badge>
             </CardTitle>
             <CardDescription>
               Zones éligibles à la publicité — remplissage par zone
@@ -1496,7 +1496,7 @@ function ZonesSection() {
                   {eligible.map((z) => (
                     <li
                       key={z.code}
-                      className="flex items-center gap-3 rounded-lg border border-emerald-100 bg-emerald-50/40 px-3 py-2"
+                      className="flex items-center gap-3 rounded-lg border border-[#f3ddd2] bg-[#faf1ec]/40 px-3 py-2"
                     >
                       <span className="text-xl" aria-hidden>{z.emoji}</span>
                       <div className="min-w-0 flex-1">
@@ -1509,8 +1509,8 @@ function ZonesSection() {
                       <Badge
                         className={
                           z.fillRate > 0
-                            ? "bg-emerald-500 text-white"
-                            : "bg-emerald-100 text-emerald-700"
+                            ? "bg-[#bc7155] text-white"
+                            : "bg-[#f3ddd2] text-[#8a4f3b]"
                         }
                       >
                         {z.fillRate > 0 ? "Occupée" : "Libre"}
@@ -1572,11 +1572,11 @@ function ZonesSection() {
       </div>
 
       {/* Note pédagogique */}
-      <Card className="border-amber-200 bg-amber-50">
-        <CardContent className="flex items-start gap-3 py-3 text-sm text-amber-800">
+      <Card className="border-[#e7c1ae] bg-[#faf1ec]">
+        <CardContent className="flex items-start gap-3 py-3 text-sm text-[#6f3f30]">
           <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
           <div>
-            <p className="font-medium">Triple verrou FeedbackPro</p>
+            <p className="font-medium">Triple verrou FeedVoice</p>
             <p className="mt-1 text-xs">
               Les zones d&apos;urgence (SOS) sont verrouillées à 3 niveaux : (1) flag{" "}
               <code className="font-mono">isAdEligible: false</code> en BDD, (2) check 403 backend
@@ -1705,7 +1705,7 @@ function StatsSection() {
                         <Badge
                           className={
                             z.fillRate > 0
-                              ? "bg-emerald-100 text-emerald-700"
+                              ? "bg-[#f3ddd2] text-[#8a4f3b]"
                               : "bg-muted text-muted-foreground"
                           }
                         >

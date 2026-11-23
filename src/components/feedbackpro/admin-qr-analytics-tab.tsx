@@ -16,8 +16,8 @@
 //   4. "Top Performers" : top 5 QRs par scans 30d.
 //
 // Palette V2.0 : fond #F5F5F5, cartes blanches rounded-15px,
-// bleu #003399, jaune #FCD116, rouge #E30613, vert #00A651,
-// orange #FF6B00.
+// bleu #000d10, jaune #bc7155, rouge #E30613, vert #bc7155,
+// orange #bc7155.
 // ============================================================
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
@@ -33,11 +33,11 @@ import {
 } from 'lucide-react'
 
 // --- Palette V2.0 ---
-const BLEU = '#003399'
-const JAUNE = '#FCD116'
+const BLEU = '#000d10'
+const JAUNE = '#bc7155'
 const ROUGE = '#E30613'
-const VERT = '#00A651'
-const ORANGE = '#FF6B00'
+const VERT = '#bc7155'
+const ORANGE = '#bc7155'
 
 type QrZone = {
   tag: string
@@ -170,10 +170,10 @@ export function AdminQrAnalyticsTab() {
         <div className="h-8 w-64 animate-pulse rounded bg-muted" />
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-28 animate-pulse rounded-[15px] bg-muted" />
+            <div key={i} className="h-28 animate-pulse rounded-none bg-muted" />
           ))}
         </div>
-        <div className="h-96 animate-pulse rounded-[15px] bg-muted" />
+        <div className="h-96 animate-pulse rounded-none bg-muted" />
       </div>
     )
   }
@@ -181,7 +181,7 @@ export function AdminQrAnalyticsTab() {
   if (error && !data) {
     return (
       <div
-        className="rounded-[15px] p-4 text-white"
+        className="rounded-none p-4 text-white"
         style={{ background: ROUGE }}
       >
         <div className="flex items-center gap-2">
@@ -211,7 +211,7 @@ export function AdminQrAnalyticsTab() {
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div
-            className="flex h-12 w-12 items-center justify-center rounded-[12px] text-white"
+            className="flex h-12 w-12 items-center justify-center rounded-none text-white"
             style={{ background: BLEU }}
           >
             <QrCode className="h-6 w-6" />
@@ -231,7 +231,7 @@ export function AdminQrAnalyticsTab() {
         <button
           type="button"
           onClick={() => void fetchAnalytics()}
-          className="flex items-center gap-2 rounded-[10px] px-3 py-2 text-white transition-opacity hover:opacity-90"
+          className="flex items-center gap-2 rounded-none px-3 py-2 text-white transition-opacity hover:opacity-90"
           style={{ background: BLEU, fontSize: '12px', fontWeight: 800 }}
         >
           <RefreshCw className={`h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} aria-hidden />
@@ -243,7 +243,7 @@ export function AdminQrAnalyticsTab() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {/* Total scans today — grosse carte pulsante */}
         <div
-          className="relative overflow-hidden rounded-[15px] p-5 text-white"
+          className="relative overflow-hidden rounded-none p-5 text-white"
           style={{
             background: BLEU,
             boxShadow: '0 6px 14px rgba(0,51,153,0.25)',
@@ -286,7 +286,7 @@ export function AdminQrAnalyticsTab() {
 
         {/* QR morts */}
         <div
-          className="rounded-[15px] bg-white p-5"
+          className="rounded-none bg-white p-5"
           style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.06)' }}
         >
           <div className="flex items-center justify-between">
@@ -311,7 +311,7 @@ export function AdminQrAnalyticsTab() {
 
         {/* Top performer */}
         <div
-          className="rounded-[15px] bg-white p-5"
+          className="rounded-none bg-white p-5"
           style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.06)' }}
         >
           <div className="flex items-center justify-between">
@@ -348,7 +348,7 @@ export function AdminQrAnalyticsTab() {
 
         {/* Avg resolution */}
         <div
-          className="rounded-[15px] bg-white p-5"
+          className="rounded-none bg-white p-5"
           style={{ boxShadow: '0 4px 10px rgba(0,0,0,0.06)' }}
         >
           <div className="flex items-center justify-between">
@@ -374,7 +374,7 @@ export function AdminQrAnalyticsTab() {
 
       {/* Table principale : tous les QR tags */}
       <div
-        className="rounded-[15px] bg-white p-4 sm:p-5"
+        className="rounded-none bg-white p-4 sm:p-5"
         style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
       >
         <div className="mb-4 flex items-center justify-between gap-3">
@@ -518,12 +518,12 @@ export function AdminQrAnalyticsTab() {
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {/* QR Morts */}
         <div
-          className="rounded-[15px] bg-white p-4 sm:p-5"
+          className="rounded-none bg-white p-4 sm:p-5"
           style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
         >
           <div className="mb-3 flex items-center gap-2">
             <div
-              className="flex h-8 w-8 items-center justify-center rounded-[8px] text-white"
+              className="flex h-8 w-8 items-center justify-center rounded-none text-white"
               style={{ background: ROUGE }}
             >
               <Skull className="h-4 w-4" aria-hidden />
@@ -538,7 +538,7 @@ export function AdminQrAnalyticsTab() {
 
           {deadCount === 0 ? (
             <div
-              className="rounded-[10px] p-4 text-center"
+              className="rounded-none p-4 text-center"
               style={{ background: 'rgba(0,166,81,0.08)', color: VERT, fontSize: '12px', fontWeight: 800 }}
             >
               Aucun QR mort — tous les tags ont été scannés récemment.
@@ -549,7 +549,7 @@ export function AdminQrAnalyticsTab() {
                 {data?.deadQrs.map((d) => (
                   <li
                     key={d.tag}
-                    className="flex items-center justify-between gap-2 rounded-[10px] px-3 py-2"
+                    className="flex items-center justify-between gap-2 rounded-none px-3 py-2"
                     style={{ background: 'rgba(227,6,19,0.06)', border: '1px solid rgba(227,6,19,0.15)' }}
                   >
                     <div className="flex items-center gap-2 overflow-hidden">
@@ -577,12 +577,12 @@ export function AdminQrAnalyticsTab() {
 
         {/* Top Performers */}
         <div
-          className="rounded-[15px] bg-white p-4 sm:p-5"
+          className="rounded-none bg-white p-4 sm:p-5"
           style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
         >
           <div className="mb-3 flex items-center gap-2">
             <div
-              className="flex h-8 w-8 items-center justify-center rounded-[8px] text-white"
+              className="flex h-8 w-8 items-center justify-center rounded-none text-white"
               style={{ background: BLEU }}
             >
               <Trophy className="h-4 w-4" aria-hidden />
@@ -597,7 +597,7 @@ export function AdminQrAnalyticsTab() {
 
           {(!data?.topPerformers || data.topPerformers.length === 0) ? (
             <div
-              className="rounded-[10px] p-4 text-center"
+              className="rounded-none p-4 text-center"
               style={{ background: '#F5F5F5', color: '#999', fontSize: '12px', fontWeight: 700 }}
             >
               Aucun scan sur 30j — en attente de données.
@@ -607,7 +607,7 @@ export function AdminQrAnalyticsTab() {
               {data?.topPerformers.map((p, idx) => (
                 <li
                   key={p.tag}
-                  className="flex items-center justify-between gap-2 rounded-[10px] px-3 py-2"
+                  className="flex items-center justify-between gap-2 rounded-none px-3 py-2"
                   style={{
                     background: idx === 0 ? 'rgba(252,209,22,0.15)' : '#F5F5F5',
                     border: idx === 0 ? `1px solid ${JAUNE}` : '1px solid transparent',

@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro — Configuration statique des zones aéroport
+// FeedVoice — Configuration statique des zones aéroport
 // ------------------------------------------------------------
 // Source de vérité pour les 25 zones aéroport et leurs
 // problématiques prédéfinies (boutons rapides). Le seed
@@ -40,7 +40,7 @@ export type AirportZoneConfig = {
    *  l'affichage de publicités (leaderboard 916x90).
    *  - true (défaut) : publicité autorisée
    *  - false : zone protégée — interdiction absolue (SOS / URGENCE).
-   *  Verrou #1 du triple verrou FeedbackPro. */
+   *  Verrou #1 du triple verrou FeedVoice. */
   isAdEligible?: boolean
   /**
    * TENANT-3 — Type de tenant propriétaire de la zone. Permet de filtrer

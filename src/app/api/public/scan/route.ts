@@ -26,6 +26,7 @@ import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
 import { ok, fail } from "@/lib/session"
 import { scanSchema, firstError } from "@/lib/validation"
+import { limiteTaux } from "@/lib/rate-limit"
 import { parseJsonArray } from "@/lib/ia"
 import {
   macroSecteurPourSecteur,
@@ -107,6 +108,9 @@ async function chercherSecteurDuPro(pro: {
 }
 
 export async function POST(req: NextRequest) {
+  // 30 scans/min/IP : bloque les rafales automatisées, laisse tout usage réel.
+  const bloque = limiteTaux(req, "public-scan", { max: 30, fenetreMs: 60_000 })
+  if (bloque) return bloque
   try {
     const parsed = scanSchema.safeParse(await req.json().catch(() => null))
     if (!parsed.success) return fail(firstError(parsed.error), 400)
@@ -182,8 +186,8 @@ export async function POST(req: NextRequest) {
         // sur l'écran de succès uniquement pour les notes ≥ 4★
         googleReviewUrl: zone.pro.googleReviewUrl,
         // Task 4 — White-label : si whiteLabel=true, la page de scan remplace
-        // le logo FeedbackPro par brandLogoUrl, le nom par brandName et la
-        // couleur #002e85 par brandColor. Fallback sur les valeurs par défaut.
+        // le logo FeedVoice par brandLogoUrl, le nom par brandName et la
+        // couleur #0f0f1c par brandColor. Fallback sur les valeurs par défaut.
         whiteLabel:
           (zone.pro as unknown as { whiteLabel?: boolean }).whiteLabel ?? false,
         brandName:

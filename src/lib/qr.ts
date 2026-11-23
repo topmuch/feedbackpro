@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Utilitaires QR code côté client
+// FeedVoice - Utilitaires QR code côté client
 // Superposition du logo du commerce au centre du QR code
 // (la tolérance d'erreur "H" du QR autorise ~30 % d'occultation)
 // ============================================================

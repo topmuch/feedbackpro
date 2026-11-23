@@ -3,7 +3,7 @@
 // ------------------------------------------------------------
 // Gestion des campagnes "Flash Rewards" (cartes à gratter
 // post-signalement). Une fois qu'un voyageur signale un
-// incident et que la voix de Denise a parlé, une carte à
+// incident et que la voix de Nathalie a parlé, une carte à
 // gratter s'affiche. Le voyageur gratte → révèle une
 // récompense (ex: -15% au Café Teranga) avec un code unique.
 // L'annonceur paie uniquement les codes UTILISÉS.

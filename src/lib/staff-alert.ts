@@ -13,7 +13,7 @@
 // Chaîne d'alerte côté staff (voir airport-staff-view.tsx) :
 //   nouvel incident → vibrer() → jouerDing() → parler(...)
 //   (vibration + son court capte l'attention, puis la voix
-//    Denise décrit l'incident).
+//    Nathalie décrit l'incident).
 //
 // Aucun effet si l'API n'existe pas (SSR, navigateur desktop
 // sans vibration, vieux navigateur sans AudioContext) — silencieux.

@@ -38,88 +38,100 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  /* ============================================================
+     REBORDS HARMONISÉS (doctrine Hyer) : TOUTES les cartes,
+     boutons, inputs, panneaux sont CARRÉS (0px). Seules les pills
+     (rounded-full : badges, avatars, dots) restent rondes.
+     Ces tokens écrasent les défauts Tailwind (sm/md/lg/xl/2xl/3xl)
+     pour une cohérence absolue sur toutes les pages.
+     ============================================================ */
+  --radius-sm: 0px;
+  --radius-md: 0px;
+  --radius-lg: 0px;
+  --radius-xl: 0px;
+  --radius-2xl: 0px;
+  --radius-3xl: 0px;
+  --radius-4xl: 0px;
 }
 
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  /* V2.0 Palette FeedbackPro : Bleu aéroport #003399 (primary, headers, buttons)
-     + Jaune IATA #FCD116 (accents, highlights, badges) + blanc + gris clair #F5F5F5 */
-  --primary: #003399;
-  --primary-foreground: #FFFFFF;
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: #FCD116;
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.707 0.165 254.624);
-  --chart-1: oklch(0.546 0.245 262.881);
-  --chart-2: oklch(0.707 0.165 254.624);
-  --chart-3: oklch(0.554 0.046 257.417);
-  --chart-4: oklch(0.809 0.105 251.813);
-  --chart-5: oklch(0.623 0.214 259.815);
-  /* Sidebar bleu aéroport #003399 (V2.0) en mode clair.
-     Le sidebar est volontairement bleu foncé (pas blanc comme shadcn par défaut)
-     — c'est la signature visuelle FeedbackPro V2.0. Le texte dessus est blanc. */
-  --sidebar: #003399;
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.985 0 0);
-  --sidebar-primary-foreground: oklch(0.20 0.03 264);
-  --sidebar-accent: #002288;
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 12%);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* ============================================================
+     HARMONISATION HYER AVIATION (design system Refero)
+     Monochrome + UNE note chaude :
+       Deep Ink #000d10 · Pure White #ffffff · Cool Ash #8e8e95
+       Pebble #d5d3d4 · Midnight Hull #1A1A1A · Charcoal Deck #151623
+       Clay Ember #C9A961 (accent UNIQUE)
+     Radius : 0 (cartes carrées) · pills 1000px (composants dédiés)
+     ============================================================ */
+  --radius: 0rem;
+  --background: #ffffff;
+  --foreground: #000d10;
+  --card: #ffffff;
+  --card-foreground: #000d10;
+  --popover: #ffffff;
+  --popover-foreground: #000d10;
+  --primary: #000d10;
+  --primary-foreground: #ffffff;
+  --secondary: #f2f1ef;
+  --secondary-foreground: #000d10;
+  --muted: #f2f1ef;
+  --muted-foreground: #8e8e95;
+  --accent: #C9A961;
+  --accent-foreground: #ffffff;
+  --destructive: #b23b2e;
+  --border: #d5d3d4;
+  --input: #d5d3d4;
+  --ring: #000d10;
+  --chart-1: #C9A961;
+  --chart-2: #000d10;
+  --chart-3: #8e8e95;
+  --chart-4: #d5d3d4;
+  --chart-5: #1A1A1A;
+  /* Sidebar Midnight Hull + Cool Ash, accent Clay Ember */
+  --sidebar: #1A1A1A;
+  --sidebar-foreground: #a9adb6;
+  --sidebar-primary: #C9A961;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #151623;
+  --sidebar-accent-foreground: #e5e6e9;
+  --sidebar-border: rgba(255, 255, 255, 0.10);
+  --sidebar-ring: rgba(201, 169, 97, 0.5);
 }
 
 .dark {
-  /* Mode sombre luxueux bleuté — fond très sombre avec une légère
-     teinte bleue (oklch chroma 0.02-0.03 sur les neutres), cartes
-     légèrement plus claires avec même teinte, bordures bleutées.
-     Le primary reste le bleu FeedbackPro mais un peu plus lumineux. */
-  --background: oklch(0.16 0.02 264);
-  --foreground: oklch(0.96 0.01 240);
-  --card: oklch(0.22 0.025 264);
-  --card-foreground: oklch(0.96 0.01 240);
-  --popover: oklch(0.22 0.025 264);
-  --popover-foreground: oklch(0.96 0.01 240);
-  --primary: oklch(0.55 0.18 264);
-  --primary-foreground: oklch(0.12 0.02 264);
-  --secondary: oklch(0.28 0.03 264);
-  --secondary-foreground: oklch(0.96 0.01 240);
-  --muted: oklch(0.28 0.03 264);
-  --muted-foreground: oklch(0.72 0.02 240);
-  --accent: oklch(0.30 0.04 264);
-  --accent-foreground: oklch(0.96 0.01 240);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(0.35 0.03 264 / 50%);
-  --input: oklch(0.35 0.03 264 / 60%);
-  --ring: oklch(0.60 0.18 264);
-  --chart-1: oklch(0.546 0.245 262.881);
-  --chart-2: oklch(0.707 0.165 254.624);
-  --chart-3: oklch(0.554 0.046 257.417);
-  --chart-4: oklch(0.809 0.105 251.813);
-  --chart-5: oklch(0.623 0.214 259.815);
-  --sidebar: oklch(0.20 0.03 264);
-  --sidebar-foreground: oklch(0.96 0.01 240);
-  --sidebar-primary: oklch(0.55 0.18 264);
-  --sidebar-primary-foreground: oklch(0.96 0.01 240);
-  --sidebar-accent: oklch(0.28 0.03 264);
-  --sidebar-accent-foreground: oklch(0.96 0.01 240);
-  --sidebar-border: oklch(0.35 0.03 264 / 50%);
-  --sidebar-ring: oklch(0.60 0.18 264);
+  /* Mode sombre Hyer — Midnight Hull / Charcoal Deck, accent Clay Ember */
+  --background: #1A1A1A;
+  --foreground: #f2f1ef;
+  --card: #151623;
+  --card-foreground: #f2f1ef;
+  --popover: #151623;
+  --popover-foreground: #f2f1ef;
+  --primary: #f2f1ef;
+  --primary-foreground: #1A1A1A;
+  --secondary: #1c1d2c;
+  --secondary-foreground: #f2f1ef;
+  --muted: #1c1d2c;
+  --muted-foreground: #8e8e95;
+  --accent: #C9A961;
+  --accent-foreground: #ffffff;
+  --destructive: #d26a5c;
+  --border: rgba(213, 211, 212, 0.18);
+  --input: rgba(213, 211, 212, 0.24);
+  --ring: #C9A961;
+  --chart-1: #C9A961;
+  --chart-2: #d5d3d4;
+  --chart-3: #8e8e95;
+  --chart-4: #4b4d5e;
+  --chart-5: #C9A961;
+  /* Sidebar identique en mode sombre (cohérence Hyer) */
+  --sidebar: #1A1A1A;
+  --sidebar-foreground: #a9adb6;
+  --sidebar-primary: #C9A961;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #151623;
+  --sidebar-accent-foreground: #e5e6e9;
+  --sidebar-border: rgba(255, 255, 255, 0.12);
+  --sidebar-ring: rgba(201, 169, 97, 0.5);
 }
 
 @layer base {
@@ -131,7 +143,25 @@
   }
 }
 
-/* ---------- Scrollbar personnalisée FeedbackPro ---------- */
+/* ---------- Notification visuelle (badges Wallboard / Signalements) ----------
+   Halo pulsé autour des badges rouges de la sidebar : capte l'œil des ops
+   dès qu'un nouveau signalement arrive, sans criarde ni clignotement agressif. */
+@keyframes notificationPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(192, 57, 43, 0.55);
+  }
+  70% {
+    box-shadow: 0 0 0 7px rgba(192, 57, 43, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(192, 57, 43, 0);
+  }
+}
+.notification-pulse {
+  animation: notificationPulse 1.8s ease-out infinite;
+}
+
+/* ---------- Scrollbar personnalisée FeedVoice ---------- */
 .custom-scrollbar::-webkit-scrollbar {
   width: 8px;
   height: 8px;
@@ -150,7 +180,7 @@
   background: oklch(0.35 0 0);
 }
 
-/* ---------- Scrollbar sidebar admin (fond navy #003399) ---------- */
+/* ---------- Scrollbar sidebar admin (fond Midnight Hull) ---------- */
 /* Scrollbar bien visible (10px) pour indiquer qu'on peut scroller (21 onglets) */
 .admin-sidebar-nav::-webkit-scrollbar {
   width: 10px;
@@ -167,7 +197,7 @@
   background-clip: padding-box;
 }
 .admin-sidebar-nav::-webkit-scrollbar-thumb:hover {
-  background: rgba(252, 209, 22, 0.6);
+  background: rgba(201, 169, 97, 0.65);
   background-clip: padding-box;
   border: 2px solid transparent;
 }
@@ -185,7 +215,7 @@
   scrollbar-width: none;
 }
 
-/* ---------- Animations Landing FeedbackPro (CSS pur, sans framer) ---------- */
+/* ---------- Animations Landing FeedVoice (CSS pur, sans framer) ---------- */
 @keyframes fp-float {
   0%, 100% { transform: translateY(0) rotate(0deg); }
   50% { transform: translateY(-12px) rotate(-0.5deg); }
@@ -243,7 +273,7 @@ html { scroll-behavior: smooth; }
    Refonte Landing "Linear/Stripe/Vercel" Premium — CSS pur
    ============================================================ */
 
-/* Gradient mesh animé (arrière-plan hero / CTA final) — bleu profond FeedbackPro */
+/* Gradient mesh animé (arrière-plan hero / CTA final) — bleu profond FeedVoice */
 .fp-mesh-bg {
   background:
     radial-gradient(at 20% 30%, rgba(0, 46, 133, 0.15) 0px, transparent 50%),
@@ -257,9 +287,9 @@ html { scroll-behavior: smooth; }
   50%      { background-position: 100% 50%; }
 }
 
-/* Gradient texte signature (bleu profond FeedbackPro) */
+/* Gradient texte signature (bleu profond FeedVoice) */
 .fp-text-gradient {
-  background: linear-gradient(135deg, #002e85, #0047c7, #002e85);
+  background: linear-gradient(135deg, #1A1A1A, #1A1A1A, #1A1A1A);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -267,10 +297,10 @@ html { scroll-behavior: smooth; }
 
 /* Gradient bleu profond pour boutons / surfaces */
 .fp-bg-gradient {
-  background: linear-gradient(135deg, #002e85 0%, #0047c7 100%);
+  background: linear-gradient(135deg, #1A1A1A 0%, #1A1A1A 100%);
 }
 .fp-bg-gradient-warm {
-  background: linear-gradient(135deg, #002e85 0%, #0047c7 100%);
+  background: linear-gradient(135deg, #1A1A1A 0%, #1A1A1A 100%);
 }
 
 /* Float animation pour mockup 3D */
@@ -283,7 +313,7 @@ html { scroll-behavior: smooth; }
   transform-style: preserve-3d;
 }
 
-/* Pulse glow (CTA principaux) — bleu profond FeedbackPro */
+/* Pulse glow (CTA principaux) — bleu profond FeedVoice */
 @keyframes fp-pulse-glow {
   0%, 100% { box-shadow: 0 0 20px rgba(0, 46, 133, 0.3), 0 0 0 0 rgba(0, 46, 133, 0.4); }
   50%      { box-shadow: 0 0 40px rgba(0, 46, 133, 0.6), 0 0 0 8px rgba(0, 46, 133, 0); }
@@ -311,7 +341,7 @@ html { scroll-behavior: smooth; }
   animation-play-state: paused;
 }
 
-/* Glow doux pulsé derrière cards premium — bleu profond FeedbackPro */
+/* Glow doux pulsé derrière cards premium — bleu profond FeedVoice */
 @keyframes fp-card-glow {
   0%, 100% { box-shadow: 0 0 30px rgba(0, 46, 133, 0.15); }
   50%      { box-shadow: 0 0 50px rgba(0, 46, 133, 0.35); }
@@ -322,7 +352,7 @@ html { scroll-behavior: smooth; }
 .fp-gradient-border {
   position: relative;
   background: linear-gradient(180deg, rgba(20, 20, 23, 0.9), rgba(10, 10, 11, 0.95));
-  border-radius: 1.5rem;
+  border-radius: 0px;
 }
 .fp-gradient-border::before {
   content: "";
@@ -330,7 +360,7 @@ html { scroll-behavior: smooth; }
   inset: 0;
   padding: 2px;
   border-radius: inherit;
-  background: linear-gradient(135deg, #002e85, #0047c7, #002e85);
+  background: linear-gradient(135deg, #1A1A1A, #1A1A1A, #1A1A1A);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
           mask-composite: exclude;
@@ -518,7 +548,7 @@ html { scroll-behavior: smooth; }
 .fp-scan-reward-border {
   position: relative;
   background: linear-gradient(180deg, #ffffff 0%, #f5f8ff 100%);
-  border-radius: 1rem;
+  border-radius: 0px;
 }
 .dark .fp-scan-reward-border {
   background: linear-gradient(180deg, rgba(20, 20, 23, 0.92) 0%, rgba(20, 30, 60, 0.92) 100%);
@@ -529,7 +559,7 @@ html { scroll-behavior: smooth; }
   inset: 0;
   padding: 2px;
   border-radius: inherit;
-  background: linear-gradient(135deg, #002e85, #0047c7, #002e85);
+  background: linear-gradient(135deg, #1A1A1A, #1A1A1A, #1A1A1A);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
           mask-composite: exclude;
@@ -564,9 +594,9 @@ html { scroll-behavior: smooth; }
 }
 
 /* ============================================================
-   Refonte QRTags — wizard plein écran couleur (bleu FeedbackPro)
+   Refonte QRTags — wizard plein écran couleur (bleu FeedVoice)
    ------------------------------------------------------------
-   - fond bleu plein (bg-blue-600) qui vire au vert (positif) ou
+   - fond bleu plein (bg-[#3c3e4c]) qui vire au vert (positif) ou
      au rouge (négatif) à l'étape 1 — transition douce 500 ms
    - cards blanches border-2 border-gray-900, inversion au clic
      (bg-gray-900 text-white) — pas de glassmorphism
@@ -637,43 +667,109 @@ html { scroll-behavior: smooth; }
 }
 
 /* ============================================================
-   Task 4 — White-label : surcharge de la couleur #002e85 par la
+   Task 4 — White-label : surcharge de la couleur #1A1A1A par la
    couleur de marque du Pro (variable CSS --fp-brand posée sur la
    racine du scan-view). Les classes Tailwind arbitraires
-   text-[#002e85], bg-[#002e85], border-[#002e85] sont redéfinies
+   text-[#1A1A1A], bg-[#1A1A1A], border-[#1A1A1A] sont redéfinies
    pour utiliser var(--fp-brand) lorsque l'attribut data-fp-brand="1"
    est posé sur la racine du scan-view.
    ============================================================ */
 [data-fp-brand="1"] {
-  --fp-brand: #002e85;
+  --fp-brand: #1A1A1A;
   --fp-brand-rgb: 0, 46, 133;
 }
-[data-fp-brand="1"].text-\[\#002e85\],
-[data-fp-brand="1"] .text-\[\#002e85\] {
+[data-fp-brand="1"].text-\[\#1A1A1A\],
+[data-fp-brand="1"] .text-\[\#1A1A1A\] {
   color: var(--fp-brand) !important;
 }
-[data-fp-brand="1"].bg-\[\#002e85\],
-[data-fp-brand="1"] .bg-\[\#002e85\] {
+[data-fp-brand="1"].bg-\[\#1A1A1A\],
+[data-fp-brand="1"] .bg-\[\#1A1A1A\] {
   background-color: var(--fp-brand) !important;
 }
-[data-fp-brand="1"].border-\[\#002e85\],
-[data-fp-brand="1"] .border-\[\#002e85\] {
+[data-fp-brand="1"].border-\[\#1A1A1A\],
+[data-fp-brand="1"] .border-\[\#1A1A1A\] {
   border-color: var(--fp-brand) !important;
 }
-[data-fp-brand="1"].border-2.border-\[\#002e85\],
-[data-fp-brand="1"] .border-2.border-\[\#002e85\] {
+[data-fp-brand="1"].border-2.border-\[\#1A1A1A\],
+[data-fp-brand="1"] .border-2.border-\[\#1A1A1A\] {
   border-color: var(--fp-brand) !important;
 }
-[data-fp-brand="1"] .text-\[\#002e85\]\/85 { color: color-mix(in srgb, var(--fp-brand) 85%, transparent) !important; }
-[data-fp-brand="1"] .text-\[\#002e85\]\/80 { color: color-mix(in srgb, var(--fp-brand) 80%, transparent) !important; }
-[data-fp-brand="1"] .text-\[\#002e85\]\/70 { color: color-mix(in srgb, var(--fp-brand) 70%, transparent) !important; }
-[data-fp-brand="1"] .text-\[\#002e85\]\/60 { color: color-mix(in srgb, var(--fp-brand) 60%, transparent) !important; }
-[data-fp-brand="1"] .text-\[\#002e85\]\/90 { color: color-mix(in srgb, var(--fp-brand) 90%, transparent) !important; }
-[data-fp-brand="1"] .bg-\[\#002e85\]\/10 { background-color: color-mix(in srgb, var(--fp-brand) 10%, transparent) !important; }
-[data-fp-brand="1"] .bg-\[\#002e85\]\/5 { background-color: color-mix(in srgb, var(--fp-brand) 5%, transparent) !important; }
-[data-fp-brand="1"] .bg-\[\#002e85\]\/20 { background-color: color-mix(in srgb, var(--fp-brand) 20%, transparent) !important; }
-[data-fp-brand="1"] .border-\[\#002e85\]\/30 { border-color: color-mix(in srgb, var(--fp-brand) 30%, transparent) !important; }
-[data-fp-brand="1"] .border-\[\#002e85\]\/80 { border-color: color-mix(in srgb, var(--fp-brand) 80%, transparent) !important; }
-[data-fp-brand="1"] .via-\[\#002e85\]\/30 { --tw-gradient-via: color-mix(in srgb, var(--fp-brand) 30%, transparent) !important; }
-[data-fp-brand="1"] .ring-\[\#002e85\] { --tw-ring-color: var(--fp-brand) !important; }
-[data-fp-brand="1"] .ring-offset-\[\#002e85\] { --tw-ring-offset-color: var(--fp-brand) !important; }
+[data-fp-brand="1"] .text-\[\#1A1A1A\]\/85 { color: color-mix(in srgb, var(--fp-brand) 85%, transparent) !important; }
+[data-fp-brand="1"] .text-\[\#1A1A1A\]\/80 { color: color-mix(in srgb, var(--fp-brand) 80%, transparent) !important; }
+[data-fp-brand="1"] .text-\[\#1A1A1A\]\/70 { color: color-mix(in srgb, var(--fp-brand) 70%, transparent) !important; }
+[data-fp-brand="1"] .text-\[\#1A1A1A\]\/60 { color: color-mix(in srgb, var(--fp-brand) 60%, transparent) !important; }
+[data-fp-brand="1"] .text-\[\#1A1A1A\]\/90 { color: color-mix(in srgb, var(--fp-brand) 90%, transparent) !important; }
+[data-fp-brand="1"] .bg-\[\#1A1A1A\]\/10 { background-color: color-mix(in srgb, var(--fp-brand) 10%, transparent) !important; }
+[data-fp-brand="1"] .bg-\[\#1A1A1A\]\/5 { background-color: color-mix(in srgb, var(--fp-brand) 5%, transparent) !important; }
+[data-fp-brand="1"] .bg-\[\#1A1A1A\]\/20 { background-color: color-mix(in srgb, var(--fp-brand) 20%, transparent) !important; }
+[data-fp-brand="1"] .border-\[\#1A1A1A\]\/30 { border-color: color-mix(in srgb, var(--fp-brand) 30%, transparent) !important; }
+[data-fp-brand="1"] .border-\[\#1A1A1A\]\/80 { border-color: color-mix(in srgb, var(--fp-brand) 80%, transparent) !important; }
+[data-fp-brand="1"] .via-\[\#1A1A1A\]\/30 { --tw-gradient-via: color-mix(in srgb, var(--fp-brand) 30%, transparent) !important; }
+[data-fp-brand="1"] .ring-\[\#1A1A1A\] { --tw-ring-color: var(--fp-brand) !important; }
+[data-fp-brand="1"] .ring-offset-\[\#1A1A1A\] { --tw-ring-offset-color: var(--fp-brand) !important; }
+
+/* ============================================================
+   « Luxe Silencieux » — Typographie corps de texte
+   Inter (ultra-lisible, espacement léger). Les titres utilisent
+   Playfair Display via la constante SERIF des vues Nathalie
+   ("Playfair Display", Georgia, serif) et la <link> du layout.
+   ============================================================ */
+body {
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system,
+    'Segoe UI', sans-serif;
+}
+
+/* ============================================================
+   Mode Sombre Luxe — Dashboard Salon VIP (Terra Solution)
+   ------------------------------------------------------------
+   Toggle 🌙 en haut à droite du dashboard VIP. La classe
+   .vip-dark est posée sur <body> (useEffect) : elle couvre ainsi
+   TOUTES les surfaces du dashboard ET les portals shadcn/ui
+   (Dialog, Sheet, Select, Toast) montés sous body.
+
+   Stratégie identique au white-label ci-dessus : on re-mappe les
+   classes Tailwind arbitraires utilisées par vip-dashboard.tsx
+   (blanc cassé #ffffff, cartes blanches, texte anthracite
+   #2C2C2C, bronze #8B6F47, bordure #efe7e0) vers la palette
+   « Mode Sombre Luxe » : anthracite profond #1A1A1A, cartes
+   #1A1814, texte ivoire #F2EDE3, bronze doré éclairci.
+   Les plaques QR (styles inline marbre/or) restent inchangées.
+   ============================================================ */
+.vip-dark {
+  color-scheme: dark;
+  /* Tokens shadcn — couvre Dialog/Sheet/Select/Popover/Toast/Skeleton */
+  --background: #1A1A1A;
+  --foreground: #f2ede3;
+  --card: #1a1814;
+  --card-foreground: #f2ede3;
+  --popover: #1e1b16;
+  --popover-foreground: #f2ede3;
+  --secondary: #26221b;
+  --secondary-foreground: #f2ede3;
+  --muted: #26221b;
+  --muted-foreground: #b9a882;
+  --accent: #2c261d;
+  --accent-foreground: #e8d9b5;
+  --border: rgba(201, 169, 97, 0.18);
+  --input: rgba(201, 169, 97, 0.24);
+}
+/* Fond du dashboard + cartes */
+.vip-dark .bg-white { background-color: #1a1814 !important; }
+.vip-dark .bg-white\/80 { background-color: rgba(26, 24, 20, 0.82) !important; }
+.vip-dark .bg-white\/95 { background-color: rgba(26, 24, 20, 0.95) !important; }
+.vip-dark .bg-\[\#ffffff\] { background-color: #141210 !important; }
+.vip-dark .bg-\[\#ffffff\]\/95 { background-color: rgba(15, 15, 15, 0.95) !important; }
+.vip-dark .bg-\[\#efe7e0\] { background-color: #2e2921 !important; }
+/* Texte : anthracite → ivoire, bronze → doré éclairci */
+.vip-dark .text-\[\#2C2C2C\] { color: #f2ede3 !important; }
+.vip-dark .text-\[\#2C2C2C\]\/70 { color: rgba(242, 237, 227, 0.72) !important; }
+.vip-dark .text-\[\#8B6F47\] { color: #C9A961 !important; }
+.vip-dark .text-\[\#8B6F47\]\/80 { color: rgba(201, 169, 97, 0.8) !important; }
+.vip-dark .text-\[\#8B6F47\]\/70 { color: rgba(201, 169, 97, 0.7) !important; }
+.vip-dark .text-\[\#8B6F47\]\/60 { color: rgba(201, 169, 97, 0.6) !important; }
+.vip-dark .text-\[\#8B6F47\]\/50 { color: rgba(201, 169, 97, 0.5) !important; }
+.vip-dark .text-\[\#8B6F47\]\/40 { color: rgba(201, 169, 97, 0.4) !important; }
+/* Bordures : ivoire chaud → filet or discret */
+.vip-dark .border-\[\#efe7e0\] { border-color: rgba(201, 169, 97, 0.18) !important; }
+/* Gradient décoratif du filet sidebar : invisible sur fond sombre */
+.vip-dark .via-white\/10 { --tw-gradient-via: rgba(201, 169, 97, 0.12) !important; }

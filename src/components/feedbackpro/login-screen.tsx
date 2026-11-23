@@ -2,11 +2,12 @@
 
 import { useState } from 'react'
 import { useFpStore } from '@/store/feedbackpro-store'
+import { BrandMark } from '@/components/feedbackpro/brand-mark'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { MessageSquare, Loader2 } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardDescription } from '@/components/ui/card'
+import { Loader2 } from 'lucide-react'
 
 export function LoginScreen() {
   const { login, authLoading, authError } = useFpStore()
@@ -22,10 +23,7 @@ export function LoginScreen() {
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background to-muted/50 p-4">
       <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="space-y-2 text-center">
-          <div className="mx-auto w-12 h-12 rounded-xl bg-primary flex items-center justify-center text-primary-foreground">
-            <MessageSquare className="w-6 h-6" />
-          </div>
-          <CardTitle className="text-2xl">FeedbackPro</CardTitle>
+          <BrandMark className="mx-auto h-8" />
           <CardDescription>Connectez-vous à votre espace Pro</CardDescription>
         </CardHeader>
         <CardContent>

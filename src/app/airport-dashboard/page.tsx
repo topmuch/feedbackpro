@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic"
 //   4. Bot WhatsApp — documentation & status du bot
 //
 // Palette : slate-950 background + accents emerald (cohérent
-// avec /ops-wallboard). Aucune trace du bleu FeedbackPro #002e85.
+// avec /ops-wallboard). Aucune trace du bleu FeedVoice #0f0f1c.
 //
 // Public (comme le wallboard) — pas d'auth pour l'instant.
 // Client component pour éviter l'hydration mismatch (horloge live).

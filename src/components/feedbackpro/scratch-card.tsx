@@ -96,29 +96,29 @@ export function ScratchCard({
   }
 
   // ---------- Grattage : tracer un segment qui efface ----------
-  let dernierePos: { x: number; y: number } | null = null
+  const dernierePosRef = useRef<{ x: number; y: number } | null>(null)
 
   function gratteStart(e: React.PointerEvent<HTMLCanvasElement>) {
     if (termine) return
     e.preventDefault()
     setGratteEnCours(true)
-    dernierePos = positionRelative(e)
+    dernierePosRef.current = positionRelative(e)
     // Premier point : on dessine un disque pour avoir une trace immédiate
-    grattePoint(dernierePos)
+    grattePoint(dernierePosRef.current)
   }
 
   function gratteMove(e: React.PointerEvent<HTMLCanvasElement>) {
     if (!gratteEnCours || termine) return
     e.preventDefault()
     const pos = positionRelative(e)
-    gratteSegment(dernierePos, pos)
-    dernierePos = pos
+    gratteSegment(dernierePosRef.current, pos)
+    dernierePosRef.current = pos
   }
 
   function gratteEnd() {
     if (!gratteEnCours) return
     setGratteEnCours(false)
-    dernierePos = null
+    dernierePosRef.current = null
     verifierProgression()
   }
 
@@ -214,7 +214,7 @@ export function ScratchCard({
   return (
     <div
       className={cn(
-        "relative overflow-hidden rounded-2xl border-4 border-amber-300 bg-white shadow-lg",
+        "relative overflow-hidden rounded-2xl border-4 border-[#dba28a] bg-white shadow-lg",
         className
       )}
       style={{ width: largeur, height: hauteur, maxWidth: "100%" }}
@@ -226,7 +226,7 @@ export function ScratchCard({
             <span className="text-4xl" aria-hidden>
               🎉
             </span>
-            <p className="text-balance text-lg font-black leading-tight text-amber-700 sm:text-xl">
+            <p className="text-balance text-lg font-black leading-tight text-[#8a4f3b] sm:text-xl">
               {gain}
             </p>
           </>

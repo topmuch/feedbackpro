@@ -8,7 +8,7 @@
 // /api/airport/predict toutes les 30 s.
 //
 // Palette V2.0 : fond blanc #FFFFFF + cartes avec coins arrondis
-// + bleu #003399 (scores) + vert #00A651 (calme) + orange #FF6B00
+// + bleu #000d10 (scores) + vert #bc7155 (calme) + orange #bc7155
 // (attention) + rouge #E30613 (critique). Coins arrondis 15px.
 // ============================================================
 
@@ -61,16 +61,16 @@ type PredictionData = {
 
 const POLL_MS = 30000
 
-const BLEU = '#003399'
-const JAUNE = '#FCD116'
+const BLEU = '#000d10'
+const JAUNE = '#bc7155'
 const ROUGE = '#E30613'
-const VERT = '#00A651'
-const ORANGE = '#FF6B00'
+const VERT = '#bc7155'
+const ORANGE = '#bc7155'
 
 const LEVEL_STYLES: Record<RiskLevel, { bg: string; text: string; border: string; pulse?: boolean }> = {
-  CALME:      { bg: 'bg-[#00A651]', text: 'text-white', border: '' },
-  VIGILANCE:  { bg: 'bg-[#FCD116]', text: 'text-black', border: '' },
-  TENDU:      { bg: 'bg-[#FF6B00]', text: 'text-white', border: '' },
+  CALME:      { bg: 'bg-[#bc7155]', text: 'text-white', border: '' },
+  VIGILANCE:  { bg: 'bg-[#bc7155]', text: 'text-black', border: '' },
+  TENDU:      { bg: 'bg-[#bc7155]', text: 'text-white', border: '' },
   CRITIQUE:   { bg: 'bg-[#E30613]', text: 'text-white', border: '', pulse: true },
   IMMINENT:   { bg: 'bg-[#E30613]', text: 'text-white', border: '', pulse: true },
 }

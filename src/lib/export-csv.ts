@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Export CSV (compatible Excel FR)
+// FeedVoice - Export CSV (compatible Excel FR)
 // - Séparateur : ; (Excel FR)
 // - BOM UTF-8 (sinon les accents cassent à l'ouverture dans Excel FR)
 // - Échappement des guillemets " → ""

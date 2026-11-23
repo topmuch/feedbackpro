@@ -3,6 +3,7 @@ import { writeFile, mkdir } from "node:fs/promises"
 import { existsSync } from "node:fs"
 import path from "node:path"
 import crypto from "node:crypto"
+import { limiteTaux } from "@/lib/rate-limit"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -14,6 +15,9 @@ const MIME_VERS_EXT: Record<string, string> = { "image/webp": ".webp", "image/jp
 const TAILLE_MAX = 10 * 1024 * 1024
 
 export async function POST(req: NextRequest) {
+  // Endpoint public : max 10 uploads / min / IP (anti-exfiltration disque).
+  const bloque = limiteTaux(req, "public-upload", { max: 10, fenetreMs: 60_000 })
+  if (bloque) return bloque
   try {
     const formData = await req.formData()
     const fichier = formData.get("photo") || formData.get("file") || formData.get("image")

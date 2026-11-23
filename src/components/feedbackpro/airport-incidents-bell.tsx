@@ -114,7 +114,7 @@ export function AirportIncidentsBell({ tone = "light" }: { tone?: "light" | "dar
           <Plane className="h-4.5 w-4.5" aria-hidden />
           {totalPending > 0 && (
             <span
-              className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-amber-500 px-1 text-[10px] font-bold text-white shadow"
+              className="absolute -right-0.5 -top-0.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#bc7155] px-1 text-[10px] font-bold text-white shadow"
               aria-hidden
             >
               {displayCount}
@@ -126,7 +126,7 @@ export function AirportIncidentsBell({ tone = "light" }: { tone?: "light" | "dar
         <div className="flex items-center justify-between px-2 py-1.5">
           <DropdownMenuLabel className="p-0 text-sm font-semibold">
             <span className="inline-flex items-center gap-1.5">
-              <Plane className="h-4 w-4 text-amber-600" aria-hidden />
+              <Plane className="h-4 w-4 text-[#a05f45]" aria-hidden />
               Signalements aéroport
             </span>
           </DropdownMenuLabel>
@@ -158,8 +158,8 @@ export function AirportIncidentsBell({ tone = "light" }: { tone?: "light" | "dar
           </div>
         ) : incidents.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-10 text-center">
-            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-100" aria-hidden>
-              <Plane className="h-4 w-4 text-emerald-600" />
+            <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[#f3ddd2]" aria-hidden>
+              <Plane className="h-4 w-4 text-[#a05f45]" />
             </span>
             <p className="text-sm text-muted-foreground">Aucun signalement en attente</p>
             <p className="text-[11px] text-muted-foreground">Les nouveaux incidents apparaîtront ici.</p>
@@ -180,7 +180,7 @@ export function AirportIncidentsBell({ tone = "light" }: { tone?: "light" | "dar
                   // l'admin consulter la liste sans interruption.
                   onSelect={(e) => e.preventDefault()}
                 >
-                  <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-base" aria-hidden>
+                  <span className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg bg-[#f3ddd2] text-base" aria-hidden>
                     {inc.zone?.emoji ?? "⚠"}
                   </span>
                   <div className="min-w-0 flex-1">
@@ -194,14 +194,14 @@ export function AirportIncidentsBell({ tone = "light" }: { tone?: "light" | "dar
                       {formatTempsRelatif(inc.createdAt)}
                     </p>
                   </div>
-                  <AlertTriangle className="mt-1 h-3.5 w-3.5 shrink-0 text-amber-500" aria-hidden />
+                  <AlertTriangle className="mt-1 h-3.5 w-3.5 shrink-0 text-[#bc7155]" aria-hidden />
                 </DropdownMenuItem>
               ))}
             </div>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               asChild
-              className="cursor-pointer text-amber-700 focus:text-amber-700 dark:text-amber-300"
+              className="cursor-pointer text-[#8a4f3b] focus:text-[#8a4f3b] dark:text-[#dba28a]"
             >
               <a
                 href="/superadmin/operations"

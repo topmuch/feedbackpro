@@ -15,6 +15,7 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { ok, fail, getSessionUser } from '@/lib/session'
 import { getZonesByTenant } from '@/lib/airport-config'
+import { cloturerRoutagePourIncident } from '@/lib/routing-engine'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -52,6 +53,8 @@ export async function GET(req: NextRequest) {
       commentaire: r.commentaire ?? null,
       statut: r.statut as 'EN_ATTENTE' | 'EN_COURS' | 'RESOLU',
       createdAt: r.createdAt.toISOString(),
+      // Phase 2 — affectation staff (alertes douces → « Assigner à… »)
+      assignedTo: r.assignedTo ?? null,
     })),
   )
 }
@@ -61,11 +64,8 @@ export async function PATCH(req: NextRequest) {
   if (!user) return fail('Non authentifié', 401)
 
   const body = await req.json().catch(() => null)
-  if (!body || typeof body.id !== 'string' || typeof body.statut !== 'string') {
-    return fail('Paramètres manquants (id + statut)', 400)
-  }
-  if (!STATUTS_VALIDES.has(body.statut)) {
-    return fail('Statut invalide', 400)
+  if (!body || typeof body.id !== 'string') {
+    return fail('Paramètres manquants (id requis)', 400)
   }
 
   const report = await db.airportReport.findUnique({
@@ -77,6 +77,23 @@ export async function PATCH(req: NextRequest) {
     return fail('Accès refusé : ce signalement n\'appartient pas au module VIP', 403)
   }
 
+  // --- Phase 2 — affectation staff seule (alertes douces « Assigner à… ») ---
+  if (typeof body.assignedTo === 'string' && typeof body.statut !== 'string') {
+    const assignee = body.assignedTo.trim().slice(0, 80)
+    await db.airportReport.update({
+      where: { id: body.id },
+      data: { assignedTo: assignee || null },
+    })
+    return ok({ id: body.id, assignedTo: assignee || null })
+  }
+
+  if (typeof body.statut !== 'string') {
+    return fail('Paramètres manquants (statut ou assignedTo)', 400)
+  }
+  if (!STATUTS_VALIDES.has(body.statut)) {
+    return fail('Statut invalide', 400)
+  }
+
   const nextStatut = body.statut as 'EN_ATTENTE' | 'EN_COURS' | 'RESOLU'
   const resolvedAt = nextStatut === 'RESOLU' ? new Date() : null
 
@@ -84,6 +101,15 @@ export async function PATCH(req: NextRequest) {
     where: { id: body.id },
     data: { statut: nextStatut, resolvedAt },
   })
+
+  // --- MOTEUR DE ROUTAGE — clôture du cycle de vie de la tâche ---
+  // EN_COURS → prise en charge (responseTimeSec) ; RESOLU → résolu
+  // (resolutionTimeSec + compteur de charge décrémenté).
+  if (nextStatut === 'EN_COURS') {
+    cloturerRoutagePourIncident(body.id, 'accepted').catch(() => {})
+  } else if (nextStatut === 'RESOLU') {
+    cloturerRoutagePourIncident(body.id, 'resolved').catch(() => {})
+  }
 
   return ok({ id: body.id, statut: nextStatut })
 }

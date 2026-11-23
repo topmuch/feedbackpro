@@ -1,8 +1,8 @@
 // ============================================================
-// staff-tts.ts — Voix Denise pour la PWA staff aéroport
+// staff-tts.ts — Voix Nathalie pour la PWA staff aéroport
 // ------------------------------------------------------------
 // Synthèse vocale navigateur (Web Speech API) configurée pour
-// imiter "Denise" : voix française, débit rapide (assertif),
+// imiter "Nathalie" : voix française, débit rapide (assertif),
 // ton grave. Réutilise la même API que le wallboard ops
 // (src/app/ops-wallboard/page.tsx → speak()) mais avec un profil
 // vocal plus commandant pour le staff terrain.
@@ -22,7 +22,7 @@
 // ============================================================
 
 /**
- * Annonce vocale en français (voix "Denise" : grave + rapide).
+ * Annonce vocale en français (voix "Nathalie" : grave + rapide).
  * Coupe toute annonce en cours avant de parler.
  *
  * @param texte - Phrase à annoncer (français).
@@ -32,7 +32,7 @@ export function parler(texte: string): void {
   const utter = new SpeechSynthesisUtterance(texte)
   utter.lang = 'fr-FR'
   utter.rate = 1.1 // débit rapide (assertif)
-  utter.pitch = 0.9 // ton grave (Denise)
+  utter.pitch = 0.9 // ton grave (Nathalie)
   utter.volume = 1
   // Chercher une voix française
   const voix = window.speechSynthesis.getVoices().find((v) => v.lang.startsWith('fr'))

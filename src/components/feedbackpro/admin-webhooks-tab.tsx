@@ -89,9 +89,9 @@ type ListResponse = {
 
 const EVENT_META: Record<string, { label: string; icon: React.ComponentType<{ className?: string }>; color: string }> = {
   new_incident: { label: "Nouvel incident", icon: Bell, color: "bg-rose-100 text-rose-700 border-rose-200" },
-  resolved: { label: "Résolu", icon: CheckCheck, color: "bg-emerald-100 text-emerald-700 border-emerald-200" },
-  escalation: { label: "Escalade SLA", icon: AlertTriangle, color: "bg-amber-100 text-amber-700 border-amber-200" },
-  prediction_alert: { label: "Alerte prédiction IA", icon: TrendingUp, color: "bg-violet-100 text-violet-700 border-violet-200" },
+  resolved: { label: "Résolu", icon: CheckCheck, color: "bg-[#f3ddd2] text-[#8a4f3b] border-[#e7c1ae]" },
+  escalation: { label: "Escalade SLA", icon: AlertTriangle, color: "bg-[#f3ddd2] text-[#8a4f3b] border-[#e7c1ae]" },
+  prediction_alert: { label: "Alerte prédiction IA", icon: TrendingUp, color: "bg-[#f3ddd2] text-[#8a4f3b] border-[#e7c1ae]" },
 }
 
 const FALLBACK_META = { label: "Événement", icon: Bell, color: "bg-slate-100 text-slate-700 border-slate-200" }
@@ -363,7 +363,7 @@ export function AdminWebhooksTab() {
               <div>
                 <p className="text-sm font-medium text-slate-700">Aucun webhook configuré</p>
                 <p className="mt-1 text-xs text-slate-500">
-                  Créez votre premier webhook pour recevoir les événements FeedbackPro dans Slack, Teams, Zapier…
+                  Créez votre premier webhook pour recevoir les événements FeedVoice dans Slack, Teams, Zapier…
                 </p>
               </div>
               <Button size="sm" onClick={() => setCreateOpen(true)} className="mt-2 gap-2">
@@ -424,8 +424,8 @@ export function AdminWebhooksTab() {
                       </TableCell>
                       <TableCell>
                         {w.active ? (
-                          <Badge className="gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            <span className="size-1.5 rounded-full bg-emerald-500" />
+                          <Badge className="gap-1 bg-[#faf1ec] text-[#8a4f3b] border border-[#e7c1ae]">
+                            <span className="size-1.5 rounded-full bg-[#bc7155]" />
                             Actif
                           </Badge>
                         ) : (
@@ -608,8 +608,8 @@ function SummaryCard({
 }) {
   const tones: Record<string, string> = {
     slate: "bg-slate-50 text-slate-700 border-slate-200",
-    emerald: "bg-emerald-50 text-emerald-700 border-emerald-200",
-    violet: "bg-violet-50 text-violet-700 border-violet-200",
+    emerald: "bg-[#faf1ec] text-[#8a4f3b] border-[#e7c1ae]",
+    violet: "bg-[#faf1ec] text-[#8a4f3b] border-[#e7c1ae]",
   }
   return (
     <Card className={`border ${tones[tone]} shadow-sm`}>

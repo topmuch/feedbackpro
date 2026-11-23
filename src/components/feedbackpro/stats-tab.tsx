@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Onglet "Statistiques" du dashboard Pro (pivot Zones)
+// FeedVoice - Onglet "Statistiques" du dashboard Pro (pivot Zones)
 // Données : GET /api/pro/stats?periode=7j|30j|90j|1an (défaut 30j)
 //   → { periode, nbJours, courbe (+alias courbe30j), parTag, parHeure,
 //      parHeureMatrice, parZone, kpis }
@@ -99,13 +99,13 @@ function libellePeriode(p: Periode): string {
   return PERIODES.find((x) => x.value === p)?.label ?? "30 derniers jours"
 }
 
-const BLEU = "#3B82F6"
-const VERT = "#10B981"
+const BLEU = "#000d10"
+const VERT = "#bc7155"
 const ROUGE = "#EF4444"
 /** Audit UX : rose-500 (#F43F5E) pour les tags négatifs (fill-rose-500) */
 const ROSE = "#F43F5E"
 /** Palette du thème (6 teintes distinctes) pour le camembert des zones */
-const ZONE_COLORS = ["#3B82F6", "#0891b2", "#FCD116", "#f59e0b", "#10B981", "#EF4444"]
+const ZONE_COLORS = ["#000d10", "#0891b2", "#bc7155", "#bc7155", "#bc7155", "#EF4444"]
 
 /** Ensembles d'IDs de tags positifs/négatifs pour la coloration par sentiment. */
 const IDS_TAGS_POSITIFS = new Set(POSITIVE_TAGS_ETENDUS.map((t) => t.id))
@@ -383,7 +383,7 @@ export function StatsTab() {
     doc.setFont("helvetica", "normal")
     doc.setFontSize(9)
     doc.setTextColor(150, 150, 150)
-    doc.text("Propulsé par FeedbackPro — Le Coach IA d'audit qualité continu", W / 2, 287, { align: "center" })
+    doc.text("Propulsé par FeedVoice — Le Coach IA d'audit qualité continu", W / 2, 287, { align: "center" })
     doc.save(`rapport-stats-${new Date().toISOString().slice(0, 10)}.pdf`)
   }
 
@@ -517,9 +517,9 @@ export function StatsTab() {
                   <span
                     className={`text-4xl font-bold ${
                       (data.nps.score ?? 0) >= 50
-                        ? "text-green-600"
+                        ? "text-[#a05f45]"
                         : (data.nps.score ?? 0) >= 0
-                          ? "text-amber-600"
+                          ? "text-[#a05f45]"
                           : "text-rose-600"
                     }`}
                   >
@@ -529,18 +529,18 @@ export function StatsTab() {
                 </div>
                 {/* Segmentation Promoteurs / Passifs / Détracteurs */}
                 <div className="flex h-3 overflow-hidden rounded-full">
-                  <div className="bg-green-500" style={{ width: `${data.nps.pctPromoteurs}%` }} title={`Promoteurs : ${data.nps.pctPromoteurs}%`} />
-                  <div className="bg-amber-400" style={{ width: `${data.nps.pctPassifs}%` }} title={`Passifs : ${data.nps.pctPassifs}%`} />
+                  <div className="bg-[#bc7155]" style={{ width: `${data.nps.pctPromoteurs}%` }} title={`Promoteurs : ${data.nps.pctPromoteurs}%`} />
+                  <div className="bg-[#c98b72]" style={{ width: `${data.nps.pctPassifs}%` }} title={`Passifs : ${data.nps.pctPassifs}%`} />
                   <div className="bg-rose-500" style={{ width: `${data.nps.pctDetracteurs}%` }} title={`Détracteurs : ${data.nps.pctDetracteurs}%`} />
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-center text-xs">
-                  <div className="rounded-lg bg-green-50 p-2">
-                    <p className="font-bold text-green-700">{data.nps.promoteurs}</p>
+                  <div className="rounded-lg bg-[#faf1ec] p-2">
+                    <p className="font-bold text-[#8a4f3b]">{data.nps.promoteurs}</p>
                     <p className="text-muted-foreground">Promoteurs (9-10)</p>
                     <p className="text-[10px] text-muted-foreground">{data.nps.pctPromoteurs}%</p>
                   </div>
-                  <div className="rounded-lg bg-amber-50 p-2">
-                    <p className="font-bold text-amber-700">{data.nps.passifs}</p>
+                  <div className="rounded-lg bg-[#faf1ec] p-2">
+                    <p className="font-bold text-[#8a4f3b]">{data.nps.passifs}</p>
                     <p className="text-muted-foreground">Passifs (7-8)</p>
                     <p className="text-[10px] text-muted-foreground">{data.nps.pctPassifs}%</p>
                   </div>
@@ -586,7 +586,7 @@ export function StatsTab() {
                 <div
                   className={`flex items-center justify-center gap-2 rounded-lg p-2.5 text-sm font-semibold ${
                     (data.benchmark.ecart ?? 0) > 0
-                      ? "bg-green-50 text-green-700"
+                      ? "bg-[#faf1ec] text-[#8a4f3b]"
                       : (data.benchmark.ecart ?? 0) < 0
                         ? "bg-rose-50 text-rose-700"
                         : "bg-muted text-muted-foreground"
@@ -599,7 +599,7 @@ export function StatsTab() {
                 {/* Conseil contextuel : si écart négatif, orienter le pro vers sa zone la plus faible.
                     Audit UX : personnalisation avec le nom de la zone la moins bien notée. */}
                 {(data.benchmark.ecart ?? 0) < 0 && (
-                  <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs leading-relaxed text-amber-900">
+                  <div className="rounded-lg border border-[#e7c1ae] bg-[#faf1ec] p-3 text-xs leading-relaxed text-[#573125]">
                     <p className="font-semibold">💡 Conseil du Coach IA</p>
                     <p className="mt-0.5">
                       {zoneLaPlusFaible
@@ -774,10 +774,10 @@ export function StatsTab() {
                       total === 0
                         ? "bg-muted text-muted-foreground/50"
                         : ratio > 0.66
-                          ? "bg-blue-600 text-white"
+                          ? "bg-[#3c3e4c] text-white"
                           : ratio > 0.33
-                            ? "bg-blue-300 text-blue-950 dark:text-blue-50"
-                            : "bg-blue-100 text-blue-900 dark:bg-blue-900/60 dark:text-blue-100"
+                            ? "bg-[#8e8e95] text-[#0f0f1c] dark:text-[#f0f1f2]"
+                            : "bg-[#dcdee0] text-[#14152a] dark:bg-[#14152a]/60 dark:text-[#dcdee0]"
                     return (
                       <td key={h} className="p-0">
                         <div

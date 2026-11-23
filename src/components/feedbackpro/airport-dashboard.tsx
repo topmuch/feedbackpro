@@ -159,7 +159,7 @@ export default function AirportDashboard() {
   // SSR-safe : on ne rend le dashboard qu'une fois monté côté client
   if (!mounted) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#0F172A]">
+      <div className="flex min-h-screen items-center justify-center bg-[#0f0f1c]">
         <div className="text-center">
           <span className="text-4xl">✈️</span>
           <p className="mt-3 font-mono text-sm text-slate-500">Chargement du dashboard ops…</p>
@@ -169,9 +169,9 @@ export default function AirportDashboard() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#0F172A] font-sans text-slate-100">
+    <div className="flex min-h-screen flex-col bg-[#0f0f1c] font-sans text-slate-100">
       {/* ---------- HEADER ---------- */}
-      <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between border-b border-[#002288] bg-gradient-to-r from-[#003399] to-[#002288] px-4 sm:px-6">
+      <header className="sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between border-b border-[#002288] bg-gradient-to-r from-[#000d10] to-[#002288] px-4 sm:px-6">
         <div className="flex items-center gap-3">
           <span className="text-2xl leading-none" aria-hidden>
             ✈️
@@ -179,12 +179,12 @@ export default function AirportDashboard() {
           <div className="flex flex-col">
             <h1 className="font-mono text-base font-bold leading-tight tracking-tight text-slate-100 sm:text-lg">
               AÉROPORT OPS <span className="text-slate-500">—</span>{' '}
-              <span className="text-emerald-400">DASHBOARD</span>
+              <span className="text-[#c98b72]">DASHBOARD</span>
             </h1>
             <p className="hidden text-[11px] text-slate-400 sm:block" suppressHydrationWarning>
               {airportName ? (
                 <span className="inline-flex items-center gap-1">
-                  <Building2 className="h-3 w-3 text-emerald-400" />
+                  <Building2 className="h-3 w-3 text-[#c98b72]" />
                   {airportName}
                   <span className="text-slate-600">·</span>
                   {today ? formatDateLong(today) : ""}
@@ -199,7 +199,7 @@ export default function AirportDashboard() {
         <div className="flex items-center gap-2 sm:gap-3">
           {/* Horloge live */}
           <div className="hidden flex-col items-end sm:flex">
-            <div className="font-mono text-xl font-bold tabular-nums text-emerald-400" suppressHydrationWarning>
+            <div className="font-mono text-xl font-bold tabular-nums text-[#c98b72]" suppressHydrationWarning>
               {clock}
             </div>
             <div className="text-[10px] uppercase tracking-wider text-slate-500">
@@ -212,7 +212,7 @@ export default function AirportDashboard() {
             href="/ops-wallboard"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 rounded-md border border-slate-700 bg-slate-800/60 px-2.5 py-1.5 text-xs font-medium text-slate-200 transition hover:border-emerald-500/40 hover:bg-slate-800 hover:text-emerald-300"
+            className="inline-flex items-center gap-1.5 rounded-md border border-slate-700 bg-slate-800/60 px-2.5 py-1.5 text-xs font-medium text-slate-200 transition hover:border-[#bc7155]/40 hover:bg-slate-800 hover:text-[#dba28a]"
             title="Ouvrir le wallboard plein écran"
           >
             <Monitor className="h-3.5 w-3.5" />
@@ -238,7 +238,7 @@ export default function AirportDashboard() {
             <Link
               href="/"
               className="inline-flex items-center gap-1.5 rounded-md border border-slate-700 bg-slate-800/60 px-2.5 py-1.5 text-xs font-medium text-slate-200 transition hover:border-slate-600 hover:bg-slate-800 hover:text-white"
-              title="Retour à l'accueil FeedbackPro"
+              title="Retour à l'accueil FeedVoice"
             >
               <Home className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Accueil</span>
@@ -263,7 +263,7 @@ export default function AirportDashboard() {
               className={cn(
                 'relative flex shrink-0 items-center gap-2 px-3 py-3 text-sm font-medium transition sm:px-4',
                 active
-                  ? 'bg-[#0F172A] text-emerald-400'
+                  ? 'bg-[#0f0f1c] text-[#c98b72]'
                   : 'text-slate-300 hover:bg-slate-700/50 hover:text-white',
               )}
             >
@@ -273,7 +273,7 @@ export default function AirportDashboard() {
               <span>{t.label}</span>
               {active && (
                 <span
-                  className="absolute inset-x-0 -bottom-px h-0.5 bg-emerald-400"
+                  className="absolute inset-x-0 -bottom-px h-0.5 bg-[#c98b72]"
                   aria-hidden
                 />
               )}
@@ -283,7 +283,7 @@ export default function AirportDashboard() {
       </nav>
 
       {/* ---------- TAB CONTENT ---------- */}
-      <main className="min-h-0 flex-1 bg-[#0F172A]">
+      <main className="min-h-0 flex-1 bg-[#0f0f1c]">
         {tab === 'wallboard' && <WallboardTab />}
         {tab === 'zones' && <AirportZonesTab />}
         {tab === 'signalements' && <AirportReportsTab />}
@@ -296,11 +296,11 @@ export default function AirportDashboard() {
           <div className="flex items-center gap-2">
             <Plane className="h-3 w-3" aria-hidden />
             <span>
-              FeedbackPro · Module Aéroport — Dashboard opérationnel
+              FeedVoice · Module Aéroport — Dashboard opérationnel
             </span>
           </div>
           <div className="hidden tabular-nums sm:block">
-            Onglet actif : <span className="text-emerald-400">{tab}</span>
+            Onglet actif : <span className="text-[#c98b72]">{tab}</span>
           </div>
         </div>
       </footer>
@@ -321,7 +321,7 @@ function WallboardTab() {
           href="/ops-wallboard"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-2 rounded-lg bg-[#003399] px-4 py-2 text-sm font-bold text-white shadow-lg transition-all hover:bg-[#4549b8] hover:shadow-xl"
+          className="inline-flex items-center gap-2 rounded-lg bg-[#000d10] px-4 py-2 text-sm font-bold text-white shadow-lg transition-all hover:bg-[#4549b8] hover:shadow-xl"
           title="Ouvrir le wallboard plein écran sur un TV"
         >
           <ExternalLink className="h-4 w-4" />

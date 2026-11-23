@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Cloche de notifications in-app (header)
+// FeedVoice - Cloche de notifications in-app (header)
 // Polling toutes les 30 s pour rafraîchir le badge de notifications non lues.
 // Au clic : dropdown listant les 10 dernières notifications + actions
 // « marquer comme lu » et « tout marquer comme lu ».
@@ -159,7 +159,7 @@ export function NotificationsBell({ tone = "light" }: { tone?: "light" | "dark" 
         <div className="flex flex-col gap-2 pt-1">
           <p className="text-xs leading-snug opacity-90">{texte}</p>
           {aNomClient && (
-            <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+            <p className="text-xs font-semibold text-[#8a4f3b] dark:text-[#dba28a]">
               ⏳ Client en attente de rattrapage sur place
             </p>
           )}
@@ -167,7 +167,7 @@ export function NotificationsBell({ tone = "light" }: { tone?: "light" | "dark" 
             <Button
               size="sm"
               type="button"
-              className="h-8 bg-emerald-600 px-3 text-xs font-semibold text-white hover:bg-emerald-700"
+              className="h-8 bg-[#a05f45] px-3 text-xs font-semibold text-white hover:bg-[#8a4f3b]"
               onClick={async () => {
                 if (!retourId) {
                   toastFeedback({
@@ -216,7 +216,7 @@ export function NotificationsBell({ tone = "light" }: { tone?: "light" | "dark" 
               size="sm"
               type="button"
               variant="outline"
-              className="h-8 border-amber-400 px-3 text-xs font-semibold text-amber-700 hover:bg-amber-50 dark:text-amber-300"
+              className="h-8 border-[#c98b72] px-3 text-xs font-semibold text-[#8a4f3b] hover:bg-[#faf1ec] dark:text-[#dba28a]"
               onClick={() => {
                 // Ferme le toast persistant avant de naviguer.
                 dismiss(toastId)
@@ -356,12 +356,12 @@ export function NotificationsBell({ tone = "light" }: { tone?: "light" | "dark" 
               <div
                 key={n.id}
                 className={`group flex items-start gap-2 px-3 py-2.5 transition-colors ${
-                  n.lu ? "" : "bg-blue-50/60"
+                  n.lu ? "" : "bg-[#f0f1f2]/60"
                 }`}
               >
                 <span
                   className={`mt-1 h-2 w-2 shrink-0 rounded-full ${
-                    n.lu ? "bg-transparent" : "bg-blue-600"
+                    n.lu ? "bg-transparent" : "bg-[#3c3e4c]"
                   }`}
                   aria-hidden
                 />

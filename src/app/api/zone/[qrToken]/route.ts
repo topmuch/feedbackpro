@@ -2,7 +2,8 @@
 // API publique (Session 3) - Infos de la ZONE par son QR token
 // GET /api/zone/[qrToken]
 // → { zone: { nom, description }, pro: { nomEtablissement, logoUrl,
-//     recompense, whatsapp }, tagsPositifs: string[], tagsNegatifs: string[] }
+//     recompense, whatsapp, messageWhatsapp, googleReviewUrl,
+//     googleReviewEnabled }, tagsPositifs: string[], tagsNegatifs: string[] }
 // 404 si le token est inconnu.
 //
 // Contrat identique à POST /api/public/scan : la page de scan /r/<token>
@@ -15,11 +16,17 @@ import { NextRequest } from "next/server"
 import { db } from "@/lib/db"
 import { ok, fail } from "@/lib/session"
 import { parseJsonArray } from "@/lib/ia"
+import { limiteTaux } from "@/lib/rate-limit"
 
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ qrToken: string }> }
 ) {
+  // 120 scans/min/IP : au-dessus de tout usage réel (même multi-équipiers),
+  // bloque l'énumération de tokens QR par script.
+  const bloque = limiteTaux(req, "zone-get", { max: 120, fenetreMs: 60_000 })
+  if (bloque) return bloque
+
   try {
     const { qrToken } = await params
     if (!qrToken || qrToken.length < 4) return fail("QR code invalide", 400)
@@ -43,6 +50,15 @@ export async function GET(
         whatsapp: zone.pro.whatsapp,
         // Signature personnalisée du pied de message WhatsApp du Pro
         messageWhatsapp: zone.pro.messageWhatsapp,
+        // Task 2-a — Boucle de réputation Google : URL de la page d'avis
+        // publique + interrupteur du CTA « Laisser un avis Google »
+        // (affiché sur l'écran de succès uniquement si note ≥ 4★, URL
+        // renseignée ET flag activé). Lecture défensive pour la migration :
+        // défaut true tant que la colonne n'existe pas côté client Prisma.
+        googleReviewUrl: zone.pro.googleReviewUrl,
+        googleReviewEnabled:
+          (zone.pro as unknown as { googleReviewEnabled?: boolean })
+            .googleReviewEnabled ?? true,
       },
       tagsPositifs: parseJsonArray(zone.tagsPositifs),
       tagsNegatifs: parseJsonArray(zone.tagsNegatifs),

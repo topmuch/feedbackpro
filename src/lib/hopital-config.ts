@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro — Configuration statique des zones hôpital
+// FeedVoice — Configuration statique des zones hôpital
 // ------------------------------------------------------------
 // Source de vérité pour les 12 zones hôpital/clinique et leurs
 // problématiques prédéfinies (boutons rapides). Le seed

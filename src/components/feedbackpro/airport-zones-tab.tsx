@@ -769,7 +769,7 @@ export default function AirportZonesTab() {
             <h2 className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/80">
               Zones aéroport
             </h2>
-            <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/5 text-[10px] font-semibold text-emerald-700">
+            <Badge variant="outline" className="border-[#bc7155]/30 bg-[#bc7155]/5 text-[10px] font-semibold text-[#8a4f3b]">
               {zones.length}
             </Badge>
           </div>
@@ -779,7 +779,7 @@ export default function AirportZonesTab() {
             type="button"
             size="sm"
             onClick={() => setDialogState({ mode: 'create' })}
-            className="mb-1 w-full shrink-0 border-emerald-500/40 bg-gradient-to-b from-emerald-500/15 to-emerald-500/5 text-emerald-700 shadow-sm hover:from-emerald-500/25 hover:to-emerald-500/10 hover:text-emerald-800 lg:mb-2"
+            className="mb-1 w-full shrink-0 border-[#bc7155]/40 bg-gradient-to-b from-[#bc7155]/15 to-[#bc7155]/5 text-[#8a4f3b] shadow-sm hover:from-[#bc7155]/25 hover:to-[#bc7155]/10 hover:text-[#6f3f30] lg:mb-2"
           >
             <Plus className="mr-1.5 h-3.5 w-3.5" />
             Ajouter une zone
@@ -794,8 +794,8 @@ export default function AirportZonesTab() {
                 className={cn(
                   'group relative flex w-full shrink-0 items-center gap-3 overflow-hidden rounded-xl border px-3 py-3 text-left transition-all duration-200',
                   active
-                    ? 'border-emerald-500/50 bg-gradient-to-br from-emerald-500/10 to-emerald-500/5 shadow-sm ring-1 ring-emerald-500/20'
-                    : 'border-border/60 bg-card/50 text-muted-foreground hover:border-emerald-500/30 hover:bg-muted/40 hover:shadow-sm',
+                    ? 'border-[#bc7155]/50 bg-gradient-to-br from-[#bc7155]/10 to-[#bc7155]/5 shadow-sm ring-1 ring-[#bc7155]/20'
+                    : 'border-border/60 bg-card/50 text-muted-foreground hover:border-[#bc7155]/30 hover:bg-muted/40 hover:shadow-sm',
                 )}
               >
                 <button
@@ -805,17 +805,17 @@ export default function AirportZonesTab() {
                   aria-label={`Sélectionner la zone ${z.nom}`}
                 >
                   {active && (
-                    <span className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-emerald-500 to-emerald-600" aria-hidden />
+                    <span className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-[#bc7155] to-[#a05f45]" aria-hidden />
                   )}
                   <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-muted/60 to-muted/30 text-2xl leading-none shadow-inner" aria-hidden>
                     {z.emoji}
                   </span>
                   <div className="min-w-0 flex-1">
-                    <div className={cn('truncate text-sm', active ? 'font-bold text-emerald-800' : 'font-semibold text-foreground')}>
+                    <div className={cn('truncate text-sm', active ? 'font-bold text-[#6f3f30]' : 'font-semibold text-foreground')}>
                       {z.nom}
                       {z.custom && (
                         <span
-                          className="ml-1.5 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-emerald-500/15 align-middle text-[8px] font-bold text-emerald-700"
+                          className="ml-1.5 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full bg-[#bc7155]/15 align-middle text-[8px] font-bold text-[#8a4f3b]"
                           title="Zone personnalisée (ajoutée depuis le dashboard)"
                         >
                           +
@@ -830,7 +830,7 @@ export default function AirportZonesTab() {
                     className={cn(
                       'shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold tabular-nums',
                       z.reportsCount > 0
-                        ? 'bg-amber-500/20 text-amber-700 ring-1 ring-amber-500/30'
+                        ? 'bg-[#bc7155]/20 text-[#8a4f3b] ring-1 ring-[#bc7155]/30'
                         : 'bg-muted/60 text-muted-foreground',
                     )}
                     title={`${z.reportsCount} signalement(s)`}
@@ -847,7 +847,7 @@ export default function AirportZonesTab() {
                       e.stopPropagation()
                       setDialogState({ mode: 'edit', zone: z })
                     }}
-                    className="flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-emerald-500/15 hover:text-emerald-700"
+                    className="flex size-6 items-center justify-center rounded text-muted-foreground transition-colors hover:bg-[#bc7155]/15 hover:text-[#8a4f3b]"
                     aria-label={`Modifier la zone ${z.nom}`}
                     title="Modifier"
                   >
@@ -1128,12 +1128,12 @@ function ZoneCrudDialog({ state, onClose, onSubmit }: ZoneCrudDialogProps) {
           <DialogTitle className="flex items-center gap-2 text-base font-semibold text-foreground">
             {isEdit ? (
               <>
-                <Pencil className="size-4 text-emerald-600" />
+                <Pencil className="size-4 text-[#a05f45]" />
                 Modifier la zone
               </>
             ) : (
               <>
-                <Plus className="size-4 text-emerald-600" />
+                <Plus className="size-4 text-[#a05f45]" />
                 Ajouter une zone
               </>
             )}
@@ -1244,7 +1244,7 @@ function ZoneCrudDialog({ state, onClose, onSubmit }: ZoneCrudDialogProps) {
               <span className={cn(
                 'text-[10px] tabular-nums',
                 form.problemes.filter((p) => p.trim().length >= 3).length < 4
-                  ? 'text-amber-600'
+                  ? 'text-[#a05f45]'
                   : 'text-muted-foreground',
               )}>
                 {form.problemes.filter((p) => p.trim().length >= 3).length}/4 min
@@ -1258,10 +1258,10 @@ function ZoneCrudDialog({ state, onClose, onSubmit }: ZoneCrudDialogProps) {
                     key={`zd-pb-${i}`}
                     className={cn(
                       'group flex items-center gap-2 overflow-hidden rounded-lg border bg-background px-2 py-1.5 transition-all',
-                      err ? 'border-rose-500/50' : 'border-border hover:border-emerald-500/30',
+                      err ? 'border-rose-500/50' : 'border-border hover:border-[#bc7155]/30',
                     )}
                   >
-                    <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-amber-500/10 text-[11px] font-bold text-amber-700" aria-hidden>
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-[#bc7155]/10 text-[11px] font-bold text-[#8a4f3b]" aria-hidden>
                       {i + 1}
                     </span>
                     <Input
@@ -1292,13 +1292,13 @@ function ZoneCrudDialog({ state, onClose, onSubmit }: ZoneCrudDialogProps) {
                 size="sm"
                 variant="outline"
                 onClick={addProbleme}
-                className="self-start border-amber-500/40 bg-amber-500/10 text-amber-700 hover:bg-amber-500/20 hover:text-amber-800"
+                className="self-start border-[#bc7155]/40 bg-[#bc7155]/10 text-[#8a4f3b] hover:bg-[#bc7155]/20 hover:text-[#6f3f30]"
               >
                 <Plus className="mr-1.5 size-3.5" />
                 Ajouter une problématique
               </Button>
             )}
-            <div className="flex items-start gap-1.5 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-[11px] text-amber-700">
+            <div className="flex items-start gap-1.5 rounded-md border border-[#bc7155]/30 bg-[#bc7155]/5 px-3 py-2 text-[11px] text-[#8a4f3b]">
               <AlertTriangle className="mt-0.5 size-3 shrink-0" />
               <span>
                 Minimum <strong>4</strong> problématiques valides (3-100 caractères chacune).
@@ -1320,7 +1320,7 @@ function ZoneCrudDialog({ state, onClose, onSubmit }: ZoneCrudDialogProps) {
             type="button"
             onClick={() => void handleSave()}
             disabled={submitting}
-            className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-sm hover:from-emerald-500 hover:to-emerald-400"
+            className="bg-gradient-to-r from-[#a05f45] to-[#bc7155] text-white shadow-sm hover:from-[#bc7155] hover:to-[#c98b72]"
           >
             {submitting ? (
               <Loader2 className="mr-1.5 size-3.5 animate-spin" />
@@ -1419,9 +1419,9 @@ function ZoneEditForm({
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6">
       {/* Header du formulaire — premium gradient card */}
-      <div className="mb-6 flex flex-col gap-4 overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-card via-card to-emerald-500/5 p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+      <div className="mb-6 flex flex-col gap-4 overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-card via-card to-[#bc7155]/5 p-5 shadow-sm sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-4">
-          <div className="flex size-16 shrink-0 items-center justify-center rounded-2xl border border-emerald-500/20 bg-gradient-to-br from-white to-muted/40 text-4xl shadow-md ring-1 ring-emerald-500/10">
+          <div className="flex size-16 shrink-0 items-center justify-center rounded-2xl border border-[#bc7155]/20 bg-gradient-to-br from-white to-muted/40 text-4xl shadow-md ring-1 ring-[#bc7155]/10">
             {form.emoji || '📍'}
           </div>
           <div className="min-w-0">
@@ -1430,7 +1430,7 @@ function ZoneEditForm({
                 {form.nom || 'Sans nom'}
               </h2>
               {dirty && (
-                <Badge className="border-amber-500/40 bg-amber-500/15 text-amber-700 hover:bg-amber-500/15">
+                <Badge className="border-[#bc7155]/40 bg-[#bc7155]/15 text-[#8a4f3b] hover:bg-[#bc7155]/15">
                   non sauvegardé
                 </Badge>
               )}
@@ -1463,7 +1463,7 @@ function ZoneEditForm({
             size="sm"
             onClick={onSave}
             disabled={!dirty || saving}
-            className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-sm hover:from-emerald-500 hover:to-emerald-400 disabled:from-muted disabled:to-muted disabled:text-muted-foreground"
+            className="bg-gradient-to-r from-[#a05f45] to-[#bc7155] text-white shadow-sm hover:from-[#bc7155] hover:to-[#c98b72] disabled:from-muted disabled:to-muted disabled:text-muted-foreground"
           >
             {saving ? (
               <>
@@ -1557,10 +1557,10 @@ function ZoneEditForm({
                     key={`tag-${i}`}
                     className={cn(
                       'group flex items-center gap-1.5 overflow-hidden rounded-lg border bg-gradient-to-r from-card to-muted/30 px-1 py-1 transition-all hover:shadow-sm',
-                      err ? 'border-rose-500/50' : 'border-border hover:border-emerald-500/30',
+                      err ? 'border-rose-500/50' : 'border-border hover:border-[#bc7155]/30',
                     )}
                   >
-                    <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-emerald-500/10 text-emerald-600" aria-hidden>
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-[#bc7155]/10 text-[#a05f45]" aria-hidden>
                       <Tag className="h-3 w-3" />
                     </span>
                     <Input
@@ -1606,7 +1606,7 @@ function ZoneEditForm({
                     }
                   }}
                   placeholder="nouveau_tag"
-                  className="border-border bg-card pl-9 font-mono text-sm shadow-sm focus-visible:ring-emerald-500/20"
+                  className="border-border bg-card pl-9 font-mono text-sm shadow-sm focus-visible:ring-[#bc7155]/20"
                   disabled={form.tags.length >= 10}
                 />
               </div>
@@ -1616,7 +1616,7 @@ function ZoneEditForm({
                 variant="outline"
                 onClick={submitNewTag}
                 disabled={!!newTagErr || !newTag.trim() || form.tags.length >= 10}
-                className="border-emerald-500/40 bg-gradient-to-b from-emerald-500/15 to-emerald-500/5 text-emerald-700 shadow-sm hover:from-emerald-500/25 hover:to-emerald-500/10 hover:text-emerald-800"
+                className="border-[#bc7155]/40 bg-gradient-to-b from-[#bc7155]/15 to-[#bc7155]/5 text-[#8a4f3b] shadow-sm hover:from-[#bc7155]/25 hover:to-[#bc7155]/10 hover:text-[#6f3f30]"
               >
                 <Plus className="h-3.5 w-3.5" />
                 Ajouter
@@ -1638,7 +1638,7 @@ function ZoneEditForm({
                     key={s}
                     type="button"
                     onClick={() => addTag(s)}
-                    className="rounded-full border border-border bg-card px-2.5 py-1 font-mono text-[11px] text-muted-foreground shadow-sm transition hover:border-emerald-500/40 hover:bg-emerald-500/10 hover:text-emerald-600"
+                    className="rounded-full border border-border bg-card px-2.5 py-1 font-mono text-[11px] text-muted-foreground shadow-sm transition hover:border-[#bc7155]/40 hover:bg-[#bc7155]/10 hover:text-[#a05f45]"
                   >
                     + {s}
                   </button>
@@ -1669,13 +1669,13 @@ function ZoneEditForm({
                     key={`pb-${i}`}
                     className={cn(
                       'group flex items-center gap-2 overflow-hidden rounded-xl border bg-gradient-to-r from-card to-muted/20 px-2 py-1.5 transition-all hover:shadow-sm',
-                      err ? 'border-rose-500/50' : 'border-border hover:border-amber-500/30',
+                      err ? 'border-rose-500/50' : 'border-border hover:border-[#bc7155]/30',
                     )}
                   >
                     <span className="flex size-7 shrink-0 cursor-grab items-center justify-center rounded-md bg-muted/60 text-muted-foreground/60" aria-hidden title="Glisser pour réordonner">
                       <GripVertical className="h-3.5 w-3.5" />
                     </span>
-                    <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-amber-500/10 text-[11px] font-bold text-amber-700" aria-hidden>
+                    <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-[#bc7155]/10 text-[11px] font-bold text-[#8a4f3b]" aria-hidden>
                       {i + 1}
                     </span>
                     <Input
@@ -1710,7 +1710,7 @@ function ZoneEditForm({
                 variant="outline"
                 size="sm"
                 onClick={addProbleme}
-                className="self-start border-amber-500/40 bg-gradient-to-b from-amber-500/10 to-amber-500/5 text-amber-700 shadow-sm hover:from-amber-500/20 hover:to-amber-500/10 hover:text-amber-800"
+                className="self-start border-[#bc7155]/40 bg-gradient-to-b from-[#bc7155]/10 to-[#bc7155]/5 text-[#8a4f3b] shadow-sm hover:from-[#bc7155]/20 hover:to-[#bc7155]/10 hover:text-[#6f3f30]"
               >
                 <Plus className="mr-1.5 h-3.5 w-3.5" />
                 Ajouter une problématique
@@ -1729,8 +1729,8 @@ function ZoneEditForm({
               Aperçu PWA voyageur
             </Label>
             <div className="mx-auto w-full max-w-[240px]">
-              <div className="overflow-hidden rounded-[2rem] border-[3px] border-slate-300 bg-slate-900 p-1.5 shadow-lg dark:border-slate-700">
-                <div className="relative overflow-hidden rounded-[1.5rem] border border-slate-800 bg-white">
+              <div className="overflow-hidden rounded-none border-[3px] border-slate-300 bg-slate-900 p-1.5 shadow-lg dark:border-slate-700">
+                <div className="relative overflow-hidden rounded-none border border-slate-800 bg-white">
                   <div className="absolute left-1/2 top-1.5 h-1 w-12 -translate-x-1/2 rounded-full bg-slate-900" aria-hidden />
                   <div className="px-3 pb-3 pt-5">
                     <div className="mb-2 flex items-center gap-2 border-b border-slate-100 pb-2">
@@ -1752,7 +1752,7 @@ function ZoneEditForm({
                         .map((p, i) => (
                           <div
                             key={`prev-${i}`}
-                            className="flex min-h-[56px] items-center justify-center rounded-lg bg-gradient-to-br from-amber-400 to-amber-500 p-2 text-center text-xs font-semibold text-white shadow-sm"
+                            className="flex min-h-[56px] items-center justify-center rounded-lg bg-gradient-to-br from-[#c98b72] to-[#bc7155] p-2 text-center text-xs font-semibold text-white shadow-sm"
                           >
                             {p}
                           </div>
@@ -1775,7 +1775,7 @@ function ZoneEditForm({
           {/* État sauvegardé */}
           {saved && (
             <div className="flex items-start gap-2 rounded-md border border-border bg-card/40 p-3 text-[11px] text-muted-foreground">
-              <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+              <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#a05f45]" />
               <div>
                 <p className="font-medium text-muted-foreground">Dernière version sauvegardée</p>
                 <p className="mt-0.5">
@@ -1792,8 +1792,8 @@ function ZoneEditForm({
       <div className="mt-8 overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-card via-card to-muted/30 shadow-sm">
         {/* Header premium */}
         <div className="flex items-center gap-3 border-b border-border/60 bg-gradient-to-r from-slate-50 to-muted/40 px-5 py-4 dark:from-slate-900/40 dark:to-slate-900/20">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500/20 to-amber-500/5 shadow-md dark:from-amber-500/25 dark:to-amber-500/10">
-            <QrCode className="size-5 text-amber-600 dark:text-amber-400" strokeWidth={2.5} />
+          <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#bc7155]/20 to-[#bc7155]/5 shadow-md dark:from-[#bc7155]/25 dark:to-[#bc7155]/10">
+            <QrCode className="size-5 text-[#a05f45] dark:text-[#c98b72]" strokeWidth={2.5} />
           </div>
           <div className="flex-1">
             <h3 className="text-sm font-bold tracking-tight text-foreground">
@@ -1803,7 +1803,7 @@ function ZoneEditForm({
               Imprimez et affichez ces QR codes dans l'aéroport. Les voyageurs les scanneront pour signaler un problème en 2 clics.
             </p>
           </div>
-          <div className="shrink-0 rounded-full bg-amber-100 px-3 py-1 text-xs font-bold text-amber-700 dark:bg-amber-950/50 dark:text-amber-400">
+          <div className="shrink-0 rounded-full bg-[#f3ddd2] px-3 py-1 text-xs font-bold text-[#8a4f3b] dark:bg-[#3f231b]/50 dark:text-[#c98b72]">
             {form.tags.length} tag{form.tags.length > 1 ? 's' : ''}
           </div>
         </div>
@@ -1902,7 +1902,7 @@ function QrCard({
       <div className="flex flex-col items-center gap-3 px-4 py-5">
         <div className="relative">
           {/* Halo derrière le QR (effet premium) */}
-          <div className="absolute inset-0 -m-2 rounded-2xl bg-gradient-to-br from-amber-200/30 to-slate-200/20 blur-md transition-opacity duration-200 group-hover:opacity-100 dark:from-amber-500/10 dark:to-slate-500/10" />
+          <div className="absolute inset-0 -m-2 rounded-2xl bg-gradient-to-br from-[#e7c1ae]/30 to-slate-200/20 blur-md transition-opacity duration-200 group-hover:opacity-100 dark:from-[#bc7155]/10 dark:to-slate-500/10" />
           {/* Conteneur QR */}
           <div className="relative flex size-32 items-center justify-center rounded-xl border border-slate-200 bg-white p-1.5 shadow-md transition-transform duration-200 group-hover:scale-105 dark:border-slate-700">
             {tagErr ? (
@@ -2247,7 +2247,7 @@ function AlertThresholdsSection({ zoneCode }: AlertThresholdsSectionProps) {
   return (
     <div className="mt-6 flex flex-col gap-3">
       <div className="flex items-center gap-2 rounded-xl border border-border bg-gradient-to-r from-card to-muted/30 px-4 py-3 shadow-sm">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-500/5 text-amber-600">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#bc7155]/20 to-[#bc7155]/5 text-[#a05f45]">
           <Bell className="h-4 w-4" />
         </span>
         <div className="flex-1">
@@ -2259,7 +2259,7 @@ function AlertThresholdsSection({ zoneCode }: AlertThresholdsSectionProps) {
             Les seuils "ALL" s'appliquent à toutes les zones.
           </p>
         </div>
-        <span className="shrink-0 rounded-full bg-amber-500/10 px-3 py-1 text-[10px] font-bold tabular-nums text-amber-700">
+        <span className="shrink-0 rounded-full bg-[#bc7155]/10 px-3 py-1 text-[10px] font-bold tabular-nums text-[#8a4f3b]">
           {loading ? '…' : `${visible.length} seuil(s)`}
         </span>
       </div>
@@ -2311,7 +2311,7 @@ function AlertThresholdsSection({ zoneCode }: AlertThresholdsSectionProps) {
         variant="outline"
         onClick={() => void handleAdd()}
         disabled={creating}
-        className="self-start border-amber-500/40 bg-gradient-to-b from-amber-500/10 to-amber-500/5 text-amber-700 shadow-sm hover:from-amber-500/20 hover:to-amber-500/10 hover:text-amber-800"
+        className="self-start border-[#bc7155]/40 bg-gradient-to-b from-[#bc7155]/10 to-[#bc7155]/5 text-[#8a4f3b] shadow-sm hover:from-[#bc7155]/20 hover:to-[#bc7155]/10 hover:text-[#6f3f30]"
       >
         {creating ? (
           <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
@@ -2626,20 +2626,20 @@ function SlaConfigSection({ zoneCode }: { zoneCode: string }) {
   }, [target, zoneCode, toast])
 
   const complianceColor = (pct: number): string => {
-    if (pct >= 80) return 'text-emerald-600'
-    if (pct >= 60) return 'text-amber-600'
+    if (pct >= 80) return 'text-[#a05f45]'
+    if (pct >= 60) return 'text-[#a05f45]'
     return 'text-rose-600'
   }
 
   const avgColor = (avg: number | null, targetMin: number | null): string => {
     if (avg === null || targetMin === null) return 'text-muted-foreground'
-    return avg <= targetMin ? 'text-emerald-600' : 'text-rose-600'
+    return avg <= targetMin ? 'text-[#a05f45]' : 'text-rose-600'
   }
 
   return (
-    <div className="mt-6 overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-card via-card to-emerald-500/5 shadow-sm">
-      <div className="flex items-center gap-2 border-b border-border/60 bg-gradient-to-r from-emerald-500/5 to-transparent px-5 py-3">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 text-emerald-600">
+    <div className="mt-6 overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-card via-card to-[#bc7155]/5 shadow-sm">
+      <div className="flex items-center gap-2 border-b border-border/60 bg-gradient-to-r from-[#bc7155]/5 to-transparent px-5 py-3">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#bc7155]/20 to-[#bc7155]/5 text-[#a05f45]">
           <Target className="h-4 w-4" />
         </span>
         <Label className="text-xs font-bold uppercase tracking-wider text-foreground">
@@ -2650,7 +2650,7 @@ function SlaConfigSection({ zoneCode }: { zoneCode: string }) {
           className={cn(
             'ml-auto text-[10px] font-bold',
             savedTarget !== null
-              ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-700'
+              ? 'border-[#bc7155]/40 bg-[#bc7155]/10 text-[#8a4f3b]'
               : 'border-border text-muted-foreground',
           )}
         >
@@ -2667,7 +2667,7 @@ function SlaConfigSection({ zoneCode }: { zoneCode: string }) {
           >
             Objectif de résolution (minutes)
           </Label>
-          <div className="flex flex-col items-center gap-1 rounded-xl border border-border bg-gradient-to-br from-emerald-500/5 to-transparent p-4 text-center">
+          <div className="flex flex-col items-center gap-1 rounded-xl border border-border bg-gradient-to-br from-[#bc7155]/5 to-transparent p-4 text-center">
             <div className="flex items-baseline gap-1">
               <Input
                 id="sla-target"
@@ -2681,7 +2681,7 @@ function SlaConfigSection({ zoneCode }: { zoneCode: string }) {
                   if (dirty) void handleSave()
                 }}
                 placeholder="ex : 15"
-                className="h-12 w-24 border-0 bg-transparent p-0 text-center text-4xl font-bold tabular-nums text-emerald-700 shadow-none focus-visible:ring-0"
+                className="h-12 w-24 border-0 bg-transparent p-0 text-center text-4xl font-bold tabular-nums text-[#8a4f3b] shadow-none focus-visible:ring-0"
                 disabled={saving || !loaded}
               />
               <span className="shrink-0 text-sm font-semibold text-muted-foreground/70">min</span>
@@ -2692,7 +2692,7 @@ function SlaConfigSection({ zoneCode }: { zoneCode: string }) {
               onClick={() => void handleSave()}
               disabled={!dirty || saving || !loaded}
               className={cn(
-                'mt-1 w-full border-emerald-500/40 bg-gradient-to-b from-emerald-500/15 to-emerald-500/5 text-emerald-700 shadow-sm hover:from-emerald-500/25 hover:to-emerald-500/10 hover:text-emerald-800',
+                'mt-1 w-full border-[#bc7155]/40 bg-gradient-to-b from-[#bc7155]/15 to-[#bc7155]/5 text-[#8a4f3b] shadow-sm hover:from-[#bc7155]/25 hover:to-[#bc7155]/10 hover:text-[#6f3f30]',
                 !dirty && 'opacity-50',
               )}
             >
@@ -2779,7 +2779,7 @@ function SlaConfigSection({ zoneCode }: { zoneCode: string }) {
             </div>
           )}
           {stats && stats.pendingBreaches === 0 && stats.targetMinutes !== null && (
-            <div className="flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/5 px-3 py-2 text-[11px] text-emerald-700">
+            <div className="flex items-center gap-1.5 rounded-lg border border-[#bc7155]/30 bg-[#bc7155]/5 px-3 py-2 text-[11px] text-[#8a4f3b]">
               <Check className="h-3 w-3 shrink-0" />
               <span>Aucun signalement en retard sur le SLA.</span>
             </div>

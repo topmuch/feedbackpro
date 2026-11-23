@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
       width: TAILLE_QR,
       margin: 2,
       errorCorrectionLevel: "H",
-      color: { dark: "#0f172a", light: "#ffffff" },
+      color: { dark: "#0f0f1c", light: "#ffffff" },
     })
 
     // Composition du logo côté serveur ; en cas d'échec on livre le QR brut

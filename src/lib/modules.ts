@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Système de modules activables (Task Modules)
+// FeedVoice - Système de modules activables (Task Modules)
 // ------------------------------------------------------------
 // Helpers serveur pour vérifier l'état d'un module depuis la base.
 // Cache mémoire court (TTL 30 s) pour éviter de hit la BDD à chaque

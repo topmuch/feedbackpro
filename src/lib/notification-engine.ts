@@ -159,7 +159,7 @@ async function sendViaCanal(
     case 'push_pwa': {
       // Push interne — délègue à push-notifier.ts (route /api/airport/push/send)
       await triggerPushNotification({
-        title: 'Alerte FeedbackPro',
+        title: 'Alerte FeedVoice',
         body: renderedMessage.slice(0, 200),
         url: ctx.link,
         tag: ctx.incidentId ? `incident-${ctx.incidentId}` : undefined,
@@ -182,13 +182,13 @@ async function sendViaCanal(
       if (!recipient.email) {
         return { ok: false, error: 'Email manquant' }
       }
-      const sujet = 'Alerte FeedbackPro — Incident'
+      const sujet = 'Alerte FeedVoice — Incident'
       const html = `<div style="font-family: -apple-system, sans-serif; max-width: 600px; margin: 0 auto; padding: 24px;">
-        <h2 style="color: #0f172a; margin: 0 0 16px 0;">Alerte FeedbackPro</h2>
+        <h2 style="color: #0f0f1c; margin: 0 0 16px 0;">Alerte FeedVoice</h2>
         <p style="font-size: 14px; color: #334155; line-height: 1.6;">${renderedMessage.replace(/\n/g, '<br/>')}</p>
-        ${ctx.link ? `<p style="margin-top: 24px;"><a href="${ctx.link}" style="display: inline-block; background: #0f172a; color: #fbbf24; font-weight: 700; padding: 10px 24px; border-radius: 8px; text-decoration: none;">Voir l'incident →</a></p>` : ''}
+        ${ctx.link ? `<p style="margin-top: 24px;"><a href="${ctx.link}" style="display: inline-block; background: #0f0f1c; color: #bc7155; font-weight: 700; padding: 10px 24px; border-radius: 8px; text-decoration: none;">Voir l'incident →</a></p>` : ''}
         <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
-        <p style="font-size: 11px; color: #64748b;">Notification automatique FeedbackPro.</p>
+        <p style="font-size: 11px; color: #64748b;">Notification automatique FeedVoice.</p>
       </div>`
       const sent = await sendEmail(recipient.email, sujet, html)
       return { ok: sent, cost: 0, error: sent ? undefined : 'Échec envoi email' }

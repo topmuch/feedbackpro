@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro — Configuration statique des zones hôtellerie
+// FeedVoice — Configuration statique des zones hôtellerie
 // ------------------------------------------------------------
 // Source de vérité pour les 15 zones hôtel et leurs
 // problématiques prédéfinies (boutons rapides). Le seed

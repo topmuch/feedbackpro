@@ -31,7 +31,7 @@ export async function POST(req: Request) {
       )
     }
     // Auto-seed les règles si la table est vide (la première fois que
-    // Denise est appelée, les règles n'existent pas encore → elle se
+    // Nathalie est appelée, les règles n'existent pas encore → elle se
     // tait avec reason='no_rule'. On seed ici pour éviter ça).
     try {
       await seedVoiceRulesIfEmpty()

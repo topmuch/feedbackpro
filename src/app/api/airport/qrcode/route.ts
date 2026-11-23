@@ -49,7 +49,7 @@ export async function GET(req: NextRequest) {
     width: TAILLE_QR,
     margin: 2,
     errorCorrectionLevel: 'H',
-    color: { dark: '#0f172a', light: '#ffffff' },
+    color: { dark: '#0f0f1c', light: '#ffffff' },
   })
 
   // Format PDF : poster A4 avec QR + nom zone + instructions
@@ -81,7 +81,7 @@ async function genererPosterPdf(
   scanUrl: string,
 ): Promise<Buffer> {
   // Construction d'un PDF simple via une approche minimaliste :
-  // on utilise la lib jsPDF (déjà installée pour les affiches FeedbackPro)
+  // on utilise la lib jsPDF (déjà installée pour les affiches FeedVoice)
   const { default: jsPDF } = await import('jspdf')
 
   const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })

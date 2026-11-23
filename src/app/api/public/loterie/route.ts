@@ -27,6 +27,7 @@ import { db } from "@/lib/db"
 import { ok, fail } from "@/lib/session"
 import { getModuleActif, getModuleConfig, MODULE_KEYS } from "@/lib/modules"
 import { z } from "zod"
+import { limiteTaux } from "@/lib/rate-limit"
 
 const bodySchema = z.object({
   qrToken: z.string().trim().min(1),
@@ -50,6 +51,9 @@ function genererCode(): string {
 }
 
 export async function POST(req: NextRequest) {
+  // Anti-spam loterie : 20 tirages/min/IP.
+  const bloque = limiteTaux(req, "public-loterie", { max: 20, fenetreMs: 60_000 })
+  if (bloque) return bloque
   try {
     // ---------- 1. Vérifie que le module est actif ----------
     const moduleActif = await getModuleActif(MODULE_KEYS.LOTERIE)

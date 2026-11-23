@@ -1,7 +1,7 @@
 "use client"
 
 // ============================================================
-// FeedbackPro - Tabs Cas d'usage (client)
+// FeedVoice - Tabs Cas d'usage (client)
 // ------------------------------------------------------------
 // Encapsule les Tabs shadcn pour la page /cas-usage. Importe
 // directement les données depuis @/lib/landing-data (les icônes
@@ -36,7 +36,7 @@ export function UseCasesTabs() {
           <TabsTrigger
             key={uc.id}
             value={uc.id}
-            className="flex-1 shrink-0 rounded-xl border border-transparent px-4 py-2 text-sm font-medium text-gray-600 transition-all hover:bg-gray-200 data-[state=active]:border-transparent data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#003399] data-[state=active]:to-[#0047c7] data-[state=active]:text-white data-[state=active]:shadow-[0_0_20px_rgba(82,87,201,0.4)]"
+            className="flex-1 shrink-0 rounded-xl border border-transparent px-4 py-2 text-sm font-medium text-gray-600 transition-all hover:bg-gray-200 data-[state=active]:border-transparent data-[state=active]:bg-gradient-to-br data-[state=active]:from-[#000d10] data-[state=active]:to-[#0f0f1c] data-[state=active]:text-white data-[state=active]:shadow-[0_0_20px_rgba(82,87,201,0.4)]"
           >
             <span className="mr-1.5">{uc.emoji}</span>
             <span className="hidden sm:inline">{uc.label}</span>
@@ -48,9 +48,9 @@ export function UseCasesTabs() {
         const Icone = uc.icone
         return (
           <TabsContent key={uc.id} value={uc.id} className="mt-6">
-            <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
+            <div className="rounded-none border border-gray-200 bg-white p-6 shadow-sm sm:p-8">
               <div className="flex items-center gap-3">
-                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#003399] to-[#0047c7] text-white">
+                <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#000d10] to-[#0f0f1c] text-white">
                   <Icone className="h-6 w-6" />
                 </span>
                 <div>
@@ -58,7 +58,7 @@ export function UseCasesTabs() {
                     {uc.emoji} {uc.label}
                   </h3>
                   <p className="text-sm text-gray-600">
-                    4 points clés couverts par FeedbackPro
+                    4 points clés couverts par FeedVoice
                   </p>
                 </div>
               </div>
@@ -69,7 +69,7 @@ export function UseCasesTabs() {
                     key={pt.titre}
                     className="flex items-start gap-3 rounded-2xl bg-gray-50 p-4"
                   >
-                    <Check className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" aria-hidden />
+                    <Check className="mt-0.5 h-5 w-5 shrink-0 text-[#bc7155]" aria-hidden />
                     <div>
                       <p className="text-sm font-semibold text-gray-900">{pt.titre}</p>
                       <p className="mt-0.5 text-sm text-gray-600">{pt.texte}</p>

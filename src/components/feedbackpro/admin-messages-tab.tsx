@@ -19,15 +19,6 @@ type ContactMsg = {
   createdAt: string
 }
 
-const DEFI_LABELS: Record<string, string> = {
-  incidents: 'Gestion des incidents',
-  satisfaction: 'Satisfaction client',
-  reactivite: 'Réactivité staff',
-  hygiene: 'Hygiène / propreté',
-  maintenance: 'Maintenance',
-  autre: 'Autre',
-}
-
 const SECTOR_LABELS: Record<string, string> = {
   restaurant: 'Restaurant',
   aeroport: 'Aéroport',
@@ -36,6 +27,20 @@ const SECTOR_LABELS: Record<string, string> = {
   hopital: 'Hôpital / Santé',
   erp: 'Établissement public',
   autre: 'Autre',
+  salon_vip_assistance: 'Salon VIP · Assistance',
+}
+
+const DEFI_LABELS: Record<string, string> = {
+  incidents: 'Gestion des incidents',
+  satisfaction: 'Satisfaction client',
+  reactivite: 'Réactivité staff',
+  hygiene: 'Hygiène / propreté',
+  maintenance: 'Maintenance',
+  autre: 'Autre',
+  technique: 'Problème technique',
+  compte: 'Compte & facturation',
+  wifi_qr: 'Wi-Fi / QR Codes',
+  fonctionnalite: 'Demande de fonctionnalité',
 }
 
 export function AdminMessagesTab() {
@@ -76,7 +81,7 @@ export function AdminMessagesTab() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#003399] to-[#FCD116] text-white shadow-lg">
+            <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#000d10] to-[#bc7155] text-white shadow-lg">
               <Inbox className="size-6" />
             </div>
             <div>
@@ -122,11 +127,11 @@ export function AdminMessagesTab() {
         ) : (
           <div className="space-y-3">
             {filtered.map((msg) => (
-              <Card key={msg.id} className={msg.statut === 'NOUVEAU' ? 'border-[#003399]/30 ring-1 ring-[#003399]/10' : ''}>
+              <Card key={msg.id} className={msg.statut === 'NOUVEAU' ? 'border-[#000d10]/30 ring-1 ring-[#000d10]/10' : ''}>
                 <CardHeader className="pb-3">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-2">
-                      <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#003399] to-[#FCD116] text-sm font-bold text-white">
+                      <div className="flex size-10 items-center justify-center rounded-xl bg-gradient-to-br from-[#000d10] to-[#bc7155] text-sm font-bold text-white">
                         {msg.nom.charAt(0).toUpperCase()}
                       </div>
                       <div>

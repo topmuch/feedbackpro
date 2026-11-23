@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Helper pour créer des notifications in-app (cloche)
+// FeedVoice - Helper pour créer des notifications in-app (cloche)
 // Strictement non bloquant : un échec d'écriture ne casse jamais le flux.
 //
 // Types connus :

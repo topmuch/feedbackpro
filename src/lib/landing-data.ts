@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Données landing partagées
+// FeedVoice - Données landing partagées
 // ------------------------------------------------------------
 // Source unique pour les contenus marketing (features, use cases,
 // pricing, comparison, testimonials, FAQ) utilisés à la fois par
@@ -234,15 +234,15 @@ export const USE_CASES: {
   },
 ]
 
-// ---------- Comparatif Traditionnel vs FeedbackPro ----------
+// ---------- Comparatif Traditionnel vs FeedVoice ----------
 
-export const COMPARISON_ROWS: { critere: string; traditionnel: string; feedbackpro: string }[] = [
-  { critere: "Prix", traditionnel: "500 – 1 500 € par visite", feedbackpro: "29 € / mois" },
-  { critere: "Fréquence", traditionnel: "1 visite par mois", feedbackpro: "Audit quotidien automatique" },
-  { critere: "Couverture", traditionnel: "1 client mystère fictif", feedbackpro: "Tous vos vrais clients" },
-  { critere: "Réactivité", traditionnel: "Rapport sous 15 jours", feedbackpro: "Alerte WhatsApp en temps réel" },
-  { critere: "Actionnable", traditionnel: "Synthèse qualitative vague", feedbackpro: "Top 3 priorités générées par IA" },
-  { critere: "ROI", traditionnel: "6 à 12 mois", feedbackpro: "Moins de 1 mois" },
+export const COMPARISON_ROWS: { critere: string; traditionnel: string; feedvoice: string }[] = [
+  { critere: "Prix", traditionnel: "500 – 1 500 € par visite", feedvoice: "29 € / mois" },
+  { critere: "Fréquence", traditionnel: "1 visite par mois", feedvoice: "Audit quotidien automatique" },
+  { critere: "Couverture", traditionnel: "1 client mystère fictif", feedvoice: "Tous vos vrais clients" },
+  { critere: "Réactivité", traditionnel: "Rapport sous 15 jours", feedvoice: "Alerte WhatsApp en temps réel" },
+  { critere: "Actionnable", traditionnel: "Synthèse qualitative vague", feedvoice: "Top 3 priorités générées par IA" },
+  { critere: "ROI", traditionnel: "6 à 12 mois", feedvoice: "Moins de 1 mois" },
 ]
 
 // ---------- Témoignages ----------
@@ -264,7 +264,7 @@ export const TESTIMONIALS: {
       "En 3 semaines, on a corrigé un problème d'attente au déjeuner qu'on traînait depuis 2 ans. Le rapport du matin m'a permis de cibler exactement qui former.",
     note: 5,
     initiales: "SM",
-    couleur: "from-[#002e85] to-[#0047c7]",
+    couleur: "from-[#1A1A1A] to-[#1A1A1A]",
   },
   {
     nom: "Karim Benali",
@@ -274,7 +274,7 @@ export const TESTIMONIALS: {
       "On a divisé par 4 les avis négatifs Google en 2 mois. Les alertes WhatsApp m'ont sauvé 3 clients qui allaient partir. ROI atteint en 3 semaines.",
     note: 5,
     initiales: "KB",
-    couleur: "from-emerald-500 to-teal-500",
+    couleur: "from-[#C9A961] to-[#C9A961]",
   },
   {
     nom: "Émilie Faure",
@@ -284,7 +284,7 @@ export const TESTIMONIALS: {
       "On pilotait 8 boutiques à l'instinct. Aujourd'hui chaque manager reçoit son rapport matinal. Le leaderboard a complètement changé la dynamique d'équipe.",
     note: 5,
     initiales: "EF",
-    couleur: "from-[#002e85] to-[#0047c7]",
+    couleur: "from-[#1A1A1A] to-[#1A1A1A]",
   },
 ]
 
@@ -292,7 +292,7 @@ export const TESTIMONIALS: {
 
 export const FAQ_ITEMS: { q: string; r: string }[] = [
   {
-    q: "Comment fonctionne FeedbackPro concrètement ?",
+    q: "Comment fonctionne FeedVoice concrètement ?",
     r: "Vous créez une zone (accueil, salle, terrasse…), nous générons un QR code dédié. Le client le scanne, note en 10 secondes, choisit des tags. Notre Coach IA analyse tout et vous livre chaque matin un rapport avec vos 3 priorités du jour.",
   },
   {

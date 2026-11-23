@@ -32,7 +32,7 @@
 //      - Écran incident-new : détails (zone, type, signalé il y a…).
 //      - Bouton "PRENDRE EN CHARGE" → POST /api/airport/staff-scan
 //        action=TAKE_CHARGE → statut EN_COURS + assignedTo=staffName.
-//      - Feedback : vibrer() + Denise "Incident pris en charge par
+//      - Feedback : vibrer() + Nathalie "Incident pris en charge par
 //        <name>." + redirection vers "Mes incidents en cours".
 //
 //   S4 Gestion "En Cours"
@@ -49,7 +49,7 @@
 //        optionnel + photo optionnelle.
 //      - Bouton "CONFIRMER" → POST /api/airport/staff-scan action=RESOLVE
 //        → statut RESOLU + calcul résolution time.
-//      - Denise : "Incident résolu en <minutes> minutes."
+//      - Nathalie : "Incident résolu en <minutes> minutes."
 //      - L'incident passe dans "Historique/Résolus" (dashboard).
 //
 //   S6 Edge Cases
@@ -182,7 +182,7 @@ interface EmployeEntry {
   proId: string
 }
 
-// WAHOO-3 — Réponse de /api/airport/check-record (gamification Denise)
+// WAHOO-3 — Réponse de /api/airport/check-record (gamification Nathalie)
 interface CheckRecordResponse {
   isRecord: boolean
   isUnderTarget: boolean
@@ -211,7 +211,7 @@ const STAFF_PIN_PREFIX = 'fp-staff-pin:'
 const IGNORED_IDS_KEY = 'fp-staff-ignored-ids'
 
 // Couleur primaire interface (bleu aeroport V2.0)
-const BLEU = '#003399'
+const BLEU = '#000d10'
 const BLEU_DARK = '#002288'
 
 // Tags d'exemple pour le quick-pick du scanner
@@ -243,7 +243,7 @@ const URGENT_KEYWORDS = [
 ]
 
 // ============================================================
-// Voice Decision Engine — Denise "réfléchit" avant de parler
+// Voice Decision Engine — Nathalie "réfléchit" avant de parler
 // ------------------------------------------------------------
 // Au lieu d'appeler parler() directement pour chaque nouvel incident,
 // on interroge le moteur /api/voice/decide. Il applique :
@@ -433,7 +433,7 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
   // Toast inline minimal
   const [toast, setToast] = useState<string | null>(null)
 
-  // WAHOO-3 — Coach vocal Denise + gamification
+  // WAHOO-3 — Coach vocal Nathalie + gamification
   // celebration : emoji géant centré à l'écran pendant 2.5s quand l'agent
   //   bat son record perso (effet "level up" visuel). Null = pas d'overlay.
   // recordToast : pill stylée (or pour record, vert pour under target) qui
@@ -487,7 +487,7 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
   const ignoredIdsRef = useRef<Set<string>>(new Set())
   const firstPollDoneRef = useRef(false)
 
-  // --- Task WAHOO-4 — Mode Prédictif de Denise (polling 5 min) ---
+  // --- Task WAHOO-4 — Mode Prédictif de Nathalie (polling 5 min) ---
   // announcedPredictionsRef : mémorise les IDs de prédictions HIGH déjà
   //   annoncées vocalement par parler() — évite de répéter la même
   //   prédiction à chaque cycle de 5 min (anti-spam).
@@ -812,7 +812,7 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
 
       for (const r of fresh) seenReportIdsRef.current.add(r.id)
 
-      // S2 — Chaîne d'alerte : vibrer + ding + Denise
+      // S2 — Chaîne d'alerte : vibrer + ding + Nathalie
       vibrer()
       jouerDing()
       // VDE — Voice Decision Engine :
@@ -820,7 +820,7 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
       // (/api/voice/decide) qui applique la matrice de règles (sector +
       // eventType), le mode horaire, l'agrégation et la déduplication.
       // Le moteur renvoie une décision : si shouldSpeak=true, decideAndParler
-      // appelle parler(message) avec le template rendu. Sinon, Denise se
+      // appelle parler(message) avec le template rendu. Sinon, Nathalie se
       // tait (notification visuelle seule — l'incident reste dans la liste
       // "Nouveaux" pour prise en charge manuelle).
       for (const r of fresh) {
@@ -858,7 +858,7 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
     return () => window.clearInterval(id)
   }, [staffName, screen, pollPendingReports])
 
-  // ---------- Task WAHOO-4 — Polling prédictions Denise (5 min) ----------
+  // ---------- Task WAHOO-4 — Polling prédictions Nathalie (5 min) ----------
   //
   // Toutes les 5 min, on interroge /api/airport/predictive-alert. Pour
   // chaque NOUVELLE prédiction HIGH (non encore annoncée), on appelle
@@ -1005,7 +1005,7 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
         }
         setActiveReport(updated)
         vibrer()
-        // S3 — Denise : "Incident pris en charge par <name>"
+        // S3 — Nathalie : "Incident pris en charge par <name>"
         parler(`Incident pris en charge par ${staffName}.`)
         setToast('Pris en charge.')
         go('incident-ongoing', 1)
@@ -1072,7 +1072,7 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
             )
           : 0
 
-        // WAHOO-3 — Coach vocal Denise + gamification "record perso"
+        // WAHOO-3 — Coach vocal Nathalie + gamification "record perso"
         // On interroge l'API check-record pour savoir si la résolution
         // constitue un record perso (all-time) et/ou respecte le SLA cible.
         // En cas d'échec réseau/API, on retombe sur le message par défaut
@@ -1096,7 +1096,7 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
           // Réseau down — on garde le message par défaut (fallback)
         }
 
-        // S5 + WAHOO-3 — Message Denise + son + celebration selon le résultat.
+        // S5 + WAHOO-3 — Message Nathalie + son + celebration selon le résultat.
         // Le prénom rend l'annonce plus chaleureuse ("Bravo Amadou.").
         const prenom = (staffName || 'Agent').split(' ')[0]
         if (recordData?.isRecord && recordData.isUnderTarget) {
@@ -1386,14 +1386,14 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
   // ---------- Rendu ----------
 
   return (
-    <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-blue-50/30 to-emerald-50/40 text-foreground">
+    <div className="relative flex min-h-screen flex-col overflow-hidden bg-gradient-to-br from-slate-50 via-[#f0f1f2]/30 to-[#faf1ec]/40 text-foreground">
       {/* Halos décoratifs */}
-      <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-[#003399]/15 blur-3xl" />
-      <div className="pointer-events-none absolute bottom-0 -left-20 h-64 w-64 rounded-full bg-emerald-400/15 blur-3xl" />
+      <div className="pointer-events-none absolute -top-20 -right-20 h-72 w-72 rounded-full bg-[#000d10]/15 blur-3xl" />
+      <div className="pointer-events-none absolute bottom-0 -left-20 h-64 w-64 rounded-full bg-[#c98b72]/15 blur-3xl" />
 
       {/* Header (masqué sur l'écran login) */}
       {screen !== 'login' && (
-        <header className="relative z-10 bg-gradient-to-r from-[#003399] to-[#002288] text-white shadow-lg">
+        <header className="relative z-10 bg-gradient-to-r from-[#000d10] to-[#002288] text-white shadow-lg">
           <div className="mx-auto flex max-w-md items-center justify-between px-4 py-3">
             <div className="flex items-center gap-2">
               <div className="flex size-8 items-center justify-center rounded-lg bg-white/20 backdrop-blur-sm">
@@ -1403,7 +1403,7 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
                 Staff Airport
               </span>
               {!isOnline && (
-                <span className="ml-1 flex items-center gap-1 rounded-full bg-amber-500/30 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-100">
+                <span className="ml-1 flex items-center gap-1 rounded-full bg-[#bc7155]/30 px-2 py-0.5 text-[10px] font-bold uppercase text-[#f3ddd2]">
                   <WifiOff className="size-3" /> Hors ligne
                 </span>
               )}
@@ -1412,7 +1412,7 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
               {/* Indicateur push activé */}
               {pushEnabled && (
                 <span
-                  className="flex size-7 items-center justify-center rounded-xl bg-emerald-400/30 text-emerald-100"
+                  className="flex size-7 items-center justify-center rounded-xl bg-[#c98b72]/30 text-[#f3ddd2]"
                   aria-label="Notifications push activées"
                   title="Notifications push activées"
                 >
@@ -1595,16 +1595,16 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 20 }}
-              className="pointer-events-none fixed inset-x-0 bottom-6 z-50 mx-auto flex max-w-md items-center justify-center gap-2 rounded-2xl bg-[#1E1E2E] px-4 py-3 text-sm font-semibold text-white shadow-xl"
+              className="pointer-events-none fixed inset-x-0 bottom-6 z-50 mx-auto flex max-w-md items-center justify-center gap-2 rounded-2xl bg-[#0f0f1c] px-4 py-3 text-sm font-semibold text-white shadow-xl"
             >
               {bodyCamUploading ? (
                 <>
-                  <Camera className="size-4 animate-pulse text-[#fbbf24]" />
+                  <Camera className="size-4 animate-pulse text-[#bc7155]" />
                   <span>Traitement photo + GPS…</span>
                 </>
               ) : (
                 <>
-                  <Camera className="size-4 text-[#fbbf24]" />
+                  <Camera className="size-4 text-[#bc7155]" />
                   <span>{bodyCamFlash}</span>
                 </>
               )}
@@ -1617,7 +1617,7 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
       <Dialog open={scanDialogOpen} onOpenChange={setScanDialogOpen}>
         <DialogContent className="w-[95%] max-w-md">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-xl font-black text-[#1E1E2E]">
+            <DialogTitle className="flex items-center gap-2 text-xl font-black text-[#0f0f1c]">
               <QrCode className="size-5" style={{ color: BLEU }} />
               Scanner le QR du lieu
             </DialogTitle>
@@ -1639,14 +1639,14 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
                 <button
                   key={t}
                   onClick={() => setScanInput(t)}
-                  className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-mono font-bold text-slate-700 transition hover:border-[#003399] hover:text-[#003399]"
+                  className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-mono font-bold text-slate-700 transition hover:border-[#000d10] hover:text-[#000d10]"
                 >
                   {t}
                 </button>
               ))}
             </div>
             {scanError && (
-              <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs font-semibold text-amber-700">
+              <p className="rounded-lg bg-[#faf1ec] px-3 py-2 text-xs font-semibold text-[#8a4f3b]">
                 {scanError}
               </p>
             )}
@@ -1663,7 +1663,7 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
             <Button
               onClick={() => void confirmScan()}
               disabled={scanning}
-              className="w-full rounded-xl bg-gradient-to-r from-[#003399] to-[#002288] px-6 text-white sm:w-auto"
+              className="w-full rounded-xl bg-gradient-to-r from-[#000d10] to-[#002288] px-6 text-white sm:w-auto"
             >
               {scanning ? (
                 <Loader2 className="size-4 animate-spin" />
@@ -1715,15 +1715,15 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: 20 }}
-          className="fixed inset-x-0 bottom-6 z-50 mx-auto w-fit max-w-[90%] rounded-xl bg-[#1E1E2E] px-4 py-2.5 text-sm font-semibold text-white shadow-xl"
+          className="fixed inset-x-0 bottom-6 z-50 mx-auto w-fit max-w-[90%] rounded-xl bg-[#0f0f1c] px-4 py-2.5 text-sm font-semibold text-white shadow-xl"
         >
           {toast}
         </motion.div>
       )}
 
       {/* WAHOO-3 — Toast stylé pour les records perso / temps cible.
-          Pilule or (#FCD116, texte navy) pour "Nouveau record personnel",
-          pilule vert (#00A651, texte blanc) pour "Résolu dans les temps cible".
+          Pilule or (#bc7155, texte navy) pour "Nouveau record personnel",
+          pilule vert (#bc7155, texte blanc) pour "Résolu dans les temps cible".
           Positionné en HAUT de l'écran pour ne pas empiéter sur le toast
           sombre par défaut qui reste en bas. S'auto-masque après 4s côté handler. */}
       <AnimatePresence>
@@ -1739,8 +1739,8 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
             className={cn(
               'fixed inset-x-0 top-24 z-[60] mx-auto flex w-fit max-w-[92%] items-center gap-2 rounded-2xl px-4 py-3 text-sm font-black shadow-2xl',
               recordToast.kind === 'record'
-                ? 'bg-[#FCD116] text-[#003399] shadow-[0_10px_30px_rgba(252,209,22,0.45)]'
-                : 'bg-[#00A651] text-white shadow-[0_10px_30px_rgba(0,166,81,0.45)]',
+                ? 'bg-[#bc7155] text-[#000d10] shadow-[0_10px_30px_rgba(252,209,22,0.45)]'
+                : 'bg-[#bc7155] text-white shadow-[0_10px_30px_rgba(0,166,81,0.45)]',
             )}
           >
             {recordToast.text}
@@ -1766,14 +1766,14 @@ export function AirportStaffView({ staffTag, onExit }: { staffTag: string; onExi
           >
             {/* Halo doré pulsant (cercle flou agrandi) */}
             <motion.div
-              className="absolute h-72 w-72 rounded-full bg-[#FCD116]/45 blur-3xl"
+              className="absolute h-72 w-72 rounded-full bg-[#bc7155]/45 blur-3xl"
               initial={{ scale: 0 }}
               animate={{ scale: [0, 1.4, 1.2] }}
               transition={{ duration: 0.7, times: [0, 0.6, 1], ease: 'easeOut' }}
             />
             {/* Anneau doré concentrique (effet "level up ring") */}
             <motion.div
-              className="absolute h-40 w-40 rounded-full border-4 border-[#FCD116]"
+              className="absolute h-40 w-40 rounded-full border-4 border-[#bc7155]"
               initial={{ scale: 0, opacity: 0.9 }}
               animate={{ scale: [0, 2.2], opacity: [0.9, 0] }}
               transition={{ duration: 1, ease: 'easeOut' }}
@@ -1909,10 +1909,10 @@ function LoginScreen({
     <div className="flex flex-1 flex-col justify-center space-y-6">
       {/* Logo + titre */}
       <div className="text-center">
-        <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#003399] to-[#002288] shadow-xl">
+        <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-gradient-to-br from-[#000d10] to-[#002288] shadow-xl">
           <Smartphone className="size-8 text-white" />
         </div>
-        <h1 className="mt-4 text-2xl font-black text-[#1E1E2E]">Staff Airport</h1>
+        <h1 className="mt-4 text-2xl font-black text-[#0f0f1c]">Staff Airport</h1>
         <p className="mt-1 text-sm font-medium text-slate-500">
           {loginStep === 'select'
             ? 'Identifiez-vous pour accéder à votre poste'
@@ -1962,7 +1962,7 @@ function LoginScreen({
             onClick={onExit}
             className="w-full rounded-xl border-2 border-slate-200 bg-white py-3 text-sm font-bold text-slate-500 transition hover:border-slate-300"
           >
-            Retour à l&apos;accueil FeedbackPro
+            Retour à l&apos;accueil FeedVoice
           </button>
         </div>
       ) : (
@@ -2000,7 +2000,7 @@ function LoginScreen({
           <Button
             onClick={onSubmitPin}
             disabled={pinInput.length !== 4}
-            className="w-full rounded-xl bg-gradient-to-r from-[#003399] to-[#002288] py-4 text-base font-black text-white"
+            className="w-full rounded-xl bg-gradient-to-r from-[#000d10] to-[#002288] py-4 text-base font-black text-white"
           >
             {loginMode === 'create' ? 'Créer & se connecter' : 'Se connecter'}
           </Button>
@@ -2069,7 +2069,7 @@ function HomeScreen({
         <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-white shadow-lg ring-1 ring-slate-200">
           <User className="size-7" style={{ color: BLEU }} />
         </div>
-        <h1 className="mt-3 break-words text-xl font-black text-[#1E1E2E] sm:text-2xl">
+        <h1 className="mt-3 break-words text-xl font-black text-[#0f0f1c] sm:text-2xl">
           Bonjour, {staffName}
         </h1>
       </div>
@@ -2086,12 +2086,12 @@ function HomeScreen({
           <StatRow
             label="En cours"
             value={todayStats.enCours.toString()}
-            dotColor="bg-amber-500"
+            dotColor="bg-[#bc7155]"
           />
           <StatRow
             label="Résolus"
             value={todayStats.resolus.toString()}
-            dotColor="bg-emerald-500"
+            dotColor="bg-[#bc7155]"
           />
           <StatRow
             label="Temps moyen"
@@ -2104,7 +2104,7 @@ function HomeScreen({
       {/* Bouton scan central — HUGE */}
       <button
         onClick={onScan}
-        className="group relative flex w-full flex-col items-center gap-3 overflow-hidden rounded-3xl bg-gradient-to-br from-[#003399] to-[#002288] py-8 text-white shadow-xl transition active:scale-[0.98]"
+        className="group relative flex w-full flex-col items-center gap-3 overflow-hidden rounded-none bg-gradient-to-br from-[#000d10] to-[#002288] py-8 text-white shadow-xl transition active:scale-[0.98]"
       >
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/10 to-transparent" />
         <div className="relative flex size-16 items-center justify-center rounded-2xl bg-white/20 backdrop-blur-sm">
@@ -2123,7 +2123,7 @@ function HomeScreen({
       {/* S4 — Mes incidents en cours */}
       <div className="space-y-2">
         <div className="flex items-center gap-2 px-1">
-          <RefreshCw className="size-4 text-amber-500" />
+          <RefreshCw className="size-4 text-[#bc7155]" />
           <h2 className="text-xs font-bold uppercase tracking-wide text-slate-500">
             Mes incidents en cours ({myOngoing.length})
           </h2>
@@ -2133,7 +2133,7 @@ function HomeScreen({
             Aucun incident en cours.
           </Card>
         ) : (
-          <div className="max-h-72 space-y-2 overflow-y-auto rounded-2xl bg-amber-50/40 p-1 ring-1 ring-amber-100">
+          <div className="max-h-72 space-y-2 overflow-y-auto rounded-2xl bg-[#faf1ec]/40 p-1 ring-1 ring-[#f3ddd2]">
             {myOngoing.map((r) => (
               <OngoingIncidentCard key={r.id} report={r} onClick={() => onClickOngoing(r)} />
             ))}
@@ -2163,7 +2163,7 @@ function HomeScreen({
         <button
           onClick={onEnablePush}
           disabled={pushEnrolling}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-emerald-200 bg-emerald-50 py-4 text-base font-bold text-emerald-700 transition hover:border-emerald-400 hover:bg-emerald-100 disabled:opacity-60"
+          className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-[#e7c1ae] bg-[#faf1ec] py-4 text-base font-bold text-[#8a4f3b] transition hover:border-[#c98b72] hover:bg-[#f3ddd2] disabled:opacity-60"
         >
           {pushEnrolling ? (
             <Loader2 className="size-4 animate-spin" />
@@ -2174,7 +2174,7 @@ function HomeScreen({
         </button>
       )}
       {pushEnabled && (
-        <div className="flex items-center justify-center gap-2 rounded-xl bg-emerald-50 py-3 text-sm font-bold text-emerald-700 ring-1 ring-emerald-200">
+        <div className="flex items-center justify-center gap-2 rounded-xl bg-[#faf1ec] py-3 text-sm font-bold text-[#8a4f3b] ring-1 ring-[#e7c1ae]">
           <BellRing className="size-4" />
           Notifications activées — alertes même app fermée
         </div>
@@ -2184,7 +2184,7 @@ function HomeScreen({
       <Button
         onClick={onDashboard}
         variant="outline"
-        className="w-full rounded-xl border-2 border-slate-200 bg-white py-4 text-base font-bold text-[#1E1E2E] hover:border-[#003399] hover:text-[#003399]"
+        className="w-full rounded-xl border-2 border-slate-200 bg-white py-4 text-base font-bold text-[#0f0f1c] hover:border-[#000d10] hover:text-[#000d10]"
       >
         <BarChart3 className="size-4" />
         Voir Dashboard Complet
@@ -2195,7 +2195,7 @@ function HomeScreen({
         <div className="space-y-2">
           <button
             onClick={onInstall}
-            className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-slate-200 bg-white py-4 text-base font-bold text-[#1E1E2E] transition hover:border-[#003399] hover:text-[#003399]"
+            className="flex w-full items-center justify-center gap-2 rounded-xl border-2 border-slate-200 bg-white py-4 text-base font-bold text-[#0f0f1c] transition hover:border-[#000d10] hover:text-[#000d10]"
           >
             <Download className="size-4" />
             Installer l&apos;app
@@ -2203,10 +2203,10 @@ function HomeScreen({
           {showIOSHint && isIOS && (
             <div
               role="alert"
-              className="space-y-2 rounded-xl bg-amber-50 p-4 text-sm text-amber-900 ring-1 ring-amber-200"
+              className="space-y-2 rounded-xl bg-[#faf1ec] p-4 text-sm text-[#573125] ring-1 ring-[#e7c1ae]"
             >
               <div className="flex items-center gap-2">
-                <Share className="size-4 shrink-0 text-amber-600" />
+                <Share className="size-4 shrink-0 text-[#a05f45]" />
                 <p className="font-bold">Installer sur iPhone / iPad</p>
               </div>
               <p className="leading-relaxed">
@@ -2215,7 +2215,7 @@ function HomeScreen({
               </p>
               <button
                 onClick={onDismissIOSHint}
-                className="text-xs font-bold text-amber-700 underline-offset-2 hover:underline"
+                className="text-xs font-bold text-[#8a4f3b] underline-offset-2 hover:underline"
               >
                 Fermer
               </button>
@@ -2248,7 +2248,7 @@ function StatRow({
         )}
         <span className="text-sm font-semibold text-slate-700">{label}</span>
       </div>
-      <span className="text-lg font-black text-[#1E1E2E]">{value}</span>
+      <span className="text-lg font-black text-[#0f0f1c]">{value}</span>
     </div>
   )
 }
@@ -2258,12 +2258,12 @@ function OngoingIncidentCard({ report, onClick }: { report: ReportShape; onClick
   return (
     <button
       onClick={onClick}
-      className="flex w-full items-center justify-between gap-2 rounded-xl bg-white/90 px-3 py-3 text-left shadow-sm ring-1 ring-amber-200 transition hover:bg-white active:scale-[0.99]"
+      className="flex w-full items-center justify-between gap-2 rounded-xl bg-white/90 px-3 py-3 text-left shadow-sm ring-1 ring-[#e7c1ae] transition hover:bg-white active:scale-[0.99]"
     >
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
-          <span className={cn('size-2 rounded-full', urgent ? 'bg-red-500' : 'bg-amber-500')} />
-          <p className="truncate text-sm font-bold text-[#1E1E2E]">
+          <span className={cn('size-2 rounded-full', urgent ? 'bg-red-500' : 'bg-[#bc7155]')} />
+          <p className="truncate text-sm font-bold text-[#0f0f1c]">
             {report.zone.nom || report.tagScanne}
           </p>
         </div>
@@ -2286,7 +2286,7 @@ function OngoingTimer({ report }: { report: ReportShape }) {
   const sec = Math.max(0, Math.floor((Date.now() - start) / 1000))
   return (
     <div className="flex shrink-0 flex-col items-end">
-      <Badge className="rounded-full bg-amber-100 font-bold text-amber-800">
+      <Badge className="rounded-full bg-[#f3ddd2] font-bold text-[#6f3f30]">
         {formatMMSS(sec)}
       </Badge>
       <span className="mt-0.5 text-[10px] text-slate-400">en cours</span>
@@ -2304,7 +2304,7 @@ function NewIncidentCard({ report, onClick }: { report: ReportShape; onClick: ()
       <div className="min-w-0 flex-1">
         <div className="flex items-center gap-1.5">
           {urgent && <TriangleAlert className="size-3.5 text-red-500" />}
-          <p className="truncate text-sm font-bold text-[#1E1E2E]">
+          <p className="truncate text-sm font-bold text-[#0f0f1c]">
             {report.zone.nom || report.tagScanne}
           </p>
         </div>
@@ -2341,7 +2341,7 @@ function IncidentNewScreen({
     <div className="space-y-4">
       <button
         onClick={onBack}
-        className="flex items-center gap-1 text-xs font-bold text-[#003399]"
+        className="flex items-center gap-1 text-xs font-bold text-[#000d10]"
       >
         <ArrowLeft className="size-3.5" /> Retour accueil
       </button>
@@ -2352,7 +2352,7 @@ function IncidentNewScreen({
           'overflow-hidden rounded-2xl px-4 py-4 text-white shadow-lg sm:px-5',
           urgent
             ? 'bg-gradient-to-r from-red-500 to-red-600'
-            : 'bg-gradient-to-r from-amber-500 to-amber-600',
+            : 'bg-gradient-to-r from-[#bc7155] to-[#a05f45]',
         )}
       >
         <div className="flex items-center gap-2">
@@ -2377,7 +2377,7 @@ function IncidentNewScreen({
         <button
           onClick={onTakeCharge}
           disabled={submitting}
-          className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 py-4 text-base font-black uppercase tracking-wide text-white shadow-lg transition active:scale-[0.98] disabled:opacity-60"
+          className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#bc7155] to-[#a05f45] py-4 text-base font-black uppercase tracking-wide text-white shadow-lg transition active:scale-[0.98] disabled:opacity-60"
         >
           {submitting ? (
             <Loader2 className="size-5 animate-spin" />
@@ -2445,13 +2445,13 @@ function IncidentOngoingScreen({
     <div className="space-y-4">
       <button
         onClick={onBack}
-        className="flex items-center gap-1 text-xs font-bold text-[#003399]"
+        className="flex items-center gap-1 text-xs font-bold text-[#000d10]"
       >
         <ArrowLeft className="size-3.5" /> Retour accueil
       </button>
 
       {/* Header bleu aeroport (en cours) */}
-      <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-[#003399] to-[#002288] px-4 py-4 text-white shadow-lg sm:px-5">
+      <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-[#000d10] to-[#002288] px-4 py-4 text-white shadow-lg sm:px-5">
         <div className="flex items-center gap-2">
           <RefreshCw className="size-6" />
           <h1 className="text-xl font-black uppercase tracking-wide">Incident En Cours</h1>
@@ -2462,13 +2462,13 @@ function IncidentOngoingScreen({
       </div>
 
       {/* Timer live — S4 */}
-      <Card className="rounded-2xl border-2 border-amber-200 bg-amber-50/60 p-4 shadow-md sm:p-5">
+      <Card className="rounded-2xl border-2 border-[#e7c1ae] bg-[#faf1ec]/60 p-4 shadow-md sm:p-5">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-amber-700">
+          <div className="flex items-center gap-2 text-[#8a4f3b]">
             <Clock className="size-5" />
             <span className="text-sm font-bold">En cours depuis</span>
           </div>
-          <span className="font-mono text-2xl font-black text-amber-900">
+          <span className="font-mono text-2xl font-black text-[#573125]">
             {formatMMSS(sinceSec)}
           </span>
         </div>
@@ -2483,16 +2483,16 @@ function IncidentOngoingScreen({
       </Card>
 
       {/* Task F3 — Body Cam : photo AVANT (capture manuelle + aperçu) */}
-      <Card className="rounded-2xl border-2 border-amber-200 bg-amber-50/40 p-4 shadow-sm sm:p-5">
+      <Card className="rounded-2xl border-2 border-[#e7c1ae] bg-[#faf1ec]/40 p-4 shadow-sm sm:p-5">
         <div className="mb-3 flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 text-amber-700">
+          <div className="flex items-center gap-2 text-[#8a4f3b]">
             <Camera className="size-5" />
             <span className="text-xs font-bold uppercase tracking-wide">
               Photo AVANT intervention
             </span>
           </div>
           {bodyCamPhotoUrl && (
-            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-700">
+            <span className="rounded-full bg-[#f3ddd2] px-2 py-0.5 text-[10px] font-bold uppercase text-[#8a4f3b]">
               Capturée
             </span>
           )}
@@ -2504,14 +2504,14 @@ function IncidentOngoingScreen({
             <img
               src={bodyCamPhotoUrl}
               alt="Photo AVANT capturée"
-              className="w-full rounded-xl border-2 border-amber-200 object-cover shadow-sm"
+              className="w-full rounded-xl border-2 border-[#e7c1ae] object-cover shadow-sm"
               style={{ maxHeight: '240px' }}
             />
             <button
               type="button"
               onClick={onTakeBodyCamPhoto}
               disabled={bodyCamUploading || !canTakeBodyCam || submitting}
-              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border-2 border-amber-300 bg-white py-2.5 text-xs font-bold uppercase text-amber-700 transition hover:bg-amber-50 disabled:opacity-50"
+              className="flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border-2 border-[#dba28a] bg-white py-2.5 text-xs font-bold uppercase text-[#8a4f3b] transition hover:bg-[#faf1ec] disabled:opacity-50"
             >
               <RefreshCw className={bodyCamUploading ? 'size-3.5 animate-spin' : 'size-3.5'} />
               {bodyCamUploading ? 'Traitement…' : 'Reprendre la photo'}
@@ -2522,7 +2522,7 @@ function IncidentOngoingScreen({
             type="button"
             onClick={onTakeBodyCamPhoto}
             disabled={bodyCamUploading || !canTakeBodyCam || submitting}
-            className="flex min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 py-3 text-sm font-black uppercase tracking-wide text-white shadow-md transition active:scale-[0.98] disabled:opacity-50"
+            className="flex min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-[#c98b72] to-[#bc7155] py-3 text-sm font-black uppercase tracking-wide text-white shadow-md transition active:scale-[0.98] disabled:opacity-50"
           >
             {bodyCamUploading ? (
               <>
@@ -2546,8 +2546,8 @@ function IncidentOngoingScreen({
 
       {/* Commentaire inline (optionnel) — S4 */}
       {showCommentInline && (
-        <Card className="rounded-2xl border-2 border-sky-200 bg-sky-50/50 p-4 shadow-sm">
-          <Label className="mb-2 block text-xs font-bold uppercase tracking-wide text-sky-700">
+        <Card className="rounded-2xl border-2 border-[#b9bbc2] bg-[#f0f1f2]/50 p-4 shadow-sm">
+          <Label className="mb-2 block text-xs font-bold uppercase tracking-wide text-[#2e3040]">
             Commentaire (sera joint à la résolution)
           </Label>
           <Textarea
@@ -2556,7 +2556,7 @@ function IncidentOngoingScreen({
             rows={3}
             maxLength={500}
             placeholder="Ex: Papier rajouté, distributeur redémarré…"
-            className="rounded-xl border-2 border-sky-200 bg-white"
+            className="rounded-xl border-2 border-[#b9bbc2] bg-white"
           />
         </Card>
       )}
@@ -2567,14 +2567,14 @@ function IncidentOngoingScreen({
         <button
           onClick={onResolve}
           disabled={submitting}
-          className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 py-4 text-base font-black uppercase tracking-wide text-white shadow-lg transition active:scale-[0.98] disabled:opacity-60"
+          className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#bc7155] to-[#a05f45] py-4 text-base font-black uppercase tracking-wide text-white shadow-lg transition active:scale-[0.98] disabled:opacity-60"
         >
           <CheckCircle2 className="size-5" />
           Marquer comme résolu
         </button>
         <button
           onClick={onToggleComment}
-          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border-2 border-slate-200 bg-white py-3 text-sm font-bold text-slate-700 transition hover:border-sky-400 hover:text-sky-600"
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border-2 border-slate-200 bg-white py-3 text-sm font-bold text-slate-700 transition hover:border-[#5e6070] hover:text-[#3c3e4c]"
         >
           <MessageSquare className="size-4" />
           {showCommentInline ? 'Masquer le commentaire' : 'Ajouter une note'}
@@ -2617,13 +2617,13 @@ function ResolveConfirmScreen({
     <div className="space-y-4">
       <button
         onClick={onBack}
-        className="flex items-center gap-1 text-xs font-bold text-[#003399]"
+        className="flex items-center gap-1 text-xs font-bold text-[#000d10]"
       >
         <ArrowLeft className="size-3.5" /> Retour
       </button>
 
       {/* Header green */}
-      <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 px-4 py-4 text-white shadow-lg sm:px-5">
+      <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-[#bc7155] to-[#a05f45] px-4 py-4 text-white shadow-lg sm:px-5">
         <div className="flex items-center gap-2">
           <CheckCircle2 className="size-6" />
           <h1 className="text-xl font-black uppercase tracking-wide">Confirmer Résolution</h1>
@@ -2636,10 +2636,10 @@ function ResolveConfirmScreen({
       {/* Temps écoulé */}
       <Card className="flex items-center justify-between rounded-2xl border-0 bg-white/90 p-4 shadow-md ring-1 ring-slate-200 sm:p-5">
         <div className="flex items-center gap-2 text-slate-600">
-          <Clock className="size-5 text-emerald-600" />
+          <Clock className="size-5 text-[#a05f45]" />
           <span className="text-sm font-semibold">Temps écoulé</span>
         </div>
-        <span className="text-2xl font-black text-[#1E1E2E]">{elapsedMin} min</span>
+        <span className="text-2xl font-black text-[#0f0f1c]">{elapsedMin} min</span>
       </Card>
 
       {/* Commentaire optionnel */}
@@ -2666,12 +2666,12 @@ function ResolveConfirmScreen({
           <button
             onClick={onPickPhoto}
             disabled={photoUploading}
-            className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-white/60 py-6 transition hover:border-[#003399] disabled:opacity-60"
+            className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-300 bg-white/60 py-6 transition hover:border-[#000d10] disabled:opacity-60"
           >
             {photoUploading ? (
-              <Loader2 className="size-7 animate-spin text-[#003399]" />
+              <Loader2 className="size-7 animate-spin text-[#000d10]" />
             ) : (
-              <Camera className="size-7 text-[#003399]" />
+              <Camera className="size-7 text-[#000d10]" />
             )}
             <span className="text-sm font-bold text-slate-700">
               {photoUploading ? 'Upload…' : 'Prendre / choisir une photo'}
@@ -2696,7 +2696,7 @@ function ResolveConfirmScreen({
         <button
           onClick={onConfirm}
           disabled={submitting || photoUploading}
-          className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 py-4 text-base font-black uppercase tracking-wide text-white shadow-lg transition active:scale-[0.98] disabled:opacity-60"
+          className="flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-[#bc7155] to-[#a05f45] py-4 text-base font-black uppercase tracking-wide text-white shadow-lg transition active:scale-[0.98] disabled:opacity-60"
         >
           {submitting ? (
             <Loader2 className="size-5 animate-spin" />
@@ -2745,15 +2745,15 @@ function DashboardScreen({
     <div className="space-y-4">
       <button
         onClick={onBack}
-        className="flex items-center gap-1 text-xs font-bold text-[#003399]"
+        className="flex items-center gap-1 text-xs font-bold text-[#000d10]"
       >
         <ArrowLeft className="size-3.5" /> Retour accueil
       </button>
 
       {/* Header */}
-      <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-[#1E1E2E] to-[#2D2D44] px-4 py-4 text-white shadow-lg sm:px-5">
+      <div className="overflow-hidden rounded-2xl bg-gradient-to-r from-[#0f0f1c] to-[#2D2D44] px-4 py-4 text-white shadow-lg sm:px-5">
         <div className="flex items-center gap-2">
-          <Trophy className="size-6 text-amber-400" />
+          <Trophy className="size-6 text-[#c98b72]" />
           <h1 className="text-xl font-black uppercase tracking-wide">Dashboard Staff</h1>
         </div>
         {staffName && (
@@ -2776,14 +2776,14 @@ function DashboardScreen({
             <DashboardRow
               label="Normaux en cours"
               value={normalEnCours.toString()}
-              valueColor="text-amber-600"
-              dotColor="bg-amber-500"
+              valueColor="text-[#a05f45]"
+              dotColor="bg-[#bc7155]"
             />
             <DashboardRow
               label="Résolus"
               value={todayStats.resolus.toString()}
-              valueColor="text-emerald-600"
-              dotColor="bg-emerald-500"
+              valueColor="text-[#a05f45]"
+              dotColor="bg-[#bc7155]"
             />
             <DashboardRow
               label="Temps moyen"
@@ -2799,13 +2799,13 @@ function DashboardScreen({
             <DashboardRow
               label="Total résolus"
               value={(monthStats?.resolutions ?? 0).toString()}
-              icon={<CheckCircle2 className="size-4 text-emerald-500" />}
+              icon={<CheckCircle2 className="size-4 text-[#bc7155]" />}
             />
             <DashboardRow
               label="Score réactivité"
               value={`${reactivityScore(monthStats?.avgMinutes ?? 0)}%`}
-              valueColor="text-[#003399]"
-              icon={<TrendingUp className="size-4 text-[#003399]" />}
+              valueColor="text-[#000d10]"
+              icon={<TrendingUp className="size-4 text-[#000d10]" />}
             />
             <DashboardRow
               label="Rang équipe"
@@ -2814,7 +2814,7 @@ function DashboardScreen({
                   ? `${ordinalFr(monthStats.rank)}/${Math.max(leaderboardSize, monthStats.rank)}`
                   : 'N/A'
               }
-              icon={<Trophy className="size-4 text-amber-500" />}
+              icon={<Trophy className="size-4 text-[#bc7155]" />}
             />
             <DashboardRow
               label="Points"
@@ -2843,7 +2843,7 @@ function DashboardScreen({
                     className="flex items-center justify-between gap-2 px-4 py-3 sm:px-5"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-bold text-[#1E1E2E]">
+                      <p className="truncate text-sm font-bold text-[#0f0f1c]">
                         {r.zone.nom || r.tagScanne}
                       </p>
                       <p className="truncate text-xs text-slate-500">{r.problemType}</p>
@@ -2851,7 +2851,7 @@ function DashboardScreen({
                     <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
                       <Badge
                         variant="secondary"
-                        className="rounded-full bg-emerald-50 font-bold text-emerald-700"
+                        className="rounded-full bg-[#faf1ec] font-bold text-[#8a4f3b]"
                       >
                         {dur} min
                       </Badge>
@@ -2868,7 +2868,7 @@ function DashboardScreen({
 
         <button
           onClick={onBack}
-          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border-2 border-slate-200 bg-white py-3 text-sm font-bold text-slate-700 transition hover:border-[#003399] hover:text-[#003399]"
+          className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl border-2 border-slate-200 bg-white py-3 text-sm font-bold text-slate-700 transition hover:border-[#000d10] hover:text-[#000d10]"
         >
           <ArrowLeft className="size-4" /> Retour Accueil
         </button>
@@ -2914,7 +2914,7 @@ function DashboardRow({
         ) : null}
         <span className="text-sm font-semibold text-slate-700">{label}</span>
       </div>
-      <span className={cn('text-base font-black text-[#1E1E2E]', valueColor)}>{value}</span>
+      <span className={cn('text-base font-black text-[#0f0f1c]', valueColor)}>{value}</span>
     </div>
   )
 }
@@ -2936,7 +2936,7 @@ function DetailRow({
       <span
         className={cn(
           'text-right text-sm',
-          bold ? 'font-black text-emerald-600' : 'font-bold text-[#1E1E2E]',
+          bold ? 'font-black text-[#a05f45]' : 'font-bold text-[#0f0f1c]',
         )}
       >
         {value}

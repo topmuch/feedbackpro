@@ -70,7 +70,7 @@ function trendFromCounts(curr: number, prev: number): 'up' | 'down' | 'stable' {
 }
 
 /**
- * Task WAHOO-1 — Denise Traducteur Universel
+ * Task WAHOO-1 — Nathalie Traducteur Universel
  * Extrait le code langue source depuis un commentaire stocké en BDD.
  *
  * Le report API encode la langue source dans le commentaire sous la forme :
@@ -343,10 +343,10 @@ export async function GET() {
   // un id préfixé `sos_` pour éviter toute collision avec les ids
   // d'AirportReport dans les refs de déduplication du wallboard.
   //
-  // Task WAHOO-1 — Denise Traducteur Universel :
+  // Task WAHOO-1 — Nathalie Traducteur Universel :
   // On expose `commentaireLang` (code langue source) parsé depuis le
   // préfixe `[origine:XX]` du commentaire stocké. Le wallboard l'utilise
-  // pour annoncer « Message original en [langue] » via Denise (speak()).
+  // pour annoncer « Message original en [langue] » via Nathalie (speak()).
   // Null si le voyageur a écrit en français (pas de préfixe).
   const recentReports = reports
     .filter((r) => r.createdAt.getTime() >= since24.getTime())

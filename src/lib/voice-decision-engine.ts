@@ -1,7 +1,7 @@
 // ============================================================
-// voice-decision-engine.ts — Cerveau vocal de Denise
+// voice-decision-engine.ts — Cerveau vocal de Nathalie
 // ------------------------------------------------------------
-// Denise ne parle pas pour chaque événement : elle décide. Ce moteur
+// Nathalie ne parle pas pour chaque événement : elle décide. Ce moteur
 // est appelé par :
 //   - POST /api/voice/decide (PWA staff + wallboard)
 //
@@ -111,7 +111,7 @@ export function resolveTimeModeFromHour(sector: Sector, hour: number): string {
 
 /**
  * Renvoie une raison humainement lisible pour une décision.
- * Utile pour l'admin qui veut comprendre pourquoi Denise s'est tue.
+ * Utile pour l'admin qui veut comprendre pourquoi Nathalie s'est tue.
  */
 export function getDecisionReason(decision: VoiceDecision): string {
   const map: Record<string, string> = {
@@ -132,7 +132,7 @@ export function getDecisionReason(decision: VoiceDecision): string {
       "Annonce identique déjà faite dans les 120 dernières secondes (même zone, même type).",
     double_scan_suppressed:
       "Double scan du même signalement dans les 60 dernières secondes.",
-    spoken: "Denise a parlé.",
+    spoken: "Nathalie a parlé.",
   }
   return map[decision.reason] ?? decision.reason
 }
@@ -184,7 +184,7 @@ function renderTemplate(template: string, event: VoiceEvent): string {
 // ---------- Main pipeline ----------
 
 /**
- * Cerveau de Denise. À appeler côté serveur quand un événement remonte
+ * Cerveau de Nathalie. À appeler côté serveur quand un événement remonte
  * (PWA staff, wallboard, scanner QR, etc.). Retourne la décision que le
  * CLIENT appliquera (parler ou non, avec quel message / volume / ton).
  *
@@ -279,7 +279,7 @@ async function decideAndSpeakInner(event: VoiceEvent): Promise<VoiceDecision> {
   const timeMode = resolveTimeModeFromHour(event.sector, hour)
   const rulePriority = rule.priority as Priority
 
-  // Time mode filtering — DÉSACTIVÉ (Denise parle à toute heure)
+  // Time mode filtering — DÉSACTIVÉ (Nathalie parle à toute heure)
   // Les blocs de filtrage horaire (night/service/quiet) ont été supprimés
   // car ils causaient des annonces manquées + erreurs TypeScript.
   // Pour réactiver : recréer les blocs avec les conditions appropriées
@@ -318,7 +318,7 @@ async function decideAndSpeakInner(event: VoiceEvent): Promise<VoiceDecision> {
         createdAt: { gte: windowStart },
         // Ne compter QUE les annonces réellement prononcées (spoken=true).
         // Les annonces supprimées (night_mode, no_rule, etc.) ne doivent
-        // PAS bloquer l'agrégation — sinon Denise ne reparle jamais après
+        // PAS bloquer l'agrégation — sinon Nathalie ne reparle jamais après
         // une première suppression.
         spoken: true,
       },

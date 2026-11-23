@@ -1,7 +1,7 @@
 export const dynamic = "force-dynamic"
 
 // ============================================================
-// FeedbackPro - Page légale : Politique cookies (Session 6 §4)
+// FeedVoice - Page légale : Politique cookies (Session 6 §4)
 // Route réelle : GET /cookies
 // ============================================================
 
@@ -9,16 +9,16 @@ import type { Metadata } from "next"
 import { LegalLayout, SectionLegale } from "@/components/feedbackpro/legal-layout"
 
 export const metadata: Metadata = {
-  title: "Politique cookies — FeedbackPro",
+  title: "Politique cookies — FeedVoice",
   description:
-    "Politique cookies de FeedbackPro : uniquement des cookies essentiels (session), aucun traceur publicitaire ni mesure d'audience tierce.",
+    "Politique cookies de FeedVoice : uniquement des cookies essentiels (session), aucun traceur publicitaire ni mesure d'audience tierce.",
 }
 
 export default function CookiesPage() {
   return (
     <LegalLayout
       titre="Politique cookies"
-      description="FeedbackPro privilégie une approche minimaliste : un seul cookie, strictement nécessaire, aucun traceur publicitaire ni bandeau de consentement requis."
+      description="FeedVoice privilégie une approche minimaliste : un seul cookie, strictement nécessaire, aucun traceur publicitaire ni bandeau de consentement requis."
       dateMiseAJour="1er février 2026"
       pageActive="/cookies"
     >
@@ -32,7 +32,7 @@ export default function CookiesPage() {
 
       <SectionLegale titre="2. Cookies utilisés">
         <p>
-          FeedbackPro dépose <strong>un seul cookie</strong>, strictement nécessaire au
+          FeedVoice dépose <strong>un seul cookie</strong>, strictement nécessaire au
           fonctionnement du service :
         </p>
         <div className="overflow-x-auto">
@@ -106,7 +106,7 @@ export default function CookiesPage() {
       <SectionLegale titre="6. Questions">
         <p>
           Une question sur cette politique ? Écrivez à{" "}
-          <a className="text-primary underline underline-offset-2" href="mailto:privacy@feedbackpro.fr">privacy@feedbackpro.fr</a>.
+          <a className="text-primary underline underline-offset-2" href="mailto:privacy@feedvoice.fr">privacy@feedvoice.fr</a>.
         </p>
       </SectionLegale>
     </LegalLayout>

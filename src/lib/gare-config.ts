@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro — Configuration statique des zones gare
+// FeedVoice — Configuration statique des zones gare
 // ------------------------------------------------------------
 // Source de vérité pour les 12 zones gare (routière + maritime)
 // et leurs problématiques prédéfinies (boutons rapides). Le seed

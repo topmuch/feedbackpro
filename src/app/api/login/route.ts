@@ -1,12 +1,16 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { hashPassword } from '@/lib/auth'
 import { createSession, attachSessionCookie } from '@/lib/session'
+import { limiteTaux } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-export async function POST(req: Request) {
+export async function POST(req: NextRequest) {
+  // Brute-force : même politique que /api/auth/login (8 / min / IP).
+  const bloque = limiteTaux(req, "login-legacy", { max: 8, fenetreMs: 60_000 })
+  if (bloque) return bloque
   try {
     const body = await req.json()
     const email = String(body?.email ?? '').trim().toLowerCase()

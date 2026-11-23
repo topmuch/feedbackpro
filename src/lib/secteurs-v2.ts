@@ -1,5 +1,5 @@
 // ============================================================
-// FeedbackPro - Base de vérité sectorielle v2 (5 macro-secteurs)
+// FeedVoice - Base de vérité sectorielle v2 (5 macro-secteurs)
 // ------------------------------------------------------------
 // Source de vérité des 5 macro-secteurs (RESTAURATION, HOTELLERIE,
 // TRANSPORT_AEROPORT_GARE, SANTE_HOPITAL_CLINIQUE,

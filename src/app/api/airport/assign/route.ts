@@ -169,7 +169,7 @@ export async function POST(req: NextRequest) {
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color:#f5f5f4;padding:24px 12px;">
 <tr><td align="center">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;background-color:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,0.08);">
-<tr><td style="background-color:#0f172a;padding:24px 32px;">
+<tr><td style="background-color:#0f0f1c;padding:24px 32px;">
 <p style="margin:0;font-size:20px;font-weight:700;color:#ffffff;">Aéroport — Affectation signalement</p>
 <p style="margin:4px 0 0;font-size:13px;color:#cbd5e1;">Réf #${escapeHtml(report.id.slice(-8))}</p>
 </td></tr>

@@ -14,8 +14,8 @@
 //   - Clamp final [0, 100]
 //
 // Niveau couleur :
-//   green  (≥80)  #00A651  "Excellent"
-//   orange (60-79)#FF6B00  "À surveiller"
+//   green  (≥80)  #bc7155  "Excellent"
+//   orange (60-79)#bc7155  "À surveiller"
 //   red    (<60)  #E30613  "Critique"
 //
 // Réponse :
@@ -46,8 +46,8 @@ const CRITICAL_ONGOING_MINUTES = 15
 type Level = 'green' | 'orange' | 'red'
 
 function levelFor(score: number): { level: Level; color: string; label: string } {
-  if (score >= 80) return { level: 'green', color: '#00A651', label: 'Excellent' }
-  if (score >= 60) return { level: 'orange', color: '#FF6B00', label: 'À surveiller' }
+  if (score >= 80) return { level: 'green', color: '#bc7155', label: 'Excellent' }
+  if (score >= 60) return { level: 'orange', color: '#bc7155', label: 'À surveiller' }
   return { level: 'red', color: '#E30613', label: 'Critique' }
 }
 

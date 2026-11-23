@@ -3,25 +3,25 @@
 // ------------------------------------------------------------
 // Affichage TV plein écran pour la salle de supervision du salon
 // VIP (ops room). Palette chaude "Luxe Lumineux" :
-//   - Background   #FAFAF7 (warm off-white)
+//   - Background   #ffffff (warm off-white)
 //   - Header       #2C2C2C (anthracite) + accent or #C9A961
 //   - Cards        #FFFFFF (white) + shadow rgba(201,169,97,0.06)
 //   - Accent gold  #C9A961
 //   - Accent bronze #8B6F47
 //   - Text         #2C2C2C
-//   - Success      #4A7C59 (sage green)
-//   - Alert        #C97B63 (terracotta)
-//   - VIP badge    #6B4C9A (amethyst)
-//   - Border       #EAE5DC
+//   - Success      #C9A961 (sage green)
+//   - Alert        #C9A961 (terracotta)
+//   - VIP badge    #C9A961 (amethyst)
+//   - Border       #efe7e0
 //   - Title font   Georgia, "Playfair Display", serif
 //
 // API : GET /api/vip/wallboard toutes les 5 secondes.
 // Horloge : 1 seconde.
 //
 // Sons & TTS :
-//   - Nouveau signalement     → ding (880 Hz) + Denise parle.
-//   - Signalement résolu      → resolved (660 Hz) + Denise parle.
-//   - Retard ≥ 10 min         → escalation (990/880/990 Hz) + Denise,
+//   - Nouveau signalement     → ding (880 Hz) + Nathalie parle.
+//   - Signalement résolu      → resolved (660 Hz) + Nathalie parle.
+//   - Retard ≥ 10 min         → escalation (990/880/990 Hz) + Nathalie,
 //     puis rappel toutes les 5 min tant que non résolu.
 //   - Toggle son persisté en localStorage "vip_wallboard_sound".
 //   - Sons synthétisés via Web Audio API (aucun fichier externe).
@@ -109,28 +109,28 @@ type WallboardData = {
 // ============================================================
 
 const COLORS = {
-  bg: '#FAFAF7',
+  bg: '#ffffff',
   header: '#2C2C2C',
   card: '#FFFFFF',
   gold: '#C9A961',
   bronze: '#8B6F47',
   text: '#2C2C2C',
-  success: '#4A7C59',
-  alert: '#C97B63',
-  vip: '#6B4C9A',
-  border: '#EAE5DC',
+  success: '#C9A961',
+  alert: '#C9A961',
+  vip: '#C9A961',
+  border: '#efe7e0',
 } as const
 
 // Palette mode sombre (pour affichage TV en salle ops sombre)
 const COLORS_DARK = {
-  bg: '#0F0F0F',
+  bg: '#1A1A1A',
   header: '#000000',
   card: '#1A1A1A',
   gold: '#C9A961',
   bronze: '#8B6F47',
-  text: '#FAFAF7',
-  success: '#4A7C59',
-  alert: '#C97B63',
+  text: '#ffffff',
+  success: '#C9A961',
+  alert: '#C9A961',
   vip: '#9B7BC9',
   border: '#333333',
 } as const
@@ -324,7 +324,12 @@ function KpiCard({
         className="font-black leading-none tabular-nums"
         style={{
           fontFamily: 'Georgia, "Playfair Display", serif',
-          fontSize: 'clamp(28px, 3vw, 44px)',
+          // V3 : les valeurs longues (« 1h 23min », « 0/12 »…) rétrécissent
+          // pour ne jamais déborder de la carte sur les écrans denses.
+          fontSize:
+            typeof value === 'string' && value.length > 5
+              ? 'clamp(20px, 2.2vw, 34px)'
+              : 'clamp(28px, 3vw, 44px)',
         }}
         suppressHydrationWarning
       >
@@ -630,11 +635,30 @@ export default function VipWallboardPage() {
   const [data, setData] = useState<WallboardData | null>(null)
   const [loading, setLoading] = useState(true)
   const [now, setNow] = useState<Date>(() => new Date())
-  const [soundOn, setSoundOn] = useState(false)
+  // --- V3 DIAGNOSTIC — même bug que le wallboard ops corrigé ---
+  // ANCIEN BUG : soundOn démarrait à FALSE et exigeait un clic sur une
+  // bannière de 15 s → aucun annonce de nouveau signalement ni de
+  // résolution ne sortait, seuls les rappels « EN RETARD » (visuels)
+  // semblaient fonctionner. FIX : son ACTIVÉ PAR DÉFAUT (préférence
+  // persistée), et déverrouillage audio au premier geste.
+  const [soundOn, setSoundOn] = useState(true)
   const [darkMode, setDarkMode] = useState(false)
   const [showSoundBanner, setShowSoundBanner] = useState(false)
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const audioUnlockedRef = useRef<boolean>(false)
+
+  // MODE TV (?tv=1) — ouverture depuis l'onglet Wallboard du dashboard
+  // (« Ouvrir sur la TV ») : les contrôles son/thème sont masqués pour
+  // un affichage TV dédié, sans manipulation accidentelle.
+  const [tvMode, setTvMode] = useState(false)
+  useEffect(() => {
+    try {
+      setTvMode(new URLSearchParams(window.location.search).get('tv') === '1')
+    } catch {
+      /* ignore */
+    }
+  }, [])
 
   // Palette active selon le mode sombre/clair
   const C = darkMode ? COLORS_DARK : COLORS
@@ -798,24 +822,49 @@ export default function VipWallboardPage() {
 
   // ---------------------------------------------------------------
   // Préférence son (localStorage) + bannière d'activation
+  // V3 : si aucune préférence → son ACTIVÉ par défaut (TV ops room).
+  // La bannière ne sert qu'à informer du déverrouillage audio.
   // ---------------------------------------------------------------
   useEffect(() => {
     const t = setTimeout(() => {
-      let alreadyOn = false
+      let pref: string | null = null
       try {
-        alreadyOn = localStorage.getItem(SOUND_STORAGE_KEY) === '1'
+        pref = localStorage.getItem(SOUND_STORAGE_KEY)
       } catch {
         /* localStorage indisponible */
       }
-      if (alreadyOn) {
-        setSoundOn(true)
+      if (pref === '0') {
+        setSoundOn(false)
       } else {
+        setSoundOn(true)
         setShowSoundBanner(true)
-        const dismiss = setTimeout(() => setShowSoundBanner(false), 15000)
+        const dismiss = setTimeout(() => setShowSoundBanner(false), 8000)
         return () => clearTimeout(dismiss)
       }
     }, 0)
     return () => clearTimeout(t)
+  }, [])
+
+  // --- V3 — Déverrouillage audio au premier geste (autoplay policy) ---
+  useEffect(() => {
+    const unlock = () => {
+      if (audioUnlockedRef.current) return
+      audioUnlockedRef.current = true
+      setShowSoundBanner(false)
+      try {
+        playDing()
+      } catch {
+        /* ignore */
+      }
+      window.removeEventListener('pointerdown', unlock)
+      window.removeEventListener('keydown', unlock)
+    }
+    window.addEventListener('pointerdown', unlock)
+    window.addEventListener('keydown', unlock)
+    return () => {
+      window.removeEventListener('pointerdown', unlock)
+      window.removeEventListener('keydown', unlock)
+    }
   }, [])
 
   // Préférence mode sombre/clair (localStorage)
@@ -851,7 +900,7 @@ export default function VipWallboardPage() {
       }
       setShowSoundBanner(false)
       if (next) {
-        // Petit ding de confirmation + annonce vocale Denise.
+        // Petit ding de confirmation + annonce vocale Nathalie.
         playDing()
         setTimeout(() => parler('Son activé. Wallboard salon VIP opérationnel.'), 200)
       } else if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
@@ -899,12 +948,12 @@ export default function VipWallboardPage() {
   // ---------------------------------------------------------------
   return (
     <div
-      className="min-h-screen w-full"
+      className="flex h-[100dvh] w-full flex-col overflow-hidden"
       style={{ backgroundColor: C.bg, color: C.text }}
     >
       {/* ===== Header (sticky, anthracite) ===== */}
       <header
-        className="sticky top-0 z-30 w-full"
+        className="z-30 w-full shrink-0"
         style={{
           backgroundColor: C.header,
           color: '#FFFFFF',
@@ -1035,50 +1084,54 @@ export default function VipWallboardPage() {
               </div>
             </div>
 
-            {/* Toggle son */}
-            <button
-              type="button"
-              onClick={toggleSound}
-              aria-pressed={soundOn}
-              title={soundOn ? 'Désactiver le son' : 'Activer le son'}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold uppercase transition"
-              style={{
-                backgroundColor: soundOn ? C.gold + '33' : 'transparent',
-                color: soundOn ? C.gold : '#FFFFFF',
-                border: `1px solid ${soundOn ? C.gold : '#555'}`,
-                letterSpacing: 1,
-              }}
-            >
-              {soundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}
-              <span className="hidden sm:inline">
-                {soundOn ? 'Son ON' : 'Son OFF'}
-              </span>
-            </button>
+            {/* Toggle son — masqué en mode TV (?tv=1) */}
+            {!tvMode && (
+              <button
+                type="button"
+                onClick={toggleSound}
+                aria-pressed={soundOn}
+                title={soundOn ? 'Désactiver le son' : 'Activer le son'}
+                className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold uppercase transition"
+                style={{
+                  backgroundColor: soundOn ? C.gold + '33' : 'transparent',
+                  color: soundOn ? C.gold : '#FFFFFF',
+                  border: `1px solid ${soundOn ? C.gold : '#555'}`,
+                  letterSpacing: 1,
+                }}
+              >
+                {soundOn ? <Volume2 size={14} /> : <VolumeX size={14} />}
+                <span className="hidden sm:inline">
+                  {soundOn ? 'Son ON' : 'Son OFF'}
+                </span>
+              </button>
+            )}
 
-            {/* Toggle mode sombre/clair */}
-            <button
-              type="button"
-              onClick={toggleDarkMode}
-              aria-pressed={darkMode}
-              title={darkMode ? 'Passer en mode clair' : 'Passer en mode sombre'}
-              className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold uppercase transition"
-              style={{
-                backgroundColor: darkMode ? C.gold + '33' : 'transparent',
-                color: darkMode ? C.gold : '#FFFFFF',
-                border: `1px solid ${darkMode ? C.gold : '#555'}`,
-                letterSpacing: 1,
-              }}
-            >
-              {darkMode ? <Sun size={14} /> : <Moon size={14} />}
-              <span className="hidden sm:inline">
-                {darkMode ? 'Clair' : 'Sombre'}
-              </span>
-            </button>
+            {/* Toggle mode sombre/clair — masqué en mode TV (?tv=1) */}
+            {!tvMode && (
+              <button
+                type="button"
+                onClick={toggleDarkMode}
+                aria-pressed={darkMode}
+                title={darkMode ? 'Passer en mode clair' : 'Passer en mode sombre'}
+                className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-bold uppercase transition"
+                style={{
+                  backgroundColor: darkMode ? C.gold + '33' : 'transparent',
+                  color: darkMode ? C.gold : '#FFFFFF',
+                  border: `1px solid ${darkMode ? C.gold : '#555'}`,
+                  letterSpacing: 1,
+                }}
+              >
+                {darkMode ? <Sun size={14} /> : <Moon size={14} />}
+                <span className="hidden sm:inline">
+                  {darkMode ? 'Clair' : 'Sombre'}
+                </span>
+              </button>
+            )}
           </div>
         </div>
 
-        {/* === Bannière d'activation sonore === */}
-        {showSoundBanner && !soundOn ? (
+        {/* === Bannière de déverrouillage audio (V3) === */}
+        {showSoundBanner && soundOn ? (
           <div
             className="flex w-full items-center justify-between gap-3 px-6 py-2"
             style={{
@@ -1090,7 +1143,7 @@ export default function VipWallboardPage() {
               style={{ letterSpacing: 1 }}
             >
               <Megaphone size={14} />
-              Activez le son pour les alertes vocales
+              Son activé — un clic n'importe où pour débloquer l'audio
             </span>
             <button
               type="button"
@@ -1098,14 +1151,16 @@ export default function VipWallboardPage() {
               className="flex items-center gap-1.5 rounded-md bg-white px-3 py-1.5 text-xs font-black uppercase transition hover:bg-opacity-90"
               style={{ color: C.success, letterSpacing: 1 }}
             >
-              🔊 Activer le son
+              🔇 Couper le son
             </button>
           </div>
         ) : null}
       </header>
 
-      {/* ===== Corps ===== */}
-      <main className="mx-auto max-w-[1800px] px-6 py-6">
+      {/* ===== Corps — V3 : la zone de contenu occupe TOUT l'espace restant
+          et défile en interne (aucun scroll de page, affichage TV plein écran) ===== */}
+      <main className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden" style={{ scrollbarWidth: 'thin' }}>
+        <div className="mx-auto max-w-[1800px] px-6 py-4">
         {/* === Indicateur de chargement initial === */}
         {loading && !data ? (
           <div className="flex flex-col items-center justify-center gap-3 py-20">
@@ -1186,10 +1241,14 @@ export default function VipWallboardPage() {
                 fg='#FFFFFF'
               />
 
-              {/* 5. Temps moyen */}
+              {/* 5. Temps moyen — QA 2026-11-22 : Georgia rend les chiffres en
+                  elzévirs (« 0 » ressemble à « o » → « 0min » illisible). On
+                  affiche « — » quand aucun échantillon, et un espace avant
+                  l'unité sinon. */}
               <KpiCard
                 label="Temps moyen"
-                value={`${data.kpis.avg_resolution_min}min`}
+                value={data.kpis.avg_resolution_min > 0 ? `${data.kpis.avg_resolution_min} min` : '—'}
+                sub={data.kpis.avg_resolution_min > 0 ? undefined : 'aucune résolution'}
                 bg={C.header}
                 fg='#FFFFFF'
               />
@@ -1402,15 +1461,16 @@ export default function VipWallboardPage() {
             </section>
           </>
         ) : null}
+        </div>
       </main>
 
       {/* ===== Footer ===== */}
       <footer
-        className="sticky bottom-0 z-20 w-full border-t"
+        className="z-20 w-full shrink-0 border-t"
         style={{
           backgroundColor: C.header,
           color: '#FFFFFF',
-          borderColor: '#1a1a1a',
+          borderColor: '#1A1A1A',
         }}
       >
         <div className="mx-auto flex max-w-[1800px] items-center justify-between gap-4 px-6 py-2.5">
@@ -1418,7 +1478,7 @@ export default function VipWallboardPage() {
             style={{ letterSpacing: 2 }}
           >
             <Plane size={12} style={{ color: C.gold }} />
-            FeedbackPro · Salon VIP Wallboard
+            FeedVoice · Salon VIP Wallboard
           </div>
           <div className="flex items-center gap-4 text-[11px]">
             <span className="hidden items-center gap-1.5 opacity-70 sm:flex">

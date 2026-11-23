@@ -61,7 +61,7 @@ export function AirportLeaderboardTab() {
             Score mensuel · {month || '—'} · {agents.length} agent{agents.length > 1 ? 's' : ''}
           </p>
         </div>
-        <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 dark:from-amber-400 dark:to-amber-500 shadow-lg">
+        <div className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#bc7155] to-[#a05f45] dark:from-[#c98b72] dark:to-[#bc7155] shadow-lg">
           <Trophy className="size-6 text-white" aria-hidden />
         </div>
       </div>
@@ -69,16 +69,16 @@ export function AirportLeaderboardTab() {
       {/* Règles de scoring */}
       <Card className="overflow-hidden rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.06)]">
         <CardContent className="grid grid-cols-3 gap-4 p-4">
-          <div className="flex flex-col items-center gap-1 rounded-xl bg-emerald-500/10 dark:bg-emerald-500/15 p-3 text-center">
-            <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">+20</span>
+          <div className="flex flex-col items-center gap-1 rounded-xl bg-[#bc7155]/10 dark:bg-[#bc7155]/15 p-3 text-center">
+            <span className="text-2xl font-black text-[#a05f45] dark:text-[#c98b72]">+20</span>
             <span className="text-[10px] font-bold uppercase text-muted-foreground">&lt; 5 min</span>
           </div>
-          <div className="flex flex-col items-center gap-1 rounded-xl bg-violet-500/10 dark:bg-violet-500/15 p-3 text-center">
-            <span className="text-2xl font-black text-violet-600 dark:text-violet-400">+10</span>
+          <div className="flex flex-col items-center gap-1 rounded-xl bg-[#bc7155]/10 dark:bg-[#bc7155]/15 p-3 text-center">
+            <span className="text-2xl font-black text-[#a05f45] dark:text-[#c98b72]">+10</span>
             <span className="text-[10px] font-bold uppercase text-muted-foreground">&lt; 10 min</span>
           </div>
-          <div className="flex flex-col items-center gap-1 rounded-xl bg-amber-500/10 dark:bg-amber-500/15 p-3 text-center">
-            <span className="text-2xl font-black text-amber-600 dark:text-amber-400">+5</span>
+          <div className="flex flex-col items-center gap-1 rounded-xl bg-[#bc7155]/10 dark:bg-[#bc7155]/15 p-3 text-center">
+            <span className="text-2xl font-black text-[#a05f45] dark:text-[#c98b72]">+5</span>
             <span className="text-[10px] font-bold uppercase text-muted-foreground">&lt; 20 min</span>
           </div>
         </CardContent>
@@ -106,9 +106,9 @@ export function AirportLeaderboardTab() {
               key={agent.id}
               className={cn(
                 'overflow-hidden rounded-2xl shadow-[0_10px_30px_rgba(0,0,0,0.06)] transition-all',
-                agent.rank === 1 && 'ring-2 ring-amber-500 dark:ring-amber-400',
+                agent.rank === 1 && 'ring-2 ring-[#bc7155] dark:ring-[#c98b72]',
                 agent.rank === 2 && 'ring-1 ring-slate-300',
-                agent.rank === 3 && 'ring-1 ring-amber-400/40',
+                agent.rank === 3 && 'ring-1 ring-[#c98b72]/40',
               )}
             >
               <CardContent className="flex items-center gap-4 p-4">

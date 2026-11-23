@@ -1,7 +1,7 @@
 // ============================================================
 // POST /api/airport/translate
 // ------------------------------------------------------------
-// Traducteur universel "Denise" (Task WAHOO-1).
+// Traducteur universel "Nathalie" (Task WAHOO-1).
 // Prend un texte saisi par un voyageur dans sa langue (français,
 // anglais, chinois, arabe, wolof, espagnol, allemand, portugais,
 // italien, russe, japonais — ou auto-détecté) et le traduit en
@@ -9,7 +9,7 @@
 //
 // Le texte traduit est ensuite affiché au voyageur dans la PWA
 // (validation visuelle avant envoi) puis soumis à /api/airport/report
-// dans le champ `commentaire` (version FR) afin que Denise l'annonce
+// dans le champ `commentaire` (version FR) afin que Nathalie l'annonce
 // en français au staff via le wallboard et la PWA staff.
 //
 // Flow :
@@ -30,6 +30,7 @@
 import { NextRequest } from "next/server"
 import { ok, fail } from "@/lib/session"
 import ZAI from "z-ai-web-dev-sdk"
+import { limiteTaux } from "@/lib/rate-limit"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -81,6 +82,11 @@ function buildUserMessage(text: string, sourceLang: SupportedLang): string {
 }
 
 export async function POST(req: NextRequest) {
+  // Endpoint public qui déclenche un appel LLM (coût par requête) :
+  // 20 traductions / min / IP — marge large pour un usage voyageur réel.
+  const bloque = limiteTaux(req, "airport-translate", { max: 20, fenetreMs: 60_000 })
+  if (bloque) return bloque
+
   // --- Lecture JSON ---
   let body: unknown
   try {

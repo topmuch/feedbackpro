@@ -157,7 +157,7 @@ function badgeUrgence(u: Urgence) {
   if (u === "moyenne")
     return {
       label: "Moyenne",
-      className: "border-amber-300 bg-amber-50 text-amber-700 dark:border-amber-900/40 dark:bg-amber-950/40 dark:text-amber-300",
+      className: "border-[#dba28a] bg-[#faf1ec] text-[#8a4f3b] dark:border-[#573125]/40 dark:bg-[#3f231b]/40 dark:text-[#dba28a]",
     }
   return {
     label: "Basse",
@@ -189,16 +189,16 @@ const SECTIONS: SectionMeta[] = [
     titre: "Points de vigilance",
     sousTitre: "Vérifications recommandées avant l'ouverture",
     icone: Activity,
-    accent: "text-amber-700 dark:text-amber-300",
-    dot: "bg-amber-500",
+    accent: "text-[#8a4f3b] dark:text-[#dba28a]",
+    dot: "bg-[#bc7155]",
   },
   {
     key: "basse",
     titre: "Vérifications de routine",
     sousTitre: "Standards de service quotidiens",
     icone: Check,
-    accent: "text-emerald-700 dark:text-emerald-300",
-    dot: "bg-emerald-500",
+    accent: "text-[#8a4f3b] dark:text-[#dba28a]",
+    dot: "bg-[#bc7155]",
   },
 ]
 
@@ -250,7 +250,7 @@ function ScoreGauge({
   const clamped = Math.max(0, Math.min(100, value))
   const offset = circumference - (clamped / 100) * circumference
   const color =
-    clamped >= 80 ? "#10b981" : clamped >= 60 ? "#f59e0b" : "#ef4444"
+    clamped >= 80 ? "#bc7155" : clamped >= 60 ? "#bc7155" : "#ef4444"
   return (
     <div
       className="relative inline-flex shrink-0 items-center justify-center"
@@ -307,34 +307,34 @@ function ScoreGauge({
 function AirportSection({ stats }: { stats: AirportStats }) {
   const slaColor =
     stats.slaCompliance >= 80
-      ? "text-emerald-700 dark:text-emerald-300"
+      ? "text-[#8a4f3b] dark:text-[#dba28a]"
       : stats.slaCompliance >= 60
-        ? "text-amber-700 dark:text-amber-300"
+        ? "text-[#8a4f3b] dark:text-[#dba28a]"
         : "text-rose-700 dark:text-rose-300"
 
   return (
-    <Card className="border-emerald-200/80 bg-gradient-to-br from-emerald-50/70 via-white to-sky-50/40 dark:border-emerald-900/40 dark:from-emerald-950/20 dark:via-card dark:to-sky-950/10">
+    <Card className="border-[#e7c1ae]/80 bg-gradient-to-br from-[#faf1ec]/70 via-white to-[#f0f1f2]/40 dark:border-[#573125]/40 dark:from-[#3f231b]/20 dark:via-card dark:to-[#0f0f1c]/10">
       <CardHeader className="pb-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <div
-              className="flex size-11 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300"
+              className="flex size-11 items-center justify-center rounded-2xl bg-[#f3ddd2] text-[#8a4f3b] dark:bg-[#573125]/40 dark:text-[#dba28a]"
               aria-hidden
             >
               <Plane className="size-5" />
             </div>
             <div>
-              <CardTitle className="flex items-center gap-2 text-base text-emerald-900 dark:text-emerald-100">
+              <CardTitle className="flex items-center gap-2 text-base text-[#573125] dark:text-[#f3ddd2]">
                 Aéroport — Signalements 24h
               </CardTitle>
-              <CardDescription className="text-xs text-emerald-800/70 dark:text-emerald-200/70">
+              <CardDescription className="text-xs text-[#6f3f30]/70 dark:text-[#e7c1ae]/70">
                 Vue temps réel agrégée par zone · SLA opérationnel
               </CardDescription>
             </div>
           </div>
           <Badge
             variant="outline"
-            className="border-emerald-300 bg-white/80 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300"
+            className="border-[#dba28a] bg-white/80 text-[#8a4f3b] dark:border-[#573125]/40 dark:bg-[#3f231b]/30 dark:text-[#dba28a]"
           >
             {stats.total24h} signalement{stats.total24h > 1 ? "s" : ""}
           </Badge>
@@ -347,26 +347,26 @@ function AirportSection({ stats }: { stats: AirportStats }) {
             label="En attente"
             value={stats.enAttente}
             icone={Clock}
-            className="bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300"
+            className="bg-[#faf1ec] text-[#8a4f3b] dark:bg-[#3f231b]/30 dark:text-[#dba28a]"
           />
           <KpiAirport
             label="En cours"
             value={stats.enCours}
             icone={Loader2}
-            className="bg-sky-50 text-sky-700 dark:bg-sky-950/30 dark:text-sky-300"
+            className="bg-[#f0f1f2] text-[#2e3040] dark:bg-[#0f0f1c]/30 dark:text-[#8e8e95]"
           />
           <KpiAirport
             label="Résolus"
             value={stats.resolus}
             icone={Check}
-            className="bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300"
+            className="bg-[#faf1ec] text-[#8a4f3b] dark:bg-[#3f231b]/30 dark:text-[#dba28a]"
           />
           <KpiAirport
             label="Conformité SLA"
             value={`${stats.slaCompliance}%`}
             icone={Gauge}
             className={cn(
-              "bg-emerald-50 dark:bg-emerald-950/30",
+              "bg-[#faf1ec] dark:bg-[#3f231b]/30",
               slaColor
             )}
           />
@@ -384,7 +384,7 @@ function AirportSection({ stats }: { stats: AirportStats }) {
                 className={cn(
                   "flex items-center gap-3 rounded-xl border p-2.5",
                   z.enAttente > 0
-                    ? "border-amber-200 bg-amber-50/60 dark:border-amber-900/40 dark:bg-amber-950/20"
+                    ? "border-[#e7c1ae] bg-[#faf1ec]/60 dark:border-[#573125]/40 dark:bg-[#3f231b]/20"
                     : "border-border bg-card/60"
                 )}
               >
@@ -398,7 +398,7 @@ function AirportSection({ stats }: { stats: AirportStats }) {
                   <p className="text-[11px] text-muted-foreground">
                     {z.count} signalement{z.count > 1 ? "s" : ""}
                     {z.enAttente > 0 && (
-                      <span className="text-amber-700 dark:text-amber-300">
+                      <span className="text-[#8a4f3b] dark:text-[#dba28a]">
                         {" · "}
                         {z.enAttente} en attente
                       </span>
@@ -460,10 +460,10 @@ function PremiumHeader({
       <div className="flex items-center gap-3">
         <div
           className={cn(
-            "flex size-12 items-center justify-center rounded-2xl text-amber-600 shadow-sm",
+            "flex size-12 items-center justify-center rounded-2xl text-[#a05f45] shadow-sm",
             variant === "sunrise"
-              ? "bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/40 dark:to-orange-900/40"
-              : "bg-amber-100/70 dark:bg-amber-900/40"
+              ? "bg-gradient-to-br from-[#f3ddd2] to-[#f3ddd2] dark:from-[#573125]/40 dark:to-[#573125]/40"
+              : "bg-[#f3ddd2]/70 dark:bg-[#573125]/40"
           )}
           aria-hidden
         >
@@ -834,9 +834,9 @@ export function AuditMatinTab() {
   if (loading) {
     return (
       <div className="space-y-5">
-        <Skeleton className="h-16 w-full rounded-3xl" />
-        <Skeleton className="h-48 rounded-3xl" />
-        <Skeleton className="h-72 rounded-3xl" />
+        <Skeleton className="h-16 w-full rounded-none" />
+        <Skeleton className="h-48 rounded-none" />
+        <Skeleton className="h-72 rounded-none" />
       </div>
     )
   }
@@ -864,29 +864,29 @@ export function AuditMatinTab() {
     return (
       <div className="space-y-5">
         {/* Card premium "audit terminé" avec jauge circulaire */}
-        <Card className="overflow-hidden border-emerald-200 bg-gradient-to-br from-emerald-50/80 via-white to-amber-50/40 dark:border-emerald-900/40 dark:from-emerald-950/20 dark:via-card dark:to-amber-950/10">
+        <Card className="overflow-hidden border-[#e7c1ae] bg-gradient-to-br from-[#faf1ec]/80 via-white to-[#faf1ec]/40 dark:border-[#573125]/40 dark:from-[#3f231b]/20 dark:via-card dark:to-[#3f231b]/10">
           <CardContent className="p-6 sm:p-8">
             <div className="flex flex-col items-center gap-6 sm:flex-row sm:items-start sm:justify-between">
               {/* Bloc gauche : titre + date + résumé */}
               <div className="flex flex-1 flex-col items-center text-center sm:items-start sm:text-left">
-                <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
-                  <span className="flex size-7 items-center justify-center rounded-full bg-emerald-600 text-white">
+                <div className="flex items-center gap-2 text-[#8a4f3b] dark:text-[#dba28a]">
+                  <span className="flex size-7 items-center justify-center rounded-full bg-[#a05f45] text-white">
                     <Check className="size-4" aria-hidden />
                   </span>
                   <span className="text-sm font-bold uppercase tracking-wide">
                     Audit terminé
                   </span>
                 </div>
-                <h2 className="mt-3 text-2xl font-black tracking-tight text-emerald-900 dark:text-emerald-100 sm:text-3xl">
+                <h2 className="mt-3 text-2xl font-black tracking-tight text-[#573125] dark:text-[#f3ddd2] sm:text-3xl">
                   Votre audit du matin est enregistré
                 </h2>
-                <p className="mt-1.5 text-sm text-emerald-800/70 dark:text-emerald-200/70">
+                <p className="mt-1.5 text-sm text-[#6f3f30]/70 dark:text-[#e7c1ae]/70">
                   {formatDateLong(auditDuJour.date)}
                 </p>
                 <div className="mt-4 flex flex-wrap items-center justify-center gap-2 sm:justify-start">
                   <Badge
                     variant="outline"
-                    className="border-emerald-300 bg-white/80 text-emerald-700 dark:border-emerald-900/40 dark:bg-emerald-950/30 dark:text-emerald-300"
+                    className="border-[#dba28a] bg-white/80 text-[#8a4f3b] dark:border-[#573125]/40 dark:bg-[#3f231b]/30 dark:text-[#dba28a]"
                   >
                     <Check className="mr-1 size-3" aria-hidden />
                     {itemsDone.filter((it) => it.valide === true).length} validés
@@ -931,7 +931,7 @@ export function AuditMatinTab() {
                       className={cn(
                         "flex items-start gap-3 rounded-2xl border p-3.5",
                         it.valide
-                          ? "border-emerald-200 bg-emerald-50/60 dark:border-emerald-900/40 dark:bg-emerald-950/20"
+                          ? "border-[#e7c1ae] bg-[#faf1ec]/60 dark:border-[#573125]/40 dark:bg-[#3f231b]/20"
                           : "border-rose-200 bg-rose-50/60 dark:border-rose-900/40 dark:bg-rose-950/20"
                       )}
                     >
@@ -939,7 +939,7 @@ export function AuditMatinTab() {
                         className={cn(
                           "mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-full",
                           it.valide
-                            ? "bg-emerald-600 text-white"
+                            ? "bg-[#a05f45] text-white"
                             : "bg-rose-600 text-white"
                         )}
                         aria-hidden
@@ -996,12 +996,12 @@ export function AuditMatinTab() {
     return (
       <div className="space-y-5">
         {/* En-tête premium + jauge progression */}
-        <Card className="overflow-hidden border-amber-200/80 bg-gradient-to-br from-amber-50/80 via-white to-orange-50/50 dark:border-amber-900/40 dark:from-amber-950/20 dark:via-card dark:to-orange-950/10">
+        <Card className="overflow-hidden border-[#e7c1ae]/80 bg-gradient-to-br from-[#faf1ec]/80 via-white to-[#faf1ec]/50 dark:border-[#573125]/40 dark:from-[#3f231b]/20 dark:via-card dark:to-[#3f231b]/10">
           <CardContent className="p-5 sm:p-6">
             <div className="flex flex-col items-center gap-5 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-3">
                 <div
-                  className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-100 to-orange-100 text-amber-600 dark:from-amber-900/40 dark:to-orange-900/40"
+                  className="flex size-12 items-center justify-center rounded-2xl bg-gradient-to-br from-[#f3ddd2] to-[#f3ddd2] text-[#a05f45] dark:from-[#573125]/40 dark:to-[#573125]/40"
                   aria-hidden
                 >
                   <Sunrise className="size-6" />
@@ -1028,7 +1028,7 @@ export function AuditMatinTab() {
                     {itemsTraites} / {items.length}
                   </p>
                   <p>items traités</p>
-                  <p className="mt-1 font-medium text-emerald-700 dark:text-emerald-300">
+                  <p className="mt-1 font-medium text-[#8a4f3b] dark:text-[#dba28a]">
                     {itemsValides} validés
                   </p>
                 </div>
@@ -1059,8 +1059,8 @@ export function AuditMatinTab() {
                   className={cn(
                     "flex items-center gap-2.5 rounded-xl border-l-4 bg-card/80 py-2 pl-3 pr-2",
                     section.key === "haute" && "border-rose-500",
-                    section.key === "moyenne" && "border-amber-500",
-                    section.key === "basse" && "border-emerald-500"
+                    section.key === "moyenne" && "border-[#bc7155]",
+                    section.key === "basse" && "border-[#bc7155]"
                   )}
                 >
                   <SectionIcon className={cn("size-4", section.accent)} aria-hidden />
@@ -1124,8 +1124,8 @@ export function AuditMatinTab() {
                               className={cn(
                                 "h-10 px-4",
                                 it.valide === true
-                                  ? "bg-emerald-600 text-white hover:bg-emerald-700"
-                                  : "border-emerald-300 text-emerald-700 hover:bg-emerald-50 dark:text-emerald-300"
+                                  ? "bg-[#a05f45] text-white hover:bg-[#8a4f3b]"
+                                  : "border-[#dba28a] text-[#8a4f3b] hover:bg-[#faf1ec] dark:text-[#dba28a]"
                               )}
                               onClick={() => validerItem(it.id, true)}
                               disabled={vue === "saving"}
@@ -1246,7 +1246,7 @@ export function AuditMatinTab() {
         <div className="sticky bottom-4 z-10 rounded-2xl border border-border bg-background/95 p-3 shadow-lg backdrop-blur">
           <Button
             type="button"
-            className="h-12 w-full bg-emerald-600 text-base font-bold text-white hover:bg-emerald-700"
+            className="h-12 w-full bg-[#a05f45] text-base font-bold text-white hover:bg-[#8a4f3b]"
             disabled={vue === "saving" || itemsTraites < items.length}
             onClick={() => void terminerAudit()}
           >
@@ -1286,22 +1286,22 @@ export function AuditMatinTab() {
       />
 
       {/* Card "Bonjour" premium avec gradient + icône sunrise */}
-      <Card className="overflow-hidden border-amber-200 bg-gradient-to-br from-amber-50 via-orange-50/80 to-rose-50/40 dark:border-amber-900/40 dark:from-amber-950/20 dark:via-orange-950/15 dark:to-rose-950/10">
+      <Card className="overflow-hidden border-[#e7c1ae] bg-gradient-to-br from-[#faf1ec] via-[#faf1ec]/80 to-rose-50/40 dark:border-[#573125]/40 dark:from-[#3f231b]/20 dark:via-[#3f231b]/15 dark:to-rose-950/10">
         <CardContent className="p-6 sm:p-8">
           <div className="flex flex-col items-start gap-5">
             {/* En-tête de la card */}
             <div className="flex items-center gap-4">
               <div
-                className="flex size-16 items-center justify-center rounded-3xl bg-gradient-to-br from-amber-200 to-orange-200 text-4xl shadow-sm dark:from-amber-900/60 dark:to-orange-900/60"
+                className="flex size-16 items-center justify-center rounded-none bg-gradient-to-br from-[#e7c1ae] to-[#e7c1ae] text-4xl shadow-sm dark:from-[#573125]/60 dark:to-[#573125]/60"
                 aria-hidden
               >
                 🌅
               </div>
               <div>
-                <h3 className="text-2xl font-black tracking-tight text-amber-900 dark:text-amber-100 sm:text-3xl">
+                <h3 className="text-2xl font-black tracking-tight text-[#573125] dark:text-[#f3ddd2] sm:text-3xl">
                   {salutation()} ! Votre audit vous attend.
                 </h3>
-                <p className="mt-1 text-sm font-medium text-amber-800/80 dark:text-amber-200/80">
+                <p className="mt-1 text-sm font-medium text-[#6f3f30]/80 dark:text-[#e7c1ae]/80">
                   {formatDateLong(new Date().toISOString())}
                 </p>
               </div>
@@ -1310,11 +1310,11 @@ export function AuditMatinTab() {
             {/* Résumé des retours de la veille */}
             {donneesVeille && (
               <div className="grid w-full grid-cols-3 gap-3">
-                <div className="rounded-2xl border border-amber-200/60 bg-white/70 p-3 text-center dark:border-amber-900/30 dark:bg-amber-950/30">
-                  <p className="text-2xl font-black text-amber-700 dark:text-amber-300 sm:text-3xl">
+                <div className="rounded-2xl border border-[#e7c1ae]/60 bg-white/70 p-3 text-center dark:border-[#573125]/30 dark:bg-[#3f231b]/30">
+                  <p className="text-2xl font-black text-[#8a4f3b] dark:text-[#dba28a] sm:text-3xl">
                     {donneesVeille.total}
                   </p>
-                  <p className="text-xs text-amber-700/80 dark:text-amber-300/80">
+                  <p className="text-xs text-[#8a4f3b]/80 dark:text-[#dba28a]/80">
                     Retours (24h)
                   </p>
                 </div>
@@ -1322,15 +1322,15 @@ export function AuditMatinTab() {
                   <p className="text-2xl font-black text-rose-600 dark:text-rose-400 sm:text-3xl">
                     {donneesVeille.totalNegatifs}
                   </p>
-                  <p className="text-xs text-amber-700/80 dark:text-amber-300/80">
+                  <p className="text-xs text-[#8a4f3b]/80 dark:text-[#dba28a]/80">
                     Négatifs ≤ 2★
                   </p>
                 </div>
-                <div className="rounded-2xl border border-amber-200/60 bg-white/70 p-3 text-center dark:border-amber-900/30 dark:bg-amber-950/30">
-                  <p className="text-2xl font-black text-amber-700 dark:text-amber-300 sm:text-3xl">
+                <div className="rounded-2xl border border-[#e7c1ae]/60 bg-white/70 p-3 text-center dark:border-[#573125]/30 dark:bg-[#3f231b]/30">
+                  <p className="text-2xl font-black text-[#8a4f3b] dark:text-[#dba28a] sm:text-3xl">
                     {donneesVeille.noteMoyenne.toFixed(1)}
                   </p>
-                  <p className="text-xs text-amber-700/80 dark:text-amber-300/80">
+                  <p className="text-xs text-[#8a4f3b]/80 dark:text-[#dba28a]/80">
                     Note moyenne /5
                   </p>
                 </div>
@@ -1338,7 +1338,7 @@ export function AuditMatinTab() {
             )}
 
             {/* Source de la checklist */}
-            <div className="flex items-center gap-2 text-xs font-medium text-amber-700/80 dark:text-amber-300/80">
+            <div className="flex items-center gap-2 text-xs font-medium text-[#8a4f3b]/80 dark:text-[#dba28a]/80">
               {source === "ia" ? (
                 <>
                   <Sparkles className="size-3.5" aria-hidden />
@@ -1358,7 +1358,7 @@ export function AuditMatinTab() {
             <div className="flex flex-wrap gap-2">
               <Button
                 type="button"
-                className="h-11 bg-amber-600 px-6 text-base font-bold text-white hover:bg-amber-700"
+                className="h-11 bg-[#a05f45] px-6 text-base font-bold text-white hover:bg-[#8a4f3b]"
                 onClick={() => demarrerAudit()}
                 disabled={generating || checklist.length === 0}
               >
@@ -1457,7 +1457,7 @@ export function AuditMatinTab() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <AlertTriangle className="size-4 text-amber-500" aria-hidden />
+              <AlertTriangle className="size-4 text-[#bc7155]" aria-hidden />
               Problèmes récurrents de la veille
             </CardTitle>
           </CardHeader>
@@ -1515,7 +1515,7 @@ function VueHistorique({
       />
 
       {loading ? (
-        <Skeleton className="h-64 rounded-3xl" />
+        <Skeleton className="h-64 rounded-none" />
       ) : audits.length === 0 ? (
         <Card>
           <CardContent className="p-8 text-center text-sm text-muted-foreground">
@@ -1545,15 +1545,15 @@ function VueHistorique({
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">Note client moyenne</p>
                   </div>
-                  <div className="rounded-2xl bg-emerald-50 p-4 text-center dark:bg-emerald-950/20">
-                    <p className="text-2xl font-black text-emerald-700 dark:text-emerald-300">
+                  <div className="rounded-2xl bg-[#faf1ec] p-4 text-center dark:bg-[#3f231b]/20">
+                    <p className="text-2xl font-black text-[#8a4f3b] dark:text-[#dba28a]">
                       {comparaison.noteMoyenneManagerSur5.toFixed(1)}
                       <span className="text-sm font-medium">/5</span>
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">Score audit (transposé /5)</p>
                   </div>
-                  <div className="rounded-2xl bg-amber-50 p-4 text-center dark:bg-amber-950/20">
-                    <p className="text-2xl font-black text-amber-700 dark:text-amber-300">
+                  <div className="rounded-2xl bg-[#faf1ec] p-4 text-center dark:bg-[#3f231b]/20">
+                    <p className="text-2xl font-black text-[#8a4f3b] dark:text-[#dba28a]">
                       {comparaison.scoreMoyenManager}%
                     </p>
                     <p className="mt-1 text-xs text-muted-foreground">Score audit moyen</p>
@@ -1637,9 +1637,9 @@ function VueHistorique({
                       className={cn(
                         "absolute -left-[21px] top-1.5 size-3 rounded-full border-2 border-background",
                         a.scoreManager >= 80
-                          ? "bg-emerald-500"
+                          ? "bg-[#bc7155]"
                           : a.scoreManager >= 60
-                            ? "bg-amber-500"
+                            ? "bg-[#bc7155]"
                             : "bg-rose-500"
                       )}
                       aria-hidden
@@ -1653,9 +1653,9 @@ function VueHistorique({
                         className={cn(
                           "text-xs",
                           a.scoreManager >= 80
-                            ? "border-emerald-300 text-emerald-700 dark:text-emerald-300"
+                            ? "border-[#dba28a] text-[#8a4f3b] dark:text-[#dba28a]"
                             : a.scoreManager >= 60
-                              ? "border-amber-300 text-amber-700 dark:text-amber-300"
+                              ? "border-[#dba28a] text-[#8a4f3b] dark:text-[#dba28a]"
                               : "border-rose-300 text-rose-700 dark:text-rose-300"
                         )}
                       >

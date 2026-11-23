@@ -5,14 +5,14 @@
 // ------------------------------------------------------------
 // Refonte premium du dashboard Salon VIP.
 // Palette "Luxe Lumineux" (clair et élégant) :
-//   - Background   #FAFAF7 (warm off-white)
+//   - Background   #ffffff (warm off-white)
 //   - Cards        #FFFFFF (pure white)
-//   - Accent       #C9A961 (champagne gold)
+//   - Accent       #bc7155 (champagne gold)
 //   - Accent 2     #8B6F47 (bronze)
 //   - Text         #2C2C2C (anthracite gray)
-//   - Success      #4A7C59 (sage green)
-//   - Alert        #C97B63 (terracotta)
-//   - VIP badge    #6B4C9A (amethyst purple)
+//   - Success      #bc7155 (sage green)
+//   - Alert        #bc7155 (terracotta)
+//   - VIP badge    #bc7155 (amethyst purple)
 //
 // Architecture : Sidebar fixe (260px) + 11 onglets.
 //   A. Vue d'ensemble      — KPI + alertes douces
@@ -24,8 +24,8 @@
 //   G. Équipe / Staff      — table + form + perf
 //   H. QR Codes            — 6 zones + QR staff
 //   I. Rapports            — KPI + bar chart CSS
-//   J. Voix Denise         — matrice + horaire + historique + test + signalements
-//   K. Paramètres          — général / Denise / buffet / douches / rewards
+//   J. Voix Nathalie         — matrice + horaire + historique + test + signalements
+//   K. Paramètres          — général / Nathalie / buffet / douches / rewards
 //
 // Mode Discrétion : TOUTES les notifications sont visuelles (aucun son).
 // Polling : /api/vip/incidents, /api/vip/showers, /api/vip/buffet toutes
@@ -33,7 +33,7 @@
 // en attendant leurs APIs dédiées.
 // ============================================================
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Wine,
   LayoutDashboard,
@@ -85,10 +85,32 @@ import {
   X,
   UserPlus,
   Monitor,
+  Mic,
+  Moon,
+  Sun,
+  Wifi,
+  Copy,
+  Check,
+  LifeBuoy,
+  ExternalLink,
+  Network,
 } from 'lucide-react'
 import { useAppStore } from '@/store/app-store'
 import { getZonesByTenant } from '@/lib/airport-config'
 import { cn } from '@/lib/utils'
+import { VipClientsTab } from '@/components/feedbackpro/vip-clients-tab'
+import { VipSettingsTab } from '@/components/feedbackpro/vip-settings-tab'
+import { VipReportsTab } from '@/components/feedbackpro/vip-reports-tab'
+import { VipGuestAlertBanner } from '@/components/feedbackpro/vip-guest-alert'
+import {
+  NathalieQrPlaque,
+  downloadPlaquePng,
+  printPlaque,
+  type PlaqueOptions,
+} from '@/components/feedbackpro/nathalie-qr-plaque'
+import type { VipLoungeConfig } from '@/lib/vip-clients'
+import { AssistanceTab } from '@/components/feedbackpro/vip-assistance-tab'
+import { VipOrchestrationTab } from '@/components/feedbackpro/vip-orchestration-tab'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -118,6 +140,7 @@ import {
 } from '@/components/ui/dialog'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { useToast } from '@/hooks/use-toast'
+import { parler } from '@/lib/staff-tts'
 
 // ============================================================
 // Types
@@ -130,6 +153,8 @@ type VipIncident = {
   commentaire: string | null
   statut: 'EN_ATTENTE' | 'EN_COURS' | 'RESOLU'
   createdAt: string
+  // Phase 2 — affectation staff (bouton « Assigner à… » des alertes douces)
+  assignedTo?: string | null
 }
 
 type ShowerStatus = 'free' | 'occupied' | 'cleaning' | 'maintenance'
@@ -201,14 +226,25 @@ type VipTableData = {
 }
 
 type VipRequestWithTable = VipTableRequestData & {
-  tableId: string
+  // QR_ROUTING — une demande CLIENT_GLOBAL (QR d'entrée) n'a PAS de
+  // table : tableId/table null, contextZone renseigné à la place.
+  tableId: string | null
+  contextZone: string | null
   table: {
     id: string
     tableNumber: string
     zone: string
     clientName: string | null
     clientVipLevel: string | null
-  }
+  } | null
+}
+
+/**
+ * QR_ROUTING — Libellé d'emplacement d'une demande, null-safe :
+ * table scannée (CLIENT_ZONE) ou zone déclarée (CLIENT_GLOBAL).
+ */
+function requestLocationLabel(r: VipRequestWithTable): string {
+  return r.table?.tableNumber ?? r.contextZone ?? 'Salon VIP'
 }
 
 type StaffRole = 'Manager' | "Maître d'Hôtel" | 'Réceptionniste' | 'Étage' | 'Chef/Barman'
@@ -227,6 +263,7 @@ type VipTab =
   | 'overview'
   | 'plan'
   | 'incidents'
+  | 'orchestration'
   | 'buffet'
   | 'showers'
   | 'rewards'
@@ -235,6 +272,7 @@ type VipTab =
   | 'qr'
   | 'reports'
   | 'wallboard'
+  | 'assistance'
   | 'settings'
 
 type VipSettings = {
@@ -398,7 +436,7 @@ const SEED_STAFF: StaffMember[] = [
   },
 ]
 
-const QR_SERVER = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data='
+// QR généré localement (paquet `qrcode`, build navigateur) via <NathalieQrPlaque />
 const FALLBACK_URL = 'https://feedback.qrbags.com'
 
 /**
@@ -434,9 +472,9 @@ const SHOWER_STATUS_LABEL: Record<ShowerStatus, string> = {
 }
 
 const SHOWER_STATUS_STYLE: Record<ShowerStatus, { bg: string; ring: string; dot: string; label: string }> = {
-  free: { bg: 'bg-[#4A7C59]/8', ring: 'ring-[#4A7C59]/30', dot: 'bg-[#4A7C59]', label: 'text-[#4A7C59]' },
-  occupied: { bg: 'bg-[#6B4C9A]/8', ring: 'ring-[#6B4C9A]/30', dot: 'bg-[#6B4C9A]', label: 'text-[#6B4C9A]' },
-  cleaning: { bg: 'bg-[#C97B63]/8', ring: 'ring-[#C97B63]/30', dot: 'bg-[#C97B63]', label: 'text-[#C97B63]' },
+  free: { bg: 'bg-[#bc7155]/8', ring: 'ring-[#bc7155]/30', dot: 'bg-[#bc7155]', label: 'text-[#bc7155]' },
+  occupied: { bg: 'bg-[#bc7155]/8', ring: 'ring-[#bc7155]/30', dot: 'bg-[#bc7155]', label: 'text-[#bc7155]' },
+  cleaning: { bg: 'bg-[#bc7155]/8', ring: 'ring-[#bc7155]/30', dot: 'bg-[#bc7155]', label: 'text-[#bc7155]' },
   maintenance: { bg: 'bg-[#8B6F47]/8', ring: 'ring-[#8B6F47]/30', dot: 'bg-[#8B6F47]', label: 'text-[#8B6F47]' },
 }
 
@@ -447,15 +485,15 @@ const INCIDENT_STATUS_LABEL: Record<VipIncident['statut'], string> = {
 }
 
 const INCIDENT_STATUS_STYLE: Record<VipIncident['statut'], string> = {
-  EN_ATTENTE: 'bg-[#C97B63]/12 text-[#C97B63] border-[#C97B63]/25',
-  EN_COURS: 'bg-[#C9A961]/15 text-[#8B6F47] border-[#C9A961]/35',
-  RESOLU: 'bg-[#4A7C59]/12 text-[#4A7C59] border-[#4A7C59]/25',
+  EN_ATTENTE: 'bg-[#bc7155]/12 text-[#bc7155] border-[#bc7155]/25',
+  EN_COURS: 'bg-[#bc7155]/15 text-[#8B6F47] border-[#bc7155]/35',
+  RESOLU: 'bg-[#bc7155]/12 text-[#bc7155] border-[#bc7155]/25',
 }
 
 const CLIENT_LEVEL_STYLE: Record<VipClient['level'], { label: string; bg: string; text: string; Icon: typeof Crown }> = {
-  Gold: { label: 'Gold', bg: 'bg-[#C9A961]/15', text: 'text-[#8B6F47]', Icon: Crown },
-  Platinum: { label: 'Platinum', bg: 'bg-[#6B4C9A]/12', text: 'text-[#6B4C9A]', Icon: Sparkles },
-  Diamond: { label: 'Diamond', bg: 'bg-[#4A7C59]/12', text: 'text-[#4A7C59]', Icon: Diamond },
+  Gold: { label: 'Gold', bg: 'bg-[#bc7155]/15', text: 'text-[#8B6F47]', Icon: Crown },
+  Platinum: { label: 'Platinum', bg: 'bg-[#bc7155]/12', text: 'text-[#bc7155]', Icon: Sparkles },
+  Diamond: { label: 'Diamond', bg: 'bg-[#bc7155]/12', text: 'text-[#bc7155]', Icon: Diamond },
 }
 
 const STAFF_ROLE_ICON: Record<StaffRole, typeof UserCog> = {
@@ -476,45 +514,45 @@ const TABLE_STATUS_STYLE: Record<VipTableStatus, {
   border: string
 }> = {
   free: {
-    dot: 'bg-[#4A7C59]',
-    ring: 'ring-[#4A7C59]/30',
-    bg: 'bg-[#4A7C59]/6',
-    text: 'text-[#4A7C59]',
+    dot: 'bg-[#bc7155]',
+    ring: 'ring-[#bc7155]/30',
+    bg: 'bg-[#bc7155]/6',
+    text: 'text-[#bc7155]',
     label: 'Libre',
-    border: 'border-[#4A7C59]/25',
+    border: 'border-[#bc7155]/25',
   },
   occupied: {
-    dot: 'bg-[#6B4C9A]',
-    ring: 'ring-[#6B4C9A]/30',
-    bg: 'bg-[#6B4C9A]/6',
-    text: 'text-[#6B4C9A]',
+    dot: 'bg-[#bc7155]',
+    ring: 'ring-[#bc7155]/30',
+    bg: 'bg-[#bc7155]/6',
+    text: 'text-[#bc7155]',
     label: 'Occupée',
-    border: 'border-[#6B4C9A]/25',
+    border: 'border-[#bc7155]/25',
   },
   problem: {
-    dot: 'bg-[#C97B63]',
-    ring: 'ring-[#C97B63]/30',
-    bg: 'bg-[#C97B63]/6',
-    text: 'text-[#C97B63]',
+    dot: 'bg-[#bc7155]',
+    ring: 'ring-[#bc7155]/30',
+    bg: 'bg-[#bc7155]/6',
+    text: 'text-[#bc7155]',
     label: 'Problème',
-    border: 'border-[#C97B63]/25',
+    border: 'border-[#bc7155]/25',
   },
   reserved: {
-    dot: 'bg-[#C9A961]',
-    ring: 'ring-[#C9A961]/30',
-    bg: 'bg-[#C9A961]/6',
+    dot: 'bg-[#bc7155]',
+    ring: 'ring-[#bc7155]/30',
+    bg: 'bg-[#bc7155]/6',
     text: 'text-[#8B6F47]',
     label: 'Réservée',
-    border: 'border-[#C9A961]/30',
+    border: 'border-[#bc7155]/30',
   },
 }
 
 // ---- Phase 1 — Table zones (Plan du Salon) ----
 const TABLE_ZONE_META: Record<string, { label: string; emoji: string; accent: string }> = {
-  main: { label: 'Espace Principal', emoji: '🍽️', accent: '#C9A961' },
+  main: { label: 'Espace Principal', emoji: '🍽️', accent: '#bc7155' },
   buffet: { label: 'Buffet & Bar', emoji: '🥂', accent: '#8B6F47' },
-  relaxation: { label: 'Espace Détente', emoji: '🧘', accent: '#4A7C59' },
-  meeting: { label: 'Salles de Réunion', emoji: '💼', accent: '#6B4C9A' },
+  relaxation: { label: 'Espace Détente', emoji: '🧘', accent: '#bc7155' },
+  meeting: { label: 'Salles de Réunion', emoji: '💼', accent: '#bc7155' },
 }
 
 // ---- Phase 1 — Request type metadata ----
@@ -530,15 +568,17 @@ const REQUEST_TYPE_META: Record<string, { label: string; Icon: typeof Wine; tone
 }
 
 const REQUEST_STATUS_META: Record<string, { label: string; style: string }> = {
-  pending: { label: 'En attente', style: 'bg-[#C97B63]/12 text-[#C97B63] border-[#C97B63]/25' },
-  in_progress: { label: 'En cours', style: 'bg-[#C9A961]/15 text-[#8B6F47] border-[#C9A961]/35' },
-  done: { label: 'Terminé', style: 'bg-[#4A7C59]/12 text-[#4A7C59] border-[#4A7C59]/25' },
+  pending: { label: 'En attente', style: 'bg-[#bc7155]/12 text-[#bc7155] border-[#bc7155]/25' },
+  in_progress: { label: 'En cours', style: 'bg-[#bc7155]/15 text-[#8B6F47] border-[#bc7155]/35' },
+  done: { label: 'Terminé', style: 'bg-[#bc7155]/12 text-[#bc7155] border-[#bc7155]/25' },
 }
 
 const NAV_ITEMS: Array<{ id: VipTab; label: string; Icon: typeof LayoutDashboard }> = [
   { id: 'overview', label: "Vue d'ensemble", Icon: LayoutDashboard },
   { id: 'plan', label: 'Plan du Salon', Icon: Map },
   { id: 'incidents', label: 'Signalements', Icon: Bell },
+  // Onglet Orchestration — moteur de routage intelligent (manager)
+  { id: 'orchestration', label: 'Orchestration', Icon: Network },
   { id: 'buffet', label: 'Buffet & Bar', Icon: Wine },
   { id: 'showers', label: 'Douches Smart', Icon: ShowerHead },
   { id: 'rewards', label: 'Récompenses Premium', Icon: Gift },
@@ -547,6 +587,8 @@ const NAV_ITEMS: Array<{ id: VipTab; label: string; Icon: typeof LayoutDashboard
   { id: 'qr', label: 'QR Codes', Icon: QrCode },
   { id: 'reports', label: 'Rapports', Icon: BarChart3 },
   { id: 'wallboard', label: 'Wallboard', Icon: Monitor },
+  // Onglet Assistance — contact direct superadmin (connecté à « Messages »)
+  { id: 'assistance', label: 'Assistance', Icon: LifeBuoy },
   { id: 'settings', label: 'Paramètres', Icon: Settings },
 ]
 
@@ -585,6 +627,9 @@ const DEFAULT_SETTINGS: VipSettings = {
 // ============================================================
 // Helpers
 // ============================================================
+
+/** Clé localStorage du Mode Sombre Luxe du dashboard. */
+const DARK_STORAGE_KEY = 'vip_dashboard_dark'
 
 /** Horloge live HH:MM:SS (évite l'hydration mismatch en partant de null).
  *  L'initialisation est différée via setTimeout(0) pour ne pas appeler
@@ -662,6 +707,88 @@ function countdownMmSs(nextIso: string): string {
   return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`
 }
 
+/**
+ * FIX BUG « 4024 min » — libellé humain du timer de vérification.
+ * - Timer à venir     → « Dans 2 min » / « Dans 1 h 05 »
+ * - Retard raisonnable → « En retard de X min » (alerte honnête)
+ * L'API /api/vip/buffet rebase les retards > 2× intervalle, donc le
+ * dashboard n'affiche JAMAIS « il y a 4024 min ».
+ */
+function formatTimerLabel(nextIso: string): { text: string; overdue: boolean } {
+  const remainingMin = Math.floor((new Date(nextIso).getTime() - Date.now()) / 60000)
+  if (remainingMin > 0) {
+    if (remainingMin < 60) return { text: `Dans ${remainingMin} min`, overdue: false }
+    return {
+      text: `Dans ${Math.floor(remainingMin / 60)} h ${String(remainingMin % 60).padStart(2, '0')}`,
+      overdue: false,
+    }
+  }
+  const lateMin = -remainingMin
+  if (lateMin < 60) return { text: `En retard de ${lateMin} min`, overdue: true }
+  return {
+    text: `En retard de ${Math.floor(lateMin / 60)} h ${String(lateMin % 60).padStart(2, '0')}`,
+    overdue: true,
+  }
+}
+
+/** « il y a 28 min » / « à l'instant » / « il y a 1 h 05 » — détail d'alerte buffet. */
+function formatLastCheckLabel(iso: string): string {
+  const min = Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 60000))
+  if (min < 1) return "à l'instant"
+  if (min < 60) return `il y a ${min} min`
+  return `il y a ${Math.floor(min / 60)} h ${String(min % 60).padStart(2, '0')}`
+}
+
+/**
+ * Compteur animé (KPI qui « s'incrémente en temps réel ») — tween
+ * d'interpolation douce entre la valeur précédente et la nouvelle.
+ * Le premier rendu affiche directement la cible (aucune animation
+ * SSR/hydration : l'animation ne démarre qu'aux polls suivants).
+ */
+function useCountUp(target: number, durationMs = 700): number {
+  const [value, setValue] = useState(target)
+  const prevRef = useRef(target)
+  useEffect(() => {
+    const from = prevRef.current
+    prevRef.current = target
+    if (from === target) return
+    let raf = 0
+    const start = performance.now()
+    const step = (t: number) => {
+      const p = Math.min(1, (t - start) / durationMs)
+      const eased = 1 - Math.pow(1 - p, 3)
+      setValue(Math.round(from + (target - from) * eased))
+      if (p < 1) raf = requestAnimationFrame(step)
+    }
+    raf = requestAnimationFrame(step)
+    return () => cancelAnimationFrame(raf)
+  }, [target, durationMs])
+  return value
+}
+
+// ============================================================
+// QR Wi-Fi — format standard WIFI: (auto-connexion au scan)
+// ============================================================
+
+/** Échappe les caractères spéciaux du format WIFI: ( \ ; , : " ). */
+function wifiQrEscape(s: string): string {
+  return s.replace(/([\\;,:"])/g, '\\$1')
+}
+
+/**
+ * Payload QR Wi-Fi standard : WIFI:T:WPA;S:<ssid>;P:<clé>;;
+ * Le smartphone se connecte AUTOMATIQUEMENT au scan du QR.
+ * Réseau sans clé → T:nopass. SSID vide → '' (pas de QR).
+ */
+function wifiQrPayload(ssid: string, pass: string): string {
+  const s = ssid.trim()
+  if (!s) return ''
+  const p = pass.trim()
+  return p
+    ? `WIFI:T:WPA;S:${wifiQrEscape(s)};P:${wifiQrEscape(p)};;`
+    : `WIFI:T:nopass;S:${wifiQrEscape(s)};;`
+}
+
 function initials(name: string): string {
   return name
     .split(' ')
@@ -678,10 +805,6 @@ function hashIsVip(id: string): boolean {
     h = (h * 31 + id.charCodeAt(i)) >>> 0
   }
   return h % 3 === 0
-}
-
-function qrImageUrl(dataUrl: string): string {
-  return `${QR_SERVER}${encodeURIComponent(dataUrl)}`
 }
 
 /**
@@ -720,7 +843,7 @@ function SectionTitle({
     <div className="flex flex-wrap items-end justify-between gap-3">
       <div className="flex items-center gap-3">
         {Icon && (
-          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#C9A961]/12 text-[#8B6F47]">
+          <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#bc7155]/12 text-[#8B6F47]">
             <Icon className="h-5 w-5" aria-hidden />
           </span>
         )}
@@ -756,18 +879,20 @@ function KPICard({
   hint?: string
 }) {
   const toneStyles: Record<typeof tone, { iconBg: string; iconText: string; accent: string }> = {
-    gold: { iconBg: 'bg-[#C9A961]/15', iconText: 'text-[#C9A961]', accent: 'text-[#8B6F47]' },
+    gold: { iconBg: 'bg-[#bc7155]/15', iconText: 'text-[#bc7155]', accent: 'text-[#8B6F47]' },
     bronze: { iconBg: 'bg-[#8B6F47]/15', iconText: 'text-[#8B6F47]', accent: 'text-[#8B6F47]' },
-    sage: { iconBg: 'bg-[#4A7C59]/15', iconText: 'text-[#4A7C59]', accent: 'text-[#4A7C59]' },
-    terracotta: { iconBg: 'bg-[#C97B63]/15', iconText: 'text-[#C97B63]', accent: 'text-[#C97B63]' },
-    amethyst: { iconBg: 'bg-[#6B4C9A]/15', iconText: 'text-[#6B4C9A]', accent: 'text-[#6B4C9A]' },
+    sage: { iconBg: 'bg-[#bc7155]/15', iconText: 'text-[#bc7155]', accent: 'text-[#bc7155]' },
+    terracotta: { iconBg: 'bg-[#bc7155]/15', iconText: 'text-[#bc7155]', accent: 'text-[#bc7155]' },
+    amethyst: { iconBg: 'bg-[#bc7155]/15', iconText: 'text-[#bc7155]', accent: 'text-[#bc7155]' },
   }
   const s = toneStyles[tone]
   return (
-    <Card className="gap-0 border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+    <Card className="gap-0 border border-[#efe7e0] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-xs font-medium uppercase tracking-wider text-[#8B6F47]">{label}</p>
+          {/* QA 2026-11-22 : truncate coupait les libellés longs à 6 colonnes
+              ("SIGNALE...", "RÉCOMPE...") → affichage sur 2 lignes. */}
+          <p className="line-clamp-2 break-words text-[10px] font-medium uppercase leading-[1.25] tracking-normal text-[#8B6F47]">{label}</p>
           <div className="mt-2 flex items-baseline gap-1">
             <span
               className="text-3xl font-semibold leading-none text-[#2C2C2C]"
@@ -779,8 +904,8 @@ function KPICard({
           </div>
           {hint && <p className="mt-2 text-xs text-[#8B6F47]/80">{hint}</p>}
         </div>
-        <span className={cn('flex h-11 w-11 shrink-0 items-center justify-center rounded-xl', s.iconBg, s.iconText)}>
-          <Icon className="h-5 w-5" aria-hidden />
+        <span className={cn('flex h-9 w-9 shrink-0 items-center justify-center rounded-xl', s.iconBg, s.iconText)}>
+          <Icon className="h-4 w-4" aria-hidden />
         </span>
       </div>
     </Card>
@@ -792,7 +917,7 @@ function VipBadge({ className }: { className?: string }) {
   return (
     <Badge
       className={cn(
-        'border-[#6B4C9A]/30 bg-[#6B4C9A]/12 text-[#6B4C9A] font-semibold',
+        'border-[#bc7155]/30 bg-[#bc7155]/12 text-[#bc7155] font-semibold',
         className,
       )}
     >
@@ -821,10 +946,10 @@ function VipStarRating({ value, size = 14 }: { value: number; size?: number }) {
             style={{ width: size, height: size }}
             className={cn(
               isFull
-                ? 'fill-[#C9A961] text-[#C9A961]'
+                ? 'fill-[#bc7155] text-[#bc7155]'
                 : isHalf
-                  ? 'fill-[#C9A961]/50 text-[#C9A961]'
-                  : 'fill-transparent text-[#EAE5DC]',
+                  ? 'fill-[#bc7155]/50 text-[#bc7155]'
+                  : 'fill-transparent text-[#efe7e0]',
             )}
             aria-hidden
           />
@@ -851,7 +976,7 @@ function TableCard({
       type="button"
       onClick={onClick}
       className={cn(
-        'group relative flex w-full flex-col items-start gap-1.5 rounded-2xl border bg-white p-3.5 text-left shadow-[0_4px_20px_rgba(201,169,97,0.06)] transition-all hover:shadow-[0_6px_28px_rgba(201,169,97,0.12)] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#C9A961]/40',
+        'group relative flex w-full flex-col items-start gap-1.5 rounded-2xl border bg-white p-3.5 text-left shadow-[0_4px_20px_rgba(201,169,97,0.06)] transition-all hover:shadow-[0_6px_28px_rgba(201,169,97,0.12)] hover:-translate-y-0.5 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#bc7155]/40',
         st.border,
         compact ? 'min-h-[100px]' : 'min-h-[120px]',
       )}
@@ -875,8 +1000,8 @@ function TableCard({
             {table.tableNumber}
           </p>
         </div>
-        <span className={cn('flex h-7 w-7 items-center justify-center rounded-full', st.bg)}>
-          <span className={cn('h-2.5 w-2.5 rounded-full', st.dot)} />
+        <span className={cn('flex h-7 w-7 items-center justify-center rounded-full transition-colors duration-500', st.bg)}>
+          <span className={cn('h-2.5 w-2.5 rounded-full transition-colors duration-500', st.dot)} />
         </span>
       </div>
 
@@ -902,10 +1027,10 @@ function TableCard({
               className={cn(
                 'h-4 px-1.5 text-[10px] font-semibold capitalize',
                 table.clientVipLevel === 'diamond'
-                  ? 'border-[#4A7C59]/30 bg-[#4A7C59]/10 text-[#4A7C59]'
+                  ? 'border-[#bc7155]/30 bg-[#bc7155]/10 text-[#bc7155]'
                   : table.clientVipLevel === 'platinum'
-                    ? 'border-[#6B4C9A]/30 bg-[#6B4C9A]/10 text-[#6B4C9A]'
-                    : 'border-[#C9A961]/30 bg-[#C9A961]/12 text-[#8B6F47]',
+                    ? 'border-[#bc7155]/30 bg-[#bc7155]/10 text-[#bc7155]'
+                    : 'border-[#bc7155]/30 bg-[#bc7155]/12 text-[#8B6F47]',
               )}
             >
               {table.clientVipLevel}
@@ -1045,7 +1170,7 @@ function TableDetailSheet({
             <Badge variant="outline" className={cn('border font-semibold', st.bg, st.text, st.border)}>
               <span className={cn('mr-1 h-1.5 w-1.5 rounded-full', st.dot)} /> {st.label}
             </Badge>
-            <Badge variant="outline" className="border-[#EAE5DC] bg-[#FAFAF7] text-[#8B6F47]">
+            <Badge variant="outline" className="border-[#efe7e0] bg-[#ffffff] text-[#8B6F47]">
               <Armchair className="mr-1 h-3 w-3" aria-hidden /> {table.seats} places
             </Badge>
           </div>
@@ -1056,9 +1181,9 @@ function TableDetailSheet({
           <section>
             <h3 className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">Client</h3>
             {table.clientName ? (
-              <div className="mt-2 rounded-2xl border border-[#EAE5DC] bg-[#FAFAF7] p-4">
+              <div className="mt-2 rounded-2xl border border-[#efe7e0] bg-[#ffffff] p-4">
                 <div className="flex items-center gap-3">
-                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-xs font-semibold text-white">
+                  <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-[#bc7155] to-[#8B6F47] text-xs font-semibold text-white">
                     {initials(table.clientName) || '?'}
                   </span>
                   <div className="min-w-0 flex-1">
@@ -1069,10 +1194,10 @@ function TableDetailSheet({
                         className={cn(
                           'mt-0.5 h-4 px-1.5 text-[10px] font-semibold capitalize',
                           table.clientVipLevel === 'diamond'
-                            ? 'border-[#4A7C59]/30 bg-[#4A7C59]/10 text-[#4A7C59]'
+                            ? 'border-[#bc7155]/30 bg-[#bc7155]/10 text-[#bc7155]'
                             : table.clientVipLevel === 'platinum'
-                              ? 'border-[#6B4C9A]/30 bg-[#6B4C9A]/10 text-[#6B4C9A]'
-                              : 'border-[#C9A961]/30 bg-[#C9A961]/12 text-[#8B6F47]',
+                              ? 'border-[#bc7155]/30 bg-[#bc7155]/10 text-[#bc7155]'
+                              : 'border-[#bc7155]/30 bg-[#bc7155]/12 text-[#8B6F47]',
                         )}
                       >
                         {table.clientVipLevel}
@@ -1090,7 +1215,7 @@ function TableDetailSheet({
                 )}
               </div>
             ) : (
-              <div className="mt-2 rounded-2xl border border-dashed border-[#EAE5DC] bg-[#FAFAF7] p-4 text-center">
+              <div className="mt-2 rounded-2xl border border-dashed border-[#efe7e0] bg-[#ffffff] p-4 text-center">
                 <Users className="mx-auto h-6 w-6 text-[#8B6F47]/50" aria-hidden />
                 <p className="mt-1.5 text-sm text-[#8B6F47]">Aucun client assigné</p>
               </div>
@@ -1102,14 +1227,14 @@ function TableDetailSheet({
             <div className="flex items-center justify-between">
               <h3 className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">Demandes à la table</h3>
               {table.activeRequests > 0 && (
-                <Badge variant="outline" className="border-[#C9A961]/30 bg-[#C9A961]/12 text-[#8B6F47]">
+                <Badge variant="outline" className="border-[#bc7155]/30 bg-[#bc7155]/12 text-[#8B6F47]">
                   {table.activeRequests} active{table.activeRequests > 1 ? 's' : ''}
                 </Badge>
               )}
             </div>
             {table.requests.length === 0 ? (
-              <div className="mt-2 rounded-2xl border border-dashed border-[#EAE5DC] bg-[#FAFAF7] p-4 text-center">
-                <CheckCircle2 className="mx-auto h-6 w-6 text-[#4A7C59]" aria-hidden />
+              <div className="mt-2 rounded-2xl border border-dashed border-[#efe7e0] bg-[#ffffff] p-4 text-center">
+                <CheckCircle2 className="mx-auto h-6 w-6 text-[#bc7155]" aria-hidden />
                 <p className="mt-1.5 text-sm text-[#8B6F47]">Aucune demande en cours</p>
               </div>
             ) : (
@@ -1122,9 +1247,9 @@ function TableDetailSheet({
                   const statusMeta = REQUEST_STATUS_META[r.status] ?? REQUEST_STATUS_META.pending
                   const RIcon = meta.Icon
                   return (
-                    <li key={r.id} className="rounded-xl border border-[#EAE5DC] bg-white p-3">
+                    <li key={r.id} className="rounded-xl border border-[#efe7e0] bg-white p-3">
                       <div className="flex items-start gap-2.5">
-                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#C9A961]/10 text-[#8B6F47]">
+                        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#bc7155]/10 text-[#8B6F47]">
                           <RIcon className="h-4 w-4" aria-hidden />
                         </span>
                         <div className="min-w-0 flex-1">
@@ -1152,13 +1277,13 @@ function TableDetailSheet({
           {/* QR code */}
           <section>
             <h3 className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">QR Code de la table</h3>
-            <div className="mt-2 flex items-center gap-4 rounded-2xl border border-[#EAE5DC] bg-[#FAFAF7] p-4">
-              <img
-                src={qrImageUrl(`${appUrl()}/?vipTable=${table.qrToken}`)}
-                alt={`QR code table ${table.tableNumber}`}
-                width={96}
-                height={96}
-                className="h-24 w-24 rounded-lg bg-white"
+            <div className="mt-2 flex items-center gap-4 rounded-2xl border border-[#efe7e0] bg-[#ffffff] p-4">
+              <NathalieQrPlaque
+                data={`${appUrl()}/?vipTable=${table.qrToken}`}
+                label={`Table ${table.tableNumber}`}
+                signature="NATHALIE · GUIDE PERSONNEL"
+                size="xs"
+                className="w-36 shrink-0"
               />
               <div className="min-w-0">
                 <p className="text-xs text-[#8B6F47]">Token</p>
@@ -1171,7 +1296,7 @@ function TableDetailSheet({
           </section>
 
           {/* Actions staff */}
-          <section className="space-y-2 border-t border-[#EAE5DC] pt-4">
+          <section className="space-y-2 border-t border-[#efe7e0] pt-4">
             <h3 className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">Actions staff</h3>
             <div className="grid grid-cols-2 gap-2">
               <Button
@@ -1179,7 +1304,7 @@ function TableDetailSheet({
                 size="sm"
                 disabled={busy || table.status === 'free'}
                 onClick={() => act('Table libérée', { status: 'free', clientName: null, clientVipLevel: null }, `Table ${table.tableNumber} prête pour le prochain client.`)}
-                className="border-[#4A7C59]/40 bg-[#4A7C59]/8 text-[#4A7C59] hover:bg-[#4A7C59]/15"
+                className="border-[#bc7155]/40 bg-[#bc7155]/8 text-[#bc7155] hover:bg-[#bc7155]/15"
               >
                 <CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> Libérer
               </Button>
@@ -1189,8 +1314,8 @@ function TableDetailSheet({
                 disabled={busy}
                 onClick={() => act('Problème signalé', { status: table.status === 'problem' ? 'occupied' : 'problem' }, `Table ${table.tableNumber} ${table.status === 'problem' ? 'rétablie' : 'marquée problème'}.`)}
                 className={cn(
-                  'border-[#C97B63]/40 text-[#C97B63] hover:bg-[#C97B63]/15',
-                  table.status === 'problem' ? 'bg-[#C97B63]/12' : 'bg-[#C97B63]/8',
+                  'border-[#bc7155]/40 text-[#bc7155] hover:bg-[#bc7155]/15',
+                  table.status === 'problem' ? 'bg-[#bc7155]/12' : 'bg-[#bc7155]/8',
                 )}
               >
                 <AlertTriangle className="h-3.5 w-3.5" aria-hidden /> {table.status === 'problem' ? 'Rétablir' : 'Marquer problème'}
@@ -1199,9 +1324,18 @@ function TableDetailSheet({
             <Button
               variant="outline"
               size="sm"
+              disabled={busy || table.status === 'occupied'}
+              onClick={() => act('Table occupée', { status: 'occupied' }, `Table ${table.tableNumber} marquée occupée.`)}
+              className="w-full border-[#bc7155]/40 bg-[#bc7155]/8 text-[#bc7155] hover:bg-[#bc7155]/15"
+            >
+              <Users className="h-3.5 w-3.5" aria-hidden /> Marquer occupée
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
               disabled={busy}
               onClick={() => setAssignDialogOpen(true)}
-              className="w-full border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
+              className="w-full border-[#bc7155]/40 bg-[#bc7155]/8 text-[#8B6F47] hover:bg-[#bc7155]/15"
             >
               <UserPlus className="h-3.5 w-3.5" aria-hidden /> Assigner client
             </Button>
@@ -1228,7 +1362,7 @@ function TableDetailSheet({
                 value={assignName}
                 onChange={(e) => setAssignName(e.target.value)}
                 placeholder="ex. Alexandre Laurent"
-                className="border-[#EAE5DC] bg-[#FAFAF7]"
+                className="border-[#efe7e0] bg-[#ffffff]"
                 autoFocus
               />
             </div>
@@ -1237,7 +1371,7 @@ function TableDetailSheet({
                 Niveau VIP
               </Label>
               <Select value={assignLevel} onValueChange={setAssignLevel}>
-                <SelectTrigger id="client-level" className="border-[#EAE5DC] bg-[#FAFAF7]">
+                <SelectTrigger id="client-level" className="border-[#efe7e0] bg-[#ffffff]">
                   <SelectValue placeholder="Sélectionner un niveau" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1255,7 +1389,7 @@ function TableDetailSheet({
             <Button
               onClick={submitAssign}
               disabled={busy || !assignName.trim()}
-              className="bg-[#C9A961] text-white hover:bg-[#C9A961]/90"
+              className="bg-[#bc7155] text-white hover:bg-[#bc7155]/90"
             >
               {busy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <UserPlus className="h-4 w-4" aria-hidden />}
               Assigner
@@ -1278,6 +1412,11 @@ function VIPSidebarContent({
   userEmail,
   userRole,
   onLogout,
+  modulesEnabled,
+  onBriefing,
+  briefingBusy,
+  briefingPlaying,
+  badgeCounts,
 }: {
   activeTab: VipTab
   onNavigate: (t: VipTab) => void
@@ -1285,7 +1424,25 @@ function VIPSidebarContent({
   userEmail: string
   userRole: string
   onLogout: () => void
+  modulesEnabled?: Partial<VipLoungeConfig['modulesEnabled']> | null
+  /** Phase 2 — briefing vocal Nathalie (prise de poste). */
+  onBriefing?: () => void
+  briefingBusy?: boolean
+  briefingPlaying?: boolean
+  /** Notification visuelle par onglet (ex : signalements actifs). */
+  badgeCounts?: Partial<Record<VipTab, number>>
 }) {
+  // Modules optionnels désactivés → onglets masqués (Paramètres → Modules optionnels)
+  const TAB_MODULE_KEY: Partial<Record<VipTab, keyof VipLoungeConfig['modulesEnabled']>> = {
+    showers: 'smartShower',
+    rewards: 'flashRewards',
+  }
+  const navFiltre = modulesEnabled
+    ? NAV_ITEMS.filter((n) => {
+        const key = TAB_MODULE_KEY[n.id]
+        return !key || modulesEnabled[key] !== false
+      })
+    : NAV_ITEMS
   const roleLabel =
     userRole === 'SUPERADMIN'
       ? 'Super Admin'
@@ -1294,23 +1451,23 @@ function VIPSidebarContent({
         : userRole || 'Opérateur'
 
   return (
-    <div className="flex h-full flex-col bg-white">
-      {/* En-tête : salon + mode discrétion */}
-      <div className="shrink-0 border-b border-[#EAE5DC] px-5 py-5">
+    <div className="flex h-full flex-col bg-[#0D0B09]">
+      {/* En-tête : salon + mode discrétion — NOIR profond + écriture MARRON */}
+      <div className="shrink-0 border-b border-white/10 px-5 py-5">
         <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white shadow-[0_4px_14px_rgba(201,169,97,0.25)]">
+          <span className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-[#bc7155] to-[#8B6F47] text-white shadow-[0_4px_14px_rgba(201,169,97,0.25)]">
             <Wine className="h-5 w-5" aria-hidden />
           </span>
           <div className="min-w-0">
             <h1
-              className="truncate text-base font-semibold text-[#2C2C2C]"
+              className="truncate text-base font-semibold text-[#EDE6D4]"
               style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
             >
               {salonName}
             </h1>
             <div className="mt-1 flex items-center gap-1.5">
-              <span className="inline-flex h-1.5 w-1.5 rounded-full bg-[#4A7C59]" />
-              <span className="text-[11px] font-medium uppercase tracking-wider text-[#8B6F47]">
+              <span className="inline-flex h-1.5 w-1.5 rounded-full bg-[#bc7155]" />
+              <span className="text-[11px] font-medium uppercase tracking-wider text-[#B08D5F]">
                 Mode Discrétion · Actif
               </span>
             </div>
@@ -1318,54 +1475,99 @@ function VIPSidebarContent({
         </div>
       </div>
 
-      {/* Navigation — scrollable */}
+      {/* Navigation — scrollable (texte marron champagne sur noir) */}
       <nav
         aria-label="Navigation VIP"
         className="vip-sidebar-nav flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-3 py-4"
       >
-        {NAV_ITEMS.map((item) => {
+        {navFiltre.map((item) => {
           const Icon = item.Icon
           const actif = activeTab === item.id
+          // Notification visuelle — badge terracotta pulsant (ex : signalements
+          // actifs sur les onglets Signalements + Wallboard)
+          const badge = badgeCounts?.[item.id] ?? 0
           return (
             <button
               key={item.id}
               type="button"
               onClick={() => onNavigate(item.id)}
               aria-current={actif ? 'page' : undefined}
+              aria-label={badge > 0 ? `${item.label} — ${badge} en attente` : item.label}
               className={cn(
                 'flex h-11 shrink-0 items-center gap-3 rounded-xl px-3.5 text-sm font-medium transition-all',
                 actif
-                  ? 'bg-[#C9A961]/12 text-[#8B6F47] shadow-[inset_0_0_0_1px_rgba(201,169,97,0.25)]'
-                  : 'text-[#2C2C2C]/70 hover:bg-[#FAFAF7] hover:text-[#2C2C2C]',
+                  ? 'bg-[#ffffff] text-[#5C4526] shadow-[0_6px_18px_rgba(0,0,0,0.45)]'
+                  : 'text-[#B08D5F]/85 hover:bg-white/[0.06] hover:text-[#dba28a]',
               )}
             >
               <Icon
-                className={cn('h-[18px] w-[18px] shrink-0', actif ? 'text-[#C9A961]' : 'text-[#8B6F47]/70')}
+                className={cn('h-[18px] w-[18px] shrink-0', actif ? 'text-[#8B6F47]' : 'text-[#B08D5F]/70')}
                 aria-hidden
               />
               <span className="truncate">{item.label}</span>
-              {actif && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#C9A961]" />}
+              {badge > 0 ? (
+                <span
+                  className={cn(
+                    'ml-auto flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[11px] font-bold tabular-nums text-white animate-pulse',
+                    'bg-[#bc7155] shadow-[0_0_10px_rgba(201,123,99,0.55)]',
+                  )}
+                >
+                  {badge > 9 ? '9+' : badge}
+                </span>
+              ) : actif ? (
+                <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#bc7155]" />
+              ) : null}
             </button>
           )
         })}
       </nav>
 
-      {/* Bas : utilisateur + déconnexion */}
-      <div className="shrink-0 border-t border-[#EAE5DC] p-3">
-        <div className="rounded-xl bg-[#FAFAF7] px-3.5 py-3">
+      {/* Bas : briefing Nathalie + utilisateur + déconnexion */}
+      <div className="shrink-0 border-t border-white/10 p-3">
+        {onBriefing ? (
+          <Button
+            variant="ghost"
+            disabled={briefingBusy}
+            onClick={onBriefing}
+            className="mb-2 w-full justify-start gap-2.5 rounded-xl border border-[#bc7155]/25 bg-[#bc7155]/8 text-[#dba28a] hover:bg-[#bc7155]/15"
+          >
+            {briefingBusy ? (
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+            ) : briefingPlaying ? (
+              <Volume2 className="h-4 w-4 animate-pulse" aria-hidden />
+            ) : (
+              <Mic className="h-4 w-4" aria-hidden />
+            )}
+            <span className="truncate text-xs font-semibold uppercase tracking-wider">
+              {briefingBusy
+                ? 'Préparation du briefing…'
+                : briefingPlaying
+                  ? 'Briefing en cours'
+                  : 'Briefing Nathalie'}
+            </span>
+            {briefingPlaying ? (
+              <span className="ml-auto flex items-end gap-0.5" aria-hidden>
+                <span className="h-2.5 w-0.5 animate-pulse rounded bg-[#bc7155]" />
+                <span className="h-3.5 w-0.5 animate-pulse rounded bg-[#bc7155] [animation-delay:150ms]" />
+                <span className="h-2 w-0.5 animate-pulse rounded bg-[#bc7155] [animation-delay:300ms]" />
+              </span>
+            ) : null}
+          </Button>
+        ) : null}
+        <div className="rounded-xl border border-white/10 bg-white/[0.05] px-3.5 py-3">
           <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-xs font-semibold text-white">
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-[#bc7155] to-[#8B6F47] text-xs font-semibold text-white">
               {initials(userEmail) || '—'}
             </span>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-[#2C2C2C]">{userEmail || 'Invité'}</p>
-              <p className="truncate text-[11px] uppercase tracking-wider text-[#8B6F47]">{roleLabel}</p>
+              <p className="truncate text-sm font-medium text-[#EDE6D4]">{userEmail || 'Invité'}</p>
+              <p className="truncate text-[11px] uppercase tracking-wider text-[#B08D5F]">{roleLabel}</p>
             </div>
           </div>
         </div>
         <Button
           variant="ghost"
-          className="mt-2 w-full justify-start gap-2.5 rounded-xl text-[#2C2C2C]/80 hover:bg-[#FAFAF7] hover:text-[#C97B63]"
+          className="mt-2 w-full justify-start gap-2.5 rounded-xl text-[#B08D5F]/85 hover:bg-white/[0.06] hover:text-[#bc7155]"
           onClick={onLogout}
         >
           <LogOut className="h-4 w-4" aria-hidden />
@@ -1389,6 +1591,13 @@ function OverviewTab({
   rewardsGivenToday,
   loading,
   onPatchTable,
+  onBuffetCheck,
+  onBuffetSnooze,
+  onShowerFree,
+  onIncidentResolve,
+  onIncidentAssign,
+  onTableRestore,
+  onNavigate,
 }: {
   incidents: VipIncident[]
   showers: Shower[]
@@ -1405,13 +1614,40 @@ function OverviewTab({
       clientVipLevel?: string | null
     },
   ) => Promise<void>
+  // Actions rapides des Alertes Douces (Phase 2)
+  onBuffetCheck: (id: string) => Promise<void>
+  onBuffetSnooze: (id: string) => Promise<void>
+  onShowerFree: (id: string) => Promise<void>
+  onIncidentResolve: (id: string) => Promise<void>
+  onIncidentAssign: (id: string, assignee: string) => Promise<void>
+  onTableRestore: (id: string, toOccupied: boolean) => Promise<void>
+  onNavigate: (t: VipTab) => void
 }) {
+  const { toast } = useToast()
   const clock = useClock()
   const [today, setToday] = useState<Date | null>(null)
   const [selectedTableId, setSelectedTableId] = useState<string | null>(null)
+  // Phase 2 — dialog « Assigner à… » pour les alertes VIP
+  const [assignIncident, setAssignIncident] = useState<VipIncident | null>(null)
+  const [assignee, setAssignee] = useState<string>(SEED_STAFF[0]?.name ?? 'Manager')
+  const [assignBusy, setAssignBusy] = useState(false)
+  const [alertBusyId, setAlertBusyId] = useState<string | null>(null)
   useEffect(() => {
     setToday(new Date())
   }, [])
+
+  /** Exécute une action d'alerte avec état busy + toast d'erreur. */
+  const runAlertAction = async (alertId: string, fn: () => Promise<void>, okMsg: string) => {
+    setAlertBusyId(alertId)
+    try {
+      await fn()
+      toast({ title: okMsg })
+    } catch {
+      toast({ title: 'Erreur', description: 'Action impossible, réessayez.', variant: 'destructive' })
+    } finally {
+      setAlertBusyId(null)
+    }
+  }
 
   const openIncidents = incidents.filter((i) => i.statut !== 'RESOLU')
   const freeShowers = showers.filter((s) => s.status === 'free').length
@@ -1427,8 +1663,7 @@ function OverviewTab({
 
   // Séjour moyen : moyenne des durées des tables occupées
   const occupiedTables = tables.filter((t) => t.status === 'occupied' && t.arrivedAt)
-  const avgStayMin =
-    occupiedTables.length > 0
+  const avgStayMin =    occupiedTables.length > 0
       ? Math.round(
           occupiedTables.reduce((sum, t) => sum + minutesDepuis(t.arrivedAt!), 0) /
             occupiedTables.length,
@@ -1446,21 +1681,43 @@ function OverviewTab({
   // Satisfaction : mock 4.8/5 (depuis derniers retours clients)
   const satisfaction = 4.8
 
-  // Alertes douces (visuelles uniquement)
+  // Alertes douces (visuelles uniquement) — Phase 2 : ACTIONS RAPIDES
+  // sur chaque alerte (✅ Marquer fait / ⏰ Reporter 15 min / 👤 Assigner).
   const buffetAlerts = buffet.filter((b) => new Date(b.nextCheck).getTime() < Date.now())
   const showerCleaning = showers.filter((s) => s.status === 'cleaning')
   const vipIncidents = incidents.filter((i) => hashIsVip(i.id) && i.statut !== 'RESOLU')
   const lowBuffetItems = buffet.filter((b) => b.fillLevel < 30)
 
   type AlertTone = 'terracotta' | 'bronze' | 'amethyst' | 'gold'
-  const alerts: Array<{ id: string; Icon: typeof AlertTriangle; tone: AlertTone; label: string; detail: string }> = []
+  type AlertAction = { label: string; Icon?: typeof AlertTriangle; onClick: () => void }
+  const alerts: Array<{
+    id: string
+    Icon: typeof AlertTriangle
+    tone: AlertTone
+    label: string
+    detail: string
+    actions?: AlertAction[]
+  }> = []
   for (const b of buffetAlerts) {
+    const timer = formatTimerLabel(b.nextCheck)
     alerts.push({
       id: `buffet-${b.id}`,
       Icon: Clock,
       tone: 'terracotta',
       label: 'Vérification buffet requise',
-      detail: `${BUFFET_ITEM_LABELS[b.item] ?? b.item} — dernière vérification il y a ${minutesDepuis(b.lastCheck)} min`,
+      detail: `${BUFFET_ITEM_LABELS[b.item] ?? b.item} — dernière vérification ${formatLastCheckLabel(b.lastCheck)} · ${timer.text}`,
+      actions: [
+        {
+          label: 'Marquer fait',
+          Icon: CheckCircle2,
+          onClick: () => void runAlertAction(`buffet-${b.id}`, () => onBuffetCheck(b.id), 'Vérification enregistrée'),
+        },
+        {
+          label: 'Reporter 15 min',
+          Icon: Clock,
+          onClick: () => void runAlertAction(`buffet-${b.id}`, () => onBuffetSnooze(b.id), 'Reporté de 15 minutes'),
+        },
+      ],
     })
   }
   for (const b of lowBuffetItems) {
@@ -1470,6 +1727,9 @@ function OverviewTab({
       tone: 'terracotta',
       label: 'Niveau buffet bas',
       detail: `${BUFFET_ITEM_LABELS[b.item] ?? b.item} — ${b.fillLevel}% restant`,
+      actions: [
+        { label: 'Ouvrir Buffet', Icon: Wine, onClick: () => onNavigate('buffet') },
+      ],
     })
   }
   for (const s of showerCleaning) {
@@ -1479,6 +1739,13 @@ function OverviewTab({
       tone: 'bronze',
       label: `Douche N°${s.showerNumber} en nettoyage`,
       detail: 'Libérer la cabine dès que possible',
+      actions: [
+        {
+          label: 'Marquer fait',
+          Icon: CheckCircle2,
+          onClick: () => void runAlertAction(`shower-${s.id}`, () => onShowerFree(s.id), `Douche N°${s.showerNumber} libérée`),
+        },
+      ],
     })
   }
   for (const i of vipIncidents.slice(0, 2)) {
@@ -1487,7 +1754,21 @@ function OverviewTab({
       Icon: Crown,
       tone: 'amethyst',
       label: 'Client VIP a signalé un problème',
-      detail: `${i.zone?.nom ?? 'Salon'} — ${i.problemType}`,
+      detail:
+        `${i.zone?.nom ?? 'Salon'} — ${i.problemType}` +
+        (i.assignedTo ? ` · 👤 Assigné à ${i.assignedTo}` : ''),
+      actions: [
+        {
+          label: 'Marquer fait',
+          Icon: CheckCircle2,
+          onClick: () => void runAlertAction(`vip-${i.id}`, () => onIncidentResolve(i.id), 'Signalement résolu'),
+        },
+        {
+          label: 'Assigner à…',
+          Icon: UserPlus,
+          onClick: () => setAssignIncident(i),
+        },
+      ],
     })
   }
   // Tables en problème
@@ -1498,6 +1779,13 @@ function OverviewTab({
       tone: 'terracotta',
       label: `Table ${t.tableNumber} en problème`,
       detail: t.clientName ? `Client : ${t.clientName}` : 'Aucun client assigné',
+      actions: [
+        {
+          label: 'Marquer fait',
+          Icon: CheckCircle2,
+          onClick: () => void runAlertAction(`problem-${t.id}`, () => onTableRestore(t.id, Boolean(t.clientName)), `Table ${t.tableNumber} rétablie`),
+        },
+      ],
     })
   }
   // Demandes à la table en attente
@@ -1508,12 +1796,22 @@ function OverviewTab({
       tone: 'gold',
       label: `${activeTableRequests} demande${activeTableRequests > 1 ? 's' : ''} à la table en attente`,
       detail: 'Onglet Signalements pour prendre en charge',
+      actions: [
+        { label: 'Voir signalements', Icon: Bell, onClick: () => onNavigate('incidents') },
+      ],
     })
   }
 
   const selectedTable = selectedTableId
     ? tables.find((t) => t.id === selectedTableId) ?? null
     : null
+
+  // Animations KPI — compteurs qui s'incrémentent en douceur (temps réel)
+  const capacityAnim = useCountUp(clientsCount)
+  const signalementsAnim = useCountUp(totalSignalementsActifs)
+  const rewardsAnim = useCountUp(rewardsGivenToday)
+  const showersFreeAnim = useCountUp(freeShowers)
+  const satisfactionAnim = useCountUp(Math.round(satisfaction * 10)) / 10
 
   // Group tables by zone for the 2D plan
   const tablesByZone = useMemo(() => {
@@ -1528,7 +1826,7 @@ function OverviewTab({
   return (
     <div className="space-y-6">
       {/* Bandeau d'accueil */}
-      <Card className="overflow-hidden border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+      <Card className="overflow-hidden border border-[#efe7e0] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-xs font-medium uppercase tracking-widest text-[#8B6F47]">
@@ -1544,8 +1842,8 @@ function OverviewTab({
               Salon en service · {clientsCount} clients présents · satisfaction jour {satisfaction.toFixed(1)}/5
             </p>
           </div>
-          <div className="flex items-center gap-3 rounded-2xl bg-[#FAFAF7] px-5 py-3">
-            <Clock className="h-5 w-5 text-[#C9A961]" aria-hidden />
+          <div className="flex items-center gap-3 rounded-2xl bg-[#ffffff] px-5 py-3">
+            <Clock className="h-5 w-5 text-[#bc7155]" aria-hidden />
             <span
               className="text-2xl font-semibold tabular-nums text-[#2C2C2C]"
               style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
@@ -1562,44 +1860,44 @@ function OverviewTab({
           Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-[120px] rounded-2xl" />)
         ) : (
           <>
-            <Card className="gap-0 border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+            <Card className="gap-0 border border-[#efe7e0] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate text-xs font-medium uppercase tracking-wider text-[#8B6F47]">Capacité</p>
+                  <p className="line-clamp-2 break-words text-[10px] font-medium uppercase leading-[1.25] tracking-normal text-[#8B6F47]">Capacité</p>
                   <div className="mt-2 flex items-baseline gap-1">
                     <span
                       className="text-2xl font-semibold leading-none text-[#2C2C2C]"
                       style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
                     >
-                      {clientsCount}
+                      {capacityAnim}
                     </span>
                     <span className="text-sm font-medium text-[#8B6F47]">/ {CAPACITE_SALON}</span>
                     <span className="ml-1 text-xs text-[#8B6F47]">({capacitePct}%)</span>
                   </div>
                 </div>
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#6B4C9A]/15 text-[#6B4C9A]">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#bc7155]/15 text-[#bc7155]">
                   <Users className="h-4 w-4" aria-hidden />
                 </span>
               </div>
-              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[#FAFAF7]">
+              <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-[#ffffff] transition-colors duration-500">
                 <div
-                  className="h-full rounded-full bg-[#C9A961]"
+                  className="h-full rounded-full bg-[#bc7155] transition-all duration-700"
                   style={{ width: `${capacitePct}%` }}
                 />
               </div>
             </Card>
 
             <KPICard label="Séjour moyen" value={avgStayLabel} Icon={Timer} tone="bronze" hint={`${occupiedTables.length} table${occupiedTables.length > 1 ? 's' : ''} occupée${occupiedTables.length > 1 ? 's' : ''}`} />
-            <Card className="gap-0 border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+            <Card className="gap-0 border border-[#efe7e0] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <p className="truncate text-xs font-medium uppercase tracking-wider text-[#8B6F47]">Satisfaction</p>
+                  <p className="line-clamp-2 break-words text-[10px] font-medium uppercase leading-[1.25] tracking-normal text-[#8B6F47]">Satisfaction</p>
                   <div className="mt-2 flex items-baseline gap-1">
                     <span
                       className="text-2xl font-semibold leading-none text-[#2C2C2C]"
                       style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
                     >
-                      {satisfaction.toFixed(1)}
+                      {satisfactionAnim.toFixed(1)}
                     </span>
                     <span className="text-sm font-medium text-[#8B6F47]">/5</span>
                   </div>
@@ -1607,20 +1905,20 @@ function OverviewTab({
                     <VipStarRating value={satisfaction} size={12} />
                   </div>
                 </div>
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#4A7C59]/15 text-[#4A7C59]">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[#bc7155]/15 text-[#bc7155]">
                   <Star className="h-4 w-4" aria-hidden />
                 </span>
               </div>
             </Card>
-            <KPICard label="Signalements actifs" value={totalSignalementsActifs} Icon={Bell} tone="terracotta" hint={`${openIncidents.length} incidents · ${activeTableRequests} à la table`} />
-            <KPICard label="Récompenses offertes" value={rewardsGivenToday} Icon={Gift} tone="gold" hint="Aujourd'hui" />
-            <KPICard label="Douches libres" value={`${freeShowers}/${showers.length || 0}`} Icon={ShowerHead} tone="sage" hint="Cabines disponibles" />
+            <KPICard label="Signalements actifs" value={signalementsAnim} Icon={Bell} tone="terracotta" hint={`${openIncidents.length} incidents · ${activeTableRequests} à la table`} />
+            <KPICard label="Récompenses offertes" value={rewardsAnim} Icon={Gift} tone="gold" hint="Aujourd'hui" />
+            <KPICard label="Douches libres" value={`${showersFreeAnim}/${showers.length || 0}`} Icon={ShowerHead} tone="sage" hint="Cabines disponibles" />
           </>
         )}
       </div>
 
       {/* Plan Interactif 2D du Salon */}
-      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+      <Card className="border border-[#efe7e0] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
         <CardHeader className="px-0">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -1636,7 +1934,7 @@ function OverviewTab({
                 const st = TABLE_STATUS_STYLE[s]
                 const count = tables.filter((t) => t.status === s).length
                 return (
-                  <div key={s} className="flex items-center gap-1.5 rounded-lg bg-[#FAFAF7] px-2.5 py-1.5">
+                  <div key={s} className="flex items-center gap-1.5 rounded-lg bg-[#ffffff] px-2.5 py-1.5">
                     <span className={cn('h-2 w-2 rounded-full', st.dot)} />
                     <span className="text-[11px] font-medium text-[#8B6F47]">{st.label}</span>
                     <span className="text-xs font-semibold text-[#2C2C2C]">{count}</span>
@@ -1652,7 +1950,7 @@ function OverviewTab({
               {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-[120px] rounded-2xl" />)}
             </div>
           ) : tables.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-[#FAFAF7] py-10 text-center">
+            <div className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-[#ffffff] py-10 text-center">
               <LayoutGrid className="h-8 w-8 text-[#8B6F47]/50" aria-hidden />
               <p className="text-sm font-medium text-[#2C2C2C]">Aucune table</p>
               <p className="text-xs text-[#8B6F47]">Les tables apparaîtront ici une fois la base initialisée.</p>
@@ -1693,7 +1991,7 @@ function OverviewTab({
       </Card>
 
       {/* Alertes douces */}
-      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+      <Card className="border border-[#efe7e0] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
         <CardHeader className="px-0">
           <CardTitle className="text-lg text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
             Alertes Douces
@@ -1704,30 +2002,57 @@ function OverviewTab({
         </CardHeader>
         <CardContent className="px-0">
           {alerts.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-[#FAFAF7] py-10 text-center">
-              <CheckCircle2 className="h-8 w-8 text-[#4A7C59]" aria-hidden />
+            <div className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-[#ffffff] py-10 text-center">
+              <CheckCircle2 className="h-8 w-8 text-[#bc7155]" aria-hidden />
               <p className="text-sm font-medium text-[#2C2C2C]">Aucune alerte en cours</p>
               <p className="text-xs text-[#8B6F47]">Tout est sous contrôle. Belle journée.</p>
             </div>
           ) : (
             <ul className="space-y-2.5">
-              {alerts.map((a) => {
+              {alerts.map((a, idx) => {
                 const toneMap: Record<AlertTone, string> = {
-                  terracotta: 'bg-[#C97B63]/8 border-[#C97B63]/25 text-[#C97B63]',
+                  terracotta: 'bg-[#bc7155]/8 border-[#bc7155]/25 text-[#bc7155]',
                   bronze: 'bg-[#8B6F47]/8 border-[#8B6F47]/25 text-[#8B6F47]',
-                  amethyst: 'bg-[#6B4C9A]/8 border-[#6B4C9A]/25 text-[#6B4C9A]',
-                  gold: 'bg-[#C9A961]/10 border-[#C9A961]/30 text-[#8B6F47]',
+                  amethyst: 'bg-[#bc7155]/8 border-[#bc7155]/25 text-[#bc7155]',
+                  gold: 'bg-[#bc7155]/10 border-[#bc7155]/30 text-[#8B6F47]',
                 }
+                const busy = alertBusyId === a.id
                 return (
                   <li
                     key={a.id}
-                    className={cn('flex items-start gap-3 rounded-xl border px-4 py-3', toneMap[a.tone])}
+                    className={cn('animate-fadeIn flex flex-col gap-2.5 rounded-xl border px-4 py-3 sm:flex-row sm:items-start', toneMap[a.tone])}
+                    style={{ animationDelay: `${Math.min(idx * 70, 420)}ms` }}
                   >
                     <a.Icon className="mt-0.5 h-5 w-5 shrink-0" aria-hidden />
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-[#2C2C2C]">{a.label}</p>
                       <p className="text-xs text-[#2C2C2C]/70">{a.detail}</p>
                     </div>
+                    {/* Actions rapides (Phase 2) : ✅ Fait · ⏰ 15 min · 👤 Assigner */}
+                    {a.actions && a.actions.length > 0 ? (
+                      <div className="flex shrink-0 flex-wrap gap-1.5">
+                        {a.actions.map((act) => {
+                          const AIcon = act.Icon
+                          return (
+                            <button
+                              key={act.label}
+                              type="button"
+                              onClick={act.onClick}
+                              disabled={busy}
+                              className="inline-flex h-7 items-center gap-1 rounded-md border border-current bg-white/70 px-2 text-[11px] font-semibold text-current transition hover:bg-white disabled:opacity-60"
+                              aria-label={`${act.label} — ${a.label}`}
+                            >
+                              {busy && act.label !== 'Assigner à…' ? (
+                                <Loader2 className="h-3 w-3 animate-spin" aria-hidden />
+                              ) : AIcon ? (
+                                <AIcon className="h-3 w-3" aria-hidden />
+                              ) : null}
+                              {act.label}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    ) : null}
                   </li>
                 )
               })}
@@ -1744,6 +2069,60 @@ function OverviewTab({
         }}
         onPatchTable={onPatchTable}
       />
+
+      {/* Dialog « Assigner à… » — affectation persistée (AirportReport.assignedTo) */}
+      <Dialog open={assignIncident !== null} onOpenChange={(o) => { if (!o) setAssignIncident(null) }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assigner le signalement</DialogTitle>
+            <DialogDescription>
+              {assignIncident
+                ? `${assignIncident.zone?.nom ?? 'Salon'} — ${assignIncident.problemType}`
+                : 'Choisissez un membre de l\'équipe.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-2 py-2">
+            <Label className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">Membre de l&apos;équipe</Label>
+            <Select value={assignee} onValueChange={setAssignee}>
+              <SelectTrigger className="border-[#efe7e0] bg-[#ffffff]">
+                <SelectValue placeholder="Choisir un membre" />
+              </SelectTrigger>
+              <SelectContent>
+                {SEED_STAFF.map((s) => (
+                  <SelectItem key={s.id} value={s.name}>
+                    {s.name} — {s.role}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setAssignIncident(null)} disabled={assignBusy}>
+              Annuler
+            </Button>
+            <Button
+              disabled={assignBusy}
+              className="bg-[#bc7155] text-white hover:bg-[#bc7155]/90"
+              onClick={async () => {
+                if (!assignIncident) return
+                setAssignBusy(true)
+                try {
+                  await onIncidentAssign(assignIncident.id, assignee)
+                  toast({ title: 'Signalement assigné', description: `${assignee} est en charge.` })
+                  setAssignIncident(null)
+                } catch {
+                  toast({ title: 'Erreur', description: 'Affectation impossible.', variant: 'destructive' })
+                } finally {
+                  setAssignBusy(false)
+                }
+              }}
+            >
+              {assignBusy ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <UserPlus className="h-4 w-4" aria-hidden />}
+              Assigner
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
@@ -1827,14 +2206,14 @@ function FloorPlanTab({
           <div className="flex items-center gap-2">
             <Button
               size="sm"
-              className="gap-1.5 bg-[#C9A961] text-white hover:bg-[#B8975A]"
+              className="gap-1.5 bg-[#bc7155] text-white hover:bg-[#B8975A]"
               onClick={() => setShowAddDialog(true)}
             >
               <Plus className="h-4 w-4" />
               Ajouter une table
             </Button>
             <Select value={filterStatus} onValueChange={setFilterStatus}>
-              <SelectTrigger className="w-[150px] border-[#EAE5DC] bg-white text-sm">
+              <SelectTrigger className="w-[150px] border-[#efe7e0] bg-white text-sm">
                 <SelectValue placeholder="Filtrer" />
               </SelectTrigger>
               <SelectContent>
@@ -1850,7 +2229,7 @@ function FloorPlanTab({
       />
 
       {/* Légende */}
-      <Card className="border border-[#EAE5DC] bg-white p-4 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+      <Card className="border border-[#efe7e0] bg-white p-4 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">Légende</span>
           {(['free', 'occupied', 'problem', 'reserved'] as VipTableStatus[]).map((s) => {
@@ -1862,7 +2241,7 @@ function FloorPlanTab({
               </div>
             )
           })}
-          <span className="mx-1 h-4 w-px bg-[#EAE5DC]" />
+          <span className="mx-1 h-4 w-px bg-[#efe7e0]" />
           {Object.entries(TABLE_ZONE_META).map(([k, z]) => (
             <div key={k} className="flex items-center gap-1.5">
               <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: z.accent }} />
@@ -1878,7 +2257,7 @@ function FloorPlanTab({
           {Array.from({ length: 12 }).map((_, i) => <Skeleton key={i} className="h-[130px] rounded-2xl" />)}
         </div>
       ) : tables.length === 0 ? (
-        <Card className="border border-[#EAE5DC] bg-white p-10 text-center shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+        <Card className="border border-[#efe7e0] bg-white p-10 text-center shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
           <LayoutGrid className="mx-auto h-10 w-10 text-[#8B6F47]/40" aria-hidden />
           <p className="mt-3 text-sm font-medium text-[#2C2C2C]">Aucune table en base</p>
           <p className="mt-1 text-xs text-[#8B6F47]">La base de tables s'initialise automatiquement au premier appel API.</p>
@@ -1891,7 +2270,7 @@ function FloorPlanTab({
             return (
               <Card
                 key={zoneKey}
-                className="overflow-hidden border border-[#EAE5DC] bg-white shadow-[0_4px_20px_rgba(201,169,97,0.06)]"
+                className="overflow-hidden border border-[#efe7e0] bg-white shadow-[0_4px_20px_rgba(201,169,97,0.06)]"
               >
                 <div
                   className="flex items-center justify-between px-5 py-3"
@@ -1944,17 +2323,17 @@ function FloorPlanTab({
       {/* Dialog Ajouter une table */}
       {showAddDialog && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowAddDialog(false)}>
-          <Card className="w-full max-w-md border border-[#EAE5DC] bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+          <Card className="w-full max-w-md border border-[#efe7e0] bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
             <h3 className="mb-4 font-serif text-xl font-bold text-[#2C2C2C]">Ajouter une table</h3>
             <div className="space-y-4">
               <div>
                 <Label className="text-sm font-medium text-[#8B6F47]">Numéro de table</Label>
-                <Input placeholder={`T-${String(tables.length + 1).padStart(2, '0')}`} value={newTableNumber} onChange={(e) => setNewTableNumber(e.target.value)} className="mt-1 border-[#EAE5DC] bg-white" />
+                <Input placeholder={`T-${String(tables.length + 1).padStart(2, '0')}`} value={newTableNumber} onChange={(e) => setNewTableNumber(e.target.value)} className="mt-1 border-[#efe7e0] bg-white" />
               </div>
               <div>
                 <Label className="text-sm font-medium text-[#8B6F47]">Zone</Label>
                 <Select value={newZone} onValueChange={setNewZone}>
-                  <SelectTrigger className="mt-1 border-[#EAE5DC] bg-white"><SelectValue /></SelectTrigger>
+                  <SelectTrigger className="mt-1 border-[#efe7e0] bg-white"><SelectValue /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="main">Main</SelectItem>
                     <SelectItem value="buffet">Buffet</SelectItem>
@@ -1965,11 +2344,11 @@ function FloorPlanTab({
               </div>
               <div>
                 <Label className="text-sm font-medium text-[#8B6F47]">Places</Label>
-                <Input type="number" min={1} max={12} value={newSeats} onChange={(e) => setNewSeats(parseInt(e.target.value) || 4)} className="mt-1 border-[#EAE5DC] bg-white" />
+                <Input type="number" min={1} max={12} value={newSeats} onChange={(e) => setNewSeats(parseInt(e.target.value) || 4)} className="mt-1 border-[#efe7e0] bg-white" />
               </div>
               <div className="flex justify-end gap-2 pt-2">
                 <Button variant="outline" size="sm" onClick={() => setShowAddDialog(false)}>Annuler</Button>
-                <Button size="sm" className="bg-[#C9A961] text-white hover:bg-[#B8975A]" disabled={adding} onClick={ajouterTable}>
+                <Button size="sm" className="bg-[#bc7155] text-white hover:bg-[#B8975A]" disabled={adding} onClick={ajouterTable}>
                   {adding ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                   Créer la table
                 </Button>
@@ -2044,7 +2423,7 @@ function IncidentsTab({
       />
 
       {/* Filtres */}
-      <Card className="border border-[#EAE5DC] bg-white p-4 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+      <Card className="border border-[#efe7e0] bg-white p-4 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
         <div className="flex flex-wrap items-center gap-3">
           <div className="relative min-w-[180px] flex-1">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8B6F47]/60" aria-hidden />
@@ -2052,11 +2431,11 @@ function IncidentsTab({
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Rechercher (problème, commentaire…)"
-              className="border-[#EAE5DC] bg-[#FAFAF7] pl-9 text-sm"
+              className="border-[#efe7e0] bg-[#ffffff] pl-9 text-sm"
             />
           </div>
           <Select value={filterZone} onValueChange={setFilterZone}>
-            <SelectTrigger className="w-[170px] border-[#EAE5DC] bg-[#FAFAF7] text-sm">
+            <SelectTrigger className="w-[170px] border-[#efe7e0] bg-[#ffffff] text-sm">
               <SelectValue placeholder="Zone" />
             </SelectTrigger>
             <SelectContent>
@@ -2067,7 +2446,7 @@ function IncidentsTab({
             </SelectContent>
           </Select>
           <Select value={filterStatus} onValueChange={setFilterStatus}>
-            <SelectTrigger className="w-[150px] border-[#EAE5DC] bg-[#FAFAF7] text-sm">
+            <SelectTrigger className="w-[150px] border-[#efe7e0] bg-[#ffffff] text-sm">
               <SelectValue placeholder="Statut" />
             </SelectTrigger>
             <SelectContent>
@@ -2082,10 +2461,10 @@ function IncidentsTab({
             size="sm"
             onClick={() => setFilterVip((v) => (v === 'vip' ? 'all' : 'vip'))}
             className={cn(
-              'gap-1.5 border-[#EAE5DC]',
+              'gap-1.5 border-[#efe7e0]',
               filterVip === 'vip'
-                ? 'border-transparent bg-[#6B4C9A] text-white hover:bg-[#6B4C9A]/90'
-                : 'bg-[#FAFAF7] text-[#8B6F47] hover:bg-[#C9A961]/10',
+                ? 'border-transparent bg-[#bc7155] text-white hover:bg-[#bc7155]/90'
+                : 'bg-[#ffffff] text-[#8B6F47] hover:bg-[#bc7155]/10',
             )}
           >
             <Crown className="h-4 w-4" aria-hidden /> VIP seulement
@@ -2094,21 +2473,21 @@ function IncidentsTab({
       </Card>
 
       {/* Table */}
-      <Card className="border border-[#EAE5DC] bg-white shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+      <Card className="border border-[#efe7e0] bg-white shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
         {loading ? (
           <div className="space-y-2 p-6">
             {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-xl" />)}
           </div>
         ) : filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
-            <CheckCircle2 className="h-8 w-8 text-[#4A7C59]" aria-hidden />
+            <CheckCircle2 className="h-8 w-8 text-[#bc7155]" aria-hidden />
             <p className="text-sm font-medium text-[#2C2C2C]">Aucun signalement</p>
             <p className="text-xs text-[#8B6F47]">Aucun incident ne correspond à vos filtres.</p>
           </div>
         ) : (
           <Table>
             <TableHeader>
-              <TableRow className="border-[#EAE5DC] hover:bg-transparent">
+              <TableRow className="border-[#efe7e0] hover:bg-transparent">
                 <TableHead className="text-[#8B6F47]">Zone</TableHead>
                 <TableHead className="text-[#8B6F47]">Problème</TableHead>
                 <TableHead className="text-[#8B6F47]">Statut</TableHead>
@@ -2120,7 +2499,7 @@ function IncidentsTab({
               {filtered.map((i) => {
                 const isVip = hashIsVip(i.id)
                 return (
-                  <TableRow key={i.id} className="border-[#EAE5DC]">
+                  <TableRow key={i.id} className="border-[#efe7e0]">
                     <TableCell className="font-medium text-[#2C2C2C]">
                       <div className="flex items-center gap-2">
                         <span className="text-lg" aria-hidden>{i.zone?.emoji ?? '📍'}</span>
@@ -2153,7 +2532,7 @@ function IncidentsTab({
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-8 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
+                            className="h-8 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#8B6F47] hover:bg-[#bc7155]/15"
                             onClick={() => act(i.id, 'EN_COURS', 'Pris en charge')}
                           >
                             <ArrowDown className="h-3.5 w-3.5" aria-hidden /> Prendre en charge
@@ -2163,7 +2542,7 @@ function IncidentsTab({
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-8 border-[#4A7C59]/40 bg-[#4A7C59]/8 text-[#4A7C59] hover:bg-[#4A7C59]/15"
+                            className="h-8 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#bc7155] hover:bg-[#bc7155]/15"
                             onClick={() => act(i.id, 'RESOLU', 'Résolu')}
                           >
                             <CheckCircle2 className="h-3.5 w-3.5" aria-hidden /> Résoudre
@@ -2173,7 +2552,7 @@ function IncidentsTab({
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-8 border-[#C97B63]/40 bg-[#C97B63]/8 text-[#C97B63] hover:bg-[#C97B63]/15"
+                            className="h-8 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#bc7155] hover:bg-[#bc7155]/15"
                             onClick={() => toast({ title: 'Escalade déclenchée', description: 'Le manager a été notifié (visuel).' })}
                           >
                             <ArrowUp className="h-3.5 w-3.5" aria-hidden /> Escalader
@@ -2190,19 +2569,19 @@ function IncidentsTab({
       </Card>
 
       {/* ---------- Phase 1 — Demandes à la table ---------- */}
-      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+      <Card className="border border-[#efe7e0] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
         <CardHeader className="px-0">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
               <CardTitle className="flex items-center gap-2 text-lg text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
-                <ConciergeBell className="h-5 w-5 text-[#C9A961]" aria-hidden /> Demandes à la table
+                <ConciergeBell className="h-5 w-5 text-[#bc7155]" aria-hidden /> Demandes à la table
               </CardTitle>
               <CardDescription className="text-[#8B6F47]">
                 Demandes envoyées par les clients depuis le QR code de leur table.
               </CardDescription>
             </div>
             <Select value={filterRequestType} onValueChange={setFilterRequestType}>
-              <SelectTrigger className="w-[200px] border-[#EAE5DC] bg-[#FAFAF7] text-sm">
+              <SelectTrigger className="w-[200px] border-[#efe7e0] bg-[#ffffff] text-sm">
                 <SelectValue placeholder="Type de demande" />
               </SelectTrigger>
               <SelectContent>
@@ -2220,8 +2599,8 @@ function IncidentsTab({
               {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}
             </div>
           ) : tableRequests.length === 0 ? (
-            <div className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-[#FAFAF7] py-10 text-center">
-              <CheckCircle2 className="h-8 w-8 text-[#4A7C59]" aria-hidden />
+            <div className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-[#ffffff] py-10 text-center">
+              <CheckCircle2 className="h-8 w-8 text-[#bc7155]" aria-hidden />
               <p className="text-sm font-medium text-[#2C2C2C]">Aucune demande à la table</p>
               <p className="text-xs text-[#8B6F47]">Les demandes envoyées par les clients depuis leur QR table apparaîtront ici.</p>
             </div>
@@ -2236,18 +2615,19 @@ function IncidentsTab({
                   return (
                     <li
                       key={r.id}
-                      className="flex flex-wrap items-center gap-3 rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-3"
+                      className="flex flex-wrap items-center gap-3 rounded-xl border border-[#efe7e0] bg-[#ffffff] px-4 py-3"
                     >
                       {/* Type icon */}
-                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#C9A961]/12 text-[#8B6F47]">
+                      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[#bc7155]/12 text-[#8B6F47]">
                         <RIcon className="h-5 w-5" aria-hidden />
                       </span>
 
                       {/* Table + type + message */}
                       <div className="min-w-[200px] flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <Badge variant="outline" className="border-[#EAE5DC] bg-white font-mono text-xs font-semibold text-[#2C2C2C]">
-                            {r.table.tableNumber}
+                          <Badge variant="outline" className="border-[#efe7e0] bg-white font-mono text-xs font-semibold text-[#2C2C2C]">
+                            {/* QR_ROUTING — table scannée ou zone déclarée (QR d'entrée) */}
+                            {requestLocationLabel(r)}
                           </Badge>
                           <p className="text-sm font-semibold text-[#2C2C2C]">{meta.label}</p>
                           <Badge variant="outline" className={cn('h-5 px-1.5 text-[10px] font-medium', statusMeta.style)}>
@@ -2257,11 +2637,11 @@ function IncidentsTab({
                         {r.message && (
                           <p className="mt-0.5 truncate text-xs text-[#8B6F47]">« {r.message} »</p>
                         )}
-                        {r.table.clientName && (
+                        {r.table?.clientName && (
                           <p className="mt-0.5 text-[11px] text-[#8B6F47]/80">
                             Client : <span className="font-medium text-[#2C2C2C]">{r.table.clientName}</span>
                             {r.table.clientVipLevel && (
-                              <span className="ml-1 text-[#6B4C9A]">· {r.table.clientVipLevel}</span>
+                              <span className="ml-1 text-[#bc7155]">· {r.table.clientVipLevel}</span>
                             )}
                           </p>
                         )}
@@ -2279,11 +2659,11 @@ function IncidentsTab({
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-8 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
+                            className="h-8 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#8B6F47] hover:bg-[#bc7155]/15"
                             onClick={async () => {
                               try {
                                 await onPatchRequest(r.id, { status: 'in_progress' })
-                                toast({ title: 'Pris en charge', description: `Demande de ${r.table.tableNumber} — ${meta.label}` })
+                                toast({ title: 'Pris en charge', description: `Demande de ${requestLocationLabel(r)} — ${meta.label}` })
                               } catch {
                                 toast({ title: 'Erreur', description: 'Mise à jour impossible.', variant: 'destructive' })
                               }
@@ -2296,11 +2676,11 @@ function IncidentsTab({
                           <Button
                             size="sm"
                             variant="outline"
-                            className="h-8 border-[#4A7C59]/40 bg-[#4A7C59]/8 text-[#4A7C59] hover:bg-[#4A7C59]/15"
+                            className="h-8 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#bc7155] hover:bg-[#bc7155]/15"
                             onClick={async () => {
                               try {
                                 await onPatchRequest(r.id, { status: 'done' })
-                                toast({ title: 'Terminé', description: `Demande de ${r.table.tableNumber} clôturée.` })
+                                toast({ title: 'Terminé', description: `Demande de ${requestLocationLabel(r)} clôturée.` })
                               } catch {
                                 toast({ title: 'Erreur', description: 'Mise à jour impossible.', variant: 'destructive' })
                               }
@@ -2310,7 +2690,7 @@ function IncidentsTab({
                           </Button>
                         )}
                         {r.status === 'done' && (
-                          <span className="text-xs text-[#4A7C59]">Clôturée</span>
+                          <span className="text-xs text-[#bc7155]">Clôturée</span>
                         )}
                       </div>
                     </li>
@@ -2351,6 +2731,9 @@ function BuffetTab({
     .map((b) => b.nextCheck)
     .sort((a, b) => new Date(a).getTime() - new Date(b).getTime())[0]
   const countdown = nextCheck ? countdownMmSs(nextCheck) : '--:--'
+  // FIX BUG 4024 min : si le timer est dépassé → libellé humain
+  // « En retard de X min » (terracotta) au lieu d'un 00:00 figé.
+  const nextTimer = nextCheck ? formatTimerLabel(nextCheck) : null
 
   const onSliderCommit = async (id: string, level: number, label: string) => {
     try {
@@ -2372,15 +2755,21 @@ function BuffetTab({
         subtitle="Checklist luxe — Champagne, Saumon, Fruits & Mignardises"
         Icon={Wine}
         action={
-          <div className="flex items-center gap-2 rounded-xl border border-[#EAE5DC] bg-white px-4 py-2.5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-            <Clock className="h-4 w-4 text-[#C9A961]" aria-hidden />
-            <span className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">Prochaine vérification</span>
-            <span
-              className="text-lg font-semibold tabular-nums text-[#2C2C2C]"
-              style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
-            >
-              {loading ? '--:--' : countdown}
+          <div className="flex items-center gap-2 rounded-xl border border-[#efe7e0] bg-white px-4 py-2.5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+            <Clock className={cn('h-4 w-4', nextTimer?.overdue ? 'text-[#bc7155]' : 'text-[#bc7155]')} aria-hidden />
+            <span className="text-xs font-medium uppercase tracking-wider text-[#8B6F47]">
+              {nextTimer?.overdue ? 'Vérification' : 'Prochaine vérification'}
             </span>
+            {nextTimer?.overdue ? (
+              <span className="text-sm font-semibold text-[#bc7155]">{nextTimer.text}</span>
+            ) : (
+              <span
+                className="text-lg font-semibold tabular-nums text-[#2C2C2C]"
+                style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
+              >
+                {loading ? '--:--' : countdown}
+              </span>
+            )}
           </div>
         }
       />
@@ -2393,16 +2782,18 @@ function BuffetTab({
           buffet.map((b) => {
             const label = BUFFET_ITEM_LABELS[b.item] ?? b.item
             const low = b.fillLevel < 30
-            const fillStyle = b.fillLevel < 30 ? 'bg-[#C97B63]' : b.fillLevel < 60 ? 'bg-[#C9A961]' : 'bg-[#4A7C59]'
+            const fillStyle = b.fillLevel < 30 ? 'bg-[#bc7155]' : b.fillLevel < 60 ? 'bg-[#bc7155]' : 'bg-[#bc7155]'
             return (
-              <Card key={b.id} className="border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+              <Card key={b.id} className="border border-[#efe7e0] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
                 <div className="flex items-start justify-between gap-2">
                   <div className="min-w-0">
                     <h3 className="text-sm font-semibold text-[#2C2C2C]">{label}</h3>
-                    <p className="mt-0.5 text-xs text-[#8B6F47]">Dernière vérif. {formatTimeShort(b.lastCheck)}</p>
+                    <p className="mt-0.5 text-xs text-[#8B6F47]">
+                      Dernière vérif. {formatTimeShort(b.lastCheck)} · {formatLastCheckLabel(b.lastCheck)}
+                    </p>
                   </div>
                   {low && (
-                    <Badge className="border-[#C97B63]/30 bg-[#C97B63]/12 text-[#C97B63]">
+                    <Badge className="border-[#bc7155]/30 bg-[#bc7155]/12 text-[#bc7155]">
                       <AlertTriangle className="h-3 w-3" aria-hidden /> Bas
                     </Badge>
                   )}
@@ -2419,7 +2810,7 @@ function BuffetTab({
                 </div>
 
                 {/* Barre visuelle */}
-                <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-[#FAFAF7]">
+                <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-[#ffffff]">
                   <div className={cn('h-full rounded-full transition-all', fillStyle)} style={{ width: `${b.fillLevel}%` }} />
                 </div>
 
@@ -2445,7 +2836,14 @@ function BuffetTab({
                 </div>
 
                 <p className="mt-3 text-[11px] text-[#8B6F47]">
-                  Prochaine vérif. dans <span className="font-semibold tabular-nums text-[#2C2C2C]">{countdownMmSs(b.nextCheck)}</span>
+                  {formatTimerLabel(b.nextCheck).overdue ? (
+                    <span className="font-semibold text-[#bc7155]">{formatTimerLabel(b.nextCheck).text}</span>
+                  ) : (
+                    <>
+                      Prochaine vérif. dans{' '}
+                      <span className="font-semibold tabular-nums text-[#2C2C2C]">{countdownMmSs(b.nextCheck)}</span>
+                    </>
+                  )}
                 </p>
               </Card>
             )
@@ -2454,7 +2852,7 @@ function BuffetTab({
       </div>
 
       {/* Historique */}
-      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+      <Card className="border border-[#efe7e0] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
         <CardHeader className="px-0">
           <CardTitle className="text-lg text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
             Historique des vérifications
@@ -2464,8 +2862,8 @@ function BuffetTab({
         <CardContent className="px-0">
           <ul className="max-h-72 space-y-1.5 overflow-y-auto pr-1">
             {history.map((h) => (
-              <li key={h.id} className="flex items-center gap-3 rounded-xl bg-[#FAFAF7] px-4 py-2.5">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#C9A961]/15 text-xs font-semibold text-[#8B6F47]">
+              <li key={h.id} className="flex items-center gap-3 rounded-xl bg-[#ffffff] px-4 py-2.5">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#bc7155]/15 text-xs font-semibold text-[#8B6F47]">
                   {initials(h.who)}
                 </span>
                 <div className="min-w-0 flex-1">
@@ -2512,6 +2910,18 @@ function ShowersTab({
     return init
   })
   const [qrShower, setQrShower] = useState<Shower | null>(null)
+  const [qrPngBusy, setQrPngBusy] = useState(false)
+
+  /** Garde-fou anti double-clic pour les rendus PNG de plaque */
+  const runQrPng = async (fn: () => Promise<void>) => {
+    if (qrPngBusy) return
+    setQrPngBusy(true)
+    try {
+      await fn()
+    } finally {
+      setQrPngBusy(false)
+    }
+  }
 
   // Incrémente le compteur d'usage d'une cabine quand le staff libère/nettoie
   // depuis cette UI (transition occupé → libre/cleaning déclenchée par action).
@@ -2590,7 +3000,7 @@ function ShowersTab({
             return (
               <Card
                 key={s.id}
-                className={cn('border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)] ring-1 ring-transparent', style.ring)}
+                className={cn('border border-[#efe7e0] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)] ring-1 ring-transparent', style.ring)}
               >
                 {/* En-tête cabine */}
                 <div className="flex items-center justify-between">
@@ -2622,7 +3032,7 @@ function ShowersTab({
                     <p>Depuis : <span className="font-semibold text-[#2C2C2C]">{minutesDepuis(s.occupiedSince)} min</span></p>
                   )}
                   {needsCleaning && (
-                    <p className="flex items-center gap-1 text-[#C97B63]">
+                    <p className="flex items-center gap-1 text-[#bc7155]">
                       <AlertTriangle className="h-3 w-3" aria-hidden /> Nettoyage requis
                     </p>
                   )}
@@ -2633,7 +3043,7 @@ function ShowersTab({
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-8 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
+                    className="h-8 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#8B6F47] hover:bg-[#bc7155]/15"
                     onClick={() => setQrShower(s)}
                   >
                     <QrCode className="h-3.5 w-3.5" aria-hidden /> Voir QR
@@ -2642,7 +3052,7 @@ function ShowersTab({
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-8 border-[#4A7C59]/40 bg-[#4A7C59]/8 text-[#4A7C59] hover:bg-[#4A7C59]/15"
+                      className="h-8 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#bc7155] hover:bg-[#bc7155]/15"
                       onClick={() => act(s, 'free', 'Douche libérée')}
                     >
                       Libérer
@@ -2652,7 +3062,7 @@ function ShowersTab({
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-8 border-[#6B4C9A]/40 bg-[#6B4C9A]/8 text-[#6B4C9A] hover:bg-[#6B4C9A]/15"
+                      className="h-8 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#bc7155] hover:bg-[#bc7155]/15"
                       onClick={() => act(s, 'occupied', 'Douche occupée')}
                     >
                       Occuper
@@ -2662,7 +3072,7 @@ function ShowersTab({
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-8 border-[#C97B63]/40 bg-[#C97B63]/8 text-[#C97B63] hover:bg-[#C97B63]/15"
+                      className="h-8 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#bc7155] hover:bg-[#bc7155]/15"
                       onClick={() => act(s, 'cleaning', 'Nettoyage en cours')}
                     >
                       Nettoyer
@@ -2671,7 +3081,7 @@ function ShowersTab({
                   <Button
                     size="sm"
                     variant="ghost"
-                    className="h-8 text-[#8B6F47] hover:bg-[#FAFAF7]"
+                    className="h-8 text-[#8B6F47] hover:bg-[#ffffff]"
                     onClick={() => toggleMaintenance(s)}
                   >
                     {st === 'maintenance' ? 'Sortir maintenance' : 'Maintenance'}
@@ -2685,7 +3095,7 @@ function ShowersTab({
 
       {/* Dialog QR douche */}
       <Dialog open={qrShower !== null} onOpenChange={(o) => !o && setQrShower(null)}>
-        <DialogContent className="border-[#EAE5DC] bg-white p-6">
+        <DialogContent className="border-[#efe7e0] bg-white p-6">
           <DialogHeader>
             <DialogTitle className="text-xl text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
               QR Réservation — Douche N°{qrShower?.showerNumber}
@@ -2696,18 +3106,34 @@ function ShowersTab({
           </DialogHeader>
           {qrShower && (
             <div className="flex flex-col items-center gap-4 py-2">
-              <img
-                src={qrImageUrl(qrUrlForZone('vip_showers', `vip_showers_${qrShower.showerNumber}`))}
-                alt={`QR réservation douche N°${qrShower.showerNumber}`}
-                className="h-48 w-48 rounded-xl border border-[#EAE5DC]"
+              <NathalieQrPlaque
+                data={qrUrlForZone('vip_showers', `vip_showers_${qrShower.showerNumber}`)}
+                label={`Douche N°${qrShower.showerNumber}`}
+                signature="RÉSERVATION · EN TOUTE DISCRÉTION"
+                size="md"
+                className="w-full max-w-[280px]"
               />
-              <a
-                href={qrImageUrl(qrUrlForZone('vip_showers', `vip_showers_${qrShower.showerNumber}`))}
-                download={`qr-douche-${qrShower.showerNumber}.png`}
-                className="inline-flex items-center gap-2 rounded-xl bg-[#C9A961]/12 px-4 py-2 text-sm font-medium text-[#8B6F47] hover:bg-[#C9A961]/20"
+              <Button
+                variant="outline"
+                disabled={qrPngBusy}
+                className="border-[#bc7155]/40 bg-[#bc7155]/10 text-[#8B6F47] hover:bg-[#bc7155]/20"
+                onClick={() =>
+                  runQrPng(() =>
+                    downloadPlaquePng(
+                      {
+                        data: qrUrlForZone('vip_showers', `vip_showers_${qrShower.showerNumber}`),
+                        label: `Douche N°${qrShower.showerNumber}`,
+                        signature: 'RÉSERVATION · EN TOUTE DISCRÉTION',
+                      },
+                      `chevalet-douche-${qrShower.showerNumber}.png`,
+                    ).then(() => {
+                      toast({ title: 'Plaque téléchargée', description: `chevalet-douche-${qrShower.showerNumber}.png` })
+                    }),
+                  )
+                }
               >
-                <Download className="h-4 w-4" aria-hidden /> Télécharger PNG
-              </a>
+                <Download className="h-4 w-4" aria-hidden /> Télécharger la plaque PNG
+              </Button>
             </div>
           )}
         </DialogContent>
@@ -2771,7 +3197,7 @@ function RewardsTab({ staffName }: { staffName: string }) {
         subtitle="Offres luxe réservées aux clients VIP — Champagne, Massage, Cigar, Spa"
         Icon={Gift}
         action={
-          <div className="rounded-xl border border-[#EAE5DC] bg-white px-4 py-2.5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+          <div className="rounded-xl border border-[#efe7e0] bg-white px-4 py-2.5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
             <p className="text-[11px] font-medium uppercase tracking-wider text-[#8B6F47]">Coût du jour</p>
             <p className="text-xl font-semibold text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
               {totalCostToday} €
@@ -2781,11 +3207,11 @@ function RewardsTab({ staffName }: { staffName: string }) {
       />
 
       {/* Sélection client */}
-      <Card className="border border-[#EAE5DC] bg-white p-4 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+      <Card className="border border-[#efe7e0] bg-white p-4 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
         <div className="flex flex-wrap items-center gap-3">
           <Label className="text-sm font-medium text-[#2C2C2C]">Offrir au client :</Label>
           <Select value={selectedClient} onValueChange={setSelectedClient}>
-            <SelectTrigger className="w-[240px] border-[#EAE5DC] bg-[#FAFAF7] text-sm">
+            <SelectTrigger className="w-[240px] border-[#efe7e0] bg-[#ffffff] text-sm">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -2804,8 +3230,8 @@ function RewardsTab({ staffName }: { staffName: string }) {
         {LUXE_REWARDS.map((r) => {
           const Icon = r.Icon
           return (
-            <Card key={r.id} className="flex flex-col border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#C9A961]/15 to-[#8B6F47]/10 text-[#8B6F47]">
+            <Card key={r.id} className="flex flex-col border border-[#efe7e0] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+              <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-[#bc7155]/15 to-[#8B6F47]/10 text-[#8B6F47]">
                 <Icon className="h-7 w-7" aria-hidden />
               </div>
               <h3 className="mt-4 text-base font-semibold text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
@@ -2813,10 +3239,10 @@ function RewardsTab({ staffName }: { staffName: string }) {
               </h3>
               <p className="mt-1 flex-1 text-xs text-[#8B6F47]">{r.description}</p>
               <div className="mt-4 flex items-center justify-between">
-                <span className="text-sm font-semibold text-[#C9A961]">{r.cost} €</span>
+                <span className="text-sm font-semibold text-[#bc7155]">{r.cost} €</span>
                 <Button
                   size="sm"
-                  className="h-8 gap-1.5 bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white hover:opacity-90"
+                  className="h-8 gap-1.5 bg-gradient-to-br from-[#bc7155] to-[#8B6F47] text-white hover:opacity-90"
                   onClick={() => offer(r)}
                 >
                   <Gift className="h-3.5 w-3.5" aria-hidden /> Offrir
@@ -2828,7 +3254,7 @@ function RewardsTab({ staffName }: { staffName: string }) {
       </div>
 
       {/* Historique */}
-      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+      <Card className="border border-[#efe7e0] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
         <CardHeader className="px-0">
           <CardTitle className="text-lg text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
             Offertes aujourd'hui
@@ -2838,8 +3264,8 @@ function RewardsTab({ staffName }: { staffName: string }) {
         <CardContent className="px-0">
           <ul className="space-y-2">
             {given.map((r) => (
-              <li key={r.id} className="flex items-center gap-3 rounded-xl bg-[#FAFAF7] px-4 py-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#C9A961]/15 text-[#8B6F47]">
+              <li key={r.id} className="flex items-center gap-3 rounded-xl bg-[#ffffff] px-4 py-3">
+                <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[#bc7155]/15 text-[#8B6F47]">
                   <Gift className="h-4 w-4" aria-hidden />
                 </span>
                 <div className="min-w-0 flex-1">
@@ -2847,7 +3273,7 @@ function RewardsTab({ staffName }: { staffName: string }) {
                   <p className="truncate text-xs text-[#8B6F47]">à {r.clientName} · par {r.staffName}</p>
                 </div>
                 <div className="shrink-0 text-right">
-                  <p className="text-sm font-semibold text-[#C9A961]">{r.cost} €</p>
+                  <p className="text-sm font-semibold text-[#bc7155]">{r.cost} €</p>
                   <p className="text-[11px] text-[#8B6F47]">{formatTimeShort(r.givenAt)}</p>
                 </div>
               </li>
@@ -2864,468 +3290,7 @@ function RewardsTab({ staffName }: { staffName: string }) {
 // ============================================================
 
 function ClientsTab() {
-  const { toast } = useToast()
-  const [clients, setClients] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
-  const [search, setSearch] = useState('')
-  const [filterLevel, setFilterLevel] = useState<string>('all')
-  const [formOpen, setFormOpen] = useState(false)
-  const [form, setForm] = useState<{
-    name: string
-    photo: string
-    airline: string
-    vipLevel: 'gold' | 'platinum' | 'diamond'
-    preferences: string
-    allergies: string
-    notes: string
-    consent: boolean
-  }>({
-    name: '',
-    photo: '',
-    airline: '',
-    vipLevel: 'gold',
-    preferences: '',
-    allergies: '',
-    notes: '',
-    consent: false,
-  })
-
-  // Styles par niveau VIP (clés bas-cases, conformes au contrat API)
-  const LEVEL_STYLES: Record<
-    'gold' | 'platinum' | 'diamond',
-    { label: string; bg: string; text: string; Icon: typeof Crown }
-  > = {
-    gold: { label: 'Gold', bg: 'bg-[#C9A961]/15', text: 'text-[#8B6F47]', Icon: Crown },
-    platinum: { label: 'Platinum', bg: 'bg-[#6B4C9A]/12', text: 'text-[#6B4C9A]', Icon: Sparkles },
-    diamond: { label: 'Diamond', bg: 'bg-[#4A7C59]/12', text: 'text-[#4A7C59]', Icon: Diamond },
-  }
-
-  // ---- Fetch clients depuis l'API
-  const fetchClients = useCallback(async () => {
-    try {
-      setLoading(true)
-      const res = await fetch('/api/vip/clients', { cache: 'no-store' })
-      const json = await res.json().catch(() => null)
-      if (json?.ok) {
-        setClients(json.data ?? [])
-      } else {
-        toast({
-          title: 'Erreur',
-          description: "Impossible de charger les clients VIP.",
-          variant: 'destructive',
-        })
-      }
-    } catch {
-      toast({
-        title: 'Erreur réseau',
-        description: 'Vérifiez votre connexion.',
-        variant: 'destructive',
-      })
-    } finally {
-      setLoading(false)
-    }
-  }, [toast])
-
-  useEffect(() => {
-    fetchClients()
-  }, [fetchClients])
-
-  // ---- Helpers parsing préférences (stockées en JSON string côté API)
-  const parsePreferencesList = useCallback((raw: string | null | undefined): string[] => {
-    if (!raw) return []
-    try {
-      const parsed = JSON.parse(raw)
-      if (Array.isArray(parsed)) return parsed.filter((x) => typeof x === 'string')
-      return []
-    } catch {
-      return []
-    }
-  }, [])
-
-  const buildPreferencesJson = (raw: string, allergies: string): string => {
-    const tags: string[] = raw
-      .split(',')
-      .map((t) => t.trim())
-      .filter(Boolean)
-    if (allergies.trim()) {
-      tags.push(`allergie: ${allergies.trim()}`)
-    }
-    return JSON.stringify(tags)
-  }
-
-  // ---- Filtrage
-  const filtered = useMemo(() => {
-    return clients.filter((c: any) => {
-      const levelKey = String(c?.vipLevel ?? 'gold').toLowerCase()
-      if (filterLevel !== 'all' && levelKey !== filterLevel) return false
-      if (search.trim()) {
-        const q = search.trim().toLowerCase()
-        const hay = `${c?.name ?? ''} ${c?.airline ?? ''} ${c?.notes ?? ''}`.toLowerCase()
-        if (!hay.includes(q)) return false
-      }
-      return true
-    })
-  }, [clients, search, filterLevel])
-
-  // ---- Ajout client via API
-  const addClient = useCallback(async () => {
-    if (!form.name.trim()) {
-      toast({
-        title: 'Champ requis',
-        description: 'Le nom du client est obligatoire.',
-        variant: 'destructive',
-      })
-      return
-    }
-    if (!form.consent) {
-      toast({
-        title: 'Consentement requis',
-        description: "Vous devez obtenir le consentement RGPD du client.",
-        variant: 'destructive',
-      })
-      return
-    }
-    try {
-      setSaving(true)
-      const payload = {
-        name: form.name.trim(),
-        photo: form.photo.trim() || null,
-        airline: form.airline.trim(),
-        vipLevel: form.vipLevel,
-        preferences: buildPreferencesJson(form.preferences, form.allergies),
-        notes: form.notes.trim(),
-      }
-      const res = await fetch('/api/vip/clients', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      const json = await res.json().catch(() => null)
-      if (json?.ok) {
-        toast({
-          title: 'Client ajouté',
-          description: `${payload.name} · ${LEVEL_STYLES[form.vipLevel].label}`,
-        })
-        setForm({
-          name: '',
-          photo: '',
-          airline: '',
-          vipLevel: 'gold',
-          preferences: '',
-          allergies: '',
-          notes: '',
-          consent: false,
-        })
-        setFormOpen(false)
-        fetchClients()
-      } else {
-        toast({
-          title: 'Erreur',
-          description: json?.error ?? 'Création impossible.',
-          variant: 'destructive',
-        })
-      }
-    } catch {
-      toast({
-        title: 'Erreur réseau',
-        description: 'Vérifiez votre connexion.',
-        variant: 'destructive',
-      })
-    } finally {
-      setSaving(false)
-    }
-  }, [form, toast, LEVEL_STYLES, fetchClients])
-
-  return (
-    <div className="space-y-5">
-      <SectionTitle
-        title="Clients VIP"
-        subtitle="Annuaire des clients d'exception — Gold, Platinum, Diamond"
-        Icon={Users}
-        action={
-          <Button
-            className="gap-2 bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white hover:opacity-90"
-            onClick={() => setFormOpen(true)}
-          >
-            <Plus className="h-4 w-4" aria-hidden /> Ajouter client
-          </Button>
-        }
-      />
-
-      {/* Note détection automatique VIP */}
-      <div className="flex items-center gap-2 rounded-lg border border-[#C9A961]/25 bg-[#C9A961]/8 px-3 py-2 text-xs text-[#8B6F47]">
-        <Sparkles className="h-3.5 w-3.5 shrink-0 text-[#C9A961]" aria-hidden />
-        <span>Les clients VIP sont automatiquement détectés au scan QR de la table.</span>
-      </div>
-
-      {/* Filtres */}
-      <Card className="border border-[#EAE5DC] bg-white p-4 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="relative min-w-[200px] flex-1">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#8B6F47]/60" aria-hidden />
-            <Input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Rechercher (nom, compagnie, notes…)"
-              className="border-[#EAE5DC] bg-[#FAFAF7] pl-9 text-sm"
-            />
-          </div>
-          <Select value={filterLevel} onValueChange={setFilterLevel}>
-            <SelectTrigger className="w-[160px] border-[#EAE5DC] bg-[#FAFAF7] text-sm">
-              <SelectValue placeholder="Niveau" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tous niveaux</SelectItem>
-              <SelectItem value="gold">Gold</SelectItem>
-              <SelectItem value="platinum">Platinum</SelectItem>
-              <SelectItem value="diamond">Diamond</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-      </Card>
-
-      {/* Loading */}
-      {loading && (
-        <div className="flex items-center justify-center py-12 text-[#8B6F47]">
-          <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-          <span className="ml-2 text-sm">Chargement des clients…</span>
-        </div>
-      )}
-
-      {/* Cartes clients */}
-      {!loading && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {filtered.map((c: any) => {
-            const levelKey = (String(c?.vipLevel ?? 'gold').toLowerCase() as
-              | 'gold'
-              | 'platinum'
-              | 'diamond')
-            const ls = LEVEL_STYLES[levelKey] ?? LEVEL_STYLES.gold
-            const LevelIcon = ls.Icon
-            const prefs = parsePreferencesList(c?.preferences)
-            const visitCount = Number(c?.visitCount ?? 0)
-            const lastVisit = c?.lastVisit ? new Date(c.lastVisit) : null
-            return (
-              <Card
-                key={c?.id ?? `${c?.name}-${Math.random()}`}
-                className="border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]"
-              >
-                <div className="flex items-start gap-3">
-                  <Avatar className="h-12 w-12 ring-1 ring-[#EAE5DC]">
-                    {c?.photo && <AvatarImage src={c.photo} alt={c?.name ?? 'Client'} />}
-                    <AvatarFallback className="bg-[#C9A961]/15 text-sm font-semibold text-[#8B6F47]">
-                      {initials(c?.name ?? '?')}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="min-w-0 flex-1">
-                    <h3
-                      className="truncate text-base font-semibold text-[#2C2C2C]"
-                      style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
-                    >
-                      {c?.name ?? 'Client'}
-                    </h3>
-                    {c?.airline && (
-                      <p className="mt-0.5 flex items-center gap-1 truncate text-xs text-[#8B6F47]">
-                        <Plane className="h-3 w-3" aria-hidden /> {c.airline}
-                      </p>
-                    )}
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        'mt-1.5 inline-flex items-center gap-1 border font-semibold',
-                        ls.bg,
-                        ls.text,
-                      )}
-                    >
-                      <LevelIcon className="h-3 w-3" aria-hidden /> {ls.label}
-                    </Badge>
-                  </div>
-                </div>
-
-                {prefs.length > 0 && (
-                  <div className="mt-3 flex flex-wrap gap-1.5">
-                    {prefs.map((p, i) => {
-                      const isAllergy = p.toLowerCase().startsWith('allergie')
-                      return (
-                        <span
-                          key={`${p}-${i}`}
-                          className={cn(
-                            'rounded-full px-2 py-0.5 text-[11px] font-medium',
-                            isAllergy
-                              ? 'bg-[#C97B63]/12 text-[#C97B63]'
-                              : 'bg-[#C9A961]/10 text-[#8B6F47]',
-                          )}
-                        >
-                          {p}
-                        </span>
-                      )
-                    })}
-                  </div>
-                )}
-
-                {c?.notes && (
-                  <p className="mt-3 line-clamp-2 text-xs text-[#8B6F47]">{c.notes}</p>
-                )}
-
-                <div className="mt-3 flex items-center justify-between border-t border-[#EAE5DC] pt-3 text-xs text-[#8B6F47]">
-                  <span className="flex items-center gap-1">
-                    <Coffee className="h-3 w-3" aria-hidden /> {visitCount} visite{visitCount > 1 ? 's' : ''}
-                  </span>
-                  {lastVisit && (
-                    <span className="flex items-center gap-1">
-                      <Clock className="h-3 w-3" aria-hidden />{' '}
-                      {lastVisit.toLocaleDateString('fr-FR')}
-                    </span>
-                  )}
-                </div>
-              </Card>
-            )
-          })}
-        </div>
-      )}
-
-      {!loading && filtered.length === 0 && (
-        <Card className="border border-[#EAE5DC] bg-white p-10 text-center shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-          <Users className="mx-auto h-8 w-8 text-[#8B6F47]/40" aria-hidden />
-          <p className="mt-3 text-sm text-[#8B6F47]">Aucun client ne correspond à vos critères.</p>
-        </Card>
-      )}
-
-      {/* Dialog ajout */}
-      <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="border-[#EAE5DC] bg-white p-6">
-          <DialogHeader>
-            <DialogTitle className="text-xl text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
-              Nouveau client VIP
-            </DialogTitle>
-            <DialogDescription className="text-[#8B6F47]">
-              Renseignez les informations du client. La photo est optionnelle (URL).
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="c-name" className="text-[#8B6F47]">Nom complet *</Label>
-                <Input
-                  id="c-name"
-                  value={form.name}
-                  onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-                  placeholder="ex. Alexandre Laurent"
-                  className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-                />
-              </div>
-              <div>
-                <Label htmlFor="c-airline" className="text-[#8B6F47]">Compagnie</Label>
-                <Input
-                  id="c-airline"
-                  value={form.airline}
-                  onChange={(e) => setForm((f) => ({ ...f, airline: e.target.value }))}
-                  placeholder="ex. Air France"
-                  className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-                />
-              </div>
-            </div>
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div>
-                <Label htmlFor="c-level" className="text-[#8B6F47]">Niveau VIP</Label>
-                <Select
-                  value={form.vipLevel}
-                  onValueChange={(v) =>
-                    setForm((f) => ({ ...f, vipLevel: v as 'gold' | 'platinum' | 'diamond' }))
-                  }
-                >
-                  <SelectTrigger id="c-level" className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="gold">Gold</SelectItem>
-                    <SelectItem value="platinum">Platinum</SelectItem>
-                    <SelectItem value="diamond">Diamond</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="c-photo" className="text-[#8B6F47]">Photo (URL)</Label>
-                <Input
-                  id="c-photo"
-                  value={form.photo}
-                  onChange={(e) => setForm((f) => ({ ...f, photo: e.target.value }))}
-                  placeholder="https://…"
-                  className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-                />
-              </div>
-            </div>
-            <div>
-              <Label htmlFor="c-prefs" className="text-[#8B6F47]">
-                Préférences <span className="text-[#8B6F47]/60">(séparées par virgule)</span>
-              </Label>
-              <Input
-                id="c-prefs"
-                value={form.preferences}
-                onChange={(e) => setForm((f) => ({ ...f, preferences: e.target.value }))}
-                placeholder="ex. fenêtre, espresso double, thé matcha"
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-            </div>
-            <div>
-              <Label htmlFor="c-allergies" className="text-[#8B6F47]">Allergies</Label>
-              <Input
-                id="c-allergies"
-                value={form.allergies}
-                onChange={(e) => setForm((f) => ({ ...f, allergies: e.target.value }))}
-                placeholder="ex. crustacés, arachides"
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-            </div>
-            <div>
-              <Label htmlFor="c-notes" className="text-[#8B6F47]">Notes concierge</Label>
-              <Textarea
-                id="c-notes"
-                value={form.notes}
-                onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
-                placeholder="Habitudes, observations…"
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-                rows={3}
-              />
-            </div>
-            <label className="flex items-start gap-2 rounded-md border border-[#EAE5DC] bg-[#FAFAF7] p-3 text-xs text-[#2C2C2C]">
-              <input
-                type="checkbox"
-                checked={form.consent}
-                onChange={(e) => setForm((f) => ({ ...f, consent: e.target.checked }))}
-                className="mt-0.5 h-3.5 w-3.5 accent-[#C9A961]"
-              />
-              <span>
-                J&apos;ai obtenu le consentement du client pour la collecte de ses données (RGPD).
-              </span>
-            </label>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setFormOpen(false)}
-              className="border-[#EAE5DC] bg-[#FAFAF7] text-[#8B6F47]"
-            >
-              Annuler
-            </Button>
-            <Button
-              onClick={addClient}
-              disabled={!form.consent || saving}
-              className="gap-2 bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white hover:opacity-90"
-            >
-              {saving ? (
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-              ) : (
-                <Plus className="h-4 w-4" aria-hidden />
-              )}
-              {saving ? 'Enregistrement…' : 'Ajouter'}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  )
+  return <VipClientsTab />
 }
 
 // ============================================================
@@ -3378,7 +3343,7 @@ function StaffTab() {
         Icon={UserCog}
         action={
           <Button
-            className="gap-2 bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white hover:opacity-90"
+            className="gap-2 bg-gradient-to-br from-[#bc7155] to-[#8B6F47] text-white hover:opacity-90"
             onClick={() => setFormOpen(true)}
           >
             <Plus className="h-4 w-4" aria-hidden /> Ajouter staff
@@ -3386,10 +3351,10 @@ function StaffTab() {
         }
       />
 
-      <Card className="border border-[#EAE5DC] bg-white shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+      <Card className="border border-[#efe7e0] bg-white shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
         <Table>
           <TableHeader>
-            <TableRow className="border-[#EAE5DC] hover:bg-transparent">
+            <TableRow className="border-[#efe7e0] hover:bg-transparent">
               <TableHead className="text-[#8B6F47]">Staff</TableHead>
               <TableHead className="text-[#8B6F47]">Rôle</TableHead>
               <TableHead className="text-[#8B6F47]">Téléphone</TableHead>
@@ -3402,10 +3367,10 @@ function StaffTab() {
             {staff.map((s) => {
               const RoleIcon = STAFF_ROLE_ICON[s.role]
               return (
-                <TableRow key={s.id} className="border-[#EAE5DC]">
+                <TableRow key={s.id} className="border-[#efe7e0]">
                   <TableCell>
                     <div className="flex items-center gap-3">
-                      <Avatar className="h-9 w-9 ring-1 ring-[#EAE5DC]">
+                      <Avatar className="h-9 w-9 ring-1 ring-[#efe7e0]">
                         {s.photoUrl && <AvatarImage src={s.photoUrl} alt={s.name} />}
                         <AvatarFallback className="bg-[#8B6F47]/15 text-xs font-semibold text-[#8B6F47]">
                           {initials(s.name)}
@@ -3416,12 +3381,12 @@ function StaffTab() {
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2 text-sm text-[#2C2C2C]">
-                      <RoleIcon className="h-4 w-4 text-[#C9A961]" aria-hidden />
+                      <RoleIcon className="h-4 w-4 text-[#bc7155]" aria-hidden />
                       {s.role}
                     </div>
                   </TableCell>
                   <TableCell className="text-sm text-[#8B6F47]">
-                    <a href={`tel:${s.phone.replace(/\s/g, '')}`} className="inline-flex items-center gap-1.5 hover:text-[#C9A961]">
+                    <a href={`tel:${s.phone.replace(/\s/g, '')}`} className="inline-flex items-center gap-1.5 hover:text-[#bc7155]">
                       <Phone className="h-3.5 w-3.5" aria-hidden /> {s.phone}
                     </a>
                   </TableCell>
@@ -3432,8 +3397,8 @@ function StaffTab() {
                       className={cn(
                         'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium transition-colors',
                         s.present
-                          ? 'border-[#4A7C59]/25 bg-[#4A7C59]/12 text-[#4A7C59]'
-                          : 'border-[#8B6F47]/25 bg-[#FAFAF7] text-[#8B6F47]',
+                          ? 'border-[#bc7155]/25 bg-[#bc7155]/12 text-[#bc7155]'
+                          : 'border-[#8B6F47]/25 bg-[#ffffff] text-[#8B6F47]',
                       )}
                     >
                       <CircleDot className="h-3 w-3" aria-hidden /> {s.present ? 'Présent' : 'Absent'}
@@ -3442,7 +3407,7 @@ function StaffTab() {
                   <TableCell className="text-sm font-semibold text-[#2C2C2C]">{s.incidentsResolved}</TableCell>
                   <TableCell>
                     <div className="flex items-center gap-1.5">
-                      <span className="text-sm font-semibold text-[#C9A961]">{s.satisfactionScore.toFixed(1)}</span>
+                      <span className="text-sm font-semibold text-[#bc7155]">{s.satisfactionScore.toFixed(1)}</span>
                       <span className="text-xs text-[#8B6F47]">/5</span>
                     </div>
                   </TableCell>
@@ -3455,7 +3420,7 @@ function StaffTab() {
 
       {/* Dialog ajout staff */}
       <Dialog open={formOpen} onOpenChange={setFormOpen}>
-        <DialogContent className="border-[#EAE5DC] bg-white p-6">
+        <DialogContent className="border-[#efe7e0] bg-white p-6">
           <DialogHeader>
             <DialogTitle className="text-xl text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
               Nouveau membre du staff
@@ -3471,13 +3436,13 @@ function StaffTab() {
                   value={form.name}
                   onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                   placeholder="ex. Nadia Cherif"
-                  className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+                  className="mt-1.5 border-[#efe7e0] bg-[#ffffff]"
                 />
               </div>
               <div>
                 <Label htmlFor="s-role" className="text-[#8B6F47]">Rôle</Label>
                 <Select value={form.role} onValueChange={(v) => setForm((f) => ({ ...f, role: v as StaffRole }))}>
-                  <SelectTrigger id="s-role" className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]">
+                  <SelectTrigger id="s-role" className="mt-1.5 border-[#efe7e0] bg-[#ffffff]">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -3498,7 +3463,7 @@ function StaffTab() {
                   value={form.phone}
                   onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                   placeholder="+33 6 12 34 56 78"
-                  className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+                  className="mt-1.5 border-[#efe7e0] bg-[#ffffff]"
                 />
               </div>
               <div>
@@ -3508,16 +3473,16 @@ function StaffTab() {
                   value={form.photoUrl}
                   onChange={(e) => setForm((f) => ({ ...f, photoUrl: e.target.value }))}
                   placeholder="https://…"
-                  className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
+                  className="mt-1.5 border-[#efe7e0] bg-[#ffffff]"
                 />
               </div>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setFormOpen(false)} className="border-[#EAE5DC] bg-[#FAFAF7] text-[#8B6F47]">
+            <Button variant="outline" onClick={() => setFormOpen(false)} className="border-[#efe7e0] bg-[#ffffff] text-[#8B6F47]">
               Annuler
             </Button>
-            <Button onClick={addStaff} className="gap-2 bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white hover:opacity-90">
+            <Button onClick={addStaff} className="gap-2 bg-gradient-to-br from-[#bc7155] to-[#8B6F47] text-white hover:opacity-90">
               <Plus className="h-4 w-4" aria-hidden /> Ajouter
             </Button>
           </DialogFooter>
@@ -3531,7 +3496,69 @@ function StaffTab() {
 // Tab H — QR Codes
 // ============================================================
 
-function QRTab() {
+// ============================================================
+// QrLinkRow — lien du QR Code cliquable + copie.
+// Demande du directeur : depuis l'onglet QR Codes, on peut cliquer
+// sur le lien du QR pour ouvrir la page correspondante (Nathalie,
+// scan staff…) et le copier pour le coller ailleurs.
+// ============================================================
+
+function QrLinkRow({ url }: { url: string }) {
+  const { toast } = useToast()
+  const [copied, setCopied] = useState(false)
+  const copier = () => {
+    void navigator.clipboard
+      ?.writeText(url)
+      .then(() => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+        toast({ title: 'Lien copié', description: url })
+      })
+  }
+  return (
+    <div className="mt-3 rounded-xl border border-[#efe7e0] bg-[#ffffff] px-3 py-2.5">
+      <p className="mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#8B6F47]">
+        Lien du QR Code — cliquez pour ouvrir
+      </p>
+      <div className="flex items-center gap-2">
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          title={url}
+          className="min-w-0 flex-1 truncate font-mono text-[11px] text-[#2C2C2C] underline decoration-[#bc7155]/60 decoration-2 underline-offset-2 transition hover:text-[#8B6F47]"
+        >
+          {url}
+        </a>
+        <a
+          href={url}
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Ouvrir le lien du QR Code dans un nouvel onglet"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[#bc7155]/40 bg-[#bc7155]/8 text-[#8B6F47] transition hover:bg-[#bc7155]/15"
+        >
+          <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+        </a>
+        <button
+          type="button"
+          onClick={copier}
+          aria-label="Copier le lien du QR Code"
+          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-[#8B6F47]/40 bg-[#8B6F47]/8 text-[#8B6F47] transition hover:bg-[#8B6F47]/15"
+        >
+          {copied ? <Check className="h-3.5 w-3.5" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
+        </button>
+      </div>
+    </div>
+  )
+}
+
+function QRTab({
+  tables,
+  onGoToSettings,
+}: {
+  tables: VipTableData[]
+  onGoToSettings?: () => void
+}) {
   // Scans mockés (déterministes pour stabilité d'affichage)
   const scansForZone = (code: string) => {
     const h = code.split('').reduce((a, c) => (a * 31 + c.charCodeAt(0)) >>> 0, 0)
@@ -3542,30 +3569,77 @@ function QRTab() {
     return (h % 12) + 1
   }
 
-  const downloadQr = (url: string, filename: string) => {
-    const a = document.createElement('a')
-    a.href = url
-    a.download = filename
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
+  const { toast } = useToast()
+  const [qrPngBusy, setQrPngBusy] = useState(false)
+
+  // ============================================================
+  // QR WI-FI — le réseau du salon est configuré dans Paramètres →
+  // Général (wifiNom / wifiMotDePasse). Ce QR encode les identifiants
+  // au format STANDARD « WIFI: » → le smartphone du client se connecte
+  // AUTOMATIQUEMENT au scan, et la clé est AUSSI affichée en clair
+  // sur la plaque imprimée (demande du directeur).
+  // ============================================================
+  const [wifiNom, setWifiNom] = useState('')
+  const [wifiPass, setWifiPass] = useState('')
+  const [wifiCopied, setWifiCopied] = useState(false)
+  useEffect(() => {
+    let alive = true
+    fetch('/api/vip/settings', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((json) => {
+        if (!alive || !json?.ok) return
+        const g = json.data?.config?.general
+        if (typeof g?.wifiNom === 'string') setWifiNom(g.wifiNom)
+        if (typeof g?.wifiMotDePasse === 'string') setWifiPass(g.wifiMotDePasse)
+      })
+      .catch(() => {})
+    return () => {
+      alive = false
+    }
+  }, [])
+
+  const wifiPayload = wifiNom.trim() ? wifiQrPayload(wifiNom, wifiPass) : ''
+  const wifiSignature = wifiPass.trim() ? `CLÉ WI-FI : ${wifiPass.trim()}` : 'RÉSEAU OUVERT'
+  const copierWifi = () => {
+    void navigator.clipboard
+      ?.writeText(wifiPass.trim() || wifiNom.trim())
+      .then(() => {
+        setWifiCopied(true)
+        setTimeout(() => setWifiCopied(false), 2000)
+        toast({ title: 'Copié', description: wifiPass.trim() ? `Mot de passe : ${wifiPass.trim()}` : `Réseau : ${wifiNom.trim()}` })
+      })
   }
 
-  const printQr = (url: string, label: string) => {
-    const w = window.open('', '_blank', 'width=420,height=560')
-    if (!w) return
-    w.document.write(`
-      <html><head><title>QR — ${label}</title></head>
-      <body style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100vh;margin:0;font-family:Georgia,serif;">
-        <h2 style="color:#8B6F47;">${label}</h2>
-        <img src="${url}" alt="QR" style="width:280px;height:280px;border:1px solid #EAE5DC;border-radius:12px;" />
-        <p style="color:#8B6F47;font-size:12px;margin-top:16px;">Salon VIP — Lounge Premium</p>
-      </body></html>
-    `)
-    w.document.close()
-    w.focus()
-    setTimeout(() => w.print(), 250)
+  const runQrPng = async (fn: () => Promise<void>) => {
+    if (qrPngBusy) return
+    setQrPngBusy(true)
+    try {
+      await fn()
+    } finally {
+      setQrPngBusy(false)
+    }
   }
+
+  // QR_ROUTING — QR d'ENTRÉE : ouvre Nathalie en mode global (sans table)
+  const entryUrl = `${appUrl()}/?qr_type=CLIENT_GLOBAL`
+  const entryOpts: PlaqueOptions = {
+    data: entryUrl,
+    label: 'Accueil du salon',
+    signature: 'NATHALIE · VOTRE GUIDE PERSONNEL',
+  }
+
+  /** Télécharge la plaque luxe complète (marbre + aluminium + or) */
+  const downloadQr = (opts: PlaqueOptions, filename: string) =>
+    runQrPng(async () => {
+      await downloadPlaquePng(opts, filename)
+      toast({ title: 'Plaque téléchargée', description: filename })
+    })
+
+  /** Imprime la feuille chevalet luxe */
+  const printQr = (opts: PlaqueOptions, label: string) =>
+    runQrPng(async () => {
+      await printPlaque(opts, label)
+    })
 
   return (
     <div className="space-y-5">
@@ -3575,16 +3649,201 @@ function QRTab() {
         Icon={QrCode}
       />
 
+      {/* ============================================================
+          QR_ROUTING — QR d'ENTRÉE (chevalet d'accueil)
+          ------------------------------------------------------------
+          Le grand QR placé à l'ENTRÉE du salon pointe vers
+          ?qr_type=CLIENT_GLOBAL : Nathalie s'ouvre SANS table
+          assignée (écran d'accueil global). Distinct des QR de
+          table (?qr_type=CLIENT_ZONE&zone_id=<token>) qui ouvrent
+          Nathalie en mode contextuel.
+          Rendu : plaque luxe Nathalie (marbre Nero Marquina,
+          aluminium noir anodisé, or champagne) + référence produit.
+          ============================================================ */}
+      <div>
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[#8B6F47]">
+          QR d&apos;Entrée — Chevalet d&apos;accueil
+        </h3>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <Card className="border border-[#bc7155]/40 bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.10)]">
+            <div className="flex items-start gap-3">
+              <span className="text-2xl" aria-hidden>🥂</span>
+              <div className="min-w-0 flex-1">
+                <h4 className="truncate text-sm font-semibold text-[#2C2C2C]">Accueil du salon</h4>
+                <p className="truncate font-mono text-xs text-[#8B6F47]">qr_type=CLIENT_GLOBAL</p>
+              </div>
+            </div>
+            <div className="mt-4 flex justify-center">
+              <NathalieQrPlaque data={entryUrl} label={entryOpts.label} signature={entryOpts.signature} emoji="🥂" className="w-full max-w-[260px]" />
+            </div>
+            <QrLinkRow url={entryUrl} />
+            <p className="mt-3 text-[11px] leading-relaxed text-[#8B6F47]/80">
+              À poser sur le chevalet d&apos;accueil : Nathalie accueille le
+              client SANS table assignée et lui demande son emplacement
+              uniquement si nécessaire (concierge, signalement…).
+            </p>
+            <div className="mt-3 flex gap-1.5">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={qrPngBusy}
+                className="h-8 flex-1 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#8B6F47] hover:bg-[#bc7155]/15"
+                onClick={() => downloadQr(entryOpts, 'chevalet-entree-nathalie.png')}
+              >
+                <Download className="h-3.5 w-3.5" aria-hidden /> Plaque PNG
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={qrPngBusy}
+                className="h-8 flex-1 border-[#8B6F47]/40 bg-[#8B6F47]/8 text-[#8B6F47] hover:bg-[#8B6F47]/15"
+                onClick={() => printQr(entryOpts, 'Entrée du salon — Nathalie')}
+              >
+                <Printer className="h-3.5 w-3.5" aria-hidden /> Imprimer
+              </Button>
+            </div>
+          </Card>
+
+          {/* Référence produit — rendu matière du chevalet */}
+          <Card className="overflow-hidden border border-[#efe7e0] bg-white p-0 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+            <div className="relative h-52 w-full sm:h-56">
+              <img
+                src="/brand/nathalie-qr-stand.png"
+                alt="Chevalet d'accueil du salon VIP : plaque QR en aluminium noir anodisé et or champagne posée sur un socle en marbre Nero Marquina"
+                className="h-full w-full object-cover"
+              />
+              <span className="absolute left-3 top-3 rounded-full bg-[#131315]/70 px-2.5 py-1 text-[10px] uppercase tracking-[0.22em] text-[#bc7155] backdrop-blur">
+                Rendu matière
+              </span>
+            </div>
+            <div className="p-4">
+              <h4 className="text-sm font-semibold text-[#2C2C2C]">Chevalet d&apos;accueil — Référence matériau</h4>
+              <p className="mt-1.5 text-[11px] leading-relaxed text-[#8B6F47]/80">
+                Aluminium noir anodisé mat, filets d&apos;or champagne brossé,
+                socle en marbre Nero Marquina. QR gravé sur médaillon ivoire
+                (modules anthracite #2C2C2C, lisibilité scan optimale).
+              </p>
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                {['Noir anodisé', 'Or champagne', 'Nero Marquina', 'Médaillon ivoire'].map((m) => (
+                  <span key={m} className="rounded-full border border-[#bc7155]/35 bg-[#bc7155]/8 px-2 py-0.5 text-[10px] font-medium text-[#8B6F47]">
+                    {m}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </Card>
+
+          {/* ============================================================
+              QR WI-FI du salon — connexion automatique au scan.
+              Réseau + clé modifiables dans Paramètres → Général.
+              ============================================================ */}
+          <Card
+            className={cn(
+              'p-5 shadow-[0_4px_20px_rgba(201,169,97,0.10)]',
+              wifiPayload
+                ? 'border border-[#bc7155]/40 bg-white'
+                : 'border border-dashed border-[#bc7155]/40 bg-[#ffffff]',
+            )}
+          >
+            <div className="flex items-start gap-3">
+              <span className="text-2xl" aria-hidden>📶</span>
+              <div className="min-w-0 flex-1">
+                <h4 className="truncate text-sm font-semibold text-[#2C2C2C]">QR Wi-Fi du salon</h4>
+                <p className="truncate text-xs text-[#8B6F47]">
+                  {wifiPayload ? `${wifiNom.trim()}${wifiPass.trim() ? ' · clé configurée' : ' · réseau ouvert'}` : 'Non configuré'}
+                </p>
+              </div>
+            </div>
+            {wifiPayload ? (
+              <>
+                <div className="mt-4 flex justify-center">
+                  <NathalieQrPlaque
+                    data={wifiPayload}
+                    label={wifiNom.trim()}
+                    signature={wifiSignature}
+                    emoji="📶"
+                    size="sm"
+                    className="w-full max-w-[210px]"
+                  />
+                </div>
+                {wifiPass.trim() ? (
+                  <button
+                    type="button"
+                    onClick={copierWifi}
+                    className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-lg border border-[#bc7155]/40 bg-[#bc7155]/8 px-3 py-2 text-xs font-semibold text-[#8B6F47] transition hover:bg-[#bc7155]/15"
+                    aria-live="polite"
+                  >
+                    {wifiCopied ? <Check className="h-3.5 w-3.5" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
+                    {wifiCopied ? 'Mot de passe copié' : `Copier le mot de passe · ${wifiPass.trim()}`}
+                  </button>
+                ) : null}
+                <p className="mt-2.5 text-[11px] leading-relaxed text-[#8B6F47]/80">
+                  Le client scanne → son téléphone se connecte <span className="font-semibold">automatiquement</span> au
+                  réseau du salon. La clé est aussi imprimée sous le QR. Réseau et mot de passe se règlent dans
+                  Paramètres → Général.
+                </p>
+                <div className="mt-3 flex gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={qrPngBusy}
+                    className="h-8 flex-1 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#8B6F47] hover:bg-[#bc7155]/15"
+                    onClick={() =>
+                      downloadQr(
+                        { data: wifiPayload, label: wifiNom.trim(), signature: wifiSignature, emoji: '📶' },
+                        'chevalet-wifi-salon.png',
+                      )
+                    }
+                  >
+                    <Download className="h-3.5 w-3.5" aria-hidden /> Plaque
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={qrPngBusy}
+                    className="h-8 flex-1 border-[#8B6F47]/40 bg-[#8B6F47]/8 text-[#8B6F47] hover:bg-[#8B6F47]/15"
+                    onClick={() => printQr({ data: wifiPayload, label: wifiNom.trim(), signature: wifiSignature, emoji: '📶' }, 'Wi-Fi du salon')}
+                  >
+                    <Printer className="h-3.5 w-3.5" aria-hidden /> Imprimer
+                  </Button>
+                </div>
+              </>
+            ) : (
+              <div className="mt-4 flex flex-col items-center gap-3 py-6 text-center">
+                <Wifi className="h-8 w-8 text-[#8B6F47]/40" aria-hidden />
+                <p className="text-xs leading-relaxed text-[#8B6F47]">
+                  Renseignez le nom du réseau et le mot de passe dans
+                  Paramètres → Général pour générer le QR Wi-Fi (connexion
+                  automatique au scan + clé imprimée sur la plaque).
+                </p>
+                {onGoToSettings ? (
+                  <Button size="sm" className="bg-[#bc7155] text-white hover:bg-[#B8975A]" onClick={onGoToSettings}>
+                    <Settings className="h-3.5 w-3.5" aria-hidden /> Ouvrir Paramètres
+                  </Button>
+                ) : null}
+              </div>
+            )}
+          </Card>
+        </div>
+      </div>
+
       {/* Section zones */}
       <div>
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[#8B6F47]">Zones VIP (6)</h3>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {VIP_ZONES.map((z) => {
             const url = qrUrlForZone(z.code, z.tags[0] ?? z.code)
-            const img = qrImageUrl(url)
+            const opts: PlaqueOptions = {
+              data: url,
+              label: z.nom,
+              // V3 — grande icône de rubrique gravée dans un médaillon d'or
+              // (harmonisation demandée sur TOUS les QR du salon).
+              emoji: z.emoji,
+              signature: 'NATHALIE · GUIDE PERSONNEL',
+            }
             const scans = scansForZone(z.code)
             return (
-              <Card key={z.code} className="border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+              <Card key={z.code} className="border border-[#efe7e0] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
                 <div className="flex items-start gap-3">
                   <span className="text-2xl" aria-hidden>{z.emoji}</span>
                   <div className="min-w-0 flex-1">
@@ -3593,26 +3852,29 @@ function QRTab() {
                   </div>
                 </div>
                 <div className="mt-4 flex justify-center">
-                  <img src={img} alt={`QR ${z.nom}`} className="h-40 w-40 rounded-xl border border-[#EAE5DC]" />
+                  <NathalieQrPlaque {...opts} size="sm" className="w-full max-w-[210px]" />
                 </div>
+                <QrLinkRow url={url} />
                 <div className="mt-3 flex items-center justify-between text-xs">
                   <span className="text-[#8B6F47]">Scans aujourd'hui</span>
-                  <span className="font-semibold text-[#C9A961]">{scans}</span>
+                  <span className="font-semibold text-[#bc7155]">{scans}</span>
                 </div>
                 <div className="mt-3 flex gap-1.5">
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-8 flex-1 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
-                    onClick={() => downloadQr(img, `qr-${z.code}.png`)}
+                    disabled={qrPngBusy}
+                    className="h-8 flex-1 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#8B6F47] hover:bg-[#bc7155]/15"
+                    onClick={() => downloadQr(opts, `chevalet-${z.code}.png`)}
                   >
-                    <Download className="h-3.5 w-3.5" aria-hidden /> PNG
+                    <Download className="h-3.5 w-3.5" aria-hidden /> Plaque
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
+                    disabled={qrPngBusy}
                     className="h-8 flex-1 border-[#8B6F47]/40 bg-[#8B6F47]/8 text-[#8B6F47] hover:bg-[#8B6F47]/15"
-                    onClick={() => printQr(img, z.nom)}
+                    onClick={() => printQr(opts, z.nom)}
                   >
                     <Printer className="h-3.5 w-3.5" aria-hidden /> Imprimer
                   </Button>
@@ -3623,18 +3885,98 @@ function QRTab() {
         </div>
       </div>
 
+      {/* ============================================================
+          QR DES TABLES — une plaque luxe Nathalie par table du salon.
+          URL scannée : ?vipTable=<token> → Nathalie s'ouvre en mode
+          CLIENT_ZONE contextuel (écran d'accueil « Table N°X »).
+          Le logo du salon (Paramètres → Général) est gravé au centre
+          de chaque médaillon, en DOM comme dans les exports PNG/impression.
+          ============================================================ */}
+      <div>
+        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[#8B6F47]">
+          QR des Tables ({tables.length})
+        </h3>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {tables.map((t) => {
+            const url = `${appUrl()}/?vipTable=${t.qrToken}`
+            const opts: PlaqueOptions = {
+              data: url,
+              label: `Table ${t.tableNumber}`,
+              emoji: '\u{1F37D}',
+              signature: 'NATHALIE · GUIDE PERSONNEL',
+            }
+            const statusMeta: Record<string, { label: string; style: string }> = {
+              free: { label: 'Libre', style: 'border-[#bc7155]/40 bg-[#bc7155]/10 text-[#bc7155]' },
+              occupied: { label: 'Occupée', style: 'border-[#bc7155]/40 bg-[#bc7155]/12 text-[#8B6F47]' },
+              reserved: { label: 'Réservée', style: 'border-[#bc7155]/40 bg-[#bc7155]/10 text-[#bc7155]' },
+              problem: { label: 'Problème', style: 'border-[#bc7155]/40 bg-[#bc7155]/12 text-[#bc7155]' },
+            }
+            const sm = statusMeta[t.status] ?? statusMeta.free
+            return (
+              <Card key={t.id} className="border border-[#efe7e0] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+                <div className="flex items-start gap-3">
+                  <span className="text-2xl" aria-hidden>🍽️</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <h4 className="truncate text-sm font-semibold text-[#2C2C2C]">Table {t.tableNumber}</h4>
+                      <Badge variant="outline" className={cn('h-5 px-1.5 text-[10px] font-medium', sm.style)}>
+                        {sm.label}
+                      </Badge>
+                    </div>
+                    <p className="truncate text-xs text-[#8B6F47]">{t.zone} · {t.seats} places</p>
+                  </div>
+                </div>
+                <div className="mt-4 flex justify-center">
+                  <NathalieQrPlaque {...opts} size="sm" className="w-full max-w-[210px]" />
+                </div>
+                <QrLinkRow url={url} />
+                <div className="mt-3 flex gap-1.5">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={qrPngBusy}
+                    className="h-8 flex-1 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#8B6F47] hover:bg-[#bc7155]/15"
+                    onClick={() => downloadQr(opts, `chevalet-table-${t.tableNumber}.png`)}
+                  >
+                    <Download className="h-3.5 w-3.5" aria-hidden /> Plaque
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={qrPngBusy}
+                    className="h-8 flex-1 border-[#8B6F47]/40 bg-[#8B6F47]/8 text-[#8B6F47] hover:bg-[#8B6F47]/15"
+                    onClick={() => printQr(opts, `Table ${t.tableNumber}`)}
+                  >
+                    <Printer className="h-3.5 w-3.5" aria-hidden /> Imprimer
+                  </Button>
+                </div>
+              </Card>
+            )
+          })}
+          {tables.length === 0 && (
+            <Card className="border border-dashed border-[#bc7155]/40 bg-[#ffffff] p-6 text-center sm:col-span-2 lg:col-span-3">
+              <p className="text-sm text-[#8B6F47]">Aucune table enregistrée — les QR des tables apparaîtront ici dès leur création.</p>
+            </Card>
+          )}
+        </div>
+      </div>
+
       {/* Section staff */}
       <div>
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-[#8B6F47]">QR Staff</h3>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {SEED_STAFF.map((s) => {
             const url = qrUrlForStaff(s.id)
-            const img = qrImageUrl(url)
+            const opts: PlaqueOptions = {
+              data: url,
+              label: s.name,
+              signature: 'ÉQUIPE · ACCÈS STAFF',
+            }
             const scans = scansForStaff(s.id)
             return (
-              <Card key={s.id} className="border border-[#EAE5DC] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+              <Card key={s.id} className="border border-[#efe7e0] bg-white p-5 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
                 <div className="flex items-start gap-3">
-                  <Avatar className="h-9 w-9 ring-1 ring-[#EAE5DC]">
+                  <Avatar className="h-9 w-9 ring-1 ring-[#efe7e0]">
                     {s.photoUrl && <AvatarImage src={s.photoUrl} alt={s.name} />}
                     <AvatarFallback className="bg-[#8B6F47]/15 text-xs font-semibold text-[#8B6F47]">
                       {initials(s.name)}
@@ -3646,26 +3988,29 @@ function QRTab() {
                   </div>
                 </div>
                 <div className="mt-4 flex justify-center">
-                  <img src={img} alt={`QR ${s.name}`} className="h-32 w-32 rounded-xl border border-[#EAE5DC]" />
+                  <NathalieQrPlaque {...opts} size="sm" className="w-full max-w-[210px]" />
                 </div>
+                <QrLinkRow url={url} />
                 <div className="mt-3 flex items-center justify-between text-xs">
                   <span className="text-[#8B6F47]">Scans aujourd'hui</span>
-                  <span className="font-semibold text-[#C9A961]">{scans}</span>
+                  <span className="font-semibold text-[#bc7155]">{scans}</span>
                 </div>
                 <div className="mt-3 flex gap-1.5">
                   <Button
                     size="sm"
                     variant="outline"
-                    className="h-8 flex-1 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
-                    onClick={() => downloadQr(img, `qr-staff-${s.id}.png`)}
+                    disabled={qrPngBusy}
+                    className="h-8 flex-1 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#8B6F47] hover:bg-[#bc7155]/15"
+                    onClick={() => downloadQr(opts, `chevalet-staff-${s.id}.png`)}
                   >
-                    <Download className="h-3.5 w-3.5" aria-hidden /> PNG
+                    <Download className="h-3.5 w-3.5" aria-hidden /> Plaque
                   </Button>
                   <Button
                     size="sm"
                     variant="outline"
+                    disabled={qrPngBusy}
                     className="h-8 flex-1 border-[#8B6F47]/40 bg-[#8B6F47]/8 text-[#8B6F47] hover:bg-[#8B6F47]/15"
-                    onClick={() => printQr(img, `Staff — ${s.name}`)}
+                    onClick={() => printQr(opts, `Staff — ${s.name}`)}
                   >
                     <Printer className="h-3.5 w-3.5" aria-hidden /> Imprimer
                   </Button>
@@ -3683,281 +4028,8 @@ function QRTab() {
 // Tab I — Rapports
 // ============================================================
 
-function ReportsTab({ incidents }: { incidents: VipIncident[] }) {
-  const { toast } = useToast()
-  const [period, setPeriod] = useState<'jour' | 'semaine' | 'mois'>('jour')
-  const [data, setData] = useState<any | null>(null)
-  const [rewards, setRewards] = useState<any[]>([])
-  const [orders, setOrders] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-
-  // ---- Fetch asynchrone (wallboard + reward-grants + orders)
-  useEffect(() => {
-    let cancelled = false
-    Promise.all([
-      fetch('/api/vip/wallboard', { cache: 'no-store' })
-        .then((r) => r.json())
-        .catch(() => null),
-      fetch('/api/vip/reward-grants', { cache: 'no-store' })
-        .then((r) => r.json())
-        .catch(() => null),
-      fetch('/api/vip/orders', { cache: 'no-store' })
-        .then((r) => r.json())
-        .catch(() => null),
-    ]).then(([wb, rw, ord]) => {
-      if (cancelled) return
-      if (wb?.ok) setData(wb.data)
-      if (rw?.ok) setRewards(rw.data ?? [])
-      if (ord?.ok) setOrders(ord.data ?? [])
-      setLoading(false)
-    })
-    return () => {
-      cancelled = true
-    }
-  }, [])
-
-  // ---- Extraction tolérante des KPIs (plusieurs casse possibles)
-  const kpis = data?.kpis ?? {}
-  const activeIncidents: any[] =
-    data?.active_incidents ?? data?.activeIncidents ?? []
-  const recentlyResolved: any[] =
-    data?.recently_resolved ?? data?.recentlyResolved ?? []
-
-  const resolvedToday: number =
-    kpis.resolved_today ?? kpis.resolvedToday ?? recentlyResolved.length
-  const avgResolution: number =
-    kpis.avg_resolution_min ?? kpis.avgResolutionMin ?? 0
-  const satisfaction: number =
-    kpis.satisfaction_score ?? kpis.satisfactionScore ?? 4.6
-  const totalToday: number =
-    kpis.total_today ?? kpis.totalToday ?? incidents.length
-  const showersUsage = 27
-  const expressLoans = 15
-  const lostFound = 3
-
-  // Mock comparaison période précédente (+X%)
-  const comparePct = 12
-
-  // ---- Bar chart : données réelles groupées par jour (fallback mock)
-  const dailyBars = useMemo(() => {
-    const days = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim']
-    const base = [4, 7, 5, 9, 12, 14, totalToday || 6]
-
-    // Agrégation par jour de la semaine depuis active_incidents
-    const byDay: Record<string, number> = {}
-    activeIncidents.forEach((inc) => {
-      const ts = inc?.createdAt ?? inc?.created_at ?? inc?.givenAt
-      if (!ts) return
-      try {
-        const d = new Date(ts)
-        if (isNaN(d.getTime())) return
-        const idx = (d.getDay() + 6) % 7 // 0 = Lundi
-        const label = days[idx]
-        byDay[label] = (byDay[label] ?? 0) + 1
-      } catch {
-        /* ignore */
-      }
-    })
-
-    if (period === 'semaine') {
-      return [
-        { label: 'S1', value: 8 },
-        { label: 'S2', value: 11 },
-        { label: 'S3', value: 9 },
-        { label: 'S4', value: 14 },
-      ]
-    }
-    if (period === 'mois') {
-      return Array.from({ length: 4 }).map((_, i) => ({
-        label: `S${i + 1}`,
-        value: 35 + ((i * 7) % 18),
-      }))
-    }
-    // Jour : données réelles si suffisamment riches, sinon fallback mock
-    const filled = days.map((label, i) => ({
-      label,
-      value: byDay[label] ?? base[i] ?? 0,
-    }))
-    const realDays = filled.filter((d) => byDay[d.label]).length
-    return realDays >= 3 ? filled : days.map((label, i) => ({ label, value: base[i] ?? 0 }))
-  }, [period, totalToday, activeIncidents])
-
-  const maxBar = Math.max(...dailyBars.map((b) => b.value), 1)
-
-  // ---- Export CSV
-  const exportCSV = useCallback(() => {
-    const rows: Array<[string, string]> = [
-      ['Métrique', 'Valeur'],
-      ['Incidents résolus', String(resolvedToday)],
-      ['Temps moyen (min)', String(avgResolution)],
-      ['Satisfaction', `${satisfaction}/5`],
-      ['Récompenses', String(rewards.length)],
-      ['Upsells', String(orders.length)],
-      ['Douches', '27'],
-      ['Prêts Express', '15'],
-      ['Lost & Found', '3'],
-    ]
-    const csv = rows
-      .map((r) =>
-        r.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','),
-      )
-      .join('\n')
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' })
-    const url = URL.createObjectURL(blob)
-    const a = document.createElement('a')
-    a.href = url
-    a.download = `rapport-vip-${new Date().toISOString().slice(0, 10)}.csv`
-    document.body.appendChild(a)
-    a.click()
-    document.body.removeChild(a)
-    URL.revokeObjectURL(url)
-    toast({
-      title: 'Export CSV',
-      description: 'Le rapport a été téléchargé.',
-    })
-  }, [resolvedToday, avgResolution, satisfaction, rewards.length, orders.length, toast])
-
-  return (
-    <div className="space-y-5">
-      <SectionTitle
-        title="Rapports"
-        subtitle="Indicateurs de performance — salon VIP"
-        Icon={BarChart3}
-        action={
-          <div className="flex flex-wrap items-center gap-2">
-            <Select value={period} onValueChange={(v) => setPeriod(v as 'jour' | 'semaine' | 'mois')}>
-              <SelectTrigger className="w-[140px] border-[#EAE5DC] bg-white text-sm">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="jour">Jour</SelectItem>
-                <SelectItem value="semaine">Semaine</SelectItem>
-                <SelectItem value="mois">Mois</SelectItem>
-              </SelectContent>
-            </Select>
-            <Button
-              onClick={exportCSV}
-              variant="outline"
-              className="gap-2 border-[#C9A961]/40 bg-[#C9A961]/8 text-[#8B6F47] hover:bg-[#C9A961]/15"
-            >
-              <Download className="h-4 w-4" aria-hidden /> Exporter CSV
-            </Button>
-          </div>
-        }
-      />
-
-      {/* Loading */}
-      {loading && (
-        <div className="flex items-center justify-center py-8 text-[#8B6F47]">
-          <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
-          <span className="ml-2 text-sm">Chargement des indicateurs…</span>
-        </div>
-      )}
-
-      {/* KPI rapports — 8 cartes */}
-      {!loading && (
-        <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <KPICard
-              label="Incidents résolus"
-              value={resolvedToday}
-              Icon={CheckCircle2}
-              tone="sage"
-              hint={`sur ${totalToday} signalés`}
-            />
-            <KPICard
-              label="Temps moyen résolution"
-              value={avgResolution}
-              unit="min"
-              Icon={Clock}
-              tone="bronze"
-              hint="Sur la période"
-            />
-            <KPICard
-              label="Satisfaction"
-              value={Number(satisfaction).toFixed(1)}
-              unit="/5"
-              Icon={Star}
-              tone="gold"
-              hint="Note moyenne"
-            />
-            <KPICard
-              label="Récompenses offertes"
-              value={rewards.length}
-              Icon={Gift}
-              tone="amethyst"
-              hint="Sur la période"
-            />
-            <KPICard
-              label="Upsells générés"
-              value={orders.length}
-              Icon={ArrowUp}
-              tone="gold"
-              hint="Ventes additionnelles"
-            />
-            <KPICard
-              label="Utilisation douches"
-              value={showersUsage}
-              Icon={ShowerHead}
-              tone="bronze"
-              hint="Sessions période"
-            />
-            <KPICard
-              label="Prêts Express"
-              value={expressLoans}
-              Icon={Plane}
-              tone="sage"
-              hint="Kits voyage prêtés"
-            />
-            <KPICard
-              label="Lost & Found"
-              value={lostFound}
-              Icon={AlertTriangle}
-              tone="terracotta"
-              hint="Objets trouvés"
-            />
-          </div>
-
-          {/* Comparaison période */}
-          <div className="flex items-center gap-1.5 text-xs text-[#8B6F47]">
-            <ArrowUp className="h-3 w-3 text-[#4A7C59]" aria-hidden />
-            <span>
-              vs période précédente : <span className="font-semibold text-[#4A7C59]">+{comparePct}%</span>
-            </span>
-          </div>
-        </>
-      )}
-
-      {/* Bar chart CSS */}
-      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-        <CardHeader className="px-0">
-          <CardTitle className="text-lg text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
-            Incidents par {period === 'jour' ? 'jour' : period === 'semaine' ? 'tranche' : 'semaine'}
-          </CardTitle>
-          <CardDescription className="text-[#8B6F47]">
-            Visualisation CSS — barres dorées
-            {activeIncidents.length > 0 && (
-              <span className="ml-1 text-[#4A7C59]">({activeIncidents.length} actifs)</span>
-            )}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-0">
-          <div className="flex h-56 items-end justify-around gap-3 border-b border-[#EAE5DC] pb-2">
-            {dailyBars.map((b, i) => (
-              <div key={i} className="flex flex-1 flex-col items-center gap-2">
-                <span className="text-xs font-semibold text-[#2C2C2C]">{b.value}</span>
-                <div
-                  className="w-full max-w-[42px] rounded-t-md bg-gradient-to-t from-[#8B6F47] to-[#C9A961] transition-all"
-                  style={{ height: `${(b.value / maxBar) * 100}%`, minHeight: '4px' }}
-                />
-                <span className="text-[11px] text-[#8B6F47]">{b.label}</span>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
+function ReportsTab() {
+  return <VipReportsTab />
 }
 
 // ============================================================
@@ -3965,503 +4037,7 @@ function ReportsTab({ incidents }: { incidents: VipIncident[] }) {
 // ============================================================
 
 function SettingsTab() {
-  const { toast } = useToast()
-  const [settings, setSettings] = useState<VipSettings>(DEFAULT_SETTINGS)
-  const [saving, setSaving] = useState(false)
-
-  const update = <K extends keyof VipSettings>(key: K, value: VipSettings[K]) => {
-    setSettings((s) => ({ ...s, [key]: value }))
-  }
-
-  const save = () => {
-    setSaving(true)
-    // Simule une persistance locale (l'API dédiée n'existe pas encore)
-    setTimeout(() => {
-      try {
-        localStorage.setItem('vip_settings', JSON.stringify(settings))
-      } catch {
-        /* ignore */
-      }
-      setSaving(false)
-      toast({ title: 'Paramètres enregistrés', description: 'La configuration du salon a été mise à jour.' })
-    }, 600)
-  }
-
-  // Charge les settings persistés au montage (différé via setTimeout(0)
-  // pour ne pas appeler setState de manière synchrone dans l'effet)
-  useEffect(() => {
-    const t = setTimeout(() => {
-      try {
-        const raw = localStorage.getItem('vip_settings')
-        if (raw) setSettings((s) => ({ ...s, ...JSON.parse(raw) }))
-      } catch {
-        /* ignore */
-      }
-    }, 0)
-    return () => clearTimeout(t)
-  }, [])
-
-  return (
-    <div className="space-y-5">
-      <SectionTitle
-        title="Paramètres"
-        subtitle="Configuration du salon VIP — général, Denise, buffet, douches, récompenses"
-        Icon={Settings}
-        action={
-          <Button onClick={save} disabled={saving} className="gap-2 bg-gradient-to-br from-[#C9A961] to-[#8B6F47] text-white hover:opacity-90">
-            {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Save className="h-4 w-4" aria-hidden />}
-            Enregistrer
-          </Button>
-        }
-      />
-
-      {/* Général */}
-      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-        <CardHeader className="px-0">
-          <CardTitle className="text-base text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
-            Général
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-0">
-          <div className="grid gap-4 sm:grid-cols-3">
-            <div>
-              <Label htmlFor="set-name" className="text-[#8B6F47]">Nom du salon</Label>
-              <Input
-                id="set-name"
-                value={settings.salonName}
-                onChange={(e) => update('salonName', e.target.value)}
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-            </div>
-            <div>
-              <Label htmlFor="set-cap" className="text-[#8B6F47]">Capacité (clients)</Label>
-              <Input
-                id="set-cap"
-                type="number"
-                value={settings.capacity}
-                onChange={(e) => update('capacity', Number(e.target.value))}
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-            </div>
-            <div>
-              <Label htmlFor="set-hours" className="text-[#8B6F47]">Horaires d'ouverture</Label>
-              <Input
-                id="set-hours"
-                value={settings.openingHours}
-                onChange={(e) => update('openingHours', e.target.value)}
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-            </div>
-          </div>
-          <div className="mt-4 grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="set-addr" className="text-[#8B6F47]">Adresse</Label>
-              <Input
-                id="set-addr"
-                value={settings.salonAddress}
-                onChange={(e) => update('salonAddress', e.target.value)}
-                placeholder="Aéroport, Terminal 1, Dakar"
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-            </div>
-            <div>
-              <Label htmlFor="set-logo" className="text-[#8B6F47]">URL Logo</Label>
-              <Input
-                id="set-logo"
-                value={settings.salonLogoUrl ?? ''}
-                onChange={(e) => update('salonLogoUrl', e.target.value || null)}
-                placeholder="https://…/logo.png"
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Denise */}
-      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-        <CardHeader className="px-0">
-          <CardTitle className="text-base text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
-            Denise — Voix
-          </CardTitle>
-          <CardDescription className="text-[#8B6F47]">
-            Mode discrétion par défaut. La voix reste désactivée sauf urgence VIP.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-0 space-y-4">
-          <div className="flex items-center justify-between rounded-xl bg-[#FAFAF7] px-4 py-3">
-            <div className="flex items-center gap-3">
-              {settings.deniseVoiceEnabled ? (
-                <Volume2 className="h-5 w-5 text-[#C9A961]" aria-hidden />
-              ) : (
-                <VolumeX className="h-5 w-5 text-[#8B6F47]" aria-hidden />
-              )}
-              <div>
-                <p className="text-sm font-medium text-[#2C2C2C]">Voix activée</p>
-                <p className="text-xs text-[#8B6F47]">Désactivée par défaut — notifications visuelles uniquement</p>
-              </div>
-            </div>
-            <Switch checked={settings.deniseVoiceEnabled} onCheckedChange={(v) => update('deniseVoiceEnabled', v)} />
-          </div>
-          <div>
-            <Label className="text-[#8B6F47]">
-              Volume maximum : <span className="font-semibold text-[#2C2C2C]">{settings.deniseMaxVolume}%</span>
-            </Label>
-            <Slider
-              className="mt-2"
-              value={[settings.deniseMaxVolume]}
-              min={0}
-              max={30}
-              step={5}
-              onValueChange={(v) => update('deniseMaxVolume', v[0] ?? 0)}
-            />
-            <p className="mt-1 text-[11px] text-[#8B6F47]">Plafonné à 30% — confort VIP.</p>
-          </div>
-          <div>
-            <Label className="text-[#8B6F47]">Tonalité</Label>
-            <Select value={settings.deniseTone} onValueChange={(v) => update('deniseTone', v as VipSettings['deniseTone'])}>
-              <SelectTrigger className="mt-1.5 w-full border-[#EAE5DC] bg-[#FAFAF7] sm:w-[240px]">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="doux">Doux</SelectItem>
-                <SelectItem value="neutre">Neutre</SelectItem>
-                <SelectItem value="chaleureux">Chaleureux</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <Label className="text-[#8B6F47]">Langues parlées par Denise</Label>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {['fr', 'en', 'ar', 'es', 'de', 'pt', 'wo'].map((lang) => {
-                const active = settings.deniseLanguages.includes(lang)
-                return (
-                  <button
-                    key={lang}
-                    type="button"
-                    onClick={() => {
-                      const next = active
-                        ? settings.deniseLanguages.filter((l) => l !== lang)
-                        : [...settings.deniseLanguages, lang]
-                      update('deniseLanguages', next.length > 0 ? next : ['fr'])
-                    }}
-                    className={cn(
-                      'rounded-lg border px-3 py-1.5 text-xs font-medium uppercase transition',
-                      active
-                        ? 'border-[#C9A961] bg-[#C9A961]/12 text-[#8B6F47]'
-                        : 'border-[#EAE5DC] bg-[#FAFAF7] text-[#8B6F47]/60 hover:border-[#C9A961]/40',
-                    )}
-                  >
-                    {lang}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-          <div>
-            <Label htmlFor="set-welcome" className="text-[#8B6F47]">Message de bienvenue</Label>
-            <Textarea
-              id="set-welcome"
-              value={settings.deniseWelcomeMessage}
-              onChange={(e) => update('deniseWelcomeMessage', e.target.value)}
-              rows={2}
-              className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-            />
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Alertes VIP */}
-      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-        <CardHeader className="px-0">
-          <CardTitle className="text-base text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
-            Alertes VIP
-          </CardTitle>
-          <CardDescription className="text-[#8B6F47]">
-            Alerte immédiate au Maître d&apos;Hôtel si un client VIP signale un problème.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-0 space-y-4">
-          <div className="flex items-center justify-between rounded-xl bg-[#FAFAF7] px-4 py-3">
-            <div className="flex items-center gap-3">
-              <Crown className="h-5 w-5 text-[#6B4C9A]" aria-hidden />
-              <div>
-                <p className="text-sm font-medium text-[#2C2C2C]">Alertes VIP activées</p>
-                <p className="text-xs text-[#8B6F47]">Notification prioritaire si un VIP mécontent signale</p>
-              </div>
-            </div>
-            <Switch checked={settings.vipAlertsEnabled} onCheckedChange={(v) => update('vipAlertsEnabled', v)} />
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label className="text-[#8B6F47]">Destinataire</Label>
-              <Select value={settings.vipAlertsRecipient} onValueChange={(v) => update('vipAlertsRecipient', v)}>
-                <SelectTrigger className="mt-1.5 w-full border-[#EAE5DC] bg-[#FAFAF7]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Maître d'Hôtel">Maître d&apos;Hôtel</SelectItem>
-                  <SelectItem value="Manager">Manager</SelectItem>
-                  <SelectItem value="Réception">Réception</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label htmlFor="set-vip-delay" className="text-[#8B6F47]">Délai avant alerte (secondes)</Label>
-              <Input
-                id="set-vip-delay"
-                type="number"
-                min={0}
-                max={300}
-                value={settings.vipAlertsDelaySec}
-                onChange={(e) => update('vipAlertsDelaySec', Number(e.target.value))}
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-              <p className="mt-1 text-[11px] text-[#8B6F47]">0 = alerte immédiate</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Buffet */}
-      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-        <CardHeader className="px-0">
-          <CardTitle className="text-base text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
-            Buffet
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-0">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label className="text-[#8B6F47]">Intervalle de vérification</Label>
-              <Select
-                value={String(settings.buffetInterval)}
-                onValueChange={(v) => update('buffetInterval', Number(v) as VipSettings['buffetInterval'])}
-              >
-                <SelectTrigger className="mt-1.5 w-full border-[#EAE5DC] bg-[#FAFAF7]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="15">15 minutes</SelectItem>
-                  <SelectItem value="30">30 minutes</SelectItem>
-                  <SelectItem value="45">45 minutes</SelectItem>
-                  <SelectItem value="60">60 minutes</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div>
-              <Label className="text-[#8B6F47]">
-                Seuil d'alerte basse : <span className="font-semibold text-[#2C2C2C]">{settings.buffetLowThreshold}%</span>
-              </Label>
-              <Slider
-                className="mt-3"
-                value={[settings.buffetLowThreshold]}
-                min={10}
-                max={50}
-                step={5}
-                onValueChange={(v) => update('buffetLowThreshold', v[0] ?? 30)}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Douches */}
-      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-        <CardHeader className="px-0">
-          <CardTitle className="text-base text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
-            Douches
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-0">
-          <div className="grid gap-4 sm:grid-cols-4">
-            <div>
-              <Label htmlFor="set-sh-count" className="text-[#8B6F47]">Nombre de cabines</Label>
-              <Input
-                id="set-sh-count"
-                type="number"
-                value={settings.showersCount}
-                onChange={(e) => update('showersCount', Number(e.target.value))}
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-            </div>
-            <div>
-              <Label htmlFor="set-sh-max" className="text-[#8B6F47]">Durée max (min)</Label>
-              <Input
-                id="set-sh-max"
-                type="number"
-                value={settings.showerMaxTime}
-                onChange={(e) => update('showerMaxTime', Number(e.target.value))}
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-            </div>
-            <div>
-              <Label htmlFor="set-sh-clean" className="text-[#8B6F47]">Temps nettoyage (min)</Label>
-              <Input
-                id="set-sh-clean"
-                type="number"
-                value={settings.showerCleaningTime}
-                onChange={(e) => update('showerCleaningTime', Number(e.target.value))}
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-            </div>
-            <div>
-              <Label htmlFor="set-sh-deep" className="text-[#8B6F47]">Nettoyage profond après</Label>
-              <Input
-                id="set-sh-deep"
-                type="number"
-                value={settings.showerDeepCleanThreshold}
-                onChange={(e) => update('showerDeepCleanThreshold', Number(e.target.value))}
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-              <p className="mt-1 text-[11px] text-[#8B6F47]">utilisations</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Récompenses */}
-      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-        <CardHeader className="px-0">
-          <CardTitle className="text-base text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
-            Récompenses
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="px-0">
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="set-rw-budget" className="text-[#8B6F47]">Budget mensuel (€)</Label>
-              <Input
-                id="set-rw-budget"
-                type="number"
-                value={settings.rewardsBudgetMonthly}
-                onChange={(e) => update('rewardsBudgetMonthly', Number(e.target.value))}
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-            </div>
-            <div>
-              <Label className="text-[#8B6F47]">Mode de validation</Label>
-              <Select
-                value={settings.rewardsValidation}
-                onValueChange={(v) => update('rewardsValidation', v as VipSettings['rewardsValidation'])}
-              >
-                <SelectTrigger className="mt-1.5 w-full border-[#EAE5DC] bg-[#FAFAF7]">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="auto">Automatique (staff)</SelectItem>
-                  <SelectItem value="manager">Validation manager</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Notifications */}
-      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-        <CardHeader className="px-0">
-          <CardTitle className="text-base text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
-            Notifications
-          </CardTitle>
-          <CardDescription className="text-[#8B6F47]">
-            Canaux de notification et horaires de non-disturb (DND).
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-0 space-y-4">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <div className="flex items-center justify-between rounded-xl bg-[#FAFAF7] px-4 py-3">
-              <div className="flex items-center gap-3">
-                <Bell className="h-4 w-4 text-[#C9A961]" aria-hidden />
-                <p className="text-sm font-medium text-[#2C2C2C]">Push navigateur</p>
-              </div>
-              <Switch checked={settings.notifPushEnabled} onCheckedChange={(v) => update('notifPushEnabled', v)} />
-            </div>
-            <div className="flex items-center justify-between rounded-xl bg-[#FAFAF7] px-4 py-3">
-              <div className="flex items-center gap-3">
-                <Bell className="h-4 w-4 text-[#8B6F47]" aria-hidden />
-                <p className="text-sm font-medium text-[#2C2C2C]">Email</p>
-              </div>
-              <Switch checked={settings.notifEmailEnabled} onCheckedChange={(v) => update('notifEmailEnabled', v)} />
-            </div>
-            <div className="flex items-center justify-between rounded-xl bg-[#FAFAF7] px-4 py-3">
-              <div className="flex items-center gap-3">
-                <Bell className="h-4 w-4 text-[#8B6F47]" aria-hidden />
-                <p className="text-sm font-medium text-[#2C2C2C]">SMS</p>
-              </div>
-              <Switch checked={settings.notifSmsEnabled} onCheckedChange={(v) => update('notifSmsEnabled', v)} />
-            </div>
-            <div className="flex items-center justify-between rounded-xl bg-[#FAFAF7] px-4 py-3">
-              <div className="flex items-center gap-3">
-                <Bell className="h-4 w-4 text-[#4A7C59]" aria-hidden />
-                <p className="text-sm font-medium text-[#2C2C2C]">WhatsApp</p>
-              </div>
-              <Switch checked={settings.notifWhatsappEnabled} onCheckedChange={(v) => update('notifWhatsappEnabled', v)} />
-            </div>
-          </div>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <Label htmlFor="set-dnd-start" className="text-[#8B6F47]">Début DND (ne pas déranger)</Label>
-              <Input
-                id="set-dnd-start"
-                type="time"
-                value={settings.notifDndStart}
-                onChange={(e) => update('notifDndStart', e.target.value)}
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-            </div>
-            <div>
-              <Label htmlFor="set-dnd-end" className="text-[#8B6F47]">Fin DND</Label>
-              <Input
-                id="set-dnd-end"
-                type="time"
-                value={settings.notifDndEnd}
-                onChange={(e) => update('notifDndEnd', e.target.value)}
-                className="mt-1.5 border-[#EAE5DC] bg-[#FAFAF7]"
-              />
-            </div>
-          </div>
-          <p className="text-[11px] text-[#8B6F47]">
-            Pendant la plage DND, seules les alertes critiques VIP sont envoyees. Les autres sont silencieuses.
-          </p>
-        </CardContent>
-      </Card>
-
-      {/* Integrations */}
-      <Card className="border border-[#EAE5DC] bg-white p-6 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-        <CardHeader className="px-0">
-          <CardTitle className="text-base text-[#2C2C2C]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
-            Integrations
-          </CardTitle>
-          <CardDescription className="text-[#8B6F47]">
-            Connexions aux services externes (lecture seule).
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="px-0 space-y-4">
-          <div className="flex items-center justify-between rounded-xl bg-[#FAFAF7] px-4 py-3">
-            <div className="flex items-center gap-3">
-              <Plane className="h-5 w-5 text-[#C9A961]" aria-hidden />
-              <div>
-                <p className="text-sm font-medium text-[#2C2C2C]">API Vols (read-only)</p>
-                <p className="text-xs text-[#8B6F47]">Lecture des vols et embarquements pour le dbarrassage proactif</p>
-              </div>
-            </div>
-            <Switch checked={settings.integrationFlightsApi} onCheckedChange={(v) => update('integrationFlightsApi', v)} />
-          </div>
-          <div className="flex items-center justify-between rounded-xl bg-[#FAFAF7] px-4 py-3">
-            <div className="flex items-center gap-3">
-              <Users className="h-5 w-5 text-[#6B4C9A]" aria-hidden />
-              <div>
-                <p className="text-sm font-medium text-[#2C2C2C]">Import profils VIP</p>
-                <p className="text-xs text-[#8B6F47]">Synchronisation des clients VIP depuis le CRM externe</p>
-              </div>
-            </div>
-            <Switch checked={settings.integrationVipImport} onCheckedChange={(v) => update('integrationVipImport', v)} />
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
+  return <VipSettingsTab />
 }
 
 // ============================================================
@@ -4471,6 +4047,15 @@ function SettingsTab() {
 export default function VIPDashboard() {
   const session = useAppStore((s) => s.session)
   const logout = useAppStore((s) => s.logout)
+  const { toast } = useToast()
+
+  const loungeName = session?.pro?.nomEtablissement ?? 'Salon VIP'
+  const userEmail = session?.user?.email ?? '—'
+  const userRole = session?.user?.role ?? 'PRO'
+  // Nom du staff pour attribuer les récompenses / nommer le briefing
+  const staffName = session?.user?.email
+    ? session.user.email.split('@')[0].split('.').map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
+    : 'Manager'
 
   const [tab, setTab] = useState<VipTab>('overview')
   const [drawerOuvert, setDrawerOuvert] = useState(false)
@@ -4484,14 +4069,94 @@ export default function VIPDashboard() {
   const [refreshing, setRefreshing] = useState(false)
   const [rewardsGivenToday, setRewardsGivenToday] = useState(2)
   const [clientsCount] = useState(18)
+  // Configuration du tenant (modules optionnels, réglages lounge) — appliquée < 5s
+  const [loungeConfig, setLoungeConfig] = useState<VipLoungeConfig | null>(null)
 
-  const loungeName = session?.pro?.nomEtablissement ?? 'Salon VIP'
-  const userEmail = session?.user?.email ?? '—'
-  const userRole = session?.user?.role ?? 'PRO'
-  // Nom du staff pour attribuer les récompenses
-  const staffName = session?.user?.email
-    ? session.user.email.split('@')[0].split('.').map((p) => p.charAt(0).toUpperCase() + p.slice(1)).join(' ')
-    : 'Manager'
+  // --- Mode Sombre Luxe (toggle 🌙 en haut à droite, comme Nathalie) ---
+  // La classe .vip-dark est posée sur <body> → couvre aussi les portals
+  // shadcn/ui (Dialog, Sheet, Select, Toast) montés en dehors du layout.
+  const [darkMode, setDarkMode] = useState(false)
+  useEffect(() => {
+    try {
+      setDarkMode(localStorage.getItem(DARK_STORAGE_KEY) === '1')
+    } catch {
+      /* ignore */
+    }
+  }, [])
+  useEffect(() => {
+    try {
+      document.body.classList.toggle('vip-dark', darkMode)
+    } catch {
+      /* ignore */
+    }
+  }, [darkMode])
+  const toggleDarkMode = useCallback(() => {
+    setDarkMode((d) => {
+      const next = !d
+      try {
+        localStorage.setItem(DARK_STORAGE_KEY, next ? '1' : '0')
+      } catch {
+        /* ignore */
+      }
+      return next
+    })
+  }, [])
+
+  // --- Phase 1 — Données de démo réalistes (un clic, état crédible) ---
+  const [demoBusy, setDemoBusy] = useState(false)
+  const lancerDemoData = useCallback(async () => {
+    setDemoBusy(true)
+    try {
+      const res = await fetch('/api/vip/demo-data', { method: 'POST' })
+      const json = await res.json().catch(() => null)
+      if (!res.ok || !json?.ok) throw new Error(json?.error ?? 'erreur démo')
+      toast({
+        title: 'Données de démo appliquées',
+        description:
+          json.data?.message ?? '3 tables occupées, 1 problème, 1 réservée, buffet frais.',
+      })
+      await refreshData()
+    } catch {
+      toast({
+        title: 'Erreur',
+        description: "Impossible d'appliquer les données de démo.",
+        variant: 'destructive',
+      })
+    } finally {
+      setDemoBusy(false)
+    }
+  }, [toast])
+
+  // --- Phase 2 — Briefing vocal Nathalie (prise de poste) ---
+  const [briefingBusy, setBriefingBusy] = useState(false)
+  const [briefingPlaying, setBriefingPlaying] = useState(false)
+  const briefingDenise = useCallback(async () => {
+    if (briefingBusy) return
+    setBriefingBusy(true)
+    try {
+      const res = await fetch(
+        `/api/vip/briefing?role=manager&name=${encodeURIComponent(staffName)}`,
+        { cache: 'no-store' },
+      )
+      const json = await res.json().catch(() => null)
+      const content: string | undefined = json?.data?.content
+      if (!json?.ok || !content) throw new Error('briefing indisponible')
+      setBriefingBusy(false)
+      setBriefingPlaying(true)
+      parler(content)
+      toast({ title: 'Briefing Nathalie', description: content })
+      const ms = Math.max(6000, Math.min(35000, ((json.data.durationSec ?? 15) as number) * 1000 + 4000))
+      setTimeout(() => setBriefingPlaying(false), ms)
+    } catch {
+      toast({
+        title: 'Briefing indisponible',
+        description: 'Impossible de générer le briefing vocal.',
+        variant: 'destructive',
+      })
+    } finally {
+      setBriefingBusy(false)
+    }
+  }, [briefingBusy, staffName, toast])
 
   const refreshData = useCallback(async () => {
     try {
@@ -4532,6 +4197,61 @@ export default function VIPDashboard() {
     const interval = setInterval(refreshData, 30000)
     return () => clearInterval(interval)
   }, [refreshData])
+
+  // ============================================================
+  // NOTIFICATION VISUELLE — badges sur les onglets Signalements et
+  // Wallboard (demande du directeur : repérage immédiat d'un
+  // signalement). Nombre = incidents ouverts + demandes de table
+  // actives. Toast visuel discret quand un NOUVEAU signalement
+  // arrive (polling 30 s — aucun son, mode discrétion).
+  // ============================================================
+  const openIncidentsCount = useMemo(
+    () => incidents.filter((i) => i.statut !== 'RESOLU').length,
+    [incidents],
+  )
+  const signalementsActifs = openIncidentsCount + tableRequests.length
+  const tabBadges = useMemo<Partial<Record<VipTab, number>>>(
+    () => ({
+      incidents: signalementsActifs,
+      wallboard: signalementsActifs,
+    }),
+    [signalementsActifs],
+  )
+  const prevSignalementsRef = useRef<number | null>(null)
+  useEffect(() => {
+    const prev = prevSignalementsRef.current
+    prevSignalementsRef.current = signalementsActifs
+    if (prev !== null && signalementsActifs > prev) {
+      toast({
+        title: 'Nouveau signalement',
+        description: `${signalementsActifs} signalement${signalementsActifs > 1 ? 's' : ''} actif${signalementsActifs > 1 ? 's' : ''} — onglets Signalements & Wallboard`,
+      })
+    }
+  }, [signalementsActifs, toast])
+
+  // Config tenant lounge : chargement initial + refetch quand on revient
+  // sur les onglets (application des paramètres en < 5s)
+  useEffect(() => {
+    let cancelled = false
+    const chargerConfig = async () => {
+      try {
+        const res = await fetch('/api/vip/settings', { cache: 'no-store' })
+        const json = await res.json().catch(() => null)
+        if (!cancelled && json?.ok) setLoungeConfig(json.data.config)
+      } catch {
+        /* silencieux — défauts serveur */
+      }
+    }
+    chargerConfig()
+    const interval = setInterval(chargerConfig, 20000)
+    const onFocusTab = () => chargerConfig()
+    window.addEventListener('focus', onFocusTab)
+    return () => {
+      cancelled = true
+      clearInterval(interval)
+      window.removeEventListener('focus', onFocusTab)
+    }
+  }, [])
 
   // Récompenses : on initialise à 2 (mock) — elles s'incrémentent via le tab Rewards
   // via un callback. Pour rester simple, on calcule depuis le storage local.
@@ -4714,9 +4434,61 @@ export default function VIPDashboard() {
     [],
   )
 
+  // Phase 2 — « Reporter 15 min » sur une alerte buffet (snooze timer only)
+  const patchBuffetSnooze = useCallback(async (id: string, snoozeMin = 15) => {
+    const res = await fetch('/api/vip/buffet', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, snoozeMin }),
+    })
+    if (!res.ok) throw new Error('snooze buffet failed')
+    const json = await res.json().catch(() => null)
+    const nextIso: string =
+      json?.data?.nextCheck ?? new Date(Date.now() + snoozeMin * 60_000).toISOString()
+    setBuffet((list) =>
+      list.map((b) => (b.id === id ? { ...b, nextCheck: nextIso } : b)),
+    )
+  }, [])
+
+  // Phase 2 — « Marquer fait » sur une alerte buffet (reset timer, niveau inchangé)
+  const patchBuffetCheck = useCallback(
+    async (id: string) => {
+      const current = buffet.find((b) => b.id === id)
+      await patchBuffetFill(id, current?.fillLevel ?? 100)
+    },
+    [buffet, patchBuffetFill],
+  )
+
+  // Phase 2 — affectation staff persistée (AirportReport.assignedTo)
+  const patchIncidentAssign = useCallback(async (id: string, assignee: string) => {
+    const res = await fetch('/api/vip/incidents', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id, assignedTo: assignee }),
+    })
+    if (!res.ok) throw new Error('assign incident failed')
+    setIncidents((list) =>
+      list.map((i) => (i.id === id ? { ...i, assignedTo: assignee } : i)),
+    )
+  }, [])
+
   const naviguer = (t: VipTab) => {
     setTab(t)
     setDrawerOuvert(false)
+  }
+
+  // Wallboard — lien TV cliquable + copie du lien (affichage sur la
+  // télévision du salon). ?tv=1 masque les contrôles (mode TV dédié).
+  const [wallboardCopied, setWallboardCopied] = useState(false)
+  const wallboardUrl = `${appUrl()}/vip-wallboard?tv=1`
+  const copierLienWallboard = () => {
+    void navigator.clipboard
+      ?.writeText(wallboardUrl)
+      .then(() => {
+        setWallboardCopied(true)
+        setTimeout(() => setWallboardCopied(false), 2000)
+        toast({ title: 'Lien Wallboard copié', description: 'Collez-le dans le navigateur de la TV du salon' })
+      })
   }
 
   const manualRefresh = () => {
@@ -4724,16 +4496,24 @@ export default function VIPDashboard() {
     refreshData()
   }
 
+  const TAB_MODULE_KEY_ROOT: Partial<Record<VipTab, keyof VipLoungeConfig['modulesEnabled']>> = {
+    showers: 'smartShower',
+    rewards: 'flashRewards',
+  }
+  useEffect(() => {
+    const key = TAB_MODULE_KEY_ROOT[tab]
+    if (key && loungeConfig && loungeConfig.modulesEnabled[key] === false) setTab('overview')
+  }, [tab, loungeConfig])
   const currentNav = NAV_ITEMS.find((n) => n.id === tab)
   const titreOnglet = currentNav?.label ?? 'Vue d\'ensemble'
 
   return (
-    <div className="relative flex min-h-screen flex-col bg-[#FAFAF7] lg:pl-[260px]">
+    <div className="relative flex min-h-screen flex-col bg-[#ffffff] lg:pl-[260px]">
       {/* Filet doré décoratif sur le côté droit de la sidebar */}
-      <div className="pointer-events-none fixed inset-y-0 left-[260px] z-30 hidden w-px bg-gradient-to-b from-[#C9A961]/30 via-[#EAE5DC] to-[#C9A961]/30 lg:block" aria-hidden />
+      <div className="pointer-events-none fixed inset-y-0 left-[260px] z-30 hidden w-px bg-gradient-to-b from-[#bc7155]/40 via-white/10 to-[#bc7155]/40 lg:block" aria-hidden />
 
-      {/* ---------- Sidebar desktop (fixe, 260px) ---------- */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[260px] border-r border-[#EAE5DC] bg-white lg:block">
+      {/* ---------- Sidebar desktop (fixe, 260px) — NOIR + MARRON V3 ---------- */}
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-[260px] border-r border-white/10 bg-[#0D0B09] lg:block">
         <VIPSidebarContent
           activeTab={tab}
           onNavigate={naviguer}
@@ -4741,16 +4521,21 @@ export default function VIPDashboard() {
           userEmail={userEmail}
           userRole={userRole}
           onLogout={logout}
+          modulesEnabled={loungeConfig?.modulesEnabled ?? null}
+          onBriefing={() => void briefingDenise()}
+          briefingBusy={briefingBusy}
+          briefingPlaying={briefingPlaying}
+          badgeCounts={tabBadges}
         />
       </aside>
 
       {/* ---------- Header (sticky) ---------- */}
-      <header className="sticky top-0 z-20 border-b border-[#EAE5DC] bg-[#FAFAF7]/95 backdrop-blur-sm">
+      <header className="sticky top-0 z-20 border-b border-[#efe7e0] bg-[#ffffff]/95 backdrop-blur-sm">
         <div className="flex h-16 items-center justify-between gap-3 px-4 sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-3">
             {/* Menu mobile — ouvre le drawer */}
             <Sheet open={drawerOuvert} onOpenChange={setDrawerOuvert}>
-              <SheetContent side="left" className="w-[260px] border-0 p-0" aria-describedby={undefined}>
+              <SheetContent side="left" className="w-[260px] border-0 bg-[#0D0B09] p-0" aria-describedby={undefined}>
                 <SheetTitle className="sr-only">Navigation VIP</SheetTitle>
                 <VIPSidebarContent
                   activeTab={tab}
@@ -4759,13 +4544,18 @@ export default function VIPDashboard() {
                   userEmail={userEmail}
                   userRole={userRole}
                   onLogout={logout}
+                  modulesEnabled={loungeConfig?.modulesEnabled ?? null}
+                  onBriefing={() => void briefingDenise()}
+                  briefingBusy={briefingBusy}
+                  briefingPlaying={briefingPlaying}
+                  badgeCounts={tabBadges}
                 />
               </SheetContent>
             </Sheet>
             <Button
               variant="ghost"
               size="icon"
-              className="text-[#8B6F47] hover:bg-[#C9A961]/10 lg:hidden"
+              className="text-[#8B6F47] hover:bg-[#bc7155]/10 lg:hidden"
               onClick={() => setDrawerOuvert(true)}
               aria-label="Ouvrir le menu"
             >
@@ -4784,15 +4574,15 @@ export default function VIPDashboard() {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-2">
-            <Badge variant="outline" className="hidden border-[#4A7C59]/30 bg-[#4A7C59]/8 text-[#4A7C59] sm:inline-flex">
-              <span className="mr-1 h-1.5 w-1.5 rounded-full bg-[#4A7C59]" /> En service
+            <Badge variant="outline" className="hidden border-[#bc7155]/30 bg-[#bc7155]/8 text-[#bc7155] sm:inline-flex">
+              <span className="mr-1 h-1.5 w-1.5 rounded-full bg-[#bc7155]" /> En service
             </Badge>
             <Button
               variant="outline"
               size="sm"
               onClick={manualRefresh}
               disabled={refreshing}
-              className="gap-1.5 border-[#EAE5DC] bg-white text-[#8B6F47] hover:bg-[#C9A961]/10"
+              className="gap-1.5 border-[#efe7e0] bg-white text-[#8B6F47] hover:bg-[#bc7155]/10"
             >
               {refreshing ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
@@ -4801,11 +4591,38 @@ export default function VIPDashboard() {
               )}
               <span className="hidden sm:inline">Actualiser</span>
             </Button>
+            {/* Phase 1 — Données de démo réalistes (un clic → salon crédible) */}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => void lancerDemoData()}
+              disabled={demoBusy}
+              className="gap-1.5 border-[#bc7155]/40 bg-[#bc7155]/10 text-[#8B6F47] hover:bg-[#bc7155]/20"
+            >
+              {demoBusy ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />
+              ) : (
+                <Sparkles className="h-3.5 w-3.5" aria-hidden />
+              )}
+              <span className="hidden sm:inline">Données démo</span>
+            </Button>
+            {/* Phase 2 — Mode Sombre Luxe (anthracite #0f0f1c + accents or) */}
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={toggleDarkMode}
+              aria-pressed={darkMode}
+              aria-label={darkMode ? 'Passer en mode clair' : 'Passer en mode sombre'}
+              title={darkMode ? 'Passer en mode clair' : 'Mode Sombre Luxe'}
+              className="border-[#efe7e0] bg-white text-[#8B6F47] hover:bg-[#bc7155]/10"
+            >
+              {darkMode ? <Sun className="h-4 w-4" aria-hidden /> : <Moon className="h-4 w-4" aria-hidden />}
+            </Button>
             <Button
               variant="ghost"
               size="icon"
               onClick={() => logout()}
-              className="text-[#8B6F47] hover:bg-[#C97B63]/10 hover:text-[#C97B63] lg:hidden"
+              className="text-[#8B6F47] hover:bg-[#bc7155]/10 hover:text-[#bc7155] lg:hidden"
               aria-label="Déconnexion"
             >
               <LogOut className="h-5 w-5" aria-hidden />
@@ -4815,8 +4632,18 @@ export default function VIPDashboard() {
       </header>
 
       {/* ---------- Contenu ---------- */}
-      <main className="w-full flex-1 px-4 py-6 sm:px-6 lg:px-8 lg:py-8">
-        <div className="mx-auto max-w-7xl">
+      <main
+        className={cn(
+          'w-full flex-1',
+          tab === 'wallboard'
+            ? 'flex min-h-0 flex-col px-4 pb-4 sm:px-6'
+            : 'px-4 py-6 sm:px-6 lg:px-8 lg:py-8',
+        )}
+      >
+        <div className={cn(tab === 'wallboard' ? 'flex min-h-0 w-full flex-1 flex-col' : 'mx-auto max-w-7xl')}>
+          {/* Alerte Maître d'Hôtel — détection VIP, 100% visuelle (mode discrétion).
+              Masquée sur l'onglet Wallboard pour un affichage TV plein cadre. */}
+          {tab !== 'wallboard' && <VipGuestAlertBanner />}
           {tab === 'overview' && (
             <OverviewTab
               incidents={incidents}
@@ -4827,6 +4654,17 @@ export default function VIPDashboard() {
               rewardsGivenToday={rewardsGivenToday}
               loading={loading}
               onPatchTable={patchTable}
+              onBuffetCheck={patchBuffetCheck}
+              onBuffetSnooze={(id) => patchBuffetSnooze(id, 15)}
+              onShowerFree={(id) => patchShowerStatus(id, 'free')}
+              onIncidentResolve={(id) => patchIncidentStatus(id, 'RESOLU')}
+              onIncidentAssign={patchIncidentAssign}
+              onTableRestore={(id, toOccupied) =>
+                toOccupied
+                  ? patchTable(id, { status: 'occupied' })
+                  : patchTable(id, { status: 'free', clientName: null, clientVipLevel: null })
+              }
+              onNavigate={naviguer}
             />
           )}
           {tab === 'plan' && (
@@ -4842,26 +4680,67 @@ export default function VIPDashboard() {
               onPatchRequest={patchRequest}
             />
           )}
+          {tab === 'orchestration' && <VipOrchestrationTab />}
           {tab === 'buffet' && (
             <BuffetTab buffet={buffet} loading={loading} onPatchFill={patchBuffetFill} />
           )}
-          {tab === 'showers' && (
+          {tab === 'showers' && (loungeConfig?.modulesEnabled.smartShower ?? true) && (
             <ShowersTab showers={showers} loading={loading} onPatchStatus={patchShowerStatus} />
           )}
-          {tab === 'rewards' && <RewardsTab staffName={staffName} />}
+          {tab === 'rewards' && (loungeConfig?.modulesEnabled.flashRewards ?? true) && <RewardsTab staffName={staffName} />}
           {tab === 'clients' && <ClientsTab />}
           {tab === 'staff' && <StaffTab />}
-          {tab === 'qr' && <QRTab />}
-          {tab === 'reports' && <ReportsTab incidents={incidents} />}
+          {tab === 'qr' && <QRTab tables={tables} onGoToSettings={() => naviguer('settings')} />}
+          {tab === 'reports' && <ReportsTab />}
           {tab === 'wallboard' && (
-            <div className="relative h-[calc(100vh-200px)] min-h-[500px] w-full overflow-hidden rounded-2xl border border-[#EAE5DC] shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
-              <iframe
-                src="/vip-wallboard"
-                className="absolute inset-0 h-full w-full border-0"
-                title="Wallboard Salon VIP"
-              />
+            <div className="flex min-h-0 w-full flex-1 flex-col gap-3">
+              {/* Barre outil — badge signalements + lien TV cliquable */}
+              <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 rounded-2xl border border-[#efe7e0] bg-white px-4 py-3 shadow-[0_4px_20px_rgba(201,169,97,0.06)]">
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <Monitor className="h-4 w-4 shrink-0 text-[#8B6F47]" aria-hidden />
+                  <span className="truncate text-sm font-semibold text-[#2C2C2C]">Wallboard temps réel</span>
+                  {signalementsActifs > 0 ? (
+                    <Badge className="animate-pulse border-0 bg-[#bc7155] text-white">
+                      {signalementsActifs} signalement{signalementsActifs > 1 ? 's' : ''} actif{signalementsActifs > 1 ? 's' : ''}
+                    </Badge>
+                  ) : (
+                    <span className="hidden text-xs font-medium text-[#bc7155] sm:inline">Aucun signalement actif</span>
+                  )}
+                </div>
+                <div className="flex shrink-0 items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={copierLienWallboard}
+                    className="gap-1.5 border-[#bc7155]/40 bg-[#bc7155]/8 text-[#8B6F47] hover:bg-[#bc7155]/15"
+                  >
+                    {wallboardCopied ? <Check className="h-3.5 w-3.5" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
+                    {wallboardCopied ? 'Lien copié' : 'Copier le lien'}
+                  </Button>
+                  <a href="/vip-wallboard?tv=1" target="_blank" rel="noopener noreferrer">
+                    <Button size="sm" className="gap-1.5 bg-[#2C2C2C] text-[#dba28a] hover:bg-black">
+                      <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                      Ouvrir sur la TV
+                    </Button>
+                  </a>
+                </div>
+              </div>
+              <p className="shrink-0 text-xs leading-relaxed text-[#8B6F47]">
+                Astuce TV : cliquez sur « Ouvrir sur la TV » (ou collez le lien copié) dans le navigateur
+                de la télévision du salon — affichage plein écran, mode TV sans contrôles, données
+                rafraîchies toutes les 5 secondes.
+              </p>
+              {/* Aperçu intégré (identique à la TV, avec contrôles son/thème) */}
+              <div className="relative min-h-[480px] w-full flex-1 overflow-hidden rounded-2xl border border-white/10 shadow-[0_6px_30px_rgba(26,21,8,0.25)]">
+                <iframe
+                  src="/vip-wallboard"
+                  className="absolute inset-0 h-full w-full border-0"
+                  title="Wallboard Salon VIP"
+                />
+              </div>
             </div>
           )}
+          {tab === 'assistance' && <AssistanceTab />}
           {tab === 'settings' && <SettingsTab />}
         </div>
       </main>

@@ -13,14 +13,14 @@
 //   5. Déconnexion → retour à l'écran de login + appel onExit.
 //
 // Palette "Luxe Lumineux" :
-//   - Background   #FAFAF7 (warm off-white)
+//   - Background   #ffffff (warm off-white)
 //   - Cards        #FFFFFF (pure white) + shadow gold 6%
-//   - Accent gold  #C9A961 (champagne)
+//   - Accent gold  #bc7155 (champagne)
 //   - Bronze       #8B6F47
 //   - Text         #2C2C2C (anthracite)
-//   - Success      #4A7C59 (sage)
-//   - Alert        #C97B63 (terracotta)
-//   - VIP badge    #6B4C9A (amethyst)
+//   - Success      #bc7155 (sage)
+//   - Alert        #bc7155 (terracotta)
+//   - VIP badge    #bc7155 (amethyst)
 //
 // API consommées :
 //   • GET  /api/vip/staff-auth                      → liste staff
@@ -62,6 +62,7 @@ import {
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/hooks/use-toast'
+import { VipGuestAlertBanner } from '@/components/feedbackpro/vip-guest-alert'
 import { cn } from '@/lib/utils'
 import { VipLostFound } from '@/components/feedbackpro/vip-lost-found'
 import { VipBriefing } from '@/components/feedbackpro/vip-briefing'
@@ -88,10 +89,21 @@ interface VipTable {
   clientVipLevel: string | null
 }
 
+interface VipTable {
+  id: string
+  tableNumber: string
+  zone: string
+  clientName: string | null
+  clientVipLevel: string | null
+}
+
 interface VipRequest {
   id: string
-  tableId: string
-  table: VipTable
+  // QR_ROUTING — une demande CLIENT_GLOBAL (QR d'entrée) n'a PAS de
+  // table : tableId/table null, contextZone renseigné à la place.
+  tableId: string | null
+  contextZone: string | null
+  table: VipTable | null
   type: string
   message: string | null
   metadata: string
@@ -100,6 +112,14 @@ interface VipRequest {
   staffName: string | null
   createdAt: string
   updatedAt: string
+}
+
+/**
+ * QR_ROUTING — Libellé d'emplacement d'une demande, null-safe :
+ * table scannée (CLIENT_ZONE) ou zone déclarée (CLIENT_GLOBAL).
+ */
+function requestLocationLabel(req: VipRequest): string {
+  return req.table?.tableNumber ?? req.contextZone ?? 'Salon VIP'
 }
 
 // ============================================================
@@ -130,15 +150,15 @@ const STATUS_STYLES: Record<
 > = {
   pending: {
     label: 'En attente',
-    color: 'bg-amber-100 text-amber-800 border-amber-300',
+    color: 'bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a]',
   },
   in_progress: {
     label: 'En cours',
-    color: 'bg-sky-100 text-sky-800 border-sky-300',
+    color: 'bg-[#dcdee0] text-[#1c1d2c] border-[#8e8e95]',
   },
   done: {
     label: 'Résolu',
-    color: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+    color: 'bg-[#f3ddd2] text-[#6f3f30] border-[#dba28a]',
   },
 }
 
@@ -597,7 +617,7 @@ export function VipStaffView({
     }
     if (screen === 'feed' && currentStaff) {
       return (
-        <header className="px-5 pt-6 pb-4 border-b border-[#EAE5DC]">
+        <header className="px-5 pt-6 pb-4 border-b border-[#efe7e0]">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="flex items-center gap-2">
@@ -624,7 +644,7 @@ export function VipStaffView({
                   size="sm"
                   variant="outline"
                   onClick={() => setScreen('rewards')}
-                  className="border-[#C9A961]/40 text-[#8B6F47] hover:bg-[#C9A961]/8 hover:text-[#8B6F47] gap-1.5"
+                  className="border-[#bc7155]/40 text-[#8B6F47] hover:bg-[#bc7155]/8 hover:text-[#8B6F47] gap-1.5"
                   title="Flash Rewards Premium"
                 >
                   <Gift className="size-3.5" />
@@ -637,7 +657,7 @@ export function VipStaffView({
                   size="sm"
                   variant="outline"
                   onClick={() => setScreen('lost-found')}
-                  className="border-[#EAE5DC] text-[#8B6F47] hover:bg-[#FAFAF7] hover:text-[#2C2C2C] gap-1.5"
+                  className="border-[#efe7e0] text-[#8B6F47] hover:bg-[#ffffff] hover:text-[#2C2C2C] gap-1.5"
                   title="Objets trouvés"
                 >
                   <Package className="size-3.5" />
@@ -648,7 +668,7 @@ export function VipStaffView({
                 size="sm"
                 variant="outline"
                 onClick={handleLogout}
-                className="border-[#EAE5DC] text-[#8B6F47] hover:bg-[#FAFAF7] hover:text-[#2C2C2C]"
+                className="border-[#efe7e0] text-[#8B6F47] hover:bg-[#ffffff] hover:text-[#2C2C2C]"
               >
                 <LogOut className="size-3.5" />
                 Déconnexion
@@ -660,7 +680,7 @@ export function VipStaffView({
     }
     // resolve-confirm : header minimal
     return (
-      <header className="px-5 pt-6 pb-2 border-b border-[#EAE5DC]">
+      <header className="px-5 pt-6 pb-2 border-b border-[#efe7e0]">
         <button
           type="button"
           onClick={handleCancelResolve}
@@ -677,7 +697,7 @@ export function VipStaffView({
   function renderLogin() {
     return (
       <div className="px-6 pb-10">
-        <div className="bg-white rounded-2xl border border-[#EAE5DC] shadow-[0_4px_20px_rgba(201,169,97,0.06)] p-5">
+        <div className="bg-white rounded-2xl border border-[#efe7e0] shadow-[0_4px_20px_rgba(201,169,97,0.06)] p-5">
           {/* Numéro de téléphone */}
           <label
             className="block text-xs font-medium uppercase tracking-wider text-[#8B6F47] mb-2"
@@ -693,7 +713,7 @@ export function VipStaffView({
             placeholder="+221 77 000 00 01"
             value={phoneInput}
             onChange={(e) => setPhoneInput(e.target.value)}
-            className="w-full h-11 rounded-md border border-[#EAE5DC] bg-[#FAFAF7] px-3 text-sm text-[#2C2C2C] placeholder:text-[#8B6F47]/40 focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/20"
+            className="w-full h-11 rounded-md border border-[#efe7e0] bg-[#ffffff] px-3 text-sm text-[#2C2C2C] placeholder:text-[#8B6F47]/40 focus:border-[#bc7155] focus:outline-none focus:ring-2 focus:ring-[#bc7155]/20"
             disabled={loginBusy}
           />
 
@@ -721,13 +741,13 @@ export function VipStaffView({
                 handleLogin()
               }
             }}
-            className="w-full h-11 rounded-md border border-[#EAE5DC] bg-[#FAFAF7] px-3 text-center text-lg font-mono tracking-[0.5em] text-[#2C2C2C] placeholder:text-[#8B6F47]/40 focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/20"
+            className="w-full h-11 rounded-md border border-[#efe7e0] bg-[#ffffff] px-3 text-center text-lg font-mono tracking-[0.5em] text-[#2C2C2C] placeholder:text-[#8B6F47]/40 focus:border-[#bc7155] focus:outline-none focus:ring-2 focus:ring-[#bc7155]/20"
             disabled={loginBusy}
           />
 
           {/* Erreur */}
           {loginError && (
-            <div className="mt-3 rounded-md border border-[#C97B63]/30 bg-[#C97B63]/8 px-3 py-2 text-xs text-[#C97B63]">
+            <div className="mt-3 rounded-md border border-[#bc7155]/30 bg-[#bc7155]/8 px-3 py-2 text-xs text-[#bc7155]">
               {loginError}
             </div>
           )}
@@ -738,7 +758,7 @@ export function VipStaffView({
             disabled={loginBusy || !phoneInput.trim() || pinInput.length !== 4}
             className="mt-5 w-full h-11 rounded-md text-sm font-semibold tracking-wide"
             style={{
-              backgroundColor: '#C9A961',
+              backgroundColor: '#bc7155',
               color: '#FFFFFF',
               boxShadow: '0 4px 14px rgba(201,169,97,0.25)',
             }}
@@ -754,7 +774,7 @@ export function VipStaffView({
           </Button>
 
           {/* Aide — comptes démo */}
-          <div className="mt-4 rounded-md bg-[#FAFAF7] border border-[#EAE5DC] px-3 py-2 text-[11px] text-[#8B6F47]/70">
+          <div className="mt-4 rounded-md bg-[#ffffff] border border-[#efe7e0] px-3 py-2 text-[11px] text-[#8B6F47]/70">
             <p className="font-medium text-[#8B6F47] mb-1">Comptes démo :</p>
             <p>Amadou (Manager) — +221770000001 / PIN 1234</p>
             <p>Fatou (Concierge) — +221770000002 / PIN 1234</p>
@@ -774,29 +794,29 @@ export function VipStaffView({
       {
         label: 'EN ATTENTE',
         value: countPending,
-        color: '#C9A961',
-        bg: 'bg-amber-50',
+        color: '#bc7155',
+        bg: 'bg-[#faf1ec]',
       },
       {
         label: 'EN COURS',
         value: countInProgress,
-        color: '#4A7C59',
-        bg: 'bg-emerald-50',
+        color: '#bc7155',
+        bg: 'bg-[#faf1ec]',
       },
       {
         label: 'RÉSOLUS',
         value: countDone,
-        color: '#6B4C9A',
-        bg: 'bg-violet-50',
+        color: '#bc7155',
+        bg: 'bg-[#faf1ec]',
       },
     ]
     return (
-      <div className="grid grid-cols-3 gap-2 px-5 py-3 border-b border-[#EAE5DC]">
+      <div className="grid grid-cols-3 gap-2 px-5 py-3 border-b border-[#efe7e0]">
         {kpis.map((k) => (
           <div
             key={k.label}
             className={cn(
-              'rounded-lg border border-[#EAE5DC] px-2 py-2 text-center',
+              'rounded-lg border border-[#efe7e0] px-2 py-2 text-center',
               k.bg,
             )}
           >
@@ -827,7 +847,7 @@ export function VipStaffView({
     return (
       <article
         key={req.id}
-        className="bg-white rounded-xl border border-[#EAE5DC] shadow-[0_4px_20px_rgba(201,169,97,0.06)] p-4"
+        className="bg-white rounded-xl border border-[#efe7e0] shadow-[0_4px_20px_rgba(201,169,97,0.06)] p-4"
       >
         {/* Ligne titre */}
         <div className="flex items-start justify-between gap-2">
@@ -846,7 +866,7 @@ export function VipStaffView({
                 {req.trackingNumber
                   ? `#${req.trackingNumber}`
                   : `#${req.id.slice(0, 8)}`}{' '}
-                · Table {req.table.tableNumber}
+                · {requestLocationLabel(req)}
               </p>
             </div>
           </div>
@@ -870,14 +890,14 @@ export function VipStaffView({
         <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-[#8B6F47]">
           <span className="inline-flex items-center gap-1">
             <IconCmp className="size-3" />
-            {getZoneLabel(req.table.zone)}
+            {req.table ? getZoneLabel(req.table.zone) : req.contextZone ?? 'Salon VIP'}
           </span>
           <span aria-hidden>·</span>
           <span>{formatElapsed(req.createdAt)}</span>
-          {req.table.clientName && (
+          {req.table?.clientName && (
             <>
               <span aria-hidden>·</span>
-              <span className="text-[#6B4C9A]">
+              <span className="text-[#bc7155]">
                 {req.table.clientName}
                 {req.table.clientVipLevel
                   ? ` · ${req.table.clientVipLevel}`
@@ -889,7 +909,7 @@ export function VipStaffView({
 
         {/* Si prise en charge par un collègue, on l'affiche */}
         {isInProgress && req.staffName && (
-          <div className="mt-2 text-[11px] text-[#4A7C59] bg-emerald-50 border border-emerald-200 rounded-md px-2 py-1">
+          <div className="mt-2 text-[11px] text-[#bc7155] bg-[#faf1ec] border border-[#e7c1ae] rounded-md px-2 py-1">
             Pris en charge par{' '}
             <span className="font-semibold">{req.staffName}</span>
           </div>
@@ -902,7 +922,7 @@ export function VipStaffView({
               size="sm"
               onClick={() => handleTakeCharge(req)}
               disabled={takingCharge}
-              className="h-8 text-xs font-medium border-[#EAE5DC] text-[#2C2C2C] bg-white hover:bg-[#FAFAF7]"
+              className="h-8 text-xs font-medium border-[#efe7e0] text-[#2C2C2C] bg-white hover:bg-[#ffffff]"
               variant="outline"
             >
               {takingCharge ? (
@@ -919,7 +939,7 @@ export function VipStaffView({
             disabled={takingCharge}
             className="h-8 text-xs font-semibold"
             style={{
-              backgroundColor: isPending ? '#C9A961' : '#4A7C59',
+              backgroundColor: isPending ? '#bc7155' : '#bc7155',
               color: '#FFFFFF',
             }}
           >
@@ -938,10 +958,15 @@ export function VipStaffView({
       <div className="flex flex-col h-full">
         {renderKpis()}
 
+        {/* Alerte Maître d'Hôtel — détection VIP, visuelle uniquement (discrétion) */}
+        <div className="px-5 pt-3">
+          <VipGuestAlertBanner />
+        </div>
+
         {/* Bandeau feed + refresh */}
-        <div className="flex items-center justify-between px-5 py-3 border-b border-[#EAE5DC]">
+        <div className="flex items-center justify-between px-5 py-3 border-b border-[#efe7e0]">
           <div className="flex items-center gap-2">
-            <Bell className="size-4 text-[#C9A961]" />
+            <Bell className="size-4 text-[#bc7155]" />
             <h3
               className="text-sm font-semibold tracking-wide text-[#2C2C2C]"
               style={{ fontFamily: 'Georgia, serif' }}
@@ -959,7 +984,7 @@ export function VipStaffView({
             variant="ghost"
             onClick={handleManualRefresh}
             disabled={feedLoading}
-            className="h-7 px-2 text-[#8B6F47] hover:text-[#2C2C2C] hover:bg-[#FAFAF7]"
+            className="h-7 px-2 text-[#8B6F47] hover:text-[#2C2C2C] hover:bg-[#ffffff]"
           >
             <RefreshCw
               className={cn('size-3.5', feedLoading && 'animate-spin')}
@@ -969,7 +994,7 @@ export function VipStaffView({
         </div>
 
         {/* Liste */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 bg-[#FAFAF7]">
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-3 bg-[#ffffff]">
           {feedLoading && empty ? (
             <div className="flex flex-col items-center justify-center py-16 text-[#8B6F47]">
               <Loader2 className="size-6 animate-spin mb-3" />
@@ -1015,10 +1040,10 @@ export function VipStaffView({
       <div className="px-5 py-6 flex flex-col h-full">
         <div className="text-center mb-5">
           <div
-            className="mx-auto mb-3 size-12 rounded-full bg-emerald-50 border border-emerald-200 flex items-center justify-center"
+            className="mx-auto mb-3 size-12 rounded-full bg-[#faf1ec] border border-[#e7c1ae] flex items-center justify-center"
             aria-hidden
           >
-            <Check className="size-6 text-[#4A7C59]" />
+            <Check className="size-6 text-[#bc7155]" />
           </div>
           <h2
             className="text-lg text-[#2C2C2C] tracking-wide"
@@ -1028,7 +1053,7 @@ export function VipStaffView({
           </h2>
         </div>
 
-        <div className="bg-white rounded-2xl border border-[#EAE5DC] shadow-[0_4px_20px_rgba(201,169,97,0.06)] p-5">
+        <div className="bg-white rounded-2xl border border-[#efe7e0] shadow-[0_4px_20px_rgba(201,169,97,0.06)] p-5">
           {/* Récap demande */}
           <div className="flex items-start gap-3">
             <span className="text-2xl" aria-hidden>
@@ -1042,7 +1067,7 @@ export function VipStaffView({
                 {resolveTarget.trackingNumber
                   ? `#${resolveTarget.trackingNumber}`
                   : `#${resolveTarget.id.slice(0, 8)}`}{' '}
-                · Table {resolveTarget.table.tableNumber}
+                · {requestLocationLabel(resolveTarget)}
               </p>
             </div>
           </div>
@@ -1052,7 +1077,9 @@ export function VipStaffView({
             <div className="flex items-center justify-between">
               <span className="text-[#8B6F47]">Zone</span>
               <span className="text-[#2C2C2C] font-medium">
-                {getZoneLabel(resolveTarget.table.zone)}
+                {resolveTarget.table
+                  ? getZoneLabel(resolveTarget.table.zone)
+                  : resolveTarget.contextZone ?? 'Salon VIP'}
               </span>
             </div>
             <div className="flex items-center justify-between">
@@ -1072,7 +1099,7 @@ export function VipStaffView({
           </div>
 
           {resolveTarget.message && (
-            <div className="mt-4 text-sm text-[#2C2C2C] bg-[#FAFAF7] border border-[#EAE5DC] rounded-md p-3 italic">
+            <div className="mt-4 text-sm text-[#2C2C2C] bg-[#ffffff] border border-[#efe7e0] rounded-md p-3 italic">
               “{resolveTarget.message}”
             </div>
           )}
@@ -1092,7 +1119,7 @@ export function VipStaffView({
               rows={3}
               maxLength={500}
               placeholder="Ex : Client satisfait, ajustement effectué…"
-              className="border-[#EAE5DC] bg-[#FAFAF7] text-[#2C2C2C] resize-none focus-visible:border-[#C9A961] focus-visible:ring-[#C9A961]/20"
+              className="border-[#efe7e0] bg-[#ffffff] text-[#2C2C2C] resize-none focus-visible:border-[#bc7155] focus-visible:ring-[#bc7155]/20"
             />
           </div>
         </div>
@@ -1103,7 +1130,7 @@ export function VipStaffView({
             variant="outline"
             onClick={handleCancelResolve}
             disabled={resolveBusy}
-            className="flex-1 h-11 border-[#EAE5DC] text-[#8B6F47] hover:bg-[#FAFAF7] hover:text-[#2C2C2C]"
+            className="flex-1 h-11 border-[#efe7e0] text-[#8B6F47] hover:bg-[#ffffff] hover:text-[#2C2C2C]"
           >
             <X className="size-4" />
             ANNULER
@@ -1113,7 +1140,7 @@ export function VipStaffView({
             disabled={resolveBusy}
             className="flex-1 h-11 text-sm font-semibold"
             style={{
-              backgroundColor: '#4A7C59',
+              backgroundColor: '#bc7155',
               color: '#FFFFFF',
               boxShadow: '0 4px 14px rgba(74,124,89,0.25)',
             }}
@@ -1136,10 +1163,10 @@ export function VipStaffView({
   return (
     <div
       className="min-h-screen w-full flex flex-col items-stretch"
-      style={{ backgroundColor: '#FAFAF7' }}
+      style={{ backgroundColor: '#ffffff' }}
     >
       {/* Conteneur mobile-first centré (max 480px) */}
-      <div className="mx-auto w-full max-w-[480px] min-h-screen flex flex-col bg-[#FAFAF7] shadow-[0_0_40px_rgba(0,0,0,0.04)]">
+      <div className="mx-auto w-full max-w-[480px] min-h-screen flex flex-col bg-[#ffffff] shadow-[0_0_40px_rgba(0,0,0,0.04)]">
         {renderHeader()}
         <main className="flex-1 flex flex-col">
           {screen === 'login' && renderLogin()}
@@ -1159,7 +1186,7 @@ export function VipStaffView({
                   variant="outline"
                   size="sm"
                   onClick={() => setScreen('feed')}
-                  className="gap-2 border-[#EAE5DC] bg-white text-[#8B6F47]"
+                  className="gap-2 border-[#efe7e0] bg-white text-[#8B6F47]"
                 >
                   <ArrowLeft className="h-4 w-4" /> Retour au feed
                 </Button>
@@ -1174,7 +1201,7 @@ export function VipStaffView({
                   variant="outline"
                   size="sm"
                   onClick={() => setScreen('feed')}
-                  className="gap-2 border-[#EAE5DC] bg-white text-[#8B6F47]"
+                  className="gap-2 border-[#efe7e0] bg-white text-[#8B6F47]"
                 >
                   <ArrowLeft className="h-4 w-4" /> Retour au feed
                 </Button>

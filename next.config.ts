@@ -38,6 +38,13 @@ const nextConfig: NextConfig = {
         destination: "/?auth=login",
       },
       {
+        // LOGIN-2 : page de connexion SuperAdmin dédiée (/admin-login).
+        // Design distinct (noir/or) — le paramètre est lu côté client
+        // (page.tsx boot lit window.location.pathname === "/admin-login").
+        source: "/admin-login",
+        destination: "/?adminAuth=1",
+      },
+      {
         // Session 2 : page d'inscription dédiée (/register)
         source: "/register",
         destination: "/?auth=register",
