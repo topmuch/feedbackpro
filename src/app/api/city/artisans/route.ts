@@ -2,17 +2,14 @@
 // /api/city/artisans
 // ------------------------------------------------------------
 // Ville Connectée — Annuaire des artisans de Dakar vérifiés
-// par la mairie. Monétisation via les annonces premium dans
-// l'assistant Aminata (le citoyen demande "Je cherche un
-// plombier" → Aminata suggère un artisan premium).
+// par la mairie. GPS + calcul distance Haversine.
 //
 // GET  → liste des artisans vérifiés et actifs.
-//        Filtre optionnel ?district=xxx.
-//        Tri : premium DESC, rating DESC.
-//        Auto-seed de 8 artisans si la base est vide.
-// POST → crée un nouvel artisan (verified=false par défaut :
-//        l'inscription est en attente de validation mairie).
-//        Body : { name, trade, phone, district?, address? }
+//        Filtres: ?district=xxx ?lat=X&lng=Y&radius=500 (Haversine)
+//        Tri par distance si lat/lng fournis, sinon premium DESC, rating DESC.
+//        Auto-seed de 8 artisans avec GPS si la base est vide.
+// POST → crée un nouvel artisan (verified=false par défaut).
+//        Body : { name, trade, phone, district?, address?, lat?, lng? }
 // ============================================================
 
 import { NextRequest } from 'next/server'
@@ -23,8 +20,7 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 // ---------------------------------------------------------------
-// Seed initial — 8 artisans Dakar couvrant les métiers les plus
-// demandés par les citoyens (via Aminata).
+// Seed initial — 8 artisans Dakar avec GPS
 // ---------------------------------------------------------------
 
 const SEED_ARTISANS: ReadonlyArray<{
@@ -33,37 +29,29 @@ const SEED_ARTISANS: ReadonlyArray<{
   phone: string
   district: string
   premium: boolean
+  lat: number
+  lng: number
 }> = [
-  { name: 'Mamadou Sow', trade: 'Plombier', phone: '+221770100001', district: 'Plateau', premium: true },
-  { name: 'Aïssatou Fall', trade: 'Électricienne', phone: '+221770100002', district: 'Médina', premium: true },
-  { name: 'Ibrahima Ndiaye', trade: 'Menuisier', phone: '+221770100003', district: 'Grand Dakar', premium: false },
-  { name: 'Fatou Diop', trade: 'Couturière', phone: '+221770100004', district: 'Parcelles', premium: true },
-  { name: 'Moussa Bâ', trade: 'Mécanicien', phone: '+221770100005', district: 'Grand Dakar', premium: false },
-  { name: 'Khady Sarr', trade: 'Coiffeuse', phone: '+221770100006', district: 'Plateau', premium: true },
-  { name: 'Ousmane Cissé', trade: 'Maçon', phone: '+221770100007', district: 'Médina', premium: false },
-  { name: 'Awa Mbaye', trade: 'Tisseuse', phone: '+221770100008', district: 'Parcelles', premium: false },
+  { name: 'Mamadou Sow', trade: 'Plombier', phone: '+221770100001', district: 'Plateau', premium: true, lat: 14.6928, lng: -17.4467 },
+  { name: 'Aïssatou Fall', trade: 'Électricienne', phone: '+221770100002', district: 'Médina', premium: true, lat: 14.6730, lng: -17.4380 },
+  { name: 'Ibrahima Ndiaye', trade: 'Menuisier', phone: '+221770100003', district: 'Grand Dakar', premium: false, lat: 14.7330, lng: -17.4640 },
+  { name: 'Fatou Diop', trade: 'Couturière', phone: '+221770100004', district: 'Parcelles', premium: true, lat: 14.7500, lng: -17.4700 },
+  { name: 'Moussa Bâ', trade: 'Mécanicien', phone: '+221770100005', district: 'Grand Dakar', premium: false, lat: 14.7280, lng: -17.4520 },
+  { name: 'Khady Sarr', trade: 'Coiffeuse', phone: '+221770100006', district: 'Plateau', premium: true, lat: 14.6900, lng: -17.4430 },
+  { name: 'Ousmane Cissé', trade: 'Maçon', phone: '+221770100007', district: 'Médina', premium: false, lat: 14.6760, lng: -17.4410 },
+  { name: 'Awa Mbaye', trade: 'Tisseuse', phone: '+221770100008', district: 'Parcelles', premium: false, lat: 14.7520, lng: -17.4680 },
 ] as const
 
-/** Note initiale aléatoire entre 4.5 et 5.0 (jauge de satisfaction). */
 function seedRating(): number {
   return Math.round((4.5 + Math.random() * 0.5) * 10) / 10
 }
-
-/** Nombre d'avis initial aléatoire (5..80). */
 function seedReviewCount(): number {
   return Math.floor(Math.random() * (80 - 5 + 1)) + 5
 }
-
-/** Nombre de contacts initial aléatoire (10..250). */
 function seedContactCount(): number {
   return Math.floor(Math.random() * (250 - 10 + 1)) + 10
 }
 
-/**
- * Auto-seed : si aucun artisan n'existe en base, on insère les 8 artisans
- * canoniques. Tous vérifiés (la mairie a validé leur identité), avec
- * premium=true pour 4 d'entre eux (monétisation).
- */
 async function autoSeedIfEmpty(): Promise<void> {
   const count = await db.cityArtisan.count()
   if (count > 0) return
@@ -74,6 +62,8 @@ async function autoSeedIfEmpty(): Promise<void> {
       trade: a.trade,
       phone: a.phone,
       district: a.district,
+      lat: a.lat,
+      lng: a.lng,
       verified: true,
       premium: a.premium,
       rating: seedRating(),
@@ -84,16 +74,32 @@ async function autoSeedIfEmpty(): Promise<void> {
   })
 
   console.log(
-    `[city-artisans] 🛠️ Auto-seed initial : ${SEED_ARTISANS.length} artisans vérifiés créés`,
+    `[city-artisans] Auto-seed initial : ${SEED_ARTISANS.length} artisans vérifiés créés avec GPS`,
   )
 }
 
-/** Normalise un numéro de téléphone sénégalais (+221…). */
 function normalizePhone(raw: string | undefined | null): string | null {
   if (!raw || typeof raw !== 'string') return null
   const cleaned = raw.replace(/[\s.-]/g, '')
   if (!/^\+?\d{8,15}$/.test(cleaned)) return null
   return cleaned
+}
+
+// ---------------------------------------------------------------
+// Haversine — distance en mètres entre 2 points GPS
+// ---------------------------------------------------------------
+function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000 // rayon Terre en mètres
+  const dLat = ((lat2 - lat1) * Math.PI) / 180
+  const dLng = ((lng2 - lng1) * Math.PI) / 180
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos((lat1 * Math.PI) / 180) *
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2)
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+  return R * c
 }
 
 // ---------------------------------------------------------------
@@ -106,6 +112,8 @@ function serialize(a: {
   phone: string
   district: string | null
   address: string | null
+  lat: number | null
+  lng: number | null
   verified: boolean
   premium: boolean
   rating: number
@@ -114,7 +122,7 @@ function serialize(a: {
   active: boolean
   createdAt: Date
   updatedAt: Date
-}) {
+}, distance?: number) {
   return {
     id: a.id,
     name: a.name,
@@ -122,12 +130,15 @@ function serialize(a: {
     phone: a.phone,
     district: a.district,
     address: a.address,
+    lat: a.lat,
+    lng: a.lng,
     verified: a.verified,
     premium: a.premium,
     rating: a.rating,
     reviewCount: a.reviewCount,
     contactCount: a.contactCount,
     active: a.active,
+    distance: distance ?? null, // distance en mètres depuis la plaque
     createdAt: a.createdAt.toISOString(),
     updatedAt: a.updatedAt.toISOString(),
   }
@@ -135,9 +146,9 @@ function serialize(a: {
 
 // ---------------------------------------------------------------
 // GET — liste des artisans vérifiés et actifs
+// Params: ?district=xxx ?lat=X&lng=Y&radius=500 (Haversine)
 // ---------------------------------------------------------------
 export async function GET(req: NextRequest) {
-  // Auto-seed (idempotent) — exécuté avant la lecture.
   try {
     await autoSeedIfEmpty()
   } catch (e) {
@@ -146,6 +157,9 @@ export async function GET(req: NextRequest) {
 
   const url = new URL(req.url)
   const district = url.searchParams.get('district')
+  const lat = url.searchParams.get('lat')
+  const lng = url.searchParams.get('lng')
+  const radius = url.searchParams.get('radius') ?? '500'
 
   const where: { verified?: boolean; active?: boolean; district?: string } = {
     verified: true,
@@ -160,14 +174,38 @@ export async function GET(req: NextRequest) {
     orderBy: [{ premium: 'desc' }, { rating: 'desc' }],
   })
 
-  const serialized = artisans.map(serialize)
+  // Si lat/lng fournis → calcul Haversine + filtre radius + tri par distance
+  if (lat && lng) {
+    const latNum = parseFloat(lat)
+    const lngNum = parseFloat(lng)
+    const radiusNum = parseFloat(radius)
+
+    if (!isNaN(latNum) && !isNaN(lngNum) && !isNaN(radiusNum)) {
+      const withDistance = artisans
+        .filter((a) => a.lat != null && a.lng != null)
+        .map((a) => ({
+          ...a,
+          _distance: haversine(latNum, lngNum, a.lat!, a.lng!),
+        }))
+        .filter((a) => a._distance <= radiusNum)
+        .sort((a, b) => a._distance - b._distance)
+
+      const serialized = withDistance.map((a) =>
+        serialize(a, Math.round(a._distance)),
+      )
+
+      return ok({ artisans: serialized, count: serialized.length, filtered: true, radius: radiusNum })
+    }
+  }
+
+  const serialized = artisans.map((a) => serialize(a))
 
   return ok({ artisans: serialized, count: serialized.length })
 }
 
 // ---------------------------------------------------------------
 // POST — créer un nouvel artisan (en attente de validation mairie)
-// Body : { name, trade, phone, district?, address? }
+// Body : { name, trade, phone, district?, address?, lat?, lng? }
 // ---------------------------------------------------------------
 export async function POST(req: NextRequest) {
   let body: unknown
@@ -183,9 +221,10 @@ export async function POST(req: NextRequest) {
     phone?: string
     district?: string
     address?: string
+    lat?: number
+    lng?: number
   }
 
-  // name obligatoire (min 2, max 80)
   if (typeof b.name !== 'string' || b.name.trim().length < 2) {
     return fail('Le nom est obligatoire (min. 2 caractères)', 400)
   }
@@ -194,7 +233,6 @@ export async function POST(req: NextRequest) {
   }
   const name = b.name.trim()
 
-  // trade obligatoire (min 2, max 60)
   if (typeof b.trade !== 'string' || b.trade.trim().length < 2) {
     return fail('Le métier est obligatoire (min. 2 caractères)', 400)
   }
@@ -203,7 +241,6 @@ export async function POST(req: NextRequest) {
   }
   const trade = b.trade.trim()
 
-  // phone obligatoire
   const phone = normalizePhone(b.phone)
   if (!phone) {
     return fail(
@@ -212,9 +249,6 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // Unicité du téléphone (un artisan = un numéro). La colonne `phone`
-  // n'a pas de contrainte @unique en base, on utilise findFirst pour
-  // vérifier l'existence d'un doublon avant l'insertion.
   const existing = await db.cityArtisan.findFirst({
     where: { phone },
     select: { id: true, name: true },
@@ -226,35 +260,23 @@ export async function POST(req: NextRequest) {
     )
   }
 
-  // district optionnel (max 60)
   let district: string | null = null
-  if (b.district !== undefined && b.district !== null) {
-    if (typeof b.district !== 'string') {
-      return fail('district invalide', 400)
-    }
-    const trimmed = b.district.trim()
-    if (trimmed.length > 60) {
-      return fail('district trop long (max. 60 caractères)', 400)
-    }
-    district = trimmed || null
+  if (b.district && typeof b.district === 'string') {
+    district = b.district.trim().slice(0, 60) || null
   }
 
-  // address optionnelle (max 200)
   let address: string | null = null
-  if (b.address !== undefined && b.address !== null) {
-    if (typeof b.address !== 'string') {
-      return fail('address invalide', 400)
-    }
-    const trimmed = b.address.trim()
-    if (trimmed.length > 200) {
-      return fail('address trop longue (max. 200 caractères)', 400)
-    }
-    address = trimmed || null
+  if (b.address && typeof b.address === 'string') {
+    address = b.address.trim().slice(0, 200) || null
   }
 
-  // Création — verified=false (en attente de validation mairie).
-  // premium=false par défaut (l'artisan doit être vérifié avant de
-  // pouvoir souscrire au programme premium monétisé).
+  let lat: number | null = null
+  let lng: number | null = null
+  if (typeof b.lat === 'number' && typeof b.lng === 'number') {
+    lat = b.lat
+    lng = b.lng
+  }
+
   const artisan = await db.cityArtisan.create({
     data: {
       name,
@@ -262,6 +284,8 @@ export async function POST(req: NextRequest) {
       phone,
       district,
       address,
+      lat,
+      lng,
       verified: false,
       premium: false,
       rating: 5.0,
@@ -272,7 +296,7 @@ export async function POST(req: NextRequest) {
   })
 
   console.log(
-    `[city-artisans] 🛠️ Artisan « ${name} » (${trade}) inscrit — en attente de validation mairie`,
+    `[city-artisans] Artisan « ${name} » (${trade}) inscrit — en attente de validation mairie`,
   )
 
   return ok(

@@ -1848,6 +1848,8 @@ model CityArtisan {
   phone           String
   district        String?
   address         String?
+  lat             Float?                          // GPS du commerce (relevé devant la porte)
+  lng             Float?
   verified        Boolean  @default(false)        // validation mairie OBLIGATOIRE
   premium         Boolean  @default(false)        // premium = monétisé
   rating          Float    @default(5.0)
