@@ -54,7 +54,26 @@ function seedContactCount(): number {
 
 async function autoSeedIfEmpty(): Promise<void> {
   const count = await db.cityArtisan.count()
-  if (count > 0) return
+  if (count > 0) {
+    // Update existing artisans that are missing GPS coordinates
+    const withoutGps = await db.cityArtisan.findMany({
+      where: { lat: null },
+      select: { id: true, name: true },
+    })
+    if (withoutGps.length > 0) {
+      for (const a of withoutGps) {
+        const seedData = SEED_ARTISANS.find((s) => s.name === a.name)
+        if (seedData) {
+          await db.cityArtisan.update({
+            where: { id: a.id },
+            data: { lat: seedData.lat, lng: seedData.lng },
+          })
+        }
+      }
+      console.log(`[city-artisans] ${withoutGps.length} artisans mis à jour avec GPS`)
+    }
+    return
+  }
 
   await db.cityArtisan.createMany({
     data: SEED_ARTISANS.map((a) => ({
