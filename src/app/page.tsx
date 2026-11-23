@@ -24,6 +24,8 @@ import { AdminDashboard } from "@/components/feedbackpro/admin-dashboard"
 import AirlineDashboard from "@/components/feedbackpro/airline-dashboard"
 import VIPDashboard from "@/components/feedbackpro/vip-dashboard"
 import CityDashboard from "@/components/feedbackpro/city-dashboard"
+import { CityScanView } from "@/components/feedbackpro/city-scan-view"
+import { CityStaffView } from "@/components/feedbackpro/city-staff-view"
 import { VipTableScan } from "@/components/feedbackpro/vip-table-scan"
 import { VipStaffView } from "@/components/feedbackpro/vip-staff-view"
 import { AppFooter } from "@/components/feedbackpro/shared"
@@ -84,6 +86,8 @@ export default function Home() {
   // QR_ROUTING — ouvre Nathalie en mode GLOBAL (QR d'entrée, sans table)
   const openVipGlobal = useAppStore((s) => s.openVipGlobal)
   const openVipStaff = useAppStore((s) => s.openVipStaff)
+  const openCityScan = useAppStore((s) => s.openCityScan)
+  const openCityStaff = useAppStore((s) => s.openCityStaff)
   const setAuthMode = useAppStore((s) => s.setAuthMode)
   const setView = useAppStore((s) => s.setView)
 
@@ -183,6 +187,12 @@ export default function Home() {
     // VIP Staff PWA : ?vipStaff=<tag>
     const vipStaffTag = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("vipStaff") : null
     if (vipStaffTag) openVipStaff(vipStaffTag)
+    // Ville Connectée — Aminata citoyen : ?cityPlate=<token>
+    const cityPlateTok = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("cityPlate") : null
+    if (cityPlateTok) openCityScan(cityPlateTok)
+    // Ville Connectée — Staff municipal : ?cityStaff=<tag>
+    const cityStaffTag = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("cityStaff") : null
+    if (cityStaffTag) openCityStaff(cityStaffTag)
     refreshSession().then(() => {
       try {
         const chemin = window.location.pathname
@@ -202,7 +212,7 @@ export default function Home() {
         /* ignore */
       }
     })
-  }, [openScan, openAirport, openStaff, openVipTable, openVipGlobal, openVipStaff, refreshSession, setAuthMode])
+  }, [openScan, openAirport, openStaff, openVipTable, openVipGlobal, openVipStaff, openCityScan, openCityStaff, refreshSession, setAuthMode])
 
   // Bouton retour navigateur : resynchronise le token de scan ou le tag aéroport/staff
   useEffect(() => {
@@ -219,10 +229,14 @@ export default function Home() {
       else if (vqr.token) openVipTable(vqr.token)
       const vsstag = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("vipStaff") : null
       if (vsstag) openVipStaff(vsstag)
+      const cptok = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("cityPlate") : null
+      if (cptok) openCityScan(cptok)
+      const cstag = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("cityStaff") : null
+      if (cstag) openCityStaff(cstag)
     }
     window.addEventListener("popstate", onPop)
     return () => window.removeEventListener("popstate", onPop)
-  }, [openScan, openAirport, openStaff, openVipTable, openVipGlobal, openVipStaff, scanToken, airportTag])
+  }, [openScan, openAirport, openStaff, openVipTable, openVipGlobal, openVipStaff, openCityScan, openCityStaff, scanToken, airportTag])
 
   // ---------- Écran de chargement initial ----------
   if (!booted || view === "loading") {
@@ -335,6 +349,28 @@ export default function Home() {
     return (
       <main className="min-h-screen bg-background">
         <VipStaffView staffTag={stag} onExit={() => useAppStore.getState().closeVipStaff()} />
+      </main>
+    )
+  }
+
+  // ---------- Ville Connectée — Aminata citoyen (?cityPlate=<token>) ----------
+  if (view === "city-scan") {
+    const tok = useAppStore.getState().cityPlateToken
+    if (tok) {
+      return (
+        <main className="min-h-screen bg-background">
+          <CityScanView qrToken={tok} onExit={() => useAppStore.getState().closeCityScan()} />
+        </main>
+      )
+    }
+  }
+
+  // ---------- Ville Connectée — Staff municipal (?cityStaff=<tag>) ----------
+  if (view === "city-staff") {
+    const stag = useAppStore.getState().cityStaffTag ?? "login"
+    return (
+      <main className="min-h-screen bg-background">
+        <CityStaffView staffTag={stag} onExit={() => useAppStore.getState().closeCityStaff()} />
       </main>
     )
   }

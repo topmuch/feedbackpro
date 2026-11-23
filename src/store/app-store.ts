@@ -9,7 +9,7 @@
 
 import { create } from "zustand"
 
-export type View = "loading" | "landing" | "auth" | "auth-admin" | "dashboard" | "admin" | "scan" | "airport" | "airport-staff" | "airport-ops" | "airline" | "vip" | "vip-table" | "vip-staff" | "city" | "onboarding-tenant"
+export type View = "loading" | "landing" | "auth" | "auth-admin" | "dashboard" | "admin" | "scan" | "airport" | "airport-staff" | "airport-ops" | "airline" | "vip" | "vip-table" | "vip-staff" | "city" | "city-scan" | "city-staff" | "onboarding-tenant"
 
 /** Établissement (Pro) tel que renvoyé par /api/auth/me et les routes de session */
 export type ProData = {
@@ -66,6 +66,10 @@ type AppState = {
   vipQrType: 'CLIENT_GLOBAL' | 'CLIENT_ZONE' | null
   /** Tag staff VIP scanné (?vipStaff=<tag>) — pour le PWA staff salon VIP */
   vipStaffTag: string | null
+  /** Token plaque ville scanné (?cityPlate=<token>) — pour Aminata citoyen */
+  cityPlateToken: string | null
+  /** Tag staff ville (?cityStaff=<tag>) — pour le PWA agents municipaux */
+  cityStaffTag: string | null
   session: SessionData | null
   booted: boolean
   /** Pré-remplissage du formulaire de connexion (comptes de démo) */
@@ -97,6 +101,12 @@ type AppState = {
   /** Ouvre le PWA Staff VIP (?vipStaff=<tag>) */
   openVipStaff: (tag: string) => void
   closeVipStaff: () => void
+  /** Ouvre Aminata citoyen (?cityPlate=<token>) */
+  openCityScan: (token: string) => void
+  closeCityScan: () => void
+  /** Ouvre le PWA Staff Ville (?cityStaff=<tag>) */
+  openCityStaff: (tag: string) => void
+  closeCityStaff: () => void
   setSession: (s: SessionData | null) => void
   refreshSession: () => Promise<void>
   logout: () => Promise<void>
@@ -241,6 +251,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   vipTableToken: null,
   vipQrType: null,
   vipStaffTag: null,
+  cityPlateToken: null,
+  cityStaffTag: null,
   session: null,
   booted: false,
   prefillLogin: null,
@@ -419,6 +431,54 @@ export const useAppStore = create<AppState>((set, get) => ({
       /* ignore */
     }
     set({ view: deriveView(get().scanToken, get().airportTag, get().staffTag, get().vipTableToken, null, get().session, get().justRegistered, get().vipQrType) })
+  },
+
+  // Ouvre Aminata citoyen (?cityPlate=<token>)
+  openCityScan: (token) => {
+    set({ cityPlateToken: token, view: "city-scan" })
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.set("cityPlate", token)
+      window.history.pushState({}, "", url.toString())
+    } catch {
+      /* ignore */
+    }
+  },
+
+  closeCityScan: () => {
+    set({ cityPlateToken: null })
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.delete("cityPlate")
+      window.history.replaceState({}, "", url.toString())
+    } catch {
+      /* ignore */
+    }
+    set({ view: deriveView(get().scanToken, get().airportTag, get().staffTag, get().vipTableToken, get().vipStaffTag, get().session, get().justRegistered, get().vipQrType) })
+  },
+
+  // Ouvre le PWA Staff Ville (?cityStaff=<tag>)
+  openCityStaff: (tag) => {
+    set({ cityStaffTag: tag, view: "city-staff" })
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.set("cityStaff", tag)
+      window.history.pushState({}, "", url.toString())
+    } catch {
+      /* ignore */
+    }
+  },
+
+  closeCityStaff: () => {
+    set({ cityStaffTag: null })
+    try {
+      const url = new URL(window.location.href)
+      url.searchParams.delete("cityStaff")
+      window.history.replaceState({}, "", url.toString())
+    } catch {
+      /* ignore */
+    }
+    set({ view: deriveView(get().scanToken, get().airportTag, get().staffTag, get().vipTableToken, get().vipStaffTag, get().session, get().justRegistered, get().vipQrType) })
   },
 
   setSession: (s) => {
