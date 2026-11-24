@@ -1879,6 +1879,26 @@ function MairieView({ currentHour }: { currentHour: number }) {
 // ConfirmationView (shared) — après toute action
 // ============================================================
 
+// Construit la phrase vocale qu'Aminata prononce pour confirmer
+// l'envoi d'une demande. Le message s'adapte au module (urgence,
+// signalement, radar taxes) et au service notifié (Police, Senelec,
+// ONAS, Mairie…), ainsi qu'à la transmission GPS.
+function buildAminataConfirmation(c: Confirmation): string {
+  // Cas Radar Taxes — récompense citoyenne
+  if (c.service && c.service.toLowerCase().includes('récompense')) {
+    return `Signalement envoyé avec succès. ${c.service}. Merci pour votre contribution citoyenne.`
+  }
+  // Cas standard — on annonce le titre + le service notifié
+  const base = c.title || 'Votre demande a bien été envoyée.'
+  if (c.service) {
+    // Le champ service contient parfois un séparateur "·" (ex: "Police alerté · GPS transmis")
+    // — on le remplace par une virgule pour une lecture plus naturelle.
+    const servicePhrase = c.service.replace(/\s*·\s*/g, ', ')
+    return `${base}. ${servicePhrase}.`
+  }
+  return `${base}.`
+}
+
 function ConfirmationView({
   confirmation,
   plateNumber,
@@ -1888,6 +1908,19 @@ function ConfirmationView({
   plateNumber: string
   onBack: () => void
 }) {
+  // Aminata confirme vocalement la demande envoyée dès l'affichage
+  // de l'écran de confirmation. La voix a été débloquée sur la page
+  // d'accueil (clic sur le bouton d'entrée) — speechSynthesis est
+  // donc actif ici. On tolère silencieusement tout échec navigateur.
+  useEffect(() => {
+    const phrase = buildAminataConfirmation(confirmation)
+    try {
+      parler(phrase)
+    } catch {
+      /* ignore — la synthèse vocale peut être indisponible */
+    }
+  }, [confirmation])
+
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-6 py-10 text-center">
       {/* Emoji géant */}
