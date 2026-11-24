@@ -102,13 +102,11 @@ const connexionSchema = z.object({
   password: z.string().min(1, "Le mot de passe est requis"),
 })
 
-// 4 secteurs exposés dans le select (simplifié vs. le catalogue
-// complet TYPES_ETABLISSEMENT — l'utilisateur peut affiner en
-// Paramètres après inscription). Le serveur valide que la valeur
-// fait bien partie du catalogue ; côté client, le select ne
-// propose QUE ces 4 options (l'option vide « » est rejetée par
-// min(1)).
-const SECTEURS = ["Restaurant", "Aéroport", "Hôtel", "Autre"] as const
+// Le « Secteur » n'est plus demandé séparément à l'inscription :
+// il est déduit automatiquement du type de tenant choisi (carte
+// Aéroport / Compagnie / Salon VIP / Ville Connectée / Commerce).
+// L'utilisateur pourra affiner son secteur en Paramètres après
+// inscription. Voir TENANT_LABEL ci-dessous dans InscriptionForm.
 
 const inscriptionSchema = z.object({
   nomEtablissement: z
@@ -118,7 +116,6 @@ const inscriptionSchema = z.object({
     .max(80, "Le nom ne peut pas dépasser 80 caractères"),
   email: emailChamp,
   password: motDePasseChamp,
-  secteur: z.string().min(1, "Sélectionnez votre secteur"),
 })
 
 type ValeursConnexion = z.infer<typeof connexionSchema>
@@ -613,9 +610,17 @@ function InscriptionForm() {
       nomEtablissement: "",
       email: "",
       password: "",
-      secteur: "",
     },
   })
+
+  // Secteur déduit du type de tenant choisi (plus de select dédié).
+  const TENANT_LABEL: Record<string, string> = {
+    airport: "Aéroport",
+    airline: "Compagnie Aérienne",
+    vip_lounge: "Salon VIP",
+    city: "Ville Connectée",
+    classic: "Commerce",
+  }
 
   async function aLaSoumission(valeurs: ValeursInscription) {
     setErreurApi(null)
@@ -631,7 +636,7 @@ function InscriptionForm() {
           email: valeurs.email,
           password: valeurs.password,
           nomEtablissement: valeurs.nomEtablissement,
-          typeEtablissement: valeurs.secteur,
+          typeEtablissement: TENANT_LABEL[tenantChoice] ?? "Commerce",
           tenantType: tenantChoice,
           adresse: "À compléter dans les paramètres",
           ville: "À compléter",
@@ -787,49 +792,6 @@ function InscriptionForm() {
           </button>
         </div>
         <ErreurChamp message={errors.password?.message} />
-      </div>
-
-      {/* Secteur (select natif stylé) */}
-      <div className="space-y-1.5">
-        <Label htmlFor="secteur" className="text-sm font-medium text-[#1A1A1A]">
-          Secteur
-        </Label>
-        <div className="relative">
-          <Store
-            className="pointer-events-none absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400"
-            aria-hidden
-          />
-          <select
-            id="secteur"
-            aria-invalid={!!errors.secteur}
-            {...register("secteur")}
-            className="flex h-12 w-full appearance-none rounded-xl border-2 border-[#d5d3d4] bg-white pl-11 pr-10 text-[#1A1A1A] transition-colors focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/25"
-            defaultValue=""
-          >
-            <option value="" disabled>
-              Sélectionnez votre secteur
-            </option>
-            {SECTEURS.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-          {/* Chevron natif custom (à droite) */}
-          <svg
-            className="pointer-events-none absolute right-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-stone-400"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            aria-hidden
-          >
-            <path
-              fillRule="evenodd"
-              d="M5.23 7.21a.75.75 0 011.06.02L10 11.06l3.71-3.83a.75.75 0 111.08 1.04l-4.25 4.39a.75.75 0 01-1.08 0L5.21 8.27a.75.75 0 01.02-1.06z"
-              clipRule="evenodd"
-            />
-          </svg>
-        </div>
-        <ErreurChamp message={errors.secteur?.message} />
       </div>
 
       {erreurApi && <ErreurApi message={erreurApi} />}

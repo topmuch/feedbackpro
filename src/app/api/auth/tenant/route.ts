@@ -22,7 +22,7 @@ import { getSessionUser, ok, fail } from "@/lib/session"
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
-const TENANTS_VALIDES = new Set(["airport", "airline", "vip_lounge", "classic"])
+const TENANTS_VALIDES = new Set(["airport", "airline", "vip_lounge", "city", "classic"])
 
 export async function POST(req: NextRequest) {
   try {

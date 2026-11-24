@@ -71,7 +71,7 @@ export const registerSchema = z.object({
     .min(2, "Indiquez le nom de votre établissement")
     .max(80, "Nom d'établissement trop long"),
   typeEtablissement: typeEtablissementField,
-  tenantType: z.enum(["airport", "airline", "vip_lounge", "classic"]).optional().default("classic"),
+  tenantType: z.enum(["airport", "airline", "vip_lounge", "city", "classic"]).optional().default("classic"),
   adresse: z.string().trim().min(5, "L'adresse est requise").max(200, "Adresse trop longue"),
   ville: z.string().trim().min(2, "La ville est requise").max(80, "Ville trop longue"),
   whatsapp: whatsappField.optional().default(""),
