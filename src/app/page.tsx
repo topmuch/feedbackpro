@@ -41,18 +41,18 @@ function LoadingFallback() {
   )
 }
 
-const ScanView = dynamic(() => import("@/components/feedbackpro/scan-view").then(m => ({ default: m.ScanView })), { ssr: false, loading: LoadingFallback })
-const AirportScanView = dynamic(() => import("@/components/feedbackpro/airport-scan-view").then(m => ({ default: m.AirportScanView })), { ssr: false, loading: LoadingFallback })
-const AirportStaffView = dynamic(() => import("@/components/feedbackpro/airport-staff-view").then(m => ({ default: m.AirportStaffView })), { ssr: false, loading: LoadingFallback })
-const ProDashboard = dynamic(() => import("@/components/feedbackpro/pro-dashboard").then(m => ({ default: m.ProDashboard })), { ssr: false, loading: LoadingFallback })
-const AdminDashboard = dynamic(() => import("@/components/feedbackpro/admin-dashboard").then(m => ({ default: m.AdminDashboard })), { ssr: false, loading: LoadingFallback })
-const AirlineDashboard = dynamic(() => import("@/components/feedbackpro/airline-dashboard"), { ssr: false, loading: LoadingFallback })
-const VIPDashboard = dynamic(() => import("@/components/feedbackpro/vip-dashboard"), { ssr: false, loading: LoadingFallback })
-const CityDashboard = dynamic(() => import("@/components/feedbackpro/city-dashboard"), { ssr: false, loading: LoadingFallback })
-const CityScanView = dynamic(() => import("@/components/feedbackpro/city-scan-view").then(m => ({ default: m.CityScanView })), { ssr: false, loading: LoadingFallback })
-const CityStaffView = dynamic(() => import("@/components/feedbackpro/city-staff-view").then(m => ({ default: m.CityStaffView })), { ssr: false, loading: LoadingFallback })
-const VipTableScan = dynamic(() => import("@/components/feedbackpro/vip-table-scan").then(m => ({ default: m.VipTableScan })), { ssr: false, loading: LoadingFallback })
-const VipStaffView = dynamic(() => import("@/components/feedbackpro/vip-staff-view").then(m => ({ default: m.VipStaffView })), { ssr: false, loading: LoadingFallback })
+const ScanView = dynamic(() => import("@/components/feedbackpro/scan-view").then(m => ({ default: m.ScanView })), { loading: LoadingFallback })
+const AirportScanView = dynamic(() => import("@/components/feedbackpro/airport-scan-view").then(m => ({ default: m.AirportScanView })), { loading: LoadingFallback })
+const AirportStaffView = dynamic(() => import("@/components/feedbackpro/airport-staff-view").then(m => ({ default: m.AirportStaffView })), { loading: LoadingFallback })
+const ProDashboard = dynamic(() => import("@/components/feedbackpro/pro-dashboard").then(m => ({ default: m.ProDashboard })), { loading: LoadingFallback })
+const AdminDashboard = dynamic(() => import("@/components/feedbackpro/admin-dashboard").then(m => ({ default: m.AdminDashboard })), { loading: LoadingFallback })
+const AirlineDashboard = dynamic(() => import("@/components/feedbackpro/airline-dashboard"), { loading: LoadingFallback })
+const VIPDashboard = dynamic(() => import("@/components/feedbackpro/vip-dashboard"), { loading: LoadingFallback })
+const CityDashboard = dynamic(() => import("@/components/feedbackpro/city-dashboard"), { loading: LoadingFallback })
+const CityScanView = dynamic(() => import("@/components/feedbackpro/city-scan-view").then(m => ({ default: m.CityScanView })), { loading: LoadingFallback })
+const CityStaffView = dynamic(() => import("@/components/feedbackpro/city-staff-view").then(m => ({ default: m.CityStaffView })), { loading: LoadingFallback })
+const VipTableScan = dynamic(() => import("@/components/feedbackpro/vip-table-scan").then(m => ({ default: m.VipTableScan })), { loading: LoadingFallback })
+const VipStaffView = dynamic(() => import("@/components/feedbackpro/vip-staff-view").then(m => ({ default: m.VipStaffView })), { loading: LoadingFallback })
 
 /**
  * Vues qui doivent afficher le pied de page global (AppFooter).
