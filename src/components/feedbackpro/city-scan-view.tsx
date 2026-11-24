@@ -32,7 +32,7 @@
 //   GPS n'est transmis qu'avec consentement explicite).
 // ============================================================
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react'
 import {
   Loader2,
   ArrowLeft,
@@ -60,6 +60,13 @@ import {
   Map,
   Route,
   Volume2,
+  Hand,
+  Mic,
+  X,
+  BadgeCheck,
+  Sparkles,
+  DoorOpen,
+  LogIn,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -83,6 +90,7 @@ type CityPlate = {
   lat: number | null
   lng: number | null
   status: string
+  plateType: string // standard | ecole | gare | mairie
 }
 
 type CityIncident = {
@@ -109,6 +117,67 @@ type CityArtisan = {
   reviewCount: number
   contactCount: number
   distance?: number | null // distance en mètres depuis la plaque (Haversine)
+}
+
+// --- Nouveaux types (Task 3) : commerce étendu, citoyen, check-in, SOS ---
+
+/** Commerce / artisan étendu — remplace progressivement CityArtisan. */
+type CityBusiness = {
+  id: string
+  name: string
+  trade: string
+  category: string // Artisan | Commerce | Restaurant | Coiffure | Mécanicien | Téléphonie | Nettoyage
+  phone: string
+  whatsapp?: string | null
+  district?: string | null
+  photoUrl?: string | null
+  hours?: string | null
+  description?: string | null
+  distance?: number | null // distance en mètres depuis la plaque (Haversine)
+  rating?: number
+  reviewCount?: number
+  contactCount?: number
+  verified?: boolean
+  isPremium?: boolean
+  isSponsored?: boolean
+  sponsoredOffer?: string | null
+  /** JSON string : [{ name, price }] — pour les restaurants premium. */
+  menu?: string | null
+  /** JSON string : [{ service, price }] — pour les artisans premium. */
+  priceGrid?: string | null
+}
+
+/** Citoyen — inscription légère (téléphone) pour école / SOS. */
+type CityCitizen = {
+  id: string
+  phone: string
+  name?: string | null
+  schoolName?: string | null
+  parentPhone?: string | null
+  createdAt?: string
+}
+
+/** Check-in école — arrivée / sortie / souci. */
+type CityCheckin = {
+  id: string
+  plateId: string
+  citizenPhone: string
+  status: 'arrived' | 'left' | 'sos'
+  createdAt: string
+}
+
+/** SOS silencieux — photo + audio + GPS (optionnels). */
+type CitySos = {
+  id: string
+  plateId?: string | null
+  qrToken?: string | null
+  photoDataUrl?: string | null
+  audioDataUrl?: string | null
+  gpsLat?: number | null
+  gpsLng?: number | null
+  citizenPhone?: string | null
+  status?: string
+  createdAt: string
 }
 
 // ============================================================
@@ -429,6 +498,231 @@ function useCurrentHour(): number {
 }
 
 // ============================================================
+// Helpers SOS silencieux — capture discrète photo + audio
+// ============================================================
+
+/**
+ * Capture discrète d'une photo via getUserMedia (caméra frontale).
+ * Retourne un dataURL JPEG, ou null si la permission est refusée /
+ * l'API est indisponible. Aucun flash, aucun son.
+ */
+async function captureDiscreetPhoto(): Promise<string | null> {
+  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+    return null
+  }
+  let stream: MediaStream | null = null
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user' },
+      audio: false,
+    })
+    const video = document.createElement('video')
+    video.srcObject = stream
+    video.muted = true
+    video.playsInline = true
+    document.body.appendChild(video)
+    video.style.position = 'fixed'
+    video.style.width = '1px'
+    video.style.height = '1px'
+    video.style.opacity = '0'
+    video.style.pointerEvents = 'none'
+    video.style.top = '-10px'
+    video.style.left = '-10px'
+    await video.play()
+    // Petit délai pour laisser la première frame se dessiner
+    await new Promise((r) => setTimeout(r, 500))
+    const w = video.videoWidth || 480
+    const h = video.videoHeight || 640
+    const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return null
+    ctx.drawImage(video, 0, 0, w, h)
+    const dataUrl = canvas.toDataURL('image/jpeg', 0.6)
+    return dataUrl
+  } catch {
+    // Permission refusée ou API indisponible — on renvoie null
+    return null
+  } finally {
+    if (stream) {
+      stream.getTracks().forEach((t) => t.stop())
+    }
+    // Nettoyage du <video> temporaire
+    document.querySelectorAll('video').forEach((v) => {
+      if (v.style.position === 'fixed' && v.style.width === '1px') {
+        v.remove()
+      }
+    })
+  }
+}
+
+/**
+ * Enregistre `seconds` secondes d'audio ambiant via MediaRecorder.
+ * Retourne un dataURL (audio/webm ou audio/mp4), ou null si
+ * l'API est indisponible / permission refusée.
+ */
+async function captureAudioDataUrl(seconds = 5): Promise<string | null> {
+  if (typeof navigator === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
+    return null
+  }
+  if (typeof MediaRecorder === 'undefined') {
+    return null
+  }
+  let stream: MediaStream | null = null
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    const recorder = new MediaRecorder(stream)
+    const chunks: BlobPart[] = []
+    recorder.ondataavailable = (e) => {
+      if (e.data && e.data.size > 0) chunks.push(e.data)
+    }
+    const stopped = new Promise<string | null>((resolve) => {
+      recorder.onstop = () => {
+        try {
+          const blob = new Blob(chunks, {
+            type: recorder.mimeType || 'audio/webm',
+          })
+          const reader = new FileReader()
+          reader.onload = () => resolve(reader.result as string)
+          reader.onerror = () => resolve(null)
+          reader.readAsDataURL(blob)
+        } catch {
+          resolve(null)
+        }
+      }
+    })
+    recorder.start()
+    setTimeout(() => {
+      try {
+        if (recorder.state !== 'inactive') recorder.stop()
+      } catch {
+        /* ignore */
+      }
+    }, seconds * 1000)
+    return await stopped
+  } catch {
+    return null
+  } finally {
+    if (stream) {
+      stream.getTracks().forEach((t) => t.stop())
+    }
+  }
+}
+
+/**
+ * Envoie un SOS silencieux à /api/city/sos avec photo + audio + GPS.
+ * Tolérant : si la photo ou l'audio échouent, on envoie quand même
+ * le SOS sans ces champs.
+ */
+async function postSosSilencieux(payload: {
+  plateId?: string
+  qrToken?: string
+  photoDataUrl?: string | null
+  audioDataUrl?: string | null
+  gpsLat?: number | null
+  gpsLng?: number | null
+  citizenPhone?: string | null
+}): Promise<{ ok: true; sos: CitySos } | { ok: false; error: string }> {
+  try {
+    const res = await fetch('/api/city/sos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const json = (await res.json().catch(() => null)) as {
+      ok: boolean
+      data?: { sos?: CitySos }
+      error?: string
+    } | null
+    if (json?.ok && json.data?.sos) {
+      return { ok: true, sos: json.data.sos }
+    }
+    return { ok: false, error: json?.error ?? 'Erreur inconnue' }
+  } catch {
+    return { ok: false, error: 'Erreur réseau. Réessayez.' }
+  }
+}
+
+/**
+ * Envoie un check-in école à /api/city/checkins.
+ */
+async function postCheckin(payload: {
+  plateId: string
+  citizenPhone: string
+  status: 'arrived' | 'left' | 'sos'
+}): Promise<{ ok: true; checkin: CityCheckin } | { ok: false; error: string }> {
+  try {
+    const res = await fetch('/api/city/checkins', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const json = (await res.json().catch(() => null)) as {
+      ok: boolean
+      data?: { checkin?: CityCheckin }
+      error?: string
+    } | null
+    if (json?.ok && json.data?.checkin) {
+      return { ok: true, checkin: json.data.checkin }
+    }
+    return { ok: false, error: json?.error ?? 'Erreur inconnue' }
+  } catch {
+    return { ok: false, error: 'Erreur réseau. Réessayez.' }
+  }
+}
+
+/**
+ * Inscrit un citoyen (téléphone + champs optionnels) à /api/city/citizens.
+ */
+async function postCitizen(payload: {
+  phone: string
+  name?: string
+  schoolName?: string
+  parentPhone?: string
+}): Promise<{ ok: true; citizen: CityCitizen } | { ok: false; error: string }> {
+  try {
+    const res = await fetch('/api/city/citizens', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    const json = (await res.json().catch(() => null)) as {
+      ok: boolean
+      data?: { citizen?: CityCitizen }
+      error?: string
+    } | null
+    if (json?.ok && json.data?.citizen) {
+      return { ok: true, citizen: json.data.citizen }
+    }
+    return { ok: false, error: json?.error ?? 'Erreur inconnue' }
+  } catch {
+    return { ok: false, error: 'Erreur réseau. Réessayez.' }
+  }
+}
+
+// ============================================================
+// Catégories de commerce (module Artisans étendu)
+// ============================================================
+
+const BUSINESS_CATEGORIES: ReadonlyArray<{ id: string; label: string; color: string }> = [
+  { id: 'all',         label: 'Tous',         color: '#00A651' },
+  { id: 'Artisan',     label: 'Artisan',      color: '#00A651' },
+  { id: 'Commerce',    label: 'Commerce',     color: '#0066CC' },
+  { id: 'Restaurant',  label: 'Restaurant',   color: '#FF6B00' },
+  { id: 'Coiffure',    label: 'Coiffure',     color: '#6B4C9A' },
+  { id: 'Mécanicien',  label: 'Mécanicien',   color: '#8B0000' },
+  { id: 'Téléphonie',  label: 'Téléphonie',   color: '#1B2A8C' },
+  { id: 'Nettoyage',   label: 'Nettoyage',    color: '#008B8B' },
+]
+
+function businessCategoryColor(category: string): string {
+  return (
+    BUSINESS_CATEGORIES.find((c) => c.id === category)?.color ?? '#00A651'
+  )
+}
+
+// ============================================================
 // Composant principal
 // ============================================================
 
@@ -467,10 +761,26 @@ export function CityScanView({
   const [description, setDescription] = useState('')
   const [submitting, setSubmitting] = useState(false)
 
-  // --- Artisans (chargés à la demande) ---
+  // --- Artisans / Businesses étendus (chargés à la demande) ---
   const [artisans, setArtisans] = useState<CityArtisan[]>([])
   const [artisansLoading, setArtisansLoading] = useState(false)
   const [artisansLoaded, setArtisansLoaded] = useState(false)
+  // Nouveau : liste étendue des commerces (module Artisans refactorisé)
+  const [businesses, setBusinesses] = useState<CityBusiness[]>([])
+  const [businessesLoading, setBusinessesLoading] = useState(false)
+  const [selectedCategory, setSelectedCategory] = useState<string>('all')
+
+  // --- Citoyen (inscription légère pour école / SOS) ---
+  const [citizenPhone, setCitizenPhone] = useState<string | null>(null)
+  const [citizenName, setCitizenName] = useState<string | null>(null)
+  const [showCitizenModal, setShowCitizenModal] = useState(false)
+  const [citizenModalMode, setCitizenModalMode] = useState<'general' | 'school'>('general')
+  const [citizenSubmitting, setCitizenSubmitting] = useState(false)
+  // Resolver suspendu — permet à ensureCitizen() d'attendre la saisie.
+  const citizenModalResolverRef = useRef<((phone: string | null) => void) | null>(null)
+
+  // --- School checkin (vue école) : bascule vers le menu complet ---
+  const [forceFullMenu, setForceFullMenu] = useState(false)
 
   // --- Orientation : position partagée ---
   const [sharedPos, setSharedPos] = useState<{ lat: number; lng: number } | null>(null)
@@ -600,6 +910,106 @@ export function CityScanView({
   }, [activeModule, artisansLoaded, plate?.district, plate?.lat, plate?.lng])
 
   // ---------------------------------------------------------------
+  // 3b. Chargement paresseux des commerces étendus (module 🛠️)
+  //     GET /api/city/businesses?lat&lng&radius=500&category=...
+  //     Refetch à chaque changement de catégorie sélectionnée.
+  // ---------------------------------------------------------------
+  useEffect(() => {
+    if (activeModule !== 'artisans') return
+    let cancelled = false
+    setBusinessesLoading(true)
+    ;(async () => {
+      try {
+        const params = new URLSearchParams()
+        if (plate?.lat != null && plate?.lng != null) {
+          params.set('lat', String(plate.lat))
+          params.set('lng', String(plate.lng))
+          params.set('radius', '500')
+        } else if (plate?.district) {
+          params.set('district', plate.district)
+        }
+        if (selectedCategory !== 'all') {
+          params.set('category', selectedCategory)
+        }
+        const res = await fetch(`/api/city/businesses?${params.toString()}`, {
+          cache: 'no-store',
+        })
+        const json = (await res.json().catch(() => null)) as
+          | { ok: true; data: { businesses?: CityBusiness[] } }
+          | { ok: false; error?: string }
+          | null
+        if (cancelled) return
+        if (json?.ok && Array.isArray(json.data?.businesses)) {
+          setBusinesses(json.data.businesses)
+        } else {
+          setBusinesses([])
+        }
+      } catch {
+        if (!cancelled) setBusinesses([])
+      } finally {
+        if (!cancelled) setBusinessesLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [activeModule, plate?.lat, plate?.lng, plate?.district, selectedCategory])
+
+  // ---------------------------------------------------------------
+  // 3c. ensureCitizen — promesse qui ouvre le modal d'inscription
+  //     et résoud le téléphone saisi. Si le citoyen est déjà inscrit,
+  //     résoud immédiatement sans ouvrir le modal.
+  // ---------------------------------------------------------------
+  const ensureCitizen = useCallback(
+    async (mode: 'general' | 'school' = 'general'): Promise<string | null> => {
+      if (citizenPhone) return citizenPhone
+      setCitizenModalMode(mode)
+      return new Promise<string | null>((resolve) => {
+        citizenModalResolverRef.current = resolve
+        setShowCitizenModal(true)
+      })
+    },
+    [citizenPhone],
+  )
+
+  const handleCitizenSubmit = useCallback(
+    async (data: {
+      phone: string
+      name?: string
+      schoolName?: string
+      parentPhone?: string
+    }) => {
+      setCitizenSubmitting(true)
+      const result = await postCitizen(data)
+      setCitizenSubmitting(false)
+      if (result.ok) {
+        setCitizenPhone(result.citizen.phone)
+        if (result.citizen.name) setCitizenName(result.citizen.name)
+        setShowCitizenModal(false)
+        citizenModalResolverRef.current?.(result.citizen.phone)
+        citizenModalResolverRef.current = null
+        toast({
+          title: 'Inscription réussie',
+          description: `Bienvenue${result.citizen.name ? `, ${result.citizen.name}` : ''}.`,
+        })
+        return true
+      }
+      toast({
+        title: 'Inscription impossible',
+        description: result.error,
+      })
+      return false
+    },
+    [toast],
+  )
+
+  const handleCitizenCancel = useCallback(() => {
+    setShowCitizenModal(false)
+    citizenModalResolverRef.current?.(null)
+    citizenModalResolverRef.current = null
+  }, [])
+
+  // ---------------------------------------------------------------
   // 4. Gestionnaire d'envoi d'incident (centralisé)
   // ---------------------------------------------------------------
   const handleSubmitIncident = useCallback(
@@ -708,6 +1118,32 @@ export function CityScanView({
   )
 
   // ---------------------------------------------------------------
+  // 5b. Contact commerce étendu (ArtisansView refactorisé)
+  //     Incrément optimiste + fire-and-forget vers /api/city/businesses/:id/contact
+  // ---------------------------------------------------------------
+  const handleContactBusiness = useCallback(
+    (business: CityBusiness) => {
+      setBusinesses((prev) =>
+        prev.map((b) =>
+          b.id === business.id
+            ? { ...b, contactCount: (b.contactCount ?? 0) + 1 }
+            : b,
+        ),
+      )
+      fetch(`/api/city/businesses/${business.id}/contact`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ qrToken: plate?.qrToken }),
+      }).catch(() => undefined)
+      toast({
+        title: `Contact lancé à ${business.name}`,
+        description: `${business.trade} · ${business.phone}`,
+      })
+    },
+    [plate?.qrToken, toast],
+  )
+
+  // ---------------------------------------------------------------
   // 6. Navigation entre vues
   // ---------------------------------------------------------------
   const openModule = (id: ModuleId) => {
@@ -717,6 +1153,12 @@ export function CityScanView({
   const backToMain = () => {
     setActiveModule(null)
     setConfirmation(null)
+    // Si on revient d'une sous-vue ouverte depuis SchoolCheckinView,
+    // on conserve forceFullMenu=true pour rester sur le menu complet.
+    setPhase('main')
+  }
+  const openFullMenu = () => {
+    setForceFullMenu(true)
     setPhase('main')
   }
 
@@ -937,6 +1379,9 @@ export function CityScanView({
         >
           {activeModule === 'urgence' && (
             <UrgenceView
+              plate={plate}
+              citizenPhone={citizenPhone}
+              onEnsureCitizen={ensureCitizen}
               gpsConsent={gpsConsent}
               setGpsConsent={setGpsConsent}
               gpsLoading={gpsLoading}
@@ -969,10 +1414,12 @@ export function CityScanView({
           )}
           {activeModule === 'artisans' && (
             <ArtisansView
-              artisans={artisans}
-              loading={artisansLoading}
+              businesses={businesses}
+              loading={businessesLoading}
               district={plate.district}
-              onContact={handleContactArtisan}
+              selectedCategory={selectedCategory}
+              onSelectCategory={setSelectedCategory}
+              onContact={handleContactBusiness}
             />
           )}
           {activeModule === 'mairie' && (
@@ -1003,16 +1450,65 @@ export function CityScanView({
           {activeModule === 'annonces' && <AnnoncesView plate={plate} />}
           {activeModule === 'sante' && <SanteView plate={plate} />}
         </SubViewShell>
+
+        {/* Overlay d'inscription citoyenne (SOS silencieux / école) */}
+        {showCitizenModal && (
+          <CitizenRegistrationModal
+            open={showCitizenModal}
+            mode={citizenModalMode}
+            plateLabel={plate.label}
+            submitting={citizenSubmitting}
+            onSubmit={handleCitizenSubmit}
+            onClose={handleCitizenCancel}
+          />
+        )}
       </div>
     )
   }
 
   // ---------------------------------------------------------------
   // 6.5. Phase main — Signalétique aéroport (panneaux jaunes/bleus)
+  //      OU SchoolCheckinView si la plaque est de type 'ecole'
+  //      et que le citoyen n'a pas demandé le menu complet.
   // ---------------------------------------------------------------
+  const isSchoolPlate = plate.plateType === 'ecole'
+  if (isSchoolPlate && !forceFullMenu) {
+    return (
+      <div className={rootClass} style={rootStyle}>
+        <SchoolCheckinView
+          plate={plate}
+          citizenPhone={citizenPhone}
+          citizenName={citizenName}
+          currentHour={currentHour}
+          onEnsureCitizen={(mode) => ensureCitizen(mode)}
+          onOpenFullMenu={openFullMenu}
+        />
+        {showCitizenModal && (
+          <CitizenRegistrationModal
+            open={showCitizenModal}
+            mode={citizenModalMode}
+            plateLabel={plate.label}
+            submitting={citizenSubmitting}
+            onSubmit={handleCitizenSubmit}
+            onClose={handleCitizenCancel}
+          />
+        )}
+      </div>
+    )
+  }
   return (
     <div className={rootClass} style={rootStyle}>
       <MainView plate={plate} onOpenModule={openModule} onExit={onExit} currentHour={currentHour} />
+      {showCitizenModal && (
+        <CitizenRegistrationModal
+          open={showCitizenModal}
+          mode={citizenModalMode}
+          plateLabel={plate.label}
+          submitting={citizenSubmitting}
+          onSubmit={handleCitizenSubmit}
+          onClose={handleCitizenCancel}
+        />
+      )}
     </div>
   )
 }
@@ -1290,15 +1786,25 @@ function SubViewShell({
 
 // ============================================================
 // 1. UrgenceView (rouge) — Police / Pompiers / SAMU + agression
+//    + SOS silencieux (appui long 3 s) avec photo + audio
 // ============================================================
 
+/** Durée d'appui long requise pour déclencher le SOS silencieux. */
+const SOS_HOLD_MS = 3000
+
 function UrgenceView({
+  plate,
+  citizenPhone,
+  onEnsureCitizen,
   gpsConsent,
   setGpsConsent,
   gpsLoading,
   submitting,
   onSubmit,
 }: {
+  plate: CityPlate
+  citizenPhone: string | null
+  onEnsureCitizen: (mode?: 'general' | 'school') => Promise<string | null>
   gpsConsent: boolean
   setGpsConsent: (v: boolean) => void
   gpsLoading: boolean
@@ -1311,11 +1817,143 @@ function UrgenceView({
     confirmation: Confirmation
   }) => void
 }) {
+  const { toast } = useToast()
   const EMERGENCIES = [
     { emoji: '📞', label: 'POLICE', num: '17', tel: 'tel:17', color: '#E30613' },
     { emoji: '🚒', label: 'POMPIERS', num: '180', tel: 'tel:180', color: '#FF6B00' },
     { emoji: '🚑', label: 'SAMU', num: '1515', tel: 'tel:1515', color: '#0066CC' },
   ]
+
+  // --- SOS silencieux : état local ---
+  const longPressTimerRef = useRef<number | null>(null)
+  const progressTimerRef = useRef<number | null>(null)
+  const [sosHolding, setSosHolding] = useState(false)
+  const [sosProgress, setSosProgress] = useState(0) // 0..100
+  const [sosSending, setSosSending] = useState(false)
+  const [sosSent, setSosSent] = useState(false)
+
+  // Cleanup à la fermeture du composant.
+  useEffect(() => {
+    return () => {
+      if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current)
+      if (progressTimerRef.current) clearInterval(progressTimerRef.current)
+    }
+  }, [])
+
+  /**
+   * Déclenche effectivement le SOS silencieux : capture photo + audio,
+   * récupère le GPS, identifie le citoyen si besoin, puis POST /api/city/sos.
+   * Tolérant : si la photo / audio / GPS échouent, on envoie quand même.
+   */
+  const triggerSosSilencieux = async () => {
+    // Reset UI d'appui
+    setSosHolding(false)
+    setSosProgress(0)
+    if (progressTimerRef.current) {
+      clearInterval(progressTimerRef.current)
+      progressTimerRef.current = null
+    }
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+
+    setSosSending(true)
+
+    // 1. Capture discrète photo + audio + GPS en parallèle (tolérant).
+    const [photo, audio, pos] = await Promise.all([
+      captureDiscreetPhoto(),
+      captureAudioDataUrl(5),
+      captureGps(),
+    ])
+
+    if (!photo && !audio) {
+      // On prévient mais on continue d'envoyer le SOS sans média.
+      toast({
+        title: 'SOS silencieux',
+        description:
+          "Caméra/micro refusés. Envoi du SOS sans photo ni audio.",
+      })
+    }
+
+    // 2. Identifier le citoyen (phone) — non bloquant si annulé.
+    let phone: string | null = citizenPhone
+    if (!phone) {
+      try {
+        phone = await onEnsureCitizen('general')
+      } catch {
+        phone = null
+      }
+    }
+
+    // 3. POST /api/city/sos
+    const result = await postSosSilencieux({
+      plateId: plate.id,
+      qrToken: plate.qrToken,
+      photoDataUrl: photo,
+      audioDataUrl: audio,
+      gpsLat: pos?.lat,
+      gpsLng: pos?.lng,
+      citizenPhone: phone,
+    })
+
+    setSosSending(false)
+
+    if (result.ok) {
+      setSosSent(true)
+      // Voix discrète — message court, sans alarme sonore.
+      try {
+        parler('S O S envoyé. Les secours sont alertés.')
+      } catch {
+        /* ignore */
+      }
+      toast({
+        title: 'SOS silencieux envoyé',
+        description: 'Les secours ont été alertés discrètement.',
+      })
+    } else {
+      toast({
+        title: 'SOS partiellement envoyé',
+        description: result.error,
+      })
+    }
+  }
+
+  /** Lance le minuteur d'appui long + le timer de progression. */
+  const startLongPress = () => {
+    if (sosSending || sosSent) return
+    setSosHolding(true)
+    setSosProgress(0)
+    const startTime = Date.now()
+    progressTimerRef.current = window.setInterval(() => {
+      const elapsed = Date.now() - startTime
+      const pct = Math.min(100, (elapsed / SOS_HOLD_MS) * 100)
+      setSosProgress(pct)
+    }, 50) as unknown as number
+    longPressTimerRef.current = window.setTimeout(() => {
+      // Déclenchement effectif après 3 s d'appui continu.
+      void triggerSosSilencieux()
+    }, SOS_HOLD_MS) as unknown as number
+  }
+
+  /** Annule l'appui long (le doigt quitte le bouton avant 3 s). */
+  const cancelLongPress = () => {
+    setSosHolding(false)
+    setSosProgress(0)
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+    if (progressTimerRef.current) {
+      clearInterval(progressTimerRef.current)
+      progressTimerRef.current = null
+    }
+  }
+
+  // Rayon du cercle de progression (calculé pour le SVG).
+  const radius = 28
+  const circumference = 2 * Math.PI * radius
+  const dashOffset = circumference * (1 - sosProgress / 100)
 
   return (
     <div className="space-y-5">
@@ -1369,7 +2007,107 @@ function UrgenceView({
         </span>
       </label>
 
-      {/* Signaler une agression (silencieux) */}
+      {/* === SOS SILENCIEUX — appui long 3 s === */}
+      <div className="rounded-2xl bg-[#1A1A1A] p-4 text-white shadow-lg">
+        <div className="mb-3 flex items-center gap-2">
+          <Hand className="size-5 text-[#FFDD00]" />
+          <h3 className="text-sm font-bold text-white" style={TITLE_FONT}>
+            SOS silencieux
+          </h3>
+        </div>
+        <p className="mb-3 text-xs leading-relaxed text-white/75">
+          Maintenez <strong className="text-[#FFDD00]">3 secondes</strong> pour
+          envoyer un SOS silencieux avec photo et audio aux secours. Aucun son
+          n&apos;est émis — votre sécurité n&apos;est pas compromise.
+        </p>
+
+        {/* Bouton long-press avec cercle de progression SVG */}
+        <div className="flex flex-col items-center gap-3">
+          <button
+            type="button"
+            onPointerDown={startLongPress}
+            onPointerUp={cancelLongPress}
+            onPointerLeave={cancelLongPress}
+            onPointerCancel={cancelLongPress}
+            disabled={sosSending || sosSent}
+            className="relative flex h-20 w-20 touch-none select-none items-center justify-center rounded-full bg-[#E30613] shadow-xl transition-transform active:scale-95 disabled:opacity-60"
+            aria-label="Maintenir 3 secondes pour envoyer un SOS silencieux"
+          >
+            {/* Cercle de progression */}
+            <svg
+              className="absolute inset-0 -rotate-90"
+              width="80"
+              height="80"
+              viewBox="0 0 80 80"
+            >
+              <circle
+                cx="40"
+                cy="40"
+                r={radius}
+                fill="none"
+                stroke="rgba(255,255,255,0.15)"
+                strokeWidth="4"
+              />
+              <circle
+                cx="40"
+                cy="40"
+                r={radius}
+                fill="none"
+                stroke="#FFDD00"
+                strokeWidth="4"
+                strokeLinecap="round"
+                strokeDasharray={circumference}
+                strokeDashoffset={dashOffset}
+                style={{ transition: sosHolding ? 'none' : 'stroke-dashoffset 0.2s' }}
+              />
+            </svg>
+            {sosSending ? (
+              <Loader2 className="size-7 animate-spin text-white" />
+            ) : sosSent ? (
+              <Check className="size-8 text-white" />
+            ) : (
+              <span className="text-2xl">🤫</span>
+            )}
+          </button>
+
+          {/* Texte sous le bouton */}
+          {sosSending ? (
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-[#FFDD00]">
+              <Camera className="size-3" />
+              <Mic className="size-3" />
+              Capture discrète en cours…
+            </p>
+          ) : sosSent ? (
+            <p className="inline-flex items-center gap-1.5 rounded-full bg-[#00A651]/20 px-3 py-1 text-xs font-bold text-[#00A651]">
+              <Check className="size-3" />
+              SOS envoyé
+            </p>
+          ) : sosHolding ? (
+            <p className="text-xs font-semibold text-[#FFDD00]">
+              Maintenez… {Math.round(sosProgress)}%
+            </p>
+          ) : (
+            <p className="text-xs text-white/60">
+              Appui long requis (3 s)
+            </p>
+          )}
+        </div>
+
+        {/* Icônes discrètes : photo + audio */}
+        <div className="mt-3 flex items-center justify-center gap-4 text-[10px] uppercase tracking-wider text-white/40">
+          <span className="inline-flex items-center gap-1">
+            <Camera className="size-3" /> Photo
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <Mic className="size-3" /> Audio 5 s
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <MapPin className="size-3" /> GPS
+          </span>
+        </div>
+      </div>
+
+      {/* Signaler une agression (silencieux) — version courte via /api/city/incidents */}
       <div className="rounded-2xl bg-[#E30613]/5 p-4">
         <div className="mb-3 flex items-center gap-2">
           <Shield className="size-5 text-[#E30613]" />
@@ -1714,42 +2452,43 @@ function OrientationView({
 }
 
 // ============================================================
-// 4. ArtisansView (vert) — annuaire des artisans vérifiés
+// 4. ArtisansView (vert) — annuaire étendu des commerces du quartier
+//    Catégories, WhatsApp, cartes détaillées, premium (menu/tarifs),
+//    sponsorisé, vérifié. Tri : sponsorisés en premier puis distance.
 // ============================================================
 
 function ArtisansView({
-  artisans,
+  businesses,
   loading,
   district,
+  selectedCategory,
+  onSelectCategory,
   onContact,
 }: {
-  artisans: CityArtisan[]
+  businesses: CityBusiness[]
   loading: boolean
   district: string | null
-  onContact: (a: CityArtisan) => void
+  selectedCategory: string
+  onSelectCategory: (cat: string) => void
+  onContact: (b: CityBusiness) => void
 }) {
+  // Tri : sponsorisés en premier, puis par distance croissante.
+  const sorted = useMemo(() => {
+    return [...businesses].sort((a, b) => {
+      if (a.isSponsored && !b.isSponsored) return -1
+      if (!a.isSponsored && b.isSponsored) return 1
+      const da = a.distance ?? Number.MAX_SAFE_INTEGER
+      const db = b.distance ?? Number.MAX_SAFE_INTEGER
+      return da - db
+    })
+  }, [businesses])
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-16">
         <Loader2 className="size-8 animate-spin text-[#00A651]" />
         <p className="text-sm text-[#1A1A1A]/55">
-          Chargement des artisans du quartier…
-        </p>
-      </div>
-    )
-  }
-
-  if (artisans.length === 0) {
-    return (
-      <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
-        <Wrench className="mx-auto size-10 text-[#1A1A1A]/30" />
-        <p className="mt-3 text-sm font-semibold text-[#1A1A1A]" style={TITLE_FONT}>
-          Aucun artisan vérifié
-        </p>
-        <p className="mt-1 text-xs text-[#1A1A1A]/55">
-          {district
-            ? `Pour le quartier « ${district} ». Essayez un autre quartier.`
-            : 'Aucun artisan vérifié disponible pour le moment.'}
+          Chargement des commerces du quartier…
         </p>
       </div>
     )
@@ -1757,82 +2496,295 @@ function ArtisansView({
 
   return (
     <div className="space-y-4">
+      {/* Filtres catégories — chips horizontaux scrollables */}
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+        {BUSINESS_CATEGORIES.map((chip) => {
+          const active = selectedCategory === chip.id
+          const color = chip.color
+          return (
+            <button
+              key={chip.id}
+              onClick={() => onSelectCategory(chip.id)}
+              className={cn(
+                'shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition',
+                active
+                  ? 'text-white shadow'
+                  : 'bg-white text-[#1A1A1A]/70 ring-1 ring-[#1A1A1A]/10 hover:ring-[#1A1A1A]/25',
+              )}
+              style={active ? { backgroundColor: color } : undefined}
+            >
+              {chip.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-bold uppercase tracking-wide text-[#1A1A1A]/60">
-          {artisans.length} artisan{artisans.length > 1 ? 's' : ''} à moins de 500m
+          {sorted.length} commerce{sorted.length > 1 ? 's' : ''} à moins de 500m
         </h2>
         <Badge className="bg-[#00A651]/10 text-[#00A651]">
           <Check className="size-3" />
-          Trié par distance
+          Proches
         </Badge>
       </div>
 
-      {artisans.map((a) => (
-        <article
-          key={a.id}
-          className="rounded-2xl bg-white p-4 shadow-sm"
-          style={{ borderLeft: '4px solid #00A651' }}
-        >
-          <div className="flex items-start justify-between">
-            {/* Distance badge */}
-            {a.distance != null && (
-              <div className="flex flex-col items-center rounded-xl bg-[#00A651]/8 px-2 py-1.5 shrink-0">
-                <span className="text-sm font-bold text-[#00A651]">{a.distance}</span>
-                <span className="text-[9px] text-[#00A651]/70">m</span>
-              </div>
+      {sorted.length === 0 ? (
+        <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
+          <Wrench className="mx-auto size-10 text-[#1A1A1A]/30" />
+          <p className="mt-3 text-sm font-semibold text-[#1A1A1A]" style={TITLE_FONT}>
+            Aucun commerce trouvé
+          </p>
+          <p className="mt-1 text-xs text-[#1A1A1A]/55">
+            {district
+              ? `Pour le quartier « ${district} ». Essayez une autre catégorie.`
+              : 'Essayez une autre catégorie ou élargissez votre recherche.'}
+          </p>
+        </div>
+      ) : (
+        sorted.map((b) => (
+          <BusinessCard
+            key={b.id}
+            business={b}
+            onContact={onContact}
+          />
+        ))
+      )}
+    </div>
+  )
+}
+
+// ============================================================
+// BusinessCard — carte individuelle d'un commerce
+// ============================================================
+
+function BusinessCard({
+  business,
+  onContact,
+}: {
+  business: CityBusiness
+  onContact: (b: CityBusiness) => void
+}) {
+  const color = businessCategoryColor(business.category)
+
+  // Parse le menu JSON (premium restaurants) — [{name, price}]
+  const menuItems = useMemo<Array<{ name: string; price: string }> | null>(() => {
+    if (!business.menu) return null
+    try {
+      const parsed = JSON.parse(business.menu)
+      if (Array.isArray(parsed)) {
+        return parsed
+          .filter((it: unknown): it is { name: string; price: string } =>
+            typeof it === 'object' && it !== null && 'name' in it && 'price' in it,
+          )
+          .slice(0, 3)
+      }
+    } catch {
+      /* ignore */
+    }
+    return null
+  }, [business.menu])
+
+  // Parse la grille tarifaire (premium artisans) — [{service, price}]
+  const priceGridItems = useMemo<Array<{ service: string; price: string }> | null>(() => {
+    if (!business.priceGrid) return null
+    try {
+      const parsed = JSON.parse(business.priceGrid)
+      if (Array.isArray(parsed)) {
+        return parsed
+          .filter((it: unknown): it is { service: string; price: string } =>
+            typeof it === 'object' && it !== null && 'service' in it && 'price' in it,
+          )
+          .slice(0, 3)
+      }
+    } catch {
+      /* ignore */
+    }
+    return null
+  }, [business.priceGrid])
+
+  /** Construit une URL WhatsApp pré-remplie pour commander. */
+  const buildWhatsAppOrderUrl = (): string | null => {
+    if (!business.whatsapp) return null
+    let msg = `Bonjour ${business.name}, je souhaite commander : `
+    if (menuItems && menuItems.length > 0) {
+      msg += menuItems.map((m) => `${m.name} (${m.price})`).join(', ')
+    } else {
+      msg += '(précisez votre commande)'
+    }
+    return `https://wa.me/${business.whatsapp.replace(/[^\d]/g, '')}?text=${encodeURIComponent(msg)}`
+  }
+
+  const orderUrl = buildWhatsAppOrderUrl()
+  const isRestaurantWithMenu =
+    business.isPremium &&
+    business.category === 'Restaurant' &&
+    !!menuItems &&
+    menuItems.length > 0
+
+  return (
+    <article
+      className="relative rounded-2xl bg-white p-4 shadow-sm"
+      style={{ borderLeft: `4px solid ${color}` }}
+    >
+      {/* Badge Sponsorisé (or) */}
+      {business.isSponsored && (
+        <span className="absolute -top-2 right-3 inline-flex items-center gap-1 rounded-full bg-[#C9A961] px-2 py-0.5 text-[10px] font-bold uppercase text-white shadow">
+          <Sparkles className="size-2.5" />
+          Sponsorisé
+        </span>
+      )}
+
+      <div className="flex items-start gap-3">
+        {/* Photo thumbnail */}
+        {business.photoUrl && (
+          <img
+            src={business.photoUrl}
+            alt={business.name}
+            className="size-16 shrink-0 rounded-xl object-cover"
+            loading="lazy"
+          />
+        )}
+
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-1.5">
+            <h3 className="text-base font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+              {business.name}
+            </h3>
+            {business.verified && (
+              <span className="inline-flex items-center gap-0.5 rounded-full bg-[#0066CC]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#0066CC]">
+                <BadgeCheck className="size-3" />
+                Vérifié
+              </span>
             )}
-            <div className="flex-1 ml-2">
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-bold text-[#1A1A1A]" style={TITLE_FONT}>
-                  {a.name}
-                </h3>
-                {a.premium && (
-                  <Badge className="bg-[#C9A961]/15 text-[#C9A961]">
-                    <Star className="size-3 fill-[#C9A961]" />
-                    Premium
-                  </Badge>
-                )}
-              </div>
-              <p className="mt-0.5 text-sm text-[#1A1A1A]/65">{a.trade}</p>
-              {a.district && (
-                <p className="mt-0.5 text-xs text-[#1A1A1A]/45">
-                  📍 {a.district}
-                </p>
-              )}
-              <div className="mt-2 flex items-center gap-3 text-xs">
-                <span className="inline-flex items-center gap-1 font-semibold text-[#C9A961]">
-                  <Star className="size-3 fill-[#C9A961]" />
-                  {a.rating.toFixed(1)}
+            {business.isPremium && (
+              <Badge className="bg-[#C9A961]/15 text-[#C9A961]">
+                <Star className="size-3 fill-[#C9A961]" />
+                Premium
+              </Badge>
+            )}
+          </div>
+          <p className="mt-0.5 text-sm text-[#1A1A1A]/65">{business.trade}</p>
+
+          {/* Badge catégorie coloré */}
+          <span
+            className="mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+            style={{ backgroundColor: `${color}20`, color }}
+          >
+            {business.category}
+          </span>
+
+          {/* Métadonnées : distance + heures */}
+          <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-[#1A1A1A]/55">
+            {business.distance != null && (
+              <span className="inline-flex items-center gap-1">
+                <MapPin className="size-3" />
+                {Math.round(business.distance)} m
+              </span>
+            )}
+            {business.hours && (
+              <span className="inline-flex items-center gap-1">
+                <Clock className="size-3" />
+                {business.hours}
+              </span>
+            )}
+            {typeof business.rating === 'number' && business.rating > 0 && (
+              <span className="inline-flex items-center gap-1 font-semibold text-[#C9A961]">
+                <Star className="size-3 fill-[#C9A961]" />
+                {business.rating.toFixed(1)}
+                {typeof business.reviewCount === 'number' && (
                   <span className="font-normal text-[#1A1A1A]/40">
-                    ({a.reviewCount})
+                    ({business.reviewCount})
                   </span>
-                </span>
-                <span className="text-[#1A1A1A]/40">
-                  {a.contactCount} contacts
-                </span>
-              </div>
-            </div>
+                )}
+              </span>
+            )}
           </div>
 
-          <div className="mt-3 flex gap-2">
-            <a
-              href={`tel:${a.phone}`}
-              onClick={() => onContact(a)}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#00A651] py-2.5 text-sm font-bold text-white transition hover:bg-[#008a44]"
-            >
-              <Phone className="size-4" />
-              Appeler
-            </a>
-            <button
-              onClick={() => onContact(a)}
-              className="flex items-center justify-center gap-1.5 rounded-xl border border-[#00A651]/30 px-4 py-2.5 text-sm font-semibold text-[#00A651] transition hover:bg-[#00A651]/5"
-            >
-              Contacter
-            </button>
-          </div>
-        </article>
-      ))}
-    </div>
+          {/* Description tronquée */}
+          {business.description && (
+            <p className="mt-2 line-clamp-2 text-xs text-[#1A1A1A]/65">
+              {business.description}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* Offre sponsorisée */}
+      {business.isSponsored && business.sponsoredOffer && (
+        <div className="mt-3 rounded-xl bg-[#C9A961]/10 px-3 py-2">
+          <p className="text-xs font-bold text-[#C9A961]">Offre sponsorisée</p>
+          <p className="text-xs text-[#1A1A1A]/70">{business.sponsoredOffer}</p>
+        </div>
+      )}
+
+      {/* Menu (premium restaurant) */}
+      {business.isPremium && menuItems && menuItems.length > 0 && (
+        <div className="mt-3 rounded-xl bg-[#FF6B00]/5 px-3 py-2">
+          <p className="text-xs font-bold text-[#FF6B00]">Menu</p>
+          <ul className="mt-1 space-y-1">
+            {menuItems.map((item, idx) => (
+              <li key={idx} className="flex items-center justify-between text-xs">
+                <span className="text-[#1A1A1A]/80">{item.name}</span>
+                <span className="font-bold text-[#1A1A1A]">{item.price}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Grille tarifaire (premium artisan) */}
+      {business.isPremium && priceGridItems && priceGridItems.length > 0 && (
+        <div className="mt-2 rounded-xl bg-[#00A651]/5 px-3 py-2">
+          <p className="text-xs font-bold text-[#00A651]">Tarifs</p>
+          <ul className="mt-1 space-y-1">
+            {priceGridItems.map((item, idx) => (
+              <li key={idx} className="flex items-center justify-between text-xs">
+                <span className="text-[#1A1A1A]/80">{item.service}</span>
+                <span className="font-bold text-[#1A1A1A]">{item.price}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Boutons d'action */}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <a
+          href={`tel:${business.phone}`}
+          onClick={() => onContact(business)}
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#00A651] py-2.5 text-sm font-bold text-white transition hover:bg-[#008a44]"
+        >
+          <Phone className="size-4" />
+          Appeler
+        </a>
+        {business.whatsapp && (
+          <a
+            href={`https://wa.me/${business.whatsapp.replace(/[^\d]/g, '')}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => onContact(business)}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] py-2.5 text-sm font-bold text-white transition hover:bg-[#1da851]"
+          >
+            <MessageCircle className="size-4" />
+            WhatsApp
+          </a>
+        )}
+        {isRestaurantWithMenu && orderUrl && (
+          <a
+            href={orderUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={() => onContact(business)}
+            className="flex items-center justify-center gap-1.5 rounded-xl border border-[#FF6B00]/40 px-4 py-2.5 text-sm font-bold text-[#FF6B00] transition hover:bg-[#FF6B00]/5"
+          >
+            <Send className="size-4" />
+            Commander
+          </a>
+        )}
+      </div>
+    </article>
   )
 }
 
@@ -2932,6 +3884,605 @@ function SanteView({ plate }: { plate: CityPlate }) {
           ))}
         </ul>
       </section>
+    </div>
+  )
+}
+
+// ============================================================
+// 9. CitizenRegistrationModal — inscription légère (téléphone)
+//    Réutilisable pour SchoolCheckinView (mode 'school') et SOS
+//    silencieux (mode 'general'). POST /api/city/citizens.
+// ============================================================
+
+function CitizenRegistrationModal({
+  open,
+  mode,
+  plateLabel,
+  submitting,
+  onSubmit,
+  onClose,
+}: {
+  open: boolean
+  mode: 'general' | 'school'
+  plateLabel?: string | null
+  submitting: boolean
+  onSubmit: (data: {
+    phone: string
+    name?: string
+    schoolName?: string
+    parentPhone?: string
+  }) => Promise<boolean> | void
+  onClose: () => void
+}) {
+  const [phone, setPhone] = useState('')
+  const [name, setName] = useState('')
+  const [parentPhone, setParentPhone] = useState('')
+  const [localSubmitting, setLocalSubmitting] = useState(false)
+  const isSchool = mode === 'school'
+
+  // Reset des champs quand le modal se ferme
+  useEffect(() => {
+    if (!open) {
+      setPhone('')
+      setName('')
+      setParentPhone('')
+      setLocalSubmitting(false)
+    }
+  }, [open])
+
+  if (!open) return null
+
+  const phoneClean = phone.replace(/[^\d+]/g, '')
+  const phoneValid = phoneClean.length >= 8
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!phoneValid || submitting || localSubmitting) return
+    setLocalSubmitting(true)
+    const data: {
+      phone: string
+      name?: string
+      schoolName?: string
+      parentPhone?: string
+    } = { phone: phoneClean }
+    if (name.trim()) data.name = name.trim()
+    if (isSchool) {
+      if (plateLabel) data.schoolName = plateLabel
+      if (parentPhone.trim()) data.parentPhone = parentPhone.trim()
+    }
+    try {
+      await onSubmit(data)
+    } finally {
+      setLocalSubmitting(false)
+    }
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[100] flex items-end justify-center bg-black/60 p-0 sm:items-center sm:p-6"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Inscription citoyenne"
+      onClick={onClose}
+    >
+      <div
+        className="w-full max-w-md rounded-t-3xl bg-white p-6 shadow-2xl sm:rounded-3xl"
+        onClick={(e) => e.stopPropagation()}
+        style={{ borderTop: '6px solid #1B2A8C' }}
+      >
+        {/* Header */}
+        <div className="mb-5 flex items-start justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div
+              className="flex h-12 w-12 items-center justify-center rounded-xl text-2xl"
+              style={{ background: '#FFDD00' }}
+            >
+              {isSchool ? '🏫' : '🪪'}
+            </div>
+            <div>
+              <h2 className="text-lg font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+                {isSchool ? 'Pointage école' : 'Identification rapide'}
+              </h2>
+              <p className="text-xs text-[#1A1A1A]/55">
+                Votre numéro suffit — aucune appli à installer.
+              </p>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fermer"
+            className="rounded-full p-1 text-[#1A1A1A]/40 transition hover:bg-[#F5F5F5] hover:text-[#1A1A1A]"
+          >
+            <X className="size-5" />
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Téléphone (required) */}
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-[#1A1A1A]">
+              Téléphone <span className="text-[#E30613]">*</span>
+            </label>
+            <input
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="+221 77 000 00 00"
+              autoComplete="tel"
+              required
+              className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-3 text-base focus:border-[#1B2A8C] focus:outline-none focus:ring-2 focus:ring-[#1B2A8C]/20"
+            />
+            <p className="mt-1 text-xs text-[#1A1A1A]/50">
+              Nous vous identifierons par ce numéro pour vos prochaines visites.
+            </p>
+          </div>
+
+          {/* Nom (optional) */}
+          <div>
+            <label className="mb-1.5 block text-sm font-semibold text-[#1A1A1A]">
+              Nom <span className="text-[#1A1A1A]/40">(optionnel)</span>
+            </label>
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Aminata Diop"
+              autoComplete="name"
+              className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-3 text-base focus:border-[#1B2A8C] focus:outline-none focus:ring-2 focus:ring-[#1B2A8C]/20"
+            />
+          </div>
+
+          {/* Mode école : téléphone du parent */}
+          {isSchool && (
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-[#1A1A1A]">
+                Téléphone du parent / tuteur{' '}
+                <span className="text-[#1A1A1A]/40">(optionnel)</span>
+              </label>
+              <input
+                type="tel"
+                value={parentPhone}
+                onChange={(e) => setParentPhone(e.target.value)}
+                placeholder="+221 77 123 45 67"
+                autoComplete="tel"
+                className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-3 text-base focus:border-[#1B2A8C] focus:outline-none focus:ring-2 focus:ring-[#1B2A8C]/20"
+              />
+              <p className="mt-1 text-xs text-[#1A1A1A]/50">
+                Un SMS sera envoyé à votre parent à chaque pointage.
+              </p>
+            </div>
+          )}
+
+          {/* Note privacy */}
+          <div className="rounded-xl bg-[#1B2A8C]/5 px-3 py-2.5">
+            <p className="text-xs leading-relaxed text-[#1A1A1A]/65">
+              <Shield className="mr-1 inline size-3 text-[#1B2A8C]" />
+              Vos données restent confidentielles et ne sont partagées qu&apos;avec
+              les services municipaux pour votre sécurité.
+            </p>
+          </div>
+
+          {/* Submit */}
+          <Button
+            type="submit"
+            disabled={!phoneValid || submitting || localSubmitting}
+            className="w-full rounded-xl bg-[#1B2A8C] py-5 text-base font-bold uppercase tracking-wide text-white hover:bg-[#142066]"
+          >
+            {submitting || localSubmitting ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                Inscription…
+              </>
+            ) : (
+              <>
+                <LogIn className="size-4" />
+                Continuer
+              </>
+            )}
+          </Button>
+        </form>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// 10. SchoolCheckinView — vue pointage pour plaques de type 'ecole'
+//     Affiche 3 gros boutons (arrivé / parti / souci) + confirmation
+//     vocale Aminata + notification parent mockée. Lien "Menu complet"
+//     pour basculer vers la MainView standard.
+// ============================================================
+
+type SchoolCheckinPhase = 'actions' | 'confirm'
+
+function SchoolCheckinView({
+  plate,
+  citizenPhone,
+  citizenName,
+  currentHour,
+  onEnsureCitizen,
+  onOpenFullMenu,
+}: {
+  plate: CityPlate
+  citizenPhone: string | null
+  citizenName: string | null
+  currentHour: number
+  onEnsureCitizen: (mode?: 'general' | 'school') => Promise<string | null>
+  onOpenFullMenu: () => void
+}) {
+  const { toast } = useToast()
+  const [localPhase, setLocalPhase] = useState<SchoolCheckinPhase>('actions')
+  const [submitting, setSubmitting] = useState(false)
+  const [lastCheckin, setLastCheckin] = useState<{
+    status: 'arrived' | 'left' | 'sos'
+    time: string
+    parentNotified: boolean
+  } | null>(null)
+
+  const isNight = currentHour >= 22 || currentHour < 6
+
+  /** Effectue un check-in école (POST /api/city/checkins). */
+  const handleCheckin = async (status: 'arrived' | 'left' | 'sos') => {
+    // 1. Identifier le citoyen si nécessaire (mode 'school').
+    let phone: string | null = citizenPhone
+    if (!phone) {
+      try {
+        phone = await onEnsureCitizen('school')
+      } catch {
+        phone = null
+      }
+    }
+    if (!phone) {
+      // L'utilisateur a annulé l'identification — on abandonne.
+      return
+    }
+
+    // 2. VOIX — Aminata confirme DANS le geste utilisateur (avant await).
+    // iOS Safari et Chrome mobile exigent un appel synchrone au speak().
+    try {
+      const msg =
+        status === 'arrived'
+          ? `Aminata confirme votre arrivée à l'école ${plate.label}. Notification envoyée à votre parent.`
+          : status === 'left'
+            ? `Aminata confirme votre départ de l'école ${plate.label}. Bon retour à la maison.`
+            : `Aminata a transmis votre signalement à l'école ${plate.label}. Un responsable va vous contacter.`
+      parler(msg)
+    } catch {
+      /* ignore */
+    }
+
+    setSubmitting(true)
+    const result = await postCheckin({
+      plateId: plate.id,
+      citizenPhone: phone,
+      status,
+    })
+    setSubmitting(false)
+
+    if (result.ok) {
+      setLastCheckin({
+        status,
+        time: result.checkin.createdAt,
+        // Mock : on suppose que la notification parent part à chaque fois.
+        parentNotified: true,
+      })
+      setLocalPhase('confirm')
+    } else {
+      toast({
+        title: 'Pointage impossible',
+        description: result.error,
+      })
+    }
+  }
+
+  // --- Phase confirmation ---
+  if (localPhase === 'confirm' && lastCheckin) {
+    return (
+      <SchoolCheckinConfirmation
+        plate={plate}
+        status={lastCheckin.status}
+        time={lastCheckin.time}
+        parentNotified={lastCheckin.parentNotified}
+        citizenName={citizenName}
+        onContinue={() => setLocalPhase('actions')}
+        onOpenFullMenu={onOpenFullMenu}
+      />
+    )
+  }
+
+  // --- Phase actions ---
+  return (
+    <div className="mx-auto flex min-h-screen max-w-md flex-col bg-white">
+      {/* Header signalétique bleu */}
+      <header
+        className="px-5 pb-6 pt-5 shadow-xl"
+        style={{ background: '#1B2A8C', borderRadius: '0 0 24px 24px' }}
+      >
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div
+              className="flex h-12 w-12 items-center justify-center bg-white"
+              style={{ borderRadius: '14px' }}
+            >
+              <span className="text-2xl">🏫</span>
+            </div>
+            <div>
+              <p className="text-sm font-bold uppercase tracking-wider text-white">
+                Pointage école
+              </p>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-white/60">
+                Ville Connectée
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onOpenFullMenu}
+            className="rounded-xl bg-white/10 px-3 py-2 text-xs font-bold uppercase tracking-wide text-white transition hover:bg-white/20"
+          >
+            Menu complet
+          </button>
+        </div>
+
+        {/* Carte école */}
+        <div
+          className="mt-5 flex items-center gap-3 bg-white px-4 py-3"
+          style={{ borderRadius: '16px' }}
+        >
+          <div
+            className="flex h-10 w-10 items-center justify-center bg-[#1B2A8C]"
+            style={{ borderRadius: '10px' }}
+          >
+            <span className="text-xl">📍</span>
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-bold text-[#1A1A1A]">{plate.label}</p>
+            <p className="truncate text-xs text-[#1A1A1A]/60">
+              {plate.district ? `${plate.district} · ` : ''}Dakar · #{plate.plateNumber}
+            </p>
+          </div>
+        </div>
+
+        <h1 className="mt-4 text-xl font-bold leading-tight text-white">
+          {isNight ? 'Bonsoir.' : 'Bonjour.'}
+        </h1>
+        <p className="mt-1 text-sm text-white/80">
+          {citizenPhone
+            ? `Connecté${citizenName ? ` · ${citizenName}` : ''}. Pointez votre présence ci-dessous.`
+            : 'Identifiez-vous une fois pour pointer votre présence.'}
+        </p>
+      </header>
+
+      {/* Contenu */}
+      <main className="flex-1 space-y-4 px-4 py-6">
+        {/* Bannière identification si pas encore inscrit */}
+        {!citizenPhone && (
+          <div
+            className="rounded-2xl border border-[#FFDD00]/40 bg-[#FFDD00]/10 p-4"
+          >
+            <div className="mb-2 flex items-center gap-2">
+              <LogIn className="size-4 text-[#1B2A8C]" />
+              <p className="text-sm font-bold text-[#1A1A1A]">Identifiez-vous</p>
+            </div>
+            <p className="text-xs text-[#1A1A1A]/65">
+              Votre numéro de téléphone suffit pour pointer. Une seule
+              inscription pour tous les pointages de l&apos;année.
+            </p>
+            <Button
+              onClick={() => void onEnsureCitizen('school')}
+              className="mt-3 w-full rounded-xl bg-[#1B2A8C] py-3 text-sm font-bold text-white hover:bg-[#142066]"
+            >
+              <LogIn className="size-4" />
+              S&apos;identifier
+            </Button>
+          </div>
+        )}
+
+        <h2 className="text-sm font-bold uppercase tracking-wide text-[#1A1A1A]/60">
+          Que faites-vous ?
+        </h2>
+
+        {/* Bouton 1 — Arrivée (vert) */}
+        <button
+          onClick={() => void handleCheckin('arrived')}
+          disabled={submitting || !citizenPhone}
+          className="flex w-full items-center gap-4 rounded-2xl p-5 text-left shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+          style={{ background: '#00A651', color: '#FFFFFF' }}
+        >
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white/15">
+            <Check className="size-8" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-lg font-bold" style={TITLE_FONT}>
+              Je suis bien arrivé
+            </p>
+            <p className="text-xs text-white/80">Pointage d&apos;arrivée · parent notifié</p>
+          </div>
+          <span className="text-2xl">✅</span>
+        </button>
+
+        {/* Bouton 2 — Départ (bleu) */}
+        <button
+          onClick={() => void handleCheckin('left')}
+          disabled={submitting || !citizenPhone}
+          className="flex w-full items-center gap-4 rounded-2xl p-5 text-left shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+          style={{ background: '#0066CC', color: '#FFFFFF' }}
+        >
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white/15">
+            <DoorOpen className="size-8" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-lg font-bold" style={TITLE_FONT}>
+              Je quitte l&apos;école
+            </p>
+            <p className="text-xs text-white/80">Pointage de sortie · parent notifié</p>
+          </div>
+          <span className="text-2xl">🚪</span>
+        </button>
+
+        {/* Bouton 3 — Souci (rouge) */}
+        <button
+          onClick={() => void handleCheckin('sos')}
+          disabled={submitting || !citizenPhone}
+          className="flex w-full items-center gap-4 rounded-2xl p-5 text-left shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+          style={{ background: '#E30613', color: '#FFFFFF' }}
+        >
+          <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl bg-white/15">
+            <AlertTriangle className="size-8" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-lg font-bold" style={TITLE_FONT}>
+              J&apos;ai un souci
+            </p>
+            <p className="text-xs text-white/80">Signaler un problème · école alertée</p>
+          </div>
+          <span className="text-2xl">⚠️</span>
+        </button>
+
+        {submitting && (
+          <p className="flex items-center justify-center gap-2 text-xs text-[#1A1A1A]/55">
+            <Loader2 className="size-3 animate-spin" />
+            Envoi du pointage…
+          </p>
+        )}
+
+        {/* Lien menu complet */}
+        <button
+          onClick={onOpenFullMenu}
+          className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#1A1A1A]/10 py-3 text-sm font-semibold text-[#1B2A8C] transition hover:bg-[#F5F5F5]"
+        >
+          Menu complet des services
+          <ArrowLeft className="size-3 rotate-180" />
+        </button>
+      </main>
+
+      {/* Footer */}
+      <footer className="px-4 pb-6 pt-2 text-center">
+        <p className="text-xs font-bold uppercase tracking-wider text-[#1A1A1A]/40">
+          ✨ AMINATA — VOTRE ÉCOLE CONNECTÉE
+        </p>
+      </footer>
+    </div>
+  )
+}
+
+// ============================================================
+// SchoolCheckinConfirmation — écran de confirmation après pointage
+// ============================================================
+
+function SchoolCheckinConfirmation({
+  plate,
+  status,
+  time,
+  parentNotified,
+  citizenName,
+  onContinue,
+  onOpenFullMenu,
+}: {
+  plate: CityPlate
+  status: 'arrived' | 'left' | 'sos'
+  time: string
+  parentNotified: boolean
+  citizenName?: string | null
+  onContinue: () => void
+  onOpenFullMenu: () => void
+}) {
+  const config = {
+    arrived: {
+      emoji: '✅',
+      title: 'Arrivée confirmée',
+      color: '#00A651',
+      bg: '#00A651',
+    },
+    left: {
+      emoji: '🚪',
+      title: 'Départ confirmé',
+      color: '#0066CC',
+      bg: '#0066CC',
+    },
+    sos: {
+      emoji: '⚠️',
+      title: 'Signalement envoyé',
+      color: '#E30613',
+      bg: '#E30613',
+    },
+  }[status]
+
+  return (
+    <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-6 py-10 text-center">
+      {/* Cercle de confirmation */}
+      <div
+        className="flex size-28 items-center justify-center rounded-full shadow-lg"
+        style={{ background: config.bg }}
+        aria-hidden
+      >
+        <span className="text-5xl">{config.emoji}</span>
+      </div>
+
+      {/* Titre */}
+      <h1 className="mt-6 text-2xl font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+        {config.title}
+      </h1>
+
+      {/* Aminata confirme… */}
+      <p className="mt-2 text-sm text-[#1A1A1A]/65">
+        Aminata confirme {citizenName ? `à ${citizenName}` : 'votre action'} à{' '}
+        <strong className="font-semibold text-[#1A1A1A]">{plate.label}</strong>.
+      </p>
+
+      {/* Notification parent */}
+      {parentNotified && (
+        <div
+          className="mt-4 inline-flex items-center gap-2 rounded-full px-4 py-2 shadow-sm"
+          style={{ background: `${config.bg}15`, color: config.color }}
+        >
+          <Check className="size-4" />
+          <span className="text-sm font-semibold">
+            Notification envoyée à votre parent
+          </span>
+        </div>
+      )}
+
+      {/* Métadonnées */}
+      <div className="mt-6 w-full rounded-2xl bg-white p-4 shadow-sm">
+        <div className="flex items-center justify-between text-xs">
+          <span className="text-[#1A1A1A]/50">École</span>
+          <span className="font-mono font-bold text-[#1A1A1A]">
+            {plate.label}
+          </span>
+        </div>
+        <div className="mt-2 flex items-center justify-between text-xs">
+          <span className="text-[#1A1A1A]/50">Heure</span>
+          <span className="font-mono font-bold text-[#1A1A1A]">
+            {formatHeure(time)} · {relTime(time)}
+          </span>
+        </div>
+        <div className="mt-2 flex items-center justify-between text-xs">
+          <span className="text-[#1A1A1A]/50">Plaque</span>
+          <span className="font-mono font-bold text-[#1A1A1A]">#{plate.plateNumber}</span>
+        </div>
+      </div>
+
+      {/* Boutons */}
+      <div className="mt-8 w-full space-y-2">
+        <Button
+          onClick={onContinue}
+          className="w-full rounded-xl py-5 text-base text-white"
+          style={{ background: config.bg }}
+        >
+          <Check className="size-4" />
+          Faire un autre pointage
+        </Button>
+        <Button
+          onClick={onOpenFullMenu}
+          variant="outline"
+          className="w-full rounded-xl border-[#1A1A1A]/20 py-3 text-sm"
+        >
+          Menu complet des services
+          <ArrowLeft className="size-3 rotate-180" />
+        </Button>
+      </div>
     </div>
   )
 }

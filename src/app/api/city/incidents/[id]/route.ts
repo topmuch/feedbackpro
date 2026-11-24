@@ -6,6 +6,8 @@ export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 // PATCH /api/city/incidents/[id] — Update status (take charge / resolve)
+// Body accepts: status, staffName, arrivedAt (ISO), beforePhoto, afterPhoto.
+// SLA photos are persisted as-is (data URL base64) for transparency to citizens.
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -32,6 +34,31 @@ export async function PATCH(
     data.staffName = body.staffName.trim() || null
   }
 
+  // SLA : scan d'arrivée agent (timestamp ISO)
+  if (body.arrivedAt !== undefined && body.arrivedAt !== null) {
+    if (typeof body.arrivedAt === 'string') {
+      const parsed = new Date(body.arrivedAt)
+      if (!isNaN(parsed.getTime())) {
+        data.arrivedAt = parsed
+      }
+    } else if (body.arrivedAt === true) {
+      // Shortcut: "marquer pris en charge maintenant"
+      data.arrivedAt = new Date()
+    }
+  }
+
+  // SLA : photo avant intervention (data URL)
+  if (typeof body.beforePhoto === 'string') {
+    const trimmed = body.beforePhoto.trim()
+    data.beforePhoto = trimmed.length > 0 ? trimmed : null
+  }
+
+  // SLA : photo après intervention (data URL)
+  if (typeof body.afterPhoto === 'string') {
+    const trimmed = body.afterPhoto.trim()
+    data.afterPhoto = trimmed.length > 0 ? trimmed : null
+  }
+
   if (Object.keys(data).length === 0) {
     return fail('Aucun champ à mettre à jour', 400)
   }
@@ -42,6 +69,9 @@ export async function PATCH(
     status: updated.status,
     staffName: updated.staffName,
     resolvedAt: updated.resolvedAt?.toISOString() ?? null,
+    arrivedAt: updated.arrivedAt?.toISOString() ?? null,
+    beforePhoto: updated.beforePhoto ?? null,
+    afterPhoto: updated.afterPhoto ?? null,
     updatedAt: updated.updatedAt.toISOString(),
   })
 }

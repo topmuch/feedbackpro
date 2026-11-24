@@ -59,6 +59,10 @@ import {
   Monitor,
   Trash2,
   Calendar,
+  Utensils,
+  Tag,
+  ShoppingBag,
+  Sparkles,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -108,6 +112,10 @@ type CityIncident = {
   staffName: string | null
   resolvedAt: string | null
   createdAt: string
+  // SLA photos (transparence citoyenne — visibles staff + citoyens)
+  arrivedAt?: string | null
+  beforePhoto?: string | null
+  afterPhoto?: string | null
 }
 
 type CityArtisan = {
@@ -125,6 +133,88 @@ type CityArtisan = {
   reviewCount: number
   contactCount: number
   active: boolean
+}
+
+// ---------------------------------------------------------------
+// Business (commerces) — soumis par les artisans via la PWA citoyenne
+// Flux : pending (en attente de validation) → approved / rejected
+// Une fois approved : toggles premium / sponsorisé + menu + grille tarifaire
+// ---------------------------------------------------------------
+
+type BusinessMenuItem = {
+  id?: string
+  name: string
+  price: number
+  description?: string | null
+}
+
+type BusinessPriceItem = {
+  id?: string
+  label: string
+  price: number
+}
+
+type CityBusiness = {
+  id: string
+  name: string
+  trade: string
+  category: string | null
+  phone: string | null
+  district: string | null
+  address: string | null
+  photoUrl: string | null
+  status: 'pending' | 'approved' | 'rejected'
+  isPremium: boolean
+  isSponsored: boolean
+  offerText: string | null
+  offerEndsAt: string | null
+  premiumFeatures: string[] | null // ['menu', 'priceGrid', 'sponsored']
+  menu: BusinessMenuItem[] | null
+  priceGrid: BusinessPriceItem[] | null
+  createdAt: string
+  updatedAt?: string
+}
+
+// ---------------------------------------------------------------
+// TaxReport — signalements fiscaux citoyens avec analyse IA
+// Flux : reported → verified → tax_collected → rewarded
+// ---------------------------------------------------------------
+
+type TaxReportAiAnalysis = {
+  depositType?: string
+  hasVehicle?: boolean
+  vehiclePlate?: string | null
+  description?: string | null
+  confidence?: number
+}
+
+type CityTaxReport = {
+  id: string
+  plateId: string | null
+  plate: {
+    id: string
+    plateNumber: string
+    label: string
+    district: string | null
+  } | null
+  qrToken: string | null
+  photoUrl: string | null
+  vehiclePlate: string | null
+  description: string | null
+  gpsLat: number | null
+  gpsLng: number | null
+  status: 'reported' | 'verified' | 'tax_collected' | 'rewarded'
+  taxAmount: number
+  rewardAmount: number
+  rewardMethod: string | null
+  citizenPhone: string | null
+  agentName: string | null
+  aiAnalysis: string | null // JSON sérialisé TaxReportAiAnalysis
+  verifiedAt: string | null
+  resolvedAt: string | null
+  rewardedAt: string | null
+  createdAt: string
+  updatedAt: string
 }
 
 // ---------------------------------------------------------------
@@ -169,6 +259,29 @@ function timeAgo(iso: string): string {
   if (h < 24) return `il y a ${h} h`
   const d = Math.floor(h / 24)
   return `il y a ${d} j`
+}
+
+/** Formate un timestamp ISO en "JJ/MM/AAAA à HH:MM" (date complète courte). */
+function formatDateTime(iso: string): string {
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} à ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+/** Calcule la durée en minutes entre deux timestamps ISO (arrivedAt → resolvedAt). */
+function resolutionMinutes(startIso: string, endIso: string): number | null {
+  const start = new Date(startIso).getTime()
+  const end = new Date(endIso).getTime()
+  if (isNaN(start) || isNaN(end) || end < start) return null
+  return Math.round((end - start) / 60000)
+}
+
+/** Convertit une minute-count en libellé lisible ("Résolu en 18 min" / "1 h 12"). */
+function formatDurationLabel(min: number): string {
+  if (min < 60) return `${min} min`
+  const h = Math.floor(min / 60)
+  const rem = min % 60
+  return rem === 0 ? `${h} h` : `${h} h ${rem}`
 }
 
 /** Traduit un type d'incident en libellé français lisible. */
@@ -240,6 +353,7 @@ const NAV_SECTIONS: readonly NavSection[] = [
     items: [
       { id: 'teams', label: 'Équipes terrain', icon: Users2 },
       { id: 'plates-mgmt', label: 'Gestion plaques', icon: QrCode },
+      { id: 'businesses', label: 'Commerces', icon: ShoppingBag },
       { id: 'announcements', label: 'Annonces', icon: Megaphone },
       { id: 'revenue', label: 'Revenus', icon: Wallet },
       { id: 'reports-mgmt', label: 'Rapports', icon: FileBarChart },
@@ -555,11 +669,14 @@ export default function CityDashboard() {
 
   // --- Mise à jour du statut d'un incident (Pris en charge / Résolu) ---
   // Met à jour l'état local de façon optimiste, puis PATCH l'API.
+  // Lors de la prise en charge (in_progress), on marque aussi arrivedAt = now
+  // côté optimiste et côté API (SLA temps réel).
   // En cas d'échec, on recharge toutes les données pour resynchroniser.
   const handleUpdateIncident = useCallback(
     async (id: string, newStatus: 'in_progress' | 'resolved') => {
       // Snapshot pour revert éventuel
       const snapshot = incidents
+      const nowIso = new Date().toISOString()
       // Mise à jour optimiste
       setIncidents((prev) =>
         prev.map((i) =>
@@ -568,16 +685,24 @@ export default function CityDashboard() {
                 ...i,
                 status: newStatus,
                 resolvedAt:
-                  newStatus === 'resolved' ? new Date().toISOString() : i.resolvedAt,
+                  newStatus === 'resolved' ? nowIso : i.resolvedAt,
+                // SLA : on fixe le scan d'arrivée agent quand on prend en charge
+                arrivedAt:
+                  newStatus === 'in_progress' && !i.arrivedAt ? nowIso : i.arrivedAt,
               }
             : i,
         ),
       )
       try {
+        const patchBody: Record<string, unknown> = { status: newStatus }
+        if (newStatus === 'in_progress') {
+          // Marque la prise en charge côté API (timestamp serveur)
+          patchBody.arrivedAt = true
+        }
         const res = await fetch(`/api/city/incidents/${id}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ status: newStatus }),
+          body: JSON.stringify(patchBody),
         })
         const json = await res.json()
         if (json?.ok) {
@@ -1091,6 +1216,16 @@ export default function CityDashboard() {
           {/* ====== VUE ANNONCES ====== */}
           {activeNav === 'announcements' && (
             <AnnouncementsView />
+          )}
+
+          {/* ====== VUE COMMERCES (Business management) ====== */}
+          {activeNav === 'businesses' && (
+            <BusinessManagementView onRefresh={handleRefresh} />
+          )}
+
+          {/* ====== VUE RAPPORTS FISCAUX (tax reports + AI analysis) ====== */}
+          {activeNav === 'reports-mgmt' && (
+            <TaxReportsView />
           )}
 
           {/* ====== VUE OVERVIEW (défaut) — redesign moderne ====== */}
@@ -2421,6 +2556,111 @@ function serviceInfo(assignedTo: string | null): { label: string; emoji: string 
 }
 
 // ---------------------------------------------------------------
+// PhotoLightbox — visionneuse plein écran (photo Avant/Après, menu, etc.)
+// ---------------------------------------------------------------
+// Usage : <PhotoLightbox src={dataUrl} caption="Avant" onClose={() => setShow(null)} />
+// Clique en dehors de l'image ou sur le bouton X ferme la lightbox.
+// ---------------------------------------------------------------
+
+function PhotoLightbox({
+  src,
+  caption,
+  onClose,
+}: {
+  src: string
+  caption?: string
+  onClose: () => void
+}) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    // Verrouille le scroll arrière-plan pendant l'affichage
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      document.body.style.overflow = prev
+    }
+  }, [onClose])
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label={caption ?? 'Aperçu photo'}
+    >
+      <div
+        className="relative w-full max-w-3xl rounded-2xl bg-white p-4 shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          type="button"
+          onClick={onClose}
+          className="absolute right-3 top-3 inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#FAFAF7] text-[#1A1A1A] transition hover:bg-[#EAE5DC]"
+          aria-label="Fermer l'aperçu"
+        >
+          <X className="h-4 w-4" />
+        </button>
+        {caption && (
+          <p className="mb-2 text-center text-sm font-bold text-[#1A1A1A]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
+            {caption}
+          </p>
+        )}
+        <div className="flex justify-center">
+          <img
+            src={src}
+            alt={caption ?? 'Photo agrandie'}
+            className="max-h-[75vh] w-auto rounded-xl object-contain shadow-md"
+          />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/** Petit thumbnail photo cliquable — utilise PhotoLightbox pour l'agrandir. */
+function PhotoThumb({
+  src,
+  label,
+  size = 64,
+}: {
+  src: string
+  label: string
+  size?: number
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        className="group relative overflow-hidden rounded-lg border border-[#EAE5DC] bg-white transition hover:border-[#C9A961] hover:shadow-md"
+        style={{ width: size, height: size }}
+        aria-label={`Agrandir la photo ${label}`}
+        title={`Cliquez pour agrandir — ${label}`}
+      >
+        <img
+          src={src}
+          alt={label}
+          className="h-full w-full object-cover"
+          loading="lazy"
+        />
+        <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/70 to-transparent px-1 py-0.5 text-center text-[9px] font-bold uppercase tracking-wide text-white">
+          {label}
+        </span>
+      </button>
+      {open && (
+        <PhotoLightbox src={src} caption={label} onClose={() => setOpen(false)} />
+      )}
+    </>
+  )
+}
+
+// ---------------------------------------------------------------
 // IncidentCard — carte partagée (urgences + signalements)
 // ---------------------------------------------------------------
 // Props :
@@ -2533,6 +2773,56 @@ function IncidentCard({ inc, accent, onUpdateStatus }: IncidentCardProps) {
             <span className="font-medium text-[#1A1A1A]">{timeAgo(inc.createdAt)}</span>
           </div>
         </div>
+
+        {/* ---- SLA : prise en charge + photos avant/après + temps résolution ----
+            Les photos sont publiques (transparence) : visibles staff + citoyens. */}
+        {(inc.arrivedAt || inc.beforePhoto || inc.afterPhoto) && (
+          <div className="mt-3 space-y-2 border-t border-[#EAE5DC] pt-3">
+            {/* Badge "Pris en charge le …" */}
+            {inc.arrivedAt && (
+              <div className="flex flex-wrap items-center gap-2">
+                <Badge className="gap-1 bg-[#0066CC]/12 text-[10px] text-[#0066CC]">
+                  <Clock className="h-3 w-3" />
+                  Pris en charge le {formatDateTime(inc.arrivedAt)}
+                </Badge>
+                {inc.resolvedAt && (() => {
+                  const mins = resolutionMinutes(inc.arrivedAt!, inc.resolvedAt)
+                  if (mins == null) return null
+                  return (
+                    <Badge className="gap-1 bg-[#4A7C59]/12 text-[10px] text-[#4A7C59]">
+                      <Check className="h-3 w-3" />
+                      Résolu en {formatDurationLabel(mins)}
+                    </Badge>
+                  )
+                })()}
+              </div>
+            )}
+
+            {/* Photos Avant / Après côte à côte */}
+            {(inc.beforePhoto || inc.afterPhoto) && (
+              <div className="flex flex-wrap items-end gap-3">
+                {inc.beforePhoto && (
+                  <div className="flex flex-col gap-1">
+                    <PhotoThumb src={inc.beforePhoto} label="Avant" size={72} />
+                  </div>
+                )}
+                {inc.afterPhoto && (
+                  <div className="flex flex-col gap-1">
+                    <PhotoThumb src={inc.afterPhoto} label="Après" size={72} />
+                  </div>
+                )}
+                {(inc.beforePhoto && inc.afterPhoto) && (
+                  <span className="self-center text-[10px] font-medium uppercase tracking-wide text-[#1A1A1A]/45">
+                    Avant / Après
+                  </span>
+                )}
+                <p className="ml-auto self-center text-[10px] text-[#1A1A1A]/45">
+                  Photos publiques — transparence citoyenne
+                </p>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ---- Boutons d'action selon le statut ---- */}
         {onUpdateStatus && inc.status !== 'resolved' && (
@@ -3344,6 +3634,1590 @@ function ArtisansView({
         </div>
       )}
     </div>
+  )
+}
+
+// ============================================================
+// BusinessManagementView — Gestion des commerces soumis par les artisans
+// ------------------------------------------------------------
+// Deux sections :
+//   1. "En attente de validation" — fetch /api/city/businesses?status=pending
+//      → boutons Approuver / Rejeter (PATCH status=approved|rejected)
+//   2. "Commerces actifs" — fetch /api/city/businesses?status=approved
+//      → toggle Premium, formulaire Sponsoriser (offerText + offerEndsAt),
+//        boutons "Voir le menu" / "Voir la grille tarifaire" si données dispo.
+//
+// Panneau "Premium activation" dédié : liste des commerces premium + toggle
+// par feature (menu, priceGrid, sponsored).
+// ============================================================
+
+function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void> }) {
+  const { toast } = useToast()
+  const SERIF = { fontFamily: 'Georgia, "Playfair Display", serif' } as const
+
+  const [pending, setPending] = useState<CityBusiness[]>([])
+  const [approved, setApproved] = useState<CityBusiness[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+
+  // Pour le menu / priceGrid modal
+  const [viewMenu, setViewMenu] = useState<CityBusiness | null>(null)
+  const [viewPriceGrid, setViewPriceGrid] = useState<CityBusiness | null>(null)
+
+  // Pour le formulaire sponsorisé
+  const [sponsorBusiness, setSponsorBusiness] = useState<CityBusiness | null>(null)
+  const [sponsorForm, setSponsorForm] = useState({ offerText: '', offerEndsAt: '' })
+  const [savingSponsor, setSavingSponsor] = useState(false)
+
+  // Pour le panneau d'activation premium (choix de la feature)
+  const [premiumSetup, setPremiumSetup] = useState<CityBusiness | null>(null)
+
+  // --- Fetch les deux listes ---
+  const fetchLists = useCallback(async () => {
+    try {
+      const [pendRes, apprRes] = await Promise.all([
+        fetch('/api/city/businesses?status=pending', { cache: 'no-store' }).then((r) => r.json()),
+        fetch('/api/city/businesses?status=approved', { cache: 'no-store' }).then((r) => r.json()),
+      ])
+      if (pendRes?.ok && Array.isArray(pendRes.data?.businesses)) {
+        setPending(pendRes.data.businesses)
+      }
+      if (apprRes?.ok && Array.isArray(apprRes.data?.businesses)) {
+        setApproved(apprRes.data.businesses)
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchLists()
+  }, [fetchLists])
+
+  // --- PATCH générique ---
+  const patchBusiness = useCallback(
+    async (id: string, patch: Record<string, unknown>, successMsg: string) => {
+      try {
+        const res = await fetch(`/api/city/businesses/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(patch),
+        })
+        const json = await res.json()
+        if (json?.ok) {
+          toast({ title: successMsg })
+          // Refresh listes après une mutation
+          await fetchLists()
+          if (onRefresh) await onRefresh()
+        } else {
+          toast({
+            title: 'Erreur',
+            description: json?.error ?? 'Mise à jour impossible',
+            variant: 'destructive',
+          })
+        }
+      } catch {
+        toast({ title: 'Erreur réseau', variant: 'destructive' })
+      }
+    },
+    [fetchLists, onRefresh, toast],
+  )
+
+  const handleApprove = (b: CityBusiness) =>
+    patchBusiness(b.id, { status: 'approved' }, `Commerce approuvé — ${b.name}`)
+
+  const handleReject = (b: CityBusiness) =>
+    patchBusiness(b.id, { status: 'rejected' }, `Commerce rejeté — ${b.name}`)
+
+  const handleTogglePremium = (b: CityBusiness) => {
+    if (b.isPremium) {
+      // Désactivation directe
+      patchBusiness(
+        b.id,
+        { isPremium: false, isSponsored: false },
+        `Premium désactivé — ${b.name}`,
+      )
+    } else {
+      // Activation : ouvrir le panneau de choix de feature
+      setPremiumSetup(b)
+    }
+  }
+
+  const handleActivatePremiumWithFeature = (feature: 'menu' | 'priceGrid' | 'sponsored') => {
+    if (!premiumSetup) return
+    const features = Array.from(new Set([...(premiumSetup.premiumFeatures ?? []), feature]))
+    if (feature === 'sponsored') {
+      // Ouvrir le formulaire sponsorisé en parallèle
+      setSponsorBusiness(premiumSetup)
+      setSponsorForm({
+        offerText: premiumSetup.offerText ?? '',
+        offerEndsAt: premiumSetup.offerEndsAt
+          ? new Date(premiumSetup.offerEndsAt).toISOString().slice(0, 16)
+          : '',
+      })
+    }
+    patchBusiness(
+      premiumSetup.id,
+      { isPremium: true, premiumFeatures: features },
+      `Premium activé — ${premiumSetup.name} (${feature})`,
+    )
+    setPremiumSetup(null)
+  }
+
+  const openSponsorForm = (b: CityBusiness) => {
+    setSponsorBusiness(b)
+    setSponsorForm({
+      offerText: b.offerText ?? '',
+      offerEndsAt: b.offerEndsAt
+        ? new Date(b.offerEndsAt).toISOString().slice(0, 16)
+        : '',
+    })
+  }
+
+  const handleSaveSponsor = async () => {
+    if (!sponsorBusiness) return
+    if (sponsorForm.offerText.trim().length < 3) {
+      toast({ title: 'Offre requise', description: 'Minimum 3 caractères.', variant: 'destructive' })
+      return
+    }
+    setSavingSponsor(true)
+    const patch: Record<string, unknown> = {
+      isSponsored: true,
+      offerText: sponsorForm.offerText.trim(),
+    }
+    if (sponsorForm.offerEndsAt) {
+      // datetime-local → ISO
+      const d = new Date(sponsorForm.offerEndsAt)
+      if (!isNaN(d.getTime())) {
+        patch.offerEndsAt = d.toISOString()
+      }
+    } else {
+      patch.offerEndsAt = null
+    }
+    await patchBusiness(
+      sponsorBusiness.id,
+      patch,
+      `Sponsoring activé — ${sponsorBusiness.name}`,
+    )
+    setSavingSponsor(false)
+    setSponsorBusiness(null)
+  }
+
+  const handleDeactivateSponsor = (b: CityBusiness) =>
+    patchBusiness(
+      b.id,
+      { isSponsored: false, offerText: null, offerEndsAt: null },
+      `Sponsoring désactivé — ${b.name}`,
+    )
+
+  // --- Recherche dans la liste approuvée ---
+  const filteredApproved = useMemo(() => {
+    if (!search.trim()) return approved
+    const q = search.trim().toLowerCase()
+    return approved.filter((b) =>
+      `${b.name} ${b.trade} ${b.category ?? ''} ${b.district ?? ''} ${b.phone ?? ''}`
+        .toLowerCase()
+        .includes(q),
+    )
+  }, [approved, search])
+
+  const premiumCount = approved.filter((b) => b.isPremium).length
+  const sponsoredCount = approved.filter((b) => b.isSponsored).length
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-[#1A1A1A]" style={SERIF}>
+            Commerces
+          </h2>
+          <p className="text-xs text-[#1A1A1A]/55">
+            {pending.length} en attente · {approved.length} actifs · {premiumCount} premium · {sponsoredCount} sponsorisés
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge className="bg-[#FF6B00]/12 text-[#FF6B00]">
+            <Clock className="mr-1 h-3 w-3" /> {pending.length} à valider
+          </Badge>
+          <Badge className="bg-[#4A7C59]/12 text-[#4A7C59]">
+            <ShoppingBag className="mr-1 h-3 w-3" /> {approved.length} actifs
+          </Badge>
+        </div>
+      </div>
+
+      {/* Loading */}
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-[#C9A961]" />
+        </div>
+      ) : (
+        <>
+          {/* ============== Section 1 : En attente de validation ============== */}
+          <section className="overflow-hidden rounded-2xl border border-[#FF6B00]/30 bg-white shadow-sm">
+            <div
+              className="flex items-center justify-between border-b border-[#EAE5DC] px-4 py-3"
+              style={{ borderLeft: '4px solid #FF6B00' }}
+            >
+              <div className="flex items-center gap-2">
+                <Clock className="h-4 w-4 text-[#FF6B00]" />
+                <h3 className="text-sm font-bold text-[#1A1A1A]" style={SERIF}>
+                  En attente de validation
+                </h3>
+              </div>
+              <span className="rounded-full bg-[#FF6B00] px-2.5 py-0.5 text-xs font-bold text-white">
+                {pending.length}
+              </span>
+            </div>
+            <div className="p-4">
+              {pending.length === 0 ? (
+                <div className="py-8 text-center">
+                  <Check className="mx-auto mb-2 h-7 w-7 text-[#4A7C59]/40" />
+                  <p className="text-sm font-medium text-[#1A1A1A]/60">
+                    Aucun commerce en attente
+                  </p>
+                  <p className="mt-1 text-xs text-[#1A1A1A]/40">
+                    Les nouvelles soumissions artisans apparaîtront ici.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {pending.map((b) => (
+                    <BusinessCard
+                      key={b.id}
+                      business={b}
+                      mode="pending"
+                      onApprove={() => handleApprove(b)}
+                      onReject={() => handleReject(b)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* ============== Section 2 : Commerces actifs ============== */}
+          <section className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#EAE5DC] px-4 py-3">
+              <div className="flex items-center gap-2">
+                <ShoppingBag className="h-4 w-4 text-[#4A7C59]" />
+                <h3 className="text-sm font-bold text-[#1A1A1A]" style={SERIF}>
+                  Commerces actifs
+                </h3>
+              </div>
+              <div className="relative w-full sm:w-72">
+                <Search className="absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[#1A1A1A]/30" />
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Rechercher commerce, métier, quartier…"
+                  className="w-full rounded-lg border border-[#EAE5DC] bg-white py-2 pl-9 pr-3 text-xs text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:border-[#C9A961] focus:outline-none focus:ring-1 focus:ring-[#C9A961]/20"
+                />
+              </div>
+            </div>
+            <div className="p-4">
+              {filteredApproved.length === 0 ? (
+                <div className="py-8 text-center">
+                  <ShoppingBag className="mx-auto mb-2 h-7 w-7 text-[#1A1A1A]/20" />
+                  <p className="text-sm font-medium text-[#1A1A1A]/60">
+                    Aucun commerce actif
+                  </p>
+                  <p className="mt-1 text-xs text-[#1A1A1A]/40">
+                    Approuvez des commerces en attente pour les voir apparaître ici.
+                  </p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+                  {filteredApproved.map((b) => (
+                    <BusinessCard
+                      key={b.id}
+                      business={b}
+                      mode="approved"
+                      onTogglePremium={() => handleTogglePremium(b)}
+                      onOpenSponsor={() => openSponsorForm(b)}
+                      onDeactivateSponsor={() => handleDeactivateSponsor(b)}
+                      onViewMenu={() => setViewMenu(b)}
+                      onViewPriceGrid={() => setViewPriceGrid(b)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* ============== Panneau : Premium activation ============== */}
+          <section className="overflow-hidden rounded-2xl border border-[#C9A961]/30 bg-gradient-to-br from-white to-[#C9A961]/5 shadow-sm">
+            <div className="flex items-center gap-2 border-b border-[#EAE5DC] px-4 py-3">
+              <Sparkles className="h-4 w-4 text-[#C9A961]" />
+              <h3 className="text-sm font-bold text-[#1A1A1A]" style={SERIF}>
+                Activation Premium
+              </h3>
+              <Badge className="ml-auto bg-[#C9A961]/15 text-[#8B6F47]">
+                {premiumCount} premium
+              </Badge>
+            </div>
+            <div className="divide-y divide-[#EAE5DC]/60">
+              {approved.filter((b) => b.isPremium).length === 0 ? (
+                <div className="px-4 py-8 text-center">
+                  <Star className="mx-auto mb-2 h-7 w-7 text-[#C9A961]/40" />
+                  <p className="text-sm font-medium text-[#1A1A1A]/60">
+                    Aucun commerce premium pour le moment
+                  </p>
+                  <p className="mt-1 text-xs text-[#1A1A1A]/45">
+                    Activez Premium sur un commerce actif pour le voir ici.
+                  </p>
+                </div>
+              ) : (
+                approved
+                  .filter((b) => b.isPremium)
+                  .map((b) => (
+                    <div key={b.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#C9A961]/15 text-xs font-bold text-[#8B6F47]">
+                        {b.name.charAt(0).toUpperCase()}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold text-[#1A1A1A]">{b.name}</p>
+                        <p className="truncate text-xs text-[#1A1A1A]/55">
+                          {b.trade}
+                          {b.district ? ` · ${b.district}` : ''}
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-1.5">
+                        {(b.premiumFeatures ?? []).includes('menu') && (
+                          <Badge className="bg-[#0066CC]/12 text-[10px] text-[#0066CC]">
+                            <Utensils className="mr-0.5 h-2.5 w-2.5" /> Menu
+                          </Badge>
+                        )}
+                        {(b.premiumFeatures ?? []).includes('priceGrid') && (
+                          <Badge className="bg-[#6B4C9A]/12 text-[10px] text-[#6B4C9A]">
+                            <Tag className="mr-0.5 h-2.5 w-2.5" /> Grille
+                          </Badge>
+                        )}
+                        {b.isSponsored && (
+                          <Badge className="bg-[#FF6B00]/12 text-[10px] text-[#FF6B00]">
+                            <Megaphone className="mr-0.5 h-2.5 w-2.5" /> Sponsorisé
+                          </Badge>
+                        )}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setPremiumSetup(b)}
+                        className="border-[#C9A961]/40 text-[#1A1A1A] hover:bg-[#C9A961]/8"
+                      >
+                        <Plus className="mr-1 h-3 w-3" /> Feature
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleTogglePremium(b)}
+                        className="text-[#E30613] hover:bg-[#E30613]/8"
+                      >
+                        Désactiver Premium
+                      </Button>
+                    </div>
+                  ))
+              )}
+            </div>
+          </section>
+        </>
+      )}
+
+      {/* ---------- Modal : choix de la feature premium ---------- */}
+      {premiumSetup && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setPremiumSetup(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-[#1A1A1A]" style={SERIF}>
+                  Activer une fonction Premium
+                </h3>
+                <p className="text-xs text-[#1A1A1A]/55">
+                  {premiumSetup.name} · {premiumSetup.trade}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setPremiumSetup(null)}
+                className="text-[#1A1A1A]/40 hover:text-[#1A1A1A]"
+                aria-label="Fermer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="mb-3 text-xs text-[#1A1A1A]/60">
+              Choisissez la fonctionnalité premium à activer pour ce commerce :
+            </p>
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={() => handleActivatePremiumWithFeature('menu')}
+                className="flex w-full items-center gap-3 rounded-xl border-2 border-[#EAE5DC] bg-white p-3 text-left transition hover:border-[#0066CC] hover:bg-[#0066CC]/5"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#0066CC]/12 text-[#0066CC]">
+                  <Utensils className="h-5 w-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-[#1A1A1A]">Menu &amp; Commande</p>
+                  <p className="text-xs text-[#1A1A1A]/55">
+                    Affiche le menu du commerce et permet la commande en ligne
+                  </p>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleActivatePremiumWithFeature('priceGrid')}
+                className="flex w-full items-center gap-3 rounded-xl border-2 border-[#EAE5DC] bg-white p-3 text-left transition hover:border-[#6B4C9A] hover:bg-[#6B4C9A]/5"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#6B4C9A]/12 text-[#6B4C9A]">
+                  <Tag className="h-5 w-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-[#1A1A1A]">Grille Tarifaire</p>
+                  <p className="text-xs text-[#1A1A1A]/55">
+                    Publie une grille de prix pour vos services
+                  </p>
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => handleActivatePremiumWithFeature('sponsored')}
+                className="flex w-full items-center gap-3 rounded-xl border-2 border-[#EAE5DC] bg-white p-3 text-left transition hover:border-[#FF6B00] hover:bg-[#FF6B00]/5"
+              >
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#FF6B00]/12 text-[#FF6B00]">
+                  <Megaphone className="h-5 w-5" />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-[#1A1A1A]">Annonce sponsorisée</p>
+                  <p className="text-xs text-[#1A1A1A]/55">
+                    Met en avant une offre promotionnelle temporaire
+                  </p>
+                </div>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------- Modal : formulaire sponsoring ---------- */}
+      {sponsorBusiness && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setSponsorBusiness(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-[#1A1A1A]" style={SERIF}>
+                  Sponsoriser ce commerce
+                </h3>
+                <p className="text-xs text-[#1A1A1A]/55">
+                  {sponsorBusiness.name} · {sponsorBusiness.trade}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSponsorBusiness(null)}
+                className="text-[#1A1A1A]/40 hover:text-[#1A1A1A]"
+                aria-label="Fermer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-[#1A1A1A]/60">
+                  Texte de l&apos;offre *
+                </label>
+                <textarea
+                  value={sponsorForm.offerText}
+                  onChange={(e) => setSponsorForm((f) => ({ ...f, offerText: e.target.value }))}
+                  placeholder="ex : -20% sur tous nos plats ce week-end !"
+                  maxLength={200}
+                  rows={3}
+                  className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#FF6B00] focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/15"
+                />
+                <p className="mt-1 text-[10px] text-[#1A1A1A]/40">
+                  {sponsorForm.offerText.length}/200 caractères
+                </p>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#1A1A1A]/60">
+                  Fin de l&apos;offre (optionnel)
+                </label>
+                <input
+                  type="datetime-local"
+                  value={sponsorForm.offerEndsAt}
+                  onChange={(e) => setSponsorForm((f) => ({ ...f, offerEndsAt: e.target.value }))}
+                  className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#FF6B00] focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/15"
+                />
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSponsorBusiness(null)}
+                className="border-[#EAE5DC]"
+              >
+                Annuler
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSaveSponsor}
+                disabled={savingSponsor}
+                className="gap-1.5 rounded-lg bg-[#FF6B00] text-white hover:bg-[#e65f00]"
+              >
+                {savingSponsor ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Megaphone className="h-3.5 w-3.5" />
+                )}
+                {savingSponsor ? 'Enregistrement…' : 'Activer le sponsoring'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------- Modal : aperçu du menu ---------- */}
+      {viewMenu && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setViewMenu(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-[#1A1A1A]" style={SERIF}>
+                  Menu — {viewMenu.name}
+                </h3>
+                <p className="text-xs text-[#1A1A1A]/55">{viewMenu.trade}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewMenu(null)}
+                className="text-[#1A1A1A]/40 hover:text-[#1A1A1A]"
+                aria-label="Fermer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {(viewMenu.menu ?? []).length === 0 ? (
+              <p className="py-8 text-center text-xs text-[#1A1A1A]/50">
+                Aucun article de menu défini.
+              </p>
+            ) : (
+              <ul className="divide-y divide-[#EAE5DC]/60">
+                {(viewMenu.menu ?? []).map((item, idx) => (
+                  <li key={item.id ?? idx} className="flex items-start gap-3 py-3">
+                    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#0066CC]/12 text-[#0066CC]">
+                      <Utensils className="h-4 w-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-[#1A1A1A]">{item.name}</p>
+                      {item.description && (
+                        <p className="text-xs text-[#1A1A1A]/55">{item.description}</p>
+                      )}
+                    </div>
+                    <span className="shrink-0 text-sm font-bold tabular-nums text-[#4A7C59]">
+                      {item.price.toLocaleString('fr-FR')} FCFA
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ---------- Modal : aperçu de la grille tarifaire ---------- */}
+      {viewPriceGrid && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setViewPriceGrid(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="max-h-[85vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-[#1A1A1A]" style={SERIF}>
+                  Grille tarifaire — {viewPriceGrid.name}
+                </h3>
+                <p className="text-xs text-[#1A1A1A]/55">{viewPriceGrid.trade}</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setViewPriceGrid(null)}
+                className="text-[#1A1A1A]/40 hover:text-[#1A1A1A]"
+                aria-label="Fermer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            {(viewPriceGrid.priceGrid ?? []).length === 0 ? (
+              <p className="py-8 text-center text-xs text-[#1A1A1A]/50">
+                Aucun tarif défini.
+              </p>
+            ) : (
+              <ul className="divide-y divide-[#EAE5DC]/60">
+                {(viewPriceGrid.priceGrid ?? []).map((item, idx) => (
+                  <li key={item.id ?? idx} className="flex items-center gap-3 py-3">
+                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#6B4C9A]/12 text-[#6B4C9A]">
+                      <Tag className="h-4 w-4" />
+                    </span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-[#1A1A1A]">
+                      {item.label}
+                    </span>
+                    <span className="shrink-0 text-sm font-bold tabular-nums text-[#6B4C9A]">
+                      {item.price.toLocaleString('fr-FR')} FCFA
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------
+// BusinessCard — carte shared pour pending + approved
+// ---------------------------------------------------------------
+
+function BusinessCard({
+  business: b,
+  mode,
+  onApprove,
+  onReject,
+  onTogglePremium,
+  onOpenSponsor,
+  onDeactivateSponsor,
+  onViewMenu,
+  onViewPriceGrid,
+}: {
+  business: CityBusiness
+  mode: 'pending' | 'approved'
+  onApprove?: () => void
+  onReject?: () => void
+  onTogglePremium?: () => void
+  onOpenSponsor?: () => void
+  onDeactivateSponsor?: () => void
+  onViewMenu?: () => void
+  onViewPriceGrid?: () => void
+}) {
+  const [pending, setPending] = useState(false)
+  const [photoOpen, setPhotoOpen] = useState(false)
+
+  const handleAction = (fn: (() => void) | undefined) => {
+    if (!fn || pending) return
+    setPending(true)
+    fn()
+    setTimeout(() => setPending(false), 400)
+  }
+
+  return (
+    <article
+      className={cn(
+        'overflow-hidden rounded-2xl border bg-white shadow-sm transition-shadow hover:shadow-md',
+        mode === 'pending' ? 'border-[#FF6B00]/30' : 'border-[#EAE5DC]',
+      )}
+      style={{ borderTop: mode === 'pending' ? '3px solid #FF6B00' : '3px solid #4A7C59' }}
+    >
+      <div className="p-4">
+        {/* Header : photo + nom + métier */}
+        <div className="mb-3 flex items-start gap-3">
+          {b.photoUrl ? (
+            <button
+              type="button"
+              onClick={() => setPhotoOpen(true)}
+              className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-[#EAE5DC] transition hover:border-[#C9A961] hover:shadow-md"
+              aria-label={`Agrandir la photo de ${b.name}`}
+              title="Cliquez pour agrandir"
+            >
+              <img
+                src={b.photoUrl}
+                alt={`Photo de ${b.name}`}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            </button>
+          ) : (
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-[#C9A961]/15 text-xl font-bold text-[#8B6F47]">
+              {b.name.charAt(0).toUpperCase()}
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-bold text-[#1A1A1A]">{b.name}</p>
+            <p className="truncate text-xs text-[#1A1A1A]/60">{b.trade}</p>
+            {b.category && (
+              <Badge className="mt-1 bg-[#EAE5DC] text-[10px] text-[#1A1A1A]/70">
+                {b.category}
+              </Badge>
+            )}
+          </div>
+        </div>
+
+        {/* Infos : téléphone, quartier, adresse */}
+        <div className="space-y-1.5 border-t border-[#EAE5DC] pt-3 text-xs">
+          {b.phone && (
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[#1A1A1A]/50">Téléphone</span>
+              <a
+                href={`tel:${b.phone.replace(/\s/g, '')}`}
+                className="inline-flex items-center gap-1 font-medium text-[#4A7C59] hover:underline"
+              >
+                <Phone className="h-3 w-3" />
+                {b.phone}
+              </a>
+            </div>
+          )}
+          {b.district && (
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[#1A1A1A]/50">Quartier</span>
+              <span className="flex items-center gap-1 font-medium text-[#1A1A1A]">
+                <MapPin className="h-3 w-3" />
+                {b.district}
+              </span>
+            </div>
+          )}
+          {b.address && (
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[#1A1A1A]/50">Adresse</span>
+              <span className="truncate font-medium text-[#1A1A1A]">{b.address}</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-[#1A1A1A]/50">Soumis</span>
+            <span className="font-medium text-[#1A1A1A]">{timeAgo(b.createdAt)}</span>
+          </div>
+        </div>
+
+        {/* Badges premium / sponsorisé (mode approved uniquement) */}
+        {mode === 'approved' && (b.isPremium || b.isSponsored) && (
+          <div className="mt-3 flex flex-wrap gap-1.5">
+            {b.isPremium && (
+              <Badge className="bg-[#C9A961]/15 text-[10px] text-[#8B6F47]">
+                <Star className="mr-0.5 h-2.5 w-2.5 fill-[#C9A961]" /> Premium
+              </Badge>
+            )}
+            {b.isSponsored && (
+              <Badge className="bg-[#FF6B00]/12 text-[10px] text-[#FF6B00]">
+                <Megaphone className="mr-0.5 h-2.5 w-2.5" /> Sponsorisé
+              </Badge>
+            )}
+            {b.offerText && b.isSponsored && (
+              <span className="ml-auto line-clamp-1 text-[10px] italic text-[#FF6B00]">
+                « {b.offerText} »
+              </span>
+            )}
+          </div>
+        )}
+
+        {/* Boutons d'action selon mode */}
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[#EAE5DC] pt-3">
+          {mode === 'pending' && (
+            <>
+              <Button
+                size="sm"
+                onClick={() => handleAction(onApprove)}
+                disabled={pending}
+                className="gap-1.5 rounded-lg bg-[#4A7C59] text-white hover:bg-[#3D6B4D]"
+              >
+                {pending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Check className="h-3.5 w-3.5" />
+                )}
+                Approuver
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => handleAction(onReject)}
+                disabled={pending}
+                className="gap-1.5 rounded-lg bg-[#E30613] text-white hover:bg-[#c90512]"
+              >
+                <X className="h-3.5 w-3.5" />
+                Rejeter
+              </Button>
+            </>
+          )}
+          {mode === 'approved' && (
+            <>
+              <Button
+                size="sm"
+                onClick={() => handleAction(onTogglePremium)}
+                className={cn(
+                  'gap-1.5 rounded-lg',
+                  b.isPremium
+                    ? 'bg-[#C9A961]/15 text-[#8B6F47] hover:bg-[#C9A961]/25'
+                    : 'bg-[#C9A961] text-[#1A1A1A] hover:bg-[#B8964F]',
+                )}
+              >
+                <Star className={cn('h-3.5 w-3.5', b.isPremium && 'fill-[#C9A961]')} />
+                {b.isPremium ? 'Désactiver Premium' : 'Activer Premium'}
+              </Button>
+              {b.isSponsored ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleAction(onDeactivateSponsor)}
+                  className="border-[#FF6B00]/30 text-[#FF6B00] hover:bg-[#FF6B00]/5"
+                >
+                  Arrêter sponsoring
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => handleAction(onOpenSponsor)}
+                  className="border-[#FF6B00]/30 text-[#FF6B00] hover:bg-[#FF6B00]/5"
+                >
+                  <Megaphone className="mr-1 h-3.5 w-3.5" /> Sponsoriser
+                </Button>
+              )}
+              {(b.menu ?? []).length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={onViewMenu}
+                  className="border-[#0066CC]/30 text-[#0066CC] hover:bg-[#0066CC]/5"
+                >
+                  <Utensils className="mr-1 h-3.5 w-3.5" /> Menu ({(b.menu ?? []).length})
+                </Button>
+              )}
+              {(b.priceGrid ?? []).length > 0 && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={onViewPriceGrid}
+                  className="border-[#6B4C9A]/30 text-[#6B4C9A] hover:bg-[#6B4C9A]/5"
+                >
+                  <Tag className="mr-1 h-3.5 w-3.5" /> Tarifs ({(b.priceGrid ?? []).length})
+                </Button>
+              )}
+            </>
+          )}
+          <span className="ml-auto text-[10px] text-[#1A1A1A]/40">
+            ID {b.id.slice(-6)}
+          </span>
+        </div>
+      </div>
+
+      {photoOpen && b.photoUrl && (
+        <PhotoLightbox
+          src={b.photoUrl}
+          caption={`Photo — ${b.name}`}
+          onClose={() => setPhotoOpen(false)}
+        />
+      )}
+    </article>
+  )
+}
+
+// ============================================================
+// TaxReportsView — Signalements fiscaux citoyens (avec analyse IA)
+// ------------------------------------------------------------
+// Fetch GET /api/city/tax-reports
+// Pour chaque signalement :
+//   - photo thumbnail (cliquable → lightbox)
+//   - aiAnalysis (JSON parsé) → depositType badge, vehiclePlate,
+//     description IA, indicateur de confiance
+//   - badges de statut (reported → verified → tax_collected → rewarded)
+//   - infos récompense (montant, méthode)
+//   - boutons d'action selon statut :
+//        reported      → "Valider" (PATCH status=verified)
+//        verified      → "Encaisser" (PATCH status=tax_collected)
+//        tax_collected → "Récompenser" (PATCH status=rewarded)
+// ============================================================
+
+function parseAiAnalysis(raw: string | null): TaxReportAiAnalysis | null {
+  if (!raw || typeof raw !== 'string') return null
+  try {
+    const parsed = JSON.parse(raw)
+    if (parsed && typeof parsed === 'object') {
+      return {
+        depositType: typeof parsed.depositType === 'string' ? parsed.depositType : undefined,
+        hasVehicle: typeof parsed.hasVehicle === 'boolean' ? parsed.hasVehicle : undefined,
+        vehiclePlate:
+          typeof parsed.vehiclePlate === 'string' ? parsed.vehiclePlate : null,
+        description:
+          typeof parsed.description === 'string' ? parsed.description : null,
+        confidence:
+          typeof parsed.confidence === 'number' ? parsed.confidence : undefined,
+      }
+    }
+  } catch {
+    /* JSON mal formé */
+  }
+  return null
+}
+
+/** Couleur du badge selon le depositType détecté par l'IA. */
+function depositTypeColor(type: string | undefined): { bg: string; color: string; label: string } {
+  if (!type) return { bg: 'bg-[#EAE5DC]', color: '#1A1A1A', label: 'Inconnu' }
+  const t = type.toLowerCase()
+  if (t.includes('dump') || t.includes('décharge') || t.includes('decharge')) {
+    return { bg: 'bg-[#FF6B00]/12 text-[#FF6B00]', color: COLOR_ORANGE, label: 'Dump sauvage' }
+  }
+  if (t.includes('vehicle') || t.includes('véhicule') || t.includes('vehicule') || t.includes('camion')) {
+    return { bg: 'bg-[#E30613]/12 text-[#E30613]', color: COLOR_RED, label: 'Véhicule' }
+  }
+  if (t.includes('container') || t.includes('conteneur')) {
+    return { bg: 'bg-[#6B4C9A]/12 text-[#6B4C9A]', color: COLOR_PURPLE, label: 'Conteneur' }
+  }
+  if (t.includes('construction') || t.includes('chantier')) {
+    return { bg: 'bg-[#8B6F47]/12 text-[#8B6F47]', color: '#8B6F47', label: 'Chantier' }
+  }
+  return { bg: 'bg-[#EAE5DC]', color: '#1A1A1A', label: type }
+}
+
+function taxReportStatusInfo(status: string): { label: string; bg: string; color: string } {
+  switch (status) {
+    case 'reported':
+      return { label: 'Signalé', bg: 'bg-[#FF6B00]/12 text-[#FF6B00]', color: COLOR_ORANGE }
+    case 'verified':
+      return { label: 'Vérifié', bg: 'bg-[#0066CC]/12 text-[#0066CC]', color: COLOR_BLUE }
+    case 'tax_collected':
+      return { label: 'Taxe encaissée', bg: 'bg-[#4A7C59]/12 text-[#4A7C59]', color: COLOR_GREEN }
+    case 'rewarded':
+      return { label: 'Récompensé', bg: 'bg-[#C9A961]/15 text-[#8B6F47]', color: COLOR_GOLD }
+    default:
+      return { label: status, bg: 'bg-[#EAE5DC] text-[#1A1A1A]', color: COLOR_ANTHRACITE }
+  }
+}
+
+function rewardMethodLabel(method: string | null): string {
+  if (!method) return '—'
+  switch (method) {
+    case 'wave':
+      return 'Wave'
+    case 'orange_money':
+      return 'Orange Money'
+    case 'internet_pass':
+      return 'Pass Internet'
+    case 'points':
+      return 'Points fidélité'
+    default:
+      return method
+  }
+}
+
+function TaxReportsView() {
+  const { toast } = useToast()
+  const SERIF = { fontFamily: 'Georgia, "Playfair Display", serif' } as const
+
+  const [reports, setReports] = useState<CityTaxReport[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
+
+  // Pour le dialogue de récompense
+  const [rewardTarget, setRewardTarget] = useState<CityTaxReport | null>(null)
+  const [rewardForm, setRewardForm] = useState({ rewardMethod: 'wave', citizenPhone: '' })
+  const [savingReward, setSavingReward] = useState(false)
+
+  const fetchReports = useCallback(async () => {
+    try {
+      const res = await fetch('/api/city/tax-reports', { cache: 'no-store' })
+      const json = await res.json()
+      if (json?.ok && Array.isArray(json.data?.reports)) {
+        setReports(json.data.reports)
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchReports()
+  }, [fetchReports])
+
+  const patchReport = useCallback(
+    async (id: string, patch: Record<string, unknown>, successMsg: string) => {
+      try {
+        const res = await fetch(`/api/city/tax-reports/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(patch),
+        })
+        const json = await res.json()
+        if (json?.ok) {
+          toast({ title: successMsg })
+          await fetchReports()
+        } else {
+          toast({
+            title: 'Erreur',
+            description: json?.error ?? 'Mise à jour impossible',
+            variant: 'destructive',
+          })
+        }
+      } catch {
+        toast({ title: 'Erreur réseau', variant: 'destructive' })
+      }
+    },
+    [fetchReports, toast],
+  )
+
+  const filtered = useMemo(() => {
+    return reports.filter((r) => {
+      if (statusFilter !== 'all' && r.status !== statusFilter) return false
+      if (search.trim()) {
+        const q = search.trim().toLowerCase()
+        const ai = parseAiAnalysis(r.aiAnalysis)
+        const hay = `${r.vehiclePlate ?? ''} ${r.description ?? ''} ${r.plate?.plateNumber ?? ''} ${r.plate?.label ?? ''} ${r.plate?.district ?? ''} ${ai?.vehiclePlate ?? ''} ${ai?.description ?? ''}`.toLowerCase()
+        if (!hay.includes(q)) return false
+      }
+      return true
+    })
+  }, [reports, statusFilter, search])
+
+  const counts = useMemo(
+    () => ({
+      all: reports.length,
+      reported: reports.filter((r) => r.status === 'reported').length,
+      verified: reports.filter((r) => r.status === 'verified').length,
+      tax_collected: reports.filter((r) => r.status === 'tax_collected').length,
+      rewarded: reports.filter((r) => r.status === 'rewarded').length,
+    }),
+    [reports],
+  )
+
+  // Total des taxes encaissées et récompenses versées
+  const totals = useMemo(
+    () => ({
+      taxes: reports.reduce((s, r) => s + (r.taxAmount ?? 0), 0),
+      rewards: reports.reduce((s, r) => s + (r.rewardAmount ?? 0), 0),
+    }),
+    [reports],
+  )
+
+  const handleValidate = (r: CityTaxReport) =>
+    patchReport(r.id, { status: 'verified' }, `Signalement vérifié — ${r.id.slice(-6)}`)
+
+  const handleCollect = (r: CityTaxReport) =>
+    patchReport(
+      r.id,
+      { status: 'tax_collected', taxAmount: 25000 },
+      `Taxe encaissée — 25 000 FCFA`,
+    )
+
+  const openRewardDialog = (r: CityTaxReport) => {
+    setRewardTarget(r)
+    setRewardForm({
+      rewardMethod: r.rewardMethod ?? 'wave',
+      citizenPhone: r.citizenPhone ?? '',
+    })
+  }
+
+  const handleSaveReward = async () => {
+    if (!rewardTarget) return
+    if (rewardForm.citizenPhone.trim().length < 6) {
+      toast({
+        title: 'Téléphone requis',
+        description: 'Le numéro du citoyen est obligatoire pour la récompense.',
+        variant: 'destructive',
+      })
+      return
+    }
+    setSavingReward(true)
+    await patchReport(
+      rewardTarget.id,
+      {
+        status: 'rewarded',
+        rewardMethod: rewardForm.rewardMethod,
+        citizenPhone: rewardForm.citizenPhone.trim(),
+      },
+      `Récompense envoyée au citoyen`,
+    )
+    setSavingReward(false)
+    setRewardTarget(null)
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-[#1A1A1A]" style={SERIF}>
+            Rapports fiscaux citoyens
+          </h2>
+          <p className="text-xs text-[#1A1A1A]/55">
+            {counts.all} signalements · {totals.taxes.toLocaleString('fr-FR')} FCFA encaissés · {totals.rewards.toLocaleString('fr-FR')} FCFA récompensés
+          </p>
+        </div>
+        <Badge className="bg-[#6B4C9A]/12 text-[#6B4C9A]">
+          <FileBarChart className="mr-1 h-3 w-3" /> {counts.all} rapports
+        </Badge>
+      </div>
+
+      {/* Filtres statut */}
+      <div className="flex flex-wrap gap-2 text-xs">
+        {[
+          { key: 'all', label: 'Tous', value: counts.all, color: 'bg-[#EAE5DC] text-[#1A1A1A]' },
+          { key: 'reported', label: 'Signalés', value: counts.reported, color: 'bg-[#FF6B00]/12 text-[#FF6B00]' },
+          { key: 'verified', label: 'Vérifiés', value: counts.verified, color: 'bg-[#0066CC]/12 text-[#0066CC]' },
+          { key: 'tax_collected', label: 'Encaissés', value: counts.tax_collected, color: 'bg-[#4A7C59]/12 text-[#4A7C59]' },
+          { key: 'rewarded', label: 'Récompensés', value: counts.rewarded, color: 'bg-[#C9A961]/15 text-[#8B6F47]' },
+        ].map((s) => (
+          <button
+            key={s.key}
+            type="button"
+            onClick={() => setStatusFilter(s.key)}
+            className={cn(
+              'rounded-lg px-3 py-1.5 font-medium transition',
+              s.color,
+              statusFilter === s.key && 'ring-2 ring-[#C9A961]',
+            )}
+          >
+            {s.label}: {s.value}
+          </button>
+        ))}
+      </div>
+
+      {/* Recherche */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[#1A1A1A]/30" />
+        <input
+          type="text"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Rechercher par plaque, véhicule, description, quartier…"
+          className="w-full rounded-xl border border-[#EAE5DC] bg-white py-2.5 pl-10 pr-4 text-sm text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/20"
+        />
+      </div>
+
+      {/* Liste */}
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-6 w-6 animate-spin text-[#C9A961]" />
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-[#EAE5DC] bg-white p-12 text-center">
+          <FileBarChart className="mx-auto mb-3 h-8 w-8 text-[#1A1A1A]/20" />
+          <p className="text-sm font-medium text-[#1A1A1A]/60">
+            Aucun rapport fiscal pour le moment
+          </p>
+          <p className="mt-1 text-xs text-[#1A1A1A]/40">
+            Les signalements citoyens de fraude fiscale apparaîtront ici.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+          {filtered.map((r) => (
+            <TaxReportCard
+              key={r.id}
+              report={r}
+              onValidate={() => handleValidate(r)}
+              onCollect={() => handleCollect(r)}
+              onReward={() => openRewardDialog(r)}
+            />
+          ))}
+        </div>
+      )}
+
+      {/* ---------- Modal : formulaire récompense ---------- */}
+      {rewardTarget && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setRewardTarget(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-[#1A1A1A]" style={SERIF}>
+                  Récompenser le citoyen
+                </h3>
+                <p className="text-xs text-[#1A1A1A]/55">
+                  Signalement #{rewardTarget.id.slice(-6)}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setRewardTarget(null)}
+                className="text-[#1A1A1A]/40 hover:text-[#1A1A1A]"
+                aria-label="Fermer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="mb-4 rounded-xl bg-[#C9A961]/8 p-3">
+              <p className="text-xs font-medium text-[#8B6F47]">
+                Montant de la récompense (calculé automatiquement) :
+              </p>
+              <p className="text-xl font-bold tabular-nums text-[#C9A961]" style={SERIF}>
+                {(rewardTarget.vehiclePlate && rewardTarget.vehiclePlate.trim().length > 0
+                  ? 1000
+                  : 500
+                ).toLocaleString('fr-FR')}{' '}
+                FCFA
+              </p>
+              <p className="mt-1 text-[10px] text-[#1A1A1A]/55">
+                {rewardTarget.vehiclePlate
+                  ? '1000 FCFA — véhicule identifié par plaque'
+                  : '500 FCFA — dump sauvage (sans plaque)'}
+              </p>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-semibold text-[#1A1A1A]/60">
+                  Méthode de récompense
+                </label>
+                <select
+                  value={rewardForm.rewardMethod}
+                  onChange={(e) => setRewardForm((f) => ({ ...f, rewardMethod: e.target.value }))}
+                  className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/15"
+                >
+                  <option value="wave">Wave</option>
+                  <option value="orange_money">Orange Money</option>
+                  <option value="internet_pass">Pass Internet</option>
+                  <option value="points">Points fidélité</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-xs font-semibold text-[#1A1A1A]/60">
+                  Téléphone citoyen *
+                </label>
+                <input
+                  type="tel"
+                  value={rewardForm.citizenPhone}
+                  onChange={(e) => setRewardForm((f) => ({ ...f, citizenPhone: e.target.value }))}
+                  placeholder="+221 77 000 00 00"
+                  className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/15"
+                />
+              </div>
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setRewardTarget(null)}
+                className="border-[#EAE5DC]"
+              >
+                Annuler
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSaveReward}
+                disabled={savingReward}
+                className="gap-1.5 rounded-lg bg-[#C9A961] text-[#1A1A1A] hover:bg-[#B8964F]"
+              >
+                {savingReward ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Star className="h-3.5 w-3.5" />
+                )}
+                {savingReward ? 'Envoi…' : 'Envoyer la récompense'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------
+// TaxReportCard — carte individuelle d'un signalement fiscal
+// ---------------------------------------------------------------
+
+function TaxReportCard({
+  report: r,
+  onValidate,
+  onCollect,
+  onReward,
+}: {
+  report: CityTaxReport
+  onValidate: () => void
+  onCollect: () => void
+  onReward: () => void
+}) {
+  const [pending, setPending] = useState(false)
+  const [photoOpen, setPhotoOpen] = useState(false)
+  const status = taxReportStatusInfo(r.status)
+  const ai = parseAiAnalysis(r.aiAnalysis)
+  const deposit = depositTypeColor(ai?.depositType)
+
+  const handleAction = (fn: () => void) => {
+    if (pending) return
+    setPending(true)
+    fn()
+    setTimeout(() => setPending(false), 400)
+  }
+
+  return (
+    <article
+      className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white shadow-sm transition-shadow hover:shadow-md"
+      style={{ borderTop: `3px solid ${status.color}` }}
+    >
+      <div className="p-4">
+        {/* Header : photo + statut */}
+        <div className="mb-3 flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            {r.photoUrl ? (
+              <button
+                type="button"
+                onClick={() => setPhotoOpen(true)}
+                className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-[#EAE5DC] transition hover:border-[#C9A961] hover:shadow-md"
+                aria-label="Agrandir la photo du signalement"
+                title="Cliquez pour agrandir"
+              >
+                <img
+                  src={r.photoUrl}
+                  alt="Photo du signalement fiscal"
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                />
+              </button>
+            ) : (
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-[#6B4C9A]/12 text-[#6B4C9A]">
+                <FileBarChart className="h-6 w-6" />
+              </div>
+            )}
+            <div className="min-w-0">
+              <p className="truncate text-sm font-bold text-[#1A1A1A]">
+                Signalement #{r.id.slice(-6)}
+              </p>
+              <p className="text-[10px] uppercase tracking-wider text-[#1A1A1A]/45">
+                {formatDateTime(r.createdAt)}
+              </p>
+              {r.plate && (
+                <p className="mt-0.5 truncate text-[11px] text-[#1A1A1A]/55">
+                  <MapPin className="mr-0.5 inline h-3 w-3" />
+                  {r.plate.plateNumber}
+                  {r.plate.district ? ` · ${r.plate.district}` : ''}
+                </p>
+              )}
+            </div>
+          </div>
+          <Badge className={cn('text-[10px] font-semibold', status.bg)}>
+            {status.label}
+          </Badge>
+        </div>
+
+        {/* Description citoyenne (si fournie) */}
+        {r.description && (
+          <p className="mb-3 line-clamp-2 rounded-lg bg-[#FAFAF7] px-3 py-2 text-xs leading-relaxed text-[#1A1A1A]/75">
+            « {r.description} »
+          </p>
+        )}
+
+        {/* Bloc analyse IA */}
+        {ai && (
+          <div className="mb-3 rounded-xl border border-[#6B4C9A]/20 bg-[#6B4C9A]/5 p-3">
+            <div className="mb-2 flex items-center gap-1.5">
+              <Sparkles className="h-3.5 w-3.5 text-[#6B4C9A]" />
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[#6B4C9A]">
+                Analyse IA
+              </p>
+              {typeof ai.confidence === 'number' && (
+                <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-white px-2 py-0.5 text-[10px] font-bold text-[#6B4C9A]">
+                  Confiance : {Math.round(ai.confidence * 100)}%
+                </span>
+              )}
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {/* Deposit type badge */}
+              <Badge className={cn('text-[10px]', deposit.bg)}>{deposit.label}</Badge>
+              {/* Vehicle plate (si détecté) */}
+              {(ai.vehiclePlate || r.vehiclePlate) && (
+                <Badge className="bg-[#E30613]/12 text-[10px] font-mono text-[#E30613]">
+                  🚛 {ai.vehiclePlate ?? r.vehiclePlate}
+                </Badge>
+              )}
+              {ai.hasVehicle === false && !ai.vehiclePlate && !r.vehiclePlate && (
+                <Badge className="bg-[#EAE5DC] text-[10px] text-[#1A1A1A]/60">
+                  Pas de véhicule
+                </Badge>
+              )}
+            </div>
+            {ai.description && (
+              <p className="mt-2 line-clamp-3 text-xs italic text-[#1A1A1A]/65">
+                « {ai.description} »
+              </p>
+            )}
+            {/* Indicateur visuel de confiance (barre) */}
+            {typeof ai.confidence === 'number' && (
+              <div className="mt-2 flex items-center gap-2">
+                <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#EAE5DC]">
+                  <div
+                    className="h-full rounded-full bg-[#6B4C9A]"
+                    style={{ width: `${Math.max(5, Math.round(ai.confidence * 100))}%` }}
+                  />
+                </div>
+                <span className="text-[10px] font-bold tabular-nums text-[#6B4C9A]">
+                  {Math.round(ai.confidence * 100)}%
+                </span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Infos GPS / plaque / véhicule */}
+        <div className="space-y-1.5 border-t border-[#EAE5DC] pt-3 text-xs">
+          {r.vehiclePlate && (
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[#1A1A1A]/50">Véhicule signalé</span>
+              <span className="font-mono font-bold text-[#E30613]">{r.vehiclePlate}</span>
+            </div>
+          )}
+          {r.plate && (
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[#1A1A1A]/50">Plaque QR</span>
+              <span className="truncate font-medium text-[#1A1A1A]">
+                {r.plate.plateNumber}
+              </span>
+            </div>
+          )}
+          {r.citizenPhone && (
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[#1A1A1A]/50">Citoyen</span>
+              <a
+                href={`tel:${r.citizenPhone.replace(/\s/g, '')}`}
+                className="inline-flex items-center gap-1 font-medium text-[#4A7C59] hover:underline"
+              >
+                <Phone className="h-3 w-3" />
+                {r.citizenPhone}
+              </a>
+            </div>
+          )}
+          {r.agentName && (
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[#1A1A1A]/50">Agent</span>
+              <span className="font-medium text-[#1A1A1A]">{r.agentName}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Infos taxes / récompense (si déjà encaissé/récompensé) */}
+        {(r.taxAmount > 0 || r.rewardAmount > 0) && (
+          <div className="mt-3 grid grid-cols-2 gap-2 border-t border-[#EAE5DC] pt-3">
+            {r.taxAmount > 0 && (
+              <div className="rounded-lg bg-[#4A7C59]/8 p-2">
+                <p className="text-[9px] font-semibold uppercase tracking-wide text-[#4A7C59]">
+                  Taxe encaissée
+                </p>
+                <p className="text-sm font-bold tabular-nums text-[#4A7C59]">
+                  {r.taxAmount.toLocaleString('fr-FR')} FCFA
+                </p>
+              </div>
+            )}
+            {r.rewardAmount > 0 && (
+              <div className="rounded-lg bg-[#C9A961]/8 p-2">
+                <p className="text-[9px] font-semibold uppercase tracking-wide text-[#8B6F47]">
+                  Récompense ({rewardMethodLabel(r.rewardMethod)})
+                </p>
+                <p className="text-sm font-bold tabular-nums text-[#8B6F47]">
+                  {r.rewardAmount.toLocaleString('fr-FR')} FCFA
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Boutons d'action selon le statut */}
+        <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[#EAE5DC] pt-3">
+          {r.status === 'reported' && (
+            <Button
+              size="sm"
+              onClick={() => handleAction(onValidate)}
+              disabled={pending}
+              className="gap-1.5 rounded-lg bg-[#0066CC] text-white hover:bg-[#0055a8]"
+            >
+              {pending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Check className="h-3.5 w-3.5" />
+              )}
+              Valider
+            </Button>
+          )}
+          {r.status === 'verified' && (
+            <Button
+              size="sm"
+              onClick={() => handleAction(onCollect)}
+              disabled={pending}
+              className="gap-1.5 rounded-lg bg-[#4A7C59] text-white hover:bg-[#3D6B4D]"
+            >
+              {pending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Wallet className="h-3.5 w-3.5" />
+              )}
+              Encaisser
+            </Button>
+          )}
+          {r.status === 'tax_collected' && (
+            <Button
+              size="sm"
+              onClick={() => handleAction(onReward)}
+              disabled={pending}
+              className="gap-1.5 rounded-lg bg-[#C9A961] text-[#1A1A1A] hover:bg-[#B8964F]"
+            >
+              {pending ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Star className="h-3.5 w-3.5" />
+              )}
+              Récompenser
+            </Button>
+          )}
+          {r.status === 'rewarded' && (
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#C9A961]/12 px-3 py-1 text-[11px] font-bold text-[#8B6F47]">
+              <Check className="h-3.5 w-3.5" />
+              Récompense envoyée
+              {r.rewardedAt && (
+                <span className="font-normal text-[#8B6F47]/70">
+                  · {timeAgo(r.rewardedAt)}
+                </span>
+              )}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {photoOpen && r.photoUrl && (
+        <PhotoLightbox
+          src={r.photoUrl}
+          caption={`Signalement #${r.id.slice(-6)}`}
+          onClose={() => setPhotoOpen(false)}
+        />
+      )}
+    </article>
   )
 }
 

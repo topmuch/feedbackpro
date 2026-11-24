@@ -125,6 +125,10 @@ export async function GET(req: NextRequest) {
     assignedTo: i.assignedTo,
     staffName: i.staffName,
     resolvedAt: i.resolvedAt ? i.resolvedAt.toISOString() : null,
+    // SLA photos (transparence citoyenne)
+    arrivedAt: i.arrivedAt ? i.arrivedAt.toISOString() : null,
+    beforePhoto: i.beforePhoto ?? null,
+    afterPhoto: i.afterPhoto ?? null,
     createdAt: i.createdAt.toISOString(),
     updatedAt: i.updatedAt.toISOString(),
   }))

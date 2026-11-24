@@ -1806,6 +1806,7 @@ model CityPlate {
   address         String?
   lat             Float?
   lng             Float?
+  plateType       String   @default("standard")  // standard | ecole | gare | mairie
   status          String   @default("active")     // active | maintenance | offline
   installedAt     DateTime @default(now())
   lastScanAt      DateTime?
@@ -1814,9 +1815,11 @@ model CityPlate {
   updatedAt       DateTime @updatedAt
   incidents       CityIncident[]
   taxReports      CityTaxReport[]
+  checkins        CitySchoolCheckin[]
 
   @@index([status])
   @@index([district])
+  @@index([plateType])
 }
 
 model CityIncident {
@@ -1825,13 +1828,16 @@ model CityIncident {
   plate           CityPlate? @relation(fields: [plateId], references: [id], onDelete: SetNull)
   qrToken         String?                         // token de la plaque scannée
   type            String                          // emergency | report | orientation | artisan | mairie
-  category        String?                         // "propreté", "voirie", "éclairage", "sécurité", "eau", "transport"
+  category        String?                         // "propreté", "voirie", "éclairage", "sécurité", "eau", "transport", "point_bas"
   description     String?
   gpsLat          Float?
   gpsLng          Float?
   status          String   @default("pending")    // pending | assigned | in_progress | resolved
   assignedTo      String?                         // "Police", "ONAS", "Senelec", "Mairie"
   staffName       String?
+  arrivedAt       DateTime?                       // SLA: scan arrivée agent
+  beforePhoto     String?                         // SLA: photo avant intervention (data URL)
+  afterPhoto      String?                         // SLA: photo après intervention (data URL)
   resolvedAt      DateTime?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
@@ -1845,13 +1851,24 @@ model CityArtisan {
   id              String   @id @default(cuid())
   name            String
   trade           String                          // "Plombier", "Électricien", "Menuisier"
+  category        String   @default("artisan")    // artisan | commerce | restaurant | coiffure | mecanicien | telephonie | nettoyage
   phone           String
+  whatsapp        String?                         // numéro WhatsApp (optionnel)
   district        String?
   address         String?
   lat             Float?                          // GPS du commerce (relevé devant la porte)
   lng             Float?
+  photoUrl        String?                         // photo de la vitrine / atelier (data URL)
+  hours           String?                         // "Lun-Ven 8h-18h, Sam 8h-12h"
+  description     String?                         // description libre
   verified        Boolean  @default(false)        // validation mairie OBLIGATOIRE
-  premium         Boolean  @default(false)        // premium = monétisé
+  status          String   @default("pending")    // pending | approved | rejected (self-service workflow)
+  premium         Boolean  @default(false)        // premium = monétisé (activé manuellement par la mairie)
+  menu            String?                         // JSON: [{name, photo, price}] — option payante restaurants
+  priceGrid       String?                         // JSON: [{service, photo, price, unit}] — option payante artisans
+  isSponsored     Boolean  @default(false)        // annonce sponsorisée / offre flash
+  offerText       String?                         // texte de l'offre flash
+  offerEndsAt     DateTime?                       // fin de l'offre flash
   rating          Float    @default(5.0)
   reviewCount     Int      @default(0)
   contactCount    Int      @default(0)            // nombre de fois contacté via Aminata
@@ -1862,6 +1879,8 @@ model CityArtisan {
   @@index([verified, active])
   @@index([district])
   @@index([trade])
+  @@index([category])
+  @@index([status])
 }
 
 model CityReport {
@@ -1901,6 +1920,7 @@ model CityTaxReport {
   rewardMethod    String?                          // wave | orange_money | internet_pass | points
   citizenPhone    String?                         // téléphone du citoyen (pour la récompense)
   agentName       String?                         // agent municipal qui a traité
+  aiAnalysis      String?                         // JSON: {depositType, hasVehicle, vehiclePlate, description, confidence}
   verifiedAt      DateTime?
   resolvedAt      DateTime?
   rewardedAt      DateTime?
@@ -1954,4 +1974,47 @@ model CityAnnouncement {
   @@index([status])
   @@index([priority])
   @@index([targetDistrict])
+}
+
+// ============================================================
+// Ville Connectée — Compte citoyen (téléphone + profil + points)
+// ============================================================
+// Plusieurs features nécessitent un compte citoyen :
+//   - Check-in École (notification parent)
+//   - Points / cashback (gamification radar taxes)
+//   - Contacts d'urgence (SOS silencieux)
+// Inscription par téléphone (pas de mot de passe — OTP ou trust).
+
+model CityCitizen {
+  id                String   @id @default(cuid())
+  phone             String   @unique               // téléphone (format international)
+  name              String?                          // nom optionnel
+  points            Int      @default(0)            // points gamification
+  emergencyContacts String?                          // JSON: [{name, phone, relation}]
+  schoolName        String?                          // école de l'enfant (pour check-in)
+  parentPhone       String?                          // téléphone du parent (pour check-in école)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([phone])
+}
+
+// ============================================================
+// Ville Connectée — Check-in École
+// ============================================================
+// L'enfant scanne la plaque à l'entrée de l'école (plateType=ecole)
+// et presse un bouton sans saisie de texte. Le parent reçoit une
+// notification (WhatsApp/SMS) avec le statut et l'horodatage.
+
+model CitySchoolCheckin {
+  id            String   @id @default(cuid())
+  plateId       String?
+  plate         CityPlate? @relation(fields: [plateId], references: [id], onDelete: SetNull)
+  citizenPhone  String                           // téléphone du citoyen (enfant/parent)
+  status        String                           // arrived | left | sos
+  createdAt     DateTime @default(now())
+
+  @@index([citizenPhone])
+  @@index([plateId])
+  @@index([status])
 }
