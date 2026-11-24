@@ -53,6 +53,10 @@ import {
   Lock,
   Shield,
   Camera,
+  MessageCircle,
+  Calendar,
+  Clock,
+  User,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -228,6 +232,32 @@ const TRANSPORTS_NEARBY = [
   { line: 'Bus 10', destination: 'Plateau → Grand Dakar', next: 'Dans 18 min' },
   { line: 'Taxi-Commune', destination: "Station Place de l'Indépendance", next: 'Disponible' },
 ]
+
+// Chefs de Quartier — routage automatique par district de la plaque scannée.
+// Le citoyen n'a pas à chercher dans une liste : on affiche UNIQUEMENT
+// le chef correspondant à sa zone. Fallback générique si district inconnu.
+const CHEFS_QUARTIER: Record<string, { name: string; role: string; phone: string; whatsapp: string; hours: string }> = {
+  Plateau:   { name: 'M. Amadou Diallo',    role: 'Chef de Quartier', phone: '+221770000001', whatsapp: '221770000001', hours: 'Lun–Ven · 9h–16h' },
+  Médina:    { name: 'Mme Fatou Ndiaye',    role: 'Chef de Quartier', phone: '+221770000002', whatsapp: '221770000002', hours: 'Lun–Ven · 9h–16h' },
+  Sandaga:   { name: 'M. Ousmane Fall',     role: 'Chef de Quartier', phone: '+221770000003', whatsapp: '221770000003', hours: 'Lun–Ven · 9h–16h' },
+  Parcelles: { name: 'Mme Aïssatou Sow',    role: 'Déléguée de zone', phone: '+221770000004', whatsapp: '221770000004', hours: 'Lun–Ven · 8h30–15h30' },
+  'Grand Dakar': { name: 'M. Cheikh Mbacké',    role: 'Chef de Quartier', phone: '+221770000005', whatsapp: '221770000005', hours: 'Lun–Ven · 9h–16h' },
+}
+const CHEF_QUARTIER_DEFAUT = {
+  name: 'Secrétariat de la Mairie',
+  role: 'Standard municipal',
+  phone: '+221338000000',
+  whatsapp: '221338000000',
+  hours: 'Lun–Ven · 8h–16h',
+}
+
+// 3 motifs rapides avant d'ouvrir l'appel ou WhatsApp.
+// Le message WhatsApp est pré-rempli avec la zone + le motif.
+const MOTIFS_CHEF_QUARTIER = [
+  { id: 'demarche',    emoji: '📋', label: 'Démarche / attestation',  desc: 'Voisinage, résidence, documents à préparer, jours de réception' },
+  { id: 'mediation',   emoji: '🤝', label: 'Médiation / voisinage',    desc: 'Bruit, occupation d\'espace, malentendu local, rue' },
+  { id: 'information', emoji: 'ℹ️', label: 'Info / urgence locale',  desc: 'Décès, cérémonie, événement communautaire, repère quartier' },
+] as const
 
 const MAIRIE_SERVICES = [
   { label: 'État civil', phone: '+221338000000' },
@@ -919,7 +949,7 @@ export function CityScanView({
             />
           )}
           {activeModule === 'mairie' && (
-            <MairieView currentHour={currentHour} />
+            <MairieView currentHour={currentHour} plate={plate} />
           )}
           {activeModule === 'tax_fraud' && (
             <TaxFraudView
@@ -974,9 +1004,10 @@ function MainView({
 }) {
   const isNight = currentHour >= 22 || currentHour < 6
 
-  // Config signalétique: jaune = standard, bleu = inversé (urgence + mairie)
+  // Config signalétique: jaune = standard, bleu = inversé (mairie),
+  // rouge = URGENCE (repérage instantané par enfant ou personne en stress)
   const SIGNAGE_STYLE: Record<ModuleId, { bg: string; inverted: boolean }> = {
-    urgence: { bg: '#1B2A8C', inverted: true },      // Bleu (inversé)
+    urgence: { bg: '#E30613', inverted: true },       // Rouge franc (urgence)
     signalement: { bg: '#FFDD00', inverted: false },  // Jaune
     orientation: { bg: '#FFDD00', inverted: false },  // Jaune
     artisans: { bg: '#FFDD00', inverted: false },     // Jaune
@@ -1800,8 +1831,22 @@ function ArtisansView({
 // 5. MairieView (violet) — contenu dynamique selon l'heure
 // ============================================================
 
-function MairieView({ currentHour }: { currentHour: number }) {
+function MairieView({ currentHour, plate }: { currentHour: number; plate: CityPlate }) {
   const greeting = getMairieGreeting(currentHour)
+  const [selectedMotif, setSelectedMotif] = useState<string | null>(null)
+
+  // Routage automatique : on affiche UNIQUEMENT le chef de quartier
+  // correspondant au district de la plaque scannée. Pas de liste de 20 noms.
+  const chef = (plate.district && CHEFS_QUARTIER[plate.district]) || CHEF_QUARTIER_DEFAUT
+  const zoneLabel = plate.district
+    ? `${plate.district} / Plaque #${plate.plateNumber}`
+    : `Plaque #${plate.plateNumber}`
+
+  // Construit le message WhatsApp pré-rempli selon le motif choisi.
+  const buildWhatsAppUrl = (motifLabel: string, motifDesc: string) => {
+    const msg = `Bonjour, je vous contacte depuis la zone ${zoneLabel} concernant : ${motifLabel}. ${motifDesc}`
+    return `https://wa.me/${chef.whatsapp}?text=${encodeURIComponent(msg)}`
+  }
 
   return (
     <div className="space-y-5">
@@ -1857,6 +1902,97 @@ function MairieView({ currentHour }: { currentHour: number }) {
             </li>
           ))}
         </ul>
+      </section>
+
+      {/* === Contacter le Chef de Quartier — routage automatique === */}
+      <section className="rounded-2xl bg-white p-4 shadow-sm">
+        <div className="mb-3 flex items-center gap-2">
+          <User className="size-4 text-[#6B4C9A]" />
+          <h2 className="text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+            Contacter le Chef de Quartier
+          </h2>
+        </div>
+
+        {/* Carte du chef — automatiquement routé selon la plaque */}
+        <div className="mb-4 rounded-xl border-2 border-[#6B4C9A]/15 bg-[#6B4C9A]/5 p-3">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-sm font-bold text-[#1A1A1A]">{chef.name}</p>
+              <p className="text-xs text-[#6B4C9A]">{chef.role}</p>
+              <p className="mt-1 flex items-center gap-1 text-xs text-[#1A1A1A]/50">
+                <MapPin className="size-3" />
+                Zone : {zoneLabel}
+              </p>
+              <p className="mt-0.5 flex items-center gap-1 text-xs text-[#1A1A1A]/50">
+                <Clock className="size-3" />
+                {chef.hours}
+              </p>
+            </div>
+            <a
+              href={`tel:${chef.phone}`}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#6B4C9A] px-3 py-1.5 text-xs font-bold text-white transition hover:bg-[#5a3d82]"
+            >
+              <Phone className="size-3" />
+              Appel
+            </a>
+          </div>
+        </div>
+
+        {/* 3 motifs rapides — avant d'ouvrir WhatsApp */}
+        <p className="mb-2 text-xs font-semibold text-[#1A1A1A]/60">
+          Sélectionnez un motif pour envoyer un message WhatsApp pré-rempli :
+        </p>
+        <div className="space-y-2">
+          {MOTIFS_CHEF_QUARTIER.map((motif) => {
+            const isSelected = selectedMotif === motif.id
+            return (
+              <a
+                key={motif.id}
+                href={buildWhatsAppUrl(motif.label, motif.desc)}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => setSelectedMotif(motif.id)}
+                className={cn(
+                  'flex items-center gap-3 rounded-xl border-2 p-3 transition-all hover:scale-[1.02]',
+                  isSelected
+                    ? 'border-[#25D366] bg-[#25D366]/5'
+                    : 'border-[#d5d3d4] bg-white hover:border-[#25D366]/40',
+                )}
+              >
+                <span className="text-2xl" aria-hidden>{motif.emoji}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-bold text-[#1A1A1A]">{motif.label}</p>
+                  <p className="text-xs leading-snug text-[#1A1A1A]/55">{motif.desc}</p>
+                </div>
+                <MessageCircle className="size-5 shrink-0 text-[#25D366]" />
+              </a>
+            )
+          })}
+        </div>
+      </section>
+
+      {/* === Rendez-vous avec le Maire === */}
+      <section className="rounded-2xl bg-gradient-to-br from-[#6B4C9A] to-[#5a3d82] p-4 text-white shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-white/15">
+            <Calendar className="size-6 text-white" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-sm font-bold text-white" style={TITLE_FONT}>
+              Rendez-vous avec le Maire
+            </h2>
+            <p className="mt-0.5 text-xs text-white/75">
+              Demandez un créneau auprès du secrétariat du Maire.
+            </p>
+          </div>
+        </div>
+        <a
+          href={`tel:${chef.phone}`}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-bold text-[#6B4C9A] transition hover:bg-white/90"
+        >
+          <Phone className="size-4" />
+          Demander un créneau
+        </a>
       </section>
 
       {/* Annonces municipales (mock) */}

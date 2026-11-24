@@ -1928,3 +1928,30 @@ model CityReward {
   @@index([citizenPhone])
   @@index([status])
 }
+
+// ============================================================
+// Ville Connectée — Annonces vocales diffusées sur les QR codes
+// ============================================================
+// La mairie crée des annonces (texte + heures de diffusion) qui sont
+// affichées et prononcées (TTS Aminata) sur la PWA citoyenne quand
+// un citoyen scanne une plaque pendant les plages programmées.
+
+model CityAnnouncement {
+  id              String   @id @default(cuid())
+  title           String                            // titre court (badge)
+  message         String                            // texte affiché à l'écran
+  audioText       String?                           // texte à synthétiser vocalement (fallback = message)
+  status          String   @default("scheduled")   // draft | scheduled | active | expired
+  priority        String   @default("normal")      // normal | urgent | info
+  broadcastHours  String?                           // JSON: ["08:00","12:00","18:00"] — créneaux de diffusion
+  targetDistrict  String?                           // null = tous les quartiers; sinon district ciblé
+  startAt         DateTime?                         // date/heure de début de campagne
+  endAt           DateTime?                         // date/heure de fin de campagne
+  createdBy       String?                           // userId du créateur (mairie)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([status])
+  @@index([priority])
+  @@index([targetDistrict])
+}
