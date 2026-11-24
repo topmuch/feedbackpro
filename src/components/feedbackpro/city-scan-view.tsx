@@ -967,7 +967,7 @@ export function CityScanView({
   }
 
   // ---------------------------------------------------------------
-  // 6.5. Phase main — BENTO GRID multicolore WAAHOU
+  // 6.5. Phase main — Signalétique aéroport (panneaux jaunes/bleus)
   // ---------------------------------------------------------------
   return (
     <div className={rootClass} style={rootStyle}>
@@ -977,7 +977,7 @@ export function CityScanView({
 }
 
 // ============================================================
-// MainView — BENTO GRID multicolore "WAAHOU"
+// MainView — Signalétique aéroport style wayfinding
 // ============================================================
 
 function MainView({
@@ -993,65 +993,35 @@ function MainView({
 }) {
   const isNight = currentHour >= 22 || currentHour < 6
 
-  // Couleurs Bento — dégradés pleins par module
-  const BENTO_COLORS: Record<ModuleId, { bg: string; dark: string }> = {
-    urgence: { bg: '#D64545', dark: '#A03030' },
-    signalement: { bg: '#E8913A', dark: '#C07020' },
-    orientation: { bg: '#1B3A4B', dark: '#0F2535' },
-    artisans: { bg: '#2D8B6F', dark: '#1F6B50' },
-    mairie: { bg: '#C4785A', dark: '#A85D3F' },
-    tax_fraud: { bg: '#D4A574', dark: '#B89060' },
+  // Config signalétique: jaune = standard, bleu = inversé (urgence + mairie)
+  const SIGNAGE_STYLE: Record<ModuleId, { bg: string; inverted: boolean }> = {
+    urgence: { bg: '#1B2A8C', inverted: true },      // Bleu (inversé)
+    signalement: { bg: '#FFDD00', inverted: false },  // Jaune
+    orientation: { bg: '#FFDD00', inverted: false },  // Jaune
+    artisans: { bg: '#FFDD00', inverted: false },     // Jaune
+    mairie: { bg: '#1B2A8C', inverted: true },        // Bleu (inversé)
+    tax_fraud: { bg: '#FFDD00', inverted: false },    // Jaune
   }
 
-  // Modules en pleine largeur
-  const fullWidth: ModuleId[] = ['urgence', 'tax_fraud']
-
   return (
-    <div className="mx-auto min-h-screen max-w-md bg-[#FDF6EC]">
-      {/* === HEADER IMMERSIF === */}
+    <div className="mx-auto min-h-screen max-w-md bg-white">
+      {/* === HEADER — grand panneau bleu signalétique === */}
       <header
-        className="relative overflow-hidden px-6 pb-8 pt-7 text-white"
-        style={{
-          background: isNight
-            ? 'linear-gradient(135deg, #1B3A4B 0%, #0F2535 100%)'
-            : 'linear-gradient(135deg, #C4785A 0%, #A85D3F 100%)',
-          borderBottomLeftRadius: '0',
-          borderBottomRightRadius: '0',
-        }}
+        className="relative overflow-hidden px-5 pb-6 pt-5"
+        style={{ background: '#1B2A8C' }}
       >
-        {/* Pattern diagonal */}
-        <div
-          className="pointer-events-none absolute inset-0 opacity-15"
-          style={{
-            backgroundImage: `
-              repeating-linear-gradient(45deg, transparent, transparent 35px, rgba(255,255,255,0.1) 35px, rgba(255,255,255,0.1) 70px),
-              repeating-linear-gradient(-45deg, transparent, transparent 35px, rgba(255,255,255,0.1) 35px, rgba(255,255,255,0.1) 70px)
-            `,
-          }}
-          aria-hidden
-        />
-
-        <div className="relative z-10 flex items-center justify-between">
+        {/* Top bar: logo + quit */}
+        <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {/* Avatar Aminata — doré pulsant */}
-            <div className="relative">
-              <div
-                className="flex h-12 w-12 items-center justify-center rounded-full text-2xl shadow-lg"
-                style={{
-                  background: 'linear-gradient(135deg, #D4A574 0%, #E8C9A0 100%)',
-                  border: '3px solid rgba(255,255,255,0.3)',
-                }}
-              >
-                👋
-              </div>
-              <div
-                className="absolute -inset-1.5 rounded-full"
-                style={{ border: '2px solid rgba(255,255,255,0.2)', animation: 'pulse 2s infinite' }}
-              />
+            {/* Tuile blanche avec icône */}
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white">
+              <span className="text-2xl">👋</span>
             </div>
             <div>
-              <p className="text-base font-bold text-white" style={TITLE_FONT}>Aminata</p>
-              <p className="text-[10px] uppercase tracking-[0.15em] text-white/80 font-semibold">
+              <p className="text-sm font-bold uppercase tracking-wider text-white">
+                AMINATA
+              </p>
+              <p className="text-[10px] uppercase tracking-[0.2em] text-white/60">
                 Votre Quartier
               </p>
             </div>
@@ -1059,7 +1029,7 @@ function MainView({
           {onExit && (
             <button
               onClick={onExit}
-              className="rounded-full bg-white/20 px-4 py-1.5 text-xs font-semibold text-white backdrop-blur-sm transition hover:bg-white/30"
+              className="flex items-center gap-2 rounded-lg bg-white px-4 py-2 text-xs font-bold uppercase tracking-wider text-[#1B2A8C] transition hover:bg-white/90"
             >
               Quitter
             </button>
@@ -1067,33 +1037,22 @@ function MainView({
         </div>
 
         {/* Greeting */}
-        <div className="relative z-10 mt-5">
-          <h1
-            className="text-2xl font-bold leading-tight text-white"
-            style={{ ...TITLE_FONT, textShadow: '0 2px 10px rgba(0,0,0,0.2)' }}
-          >
-            {isNight ? 'Bonsoir, je suis Aminata. 🌙' : 'Bonjour, je suis Aminata.'}
-          </h1>
-          <p className="mt-1 text-sm text-white/90">
-            Je suis là pour vous aider dans votre quartier. 🌟
-          </p>
-        </div>
+        <h1 className="mt-5 text-2xl font-bold leading-tight text-white">
+          {isNight ? 'Bonsoir, je suis Aminata.' : 'Bonjour, je suis Aminata.'}
+        </h1>
+        <p className="mt-1 text-sm text-white/80">
+          {isNight ? '🌙 Service nuit actif.' : 'Je suis là pour vous aider dans votre quartier.'}
+        </p>
 
-        {/* Location card — glassmorphism */}
-        <div
-          className="relative z-10 mt-4 flex items-center gap-3 rounded-2xl p-3 backdrop-blur-md"
-          style={{
-            background: 'rgba(255,255,255,0.15)',
-            border: '1px solid rgba(255,255,255,0.25)',
-          }}
-        >
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-white/25">
-            <span className="text-xl" aria-hidden>📍</span>
+        {/* Location — tuile blanche signalétique */}
+        <div className="mt-4 flex items-center gap-3 rounded-xl bg-white px-4 py-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#1B2A8C]">
+            <span className="text-xl">📍</span>
           </div>
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold text-white">{plate.label}</p>
-            <p className="truncate text-xs text-white/85">
-              {plate.district ? `${plate.district} · ` : ''}Dakar · Plaque {plate.plateNumber}
+            <p className="truncate text-sm font-bold text-[#1A1A1A]">{plate.label}</p>
+            <p className="truncate text-xs text-[#1A1A1A]/60">
+              {plate.district ? `${plate.district} · ` : ''}Dakar · #{plate.plateNumber}
             </p>
           </div>
         </div>
@@ -1101,104 +1060,95 @@ function MainView({
 
       {/* === LIVE BAR === */}
       <div
-        className="flex items-center justify-between px-6 py-2.5 text-xs font-semibold text-white"
-        style={{ background: '#1A1412' }}
+        className="flex items-center justify-between px-5 py-2 text-[11px] font-bold uppercase tracking-wider"
+        style={{ background: '#1A1A1A', color: '#FFDD00' }}
       >
         <div className="flex items-center gap-2">
-          <span
-            className="h-2 w-2 rounded-full"
-            style={{ background: '#D64545', animation: 'pulse 1.5s infinite' }}
-          />
+          <span className="h-2 w-2 rounded-full bg-[#FFDD00]" style={{ animation: 'pulse 1.5s infinite' }} />
           <span>EN DIRECT</span>
         </div>
-        <div className="flex items-center gap-1.5" style={{ color: '#D4A574' }}>
-          <span>👥</span>
-          <span>1 247 citoyens connectés</span>
-        </div>
+        <span className="text-white/60">👥 1 247 CIT. CONNECTÉS</span>
       </div>
 
-      {/* === BENTO GRID MULTICOLORE === */}
-      <main className="grid grid-cols-2 gap-3 p-4">
-        {MODULES.map((mod, idx) => {
-          const colors = BENTO_COLORS[mod.id]
-          const isFullWidth = fullWidth.includes(mod.id)
+      {/* === PANNEAUX SIGNALÉTIQUES === */}
+      <main className="flex flex-col gap-3 p-4">
+        {MODULES.map((mod) => {
+          const style = SIGNAGE_STYLE[mod.id]
+          const isInverted = style.inverted
+          const bgColor = style.bg
+          const textColor = isInverted ? '#FFFFFF' : '#1A1A1A'
+          const tileBg = '#FFFFFF'
+          const tileIconColor = isInverted ? '#1A1A1A' : '#1A1A1A'
+          const arrowBg = isInverted ? '#FFFFFF' : '#FFFFFF'
+          const arrowColor = '#1A1A1A'
+
           return (
             <button
               key={mod.id}
               onClick={() => onOpenModule(mod.id)}
-              className={cn(
-                'group relative flex flex-col justify-between overflow-hidden rounded-3xl p-4 text-left shadow-lg transition-all hover:-translate-y-1 hover:shadow-2xl',
-                isFullWidth && 'col-span-2',
-              )}
+              className="group flex items-center gap-4 rounded-2xl p-4 shadow-lg transition-all hover:-translate-y-1 hover:shadow-2xl active:scale-[0.98]"
               style={{
-                background: `linear-gradient(135deg, ${colors.bg} 0%, ${colors.dark} 100%)`,
-                minHeight: isFullWidth ? '140px' : '160px',
-                animation: `popIn 0.6s cubic-bezier(0.4, 0, 0.2, 1) ${idx * 0.1}s forwards`,
-                opacity: 0,
-                transform: 'translateY(30px) scale(0.95)',
+                background: bgColor,
+                borderRadius: '16px',
               }}
             >
-              {/* Reflet radial au hover */}
+              {/* Tuile icône blanche (gauche) */}
               <div
-                className="pointer-events-none absolute -right-1/2 -top-1/2 h-[200%] w-[200%] opacity-0 transition-opacity duration-400 group-hover:opacity-100"
-                style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%)' }}
-              />
-
-              {/* Header carte */}
-              <div className="relative z-10 mb-3 flex items-start justify-between">
-                <div
-                  className="flex h-14 w-14 items-center justify-center rounded-2xl text-3xl transition-all group-hover:scale-110 group-hover:rotate-[-5deg]"
-                  style={{
-                    background: 'rgba(255,255,255,0.2)',
-                    backdropFilter: 'blur(10px)',
-                  }}
-                >
-                  {mod.emoji}
-                </div>
-                {/* Badges spéciaux */}
-                {mod.id === 'urgence' && (
-                  <span
-                    className="rounded-xl px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white"
-                    style={{ background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(10px)' }}
-                  >
-                    SOS
-                  </span>
-                )}
-                {mod.id === 'tax_fraud' && (
-                  <span
-                    className="rounded-xl px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-white"
-                    style={{ background: 'rgba(255,255,255,0.25)', backdropFilter: 'blur(10px)' }}
-                  >
-                    Récompense
-                  </span>
-                )}
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-3xl transition-transform group-hover:scale-110"
+                style={{
+                  background: tileBg,
+                  borderRadius: '12px',
+                }}
+              >
+                {mod.emoji}
               </div>
 
-              {/* Contenu */}
-              <div className="relative z-10 flex-1">
+              {/* Texte central */}
+              <div className="min-w-0 flex-1 text-left">
                 <h2
-                  className="mb-1 text-lg font-bold leading-tight text-white"
-                  style={TITLE_FONT}
+                  className="text-base font-bold uppercase leading-tight tracking-wide"
+                  style={{ color: textColor, fontFamily: 'Arial, Helvetica, sans-serif' }}
                 >
                   {mod.title}
                 </h2>
-                <p className="text-xs leading-snug text-white/85">
+                <p
+                  className="mt-0.5 text-xs leading-snug"
+                  style={{ color: isInverted ? 'rgba(255,255,255,0.7)' : 'rgba(26,26,26,0.6)' }}
+                >
                   {mod.desc}
+                </p>
+                <p
+                  className="mt-1 text-[10px] font-bold uppercase tracking-wider"
+                  style={{ color: isInverted ? '#FFDD00' : '#1B2A8C' }}
+                >
+                  {mod.sub}
                 </p>
               </div>
 
-              {/* Footer carte */}
-              <div className="relative z-10 mt-2 flex items-center justify-between">
-                <span className="text-[10px] font-bold uppercase tracking-wider text-white/90">
-                  {mod.sub}
-                </span>
-                <div
-                  className="flex h-8 w-8 items-center justify-center rounded-full transition-all group-hover:translate-x-1"
-                  style={{ background: 'rgba(255,255,255,0.2)' }}
+              {/* Cercle flèche blanche (droite) */}
+              <div
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-transform group-hover:translate-x-1"
+                style={{
+                  background: arrowBg,
+                }}
+              >
+                <svg
+                  width="20" height="20" viewBox="0 0 24 24" fill="none"
+                  stroke={arrowColor} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
                 >
-                  <ArrowLeft className="size-4 rotate-180 text-white" aria-hidden />
-                </div>
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                  <polyline points="12 5 19 12 12 19" />
+                </svg>
               </div>
+
+              {/* Badge spécial (urgence SOS) */}
+              {mod.id === 'urgence' && (
+                <span
+                  className="absolute right-4 top-4 rounded-md bg-[#FFDD00] px-2 py-0.5 text-[10px] font-bold uppercase text-[#1A1A1A]"
+                >
+                  SOS
+                </span>
+              )}
             </button>
           )
         })}
@@ -1207,32 +1157,28 @@ function MainView({
       {/* === SOS FLOATING === */}
       <button
         onClick={() => onOpenModule('urgence')}
-        className="fixed bottom-6 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full text-white shadow-2xl transition-transform hover:scale-110"
+        className="fixed bottom-6 right-6 z-50 flex h-16 w-16 items-center justify-center rounded-full font-bold text-white shadow-2xl transition-transform hover:scale-110"
         style={{
-          background: 'linear-gradient(135deg, #D64545 0%, #A03030 100%)',
+          background: '#E30613',
           border: '4px solid white',
           animation: 'sosPulse 2s infinite',
         }}
         aria-label="SOS Urgence"
       >
-        <span className="text-sm font-bold">SOS</span>
+        <span className="text-sm">SOS</span>
       </button>
 
       {/* === FOOTER === */}
       <footer className="px-4 pb-24 pt-4 text-center">
-        <p className="text-xs font-medium text-[#1A1412]/50">
-          ✨ <span className="font-bold" style={{ ...TITLE_FONT, color: '#C4785A' }}>Aminata</span> — votre quartier connecté
+        <p className="text-xs font-bold uppercase tracking-wider text-[#1A1A1A]/40">
+          ✨ AMINATA — VOTRE QUARTIER CONNECTÉ
         </p>
       </footer>
 
-      {/* Animations CSS inline */}
       <style>{`
-        @keyframes popIn {
-          to { opacity: 1; transform: translateY(0) scale(1); }
-        }
         @keyframes sosPulse {
-          0%, 100% { box-shadow: 0 15px 40px rgba(214,69,69,0.5); transform: scale(1); }
-          50% { box-shadow: 0 15px 50px rgba(214,69,69,0.8); transform: scale(1.05); }
+          0%, 100% { box-shadow: 0 15px 40px rgba(227,6,19,0.5); transform: scale(1); }
+          50% { box-shadow: 0 15px 50px rgba(227,6,19,0.8); transform: scale(1.05); }
         }
       `}</style>
     </div>
