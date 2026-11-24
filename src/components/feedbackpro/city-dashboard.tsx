@@ -117,6 +117,8 @@ type CityArtisan = {
   phone: string
   district: string | null
   address: string | null
+  lat: number | null
+  lng: number | null
   verified: boolean
   premium: boolean
   rating: number
@@ -551,6 +553,61 @@ export default function CityDashboard() {
     setView('landing')
   }, [logout, setView])
 
+  // --- Mise à jour du statut d'un incident (Pris en charge / Résolu) ---
+  // Met à jour l'état local de façon optimiste, puis PATCH l'API.
+  // En cas d'échec, on recharge toutes les données pour resynchroniser.
+  const handleUpdateIncident = useCallback(
+    async (id: string, newStatus: 'in_progress' | 'resolved') => {
+      // Snapshot pour revert éventuel
+      const snapshot = incidents
+      // Mise à jour optimiste
+      setIncidents((prev) =>
+        prev.map((i) =>
+          i.id === id
+            ? {
+                ...i,
+                status: newStatus,
+                resolvedAt:
+                  newStatus === 'resolved' ? new Date().toISOString() : i.resolvedAt,
+              }
+            : i,
+        ),
+      )
+      try {
+        const res = await fetch(`/api/city/incidents/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus }),
+        })
+        const json = await res.json()
+        if (json?.ok) {
+          toast({
+            title:
+              newStatus === 'resolved'
+                ? 'Incident résolu'
+                : 'Incident pris en charge',
+            description:
+              newStatus === 'resolved'
+                ? 'Le citoyen sera notifié de la résolution.'
+                : "L'incident est maintenant en cours de traitement.",
+          })
+        } else {
+          // Revert + message
+          setIncidents(snapshot)
+          toast({
+            title: 'Erreur',
+            description: json?.error ?? 'Mise à jour impossible',
+            variant: 'destructive',
+          })
+        }
+      } catch {
+        setIncidents(snapshot)
+        toast({ title: 'Erreur réseau', variant: 'destructive' })
+      }
+    },
+    [incidents, toast],
+  )
+
   // --- KPIs dérivés (mémoïsés par calcul direct, pas cher) ---
   const kpis = {
     urgences: incidents.filter(
@@ -979,23 +1036,35 @@ export default function CityDashboard() {
 
           {/* ====== VUE URGENCES ====== */}
           {activeNav === 'emergencies' && (
-            <EmergenciesView incidents={incidents} />
+            <EmergenciesView
+              incidents={incidents}
+              onUpdateStatus={handleUpdateIncident}
+            />
           )}
 
           {/* ====== VUE SIGNALEMENTS ====== */}
           {activeNav === 'reports' && (
-            <ReportsView incidents={incidents} />
+            <ReportsView
+              incidents={incidents}
+              onUpdateStatus={handleUpdateIncident}
+            />
           )}
 
           {/* ====== VUE ARTISANS VÉRIFIÉS ====== */}
           {activeNav === 'artisans' && (
-            <ArtisansView artisans={artisans} />
+            <ArtisansView artisans={artisans} onRefresh={handleRefresh} />
           )}
+
+          {/* ====== VUE TRANSPORTS ====== */}
+          {activeNav === 'transports' && <TransportView />}
 
           {/* ====== VUE MAIRIE DYNAMIQUE ====== */}
           {activeNav === 'mairie-dynamic' && (
             <MairieDynamicView />
           )}
+
+          {/* ====== VUE ÉQUIPES TERRAIN ====== */}
+          {activeNav === 'teams' && <TeamsView />}
 
           {/* ====== VUE REVENUS ====== */}
           {activeNav === 'revenue' && (
@@ -1004,7 +1073,14 @@ export default function CityDashboard() {
 
           {/* ====== VUE CARTE DES PLAQUES ====== */}
           {activeNav === 'plates-map' && (
-            <PlatesMapView plates={plates} incidents={incidents} />
+            <PlatesMapView
+              plates={plates}
+              incidents={incidents}
+              composedQrs={composedQrs}
+              cityLogoUrl={cityLogoUrl}
+              onRefresh={handleRefresh}
+              onNavigate={setActiveNav}
+            />
           )}
 
           {/* ====== VUE WALLBOARD TV ====== */}
@@ -1017,138 +1093,195 @@ export default function CityDashboard() {
             <AnnouncementsView />
           )}
 
-          {/* ====== VUE OVERVIEW (défaut) ====== */}
+          {/* ====== VUE OVERVIEW (défaut) — redesign moderne ====== */}
           {activeNav === 'overview' && (
             <>
-          {/* ---------- KPI GRID ---------- */}
-          <section className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-6">
-            <KpiCard
-              title="Urgences actives"
+          {/* ---------- HERO BANNER ---------- */}
+          <section className="mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-[#1A1A1A] via-[#2C2620] to-[#1A1A1A] p-5 text-[#FAFAF7] shadow-md sm:p-6">
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#C9A961]">
+                  Centre de Supervision Urbaine · Dakar
+                </p>
+                <h2
+                  className="mt-1 text-2xl font-bold leading-tight sm:text-3xl"
+                  style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
+                >
+                  Vue d&apos;ensemble
+                </h2>
+                <p className="mt-1 max-w-xl text-xs text-[#FAFAF7]/65">
+                  Supervision temps réel des plaques QR, alertes citoyennes,
+                  artisans vérifiés et annonces municipales.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2">
+                <span className="relative flex h-2.5 w-2.5">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#4A7C59] opacity-75" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#4A7C59]" />
+                </span>
+                <span className="text-xs font-medium text-[#FAFAF7]/80">
+                  Système actif
+                </span>
+                <span className="ml-2 text-[10px] text-[#FAFAF7]/40" suppressHydrationWarning>
+                  {clock}
+                </span>
+              </div>
+            </div>
+          </section>
+
+          {/* ---------- KPI GRID (cartes avec trends + bordure colorée) ---------- */}
+          <section className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-6">
+            <KpiCardEnhanced
+              title="Urgences"
               value={kpis.urgences}
               sub="Police notifiée"
               color={COLOR_RED}
               icon={AlertTriangle}
+              trend={kpis.urgences > 0 ? `+${kpis.urgences}` : '0'}
+              trendDirection={kpis.urgences > 0 ? 'up' : 'flat'}
               critical
             />
-            <KpiCard
+            <KpiCardEnhanced
               title="Signalements"
               value={kpis.signalements}
-              sub="En cours de traitement"
+              sub="En cours"
               color={COLOR_ORANGE}
               icon={Bell}
+              trend={kpis.signalements > 0 ? `+${kpis.signalements}` : '0'}
+              trendDirection={kpis.signalements > 0 ? 'up' : 'flat'}
               warning
             />
-            <KpiCard
+            <KpiCardEnhanced
               title="Orientations"
               value={kpis.orientations}
               sub="Aujourd'hui"
               color={COLOR_BLUE}
               icon={Radio}
+              trend={`${Math.max(0, kpis.orientations - 3)}`}
+              trendDirection="up"
             />
-            <KpiCard
+            <KpiCardEnhanced
               title="Artisans contactés"
               value={kpis.artisansContactes}
-              sub="Cumul via Aminata"
+              sub="Cumul Aminata"
               color={COLOR_GREEN}
               icon={Users}
+              trend="+8%"
+              trendDirection="up"
               success
             />
-            <KpiCard
+            <KpiCardEnhanced
               title="Satisfaction"
               value={`${kpis.satisfaction}/5`}
               sub="Évaluation citoyenne"
               color={COLOR_GOLD}
               icon={Star}
+              trend="+0.2"
+              trendDirection="up"
             />
-            <KpiCard
+            <KpiCardEnhanced
               title="Revenus artisans"
-              value="18.4M FCFA"
-              sub="Part mairie 5.5M"
-              color={COLOR_GREEN}
+              value="18,4M"
+              sub="Part mairie 5,5M"
+              color={COLOR_PURPLE}
               icon={TrendingUp}
+              trend="+12%"
+              trendDirection="up"
               success
             />
           </section>
 
-          {/* ---------- CONTENT GRID (2fr / 1fr) ---------- */}
-          <section className="grid grid-cols-1 gap-5 xl:grid-cols-[2fr_1fr]">
-            {/* === LEFT COLUMN === */}
+          {/* ---------- 3-COLUMN GRID (Timeline | Quick Actions | Map+Alerts) ---------- */}
+          <section className="grid grid-cols-1 gap-5 xl:grid-cols-3">
+            {/* === COL 1 : Activity Timeline + Heatmap === */}
             <div className="space-y-5">
-              {/* Carte des plaques */}
-              <Panel title="Carte des plaques QR" icon={MapPin} subtitle={`${plates.length} plaques installées`}>
-                <div className="relative h-[320px] overflow-hidden rounded-xl bg-gradient-to-br from-[#0a2a4a] via-[#1A1A1A] to-[#0a1f3a] sm:h-[360px]">
-                  {/* Grille de fond */}
-                  <div
-                    className="absolute inset-0 opacity-20"
-                    style={{
-                      backgroundImage:
-                        'linear-gradient(rgba(201,169,97,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(201,169,97,0.15) 1px, transparent 1px)',
-                      backgroundSize: '40px 40px',
-                    }}
-                    aria-hidden
-                  />
-
-                  {/* Pins plaques (positions simulées sur le Dakar métropolitain) */}
-                  <div className="absolute inset-0">
-                    {plates.slice(0, 12).map((p, i) => {
-                      const isEmergency =
-                        incidents.some(
-                          (inc) =>
-                            inc.plateId === p.id && inc.type === 'emergency',
-                        )
-                      const color = isEmergency
-                        ? COLOR_RED
-                        : p.status === 'maintenance'
-                          ? COLOR_ORANGE
-                          : p.status === 'offline'
-                            ? '#666'
-                            : COLOR_GOLD
-                      // Distribue les pins dans un cadre décentré
-                      const left = 15 + (i % 6) * 13 + ((i % 3) * 2)
-                      const top = 20 + Math.floor(i / 6) * 35
-                      return (
-                        <div
-                          key={p.id}
-                          className="absolute flex flex-col items-center"
-                          style={{ left: `${left}%`, top: `${top}%` }}
-                          title={`${p.plateNumber} · ${p.label}`}
-                        >
-                          <div
-                            className={cn(
-                              'flex h-6 w-6 items-center justify-center rounded-full border-2 text-[9px] font-bold text-white shadow-lg',
-                              isEmergency && 'animate-pulse',
-                            )}
-                            style={{
-                              backgroundColor: color,
-                              borderColor: 'rgba(255,255,255,0.4)',
-                            }}
-                          >
-                            <MapPin className="h-3 w-3" />
-                          </div>
-                          <span className="mt-0.5 hidden rounded bg-black/60 px-1 text-[8px] text-white sm:block">
-                            {p.plateNumber}
-                          </span>
-                        </div>
-                      )
-                    })}
+              {/* Activity Timeline */}
+              <section className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white shadow-sm">
+                <div className="flex items-center justify-between border-b border-[#EAE5DC] px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <Activity className="h-4 w-4 text-[#C9A961]" />
+                    <h3
+                      className="text-sm font-bold text-[#1A1A1A]"
+                      style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
+                    >
+                      Fil d&apos;activité
+                    </h3>
                   </div>
-
-                  {/* Légende */}
-                  <div className="absolute bottom-3 left-3 right-3 flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg bg-black/60 px-3 py-2 backdrop-blur">
-                    <LegendDot color={COLOR_GOLD} label={`Actives (${platesActive})`} />
-                    <LegendDot color={COLOR_ORANGE} label={`Maintenance (${platesMaintenance})`} />
-                    <LegendDot color={COLOR_RED} label={`Urgences (${platesUrgence})`} />
-                    <LegendDot color="#666" label={`Hors ligne (${platesOffline})`} />
-                  </div>
-
-                  {/* Badge nombre */}
-                  <div className="absolute right-3 top-3 rounded-lg bg-[#C9A961] px-3 py-1.5 text-xs font-bold text-[#1A1A1A]">
-                    {plates.length} plaques
-                  </div>
+                  <span className="text-[10px] font-medium text-[#1A1A1A]/50">
+                    {recentAlerts.length} récents
+                  </span>
                 </div>
-              </Panel>
+                <div className="max-h-[400px] overflow-y-auto px-4 py-3">
+                  {recentAlerts.length === 0 ? (
+                    <div className="py-8 text-center">
+                      <Activity className="mx-auto mb-2 h-7 w-7 text-[#1A1A1A]/15" />
+                      <p className="text-xs text-[#1A1A1A]/45">
+                        Aucune activité récente.
+                      </p>
+                    </div>
+                  ) : (
+                    <ol className="relative space-y-3">
+                      {/* Ligne verticale */}
+                      <span
+                        className="absolute left-3 top-2 bottom-2 w-px bg-gradient-to-b from-[#C9A961]/30 via-[#EAE5DC] to-transparent"
+                        aria-hidden
+                      />
+                      {recentAlerts.slice(0, 8).map((inc) => {
+                        const color =
+                          inc.type === 'emergency'
+                            ? COLOR_RED
+                            : inc.type === 'report'
+                              ? COLOR_ORANGE
+                              : inc.type === 'orientation'
+                                ? COLOR_BLUE
+                                : COLOR_PURPLE
+                        return (
+                          <li key={inc.id} className="relative flex gap-3">
+                            <span
+                              className="relative z-10 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-white text-[10px] shadow-sm"
+                              style={{ backgroundColor: color }}
+                              aria-hidden
+                            >
+                              <span className="text-[10px]">
+                                {incidentEmoji(inc.type, inc.category)}
+                              </span>
+                            </span>
+                            <div className="min-w-0 flex-1 pb-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <p
+                                  className="truncate text-xs font-semibold"
+                                  style={{ color }}
+                                >
+                                  {inc.category ?? incidentTypeLabel(inc.type)}
+                                </p>
+                                <span className="shrink-0 text-[10px] text-[#1A1A1A]/45">
+                                  {timeAgo(inc.createdAt)}
+                                </span>
+                              </div>
+                              <p className="line-clamp-2 text-[11px] leading-snug text-[#1A1A1A]/70">
+                                {inc.description ??
+                                  (inc.plate
+                                    ? inc.plate.plateNumber
+                                    : incidentTypeLabel(inc.type))}
+                              </p>
+                              <div className="mt-0.5 flex items-center gap-1 text-[10px] text-[#1A1A1A]/50">
+                                <MapPin className="h-2.5 w-2.5" />
+                                <span className="truncate">
+                                  {inc.plate
+                                    ? `${inc.plate.plateNumber}${inc.plate.district ? ` · ${inc.plate.district}` : ''}`
+                                    : 'GPS citoyen'}
+                                </span>
+                              </div>
+                            </div>
+                          </li>
+                        )
+                      })}
+                    </ol>
+                  )}
+                </div>
+              </section>
 
-              {/* Heatmap par quartier */}
+              {/* Heatmap par quartier (compact) */}
               <Panel
                 title="Densité d'activité par quartier"
                 icon={Activity}
@@ -1186,22 +1319,86 @@ export default function CityDashboard() {
               </Panel>
             </div>
 
-            {/* === RIGHT COLUMN === */}
+            {/* === COL 2 : Quick Actions + Alertes en direct === */}
             <div className="space-y-5">
-              {/* Alertes récentes */}
+              {/* Quick Actions */}
+              <section className="overflow-hidden rounded-2xl border border-[#C9A961]/30 bg-gradient-to-br from-white to-[#C9A961]/5 shadow-sm">
+                <div className="flex items-center gap-2 border-b border-[#EAE5DC] px-4 py-3">
+                  <Plus className="h-4 w-4 text-[#C9A961]" />
+                  <h3
+                    className="text-sm font-bold text-[#1A1A1A]"
+                    style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
+                  >
+                    Actions rapides
+                  </h3>
+                </div>
+                <div className="grid grid-cols-2 gap-2.5 p-4">
+                  <QuickAction
+                    label="Ajouter plaque"
+                    icon={QrCode}
+                    color={COLOR_GOLD}
+                    onClick={() => setActiveNav('plates-mgmt')}
+                  />
+                  <QuickAction
+                    label="Voir urgences"
+                    icon={AlertTriangle}
+                    color={COLOR_RED}
+                    badge={kpis.urgences}
+                    onClick={() => setActiveNav('emergencies')}
+                  />
+                  <QuickAction
+                    label="Créer annonce"
+                    icon={Megaphone}
+                    color={COLOR_PURPLE}
+                    onClick={() => setActiveNav('announcements')}
+                  />
+                  <QuickAction
+                    label="Nouvel artisan"
+                    icon={Wrench}
+                    color={COLOR_GREEN}
+                    onClick={() => setActiveNav('artisans')}
+                  />
+                  <QuickAction
+                    label="Carte plaques"
+                    icon={MapPin}
+                    color={COLOR_BLUE}
+                    onClick={() => setActiveNav('plates-map')}
+                  />
+                  <QuickAction
+                    label="Mairie dynamique"
+                    icon={Landmark}
+                    color={COLOR_ANTHRACITE}
+                    onClick={() => setActiveNav('mairie-dynamic')}
+                  />
+                  <QuickAction
+                    label="Équipes terrain"
+                    icon={Users2}
+                    color={COLOR_GREEN}
+                    onClick={() => setActiveNav('teams')}
+                  />
+                  <QuickAction
+                    label="Transports"
+                    icon={Bus}
+                    color={COLOR_BLUE}
+                    onClick={() => setActiveNav('transports')}
+                  />
+                </div>
+              </section>
+
+              {/* Alertes en direct */}
               <Panel
                 title="Alertes en direct"
                 icon={Bell}
                 subtitle={`${recentAlerts.length} récentes`}
                 accent={kpis.urgences > 0 ? COLOR_RED : undefined}
               >
-                <div className="space-y-2">
+                <div className="max-h-72 space-y-2 overflow-y-auto px-1">
                   {recentAlerts.length === 0 && (
                     <p className="px-1 py-4 text-center text-xs text-[#1A1A1A]/50">
                       Aucune alerte. La ville est calme.
                     </p>
                   )}
-                  {recentAlerts.map((inc) => {
+                  {recentAlerts.slice(0, 5).map((inc) => {
                     const isEmergency = inc.type === 'emergency'
                     const borderColor = isEmergency
                       ? COLOR_RED
@@ -1212,7 +1409,7 @@ export default function CityDashboard() {
                           : COLOR_PURPLE
                     const plateLabel = inc.plate
                       ? `${inc.plate.plateNumber} · ${inc.plate.label}`
-                      : 'Position GPS citoyen'
+                      : 'GPS citoyen'
                     return (
                       <div
                         key={inc.id}
@@ -1250,11 +1447,11 @@ export default function CityDashboard() {
                             </Badge>
                           )}
                         </div>
-                        {/* Actions */}
                         <div className="mt-2 flex items-center gap-1.5">
                           <Button
                             variant="outline"
                             size="sm"
+                            onClick={() => setActiveNav(inc.type === 'emergency' ? 'emergencies' : 'reports')}
                             className="h-6 border-[#EAE5DC] px-2 text-[10px] text-[#1A1A1A] hover:border-[#C9A961] hover:bg-[#FAFAF7]"
                           >
                             Traiter
@@ -1262,6 +1459,7 @@ export default function CityDashboard() {
                           <Button
                             variant="ghost"
                             size="sm"
+                            onClick={() => setActiveNav('reports')}
                             className="h-6 px-2 text-[10px] text-[#1A1A1A]/60 hover:bg-[#F2EEE5] hover:text-[#1A1A1A]"
                           >
                             Détails
@@ -1270,6 +1468,75 @@ export default function CityDashboard() {
                       </div>
                     )
                   })}
+                </div>
+              </Panel>
+            </div>
+
+            {/* === COL 3 : Carte + Revenus + Aminata === */}
+            <div className="space-y-5">
+              {/* Carte des plaques (compacte) */}
+              <Panel title="Carte des plaques QR" icon={MapPin} subtitle={`${plates.length} installées`}>
+                <div className="relative h-[260px] overflow-hidden rounded-xl bg-gradient-to-br from-[#0a2a4a] via-[#1A1A1A] to-[#0a1f3a]">
+                  <div
+                    className="absolute inset-0 opacity-20"
+                    style={{
+                      backgroundImage:
+                        'linear-gradient(rgba(201,169,97,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(201,169,97,0.15) 1px, transparent 1px)',
+                      backgroundSize: '40px 40px',
+                    }}
+                    aria-hidden
+                  />
+                  <div className="absolute inset-0">
+                    {plates.slice(0, 12).map((p, i) => {
+                      const isEmergency =
+                        incidents.some(
+                          (inc) =>
+                            inc.plateId === p.id && inc.type === 'emergency',
+                        )
+                      const color = isEmergency
+                        ? COLOR_RED
+                        : p.status === 'maintenance'
+                          ? COLOR_ORANGE
+                          : p.status === 'offline'
+                            ? '#666'
+                            : COLOR_GOLD
+                      const left = 15 + (i % 6) * 13 + ((i % 3) * 2)
+                      const top = 20 + Math.floor(i / 6) * 35
+                      return (
+                        <div
+                          key={p.id}
+                          className="absolute flex flex-col items-center"
+                          style={{ left: `${left}%`, top: `${top}%` }}
+                          title={`${p.plateNumber} · ${p.label}`}
+                        >
+                          <div
+                            className={cn(
+                              'flex h-5 w-5 items-center justify-center rounded-full border-2 text-[8px] font-bold text-white shadow-lg',
+                              isEmergency && 'animate-pulse',
+                            )}
+                            style={{
+                              backgroundColor: color,
+                              borderColor: 'rgba(255,255,255,0.4)',
+                            }}
+                          >
+                            <MapPin className="h-2.5 w-2.5" />
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div className="absolute bottom-2 left-2 right-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-black/60 px-2 py-1.5 backdrop-blur">
+                    <LegendDot color={COLOR_GOLD} label={`Actives (${platesActive})`} />
+                    <LegendDot color={COLOR_RED} label={`Urgences (${platesUrgence})`} />
+                    <LegendDot color="#666" label={`Hors ligne (${platesOffline})`} />
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setActiveNav('plates-map')}
+                    className="absolute right-2 top-2 rounded-lg bg-[#C9A961] px-2.5 py-1 text-[10px] font-bold text-[#1A1A1A] transition hover:bg-[#B8964F]"
+                  >
+                    Voir carte →
+                  </button>
                 </div>
               </Panel>
 
@@ -1317,6 +1584,14 @@ export default function CityDashboard() {
                     value="68%"
                   />
                 </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setActiveNav('revenue')}
+                  className="mt-3 w-full justify-center border-[#C9A961]/40 bg-transparent text-[#C9A961] hover:bg-[#C9A961]/10 hover:text-[#C9A961]"
+                >
+                  Détails revenus →
+                </Button>
               </div>
 
               {/* Aminata — assistant vocal citoyen (dark) */}
@@ -1355,6 +1630,7 @@ export default function CityDashboard() {
                 <Button
                   variant="outline"
                   size="sm"
+                  onClick={() => setActiveNav('announcements')}
                   className="mt-3 w-full justify-center border-[#C9A961]/40 bg-transparent text-[#C9A961] hover:bg-[#C9A961]/10 hover:text-[#C9A961]"
                 >
                   <Radio className="h-3.5 w-3.5" />
@@ -1466,6 +1742,164 @@ function KpiCard({
         )}
       </div>
     </div>
+  )
+}
+
+// ---------------------------------------------------------------
+// KpiCardEnhanced — variante avec indicateur de trend + halo coloré
+// ---------------------------------------------------------------
+
+type KpiCardEnhancedProps = {
+  title: string
+  value: string | number
+  sub?: string
+  color: string
+  icon: typeof Activity
+  trend?: string
+  trendDirection?: 'up' | 'down' | 'flat'
+  critical?: boolean
+  warning?: boolean
+  success?: boolean
+}
+
+function KpiCardEnhanced({
+  title,
+  value,
+  sub,
+  color,
+  icon: Icon,
+  trend,
+  trendDirection = 'flat',
+  critical,
+  warning,
+  success,
+}: KpiCardEnhancedProps) {
+  const trendColor =
+    trendDirection === 'up'
+      ? COLOR_GREEN
+      : trendDirection === 'down'
+        ? COLOR_RED
+        : COLOR_ANTHRACITE
+  const TrendIcon =
+    trendDirection === 'up' ? TrendingUp : trendDirection === 'down' ? Activity : Activity
+  return (
+    <div
+      className="relative overflow-hidden rounded-2xl bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
+      style={{ borderTop: `3px solid ${color}` }}
+    >
+      {/* Halo coloré discret en bas à droite */}
+      <div
+        className="pointer-events-none absolute -bottom-6 -right-6 h-20 w-20 rounded-full opacity-10"
+        style={{ backgroundColor: color }}
+        aria-hidden
+      />
+      <div className="relative px-4 py-3 sm:px-4 sm:py-4">
+        <div className="mb-2 flex items-start justify-between">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-[#1A1A1A]/55">
+            {title}
+          </p>
+          <div
+            className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
+            style={{ backgroundColor: `${color}15`, color }}
+          >
+            <Icon className="h-4 w-4" />
+          </div>
+        </div>
+        <p
+          className="text-2xl font-bold tabular-nums leading-none text-[#1A1A1A]"
+          style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
+        >
+          {value}
+        </p>
+        {sub && (
+          <p className="mt-1 truncate text-[10px] text-[#1A1A1A]/50">{sub}</p>
+        )}
+        <div className="mt-2 flex items-center justify-between gap-2">
+          {trend && (
+            <span
+              className="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-bold tabular-nums"
+              style={{
+                backgroundColor: `${trendColor}12`,
+                color: trendColor,
+              }}
+            >
+              <TrendIcon className="h-2.5 w-2.5" />
+              {trend}
+            </span>
+          )}
+          {critical && (
+            <span
+              className="ml-auto inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white"
+              style={{ backgroundColor: COLOR_RED }}
+            >
+              <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />
+              Critique
+            </span>
+          )}
+          {warning && !critical && (
+            <span
+              className="ml-auto inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white"
+              style={{ backgroundColor: COLOR_ORANGE }}
+            >
+              À traiter
+            </span>
+          )}
+          {success && !critical && !warning && (
+            <span
+              className="ml-auto inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-white"
+              style={{ backgroundColor: COLOR_GREEN }}
+            >
+              ✓ OK
+            </span>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------
+// QuickAction — bouton d'action rapide (grille overview)
+// ---------------------------------------------------------------
+
+type QuickActionProps = {
+  label: string
+  icon: typeof Activity
+  color: string
+  badge?: number
+  onClick?: () => void
+}
+
+function QuickAction({ label, icon: Icon, color, badge, onClick }: QuickActionProps) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group relative flex flex-col items-start gap-2 rounded-xl border border-[#EAE5DC] bg-white p-3 text-left transition-all hover:-translate-y-0.5 hover:border-[#C9A961]/40 hover:shadow-md"
+    >
+      <div className="flex w-full items-center justify-between">
+        <span
+          className="flex h-8 w-8 items-center justify-center rounded-lg transition"
+          style={{ backgroundColor: `${color}15`, color }}
+        >
+          <Icon className="h-4 w-4" />
+        </span>
+        {badge != null && badge > 0 && (
+          <span
+            className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold text-white"
+            style={{ backgroundColor: color }}
+          >
+            {badge}
+          </span>
+        )}
+      </div>
+      <span className="text-xs font-semibold leading-tight text-[#1A1A1A]">
+        {label}
+      </span>
+      <span className="text-[10px] text-[#1A1A1A]/40 transition group-hover:text-[#C9A961]">
+        Ouvrir →
+      </span>
+    </button>
   )
 }
 
@@ -1989,16 +2423,76 @@ function serviceInfo(assignedTo: string | null): { label: string; emoji: string 
 // ---------------------------------------------------------------
 // IncidentCard — carte partagée (urgences + signalements)
 // ---------------------------------------------------------------
+// Props :
+//   - inc        : l'incident à afficher
+//   - accent     : couleur de bordure haute (rouge pour urgence, orange pour
+//                  signalement, etc.)
+//   - onUpdateStatus? : callback optionnel pour changer le statut. Si fourni,
+//                  des boutons d'action apparaissent selon le statut courant :
+//                     pending     → « Pris en charge » (in_progress)
+//                     in_progress → « Résolu » (resolved)
+//                     assigned    → « Résolu » (resolved)
+//                     resolved    → badge vert « Résolu » (pas de bouton)
+// ---------------------------------------------------------------
 
-function IncidentCard({ inc, accent }: { inc: CityIncident; accent: string }) {
+type IncidentCardProps = {
+  inc: CityIncident
+  accent: string
+  onUpdateStatus?: (id: string, newStatus: 'in_progress' | 'resolved') => void
+}
+
+function IncidentCard({ inc, accent, onUpdateStatus }: IncidentCardProps) {
+  const { toast } = useToast()
+  const [pending, setPending] = useState(false)
   const status = incidentStatusInfo(inc.status)
   const service = serviceInfo(inc.assignedTo)
   const plateLabel = inc.plate
     ? `${inc.plate.plateNumber}${inc.plate.district ? ` · ${inc.plate.district}` : ''}`
     : 'GPS citoyen'
+
+  const handleChange = (newStatus: 'in_progress' | 'resolved') => {
+    if (pending) return
+    setPending(true)
+    try {
+      if (onUpdateStatus) {
+        onUpdateStatus(inc.id, newStatus)
+      } else {
+        // Sans callback parent : on appelle directement l'API
+        fetch(`/api/city/incidents/${inc.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: newStatus }),
+        })
+          .then((r) => r.json())
+          .then((json) => {
+            if (json?.ok) {
+              toast({
+                title:
+                  newStatus === 'resolved'
+                    ? 'Incident résolu'
+                    : 'Incident pris en charge',
+              })
+            } else {
+              toast({
+                title: 'Erreur',
+                description: json?.error ?? 'Mise à jour impossible',
+                variant: 'destructive',
+              })
+            }
+          })
+          .catch(() =>
+            toast({ title: 'Erreur réseau', variant: 'destructive' }),
+          )
+      }
+    } finally {
+      // Petit délai pour laisser l'UI réagir (optimistic update du parent)
+      setTimeout(() => setPending(false), 400)
+    }
+  }
+
   return (
     <article
-      className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white shadow-sm"
+      className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white shadow-sm transition-shadow hover:shadow-md"
       style={{ borderTop: `3px solid ${accent}` }}
     >
       <div className="p-4">
@@ -2039,6 +2533,65 @@ function IncidentCard({ inc, accent }: { inc: CityIncident; accent: string }) {
             <span className="font-medium text-[#1A1A1A]">{timeAgo(inc.createdAt)}</span>
           </div>
         </div>
+
+        {/* ---- Boutons d'action selon le statut ---- */}
+        {onUpdateStatus && inc.status !== 'resolved' && (
+          <div className="mt-3 flex items-center gap-2 border-t border-[#EAE5DC] pt-3">
+            {(inc.status === 'pending') && (
+              <Button
+                size="sm"
+                onClick={() => handleChange('in_progress')}
+                disabled={pending}
+                className="gap-1.5 rounded-lg bg-[#0066CC] text-white hover:bg-[#0055a8]"
+              >
+                {pending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Check className="h-3.5 w-3.5" />
+                )}
+                Pris en charge
+              </Button>
+            )}
+            {(inc.status === 'in_progress' || inc.status === 'assigned') && (
+              <Button
+                size="sm"
+                onClick={() => handleChange('resolved')}
+                disabled={pending}
+                className="gap-1.5 rounded-lg bg-[#4A7C59] text-white hover:bg-[#3D6B4D]"
+              >
+                {pending ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Check className="h-3.5 w-3.5" />
+                )}
+                Résolu
+              </Button>
+            )}
+            <span className="ml-auto text-[10px] text-[#1A1A1A]/40">
+              ID {inc.id.slice(-6)}
+            </span>
+          </div>
+        )}
+
+        {/* Badge "Résolu" vert si déjà résolu */}
+        {onUpdateStatus && inc.status === 'resolved' && (
+          <div className="mt-3 flex items-center justify-between border-t border-[#EAE5DC] pt-3">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#4A7C59]/12 px-3 py-1 text-[11px] font-bold text-[#4A7C59]">
+              <Check className="h-3.5 w-3.5" />
+              Résolu
+              {inc.resolvedAt && (
+                <span className="font-normal text-[#4A7C59]/70">
+                  · {timeAgo(inc.resolvedAt)}
+                </span>
+              )}
+            </span>
+            {inc.staffName && (
+              <span className="text-[10px] text-[#1A1A1A]/50">
+                Par {inc.staffName}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </article>
   )
@@ -2048,7 +2601,13 @@ function IncidentCard({ inc, accent }: { inc: CityIncident; accent: string }) {
 // EmergenciesView — Urgences citoyennes filtrables
 // ---------------------------------------------------------------
 
-function EmergenciesView({ incidents }: { incidents: CityIncident[] }) {
+function EmergenciesView({
+  incidents,
+  onUpdateStatus,
+}: {
+  incidents: CityIncident[]
+  onUpdateStatus?: (id: string, newStatus: 'in_progress' | 'resolved') => void
+}) {
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
 
@@ -2148,7 +2707,12 @@ function EmergenciesView({ incidents }: { incidents: CityIncident[] }) {
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
           {filtered.map((inc) => (
-            <IncidentCard key={inc.id} inc={inc} accent={COLOR_RED} />
+            <IncidentCard
+              key={inc.id}
+              inc={inc}
+              accent={COLOR_RED}
+              onUpdateStatus={onUpdateStatus}
+            />
           ))}
         </div>
       )}
@@ -2160,7 +2724,13 @@ function EmergenciesView({ incidents }: { incidents: CityIncident[] }) {
 // ReportsView — Signalements groupés par statut
 // ---------------------------------------------------------------
 
-function ReportsView({ incidents }: { incidents: CityIncident[] }) {
+function ReportsView({
+  incidents,
+  onUpdateStatus,
+}: {
+  incidents: CityIncident[]
+  onUpdateStatus?: (id: string, newStatus: 'in_progress' | 'resolved') => void
+}) {
   const [search, setSearch] = useState('')
 
   const reports = useMemo(
@@ -2240,9 +2810,27 @@ function ReportsView({ incidents }: { incidents: CityIncident[] }) {
         </div>
       ) : (
         <>
-          <ReportGroup title="En attente" icon="⏳" color={COLOR_ORANGE} items={groups.pending} />
-          <ReportGroup title="En cours" icon="🔄" color={COLOR_BLUE} items={groups.inProgress} />
-          <ReportGroup title="Résolus" icon="✓" color={COLOR_GREEN} items={groups.resolved} />
+          <ReportGroup
+            title="En attente"
+            icon="⏳"
+            color={COLOR_ORANGE}
+            items={groups.pending}
+            onUpdateStatus={onUpdateStatus}
+          />
+          <ReportGroup
+            title="En cours"
+            icon="🔄"
+            color={COLOR_BLUE}
+            items={groups.inProgress}
+            onUpdateStatus={onUpdateStatus}
+          />
+          <ReportGroup
+            title="Résolus"
+            icon="✓"
+            color={COLOR_GREEN}
+            items={groups.resolved}
+            onUpdateStatus={onUpdateStatus}
+          />
         </>
       )}
     </div>
@@ -2254,11 +2842,13 @@ function ReportGroup({
   icon,
   color,
   items,
+  onUpdateStatus,
 }: {
   title: string
   icon: string
   color: string
   items: CityIncident[]
+  onUpdateStatus?: (id: string, newStatus: 'in_progress' | 'resolved') => void
 }) {
   if (items.length === 0) return null
   return (
@@ -2287,7 +2877,12 @@ function ReportGroup({
       </div>
       <div className="grid grid-cols-1 gap-4 p-4 md:grid-cols-2 xl:grid-cols-3">
         {items.map((inc) => (
-          <IncidentCard key={inc.id} inc={inc} accent={color} />
+          <IncidentCard
+            key={inc.id}
+            inc={inc}
+            accent={color}
+            onUpdateStatus={onUpdateStatus}
+          />
         ))}
       </div>
     </section>
@@ -2295,15 +2890,48 @@ function ReportGroup({
 }
 
 // ---------------------------------------------------------------
-// ArtisansView — Table des artisans vérifiés
+// ArtisansView — Table des artisans vérifiés + bouton "Ajouter"
 // ---------------------------------------------------------------
 
-function ArtisansView({ artisans }: { artisans: CityArtisan[] }) {
+function ArtisansView({
+  artisans,
+  onRefresh,
+}: {
+  artisans: CityArtisan[]
+  onRefresh?: () => Promise<void>
+}) {
+  const { toast } = useToast()
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'all' | 'verified' | 'premium'>('all')
 
+  // --- Formulaire d'ajout d'artisan ---
+  const [showForm, setShowForm] = useState(false)
+  const [creating, setCreating] = useState(false)
+  const [form, setForm] = useState({
+    name: '',
+    trade: '',
+    phone: '',
+    district: '',
+    lat: '',
+    lng: '',
+    verified: false,
+    premium: false,
+  })
+
+  // --- Artisans ajoutés localement (en attente de validation) ---
+  // Comme l'API renvoie seulement les artisans verified=true, on garde
+  // localement ceux que le directeur vient d'ajouter pour qu'ils restent
+  // visibles à l'écran après l'optimistic add.
+  const [localAdded, setLocalAdded] = useState<CityArtisan[]>([])
+
+  // Combine les artisans serveur + ajoutés localement
+  const allArtisans = useMemo(
+    () => [...localAdded, ...artisans],
+    [artisans, localAdded],
+  )
+
   const filtered = useMemo(() => {
-    return artisans.filter((a) => {
+    return allArtisans.filter((a) => {
       if (filter === 'verified' && !a.verified) return false
       if (filter === 'premium' && !a.premium) return false
       if (search.trim()) {
@@ -2313,19 +2941,122 @@ function ArtisansView({ artisans }: { artisans: CityArtisan[] }) {
       }
       return true
     })
-  }, [artisans, search, filter])
+  }, [allArtisans, search, filter])
 
   const stats = useMemo(
     () => ({
-      total: artisans.length,
-      verified: artisans.filter((a) => a.verified).length,
-      premium: artisans.filter((a) => a.premium).length,
-      contacts: artisans.reduce((s, a) => s + a.contactCount, 0),
+      total: allArtisans.length,
+      verified: allArtisans.filter((a) => a.verified).length,
+      premium: allArtisans.filter((a) => a.premium).length,
+      contacts: allArtisans.reduce((s, a) => s + a.contactCount, 0),
     }),
-    [artisans],
+    [allArtisans],
   )
 
   const SERIF = { fontFamily: 'Georgia, "Playfair Display", serif' } as const
+
+  // --- Soumission du formulaire ---
+  const handleSubmit = async () => {
+    if (form.name.trim().length < 2) {
+      toast({ title: 'Nom requis', description: 'Minimum 2 caractères.', variant: 'destructive' })
+      return
+    }
+    if (form.trade.trim().length < 2) {
+      toast({ title: 'Métier requis', description: 'Minimum 2 caractères.', variant: 'destructive' })
+      return
+    }
+    const phoneClean = form.phone.replace(/[\s.-]/g, '')
+    if (!/^\+?\d{8,15}$/.test(phoneClean)) {
+      toast({
+        title: 'Téléphone invalide',
+        description: 'Format attendu : +221 77 000 00 00',
+        variant: 'destructive',
+      })
+      return
+    }
+
+    setCreating(true)
+    try {
+      const body: Record<string, unknown> = {
+        name: form.name.trim(),
+        trade: form.trade.trim(),
+        phone: phoneClean,
+        district: form.district.trim() || undefined,
+      }
+      if (form.lat && form.lng) {
+        const la = parseFloat(form.lat)
+        const ln = parseFloat(form.lng)
+        if (!isNaN(la) && !isNaN(ln)) {
+          body.lat = la
+          body.lng = ln
+        }
+      }
+      // Les champs verified / premium sont envoyés (l'API peut les ignorer,
+      // on gère l'affichage localement via localAdded)
+      body.verified = form.verified
+      body.premium = form.premium
+
+      const res = await fetch('/api/city/artisans', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const json = await res.json()
+      if (json?.ok) {
+        const created = json.data?.artisan
+        // Si l'API renvoie l'artisan, on l'ajoute localement avec les
+        // flags verified/premium que l'admin a choisis (l'API les force à
+        // false, mais le directeur a la main dans ce back-office).
+        if (created) {
+          const displayArtisan: CityArtisan = {
+            id: created.id,
+            name: created.name,
+            trade: created.trade,
+            phone: created.phone,
+            district: created.district,
+            address: created.address,
+            lat: created.lat,
+            lng: created.lng,
+            verified: form.verified, // Surcharge avec le choix admin
+            premium: form.premium,
+            rating: created.rating ?? 5,
+            reviewCount: created.reviewCount ?? 0,
+            contactCount: created.contactCount ?? 0,
+            active: created.active ?? true,
+          }
+          setLocalAdded((prev) => [displayArtisan, ...prev])
+        }
+        toast({
+          title: 'Artisan ajouté',
+          description: `${form.name.trim()} (${form.trade.trim()}) a été enregistré.`,
+        })
+        // Reset form
+        setForm({
+          name: '',
+          trade: '',
+          phone: '',
+          district: '',
+          lat: '',
+          lng: '',
+          verified: false,
+          premium: false,
+        })
+        setShowForm(false)
+        // Recharge aussi côté serveur (les artisans verified restent visibles)
+        if (onRefresh) await onRefresh()
+      } else {
+        toast({
+          title: 'Erreur',
+          description: json?.error ?? 'Ajout impossible',
+          variant: 'destructive',
+        })
+      }
+    } catch {
+      toast({ title: 'Erreur réseau', variant: 'destructive' })
+    } finally {
+      setCreating(false)
+    }
+  }
 
   return (
     <div className="space-y-5">
@@ -2338,10 +3069,155 @@ function ArtisansView({ artisans }: { artisans: CityArtisan[] }) {
             {stats.verified} vérifiés · {stats.premium} premium · {stats.contacts} contacts cumulés
           </p>
         </div>
-        <Badge className="bg-[#4A7C59]/12 text-[#4A7C59]">
-          <Wrench className="mr-1 h-3 w-3" /> {artisans.length} artisans
-        </Badge>
+        <div className="flex items-center gap-2">
+          <Badge className="bg-[#4A7C59]/12 text-[#4A7C59]">
+            <Wrench className="mr-1 h-3 w-3" /> {allArtisans.length} artisans
+          </Badge>
+          <Button
+            size="sm"
+            onClick={() => setShowForm((v) => !v)}
+            className="gap-1.5 rounded-lg bg-[#4A7C59] text-white hover:bg-[#3D6B4D]"
+          >
+            {showForm ? (
+              <>
+                <X className="h-4 w-4" /> Annuler
+              </>
+            ) : (
+              <>
+                <Plus className="h-4 w-4" /> Ajouter un artisan
+              </>
+            )}
+          </Button>
+        </div>
       </div>
+
+      {/* Formulaire d'ajout */}
+      {showForm && (
+        <div className="rounded-2xl border-2 border-[#4A7C59]/20 bg-white p-5 shadow-sm">
+          <h3 className="mb-4 text-sm font-bold text-[#1A1A1A]">
+            Ajouter un artisan
+          </h3>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {/* Nom */}
+            <div>
+              <label className="text-xs font-semibold text-[#1A1A1A]/60">Nom complet *</label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="Ex : Mamadou Sow"
+                maxLength={80}
+                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#4A7C59] focus:outline-none focus:ring-2 focus:ring-[#4A7C59]/15"
+              />
+            </div>
+            {/* Métier */}
+            <div>
+              <label className="text-xs font-semibold text-[#1A1A1A]/60">Métier *</label>
+              <input
+                type="text"
+                value={form.trade}
+                onChange={(e) => setForm((f) => ({ ...f, trade: e.target.value }))}
+                placeholder="Ex : Plombier"
+                maxLength={60}
+                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#4A7C59] focus:outline-none focus:ring-2 focus:ring-[#4A7C59]/15"
+              />
+            </div>
+            {/* Téléphone */}
+            <div>
+              <label className="text-xs font-semibold text-[#1A1A1A]/60">Téléphone *</label>
+              <input
+                type="tel"
+                value={form.phone}
+                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                placeholder="+221 77 000 00 00"
+                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#4A7C59] focus:outline-none focus:ring-2 focus:ring-[#4A7C59]/15"
+              />
+            </div>
+            {/* Quartier */}
+            <div>
+              <label className="text-xs font-semibold text-[#1A1A1A]/60">Quartier</label>
+              <input
+                type="text"
+                value={form.district}
+                onChange={(e) => setForm((f) => ({ ...f, district: e.target.value }))}
+                placeholder="Ex : Plateau"
+                maxLength={60}
+                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#4A7C59] focus:outline-none focus:ring-2 focus:ring-[#4A7C59]/15"
+              />
+            </div>
+            {/* GPS */}
+            <div className="sm:col-span-2">
+              <label className="text-xs font-semibold text-[#1A1A1A]/60">
+                Coordonnées GPS (optionnel)
+              </label>
+              <div className="mt-1 flex gap-2">
+                <input
+                  type="text"
+                  value={form.lat}
+                  onChange={(e) => setForm((f) => ({ ...f, lat: e.target.value }))}
+                  placeholder="Latitude (14.69)"
+                  className="flex-1 rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#4A7C59] focus:outline-none focus:ring-2 focus:ring-[#4A7C59]/15"
+                />
+                <input
+                  type="text"
+                  value={form.lng}
+                  onChange={(e) => setForm((f) => ({ ...f, lng: e.target.value }))}
+                  placeholder="Longitude (-17.44)"
+                  className="flex-1 rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#4A7C59] focus:outline-none focus:ring-2 focus:ring-[#4A7C59]/15"
+                />
+              </div>
+            </div>
+            {/* Checkboxes */}
+            <div className="flex flex-wrap items-center gap-4 sm:col-span-2">
+              <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-[#1A1A1A]">
+                <input
+                  type="checkbox"
+                  checked={form.verified}
+                  onChange={(e) => setForm((f) => ({ ...f, verified: e.target.checked }))}
+                  className="h-4 w-4 rounded border-[#EAE5DC] accent-[#0066CC]"
+                />
+                <Check className="h-3.5 w-3.5 text-[#0066CC]" />
+                Vérifié
+              </label>
+              <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-[#1A1A1A]">
+                <input
+                  type="checkbox"
+                  checked={form.premium}
+                  onChange={(e) => setForm((f) => ({ ...f, premium: e.target.checked }))}
+                  className="h-4 w-4 rounded border-[#EAE5DC] accent-[#C9A961]"
+                />
+                <Star className="h-3.5 w-3.5 fill-[#C9A961] text-[#C9A961]" />
+                Premium
+              </label>
+            </div>
+          </div>
+
+          {/* Boutons */}
+          <div className="mt-5 flex justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowForm(false)}
+              className="border-[#EAE5DC]"
+            >
+              Annuler
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleSubmit}
+              disabled={creating}
+              className="gap-1.5 rounded-lg bg-[#4A7C59] text-white hover:bg-[#3D6B4D]"
+            >
+              {creating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+              {creating ? 'Enregistrement…' : 'Enregistrer'}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Filtres */}
       <div className="flex flex-wrap gap-2 text-xs">
@@ -2383,8 +3259,8 @@ function ArtisansView({ artisans }: { artisans: CityArtisan[] }) {
           <Wrench className="mx-auto mb-3 h-8 w-8 text-[#1A1A1A]/20" />
           <p className="text-sm font-medium text-[#1A1A1A]/60">Aucun artisan pour le moment</p>
           <p className="mt-1 text-xs text-[#1A1A1A]/40">
-            {artisans.length === 0
-              ? 'Les artisans vérifiés apparaîtront ici.'
+            {allArtisans.length === 0
+              ? 'Cliquez sur « Ajouter un artisan » pour commencer.'
               : 'Aucun résultat avec ces filtres.'}
           </p>
         </div>
@@ -2472,43 +3348,244 @@ function ArtisansView({ artisans }: { artisans: CityArtisan[] }) {
 }
 
 // ---------------------------------------------------------------
-// MairieDynamicView — Services + horaires + annonces
+// MairieDynamicView — Services + horaires + annonces (éditable, localStorage)
+// ---------------------------------------------------------------
+// Les services municipaux, les horaires d'ouverture et les annonces sont
+// persistés en localStorage (clés `city_mairie_services`,
+// `city_mairie_hours`, `city_mairie_announcements`). Au premier montage,
+// si rien n'est stocké, on initialise avec les valeurs par défaut (mock).
+// Chaque section a un bouton « Ajouter » et chaque ligne est éditable /
+// supprimable. Les horaires sont éditables champ par champ.
 // ---------------------------------------------------------------
 
-const MAIRIE_SERVICES = [
-  { name: 'État civil', phone: '+221338230000', desc: 'Naissances, mariages, décès', icon: '📄' },
-  { name: 'Permis de construire', phone: '+221338230001', desc: 'Autorisations urbanisme', icon: '🏗️' },
-  { name: 'Impôts et taxes', phone: '+221338230002', desc: 'Taxes locales, foncier', icon: '💰' },
-  { name: "Carte d'identité", phone: '+221338230003', desc: 'Renouvellement CNI', icon: '🪪' },
-] as const
+type MairieService = {
+  id: string
+  name: string
+  phone: string
+  desc: string
+  icon: string
+}
 
-const MAIRIE_ANNOUNCEMENTS = [
-  { title: 'Collecte des déchets — Plateau & Médina', date: "Aujourd'hui", time: 'Avant 7h', emoji: '🗑️' },
-  { title: "Coupure d'eau programmée — Yoff", date: 'Demain', time: '9h - 14h', emoji: '💧' },
-  { title: 'Réunion publique — Grand Dakar', date: '15 déc.', time: '16h', emoji: '👥' },
-  { title: "Marché de Noël — Place de l'Indépendance", date: '18-23 déc.', time: '10h - 20h', emoji: '🎄' },
-] as const
+type MairieHours = {
+  day: string
+  hours: string
+  open: boolean
+}
+
+type MairieAnnouncement = {
+  id: string
+  title: string
+  date: string
+  time: string
+  emoji: string
+}
+
+const DEFAULT_MAIRIE_SERVICES: MairieService[] = [
+  { id: 'svc-1', name: 'État civil', phone: '+221338230000', desc: 'Naissances, mariages, décès', icon: '📄' },
+  { id: 'svc-2', name: 'Permis de construire', phone: '+221338230001', desc: 'Autorisations urbanisme', icon: '🏗️' },
+  { id: 'svc-3', name: 'Impôts et taxes', phone: '+221338230002', desc: 'Taxes locales, foncier', icon: '💰' },
+  { id: 'svc-4', name: "Carte d'identité", phone: '+221338230003', desc: 'Renouvellement CNI', icon: '🪪' },
+]
+
+const DEFAULT_MAIRIE_HOURS: MairieHours[] = [
+  { day: 'Lundi', hours: '8h00 - 16h00', open: true },
+  { day: 'Mardi', hours: '8h00 - 16h00', open: true },
+  { day: 'Mercredi', hours: '8h00 - 16h00', open: true },
+  { day: 'Jeudi', hours: '8h00 - 16h00', open: true },
+  { day: 'Vendredi', hours: '8h00 - 16h00', open: true },
+  { day: 'Samedi', hours: '8h00 - 12h00', open: true },
+  { day: 'Dimanche', hours: 'Fermé', open: false },
+]
+
+const DEFAULT_MAIRIE_ANNOUNCEMENTS: MairieAnnouncement[] = [
+  { id: 'ann-1', title: 'Collecte des déchets — Plateau & Médina', date: "Aujourd'hui", time: 'Avant 7h', emoji: '🗑️' },
+  { id: 'ann-2', title: "Coupure d'eau programmée — Yoff", date: 'Demain', time: '9h - 14h', emoji: '💧' },
+  { id: 'ann-3', title: 'Réunion publique — Grand Dakar', date: '15 déc.', time: '16h', emoji: '👥' },
+  { id: 'ann-4', title: "Marché de Noël — Place de l'Indépendance", date: '18-23 déc.', time: '10h - 20h', emoji: '🎄' },
+]
+
+const EMOJI_CHOICES = ['📄', '🏗️', '💰', '🪪', '🗑️', '💧', '👥', '🎄', '⚡', '🚓', '🏛️', '📋', '📢', '🚧', '🌳']
+
+function genId(prefix: string): string {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+}
 
 function MairieDynamicView() {
+  const { toast } = useToast()
   const [now, setNow] = useState<Date | null>(null)
+
+  // --- États localStorage-backed ---
+  const [services, setServices] = useState<MairieService[]>(DEFAULT_MAIRIE_SERVICES)
+  const [hours, setHours] = useState<MairieHours[]>(DEFAULT_MAIRIE_HOURS)
+  const [announcements, setAnnouncements] = useState<MairieAnnouncement[]>(DEFAULT_MAIRIE_ANNOUNCEMENTS)
+  const [hydrated, setHydrated] = useState(false)
+
+  // --- Formulaire d'ajout de service ---
+  const [editingServiceId, setEditingServiceId] = useState<string | null>(null)
+  const [serviceForm, setServiceForm] = useState({ name: '', phone: '', desc: '', icon: '📄' })
+  const [showServiceForm, setShowServiceForm] = useState(false)
+
+  // --- Formulaire d'ajout d'annonce ---
+  const [announcementForm, setAnnouncementForm] = useState({ title: '', date: '', time: '', emoji: '📢' })
+  const [showAnnouncementForm, setShowAnnouncementForm] = useState(false)
+
+  // --- Hydratation depuis localStorage ---
   useEffect(() => {
+    try {
+      const s = localStorage.getItem('city_mairie_services')
+      if (s) setServices(JSON.parse(s))
+      const h = localStorage.getItem('city_mairie_hours')
+      if (h) setHours(JSON.parse(h))
+      const a = localStorage.getItem('city_mairie_announcements')
+      if (a) setAnnouncements(JSON.parse(a))
+    } catch {
+      /* ignore */
+    } finally {
+      setHydrated(true)
+    }
+  }, [])
+
+  // --- Horloge live ---
+  useEffect(() => {
+    if (!hydrated) return
     const t = setTimeout(() => setNow(new Date()), 0)
     const i = setInterval(() => setNow(new Date()), 30000)
     return () => {
       clearTimeout(t)
       clearInterval(i)
     }
+  }, [hydrated])
+
+  // --- Persistance localStorage ---
+  const persistServices = useCallback((next: MairieService[]) => {
+    setServices(next)
+    try {
+      localStorage.setItem('city_mairie_services', JSON.stringify(next))
+    } catch {
+      /* ignore */
+    }
   }, [])
 
-  // Lun-Ven 8h-16h, Sam 8h-12h, Dim fermé
+  const persistHours = useCallback((next: MairieHours[]) => {
+    setHours(next)
+    try {
+      localStorage.setItem('city_mairie_hours', JSON.stringify(next))
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  const persistAnnouncements = useCallback((next: MairieAnnouncement[]) => {
+    setAnnouncements(next)
+    try {
+      localStorage.setItem('city_mairie_announcements', JSON.stringify(next))
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  // --- Ouverture calculée d'après les horaires stockés ---
   const isOpen = useMemo(() => {
     if (!now) return false
-    const day = now.getDay() // 0 = dimanche, 6 = samedi
-    const h = now.getHours()
-    if (day === 0) return false
-    if (day === 6) return h >= 8 && h < 12
-    return h >= 8 && h < 16
-  }, [now])
+    const jsDay = now.getDay() // 0=dim, 1=lun, ..., 6=sam
+    // Index dans notre tableau (Lundi=0)
+    const idx = jsDay === 0 ? 6 : jsDay - 1
+    const row = hours[idx]
+    if (!row || !row.open) return false
+    if (row.hours.toLowerCase() === 'fermé') return false
+    // Extraction HH:MM des horaires "8h00 - 16h00"
+    const m = row.hours.match(/(\d{1,2})h?(\d{0,2}).*?(\d{1,2})h?(\d{0,2})/i)
+    if (!m) return false
+    const startH = parseInt(m[1])
+    const startM = m[2] ? parseInt(m[2]) : 0
+    const endH = parseInt(m[3])
+    const endM = m[4] ? parseInt(m[4]) : 0
+    const curMin = now.getHours() * 60 + now.getMinutes()
+    return curMin >= startH * 60 + startM && curMin < endH * 60 + endM
+  }, [now, hours])
+
+  // --- Handlers services ---
+  const openAddService = () => {
+    setEditingServiceId(null)
+    setServiceForm({ name: '', phone: '', desc: '', icon: '📄' })
+    setShowServiceForm(true)
+  }
+
+  const openEditService = (svc: MairieService) => {
+    setEditingServiceId(svc.id)
+    setServiceForm({ name: svc.name, phone: svc.phone, desc: svc.desc, icon: svc.icon })
+    setShowServiceForm(true)
+  }
+
+  const saveService = () => {
+    if (serviceForm.name.trim().length < 2) {
+      toast({ title: 'Nom du service requis', variant: 'destructive' })
+      return
+    }
+    if (editingServiceId) {
+      const next = services.map((s) =>
+        s.id === editingServiceId
+          ? {
+              ...s,
+              name: serviceForm.name.trim(),
+              phone: serviceForm.phone.trim(),
+              desc: serviceForm.desc.trim(),
+              icon: serviceForm.icon,
+            }
+          : s,
+      )
+      persistServices(next)
+      toast({ title: 'Service mis à jour', description: serviceForm.name.trim() })
+    } else {
+      const next: MairieService = {
+        id: genId('svc'),
+        name: serviceForm.name.trim(),
+        phone: serviceForm.phone.trim(),
+        desc: serviceForm.desc.trim(),
+        icon: serviceForm.icon,
+      }
+      persistServices([...services, next])
+      toast({ title: 'Service ajouté', description: next.name })
+    }
+    setShowServiceForm(false)
+  }
+
+  const deleteService = (id: string) => {
+    const svc = services.find((s) => s.id === id)
+    persistServices(services.filter((s) => s.id !== id))
+    toast({ title: 'Service supprimé', description: svc?.name ?? '' })
+  }
+
+  // --- Handlers hours ---
+  const updateHour = (idx: number, field: keyof MairieHours, value: string | boolean) => {
+    const next = hours.map((h, i) => (i === idx ? { ...h, [field]: value } : h))
+    persistHours(next)
+  }
+
+  // --- Handlers annonces ---
+  const addAnnouncement = () => {
+    if (announcementForm.title.trim().length < 3) {
+      toast({ title: 'Titre requis', variant: 'destructive' })
+      return
+    }
+    const next: MairieAnnouncement = {
+      id: genId('ann'),
+      title: announcementForm.title.trim(),
+      date: announcementForm.date.trim() || 'À définir',
+      time: announcementForm.time.trim() || '—',
+      emoji: announcementForm.emoji,
+    }
+    persistAnnouncements([next, ...announcements])
+    toast({ title: 'Annonce ajoutée', description: next.title })
+    setAnnouncementForm({ title: '', date: '', time: '', emoji: '📢' })
+    setShowAnnouncementForm(false)
+  }
+
+  const deleteAnnouncement = (id: string) => {
+    const ann = announcements.find((a) => a.id === id)
+    persistAnnouncements(announcements.filter((a) => a.id !== id))
+    toast({ title: 'Annonce supprimée', description: ann?.title ?? '' })
+  }
 
   const SERIF = { fontFamily: 'Georgia, "Playfair Display", serif' } as const
 
@@ -2519,7 +3596,7 @@ function MairieDynamicView() {
           Mairie dynamique
         </h2>
         <p className="text-xs text-[#1A1A1A]/55">
-          Services municipaux · horaires · annonces en temps réel
+          Services municipaux · horaires · annonces — éditable et persisté localement
         </p>
       </div>
 
@@ -2558,59 +3635,147 @@ function MairieDynamicView() {
         </div>
         <div className="text-right">
           <p className="text-[10px] uppercase tracking-wider text-[#1A1A1A]/50">
-            Prochaine fenêtre
+            État calculé d&apos;après les horaires
           </p>
           <p className="text-sm font-semibold text-[#1A1A1A]">
-            {isOpen ? 'Ferme à 16h' : 'Ouvre demain 8h'}
+            {isOpen ? 'Actuellement ouvert' : 'Actuellement fermé'}
           </p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
-        {/* Horaires */}
+        {/* Horaires éditables */}
         <section className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white shadow-sm">
           <div className="flex items-center gap-2 border-b border-[#EAE5DC] px-4 py-3">
             <Clock className="h-4 w-4 text-[#1A1A1A]" />
             <h3 className="text-sm font-bold text-[#1A1A1A]" style={SERIF}>
               Horaires d&apos;ouverture
             </h3>
+            <Badge variant="outline" className="ml-auto border-[#EAE5DC] text-[10px] text-[#1A1A1A]/60">
+              éditable
+            </Badge>
           </div>
           <div className="divide-y divide-[#EAE5DC]/60">
-            {[
-              { day: 'Lundi', hours: '8h00 - 16h00', open: true },
-              { day: 'Mardi', hours: '8h00 - 16h00', open: true },
-              { day: 'Mercredi', hours: '8h00 - 16h00', open: true },
-              { day: 'Jeudi', hours: '8h00 - 16h00', open: true },
-              { day: 'Vendredi', hours: '8h00 - 16h00', open: true },
-              { day: 'Samedi', hours: '8h00 - 12h00', open: true },
-              { day: 'Dimanche', hours: 'Fermé', open: false },
-            ].map((row) => (
-              <div key={row.day} className="flex items-center justify-between px-4 py-2.5">
-                <span className="text-sm font-medium text-[#1A1A1A]">{row.day}</span>
-                <span
-                  className={cn(
-                    'text-sm tabular-nums',
-                    row.open ? 'text-[#4A7C59]' : 'text-[#E30613]',
-                  )}
-                >
-                  {row.hours}
+            {hours.map((row, idx) => (
+              <div key={`${row.day}-${idx}`} className="flex items-center gap-2 px-4 py-2.5">
+                <span className="w-20 shrink-0 text-sm font-medium text-[#1A1A1A]">
+                  {row.day}
                 </span>
+                <input
+                  type="text"
+                  value={row.hours}
+                  onChange={(e) => updateHour(idx, 'hours', e.target.value)}
+                  placeholder="8h00 - 16h00 ou Fermé"
+                  className="flex-1 rounded-lg border border-transparent bg-transparent px-2 py-1 text-sm tabular-nums text-[#1A1A1A] hover:border-[#EAE5DC] focus:border-[#C9A961] focus:bg-[#FAFAF7] focus:outline-none focus:ring-1 focus:ring-[#C9A961]/30"
+                />
+                <button
+                  type="button"
+                  onClick={() => updateHour(idx, 'open', !row.open)}
+                  className={cn(
+                    'inline-flex h-6 w-6 items-center justify-center rounded-full transition',
+                    row.open
+                      ? 'bg-[#4A7C59]/15 text-[#4A7C59]'
+                      : 'bg-[#E30613]/15 text-[#E30613]',
+                  )}
+                  aria-label={row.open ? 'Marquer comme fermé' : 'Marquer comme ouvert'}
+                  title={row.open ? 'Ouvert (cliquer pour fermer)' : 'Fermé (cliquer pour ouvrir)'}
+                >
+                  {row.open ? <Check className="h-3.5 w-3.5" /> : <X className="h-3.5 w-3.5" />}
+                </button>
               </div>
             ))}
           </div>
         </section>
 
-        {/* Services */}
+        {/* Services éditables */}
         <section className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white shadow-sm">
-          <div className="flex items-center gap-2 border-b border-[#EAE5DC] px-4 py-3">
-            <Landmark className="h-4 w-4 text-[#1A1A1A]" />
-            <h3 className="text-sm font-bold text-[#1A1A1A]" style={SERIF}>
-              Services municipaux
-            </h3>
+          <div className="flex items-center justify-between border-b border-[#EAE5DC] px-4 py-3">
+            <div className="flex items-center gap-2">
+              <Landmark className="h-4 w-4 text-[#1A1A1A]" />
+              <h3 className="text-sm font-bold text-[#1A1A1A]" style={SERIF}>
+                Services municipaux
+              </h3>
+            </div>
+            <Button
+              size="sm"
+              onClick={openAddService}
+              className="gap-1.5 rounded-lg bg-[#C9A961] text-[#1A1A1A] hover:bg-[#B8964F]"
+            >
+              <Plus className="h-3.5 w-3.5" /> Ajouter un service
+            </Button>
           </div>
+
+          {/* Formulaire d'ajout/édition */}
+          {showServiceForm && (
+            <div className="border-b border-[#EAE5DC] bg-[#FAFAF7] px-4 py-3">
+              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                <input
+                  type="text"
+                  value={serviceForm.name}
+                  onChange={(e) => setServiceForm((f) => ({ ...f, name: e.target.value }))}
+                  placeholder="Nom du service *"
+                  className="rounded-lg border border-[#EAE5DC] bg-white px-3 py-2 text-sm focus:border-[#C9A961] focus:outline-none"
+                />
+                <input
+                  type="tel"
+                  value={serviceForm.phone}
+                  onChange={(e) => setServiceForm((f) => ({ ...f, phone: e.target.value }))}
+                  placeholder="Téléphone (+221 …)"
+                  className="rounded-lg border border-[#EAE5DC] bg-white px-3 py-2 text-sm focus:border-[#C9A961] focus:outline-none"
+                />
+                <input
+                  type="text"
+                  value={serviceForm.desc}
+                  onChange={(e) => setServiceForm((f) => ({ ...f, desc: e.target.value }))}
+                  placeholder="Description courte"
+                  className="rounded-lg border border-[#EAE5DC] bg-white px-3 py-2 text-sm focus:border-[#C9A961] focus:outline-none sm:col-span-2"
+                />
+                <div className="flex flex-wrap gap-1 sm:col-span-2">
+                  {EMOJI_CHOICES.map((em) => (
+                    <button
+                      key={em}
+                      type="button"
+                      onClick={() => setServiceForm((f) => ({ ...f, icon: em }))}
+                      className={cn(
+                        'flex h-8 w-8 items-center justify-center rounded-lg text-lg transition',
+                        serviceForm.icon === em
+                          ? 'bg-[#C9A961]/20 ring-2 ring-[#C9A961]'
+                          : 'bg-white hover:bg-[#FAFAF7]',
+                      )}
+                    >
+                      {em}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="mt-3 flex justify-end gap-2">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setShowServiceForm(false)}
+                  className="border-[#EAE5DC]"
+                >
+                  Annuler
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={saveService}
+                  className="bg-[#4A7C59] text-white hover:bg-[#3D6B4D]"
+                >
+                  {editingServiceId ? 'Mettre à jour' : 'Ajouter'}
+                </Button>
+              </div>
+            </div>
+          )}
+
           <div className="divide-y divide-[#EAE5DC]/60">
-            {MAIRIE_SERVICES.map((svc) => (
-              <div key={svc.name} className="flex items-center gap-3 px-4 py-3">
+            {services.length === 0 && (
+              <p className="px-4 py-6 text-center text-xs text-[#1A1A1A]/40">
+                Aucun service. Cliquez sur « Ajouter un service ».
+              </p>
+            )}
+            {services.map((svc) => (
+              <div key={svc.id} className="group flex items-center gap-3 px-4 py-3">
                 <span className="text-2xl" aria-hidden>
                   {svc.icon}
                 </span>
@@ -2618,20 +3783,40 @@ function MairieDynamicView() {
                   <p className="truncate text-sm font-semibold text-[#1A1A1A]">{svc.name}</p>
                   <p className="truncate text-xs text-[#1A1A1A]/55">{svc.desc}</p>
                 </div>
-                <a
-                  href={`tel:${svc.phone}`}
-                  className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#4A7C59]/12 text-[#4A7C59] transition hover:bg-[#4A7C59] hover:text-white"
-                  aria-label={`Appeler ${svc.name}`}
-                >
-                  <Phone className="h-4 w-4" />
-                </a>
+                <div className="flex items-center gap-1.5">
+                  <a
+                    href={`tel:${svc.phone.replace(/\s/g, '')}`}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#4A7C59]/12 text-[#4A7C59] transition hover:bg-[#4A7C59] hover:text-white"
+                    aria-label={`Appeler ${svc.name}`}
+                  >
+                    <Phone className="h-4 w-4" />
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => openEditService(svc)}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#C9A961]/12 text-[#8B6F47] transition hover:bg-[#C9A961] hover:text-white"
+                    aria-label={`Modifier ${svc.name}`}
+                    title="Modifier"
+                  >
+                    <Settings className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => deleteService(svc.id)}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#E30613]/10 text-[#E30613] transition hover:bg-[#E30613] hover:text-white"
+                    aria-label={`Supprimer ${svc.name}`}
+                    title="Supprimer"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
         </section>
       </div>
 
-      {/* Annonces */}
+      {/* Annonces éditables */}
       <section className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-[#EAE5DC] px-4 py-3">
           <div className="flex items-center gap-2">
@@ -2640,13 +3825,91 @@ function MairieDynamicView() {
               Annonces récentes
             </h3>
           </div>
-          <span className="text-[10px] font-medium text-[#1A1A1A]/50">
-            {MAIRIE_ANNOUNCEMENTS.length} actives
-          </span>
+          <Button
+            size="sm"
+            onClick={() => setShowAnnouncementForm((v) => !v)}
+            className="gap-1.5 rounded-lg bg-[#6B4C9A] text-white hover:bg-[#5a3d82]"
+          >
+            {showAnnouncementForm ? (
+              <>
+                <X className="h-3.5 w-3.5" /> Annuler
+              </>
+            ) : (
+              <>
+                <Plus className="h-3.5 w-3.5" /> Ajouter une annonce
+              </>
+            )}
+          </Button>
         </div>
+
+        {showAnnouncementForm && (
+          <div className="border-b border-[#EAE5DC] bg-[#FAFAF7] px-4 py-3">
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <input
+                type="text"
+                value={announcementForm.title}
+                onChange={(e) =>
+                  setAnnouncementForm((f) => ({ ...f, title: e.target.value }))
+                }
+                placeholder="Titre de l'annonce *"
+                className="rounded-lg border border-[#EAE5DC] bg-white px-3 py-2 text-sm focus:border-[#6B4C9A] focus:outline-none sm:col-span-2"
+              />
+              <input
+                type="text"
+                value={announcementForm.date}
+                onChange={(e) =>
+                  setAnnouncementForm((f) => ({ ...f, date: e.target.value }))
+                }
+                placeholder="Date (ex : Aujourd'hui, Demain, 15 déc.)"
+                className="rounded-lg border border-[#EAE5DC] bg-white px-3 py-2 text-sm focus:border-[#6B4C9A] focus:outline-none"
+              />
+              <input
+                type="text"
+                value={announcementForm.time}
+                onChange={(e) =>
+                  setAnnouncementForm((f) => ({ ...f, time: e.target.value }))
+                }
+                placeholder="Horaire (ex : 9h - 14h)"
+                className="rounded-lg border border-[#EAE5DC] bg-white px-3 py-2 text-sm focus:border-[#6B4C9A] focus:outline-none"
+              />
+              <div className="flex flex-wrap gap-1 sm:col-span-2">
+                {['🗑️', '💧', '👥', '🎄', '⚡', '🚓', '🏛️', '📢', '🚧', '🌳'].map((em) => (
+                  <button
+                    key={em}
+                    type="button"
+                    onClick={() => setAnnouncementForm((f) => ({ ...f, emoji: em }))}
+                    className={cn(
+                      'flex h-8 w-8 items-center justify-center rounded-lg text-lg transition',
+                      announcementForm.emoji === em
+                        ? 'bg-[#6B4C9A]/15 ring-2 ring-[#6B4C9A]'
+                        : 'bg-white hover:bg-[#FAFAF7]',
+                    )}
+                  >
+                    {em}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="mt-3 flex justify-end">
+              <Button
+                size="sm"
+                onClick={addAnnouncement}
+                className="bg-[#6B4C9A] text-white hover:bg-[#5a3d82]"
+              >
+                <Plus className="mr-1 h-3.5 w-3.5" /> Ajouter
+              </Button>
+            </div>
+          </div>
+        )}
+
         <div className="divide-y divide-[#EAE5DC]/60">
-          {MAIRIE_ANNOUNCEMENTS.map((a, i) => (
-            <div key={i} className="flex items-center gap-3 px-4 py-3">
+          {announcements.length === 0 && (
+            <p className="px-4 py-6 text-center text-xs text-[#1A1A1A]/40">
+              Aucune annonce. Cliquez sur « Ajouter une annonce ».
+            </p>
+          )}
+          {announcements.map((a) => (
+            <div key={a.id} className="group flex items-center gap-3 px-4 py-3">
               <span className="text-xl" aria-hidden>
                 {a.emoji}
               </span>
@@ -2659,6 +3922,15 @@ function MairieDynamicView() {
               <Badge variant="outline" className="border-[#EAE5DC] text-[10px] text-[#1A1A1A]/60">
                 Diffusion
               </Badge>
+              <button
+                type="button"
+                onClick={() => deleteAnnouncement(a.id)}
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#E30613]/10 text-[#E30613] transition hover:bg-[#E30613] hover:text-white"
+                aria-label="Supprimer l'annonce"
+                title="Supprimer"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
             </div>
           ))}
         </div>
@@ -2884,18 +4156,104 @@ function RevenueView({ artisans }: { artisans: CityArtisan[] }) {
 }
 
 // ---------------------------------------------------------------
-// PlatesMapView — Liste des plaques avec localisation
+// PlatesMapView — Carte des plaques avec QR code premium + édition
+// ---------------------------------------------------------------
+// Pour chaque plaque on affiche :
+//   - un aperçu QR code 100x100 (issu de composeQrPremium si disponible,
+//     sinon qrServerUrl brut). Clic = ouverture lightbox grand format.
+//   - les infos propriétaire (label, district, address, GPS)
+//   - un bouton « Modifier » qui ouvre un formulaire inline pour éditer
+//     label / district / address / lat / lng. Sauvegarde via PATCH
+//     /api/city/plates/{id} puis onRefresh().
 // ---------------------------------------------------------------
 
 function PlatesMapView({
   plates,
   incidents,
+  composedQrs,
+  cityLogoUrl,
+  onRefresh,
+  onNavigate,
 }: {
   plates: CityPlate[]
   incidents: CityIncident[]
+  composedQrs: Record<string, string>
+  cityLogoUrl: string | null
+  onRefresh?: () => Promise<void>
+  onNavigate?: (id: string) => void
 }) {
+  const { toast } = useToast()
   const [search, setSearch] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+
+  // --- QR code lightbox (image agrandie) ---
+  const [zoomQr, setZoomQr] = useState<{ url: string; plate: CityPlate } | null>(null)
+
+  // --- Édition d'une plaque ---
+  const [editingPlate, setEditingPlate] = useState<CityPlate | null>(null)
+  const [editForm, setEditForm] = useState({
+    label: '',
+    district: '',
+    address: '',
+    lat: '',
+    lng: '',
+  })
+  const [savingPlate, setSavingPlate] = useState(false)
+
+  const openEdit = (p: CityPlate) => {
+    setEditingPlate(p)
+    setEditForm({
+      label: p.label === 'Plaque non assignée' ? '' : p.label,
+      district: p.district ?? '',
+      address: p.address ?? '',
+      lat: p.lat != null ? String(p.lat) : '',
+      lng: p.lng != null ? String(p.lng) : '',
+    })
+  }
+
+  const handleSavePlate = async () => {
+    if (!editingPlate) return
+    setSavingPlate(true)
+    try {
+      const body: Record<string, unknown> = {
+        label: editForm.label.trim() || 'Plaque non assignée',
+        district: editForm.district.trim() || null,
+        address: editForm.address.trim() || null,
+      }
+      if (editForm.lat && editForm.lng) {
+        const la = parseFloat(editForm.lat)
+        const ln = parseFloat(editForm.lng)
+        if (!isNaN(la) && !isNaN(ln)) {
+          body.lat = la
+          body.lng = ln
+        }
+      }
+      const res = await fetch(`/api/city/plates/${editingPlate.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const json = await res.json()
+      if (json?.ok) {
+        toast({
+          title: 'Plaque mise à jour',
+          description: `${editingPlate.plateNumber} → ${editForm.label || 'non assignée'}`,
+        })
+        setEditingPlate(null)
+        if (onRefresh) await onRefresh()
+      } else {
+        toast({
+          title: 'Erreur',
+          description: json?.error ?? 'Mise à jour impossible',
+          variant: 'destructive',
+        })
+      }
+    } catch {
+      toast({ title: 'Erreur réseau', variant: 'destructive' })
+    } finally {
+      setSavingPlate(false)
+    }
+  }
 
   const filtered = useMemo(() => {
     return plates.filter((p) => {
@@ -2943,9 +4301,21 @@ function PlatesMapView({
             {stats.total} plaques · {stats.totalScans} scans cumulés · {stats.active} actives
           </p>
         </div>
-        <Badge className="bg-[#C9A961]/15 text-[#8B6F47]">
-          <MapPin className="mr-1 h-3 w-3" /> {stats.total} localisations
-        </Badge>
+        <div className="flex items-center gap-2">
+          {onNavigate && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => onNavigate('plates-mgmt')}
+              className="border-[#EAE5DC] text-[#1A1A1A] hover:border-[#C9A961]"
+            >
+              <QrCode className="h-4 w-4" /> Gérer les plaques
+            </Button>
+          )}
+          <Badge className="bg-[#C9A961]/15 text-[#8B6F47]">
+            <MapPin className="mr-1 h-3 w-3" /> {stats.total} localisations
+          </Badge>
+        </div>
       </div>
 
       {/* Filtres statut */}
@@ -3006,6 +4376,10 @@ function PlatesMapView({
                   : p.status === 'offline'
                     ? COLOR_RED
                     : COLOR_ANTHRACITE
+            // URL QR code : premium si disponible, sinon fallback brut
+            const origin = typeof window !== 'undefined' ? window.location.origin : 'https://feedback.qrbags.com'
+            const qrFallback = qrServerUrl(`${origin}/?cityPlate=${p.qrToken}`, 200)
+            const qrImg = composedQrs[p.id] ?? qrFallback
             return (
               <article
                 key={p.id}
@@ -3013,25 +4387,67 @@ function PlatesMapView({
                 style={{ borderTop: `3px solid ${statusColor}` }}
               >
                 <div className="p-4">
-                  <div className="mb-3 flex items-start justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#1A1A1A] text-white">
-                        <QrCode className="h-4 w-4" />
-                      </div>
-                      <div className="min-w-0">
+                  {/* En-tête : QR + numéro + libellé */}
+                  <div className="mb-3 flex items-start justify-between gap-3">
+                    {/* QR code 100x100 cliquable */}
+                    <button
+                      type="button"
+                      onClick={() => setZoomQr({ url: qrImg, plate: p })}
+                      className="group relative h-[100px] w-[100px] shrink-0 overflow-hidden rounded-xl border border-[#EAE5DC] bg-white p-1 transition hover:border-[#C9A961] hover:shadow-md"
+                      aria-label={`Agrandir le QR code de la plaque ${p.plateNumber}`}
+                      title="Cliquez pour agrandir"
+                    >
+                      <img
+                        src={qrImg}
+                        alt={`QR code plaque ${p.plateNumber}`}
+                        className="h-full w-full rounded-lg object-contain"
+                        loading="lazy"
+                      />
+                      <span className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 to-transparent px-1 py-0.5 text-center text-[8px] font-semibold uppercase tracking-wide text-white opacity-0 transition group-hover:opacity-100">
+                        Agrandir
+                      </span>
+                    </button>
+
+                    <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
+                      <div className="flex w-full items-center justify-between gap-2">
                         <p className="truncate text-sm font-bold text-[#1A1A1A]">
                           {p.plateNumber}
                         </p>
-                        <p className="truncate text-xs text-[#1A1A1A]/55">{p.label}</p>
+                        {emergencyCount > 0 && (
+                          <Badge className="animate-pulse bg-[#E30613] text-[10px] text-white">
+                            <AlertTriangle className="mr-0.5 h-2.5 w-2.5" /> {emergencyCount}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="line-clamp-2 text-xs text-[#1A1A1A]/70">{p.label}</p>
+                      <div className="mt-auto flex items-center gap-1.5">
+                        <Badge
+                          className={cn(
+                            'text-[9px]',
+                            p.status === 'active'
+                              ? 'bg-[#4A7C59]/12 text-[#4A7C59]'
+                              : p.status === 'maintenance'
+                                ? 'bg-[#FF6B00]/12 text-[#FF6B00]'
+                                : p.status === 'offline'
+                                  ? 'bg-[#E30613]/12 text-[#E30613]'
+                                  : 'bg-amber-100 text-amber-800',
+                          )}
+                        >
+                          {p.status === 'pending'
+                            ? 'En attente'
+                            : p.status === 'active'
+                              ? 'Active'
+                              : p.status === 'maintenance'
+                                ? 'Maintenance'
+                                : p.status === 'offline'
+                                  ? 'Hors ligne'
+                                  : p.status}
+                        </Badge>
                       </div>
                     </div>
-                    {emergencyCount > 0 && (
-                      <Badge className="animate-pulse bg-[#E30613] text-[10px] text-white">
-                        <AlertTriangle className="mr-0.5 h-2.5 w-2.5" /> {emergencyCount}
-                      </Badge>
-                    )}
                   </div>
 
+                  {/* Infos localisation */}
                   <div className="mb-3 space-y-1.5 text-xs">
                     <div className="flex items-center gap-2">
                       <MapPin className="h-3 w-3 shrink-0 text-[#1A1A1A]/40" />
@@ -3055,6 +4471,7 @@ function PlatesMapView({
                     )}
                   </div>
 
+                  {/* Footer : scans + bouton Modifier */}
                   <div className="flex items-center justify-between gap-2 border-t border-[#EAE5DC] pt-3">
                     <div className="flex items-center gap-3 text-xs">
                       <span className="flex items-center gap-1">
@@ -3071,28 +4488,14 @@ function PlatesMapView({
                         </span>
                       </span>
                     </div>
-                    <Badge
-                      className={cn(
-                        'text-[10px]',
-                        p.status === 'active'
-                          ? 'bg-[#4A7C59]/12 text-[#4A7C59]'
-                          : p.status === 'maintenance'
-                            ? 'bg-[#FF6B00]/12 text-[#FF6B00]'
-                            : p.status === 'offline'
-                              ? 'bg-[#E30613]/12 text-[#E30613]'
-                              : 'bg-amber-100 text-amber-800',
-                      )}
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openEdit(p)}
+                      className="border-[#C9A961]/40 text-[#1A1A1A] hover:bg-[#C9A961]/8"
                     >
-                      {p.status === 'pending'
-                        ? 'En attente'
-                        : p.status === 'active'
-                          ? 'Active'
-                          : p.status === 'maintenance'
-                            ? 'Maintenance'
-                            : p.status === 'offline'
-                              ? 'Hors ligne'
-                              : p.status}
-                    </Badge>
+                      Modifier
+                    </Button>
                   </div>
                 </div>
               </article>
@@ -3104,6 +4507,164 @@ function PlatesMapView({
         <p className="text-center text-xs text-[#1A1A1A]/50">
           Affichage de 60 plaques sur {filtered.length}. Affinez la recherche pour voir plus.
         </p>
+      )}
+
+      {/* ---------- Lightbox QR code agrandi ---------- */}
+      {zoomQr && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          onClick={() => setZoomQr(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="relative w-full max-w-md rounded-2xl bg-white p-5 shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setZoomQr(null)}
+              className="absolute right-3 top-3 inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#FAFAF7] text-[#1A1A1A] hover:bg-[#EAE5DC]"
+              aria-label="Fermer"
+            >
+              <X className="h-4 w-4" />
+            </button>
+            <h3 className="mb-1 text-center text-lg font-bold text-[#1A1A1A]" style={SERIF}>
+              {zoomQr.plate.plateNumber}
+            </h3>
+            <p className="mb-3 text-center text-xs text-[#1A1A1A]/55">
+              {zoomQr.plate.label}
+            </p>
+            <div className="flex justify-center">
+              <img
+                src={zoomQr.url}
+                alt={`QR code agrandi de la plaque ${zoomQr.plate.plateNumber}`}
+                className="max-h-[60vh] w-auto rounded-xl shadow-md"
+              />
+            </div>
+            <p className="mt-3 text-center text-[10px] text-[#1A1A1A]/50">
+              Scannez ce QR code pour accéder aux services citoyens.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* ---------- Formulaire d'édition de plaque ---------- */}
+      {editingPlate && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setEditingPlate(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-bold text-[#1A1A1A]" style={SERIF}>
+                Plaque {editingPlate.plateNumber}
+              </h3>
+              <button
+                onClick={() => setEditingPlate(null)}
+                className="text-[#1A1A1A]/40 hover:text-[#1A1A1A]"
+                aria-label="Fermer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Aperçu QR */}
+            <div className="mb-4 flex justify-center">
+              <img
+                src={composedQrs[editingPlate.id] ?? qrServerUrl(`https://feedback.qrbags.com/?cityPlate=${editingPlate.qrToken}`, 200)}
+                alt="QR premium"
+                className="h-32 w-auto rounded-xl shadow-md"
+              />
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-[#1A1A1A]/70 mb-1.5">
+                  Nom du lieu
+                </label>
+                <input
+                  type="text"
+                  value={editForm.label}
+                  onChange={(e) => setEditForm((f) => ({ ...f, label: e.target.value }))}
+                  placeholder="ex: Marché Sandaga, Rue Félix Faure…"
+                  className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-2.5 text-sm focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/15"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#1A1A1A]/70 mb-1.5">
+                  Quartier
+                </label>
+                <input
+                  type="text"
+                  value={editForm.district}
+                  onChange={(e) => setEditForm((f) => ({ ...f, district: e.target.value }))}
+                  placeholder="ex: Plateau, Médina, Grand Dakar…"
+                  className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-2.5 text-sm focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/15"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#1A1A1A]/70 mb-1.5">
+                  Adresse (optionnel)
+                </label>
+                <input
+                  type="text"
+                  value={editForm.address}
+                  onChange={(e) => setEditForm((f) => ({ ...f, address: e.target.value }))}
+                  placeholder="ex: Avenue Léopold Sédar Senghor"
+                  className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-2.5 text-sm focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/15"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-[#1A1A1A]/70 mb-2">
+                  Géolocalisation (GPS)
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={editForm.lat}
+                    onChange={(e) => setEditForm((f) => ({ ...f, lat: e.target.value }))}
+                    placeholder="Latitude"
+                    className="flex-1 rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2.5 text-sm focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/15"
+                  />
+                  <input
+                    type="text"
+                    value={editForm.lng}
+                    onChange={(e) => setEditForm((f) => ({ ...f, lng: e.target.value }))}
+                    placeholder="Longitude"
+                    className="flex-1 rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2.5 text-sm focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/15"
+                  />
+                </div>
+                <p className="mt-1.5 text-xs text-[#1A1A1A]/50">
+                  La géolocalisation active automatiquement la plaque (statut → "active").
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex justify-end gap-3">
+              <Button variant="outline" onClick={() => setEditingPlate(null)}>
+                Annuler
+              </Button>
+              <Button
+                onClick={handleSavePlate}
+                disabled={savingPlate}
+                className="bg-[#4A7C59] text-white hover:bg-[#3D6B4D]"
+              >
+                {savingPlate ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Check className="mr-2 h-4 w-4" />
+                )}
+                {savingPlate ? 'Sauvegarde…' : 'Sauvegarder'}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )
@@ -3435,6 +4996,629 @@ function AnnouncementsView() {
               </div>
             </div>
           ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ============================================================
+// TransportView — Lignes de transport (bus / taxi / train)
+// ============================================================
+// Persistance localStorage (clé `city_transports`). Chaque entrée a :
+//   - id, line (nom/numéro de ligne), destination, schedule, type
+// On peut ajouter / supprimer des lignes via un formulaire inline.
+// Types : bus | taxi | train
+// ---------------------------------------------------------------
+
+type Transport = {
+  id: string
+  line: string
+  destination: string
+  schedule: string
+  type: 'bus' | 'taxi' | 'train'
+}
+
+const DEFAULT_TRANSPORTS: Transport[] = [
+  { id: 'tr-1', line: 'Bus 25', destination: 'Plateau → Pikine', schedule: 'Toutes les 15 min · 6h - 22h', type: 'bus' },
+  { id: 'tr-2', line: 'Bus 18', destination: 'Médina → Yoff', schedule: 'Toutes les 20 min · 5h30 - 21h', type: 'bus' },
+  { id: 'tr-3', line: 'TER Dakar-AIBD', destination: 'Gare Dakar → AIBD', schedule: 'Départs : 6h, 12h, 18h', type: 'train' },
+  { id: 'tr-4', line: 'Taxi collectif Médina', destination: 'Médina → Plateau', schedule: 'Continu · 6h - 23h', type: 'taxi' },
+]
+
+function TransportView() {
+  const { toast } = useToast()
+  const [transports, setTransports] = useState<Transport[]>(DEFAULT_TRANSPORTS)
+  const [hydrated, setHydrated] = useState(false)
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({
+    line: '',
+    destination: '',
+    schedule: '',
+    type: 'bus' as Transport['type'],
+  })
+
+  // --- Hydratation localStorage ---
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('city_transports')
+      if (saved) {
+        const parsed = JSON.parse(saved) as Transport[]
+        if (Array.isArray(parsed)) setTransports(parsed)
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setHydrated(true)
+    }
+  }, [])
+
+  const persist = useCallback((next: Transport[]) => {
+    setTransports(next)
+    try {
+      localStorage.setItem('city_transports', JSON.stringify(next))
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  const handleAdd = () => {
+    if (form.line.trim().length < 2) {
+      toast({ title: 'Nom de ligne requis', variant: 'destructive' })
+      return
+    }
+    if (form.destination.trim().length < 2) {
+      toast({ title: 'Destination requise', variant: 'destructive' })
+      return
+    }
+    const next: Transport = {
+      id: `tr-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      line: form.line.trim(),
+      destination: form.destination.trim(),
+      schedule: form.schedule.trim() || 'Horaire non précisé',
+      type: form.type,
+    }
+    persist([next, ...transports])
+    toast({
+      title: 'Transport ajouté',
+      description: `${next.line} → ${next.destination}`,
+    })
+    setForm({ line: '', destination: '', schedule: '', type: 'bus' })
+    setShowForm(false)
+  }
+
+  const handleDelete = (id: string) => {
+    const tr = transports.find((t) => t.id === id)
+    persist(transports.filter((t) => t.id !== id))
+    toast({ title: 'Transport supprimé', description: tr?.line ?? '' })
+  }
+
+  const typeColor = (t: Transport['type']) =>
+    t === 'bus'
+      ? { bg: 'bg-[#0066CC]/12 text-[#0066CC]', color: COLOR_BLUE, emoji: '🚌' }
+      : t === 'train'
+        ? { bg: 'bg-[#6B4C9A]/12 text-[#6B4C9A]', color: COLOR_PURPLE, emoji: '🚆' }
+        : { bg: 'bg-[#C9A961]/15 text-[#8B6F47]', color: COLOR_GOLD, emoji: '🚕' }
+
+  const SERIF = { fontFamily: 'Georgia, "Playfair Display", serif' } as const
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-[#1A1A1A]" style={SERIF}>
+            Transports urbains
+          </h2>
+          <p className="text-xs text-[#1A1A1A]/55">
+            {transports.length} lignes · bus · train · taxi — données locales
+          </p>
+        </div>
+        <Button
+          size="sm"
+          onClick={() => setShowForm((v) => !v)}
+          className="gap-1.5 rounded-lg bg-[#0066CC] text-white hover:bg-[#0055a8]"
+        >
+          {showForm ? (
+            <>
+              <X className="h-4 w-4" /> Annuler
+            </>
+          ) : (
+            <>
+              <Plus className="h-4 w-4" /> Ajouter transport
+            </>
+          )}
+        </Button>
+      </div>
+
+      {/* Formulaire d'ajout */}
+      {showForm && (
+        <div className="rounded-2xl border-2 border-[#0066CC]/20 bg-white p-5 shadow-sm">
+          <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-[#1A1A1A]">
+            <Bus className="h-4 w-4 text-[#0066CC]" /> Ajouter une ligne de transport
+          </h3>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="text-xs font-semibold text-[#1A1A1A]/60">Ligne *</label>
+              <input
+                type="text"
+                value={form.line}
+                onChange={(e) => setForm((f) => ({ ...f, line: e.target.value }))}
+                placeholder="ex : Bus 25, TER Dakar-AIBD, Taxi collectif Médina"
+                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#0066CC] focus:outline-none focus:ring-2 focus:ring-[#0066CC]/15"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[#1A1A1A]/60">Destination *</label>
+              <input
+                type="text"
+                value={form.destination}
+                onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))}
+                placeholder="ex : Plateau → Pikine"
+                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#0066CC] focus:outline-none focus:ring-2 focus:ring-[#0066CC]/15"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-xs font-semibold text-[#1A1A1A]/60">Horaire</label>
+              <input
+                type="text"
+                value={form.schedule}
+                onChange={(e) => setForm((f) => ({ ...f, schedule: e.target.value }))}
+                placeholder="ex : Toutes les 15 min · 6h - 22h"
+                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#0066CC] focus:outline-none focus:ring-2 focus:ring-[#0066CC]/15"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-xs font-semibold text-[#1A1A1A]/60">Type</label>
+              <div className="mt-1 flex gap-2">
+                {(['bus', 'train', 'taxi'] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, type: t }))}
+                    className={cn(
+                      'flex-1 rounded-xl border-2 px-3 py-2 text-sm font-medium capitalize transition',
+                      form.type === t
+                        ? 'border-[#0066CC] bg-[#0066CC]/8 text-[#0066CC]'
+                        : 'border-[#EAE5DC] bg-white text-[#1A1A1A]/60 hover:border-[#0066CC]/40',
+                    )}
+                  >
+                    {t === 'bus' ? '🚌 Bus' : t === 'train' ? '🚆 Train' : '🚕 Taxi'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowForm(false)}
+              className="border-[#EAE5DC]"
+            >
+              Annuler
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleAdd}
+              className="gap-1.5 rounded-lg bg-[#0066CC] text-white hover:bg-[#0055a8]"
+            >
+              <Plus className="h-4 w-4" /> Ajouter
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Liste des transports */}
+      {transports.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-[#EAE5DC] bg-white p-12 text-center">
+          <Bus className="mx-auto mb-3 h-8 w-8 text-[#1A1A1A]/20" />
+          <p className="text-sm font-medium text-[#1A1A1A]/60">Aucune ligne de transport</p>
+          <p className="mt-1 text-xs text-[#1A1A1A]/40">
+            Cliquez sur « Ajouter transport » pour créer une ligne.
+          </p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {transports.map((t) => {
+            const meta = typeColor(t.type)
+            return (
+              <article
+                key={t.id}
+                className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white shadow-sm transition-shadow hover:shadow-md"
+                style={{ borderTop: `3px solid ${meta.color}` }}
+              >
+                <div className="p-4">
+                  <div className="mb-2 flex items-start justify-between gap-2">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <span className="text-2xl" aria-hidden>
+                        {meta.emoji}
+                      </span>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-[#1A1A1A]">
+                          {t.line}
+                        </p>
+                        <p className="truncate text-xs text-[#1A1A1A]/55">
+                          {t.destination}
+                        </p>
+                      </div>
+                    </div>
+                    <Badge className={cn('text-[10px] capitalize', meta.bg)}>
+                      {t.type}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-2 border-t border-[#EAE5DC] pt-3 text-xs">
+                    <Clock className="h-3 w-3 shrink-0 text-[#1A1A1A]/40" />
+                    <span className="text-[#1A1A1A]/70">{t.schedule}</span>
+                  </div>
+                  <div className="mt-3 flex justify-end">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleDelete(t.id)}
+                      className="gap-1.5 rounded-lg text-[#E30613] hover:bg-[#E30613]/8"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" /> Supprimer
+                    </Button>
+                  </div>
+                </div>
+              </article>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ============================================================
+// TeamsView — Équipes terrain (chefs de quartier, agents, techniciens)
+// ============================================================
+// Persistance localStorage (clé `city_teams`). Chaque membre a :
+//   - id, name, role, phone, district, status (active | off_duty)
+// On peut ajouter / supprimer des membres. Bouton « Appeler » (tel:).
+// ---------------------------------------------------------------
+
+type TeamMember = {
+  id: string
+  name: string
+  role: string
+  phone: string
+  district: string
+  status: 'active' | 'off_duty'
+}
+
+const TEAM_ROLES = ['Chef de quartier', 'Agent', 'Technicien', 'Coordinateur', 'Inspecteur'] as const
+
+const DEFAULT_TEAMS: TeamMember[] = [
+  { id: 'tm-1', name: 'Cheikh Ndiaye', role: 'Chef de quartier', phone: '+221770200001', district: 'Plateau', status: 'active' },
+  { id: 'tm-2', name: 'Awa Diop', role: 'Agent', phone: '+221770200002', district: 'Médina', status: 'active' },
+  { id: 'tm-3', name: 'Modou Fall', role: 'Technicien', phone: '+221770200003', district: 'Grand Dakar', status: 'off_duty' },
+  { id: 'tm-4', name: 'Fatou Sow', role: 'Coordinateur', phone: '+221770200004', district: 'Parcelles', status: 'active' },
+]
+
+function TeamsView() {
+  const { toast } = useToast()
+  const [teams, setTeams] = useState<TeamMember[]>(DEFAULT_TEAMS)
+  const [hydrated, setHydrated] = useState(false)
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({
+    name: '',
+    role: 'Agent' as TeamMember['role'] | string,
+    phone: '',
+    district: '',
+    status: 'active' as TeamMember['status'],
+  })
+
+  // --- Hydratation localStorage ---
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem('city_teams')
+      if (saved) {
+        const parsed = JSON.parse(saved) as TeamMember[]
+        if (Array.isArray(parsed)) setTeams(parsed)
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setHydrated(true)
+    }
+  }, [])
+
+  const persist = useCallback((next: TeamMember[]) => {
+    setTeams(next)
+    try {
+      localStorage.setItem('city_teams', JSON.stringify(next))
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  const handleAdd = () => {
+    if (form.name.trim().length < 2) {
+      toast({ title: 'Nom requis', variant: 'destructive' })
+      return
+    }
+    if (form.phone.trim().length < 6) {
+      toast({ title: 'Téléphone invalide', variant: 'destructive' })
+      return
+    }
+    const next: TeamMember = {
+      id: `tm-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      name: form.name.trim(),
+      role: form.role.trim(),
+      phone: form.phone.trim(),
+      district: form.district.trim() || 'Non assigné',
+      status: form.status,
+    }
+    persist([next, ...teams])
+    toast({
+      title: 'Membre ajouté',
+      description: `${next.name} (${next.role}) — ${next.district}`,
+    })
+    setForm({
+      name: '',
+      role: 'Agent',
+      phone: '',
+      district: '',
+      status: 'active',
+    })
+    setShowForm(false)
+  }
+
+  const handleDelete = (id: string) => {
+    const tm = teams.find((t) => t.id === id)
+    persist(teams.filter((t) => t.id !== id))
+    toast({ title: 'Membre supprimé', description: tm?.name ?? '' })
+  }
+
+  const toggleStatus = (id: string) => {
+    const next = teams.map((t) =>
+      t.id === id
+        ? {
+            ...t,
+            status: (t.status === 'active' ? 'off_duty' : 'active') as TeamMember['status'],
+          }
+        : t,
+    )
+    persist(next)
+  }
+
+  const roleEmoji = (role: string) => {
+    const r = role.toLowerCase()
+    if (r.includes('chef')) return '👮'
+    if (r.includes('technicien')) return '🔧'
+    if (r.includes('coordinateur')) return '📋'
+    if (r.includes('inspecteur')) return '🔍'
+    return '🧑‍💼'
+  }
+
+  const stats = useMemo(
+    () => ({
+      total: teams.length,
+      active: teams.filter((t) => t.status === 'active').length,
+      offDuty: teams.filter((t) => t.status === 'off_duty').length,
+    }),
+    [teams],
+  )
+
+  const SERIF = { fontFamily: 'Georgia, "Playfair Display", serif' } as const
+
+  return (
+    <div className="space-y-5">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-[#1A1A1A]" style={SERIF}>
+            Équipes terrain
+          </h2>
+          <p className="text-xs text-[#1A1A1A]/55">
+            {stats.total} membres · {stats.active} en service · {stats.offDuty} en repos
+          </p>
+        </div>
+        <Button
+          size="sm"
+          onClick={() => setShowForm((v) => !v)}
+          className="gap-1.5 rounded-lg bg-[#4A7C59] text-white hover:bg-[#3D6B4D]"
+        >
+          {showForm ? (
+            <>
+              <X className="h-4 w-4" /> Annuler
+            </>
+          ) : (
+            <>
+              <Plus className="h-4 w-4" /> Ajouter un membre
+            </>
+          )}
+        </Button>
+      </div>
+
+      {/* Formulaire d'ajout */}
+      {showForm && (
+        <div className="rounded-2xl border-2 border-[#4A7C59]/20 bg-white p-5 shadow-sm">
+          <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-[#1A1A1A]">
+            <Users2 className="h-4 w-4 text-[#4A7C59]" /> Ajouter un membre d&apos;équipe
+          </h3>
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <div>
+              <label className="text-xs font-semibold text-[#1A1A1A]/60">Nom complet *</label>
+              <input
+                type="text"
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                placeholder="ex : Cheikh Ndiaye"
+                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#4A7C59] focus:outline-none focus:ring-2 focus:ring-[#4A7C59]/15"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[#1A1A1A]/60">Rôle</label>
+              <select
+                value={form.role}
+                onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
+                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#4A7C59] focus:outline-none focus:ring-2 focus:ring-[#4A7C59]/15"
+              >
+                {TEAM_ROLES.map((r) => (
+                  <option key={r} value={r}>
+                    {r}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[#1A1A1A]/60">Téléphone *</label>
+              <input
+                type="tel"
+                value={form.phone}
+                onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+                placeholder="+221 77 000 00 00"
+                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#4A7C59] focus:outline-none focus:ring-2 focus:ring-[#4A7C59]/15"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-[#1A1A1A]/60">Quartier</label>
+              <input
+                type="text"
+                value={form.district}
+                onChange={(e) => setForm((f) => ({ ...f, district: e.target.value }))}
+                placeholder="ex : Plateau"
+                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#4A7C59] focus:outline-none focus:ring-2 focus:ring-[#4A7C59]/15"
+              />
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-xs font-semibold text-[#1A1A1A]/60">Statut</label>
+              <div className="mt-1 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, status: 'active' }))}
+                  className={cn(
+                    'flex-1 rounded-xl border-2 px-3 py-2 text-sm font-medium transition',
+                    form.status === 'active'
+                      ? 'border-[#4A7C59] bg-[#4A7C59]/8 text-[#4A7C59]'
+                      : 'border-[#EAE5DC] bg-white text-[#1A1A1A]/60 hover:border-[#4A7C59]/40',
+                  )}
+                >
+                  ● En service
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setForm((f) => ({ ...f, status: 'off_duty' }))}
+                  className={cn(
+                    'flex-1 rounded-xl border-2 px-3 py-2 text-sm font-medium transition',
+                    form.status === 'off_duty'
+                      ? 'border-[#1A1A1A] bg-[#1A1A1A]/8 text-[#1A1A1A]'
+                      : 'border-[#EAE5DC] bg-white text-[#1A1A1A]/60 hover:border-[#1A1A1A]/40',
+                  )}
+                >
+                  ○ En repos
+                </button>
+              </div>
+            </div>
+          </div>
+          <div className="mt-4 flex justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowForm(false)}
+              className="border-[#EAE5DC]"
+            >
+              Annuler
+            </Button>
+            <Button
+              size="sm"
+              onClick={handleAdd}
+              className="gap-1.5 rounded-lg bg-[#4A7C59] text-white hover:bg-[#3D6B4D]"
+            >
+              <Plus className="h-4 w-4" /> Ajouter
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Liste des membres */}
+      {teams.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-[#EAE5DC] bg-white p-12 text-center">
+          <Users2 className="mx-auto mb-3 h-8 w-8 text-[#1A1A1A]/20" />
+          <p className="text-sm font-medium text-[#1A1A1A]/60">Aucun membre d&apos;équipe</p>
+          <p className="mt-1 text-xs text-[#1A1A1A]/40">
+            Cliquez sur « Ajouter un membre » pour commencer.
+          </p>
+        </div>
+      ) : (
+        <div className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white shadow-sm">
+          <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
+            {teams.map((tm) => (
+              <article
+                key={tm.id}
+                className={cn(
+                  'overflow-hidden rounded-xl border bg-white p-4 transition-shadow hover:shadow-md',
+                  tm.status === 'active'
+                    ? 'border-[#4A7C59]/30'
+                    : 'border-[#EAE5DC]',
+                )}
+              >
+                <div className="mb-3 flex items-start gap-3">
+                  <div
+                    className={cn(
+                      'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-base font-bold',
+                      tm.status === 'active'
+                        ? 'bg-[#4A7C59]/15 text-[#4A7C59]'
+                        : 'bg-[#1A1A1A]/8 text-[#1A1A1A]/60',
+                    )}
+                  >
+                    {tm.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-bold text-[#1A1A1A]">
+                      {tm.name}
+                    </p>
+                    <p className="truncate text-xs text-[#1A1A1A]/60">
+                      {roleEmoji(tm.role)} {tm.role}
+                    </p>
+                    <p className="mt-0.5 truncate text-[11px] text-[#1A1A1A]/45">
+                      <MapPin className="mr-0.5 inline h-3 w-3" />
+                      {tm.district}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => toggleStatus(tm.id)}
+                    className={cn(
+                      'inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-[10px] font-bold transition',
+                      tm.status === 'active'
+                        ? 'bg-[#4A7C59]/12 text-[#4A7C59]'
+                        : 'bg-[#1A1A1A]/8 text-[#1A1A1A]/55',
+                    )}
+                    title="Basculer le statut"
+                  >
+                    <span
+                      className={cn(
+                        'h-1.5 w-1.5 rounded-full',
+                        tm.status === 'active' ? 'bg-[#4A7C59]' : 'bg-[#1A1A1A]/40',
+                      )}
+                    />
+                    {tm.status === 'active' ? 'En service' : 'Repos'}
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2 border-t border-[#EAE5DC] pt-3">
+                  <a
+                    href={`tel:${tm.phone.replace(/\s/g, '')}`}
+                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#4A7C59]/12 px-3 py-2 text-xs font-semibold text-[#4A7C59] transition hover:bg-[#4A7C59] hover:text-white"
+                    aria-label={`Appeler ${tm.name}`}
+                  >
+                    <Phone className="h-3.5 w-3.5" /> Appeler
+                  </a>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(tm.id)}
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-[#E30613]/10 text-[#E30613] transition hover:bg-[#E30613] hover:text-white"
+                    aria-label={`Supprimer ${tm.name}`}
+                    title="Supprimer"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              </article>
+            ))}
+          </div>
         </div>
       )}
     </div>

@@ -13,7 +13,7 @@ WORKDIR /app
 # un echo cache-bust.
 ADD https://github.com/topmuch/feedbackpro/archive/refs/heads/main.tar.gz /tmp/code.tar.gz
 RUN tar -xzf /tmp/code.tar.gz -C /app --strip-components=1 && rm /tmp/code.tar.gz && \
-    echo "build-v32-city-tabs-wallboard-annonces" && git log --oneline -1 2>/dev/null || echo "no git log"
+    echo "build-v33-citizen-modules-dashboard-enhancements" && git log --oneline -1 2>/dev/null || echo "no git log"
 
 RUN bun install
 RUN npx prisma generate

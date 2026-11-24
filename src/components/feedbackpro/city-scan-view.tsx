@@ -57,6 +57,9 @@ import {
   Calendar,
   Clock,
   User,
+  Map,
+  Route,
+  Volume2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -131,7 +134,7 @@ const TITLE_FONT: React.CSSProperties = {
 // Configuration des 5 modules (banner d'accueil Aminata)
 // ============================================================
 
-type ModuleId = 'urgence' | 'signalement' | 'orientation' | 'artisans' | 'mairie' | 'tax_fraud'
+type ModuleId = 'urgence' | 'signalement' | 'orientation' | 'artisans' | 'mairie' | 'tax_fraud' | 'itineraire' | 'annonces' | 'sante'
 
 type ModuleConfig = {
   id: ModuleId
@@ -190,6 +193,30 @@ const MODULES: ReadonlyArray<ModuleConfig> = [
     desc: 'Camion · Conteneur · Chantier',
     sub: 'Photo + récompense',
     color: '#8B0000',
+  },
+  {
+    id: 'itineraire',
+    emoji: '🗺️',
+    title: 'ITINÉRAIRE',
+    desc: 'Se rendre à un lieu',
+    sub: 'GUIDAGE GOOGLE MAPS',
+    color: COLORS.blue,
+  },
+  {
+    id: 'annonces',
+    emoji: '📣',
+    title: 'ANNONCES MUNICIPALES',
+    desc: 'Messages de la mairie',
+    sub: 'INFO MUNICIPALE',
+    color: COLORS.orange,
+  },
+  {
+    id: 'sante',
+    emoji: '⚕️',
+    title: 'SANTÉ',
+    desc: 'Pharmacies & gardes',
+    sub: 'URGENCES PHARMACEUTIQUES',
+    color: COLORS.green,
   },
 ]
 
@@ -972,6 +999,9 @@ export function CityScanView({
               }}
             />
           )}
+          {activeModule === 'itineraire' && <ItineraireView plate={plate} />}
+          {activeModule === 'annonces' && <AnnoncesView plate={plate} />}
+          {activeModule === 'sante' && <SanteView plate={plate} />}
         </SubViewShell>
       </div>
     )
@@ -1013,6 +1043,9 @@ function MainView({
     artisans: { bg: '#FFDD00', inverted: false },     // Jaune
     mairie: { bg: '#1B2A8C', inverted: true },        // Bleu (inversé)
     tax_fraud: { bg: '#FFDD00', inverted: false },    // Jaune
+    itineraire: { bg: '#FFDD00', inverted: false },   // Jaune
+    annonces: { bg: '#FFDD00', inverted: false },     // Jaune
+    sante: { bg: '#FFDD00', inverted: false },        // Jaune
   }
 
   return (
@@ -1613,30 +1646,6 @@ function OrientationView({
             </li>
           ))}
         </ul>
-      </section>
-
-      {/* Pharmacie de garde */}
-      <section className="rounded-2xl bg-white p-4 shadow-sm">
-        <div className="mb-3 flex items-center gap-2">
-          <Pill className="size-5 text-[#00A651]" />
-          <h2 className="text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
-            💊 Pharmacie de garde
-          </h2>
-        </div>
-        <div className="rounded-xl bg-[#00A651]/5 p-3">
-          <p className="text-base font-bold text-[#1A1A1A]" style={TITLE_FONT}>
-            {PHARMACIE_GARDE.name}
-          </p>
-          <p className="mt-1 text-xs text-[#1A1A1A]/60">{PHARMACIE_GARDE.address}</p>
-          <p className="mt-0.5 text-xs text-[#00A651]">{PHARMACIE_GARDE.hours}</p>
-          <a
-            href={`tel:${PHARMACIE_GARDE.phone}`}
-            className="mt-3 inline-flex items-center gap-1.5 rounded-full bg-[#00A651] px-4 py-2 text-xs font-bold text-white"
-          >
-            <Phone className="size-3.5" />
-            Appeler
-          </a>
-        </div>
       </section>
 
       {/* Partager ma position */}
@@ -2358,6 +2367,571 @@ function TaxFraudView({
       {!photoDataUrl && (
         <p className="text-center text-xs text-[#1A1A1A]/40">Prenez une photo pour activer l'envoi</p>
       )}
+    </div>
+  )
+}
+
+// ============================================================
+// 6. ItineraireView — Guidage Google Maps vers destinations clés
+// ============================================================
+
+type Destination = {
+  id: string
+  emoji: string
+  name: string
+  category: string
+  lat: number
+  lng: number
+}
+
+const ITINERAIRE_DESTINATIONS: ReadonlyArray<Destination> = [
+  { id: 'senelec',    emoji: '⚡', name: 'Senelec',            category: 'Service public',     lat: 14.6700, lng: -17.4400 },
+  { id: 'mairie',     emoji: '🏛️', name: 'Mairie de Dakar',    category: 'Administration',     lat: 14.6680, lng: -17.4390 },
+  { id: 'ecole',      emoji: '🏫', name: 'École Ousmane Diop', category: 'Éducation',          lat: 14.6720, lng: -17.4380 },
+  { id: 'pharmacie',  emoji: '💊', name: 'Pharmacie Plateau',  category: 'Santé',              lat: 14.6710, lng: -17.4395 },
+  { id: 'marche',     emoji: '🛒', name: 'Marché Sandaga',     category: 'Commerce',           lat: 14.6655, lng: -17.4366 },
+  { id: 'gare',       emoji: '🚌', name: 'Gare Routière',      category: 'Transport',          lat: 14.6690, lng: -17.4410 },
+]
+
+function ItineraireView({ plate }: { plate: CityPlate }) {
+  const { toast } = useToast()
+  const [locating, setLocating] = useState(false)
+  const [myPos, setMyPos] = useState<{ lat: number; lng: number } | null>(
+    plate.lat != null && plate.lng != null ? { lat: plate.lat, lng: plate.lng } : null,
+  )
+
+  /** Construit l'URL Google Maps directions vers une destination. */
+  const buildDirectionsUrl = (dest: Destination): string => {
+    const params = new URLSearchParams({
+      api: '1',
+      destination: `${dest.lat},${dest.lng}`,
+      travelmode: 'walking',
+    })
+    // Origine : position captée via "Je suis ici", sinon GPS de la plaque.
+    if (myPos) {
+      params.set('origin', `${myPos.lat},${myPos.lng}`)
+    }
+    return `https://www.google.com/maps/dir/?${params.toString()}`
+  }
+
+  /** Capture la position GPS du citoyen et ouvre Google Maps. */
+  const handleJeSuisIci = async () => {
+    setLocating(true)
+    const pos = await captureGps()
+    setLocating(false)
+    if (!pos) {
+      toast({
+        title: 'Position indisponible',
+        description:
+          "La géolocalisation a échoué. Autorisez l'accès à votre position.",
+      })
+      return
+    }
+    setMyPos(pos)
+    toast({
+      title: 'Vous êtes ici',
+      description: `${pos.lat.toFixed(5)}, ${pos.lng.toFixed(5)}`,
+    })
+    // Optionnel : ouvrir Google Maps avec la position de l'utilisateur.
+    window.open(
+      `https://www.google.com/maps?q=${pos.lat},${pos.lng}`,
+      '_blank',
+      'noopener,noreferrer',
+    )
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* En-tête —titre + icône Map */}
+      <section className="rounded-2xl bg-white p-4 shadow-sm">
+        <div className="mb-2 flex items-center gap-2">
+          <Map className="size-5 text-[#0066CC]" />
+          <h2 className="text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+            Itinéraire
+          </h2>
+        </div>
+        <p className="text-xs text-[#1A1A1A]/60">
+          Sélectionnez une destination ci-dessous pour lancer le guidage Google
+          Maps. À pied par défaut.
+        </p>
+      </section>
+
+      {/* Je suis ici */}
+      <section
+        className="rounded-2xl p-4 text-white shadow-sm"
+        style={{
+          background: `linear-gradient(135deg, ${COLORS.blue} 0%, #004a99 100%)`,
+        }}
+      >
+        <div className="mb-3 flex items-center gap-2">
+          <Navigation className="size-5 text-white/80" />
+          <h2 className="text-sm font-bold uppercase tracking-wide text-white/90">
+            Ma position
+          </h2>
+        </div>
+        <Button
+          onClick={handleJeSuisIci}
+          disabled={locating}
+          className="w-full rounded-xl bg-white py-5 text-base text-[#0066CC] hover:bg-white/90"
+        >
+          {locating ? (
+            <Loader2 className="size-5 animate-spin" />
+          ) : (
+            <MapPin className="size-5" />
+          )}
+          {locating ? 'Localisation…' : 'Je suis ici'}
+        </Button>
+        {myPos && (
+          <div className="mt-3 rounded-xl bg-white/15 p-3">
+            <p className="text-xs font-semibold uppercase tracking-wide text-white/70">
+              Point de départ
+            </p>
+            <p className="mt-1 font-mono text-sm font-bold text-white">
+              {myPos.lat.toFixed(5)}, {myPos.lng.toFixed(5)}
+            </p>
+            {plate.lat != null && plate.lng != null &&
+              myPos.lat === plate.lat &&
+              myPos.lng === plate.lng && (
+                <p className="mt-1 text-xs text-white/70">
+                  Position de la plaque #{plate.plateNumber}
+                </p>
+              )}
+          </div>
+        )}
+      </section>
+
+      {/* Liste des destinations */}
+      <section className="rounded-2xl bg-white p-4 shadow-sm">
+        <div className="mb-3 flex items-center gap-2">
+          <Route className="size-5 text-[#0066CC]" />
+          <h2 className="text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+            Destinations fréquentes
+          </h2>
+        </div>
+        <ul className="space-y-2">
+          {ITINERAIRE_DESTINATIONS.map((d) => (
+            <li
+              key={d.id}
+              className="flex items-center gap-3 rounded-xl bg-[#0066CC]/5 p-3"
+            >
+              <span className="text-2xl" aria-hidden>
+                {d.emoji}
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-bold text-[#1A1A1A]">
+                  {d.name}
+                </p>
+                <p className="truncate text-xs text-[#1A1A1A]/55">
+                  {d.category}
+                </p>
+              </div>
+              <a
+                href={buildDirectionsUrl(d)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#0066CC] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#0055aa]"
+              >
+                <Navigation className="size-3.5" />
+                Y aller
+              </a>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </div>
+  )
+}
+
+// ============================================================
+// 7. AnnoncesView — Annonces municipales (avec TTS)
+// ============================================================
+
+type Announcement = {
+  id: string
+  title: string
+  message: string
+  priority: 'urgent' | 'info' | 'normal'
+  targetDistrict: string | null
+  status: 'active' | 'scheduled' | 'archived'
+  broadcastHours: string | null
+  audioText?: string | null
+}
+
+function AnnoncesView({ plate }: { plate: CityPlate }) {
+  const { toast } = useToast()
+  const [annonces, setAnnonces] = useState<Announcement[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  // Empêche la double lecture automatique de la première annonce en StrictMode.
+  const autoSpokenRef = useRef(false)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    ;(async () => {
+      try {
+        const res = await fetch('/api/city/announcements', {
+          cache: 'no-store',
+        })
+        const json = (await res.json().catch(() => null)) as
+          | { ok: true; data: { announcements?: Announcement[] } }
+          | { ok: false; error?: string }
+          | null
+        if (cancelled) return
+        if (!json?.ok || !Array.isArray(json.data?.announcements)) {
+          setError(json?.error ?? 'Service indisponible')
+          setAnnonces([])
+          return
+        }
+        // Filtre : status active/scheduled + ciblage district (null = tous).
+        const filtered = json.data.announcements.filter((a) => {
+          const statusOk = a.status === 'active' || a.status === 'scheduled'
+          const districtOk =
+            a.targetDistrict == null ||
+            a.targetDistrict === '' ||
+            a.targetDistrict === plate.district
+          return statusOk && districtOk
+        })
+        setAnnonces(filtered)
+        // Lecture automatique de la première annonce après le fetch.
+        // (On évite la double exécution en StrictMode via un ref.)
+        if (filtered.length > 0 && !autoSpokenRef.current) {
+          autoSpokenRef.current = true
+          try {
+            parler(
+              filtered[0].audioText || filtered[0].message,
+            )
+          } catch {
+            /* synthèse vocale indisponible */
+          }
+        }
+      } catch {
+        if (cancelled) return
+        setError('Connexion impossible. Vérifiez votre réseau.')
+        setAnnonces([])
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [plate.district])
+
+  const handleEcouter = (a: Announcement) => {
+    try {
+      parler(a.audioText || a.message)
+    } catch {
+      /* ignore */
+    }
+    toast({
+      title: 'Lecture en cours',
+      description: a.title,
+    })
+  }
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-16">
+        <Loader2 className="size-8 animate-spin text-[#FF6B00]" />
+        <p className="text-sm text-[#1A1A1A]/55">
+          Chargement des annonces municipales…
+        </p>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
+        <AlertTriangle className="mx-auto size-10 text-[#E30613]" />
+        <p className="mt-3 text-sm font-semibold text-[#1A1A1A]" style={TITLE_FONT}>
+          {error}
+        </p>
+        <p className="mt-1 text-xs text-[#1A1A1A]/55">
+          Réessayez dans quelques instants.
+        </p>
+      </div>
+    )
+  }
+
+  if (annonces.length === 0) {
+    return (
+      <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
+        <span className="text-4xl" aria-hidden>
+          📣
+        </span>
+        <p className="mt-3 text-sm font-semibold text-[#1A1A1A]" style={TITLE_FONT}>
+          Aucune annonce municipale pour le moment.
+        </p>
+        <p className="mt-1 text-xs text-[#1A1A1A]/55">
+          Les messages de la mairie apparaîtront ici.
+        </p>
+      </div>
+    )
+  }
+
+  const priorityConfig: Record<
+    Announcement['priority'],
+    { label: string; bg: string; text: string }
+  > = {
+    urgent: { label: 'URGENT', bg: '#E30613', text: '#FFFFFF' },
+    info:   { label: 'INFO',    bg: '#0066CC', text: '#FFFFFF' },
+    normal: { label: 'NORMAL',  bg: '#6B4C9A', text: '#FFFFFF' },
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-bold uppercase tracking-wide text-[#1A1A1A]/60">
+          {annonces.length} annonce{annonces.length > 1 ? 's' : ''} municipale{annonces.length > 1 ? 's' : ''}
+        </h2>
+        <Badge className="bg-[#FF6B00]/10 text-[#FF6B00]">
+          <Check className="size-3" />
+          Info mairie
+        </Badge>
+      </div>
+
+      {annonces.map((a) => {
+        const p = priorityConfig[a.priority]
+        return (
+          <article
+            key={a.id}
+            className="rounded-2xl bg-white p-4 shadow-sm"
+            style={{ borderLeft: `4px solid ${p.bg}` }}
+          >
+            {/* Badge priorité */}
+            <div className="mb-2 flex items-center gap-2">
+              <span
+                className="rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                style={{ backgroundColor: p.bg, color: p.text }}
+              >
+                {p.label}
+              </span>
+              {a.targetDistrict && (
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-[#1A1A1A]/45">
+                  {a.targetDistrict}
+                </span>
+              )}
+            </div>
+
+            {/* Titre */}
+            <h3 className="text-base font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+              {a.title}
+            </h3>
+
+            {/* Message */}
+            <p className="mt-1.5 text-sm leading-relaxed text-[#1A1A1A]/75">
+              {a.message}
+            </p>
+
+            {/* Heures de diffusion */}
+            {a.broadcastHours && (
+              <p className="mt-2 inline-flex items-center gap-1 text-xs text-[#1A1A1A]/55">
+                <Clock className="size-3" />
+                Diffusion : {a.broadcastHours}
+              </p>
+            )}
+
+            {/* Bouton écouter */}
+            <button
+              onClick={() => handleEcouter(a)}
+              className="mt-3 flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#FF6B00] py-2.5 text-sm font-bold text-white transition hover:bg-[#e55f00]"
+            >
+              <Volume2 className="size-4" />
+              Écouter
+            </button>
+          </article>
+        )
+      })}
+    </div>
+  )
+}
+
+// ============================================================
+// 8. SanteView — Pharmacie de garde + pharmacies de la ville
+// ============================================================
+
+type Pharmacy = {
+  id: string
+  name: string
+  address: string
+  phone: string
+  hours: string
+  lat: number
+  lng: number
+}
+
+const PHARMACIE_GARDE_SANTE: Pharmacy = {
+  id: 'garde',
+  name: 'Pharmacie de Garde Plateau',
+  address: 'Rue Mohamed V, Dakar',
+  phone: '+221338210000',
+  hours: 'Ouverte 24h/24 — 7j/7',
+  lat: 14.6710,
+  lng: -17.4395,
+}
+
+const PHARMACIES_VILLE: ReadonlyArray<Pharmacy> = [
+  {
+    id: 'p1',
+    name: 'Pharmacie de la Médina',
+    address: 'Avenue Léopold S. Senghor, Médina',
+    phone: '+221338211111',
+    hours: 'Lun–Sam · 8h–22h',
+    lat: 14.6690,
+    lng: -17.4450,
+  },
+  {
+    id: 'p2',
+    name: 'Pharmacie du Sandaga',
+    address: 'Marché Sandaga, Dakar',
+    phone: '+221338212222',
+    hours: 'Lun–Sam · 8h–21h',
+    lat: 14.6655,
+    lng: -17.4366,
+  },
+  {
+    id: 'p3',
+    name: 'Pharmacie Independence',
+    address: 'Place de l\'Indépendance, Dakar',
+    phone: '+221338213333',
+    hours: 'Lun–Dim · 8h–23h',
+    lat: 14.6680,
+    lng: -17.4390,
+  },
+  {
+    id: 'p4',
+    name: 'Pharmacie Grand Dakar',
+    address: 'Boulevard du Général de Gaulle',
+    phone: '+221338214444',
+    hours: 'Lun–Sam · 8h–22h',
+    lat: 14.7100,
+    lng: -17.4600,
+  },
+]
+
+function SanteView({ plate }: { plate: CityPlate }) {
+  const buildDirectionsUrl = (p: Pharmacy): string => {
+    const params = new URLSearchParams({
+      api: '1',
+      destination: `${p.lat},${p.lng}`,
+      travelmode: 'walking',
+    })
+    if (plate.lat != null && plate.lng != null) {
+      params.set('origin', `${plate.lat},${plate.lng}`)
+    }
+    return `https://www.google.com/maps/dir/?${params.toString()}`
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* En-tête de section */}
+      <section
+        className="rounded-2xl p-4 text-white shadow-sm"
+        style={{
+          background: `linear-gradient(135deg, ${COLORS.green} 0%, #007a3c 100%)`,
+        }}
+      >
+        <div className="mb-2 flex items-center gap-2">
+          <Pill className="size-5 text-white/80" />
+          <h2 className="text-sm font-bold uppercase tracking-wide text-white/90">
+            Santé · Pharmacies
+          </h2>
+        </div>
+        <p className="text-xs leading-relaxed text-white/85">
+          Pharmacie de garde 24h/24 et annuaire des pharmacies de la ville.
+          Appelez ou lancez le guidage Google Maps en un geste.
+        </p>
+      </section>
+
+      {/* Section 1 : Pharmacie de garde */}
+      <section className="rounded-2xl bg-white p-4 shadow-sm">
+        <div className="mb-3 flex items-center gap-2">
+          <Pill className="size-5 text-[#00A651]" />
+          <h2 className="text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+            Pharmacie de garde
+          </h2>
+        </div>
+        <div className="rounded-xl bg-[#00A651]/5 p-3">
+          <p className="text-base font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+            {PHARMACIE_GARDE_SANTE.name}
+          </p>
+          <p className="mt-1 text-xs text-[#1A1A1A]/60">
+            {PHARMACIE_GARDE_SANTE.address}
+          </p>
+          <p className="mt-0.5 text-xs font-semibold text-[#00A651]">
+            {PHARMACIE_GARDE_SANTE.hours}
+          </p>
+          <div className="mt-3 flex gap-2">
+            <a
+              href={`tel:${PHARMACIE_GARDE_SANTE.phone}`}
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#00A651] py-2.5 text-sm font-bold text-white transition hover:bg-[#008a44]"
+            >
+              <Phone className="size-4" />
+              Appeler
+            </a>
+            <a
+              href={buildDirectionsUrl(PHARMACIE_GARDE_SANTE)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-[#00A651]/30 py-2.5 text-sm font-semibold text-[#00A651] transition hover:bg-[#00A651]/5"
+            >
+              <Navigation className="size-4" />
+              Y aller
+            </a>
+          </div>
+        </div>
+      </section>
+
+      {/* Section 2 : Pharmacies de la ville */}
+      <section className="rounded-2xl bg-white p-4 shadow-sm">
+        <div className="mb-3 flex items-center gap-2">
+          <MapPin className="size-5 text-[#00A651]" />
+          <h2 className="text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+            Pharmacies de la ville
+          </h2>
+        </div>
+        <ul className="space-y-3">
+          {PHARMACIES_VILLE.map((p) => (
+            <li
+              key={p.id}
+              className="rounded-xl bg-[#00A651]/5 p-3"
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold text-[#1A1A1A]">
+                    {p.name}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs text-[#1A1A1A]/55">
+                    {p.address}
+                  </p>
+                  <p className="mt-0.5 text-xs text-[#00A651]">{p.hours}</p>
+                </div>
+              </div>
+              <div className="mt-2 flex gap-2">
+                <a
+                  href={`tel:${p.phone}`}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#00A651] py-2 text-xs font-bold text-white transition hover:bg-[#008a44]"
+                >
+                  <Phone className="size-3.5" />
+                  Contacter
+                </a>
+                <a
+                  href={buildDirectionsUrl(p)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#00A651]/30 py-2 text-xs font-semibold text-[#00A651] transition hover:bg-[#00A651]/5"
+                >
+                  <Navigation className="size-3.5" />
+                  Y aller
+                </a>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   )
 }
