@@ -16,19 +16,33 @@ import { useAppStore, tokenDepuisUrl, airportTagDepuisUrl, vipQrDepuisUrl } from
 import type { View } from "@/store/app-store"
 import { LandingView } from "@/components/feedbackpro/landing-view"
 import { AuthView, AuthViewAdmin, TenantSelectionStep } from "@/components/feedbackpro/auth-view"
-import { ScanView } from "@/components/feedbackpro/scan-view"
-import { AirportScanView } from "@/components/feedbackpro/airport-scan-view"
-import { AirportStaffView } from "@/components/feedbackpro/airport-staff-view"
-import { ProDashboard } from "@/components/feedbackpro/pro-dashboard"
-import { AdminDashboard } from "@/components/feedbackpro/admin-dashboard"
-import AirlineDashboard from "@/components/feedbackpro/airline-dashboard"
-import VIPDashboard from "@/components/feedbackpro/vip-dashboard"
-import CityDashboard from "@/components/feedbackpro/city-dashboard"
-import { CityScanView } from "@/components/feedbackpro/city-scan-view"
-import { CityStaffView } from "@/components/feedbackpro/city-staff-view"
-import { VipTableScan } from "@/components/feedbackpro/vip-table-scan"
-import { VipStaffView } from "@/components/feedbackpro/vip-staff-view"
+import nextDynamic from "next/dynamic"
 import { AppFooter } from "@/components/feedbackpro/shared"
+
+function LoadingFallback() {
+  return (
+    <main className="flex min-h-screen items-center justify-center bg-background" aria-busy="true" aria-label="Chargement">
+      <div className="flex flex-col items-center gap-3">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" aria-hidden />
+        <p className="text-sm text-muted-foreground">Chargement…</p>
+      </div>
+    </main>
+  )
+}
+
+// Heavy components — lazy-loaded to reduce initial bundle (3.2MB -> ~200KB)
+const ScanView = nextDynamic(() => import("@/components/feedbackpro/scan-view").then(m => ({ default: m.ScanView })), { loading: LoadingFallback })
+const AirportScanView = nextDynamic(() => import("@/components/feedbackpro/airport-scan-view").then(m => ({ default: m.AirportScanView })), { loading: LoadingFallback })
+const AirportStaffView = nextDynamic(() => import("@/components/feedbackpro/airport-staff-view").then(m => ({ default: m.AirportStaffView })), { loading: LoadingFallback })
+const ProDashboard = nextDynamic(() => import("@/components/feedbackpro/pro-dashboard").then(m => ({ default: m.ProDashboard })), { loading: LoadingFallback })
+const AdminDashboard = nextDynamic(() => import("@/components/feedbackpro/admin-dashboard").then(m => ({ default: m.AdminDashboard })), { loading: LoadingFallback })
+const AirlineDashboard = nextDynamic(() => import("@/components/feedbackpro/airline-dashboard"), { loading: LoadingFallback })
+const VIPDashboard = nextDynamic(() => import("@/components/feedbackpro/vip-dashboard"), { loading: LoadingFallback })
+const CityDashboard = nextDynamic(() => import("@/components/feedbackpro/city-dashboard"), { loading: LoadingFallback })
+const CityScanView = nextDynamic(() => import("@/components/feedbackpro/city-scan-view").then(m => ({ default: m.CityScanView })), { loading: LoadingFallback })
+const CityStaffView = nextDynamic(() => import("@/components/feedbackpro/city-staff-view").then(m => ({ default: m.CityStaffView })), { loading: LoadingFallback })
+const VipTableScan = nextDynamic(() => import("@/components/feedbackpro/vip-table-scan").then(m => ({ default: m.VipTableScan })), { loading: LoadingFallback })
+const VipStaffView = nextDynamic(() => import("@/components/feedbackpro/vip-staff-view").then(m => ({ default: m.VipStaffView })), { loading: LoadingFallback })
 
 /**
  * Vues qui doivent afficher le pied de page global (AppFooter).
