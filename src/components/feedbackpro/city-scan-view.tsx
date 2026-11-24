@@ -973,16 +973,16 @@ function MainView({
   }
 
   return (
-    <div className="mx-auto min-h-screen max-w-md bg-white">
-      {/* === HEADER — grand panneau bleu signalétique === */}
+    <div className="mx-auto min-h-screen max-w-md bg-white p-3">
+      {/* === HEADER — panneau bleu signalétique arrondi === */}
       <header
-        className="relative overflow-hidden px-5 pb-6 pt-5"
-        style={{ background: '#1B2A8C' }}
+        className="relative overflow-hidden px-5 pb-6 pt-5 shadow-xl"
+        style={{ background: '#1B2A8C', borderRadius: '24px' }}
       >
         {/* Top bar: logo */}
         <div className="flex items-center gap-3">
           {/* Tuile blanche avec icône */}
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-white">
+          <div className="flex h-12 w-12 items-center justify-center bg-white" style={{ borderRadius: '14px' }}>
             <span className="text-2xl">👋</span>
           </div>
           <div>
@@ -1003,9 +1003,9 @@ function MainView({
           {isNight ? '🌙 Service nuit actif.' : 'Je suis là pour vous aider dans votre quartier.'}
         </p>
 
-        {/* Location — tuile blanche signalétique */}
-        <div className="mt-4 flex items-center gap-3 rounded-xl bg-white px-4 py-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#1B2A8C]">
+        {/* Location — tuile blanche signalétique arrondie */}
+        <div className="mt-4 flex items-center gap-3 bg-white px-4 py-3" style={{ borderRadius: '16px' }}>
+          <div className="flex h-10 w-10 items-center justify-center bg-[#1B2A8C]" style={{ borderRadius: '10px' }}>
             <span className="text-xl">📍</span>
           </div>
           <div className="min-w-0 flex-1">
@@ -1019,8 +1019,8 @@ function MainView({
 
       {/* === LIVE BAR === */}
       <div
-        className="flex items-center justify-between px-5 py-2 text-[11px] font-bold uppercase tracking-wider"
-        style={{ background: '#1A1A1A', color: '#FFDD00' }}
+        className="mt-3 flex items-center justify-between px-5 py-2 text-[11px] font-bold uppercase tracking-wider"
+        style={{ background: '#1A1A1A', color: '#FFDD00', borderRadius: '12px' }}
       >
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-[#FFDD00]" style={{ animation: 'pulse 1.5s infinite' }} />
@@ -1030,7 +1030,7 @@ function MainView({
       </div>
 
       {/* === PANNEAUX SIGNALÉTIQUES === */}
-      <main className="flex flex-col gap-3 p-4">
+      <main className="mt-3 flex flex-col gap-3">
         {MODULES.map((mod) => {
           const style = SIGNAGE_STYLE[mod.id]
           const isInverted = style.inverted
@@ -1128,7 +1128,7 @@ function MainView({
       </button>
 
       {/* === FOOTER === */}
-      <footer className="px-4 pb-24 pt-4 text-center">
+      <footer className="px-4 pb-24 pt-5 text-center">
         <p className="text-xs font-bold uppercase tracking-wider text-[#1A1A1A]/40">
           ✨ AMINATA — VOTRE QUARTIER CONNECTÉ
         </p>
