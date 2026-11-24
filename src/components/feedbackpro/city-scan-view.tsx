@@ -554,6 +554,18 @@ export function CityScanView({
       confirmation: Confirmation
     }) => {
       if (!plate) return
+      // VOIX — Aminata confirme la demande DANS le geste utilisateur
+      // (clic sur le bouton d'envoi). iOS Safari et Chrome mobile
+      // exigent que speechSynthesis.speak() soit appelé synchronement
+      // dans un handler de geste ; un appel différé (après await fetch)
+      // est ignoré silencieusement. On parle donc ICI, avant tout await,
+      // avec le message construit depuis la payload (titre + service).
+      // Le détail GPS éventuel reste visible à l'écran de confirmation.
+      try {
+        parler(buildAminataConfirmation(payload.confirmation))
+      } catch {
+        /* ignore — synthèse vocale indisponible */
+      }
       setSubmitting(true)
 
       // GPS : on ne capture QUE si le citoyen a coché le consentement.
@@ -1908,19 +1920,13 @@ function ConfirmationView({
   plateNumber: string
   onBack: () => void
 }) {
-  // Aminata confirme vocalement la demande envoyée dès l'affichage
-  // de l'écran de confirmation. La voix a été débloquée sur la page
-  // d'accueil (clic sur le bouton d'entrée) — speechSynthesis est
-  // donc actif ici. On tolère silencieusement tout échec navigateur.
-  useEffect(() => {
-    const phrase = buildAminataConfirmation(confirmation)
-    try {
-      parler(phrase)
-    } catch {
-      /* ignore — la synthèse vocale peut être indisponible */
-    }
-  }, [confirmation])
-
+  // NOTE — La voix de confirmation est désormais déclenchée DANS le
+  // geste utilisateur (clic sur le bouton d'envoi), voir
+  // handleSubmitIncident et TaxFraudView.handleSubmit. On ne parle
+  // PAS ici car cet effet s'exécute après un await fetch() — hors
+  // geste utilisateur — ce que iOS Safari et Chrome mobile ignorent
+  // silencieusement. Le message détaillé (avec GPS éventuel) reste
+  // affiché à l'écran.
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col items-center justify-center px-6 py-10 text-center">
       {/* Emoji géant */}
@@ -2056,6 +2062,13 @@ function TaxFraudView({
 
   const handleSubmit = async () => {
     if (!photoDataUrl) return
+    // VOIX — Aminata confirme DANS le geste utilisateur (avant await).
+    // Voir handleSubmitIncident pour le rationale mobile (iOS/Chrome).
+    try {
+      parler('Signalement envoyé. Agent de recouvrement notifié.')
+    } catch {
+      /* ignore */
+    }
     setSubmitting(true)
     try {
       const res = await fetch('/api/city/tax-reports', {
