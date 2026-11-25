@@ -1816,6 +1816,7 @@ model CityPlate {
   incidents       CityIncident[]
   taxReports      CityTaxReport[]
   checkins        CitySchoolCheckin[]
+  appointments    CityAppointment[]
 
   @@index([status])
   @@index([district])
@@ -2017,4 +2018,33 @@ model CitySchoolCheckin {
   @@index([citizenPhone])
   @@index([plateId])
   @@index([status])
+}
+
+// ============================================================
+// Ville Connectée — Rendez-vous (Maire / Secretariat)
+// ============================================================
+// Le citoyen demande un RDV depuis le QR code (module Mairie).
+// Le RDV atterrit dans l'onglet "Rendez-vous" du dashboard mairie.
+// Notification email au secretariat.
+
+model CityAppointment {
+  id            String   @id @default(cuid())
+  reference     String   @unique               // ex: "RDV-1544DFF"
+  name          String                          // nom + prénom du citoyen
+  phone         String?                         // téléphone
+  email         String?                         // email optionnel
+  motif         String                          // motif du RDV
+  plateId       String?
+  plate         CityPlate? @relation(fields: [plateId], references: [id], onDelete: SetNull)
+  qrToken       String?
+  status        String   @default("pending")   // pending | confirmed | cancelled | completed
+  assignedTo    String?                         // secretariat / maire
+  preferredDate String?                         // date souhaitée (texte libre)
+  notes         String?                         // notes du secretariat
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+  @@index([reference])
+  @@index([plateId])
 }

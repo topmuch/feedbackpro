@@ -363,6 +363,7 @@ const NAV_SECTIONS: readonly NavSection[] = [
       { id: 'businesses', label: 'Commerces', icon: ShoppingBag },
       { id: 'tarifs', label: 'Tarifs', icon: Tag },
       { id: 'announcements', label: 'Annonces', icon: Megaphone },
+      { id: 'appointments', label: 'Rendez-vous', icon: Calendar },
       { id: 'revenue', label: 'Revenus', icon: Wallet },
       { id: 'reports-mgmt', label: 'Rapports', icon: FileBarChart },
       { id: 'settings', label: 'Paramètres', icon: Settings },
@@ -1245,6 +1246,11 @@ export default function CityDashboard() {
           {/* ====== VUE ANNONCES ====== */}
           {activeNav === 'announcements' && (
             <AnnouncementsView />
+          )}
+
+          {/* ====== VUE RENDEZ-VOUS (citizen appointment requests) ====== */}
+          {activeNav === 'appointments' && (
+            <AppointmentsView />
           )}
 
           {/* ====== VUE COMMERCES (Business management) ====== */}
@@ -8829,6 +8835,371 @@ function TarifsView() {
           </div>
         </div>
       </div>
+    </div>
+  )
+}
+
+// ============================================================
+// <AppointmentsView /> — Rendez-vous citoyens
+// ------------------------------------------------------------
+// Affiche les demandes de RDV déposées via la PWA citoyenne.
+// Flux : pending → confirmed → completed (ou cancelled à tout moment).
+// PATCH /api/city/appointments/[id] avec { status } pour changer d'état.
+// ============================================================
+
+type CityAppointment = {
+  id: string
+  reference: string
+  name: string
+  phone: string
+  email: string | null
+  motif: string
+  status: 'pending' | 'confirmed' | 'cancelled' | 'completed'
+  preferredDate: string | null
+  plate: {
+    id: string
+    plateNumber: string
+    label: string
+  } | null
+  createdAt: string
+}
+
+const APPOINTMENT_STATUS_META: Record<
+  CityAppointment['status'],
+  { label: string; color: string }
+> = {
+  pending: { label: 'En attente', color: COLOR_ORANGE },
+  confirmed: { label: 'Confirmé', color: COLOR_GREEN },
+  cancelled: { label: 'Annulé', color: COLOR_RED },
+  completed: { label: 'Terminé', color: COLOR_BLUE },
+}
+
+function AppointmentsView() {
+  const { toast } = useToast()
+  const [appointments, setAppointments] = useState<CityAppointment[]>([])
+  const [loading, setLoading] = useState(true)
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
+
+  const fetchAppointments = useCallback(async () => {
+    try {
+      const res = await fetch('/api/city/appointments', { cache: 'no-store' })
+      const json = await res.json()
+      if (json?.ok && Array.isArray(json.data?.appointments)) {
+        const list = json.data.appointments as CityAppointment[]
+        // Trier par date de création décroissante (plus récent en premier)
+        list.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        )
+        setAppointments(list)
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchAppointments()
+  }, [fetchAppointments])
+
+  const updateStatus = useCallback(
+    async (id: string, status: CityAppointment['status']) => {
+      setUpdatingId(id)
+      try {
+        const res = await fetch(`/api/city/appointments/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status }),
+        })
+        const json = await res.json()
+        if (json?.ok) {
+          // Mise à jour optimiste côté UI
+          setAppointments((prev) =>
+            prev.map((a) => (a.id === id ? { ...a, status } : a))
+          )
+          toast({
+            title: 'Statut mis à jour',
+            description: `RDV marqué « ${APPOINTMENT_STATUS_META[status].label} ».`,
+          })
+        } else {
+          toast({
+            title: 'Erreur',
+            description: json?.error || 'Mise à jour impossible.',
+          })
+        }
+      } catch {
+        toast({
+          title: 'Erreur réseau',
+          description: 'Vérifiez votre connexion.',
+        })
+      } finally {
+        setUpdatingId(null)
+      }
+    },
+    [toast]
+  )
+
+  // --- Statistiques rapides ---
+  const stats = useMemo(() => {
+    const total = appointments.length
+    const pending = appointments.filter((a) => a.status === 'pending').length
+    const confirmed = appointments.filter((a) => a.status === 'confirmed').length
+    const completed = appointments.filter((a) => a.status === 'completed').length
+    return { total, pending, confirmed, completed }
+  }, [appointments])
+
+  const formatDate = (iso: string | null): string => {
+    if (!iso) return ''
+    const d = new Date(iso)
+    if (isNaN(d.getTime())) return ''
+    const pad = (n: number) => String(n).padStart(2, '0')
+    return `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()} ${pad(
+      d.getHours()
+    )}:${pad(d.getMinutes())}`
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header */}
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h2
+            className="text-xl font-bold text-[#1A1A1A]"
+            style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}
+          >
+            Rendez-vous
+          </h2>
+          <p className="text-sm text-[#1A1A1A]/60">
+            Demandes de rendez-vous déposées par les citoyens via les QR codes.
+            Confirmez, annulez ou clôturez chaque demande.
+          </p>
+        </div>
+        <Button
+          onClick={fetchAppointments}
+          variant="outline"
+          className="gap-2 rounded-xl"
+        >
+          <RefreshCw className="size-4" />
+          Actualiser
+        </Button>
+      </div>
+
+      {/* Stats summary */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-2xl border-2 border-[#d5d3d4] bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-2 text-[#1A1A1A]/50">
+            <Calendar className="size-4" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">
+              Total RDVs
+            </span>
+          </div>
+          <p className="mt-2 text-2xl font-bold text-[#1A1A1A]">{stats.total}</p>
+        </div>
+        <div className="rounded-2xl border-2 border-[#d5d3d4] bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-2 text-[#1A1A1A]/50">
+            <Clock className="size-4" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">
+              En attente
+            </span>
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-2xl font-bold text-[#1A1A1A]">
+              {stats.pending}
+            </span>
+            <Badge
+              className="rounded-full px-2 text-[10px] font-bold"
+              style={{
+                background: `${COLOR_ORANGE}15`,
+                color: COLOR_ORANGE,
+              }}
+            >
+              pending
+            </Badge>
+          </div>
+        </div>
+        <div className="rounded-2xl border-2 border-[#d5d3d4] bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-2 text-[#1A1A1A]/50">
+            <Check className="size-4" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">
+              Confirmés
+            </span>
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-2xl font-bold text-[#1A1A1A]">
+              {stats.confirmed}
+            </span>
+            <Badge
+              className="rounded-full px-2 text-[10px] font-bold"
+              style={{
+                background: `${COLOR_GREEN}15`,
+                color: COLOR_GREEN,
+              }}
+            >
+              confirmed
+            </Badge>
+          </div>
+        </div>
+        <div className="rounded-2xl border-2 border-[#d5d3d4] bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-2 text-[#1A1A1A]/50">
+            <Check className="size-4" />
+            <span className="text-[10px] font-bold uppercase tracking-wider">
+              Terminés
+            </span>
+          </div>
+          <div className="mt-2 flex items-center gap-2">
+            <span className="text-2xl font-bold text-[#1A1A1A]">
+              {stats.completed}
+            </span>
+            <Badge
+              className="rounded-full px-2 text-[10px] font-bold"
+              style={{
+                background: `${COLOR_BLUE}15`,
+                color: COLOR_BLUE,
+              }}
+            >
+              completed
+            </Badge>
+          </div>
+        </div>
+      </div>
+
+      {/* Liste */}
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="size-6 animate-spin text-[#C9A961]" />
+        </div>
+      ) : appointments.length === 0 ? (
+        <div className="rounded-2xl border-2 border-dashed border-[#d5d3d4] p-12 text-center">
+          <Calendar className="mx-auto size-10 text-[#1A1A1A]/20" />
+          <p className="mt-3 text-sm font-medium text-[#1A1A1A]/50">
+            Aucun rendez-vous pour le moment. Les demandes citoyennes
+            apparaîtront ici.
+          </p>
+        </div>
+      ) : (
+        <div className="max-h-[calc(100vh-22rem)] space-y-3 overflow-y-auto pr-1">
+          {appointments.map((a) => {
+            const meta = APPOINTMENT_STATUS_META[a.status]
+            const busy = updatingId === a.id
+            return (
+              <div
+                key={a.id}
+                className="rounded-2xl border-2 border-[#d5d3d4] bg-white p-4 shadow-sm"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  {/* Colonne gauche : infos RDV */}
+                  <div className="min-w-0 flex-1 space-y-2">
+                    {/* Ligne 1 : référence + statut */}
+                    <div className="flex flex-wrap items-center gap-2">
+                      <span
+                        className="rounded-md px-2 py-0.5 text-xs font-bold"
+                        style={{
+                          background: `${COLOR_GOLD}15`,
+                          color: COLOR_GOLD,
+                        }}
+                      >
+                        {a.reference}
+                      </span>
+                      <Badge
+                        className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase"
+                        style={{ background: `${meta.color}15`, color: meta.color }}
+                      >
+                        {meta.label}
+                      </Badge>
+                    </div>
+
+                    {/* Ligne 2 : nom + téléphone */}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                      <span className="font-semibold text-[#1A1A1A]">
+                        {a.name}
+                      </span>
+                      <span className="flex items-center gap-1 text-[#1A1A1A]/60">
+                        <Phone className="size-3.5" />
+                        {a.phone}
+                      </span>
+                    </div>
+
+                    {/* Ligne 3 : motif */}
+                    <p className="text-sm text-[#1A1A1A]/75">
+                      <span className="font-semibold text-[#1A1A1A]">Motif : </span>
+                      {a.motif}
+                    </p>
+
+                    {/* Ligne 4 : date souhaitée + plaque */}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-[#1A1A1A]/50">
+                      {a.preferredDate && (
+                        <span className="flex items-center gap-1">
+                          <Calendar className="size-3.5" />
+                          Souhaité : {formatDate(a.preferredDate)}
+                        </span>
+                      )}
+                      {a.plate && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="size-3.5" />
+                          {a.plate.plateNumber}
+                          {a.plate.label ? ` · ${a.plate.label}` : ''}
+                        </span>
+                      )}
+                      <span className="flex items-center gap-1">
+                        <Clock className="size-3.5" />
+                        Créé {timeAgo(a.createdAt)}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Colonne droite : actions */}
+                  <div className="flex flex-wrap items-center gap-2">
+                    {a.status === 'pending' && (
+                      <Button
+                        size="sm"
+                        onClick={() => updateStatus(a.id, 'confirmed')}
+                        disabled={busy}
+                        className="gap-1.5 rounded-lg bg-[#00A651] text-white hover:bg-[#008f47]"
+                      >
+                        {busy ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          <Check className="size-3.5" />
+                        )}
+                        Confirmer
+                      </Button>
+                    )}
+                    {(a.status === 'pending' || a.status === 'confirmed') && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => updateStatus(a.id, 'cancelled')}
+                        disabled={busy}
+                        className="gap-1.5 rounded-lg border-[#E30613]/40 text-[#E30613] hover:bg-[#E30613]/5"
+                      >
+                        <X className="size-3.5" />
+                        Annuler
+                      </Button>
+                    )}
+                    {a.status === 'confirmed' && (
+                      <Button
+                        size="sm"
+                        onClick={() => updateStatus(a.id, 'completed')}
+                        disabled={busy}
+                        className="gap-1.5 rounded-lg bg-[#0066CC] text-white hover:bg-[#0058ad]"
+                      >
+                        {busy ? (
+                          <Loader2 className="size-3.5 animate-spin" />
+                        ) : (
+                          <Check className="size-3.5" />
+                        )}
+                        Terminer
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
     </div>
   )
 }

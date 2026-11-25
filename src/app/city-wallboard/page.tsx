@@ -233,7 +233,7 @@ function KpiCard({
   const fgColor = isYellow ? BLACK : WHITE
   return (
     <div
-      className="flex items-center gap-3 p-4"
+      className="flex items-center gap-2 p-2 md:gap-3 md:p-4"
       style={{
         backgroundColor: bgColor,
         color: fgColor,
@@ -243,10 +243,10 @@ function KpiCard({
     >
       {/* Tuile icône blanche arrondie */}
       <div
-        className="flex h-12 w-12 shrink-0 items-center justify-center"
+        className="flex h-8 w-8 shrink-0 items-center justify-center md:h-12 md:w-12"
         style={{ backgroundColor: WHITE, borderRadius: '12px' }}
       >
-        <Icon className="h-6 w-6" style={{ color: BLACK }} />
+        <Icon className="h-4 w-4 md:h-6 md:w-6" style={{ color: BLACK }} />
       </div>
 
       {/* Colonne label + valeur + sub */}
@@ -258,7 +258,7 @@ function KpiCard({
           {label}
         </span>
         <span
-          className="text-2xl font-black leading-none tabular-nums whitespace-nowrap md:text-3xl"
+          className="text-xl font-black leading-none tabular-nums whitespace-nowrap md:text-3xl"
         >
           {value}
         </span>
@@ -275,7 +275,7 @@ function KpiCard({
       {/* Badge alerte optionnel (ex. count urgences > 0) */}
       {badgeCount !== undefined && badgeCount > 0 && (
         <span
-          className="flex h-7 min-w-[28px] shrink-0 items-center justify-center rounded-full px-2 text-xs font-black text-white"
+          className="flex h-6 min-w-[24px] shrink-0 items-center justify-center rounded-full px-2 text-[10px] font-black text-white md:h-7 md:min-w-[28px] md:text-xs"
           style={{ backgroundColor: badgeColor }}
         >
           {badgeCount}
@@ -509,7 +509,7 @@ export default function CityWallboardPage() {
 
   return (
     <div
-      className="flex min-h-screen flex-col"
+      className="flex min-h-screen flex-col overflow-x-hidden"
       style={{ backgroundColor: BG, color: BLACK, fontFamily: FONT_SIGNAGE }}
     >
       {/* Scrollbar custom pour les listes du wallboard */}
@@ -529,26 +529,26 @@ export default function CityWallboardPage() {
 
       {/* ---------------- Header — panneau bleu ---------------- */}
       <header
-        className="flex items-center justify-between gap-4 px-6 py-4"
+        className="flex items-center justify-between gap-2 p-3 md:gap-4 md:p-6"
         style={{ backgroundColor: BLUE, color: WHITE, borderRadius: '0 0 16px 16px' }}
       >
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 md:gap-4">
           {/* Tuile icône blanche arrondie */}
           <div
-            className="flex h-14 w-14 shrink-0 items-center justify-center"
+            className="flex h-10 w-10 shrink-0 items-center justify-center md:h-14 md:w-14"
             style={{ backgroundColor: WHITE, borderRadius: '14px' }}
           >
-            <Building2 className="h-8 w-8" style={{ color: BLACK }} />
+            <Building2 className="h-5 w-5 md:h-8 md:w-8" style={{ color: BLACK }} />
           </div>
           <div className="min-w-0">
             <h1
-              className="text-xl font-black leading-tight tracking-wide md:text-3xl"
+              className="text-2xl font-black leading-tight tracking-wide md:text-4xl"
               style={{ textTransform: 'uppercase', letterSpacing: '0.05em' }}
             >
               Centre de Supervision Urbain
             </h1>
             <p
-              className="text-[11px] font-bold uppercase opacity-80 md:text-xs"
+              className="text-[10px] font-bold uppercase opacity-80 md:text-xs"
               style={{ letterSpacing: '0.2em' }}
             >
               Ville Connectée — Dakar
@@ -556,17 +556,17 @@ export default function CityWallboardPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex flex-col items-end gap-1 md:flex-row md:items-center md:gap-4">
           {/* Horloge live */}
           <div className="text-right">
             <div className="flex items-center justify-end gap-2">
-              <Clock className="h-5 w-5" />
-              <span className="text-2xl font-black tabular-nums md:text-3xl">
+              <Clock className="h-4 w-4 md:h-5 md:w-5" />
+              <span className="text-xl font-black tabular-nums md:text-3xl">
                 {now ? fmtClock(now) : '--:--:--'}
               </span>
             </div>
             <div
-              className="text-[10px] font-bold uppercase opacity-80 md:text-[11px]"
+              className="text-[9px] font-bold uppercase opacity-80 md:text-[11px]"
               style={{ letterSpacing: '0.1em' }}
             >
               {now ? fmtDateFR(now) : 'Chargement…'}
@@ -580,7 +580,7 @@ export default function CityWallboardPage() {
             aria-pressed={soundOn}
             aria-label={soundOn ? 'Couper le son' : 'Activer le son (ding + annonces Aminata)'}
             title={soundOn ? 'Son activé — clic pour couper' : 'Son coupé — clic pour activer ding + annonces Aminata'}
-            className="flex h-14 w-14 shrink-0 items-center justify-center transition-colors"
+            className="flex h-10 w-10 shrink-0 items-center justify-center transition-colors md:h-14 md:w-14"
             style={{
               backgroundColor: soundOn ? YELLOW : WHITE,
               borderRadius: '14px',
@@ -588,13 +588,13 @@ export default function CityWallboardPage() {
               border: `2px solid ${soundOn ? BLACK : BLUE}`,
             }}
           >
-            {soundOn ? <Volume2 className="h-7 w-7" /> : <VolumeX className="h-7 w-7" />}
+            {soundOn ? <Volume2 className="h-5 w-5 md:h-7 md:w-7" /> : <VolumeX className="h-5 w-5 md:h-7 md:w-7" />}
           </button>
         </div>
       </header>
 
       {/* ---------------- KPI row (6 cartes signalétiques) ---------------- */}
-      <section className="grid grid-cols-2 gap-3 px-6 py-4 md:grid-cols-3 lg:grid-cols-6">
+      <section className="grid grid-cols-2 gap-2 px-3 py-2 sm:grid-cols-3 md:gap-3 md:px-6 md:py-4 lg:grid-cols-6">
         <KpiCard
           icon={Siren}
           label="Urgences"
@@ -643,7 +643,7 @@ export default function CityWallboardPage() {
 
       {/* ---------------- Bandeau contextuel (live status) ---------------- */}
       <div
-        className="flex flex-wrap items-center gap-4 px-6 pb-2 text-xs font-bold"
+        className="flex flex-wrap items-center gap-2 px-3 pb-2 text-[10px] font-bold md:gap-4 md:px-6 md:text-xs"
         style={{ color: TEXT_MUTED }}
       >
         <span className="flex items-center gap-1.5">
@@ -676,7 +676,7 @@ export default function CityWallboardPage() {
       </div>
 
       {/* ---------------- Grille principale : incidents | alertes ---------------- */}
-      <section className="grid flex-1 grid-cols-1 gap-4 px-6 py-4 lg:grid-cols-[2fr_1fr]">
+      <section className="grid flex-1 grid-cols-1 gap-3 px-3 py-3 md:px-6 md:py-4 lg:grid-cols-[2fr_1fr]">
         {/* ---- Liste incidents récents (gauche, 2fr) ---- */}
         <div
           className="flex flex-col overflow-hidden"
@@ -688,7 +688,7 @@ export default function CityWallboardPage() {
         >
           {/* En-tête panneau bleu */}
           <div
-            className="flex items-center justify-between px-4 py-3"
+            className="flex items-center justify-between px-3 py-2 md:px-4 md:py-3"
             style={{ backgroundColor: BLUE, color: WHITE }}
           >
             <h2
@@ -707,10 +707,10 @@ export default function CityWallboardPage() {
           </div>
 
           {/* Rows — chaque incident = mini-panneau avec bord gauche coloré */}
-          <div className="wb-scroll max-h-[calc(100vh-380px)] overflow-y-auto p-3">
+          <div className="wb-scroll max-h-[55vh] overflow-y-auto p-2 md:max-h-[calc(100vh-380px)] md:p-3">
             {data?.recentIncidents.length === 0 && (
               <div
-                className="flex items-center justify-center p-8 text-sm font-bold uppercase"
+                className="flex items-center justify-center p-4 text-xs font-bold uppercase md:p-8 md:text-sm"
                 style={{ color: TEXT_MUTED }}
               >
                 Aucun incident récent.
@@ -718,7 +718,7 @@ export default function CityWallboardPage() {
             )}
             {!data && (
               <div
-                className="flex items-center justify-center p-8 text-sm font-bold uppercase"
+                className="flex items-center justify-center p-4 text-xs font-bold uppercase md:p-8 md:text-sm"
                 style={{ color: TEXT_MUTED }}
               >
                 Chargement des incidents…
@@ -733,7 +733,7 @@ export default function CityWallboardPage() {
                 return (
                   <div
                     key={inc.id}
-                    className="flex items-center gap-3 p-3"
+                    className="flex items-center gap-2 p-2 md:gap-3 md:p-3"
                     style={{
                       backgroundColor: ROW_BG,
                       borderRadius: '12px',
@@ -744,20 +744,20 @@ export default function CityWallboardPage() {
                   >
                     {/* Tuile icône blanche */}
                     <div
-                      className="flex h-10 w-10 shrink-0 items-center justify-center"
+                      className="flex h-8 w-8 shrink-0 items-center justify-center md:h-10 md:w-10"
                       style={{
                         backgroundColor: WHITE,
                         borderRadius: '10px',
                         border: `1px solid ${PANEL_BORDER}`,
                       }}
                     >
-                      <Icon className="h-5 w-5" style={{ color: BLACK }} />
+                      <Icon className="h-4 w-4 md:h-5 md:w-5" style={{ color: BLACK }} />
                     </div>
 
                     {/* Catégorie + lieu */}
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <span
-                        className="truncate text-sm font-black"
+                        className="truncate text-xs font-black md:text-sm"
                         style={{
                           textTransform: 'uppercase',
                           letterSpacing: '0.03em',
@@ -767,7 +767,7 @@ export default function CityWallboardPage() {
                         {inc.category ?? typeLabel(inc.type)}
                       </span>
                       <span
-                        className="flex items-center gap-1 truncate text-xs"
+                        className="flex items-center gap-1 truncate text-[10px] md:text-xs"
                         style={{ color: TEXT_MUTED }}
                       >
                         {inc.plate ? (
@@ -775,7 +775,9 @@ export default function CityWallboardPage() {
                             <MapPin className="h-3 w-3 shrink-0" />
                             <span className="truncate">
                               {inc.plate.label}
-                              {inc.plate.district ? ` · ${inc.plate.district}` : ''}
+                              {inc.plate.district ? (
+                                <span className="hidden md:inline"> · {inc.plate.district}</span>
+                              ) : null}
                             </span>
                           </>
                         ) : (
@@ -786,7 +788,7 @@ export default function CityWallboardPage() {
 
                     {/* Badge statut */}
                     <span
-                      className="shrink-0 rounded-md px-2 py-1 text-[10px] font-black uppercase"
+                      className="shrink-0 rounded-md px-1.5 py-0.5 text-[9px] font-black uppercase md:px-2 md:py-1 md:text-[10px]"
                       style={{
                         backgroundColor: statusColor(inc.status),
                         color: WHITE,
@@ -798,8 +800,8 @@ export default function CityWallboardPage() {
 
                     {/* Il y a */}
                     <span
-                      className="shrink-0 text-right text-xs font-bold tabular-nums"
-                      style={{ color: TEXT_MUTED, minWidth: '38px' }}
+                      className="shrink-0 text-right text-[10px] font-bold tabular-nums md:text-xs"
+                      style={{ color: TEXT_MUTED, minWidth: '32px' }}
                     >
                       {fmtTimeAgo(inc.createdAt)}
                     </span>
@@ -821,7 +823,7 @@ export default function CityWallboardPage() {
             }}
           >
             <div
-              className="flex items-center justify-between px-4 py-3"
+              className="flex items-center justify-between px-3 py-2 md:px-4 md:py-3"
               style={{ backgroundColor: YELLOW, color: BLACK }}
             >
               <h2
@@ -837,7 +839,7 @@ export default function CityWallboardPage() {
                 Urgences en cours
               </h2>
               <span
-                className="flex h-6 min-w-[24px] items-center justify-center rounded-full px-2 text-[11px] font-black text-white"
+                className="flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-black text-white md:h-6 md:min-w-[24px] md:px-2 md:text-[11px]"
                 style={{ backgroundColor: RED }}
               >
                 {activeEmergencies.length}
@@ -845,13 +847,13 @@ export default function CityWallboardPage() {
             </div>
 
             <div
-              className="wb-scroll max-h-[calc(50vh-90px)] overflow-y-auto p-3"
+              className="wb-scroll max-h-[250px] overflow-y-auto p-2 md:max-h-[calc(50vh-90px)] md:p-3"
               style={{ backgroundColor: WHITE }}
             >
               <div className="flex flex-col gap-2">
                 {activeEmergencies.length === 0 && (
                   <div
-                    className="rounded-lg p-3 text-center text-xs font-bold uppercase"
+                    className="rounded-lg p-2 text-center text-[10px] font-bold uppercase md:p-3 md:text-xs"
                     style={{ backgroundColor: ROW_BG, color: TEXT_MUTED }}
                   >
                     Aucune urgence active.
@@ -860,7 +862,7 @@ export default function CityWallboardPage() {
                 {activeEmergencies.map((inc) => (
                   <div
                     key={inc.id}
-                    className="flex items-center gap-2 p-2"
+                    className="flex items-center gap-1.5 p-1.5 md:gap-2 md:p-2"
                     style={{
                       backgroundColor: ROW_BG,
                       borderRadius: '10px',
@@ -868,31 +870,31 @@ export default function CityWallboardPage() {
                     }}
                   >
                     <span
-                      className="flex h-8 w-8 shrink-0 items-center justify-center"
+                      className="flex h-7 w-7 shrink-0 items-center justify-center md:h-8 md:w-8"
                       style={{
                         backgroundColor: WHITE,
                         borderRadius: '8px',
                         border: `1px solid ${PANEL_BORDER}`,
                       }}
                     >
-                      <Siren className="h-4 w-4" style={{ color: RED }} />
+                      <Siren className="h-3 w-3 md:h-4 md:w-4" style={{ color: RED }} />
                     </span>
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <span
-                        className="truncate text-xs font-black"
+                        className="truncate text-[10px] font-black md:text-xs"
                         style={{ textTransform: 'uppercase' }}
                       >
                         {inc.category ?? 'Urgence'}
                       </span>
                       <span
-                        className="truncate text-[10px]"
+                        className="truncate text-[9px] md:text-[10px]"
                         style={{ color: TEXT_MUTED }}
                       >
                         {inc.plate?.label ?? 'Lieu inconnu'}
                       </span>
                     </div>
                     <span
-                      className="shrink-0 text-[10px] font-bold tabular-nums"
+                      className="shrink-0 text-[9px] font-bold tabular-nums md:text-[10px]"
                       style={{ color: TEXT_MUTED }}
                     >
                       {fmtTimeAgo(inc.createdAt)}
@@ -912,7 +914,7 @@ export default function CityWallboardPage() {
             }}
           >
             <div
-              className="flex items-center justify-between px-4 py-3"
+              className="flex items-center justify-between px-3 py-2 md:px-4 md:py-3"
               style={{ backgroundColor: BLUE, color: WHITE }}
             >
               <h2
@@ -928,7 +930,7 @@ export default function CityWallboardPage() {
                 Signalements en attente
               </h2>
               <span
-                className="flex h-6 min-w-[24px] items-center justify-center rounded-full px-2 text-[11px] font-black"
+                className="flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-black md:h-6 md:min-w-[24px] md:px-2 md:text-[11px]"
                 style={{ backgroundColor: WHITE, color: BLUE }}
               >
                 {pendingReportsList.length}
@@ -936,13 +938,13 @@ export default function CityWallboardPage() {
             </div>
 
             <div
-              className="wb-scroll max-h-[calc(50vh-90px)] overflow-y-auto p-3"
+              className="wb-scroll max-h-[250px] overflow-y-auto p-2 md:max-h-[calc(50vh-90px)] md:p-3"
               style={{ backgroundColor: WHITE }}
             >
               <div className="flex flex-col gap-2">
                 {pendingReportsList.length === 0 && (
                   <div
-                    className="rounded-lg p-3 text-center text-xs font-bold uppercase"
+                    className="rounded-lg p-2 text-center text-[10px] font-bold uppercase md:p-3 md:text-xs"
                     style={{ backgroundColor: ROW_BG, color: TEXT_MUTED }}
                   >
                     Aucun signalement en attente.
@@ -951,7 +953,7 @@ export default function CityWallboardPage() {
                 {pendingReportsList.map((inc) => (
                   <div
                     key={inc.id}
-                    className="flex items-center gap-2 p-2"
+                    className="flex items-center gap-1.5 p-1.5 md:gap-2 md:p-2"
                     style={{
                       backgroundColor: ROW_BG,
                       borderRadius: '10px',
@@ -959,31 +961,31 @@ export default function CityWallboardPage() {
                     }}
                   >
                     <span
-                      className="flex h-8 w-8 shrink-0 items-center justify-center"
+                      className="flex h-7 w-7 shrink-0 items-center justify-center md:h-8 md:w-8"
                       style={{
                         backgroundColor: WHITE,
                         borderRadius: '8px',
                         border: `1px solid ${PANEL_BORDER}`,
                       }}
                     >
-                      <Megaphone className="h-4 w-4" style={{ color: ORANGE }} />
+                      <Megaphone className="h-3 w-3 md:h-4 md:w-4" style={{ color: ORANGE }} />
                     </span>
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
                       <span
-                        className="truncate text-xs font-black"
+                        className="truncate text-[10px] font-black md:text-xs"
                         style={{ textTransform: 'uppercase' }}
                       >
                         {inc.category ?? 'Signalement'}
                       </span>
                       <span
-                        className="truncate text-[10px]"
+                        className="truncate text-[9px] md:text-[10px]"
                         style={{ color: TEXT_MUTED }}
                       >
                         {inc.plate?.label ?? 'Hors plaque'}
                       </span>
                     </div>
                     <span
-                      className="shrink-0 text-[10px] font-bold tabular-nums"
+                      className="shrink-0 text-[9px] font-bold tabular-nums md:text-[10px]"
                       style={{ color: TEXT_MUTED }}
                     >
                       {fmtTimeAgo(inc.createdAt)}
@@ -998,18 +1000,25 @@ export default function CityWallboardPage() {
 
       {/* ---------------- Footer — barre noire, texte jaune ---------------- */}
       <footer
-        className="mt-auto flex flex-wrap items-center justify-between gap-2 px-6 py-3 text-xs font-black"
+        className="mt-auto flex flex-wrap items-center justify-between gap-1 px-3 py-2 text-[10px] font-black md:gap-2 md:px-6 md:py-3 md:text-xs"
         style={{
           backgroundColor: BLACK,
           color: YELLOW,
           borderRadius: '16px 16px 0 0',
         }}
       >
-        <span style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-          PLAQUES: {stats?.platesCount ?? '—'} | ARTISANS: {stats?.activeArtisans ?? '—'} | SATISFACTION: {stats ? `${stats.avgSatisfaction.toFixed(1)}/5` : '—'}
+        <span
+          className="flex flex-wrap items-center gap-1"
+          style={{ textTransform: 'uppercase', letterSpacing: '0.08em' }}
+        >
+          <span>PLAQUES: {stats?.platesCount ?? '—'}</span>
+          <span className="opacity-50">|</span>
+          <span>ARTISANS: {stats?.activeArtisans ?? '—'}</span>
+          <span className="opacity-50">|</span>
+          <span>SATISFACTION: {stats ? `${stats.avgSatisfaction.toFixed(1)}/5` : '—'}</span>
         </span>
         <span
-          className="text-[10px] font-bold md:text-xs"
+          className="text-[9px] font-bold md:text-xs"
           style={{ textTransform: 'uppercase', letterSpacing: '0.08em', opacity: 0.7 }}
         >
           FeedVoice × Mairie de Dakar · Voix: Aminata · Son: {soundOn ? 'activé' : 'coupé'} · {audioUnlocked ? 'audio déverrouillé' : 'en attente de geste'}

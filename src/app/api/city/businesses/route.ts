@@ -116,6 +116,9 @@ export async function POST(req: NextRequest) {
     photoUrl?: string
     hours?: string
     description?: string
+    requestedPlan?: string
+    menu?: string
+    priceGrid?: string
   }
 
   // --- name (obligatoire, 2-80) ---
@@ -212,8 +215,48 @@ export async function POST(req: NextRequest) {
   }
 
   // ---------------------------------------------------------------
-  // Création — status="pending", verified=false (workflow mairie)
+  // Plan : standard (auto-validé) ou premium (dossier + paiement mairie)
   // ---------------------------------------------------------------
+  const requestedPlan = b.requestedPlan === 'premium' ? 'premium' : 'standard'
+
+  // Génère un numéro de dossier pour les premium (ex: 1544DFF)
+  const generateDossier = () => {
+    const nums = Math.floor(1000 + Math.random() * 9000)
+    const letters = Array.from({ length: 3 }, () =>
+      String.fromCharCode(65 + Math.floor(Math.random() * 26)),
+    ).join('')
+    return `${nums}${letters}`
+  }
+
+  // Menu / priceGrid (pour premium — l'artisan configure ses produits)
+  let menuJson: string | null = null
+  if (typeof b.menu === 'string' && b.menu.trim().startsWith('[')) {
+    try {
+      const parsed = JSON.parse(b.menu)
+      if (Array.isArray(parsed) && parsed.length <= 10) menuJson = b.menu.trim().slice(0, 500_000)
+    } catch { /* ignore */ }
+  }
+  let priceGridJson: string | null = null
+  if (typeof b.priceGrid === 'string' && b.priceGrid.trim().startsWith('[')) {
+    try {
+      const parsed = JSON.parse(b.priceGrid)
+      if (Array.isArray(parsed) && parsed.length <= 10) priceGridJson = b.priceGrid.trim().slice(0, 500_000)
+    } catch { /* ignore */ }
+  }
+
+  // ---------------------------------------------------------------
+  // Création
+  // - Standard : auto-validé (status=approved, verified=true)
+  // - Premium  : en attente (status=pending) + numéro de dossier
+  // ---------------------------------------------------------------
+  const isPremium = requestedPlan === 'premium'
+  const dossierNumber = isPremium ? generateDossier() : null
+
+  // Pour premium, on stocke le numéro de dossier dans la description
+  const finalDescription = isPremium
+    ? `${description || ''}${description ? ' — ' : ''}[DOSSIER PREMIUM: ${dossierNumber} — Paiement à la mairie pour activation]`
+    : description
+
   const business = await db.cityArtisan.create({
     data: {
       name,
@@ -227,11 +270,13 @@ export async function POST(req: NextRequest) {
       lng,
       photoUrl,
       hours,
-      description,
-      verified: false,
-      status: 'pending',
-      premium: false,
+      description: finalDescription,
+      verified: !isPremium, // standard = auto-validé, premium = en attente
+      status: isPremium ? 'pending' : 'approved',
+      premium: false, // sera activé manuellement après paiement
       isSponsored: false,
+      menu: menuJson,
+      priceGrid: priceGridJson,
       rating: 5.0,
       reviewCount: 0,
       contactCount: 0,
@@ -240,15 +285,18 @@ export async function POST(req: NextRequest) {
   })
 
   console.log(
-    `[city-businesses] Business « ${name} » (${category}/${trade}) créé — en attente validation`,
+    `[city-businesses] Business « ${name} » (${category}/${trade}) créé — ${isPremium ? `PREMIUM dossier ${dossierNumber}` : 'STANDARD auto-validé'}`,
   )
 
-  // Retour minimal selon spec : { id, status: "pending" }
+  // Retour
   return ok(
     {
       business: {
         id: business.id,
         status: business.status,
+        plan: requestedPlan,
+        dossierNumber,
+        verified: business.verified,
       },
     },
     201,

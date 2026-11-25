@@ -233,20 +233,12 @@ const MODULES: ReadonlyArray<ModuleConfig> = [
     color: COLORS.orange,
   },
   {
-    id: 'orientation',
-    emoji: '🧭',
-    title: 'ORIENTATION & MOBILITÉ',
-    desc: 'Transports · Pharmacie de garde',
-    sub: 'Aminata vous guide',
-    color: COLORS.blue,
-  },
-  {
-    id: 'artisans',
-    emoji: '🔨',
-    title: 'ARTISANS DU QUARTIER',
-    desc: 'Plombier · Électricien vérifiés',
-    sub: 'Triés par distance',
-    color: COLORS.green,
+    id: 'tax_fraud',
+    emoji: '📡',
+    title: 'RADAR TAXES & DÉPÔTS',
+    desc: 'Camion · Conteneur · Chantier',
+    sub: 'ANTI-FRAUDE IA · Récompense',
+    color: '#8B0000',
   },
   {
     id: 'mairie',
@@ -257,12 +249,20 @@ const MODULES: ReadonlyArray<ModuleConfig> = [
     color: COLORS.purple,
   },
   {
-    id: 'tax_fraud',
-    emoji: '📡',
-    title: 'RADAR TAXES & DÉPÔTS',
-    desc: 'Camion · Conteneur · Chantier',
-    sub: 'Photo + récompense',
-    color: '#8B0000',
+    id: 'artisans',
+    emoji: '🔨',
+    title: 'ARTISANS & COMMERCES',
+    desc: 'Plombier · Électricien · Boutiques',
+    sub: 'Triés par distance',
+    color: COLORS.green,
+  },
+  {
+    id: 'sante',
+    emoji: '⚕️',
+    title: 'SANTÉ',
+    desc: 'Pharmacies · Cliniques · Médecins',
+    sub: 'URGENCES & SOINS',
+    color: COLORS.green,
   },
   {
     id: 'itineraire',
@@ -279,14 +279,6 @@ const MODULES: ReadonlyArray<ModuleConfig> = [
     desc: 'Messages de la mairie',
     sub: 'INFO MUNICIPALE',
     color: COLORS.orange,
-  },
-  {
-    id: 'sante',
-    emoji: '⚕️',
-    title: 'SANTÉ',
-    desc: 'Pharmacies & gardes',
-    sub: 'URGENCES PHARMACEUTIQUES',
-    color: COLORS.green,
   },
 ]
 
@@ -1615,14 +1607,23 @@ function MainView({
           const arrowBg = isInverted ? '#FFFFFF' : '#FFFFFF'
           const arrowColor = '#1A1A1A'
 
+          // Visual emphasis on the tax_fraud card : stronger shadow + red ring
+          const isTaxFraud = mod.id === 'tax_fraud'
+
           return (
             <button
               key={mod.id}
               onClick={() => onOpenModule(mod.id)}
-              className="group flex items-center gap-4 rounded-2xl p-4 shadow-lg transition-all hover:-translate-y-1 hover:shadow-2xl active:scale-[0.98]"
+              className={cn(
+                'group relative flex items-center gap-4 rounded-2xl p-4 shadow-lg transition-all hover:-translate-y-1 hover:shadow-2xl active:scale-[0.98]',
+                isTaxFraud && 'ring-2 ring-[#E30613]/60 ring-offset-2',
+              )}
               style={{
                 background: bgColor,
                 borderRadius: '16px',
+                ...(isTaxFraud
+                  ? { boxShadow: '0 10px 25px rgba(227,6,19,0.25), 0 0 0 2px rgba(227,6,19,0.15)' }
+                  : {}),
               }}
             >
               {/* Tuile icône blanche (gauche) */}
@@ -1680,6 +1681,16 @@ function MainView({
                   className="absolute right-4 top-4 rounded-md bg-[#FFDD00] px-2 py-0.5 text-[10px] font-bold uppercase text-[#1A1A1A]"
                 >
                   SOS
+                </span>
+              )}
+              {/* Badge ANTI-FRAUDE IA (tax_fraud) — emphase visuelle */}
+              {mod.id === 'tax_fraud' && (
+                <span
+                  className="absolute -top-2.5 left-4 inline-flex items-center gap-1 rounded-full bg-[#E30613] px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-white shadow-md"
+                  style={{ animation: 'sosPulse 2.5s infinite' }}
+                >
+                  <Sparkles className="size-2.5" />
+                  ANTI-FRAUDE IA
                 </span>
               )}
             </button>
@@ -2603,6 +2614,7 @@ function BusinessRegistrationForm({
 }) {
   const { toast } = useToast()
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const productFileInputRef = useRef<HTMLInputElement>(null)
 
   // Champs du formulaire
   const [name, setName] = useState('')
@@ -2622,6 +2634,16 @@ function BusinessRegistrationForm({
     priceGrid: { label: string; price: number; period: string; description: string }
     sponsored: { label: string; price: number; period: string; description: string }
   } | null>(null)
+
+  // --- Produits (Premium uniquement) : jusqu'à 10 produits ---
+  // Chaque produit : nom, prix (FCFA), photo optionnelle.
+  const [products, setProducts] = useState<
+    Array<{ name: string; price: string; photoUrl: string | null }>
+  >([])
+  // Index du produit en cours de capture photo (pour le file input partagé).
+  const [editingProductIdx, setEditingProductIdx] = useState<number | null>(null)
+  // Dossier number renvoyé par l'API après inscription Premium.
+  const [dossierNumber, setDossierNumber] = useState<string | null>(null)
 
   // Fetch les tarifs premium définis par la mairie
   useEffect(() => {
@@ -2668,6 +2690,42 @@ function BusinessRegistrationForm({
     reader.readAsDataURL(file)
   }
 
+  // Capture photo d'un produit — resize 400px max, JPEG 0.7 quality.
+  // Le file input est partagé : on utilise editingProductIdx pour savoir
+  // quel produit reçoit la photo capturée.
+  const handleProductPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const targetIdx = editingProductIdx
+    // On reset editingProductIdx immédiatement (avant l'async) pour éviter
+    // une race condition si l'utilisateur clique sur un autre produit.
+    setEditingProductIdx(null)
+    if (targetIdx === null) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const maxDim = 400
+        const ratio = Math.min(maxDim / img.width, maxDim / img.height, 1)
+        canvas.width = Math.round(img.width * ratio)
+        canvas.height = Math.round(img.height * ratio)
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.7)
+          setProducts((prev) =>
+            prev.map((p, i) => (i === targetIdx ? { ...p, photoUrl: dataUrl } : p)),
+          )
+        }
+      }
+      img.src = reader.result as string
+    }
+    reader.readAsDataURL(file)
+    // Reset l'input pour permettre de re-capturer la même photo.
+    e.target.value = ''
+  }
+
   // Soumission → POST /api/city/businesses
   const handleSubmit = async () => {
     if (name.trim().length < 2) {
@@ -2682,32 +2740,69 @@ function BusinessRegistrationForm({
       toast({ title: 'Téléphone requis', description: 'Indiquez un numéro de téléphone.' })
       return
     }
+    // Premium : WhatsApp obligatoire (pour les confirmations de commande)
+    if (plan === 'premium' && whatsapp.trim().length < 6) {
+      toast({
+        title: 'WhatsApp requis',
+        description: 'Indiquez un numéro WhatsApp pour les confirmations de commande.',
+      })
+      return
+    }
     setSubmitting(true)
     try {
+      // Construction du body — requestedPlan toujours envoyé.
+      // Premium : on joint le menu (JSON.stringify des produits valides)
+      // et le whatsapp (déjà dans le body commun).
+      const validProducts = products
+        .filter((p) => p.name.trim().length > 0 && p.price.trim().length > 0)
+        .map((p) => ({
+          name: p.name.trim(),
+          price: `${p.price.trim()} FCFA`,
+          ...(p.photoUrl ? { photoUrl: p.photoUrl } : {}),
+        }))
+      const body: Record<string, unknown> = {
+        name: name.trim(),
+        category,
+        trade: trade.trim(),
+        phone: phone.trim(),
+        whatsapp: whatsapp.trim() || null,
+        district: plate.district ?? null,
+        address: address.trim() || null,
+        lat: plate.lat ?? null,
+        lng: plate.lng ?? null,
+        photoUrl: photoUrl ?? null,
+        hours: hours.trim() || null,
+        description: description.trim() || null,
+        requestedPlan: plan,
+      }
+      if (plan === 'premium') {
+        body.menu = JSON.stringify(validProducts)
+      }
       const res = await fetch('/api/city/businesses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: name.trim(),
-          category,
-          trade: trade.trim(),
-          phone: phone.trim(),
-          whatsapp: whatsapp.trim() || null,
-          district: plate.district ?? null,
-          address: address.trim() || null,
-          lat: plate.lat ?? null,
-          lng: plate.lng ?? null,
-          photoUrl: photoUrl ?? null,
-          hours: hours.trim() || null,
-          description: plan === 'premium'
-            ? `${description.trim() ? description.trim() + ' — ' : ''}[Plan demandé: Premium — Paiement à la mairie]`
-            : (description.trim() || null),
-        }),
+        body: JSON.stringify(body),
       })
-      const json = await res.json()
+      const json = (await res.json().catch(() => null)) as {
+        ok: boolean
+        data?: { business?: { dossierNumber?: string | null } }
+        error?: string
+      } | null
       if (json?.ok) {
+        // Premium : l'API renvoie un dossierNumber à présenter à la mairie.
+        if (plan === 'premium') {
+          setDossierNumber(json.data?.business?.dossierNumber ?? null)
+        }
         setSubmitted(true)
-        try { parler('Votre demande a été envoyée. La mairie validera votre fiche.') } catch {}
+        try {
+          parler(
+            plan === 'premium'
+              ? 'Votre demande Premium a été envoyée. Notez votre numéro de dossier.'
+              : 'Votre boutique est en ligne. Validation automatique.',
+          )
+        } catch {
+          /* ignore */
+        }
       } else {
         toast({ title: 'Erreur', description: json?.error || 'Inscription impossible.' })
       }
@@ -2720,27 +2815,73 @@ function BusinessRegistrationForm({
 
   // Écran de confirmation après soumission
   if (submitted) {
+    const isPremium = plan === 'premium'
     return (
       <div className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center px-6 text-center">
-        <div className="flex size-20 items-center justify-center rounded-full bg-[#00A651] shadow-lg">
+        <div
+          className="flex size-20 items-center justify-center rounded-full shadow-lg"
+          style={{ background: isPremium ? '#C9A961' : '#00A651' }}
+        >
           <Check className="size-10 text-white" />
         </div>
-        <h2 className="mt-5 text-xl font-bold text-[#1A1A1A]" style={TITLE_FONT}>
-          Demande envoyée !
-        </h2>
-        <p className="mt-2 text-sm text-[#1A1A1A]/70">
-          Votre fiche « {name.trim()} » a été soumise à la mairie.
-          Elle apparaîtra dans l&apos;annuaire après validation
-          (généralement sous 48h).
-        </p>
+
+        {isPremium ? (
+          <>
+            <h2 className="mt-5 text-xl font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+              Demande Premium envoyée !
+            </h2>
+            <p className="mt-2 text-sm text-[#1A1A1A]/70">
+              Votre fiche « {name.trim()} » et vos produits ont été soumis.
+              Activez votre compte Premium en mairie.
+            </p>
+
+            {/* === Numéro de dossier — proéminent === */}
+            {dossierNumber && (
+              <div
+                className="mt-5 w-full rounded-2xl border-2 border-[#C9A961]/40 bg-[#C9A961]/10 p-5 shadow-sm"
+              >
+                <p className="text-xs font-bold uppercase tracking-wider text-[#C9A961]">
+                  Votre numéro de dossier
+                </p>
+                <p
+                  className="mt-2 text-3xl font-bold tracking-wider text-[#1A1A1A]"
+                  style={TITLE_FONT}
+                >
+                  {dossierNumber}
+                </p>
+                <p className="mt-3 text-sm leading-relaxed text-[#1A1A1A]/75">
+                  Présentez ce numéro à la mairie pour le paiement et
+                  l&apos;activation.
+                </p>
+              </div>
+            )}
+          </>
+        ) : (
+          <>
+            <h2 className="mt-5 text-xl font-bold text-[#00A651]" style={TITLE_FONT}>
+              Votre boutique est en ligne !
+            </h2>
+            <p className="mt-2 text-sm font-medium text-[#1A1A1A]/70">
+              (validation automatique)
+            </p>
+            <p className="mt-2 text-sm text-[#1A1A1A]/65">
+              Votre fiche « {name.trim()} » est désormais visible par les
+              citoyens du quartier.
+            </p>
+          </>
+        )}
+
         <div className="mt-4 rounded-xl bg-[#00A651]/5 p-3 text-xs text-[#1A1A1A]/60">
           <p>📍 Plaque : #{plate.plateNumber} · {plate.district ?? 'Dakar'}</p>
           <p className="mt-1">🏷️ Catégorie : {CATS.find(c => c.id === category)?.label}</p>
-          <p className="mt-1">📊 Statut : En attente de validation</p>
+          <p className="mt-1">
+            📊 Statut : {isPremium ? 'En attente — paiement en mairie' : 'En ligne (validation automatique)'}
+          </p>
         </div>
         <Button
           onClick={onSuccess}
-          className="mt-6 w-full rounded-xl bg-[#00A651] py-4 text-white hover:bg-[#009444]"
+          className="mt-6 w-full rounded-xl py-4 text-white"
+          style={{ background: isPremium ? '#C9A961' : '#00A651' }}
         >
           Retour à l&apos;annuaire
         </Button>
@@ -2881,6 +3022,152 @@ function BusinessRegistrationForm({
         </div>
       )}
 
+      {/* === Produits (Premium uniquement) — jusqu'à 10 produits === */}
+      {plan === 'premium' && (
+        <div className="rounded-2xl bg-white p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <label className="text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+              Vos produits
+            </label>
+            <span className="rounded-full bg-[#C9A961]/15 px-2 py-0.5 text-[10px] font-bold uppercase text-[#C9A961]">
+              {products.length}/10
+            </span>
+          </div>
+          <p className="mt-0.5 text-xs text-[#1A1A1A]/50">
+            Ajoutez jusqu&apos;à 10 produits avec prix en FCFA. Photo optionnelle.
+            Ces produits apparaîtront comme votre menu en ligne.
+          </p>
+
+          {/* File input partagé pour les photos de produits */}
+          <input
+            ref={productFileInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleProductPhoto}
+            className="hidden"
+          />
+
+          {/* Liste des produits */}
+          <div className="mt-3 space-y-3">
+            {products.map((p, idx) => (
+              <div
+                key={idx}
+                className="rounded-xl border-2 border-[#C9A961]/25 bg-[#C9A961]/5 p-3"
+              >
+                <div className="flex items-start gap-3">
+                  {/* Photo du produit (ou bouton capture) */}
+                  {p.photoUrl ? (
+                    <div className="relative shrink-0">
+                      <img
+                        src={p.photoUrl}
+                        alt={p.name || `Produit ${idx + 1}`}
+                        className="size-16 rounded-lg object-cover"
+                      />
+                      <button
+                        type="button"
+                        onClick={() =>
+                          setProducts((prev) =>
+                            prev.map((pp, i) =>
+                              i === idx ? { ...pp, photoUrl: null } : pp,
+                            ),
+                          )
+                        }
+                        className="absolute -right-1 -top-1 flex size-5 items-center justify-center rounded-full bg-[#E30613] text-white shadow"
+                        aria-label="Supprimer la photo"
+                      >
+                        <X className="size-3" />
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingProductIdx(idx)
+                        productFileInputRef.current?.click()
+                      }}
+                      className="flex size-16 shrink-0 flex-col items-center justify-center gap-0.5 rounded-lg border-2 border-dashed border-[#C9A961]/40 bg-white text-[#C9A961] transition hover:bg-[#C9A961]/5"
+                      aria-label="Prendre une photo du produit"
+                    >
+                      <Camera className="size-4" />
+                      <span className="text-[9px] font-bold uppercase">Photo</span>
+                    </button>
+                  )}
+
+                  {/* Champs nom + prix */}
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <input
+                      type="text"
+                      value={p.name}
+                      onChange={(e) =>
+                        setProducts((prev) =>
+                          prev.map((pp, i) =>
+                            i === idx ? { ...pp, name: e.target.value } : pp,
+                          ),
+                        )
+                      }
+                      placeholder="Nom du produit"
+                      maxLength={60}
+                      className="w-full rounded-lg border border-[#d5d3d4] px-3 py-2 text-sm focus:border-[#C9A961] focus:outline-none"
+                    />
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={p.price}
+                        onChange={(e) =>
+                          setProducts((prev) =>
+                            prev.map((pp, i) =>
+                              i === idx ? { ...pp, price: e.target.value } : pp,
+                            ),
+                          )
+                        }
+                        placeholder="Prix"
+                        min={0}
+                        className="w-full rounded-lg border border-[#d5d3d4] px-3 py-2 text-sm focus:border-[#C9A961] focus:outline-none"
+                      />
+                      <span className="shrink-0 text-xs font-bold text-[#1A1A1A]/50">
+                        FCFA
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Bouton supprimer le produit */}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setProducts((prev) => prev.filter((_, i) => i !== idx))
+                    }
+                    className="flex shrink-0 items-center gap-1 rounded-lg px-2 py-2 text-xs font-semibold text-[#E30613] transition hover:bg-[#E30613]/5"
+                    aria-label="Supprimer ce produit"
+                  >
+                    <Trash2 className="size-4" />
+                    <span className="hidden sm:inline">Supprimer</span>
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Bouton ajouter un produit */}
+          {products.length < 10 ? (
+            <button
+              type="button"
+              onClick={() =>
+                setProducts((prev) => [...prev, { name: '', price: '', photoUrl: null }])
+              }
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#C9A961]/50 py-3 text-sm font-bold text-[#C9A961] transition hover:bg-[#C9A961]/5"
+            >
+              <Plus className="size-4" />
+              Ajouter un produit
+            </button>
+          ) : (
+            <p className="mt-3 text-center text-xs font-medium text-[#1A1A1A]/50">
+              Maximum de 10 produits atteint.
+            </p>
+          )}
+        </div>
+      )}
+
       {/* Photo de la vitrine */}
       <div className="rounded-2xl bg-white p-4 shadow-sm">
         <label className="text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
@@ -2976,16 +3263,33 @@ function BusinessRegistrationForm({
           className="mt-2 w-full rounded-xl border-2 border-[#d5d3d4] px-3 py-2.5 text-sm focus:border-[#00A651] focus:outline-none"
         />
         <label className="mt-3 block text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
-          WhatsApp (optionnel)
+          {plan === 'premium' ? (
+            <>
+              WhatsApp (confirmations de commande) <span className="text-[#C9A961]">*</span>
+            </>
+          ) : (
+            <>WhatsApp (optionnel)</>
+          )}
         </label>
         <input
           type="tel"
           value={whatsapp}
           onChange={(e) => setWhatsapp(e.target.value)}
-          placeholder="Ex : 221771234567"
+          placeholder={plan === 'premium' ? 'Ex : 221771234567 (requis)' : 'Ex : 221771234567'}
           maxLength={20}
-          className="mt-2 w-full rounded-xl border-2 border-[#d5d3d4] px-3 py-2.5 text-sm focus:border-[#00A651] focus:outline-none"
+          className={cn(
+            'mt-2 w-full rounded-xl border-2 px-3 py-2.5 text-sm focus:outline-none',
+            plan === 'premium'
+              ? 'border-[#C9A961] focus:border-[#C9A961]'
+              : 'border-[#d5d3d4] focus:border-[#00A651]',
+          )}
         />
+        {plan === 'premium' && (
+          <p className="mt-1 text-xs text-[#1A1A1A]/55">
+            Vos clients recevront ce numéro pour confirmer leurs commandes
+            par WhatsApp.
+          </p>
+        )}
       </div>
 
       {/* Adresse + Horaires */}
@@ -3303,8 +3607,18 @@ function BusinessCard({
 // ============================================================
 
 function MairieView({ currentHour, plate }: { currentHour: number; plate: CityPlate }) {
+  const { toast } = useToast()
   const greeting = getMairieGreeting(currentHour)
   const [selectedMotif, setSelectedMotif] = useState<string | null>(null)
+
+  // --- Formulaire de rendez-vous avec le Maire ---
+  const [rdvName, setRdvName] = useState('')
+  const [rdvPhone, setRdvPhone] = useState('')
+  const [rdvMotif, setRdvMotif] = useState('')
+  const [rdvPreferredDate, setRdvPreferredDate] = useState('')
+  const [rdvSubmitting, setRdvSubmitting] = useState(false)
+  // Référence renvoyée par l'API après création du RDV (ex: "RDV-1544DFF").
+  const [rdvReference, setRdvReference] = useState<string | null>(null)
 
   // Routage automatique : on affiche UNIQUEMENT le chef de quartier
   // correspondant au district de la plaque scannée. Pas de liste de 20 noms.
@@ -3317,6 +3631,60 @@ function MairieView({ currentHour, plate }: { currentHour: number; plate: CityPl
   const buildWhatsAppUrl = (motifLabel: string, motifDesc: string) => {
     const msg = `Bonjour, je vous contacte depuis la zone ${zoneLabel} concernant : ${motifLabel}. ${motifDesc}`
     return `https://wa.me/${chef.whatsapp}?text=${encodeURIComponent(msg)}`
+  }
+
+  // Soumission du formulaire de RDV → POST /api/city/appointments
+  // Référence renvoyée par l'API (ex: "RDV-1544DFF") affichée en confirmation.
+  const handleRdvSubmit = async () => {
+    if (rdvName.trim().length < 2) {
+      toast({ title: 'Nom requis', description: 'Indiquez votre nom et prénom.' })
+      return
+    }
+    if (rdvPhone.trim().length < 6) {
+      toast({ title: 'Téléphone requis', description: 'Indiquez un numéro de téléphone.' })
+      return
+    }
+    if (rdvMotif.trim().length < 4) {
+      toast({ title: 'Motif requis', description: 'Décrivez le motif de votre rendez-vous.' })
+      return
+    }
+    setRdvSubmitting(true)
+    try {
+      const res = await fetch('/api/city/appointments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: rdvName.trim(),
+          phone: rdvPhone.trim(),
+          motif: rdvMotif.trim(),
+          plateId: plate.id,
+          qrToken: plate.qrToken,
+          preferredDate: rdvPreferredDate.trim() || null,
+        }),
+      })
+      const json = (await res.json().catch(() => null)) as {
+        ok: boolean
+        data?: { appointment?: { reference?: string } }
+        error?: string
+      } | null
+      if (json?.ok && json.data?.appointment?.reference) {
+        setRdvReference(json.data.appointment.reference)
+        try {
+          parler('Votre demande de rendez-vous a été envoyée. Vous recevrez une confirmation par téléphone.')
+        } catch {
+          /* ignore */
+        }
+      } else {
+        toast({
+          title: 'Envoi impossible',
+          description: json?.error || 'Réessayez dans quelques instants.',
+        })
+      }
+    } catch {
+      toast({ title: 'Erreur réseau', description: 'Vérifiez votre connexion.' })
+    } finally {
+      setRdvSubmitting(false)
+    }
   }
 
   return (
@@ -3457,13 +3825,134 @@ function MairieView({ currentHour, plate }: { currentHour: number; plate: CityPl
             </p>
           </div>
         </div>
-        <a
-          href={`tel:${chef.phone}`}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-bold text-[#6B4C9A] transition hover:bg-white/90"
-        >
-          <Phone className="size-4" />
-          Demander un créneau
-        </a>
+
+        {/* --- Confirmation (référence affichée après envoi) --- */}
+        {rdvReference ? (
+          <div className="mt-4 rounded-xl bg-white p-4 text-[#1A1A1A] shadow-inner">
+            <div className="flex items-center gap-2">
+              <Check className="size-5 text-[#00A651]" />
+              <p className="text-sm font-bold text-[#00A651]" style={TITLE_FONT}>
+                Demande envoyée
+              </p>
+            </div>
+            <div className="mt-3 rounded-lg bg-[#6B4C9A]/10 p-3 text-center">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[#6B4C9A]">
+                Votre référence
+              </p>
+              <p
+                className="mt-1 text-2xl font-bold tracking-wider text-[#1A1A1A]"
+                style={TITLE_FONT}
+              >
+                {rdvReference}
+              </p>
+            </div>
+            <p className="mt-3 text-center text-sm text-[#1A1A1A]/70">
+              Vous recevrez une confirmation par téléphone.
+            </p>
+            <button
+              type="button"
+              onClick={() => {
+                setRdvReference(null)
+                setRdvName('')
+                setRdvPhone('')
+                setRdvMotif('')
+                setRdvPreferredDate('')
+              }}
+              className="mt-3 w-full rounded-xl border border-[#6B4C9A]/30 py-2.5 text-xs font-bold uppercase tracking-wide text-[#6B4C9A] transition hover:bg-[#6B4C9A]/5"
+            >
+              Faire une autre demande
+            </button>
+          </div>
+        ) : (
+          /* --- Formulaire de demande de RDV --- */
+          <form
+            onSubmit={(e) => {
+              e.preventDefault()
+              void handleRdvSubmit()
+            }}
+            className="mt-4 space-y-3"
+          >
+            {/* Nom et prénom */}
+            <div>
+              <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-white/80">
+                Nom et prénom <span className="text-[#FFDD00]">*</span>
+              </label>
+              <input
+                type="text"
+                value={rdvName}
+                onChange={(e) => setRdvName(e.target.value)}
+                placeholder="Ex : Aminata Diop"
+                maxLength={80}
+                required
+                className="w-full rounded-xl border-0 bg-white px-3 py-2.5 text-sm text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:outline-none focus:ring-2 focus:ring-[#FFDD00]"
+              />
+            </div>
+
+            {/* Téléphone */}
+            <div>
+              <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-white/80">
+                Téléphone <span className="text-[#FFDD00]">*</span>
+              </label>
+              <input
+                type="tel"
+                value={rdvPhone}
+                onChange={(e) => setRdvPhone(e.target.value)}
+                placeholder="Ex : 77 123 45 67"
+                maxLength={20}
+                required
+                className="w-full rounded-xl border-0 bg-white px-3 py-2.5 text-sm text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:outline-none focus:ring-2 focus:ring-[#FFDD00]"
+              />
+            </div>
+
+            {/* Motif du RDV */}
+            <div>
+              <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-white/80">
+                Motif du RDV <span className="text-[#FFDD00]">*</span>
+              </label>
+              <textarea
+                value={rdvMotif}
+                onChange={(e) => setRdvMotif(e.target.value)}
+                placeholder="Ex : Demande d'attestation de résidence, rencontre concernant mon quartier…"
+                maxLength={500}
+                rows={3}
+                required
+                className="w-full rounded-xl border-0 bg-white px-3 py-2.5 text-sm text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:outline-none focus:ring-2 focus:ring-[#FFDD00]"
+              />
+              <p className="mt-0.5 text-right text-[10px] text-white/50">
+                {rdvMotif.length}/500
+              </p>
+            </div>
+
+            {/* Date souhaitée (optionnel) */}
+            <div>
+              <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-white/80">
+                Date souhaitée <span className="text-white/40">(optionnel)</span>
+              </label>
+              <input
+                type="text"
+                value={rdvPreferredDate}
+                onChange={(e) => setRdvPreferredDate(e.target.value)}
+                placeholder="Ex : Mardi prochain matin"
+                maxLength={100}
+                className="w-full rounded-xl border-0 bg-white px-3 py-2.5 text-sm text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:outline-none focus:ring-2 focus:ring-[#FFDD00]"
+              />
+            </div>
+
+            {/* Bouton soumettre */}
+            <button
+              type="submit"
+              disabled={rdvSubmitting}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-white px-4 py-3 text-sm font-bold text-[#6B4C9A] transition hover:bg-white/90 disabled:opacity-60"
+            >
+              {rdvSubmitting ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : (
+                <Send className="size-4" />
+              )}
+              {rdvSubmitting ? 'Envoi en cours…' : 'Demander le rendez-vous'}
+            </button>
+          </form>
+        )}
       </section>
 
       {/* Annonces municipales (mock) */}
@@ -4212,7 +4701,8 @@ function AnnoncesView({ plate }: { plate: CityPlate }) {
 }
 
 // ============================================================
-// 8. SanteView — Pharmacie de garde + pharmacies de la ville
+// 8. SanteView — Pharmacie de garde + pharmacies + centres de santé
+//    & cliniques + médecins de la ville
 // ============================================================
 
 type Pharmacy = {
@@ -4221,6 +4711,18 @@ type Pharmacy = {
   address: string
   phone: string
   hours: string
+  lat: number
+  lng: number
+}
+
+/** Médecin — mock data (spécialité + coordonnées + GPS). */
+type Doctor = {
+  id: string
+  name: string
+  specialty: string
+  phone: string
+  hours: string
+  address: string
   lat: number
   lng: number
 }
@@ -4274,11 +4776,97 @@ const PHARMACIES_VILLE: ReadonlyArray<Pharmacy> = [
   },
 ]
 
+// Centres de santé & Cliniques — mock data (3-4 entrées).
+const CENTRES_SANTE: ReadonlyArray<Pharmacy> = [
+  {
+    id: 'c1',
+    name: 'Centre de Santé Médina',
+    address: 'Avenue Léopold S. Senghor, Médina',
+    phone: '+221338601111',
+    hours: 'Lun–Dim · 8h–20h (urgences 24h/24)',
+    lat: 14.6695,
+    lng: -17.4455,
+  },
+  {
+    id: 'c2',
+    name: 'Clinique du Plateau',
+    address: 'Rue Mohamed V, Plateau',
+    phone: '+221338602222',
+    hours: 'Lun–Sam · 7h–22h · Urgences 24h/24',
+    lat: 14.6720,
+    lng: -17.4400,
+  },
+  {
+    id: 'c3',
+    name: 'Polyclinique Grand Yoff',
+    address: 'Route de l\'Aéroport, Grand Yoff',
+    phone: '+221338603333',
+    hours: 'Lun–Dim · 24h/24',
+    lat: 14.7180,
+    lng: -17.4650,
+  },
+  {
+    id: 'c4',
+    name: 'Centre Médical Parcelles',
+    address: 'Route de la Corniche, Parcelles Assainies',
+    phone: '+221338604444',
+    hours: 'Lun–Sam · 8h–19h',
+    lat: 14.7400,
+    lng: -17.4300,
+  },
+]
+
+// Médecins — mock data (4 médecins avec spécialité).
+const MEDECINS: ReadonlyArray<Doctor> = [
+  {
+    id: 'm1',
+    name: 'Dr. Aminata Diop',
+    specialty: 'Médecin généraliste',
+    phone: '+221771010101',
+    hours: 'Lun–Ven · 9h–17h (RDV)',
+    address: 'Cabinet Médical Plateau, Rue Mohamed V',
+    lat: 14.6715,
+    lng: -17.4398,
+  },
+  {
+    id: 'm2',
+    name: 'Dr. Mamadou Sow',
+    specialty: 'Pédiatre',
+    phone: '+221772020202',
+    hours: 'Lun–Sam · 8h30–18h (RDV)',
+    address: 'Cabinet Pédiatrie Médina, Av. L. S. Senghor',
+    lat: 14.6692,
+    lng: -17.4452,
+  },
+  {
+    id: 'm3',
+    name: 'Dr. Fatou Ndiaye',
+    specialty: 'Gynécologue-Obstétricienne',
+    phone: '+221773030303',
+    hours: 'Mar–Sam · 10h–16h (RDV)',
+    address: 'Clinique du Plateau, Rue Mohamed V',
+    lat: 14.6722,
+    lng: -17.4402,
+  },
+  {
+    id: 'm4',
+    name: 'Dr. Cheikh Fall',
+    specialty: 'Cardiologue',
+    phone: '+221774040404',
+    hours: 'Lun–Ven · 14h–18h (RDV)',
+    address: 'Polyclinique Grand Yoff, Route de l\'Aéroport',
+    lat: 14.7182,
+    lng: -17.4652,
+  },
+]
+
 function SanteView({ plate }: { plate: CityPlate }) {
-  const buildDirectionsUrl = (p: Pharmacy): string => {
+  // Helper générique — accepte tout objet ayant lat/lng (pharmacie,
+  // centre de santé, médecin).
+  const buildDirectionsUrl = (place: { lat: number; lng: number }): string => {
     const params = new URLSearchParams({
       api: '1',
-      destination: `${p.lat},${p.lng}`,
+      destination: `${place.lat},${place.lng}`,
       travelmode: 'walking',
     })
     if (plate.lat != null && plate.lng != null) {
@@ -4299,12 +4887,12 @@ function SanteView({ plate }: { plate: CityPlate }) {
         <div className="mb-2 flex items-center gap-2">
           <Pill className="size-5 text-white/80" />
           <h2 className="text-sm font-bold uppercase tracking-wide text-white/90">
-            Santé · Pharmacies
+            Santé · Pharmacies · Cliniques · Médecins
           </h2>
         </div>
         <p className="text-xs leading-relaxed text-white/85">
-          Pharmacie de garde 24h/24 et annuaire des pharmacies de la ville.
-          Appelez ou lancez le guidage Google Maps en un geste.
+          Pharmacie de garde 24h/24, centres de santé & cliniques, et médecins
+          de la ville. Appelez ou lancez le guidage Google Maps en un geste.
         </p>
       </section>
 
@@ -4385,6 +4973,107 @@ function SanteView({ plate }: { plate: CityPlate }) {
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#00A651]/30 py-2 text-xs font-semibold text-[#00A651] transition hover:bg-[#00A651]/5"
+                >
+                  <Navigation className="size-3.5" />
+                  Y aller
+                </a>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* Section 3 : Centres de santé & Cliniques */}
+      <section className="rounded-2xl bg-white p-4 shadow-sm">
+        <div className="mb-3 flex items-center gap-2">
+          <Building2 className="size-5 text-[#0066CC]" />
+          <h2 className="text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+            Centres de santé &amp; Cliniques
+          </h2>
+        </div>
+        <ul className="space-y-3">
+          {CENTRES_SANTE.map((c) => (
+            <li
+              key={c.id}
+              className="rounded-xl bg-[#0066CC]/5 p-3"
+              style={{ borderLeft: '3px solid #0066CC' }}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+                    {c.name}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs text-[#1A1A1A]/55">
+                    {c.address}
+                  </p>
+                  <p className="mt-0.5 text-xs text-[#0066CC]">{c.hours}</p>
+                </div>
+              </div>
+              <div className="mt-2 flex gap-2">
+                <a
+                  href={`tel:${c.phone}`}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#0066CC] py-2 text-xs font-bold text-white transition hover:bg-[#0055aa]"
+                >
+                  <Phone className="size-3.5" />
+                  Appeler
+                </a>
+                <a
+                  href={buildDirectionsUrl(c)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#0066CC]/30 py-2 text-xs font-semibold text-[#0066CC] transition hover:bg-[#0066CC]/5"
+                >
+                  <Navigation className="size-3.5" />
+                  Y aller
+                </a>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      {/* Section 4 : Médecins */}
+      <section className="rounded-2xl bg-white p-4 shadow-sm">
+        <div className="mb-3 flex items-center gap-2">
+          <User className="size-5 text-[#6B4C9A]" />
+          <h2 className="text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+            Médecins
+          </h2>
+        </div>
+        <ul className="space-y-3">
+          {MEDECINS.map((m) => (
+            <li
+              key={m.id}
+              className="rounded-xl bg-[#6B4C9A]/5 p-3"
+              style={{ borderLeft: '3px solid #6B4C9A' }}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+                    {m.name}
+                  </p>
+                  <p className="mt-0.5 text-xs font-semibold text-[#6B4C9A]">
+                    {m.specialty}
+                  </p>
+                  <p className="mt-0.5 truncate text-xs text-[#1A1A1A]/55">
+                    {m.address}
+                  </p>
+                  <p className="mt-0.5 text-xs text-[#1A1A1A]/60">{m.hours}</p>
+                </div>
+              </div>
+              <div className="mt-2 flex gap-2">
+                <a
+                  href={`tel:${m.phone}`}
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#6B4C9A] py-2 text-xs font-bold text-white transition hover:bg-[#5a3d82]"
+                >
+                  <Phone className="size-3.5" />
+                  Appeler
+                </a>
+                <a
+                  href={buildDirectionsUrl(m)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#6B4C9A]/30 py-2 text-xs font-semibold text-[#6B4C9A] transition hover:bg-[#6B4C9A]/5"
                 >
                   <Navigation className="size-3.5" />
                   Y aller
