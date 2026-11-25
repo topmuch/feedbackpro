@@ -13,7 +13,7 @@ WORKDIR /app
 # un echo cache-bust.
 ADD https://github.com/topmuch/feedbackpro/archive/refs/heads/main.tar.gz /tmp/code.tar.gz
 RUN tar -xzf /tmp/code.tar.gz -C /app --strip-components=1 && rm /tmp/code.tar.gz && \
-    echo "build-v41-premium-dossier-rdv-sante-reorganize-responsive" && git log --oneline -1 2>/dev/null || echo "no git log"
+    echo "build-v42-business-card-images-fix" && git log --oneline -1 2>/dev/null || echo "no git log"
 
 RUN bun install
 RUN npx prisma generate

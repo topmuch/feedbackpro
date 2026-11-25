@@ -3382,17 +3382,22 @@ function BusinessCard({
 }) {
   const color = businessCategoryColor(business.category)
 
-  // Parse le menu JSON (premium restaurants) — [{name, price}]
-  const menuItems = useMemo<Array<{ name: string; price: string }> | null>(() => {
+  // Parse le menu (premium restaurants) — l'API peut retourner un array ou une string JSON
+  const menuItems = useMemo<Array<{ name: string; price: string | number; photoUrl?: string | null }> | null>(() => {
     if (!business.menu) return null
     try {
-      const parsed = JSON.parse(business.menu)
+      const parsed = typeof business.menu === 'string' ? JSON.parse(business.menu) : business.menu
       if (Array.isArray(parsed)) {
         return parsed
-          .filter((it: unknown): it is { name: string; price: string } =>
-            typeof it === 'object' && it !== null && 'name' in it && 'price' in it,
+          .filter((it: unknown): it is Record<string, unknown> =>
+            typeof it === 'object' && it !== null && 'name' in it,
           )
-          .slice(0, 3)
+          .slice(0, 5)
+          .map((it) => ({
+            name: String(it.name ?? ''),
+            price: it.price ?? '',
+            photoUrl: (it.photoUrl as string | null | undefined) ?? null,
+          }))
       }
     } catch {
       /* ignore */
@@ -3400,17 +3405,23 @@ function BusinessCard({
     return null
   }, [business.menu])
 
-  // Parse la grille tarifaire (premium artisans) — [{service, price}]
-  const priceGridItems = useMemo<Array<{ service: string; price: string }> | null>(() => {
+  // Parse la grille tarifaire (premium artisans) — l'API peut retourner un array ou une string JSON
+  const priceGridItems = useMemo<Array<{ service: string; price: string | number; unit?: string; photoUrl?: string | null }> | null>(() => {
     if (!business.priceGrid) return null
     try {
-      const parsed = JSON.parse(business.priceGrid)
+      const parsed = typeof business.priceGrid === 'string' ? JSON.parse(business.priceGrid) : business.priceGrid
       if (Array.isArray(parsed)) {
         return parsed
-          .filter((it: unknown): it is { service: string; price: string } =>
-            typeof it === 'object' && it !== null && 'service' in it && 'price' in it,
+          .filter((it: unknown): it is Record<string, unknown> =>
+            typeof it === 'object' && it !== null && ('service' in it || 'name' in it),
           )
-          .slice(0, 3)
+          .slice(0, 5)
+          .map((it) => ({
+            service: String(it.service ?? it.name ?? ''),
+            price: it.price ?? '',
+            unit: (it.unit as string | undefined) ?? undefined,
+            photoUrl: (it.photoUrl as string | null | undefined) ?? null,
+          }))
       }
     } catch {
       /* ignore */
@@ -3433,7 +3444,7 @@ function BusinessCard({
   const orderUrl = buildWhatsAppOrderUrl()
   const isRestaurantWithMenu =
     business.isPremium &&
-    business.category === 'Restaurant' &&
+    (business.category?.toLowerCase() === 'restaurant') &&
     !!menuItems &&
     menuItems.length > 0
 
@@ -3536,12 +3547,20 @@ function BusinessCard({
       {/* Menu (premium restaurant) */}
       {business.isPremium && menuItems && menuItems.length > 0 && (
         <div className="mt-3 rounded-xl bg-[#FF6B00]/5 px-3 py-2">
-          <p className="text-xs font-bold text-[#FF6B00]">Menu</p>
-          <ul className="mt-1 space-y-1">
+          <p className="text-xs font-bold text-[#FF6B00]">🍽️ Menu</p>
+          <ul className="mt-1 space-y-1.5">
             {menuItems.map((item, idx) => (
-              <li key={idx} className="flex items-center justify-between text-xs">
-                <span className="text-[#1A1A1A]/80">{item.name}</span>
-                <span className="font-bold text-[#1A1A1A]">{item.price}</span>
+              <li key={idx} className="flex items-center gap-2 text-xs">
+                {item.photoUrl && (
+                  <img
+                    src={item.photoUrl}
+                    alt={item.name}
+                    className="size-10 shrink-0 rounded-lg object-cover"
+                    loading="lazy"
+                  />
+                )}
+                <span className="flex-1 text-[#1A1A1A]/80">{item.name}</span>
+                <span className="font-bold text-[#1A1A1A]">{typeof item.price === 'number' ? `${item.price.toLocaleString('fr-FR')} FCFA` : item.price}</span>
               </li>
             ))}
           </ul>
@@ -3551,12 +3570,20 @@ function BusinessCard({
       {/* Grille tarifaire (premium artisan) */}
       {business.isPremium && priceGridItems && priceGridItems.length > 0 && (
         <div className="mt-2 rounded-xl bg-[#00A651]/5 px-3 py-2">
-          <p className="text-xs font-bold text-[#00A651]">Tarifs</p>
-          <ul className="mt-1 space-y-1">
+          <p className="text-xs font-bold text-[#00A651]">🔧 Tarifs</p>
+          <ul className="mt-1 space-y-1.5">
             {priceGridItems.map((item, idx) => (
-              <li key={idx} className="flex items-center justify-between text-xs">
-                <span className="text-[#1A1A1A]/80">{item.service}</span>
-                <span className="font-bold text-[#1A1A1A]">{item.price}</span>
+              <li key={idx} className="flex items-center gap-2 text-xs">
+                {item.photoUrl && (
+                  <img
+                    src={item.photoUrl}
+                    alt={item.service}
+                    className="size-10 shrink-0 rounded-lg object-cover"
+                    loading="lazy"
+                  />
+                )}
+                <span className="flex-1 text-[#1A1A1A]/80">{item.service}{item.unit ? ` (${item.unit})` : ''}</span>
+                <span className="font-bold text-[#1A1A1A]">{typeof item.price === 'number' ? `${item.price.toLocaleString('fr-FR')} FCFA` : item.price}</span>
               </li>
             ))}
           </ul>
