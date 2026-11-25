@@ -63,6 +63,8 @@ import {
   Tag,
   ShoppingBag,
   Sparkles,
+  Camera,
+  Map,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -72,6 +74,8 @@ import { useToast } from '@/hooks/use-toast'
 import { parler } from '@/lib/staff-tts'
 import { composeQrPremium, qrServerUrl } from '@/lib/qr-premium'
 import { CityWallboardTab } from '@/components/feedbackpro/city-wallboard-tab'
+import { DAKAR_REGION, ALL_COMMUNES } from '@/lib/city-seed-data'
+import type { CommuneSeed } from '@/lib/city-seed-data'
 
 // ---------------------------------------------------------------
 // Types — shape des réponses API
@@ -146,12 +150,15 @@ type BusinessMenuItem = {
   name: string
   price: number
   description?: string | null
+  photo?: string | null // data URL JPEG (max 400px, qualité 0.7)
 }
 
 type BusinessPriceItem = {
   id?: string
-  label: string
+  service: string // ex: "Réparation fuite", "Tonte pelouse"
   price: number
+  unit?: string | null // ex: "forfait", "à l'heure", "m²"
+  photo?: string | null // data URL JPEG (max 400px, qualité 0.7)
 }
 
 type CityBusiness = {
@@ -354,6 +361,7 @@ const NAV_SECTIONS: readonly NavSection[] = [
       { id: 'teams', label: 'Équipes terrain', icon: Users2 },
       { id: 'plates-mgmt', label: 'Gestion plaques', icon: QrCode },
       { id: 'businesses', label: 'Commerces', icon: ShoppingBag },
+      { id: 'tarifs', label: 'Tarifs', icon: Tag },
       { id: 'announcements', label: 'Annonces', icon: Megaphone },
       { id: 'revenue', label: 'Revenus', icon: Wallet },
       { id: 'reports-mgmt', label: 'Rapports', icon: FileBarChart },
@@ -405,12 +413,13 @@ export default function CityDashboard() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
-  // --- Voix Denise (TTS) + sons ---
+  // --- Voix Aminata (TTS) + sons ---
   const [soundOn, setSoundOn] = useState(false)
   const [showSoundBanner, setShowSoundBanner] = useState(false)
   const seenIdsRef = useRef<Set<string>>(new Set())
   const firstPollRef = useRef(true)
   const alertedLateRef = useRef<Set<string>>(new Set())
+  const announcedResolvedRef = useRef<Set<string>>(new Set())
 
   // --- États UI ---
   const [activeNav, setActiveNav] = useState('overview')
@@ -544,15 +553,16 @@ export default function CityDashboard() {
     } catch { /* ignore */ }
   }, [])
 
-  // --- Détection nouveaux incidents + rappel retard (Denise TTS) ---
+  // --- Détection nouveaux incidents + résolutions + rappel retard (Aminata TTS) ---
   useEffect(() => {
     if (!incidents || incidents.length === 0) return
     const isFirst = firstPollRef.current
     firstPollRef.current = false
     const nowMs = Date.now()
+    // Capture des IDs vus au tour précédent (pour détecter les résolutions)
+    const previouslySeen = new Set(seenIdsRef.current)
 
     for (const inc of incidents) {
-      if (inc.status === 'resolved') continue
       // Nouvel incident détecté
       if (!seenIdsRef.current.has(inc.id)) {
         seenIdsRef.current.add(inc.id)
@@ -561,16 +571,29 @@ export default function CityDashboard() {
           const isEmergency = inc.type === 'emergency'
           const categoryLabel = inc.category || inc.type
           const serviceLabel = inc.assignedTo || 'Mairie'
+          const desc = inc.description ? `. ${inc.description.substring(0, 120)}` : ''
           setTimeout(() => {
             parler(
               isEmergency
-                ? `Urgence signalée. ${categoryLabel}. ${serviceLabel} alerté. Intervention requise.`
-                : `Nouveau signalement. ${categoryLabel}. Routé vers ${serviceLabel}.`
+                ? `Urgence signalée. ${categoryLabel}${desc}. ${serviceLabel} alerté. Intervention requise.`
+                : `Nouveau signalement. ${categoryLabel}${desc}. Routé vers ${serviceLabel}.`
             )
           }, 300)
         }
       }
-      // Rappel retard (> 10 min sans résolution)
+
+      // Résolution détectée (incident précédemment vu, maintenant résolu)
+      if (inc.status === 'resolved' && previouslySeen.has(inc.id) && !announcedResolvedRef.current.has(inc.id)) {
+        announcedResolvedRef.current.add(inc.id)
+        if (!isFirst && soundOn) {
+          setTimeout(() => {
+            parler(`Signalement résolu. ${inc.category || inc.type}. ${inc.assignedTo || 'Mairie'} a traité le problème.`)
+          }, 300)
+        }
+      }
+
+      // Rappel retard (> 10 min sans résolution) — skip si résolu
+      if (inc.status === 'resolved') continue
       const elapsedMin = Math.floor((nowMs - new Date(inc.createdAt).getTime()) / 60000)
       if (elapsedMin >= 10) {
         const lateKey = `${inc.id}-${Math.floor(elapsedMin / 5) * 5}min`
@@ -578,16 +601,17 @@ export default function CityDashboard() {
           alertedLateRef.current.add(lateKey)
           if (soundOn && !isFirst) {
             playEscalation()
+            const desc = inc.description ? `. ${inc.description.substring(0, 80)}` : ''
             setTimeout(() => {
               parler(
-                `Signalement en retard. ${elapsedMin} minutes écoulées. ${inc.category || inc.type}. ${inc.assignedTo || 'Mairie'}. Intervention requise.`
+                `Signalement en retard. ${elapsedMin} minutes écoulées. ${inc.category || inc.type}${desc}. ${inc.assignedTo || 'Mairie'}. Intervention requise.`
               )
             }, 300)
           }
         }
       }
     }
-    // Nettoie les IDs résolus
+    // Nettoie les IDs résolus/disparus
     for (const id of [...seenIdsRef.current]) {
       const inc = incidents.find((i) => i.id === id)
       if (!inc || inc.status === 'resolved') {
@@ -620,7 +644,7 @@ export default function CityDashboard() {
       setShowSoundBanner(false)
       if (next) {
         playDing()
-        setTimeout(() => parler('Voix Denise activée. Je surveille les alertes de la ville.'), 300)
+        setTimeout(() => parler('Voix Aminata activée. Je surveille les alertes de la ville.'), 300)
       }
       return next
     })
@@ -967,12 +991,12 @@ export default function CityDashboard() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Toggle son Denise */}
+            {/* Toggle son Aminata */}
             <Button
               variant="outline"
               size="sm"
               onClick={toggleSound}
-              title={soundOn ? "Désactiver la voix Denise" : "Activer la voix Denise"}
+              title={soundOn ? "Désactiver la voix Aminata" : "Activer la voix Aminata"}
               className={cn(
                 "border-[#EAE5DC] bg-white hover:border-[#C9A961]",
                 soundOn ? "text-[#C9A961] border-[#C9A961]/40 bg-[#C9A961]/8" : "text-[#1A1A1A]"
@@ -1013,7 +1037,7 @@ export default function CityDashboard() {
               </span>
               <div>
                 <p className="text-sm font-semibold text-[#1A1A1A]">
-                  Activez la voix Denise pour les alertes vocales
+                  Activez la voix Aminata pour les alertes vocales
                 </p>
                 <p className="text-xs text-[#1A1A1A]/60">
                   Ding + annonces vocales à chaque nouveau signalement
@@ -1110,10 +1134,10 @@ export default function CityDashboard() {
                 )}
               </div>
 
-              {/* Configuration Denise */}
+              {/* Configuration Aminata */}
               <div className="rounded-2xl border border-[#EAE5DC] bg-white p-6 shadow-sm">
                 <h3 className="mb-4 text-sm font-bold uppercase tracking-wide text-[#1A1A1A]/60">
-                  Voix Denise (supervision)
+                  Voix Aminata (supervision)
                 </h3>
                 <div className="flex items-center justify-between rounded-xl bg-[#FAFAF7] px-4 py-3">
                   <div className="flex items-center gap-3">
@@ -1211,6 +1235,11 @@ export default function CityDashboard() {
           {/* ====== VUE WALLBOARD TV ====== */}
           {activeNav === 'wallboard' && (
             <CityWallboardTab />
+          )}
+
+          {/* ====== VUE TARIFS ====== */}
+          {activeNav === 'tarifs' && (
+            <TarifsView />
           )}
 
           {/* ====== VUE ANNONCES ====== */}
@@ -2111,6 +2140,388 @@ function RevenueRow({
 }
 
 // ============================================================
+// CommuneSeederModal — Pré-charger une ville (génération auto
+// des plaques pour tous les quartiers d'une commune de Dakar)
+// ============================================================
+
+// Palette par département — couleurs distinctes (aucun indigo/bleu franc).
+const DEPARTMENT_COLORS: Record<string, { bg: string; ring: string; text: string; dot: string; btn: string }> = {
+  Dakar: { bg: 'bg-[#2E5C8A]/10', ring: 'ring-[#2E5C8A]', text: 'text-[#2E5C8A]', dot: 'bg-[#2E5C8A]', btn: 'bg-[#2E5C8A] hover:bg-[#1F4A75]' },
+  Pikine: { bg: 'bg-[#4A7C59]/10', ring: 'ring-[#4A7C59]', text: 'text-[#4A7C59]', dot: 'bg-[#4A7C59]', btn: 'bg-[#4A7C59] hover:bg-[#3D6B4D]' },
+  'Guédiawaye': { bg: 'bg-[#FF6B00]/10', ring: 'ring-[#FF6B00]', text: 'text-[#FF6B00]', dot: 'bg-[#FF6B00]', btn: 'bg-[#FF6B00] hover:bg-[#E55F00]' },
+  'Keur Massar': { bg: 'bg-[#7A4FB0]/10', ring: 'ring-[#7A4FB0]', text: 'text-[#7A4FB0]', dot: 'bg-[#7A4FB0]', btn: 'bg-[#7A4FB0] hover:bg-[#6840A0]' },
+  'Rufisque': { bg: 'bg-[#0F8A8A]/10', ring: 'ring-[#0F8A8A]', text: 'text-[#0F8A8A]', dot: 'bg-[#0F8A8A]', btn: 'bg-[#0F8A8A] hover:bg-[#0B7575]' },
+}
+
+function deptColor(name: string) {
+  return (
+    DEPARTMENT_COLORS[name] ?? {
+      bg: 'bg-[#C9A961]/10',
+      ring: 'ring-[#C9A961]',
+      text: 'text-[#8B6F47]',
+      dot: 'bg-[#C9A961]',
+      btn: 'bg-[#C9A961] hover:bg-[#B8964F]',
+    }
+  )
+}
+
+type SeedResult = {
+  created: number
+  commune: string
+  department: string
+  plates: { id: string; plateNumber: string; label: string }[]
+}
+
+function CommuneSeederModal({ onClose }: { onClose: () => void }) {
+  const { toast } = useToast()
+  const [selectedDept, setSelectedDept] = useState<string | null>(null)
+  const [generating, setGenerating] = useState(false)
+  const [result, setResult] = useState<SeedResult | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const SERIF = { fontFamily: 'Georgia, "Playfair Display", serif' } as const
+
+  // Quartiers déjà existants (cache léger pour indiquer le statut dans la carte)
+  // — évite un appel supplémentaire, on se base sur le résultat 409 de l'API.
+
+  const handleGenerate = async (commune: CommuneSeed) => {
+    setGenerating(true)
+    setError(null)
+    setResult(null)
+    try {
+      const res = await fetch('/api/city/plates/seed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ communeCode: commune.code }),
+      })
+      const json = await res.json()
+      if (!res.ok) {
+        if (res.status === 409) {
+          setError(
+            `Cette commune (${commune.code} — ${commune.name}) a déjà des plaques. Supprimez-les d'abord depuis le tableau pour régénérer.`,
+          )
+          toast({
+            title: 'Commune déjà pré-chargée',
+            description: `${commune.name} possède déjà des plaques (${commune.code}#).`,
+            variant: 'destructive',
+          })
+        } else {
+          setError(json?.error ?? 'Échec de la génération.')
+          toast({ title: 'Erreur', description: json?.error ?? 'Échec', variant: 'destructive' })
+        }
+        return
+      }
+      if (json?.ok && json?.data) {
+        const data = json.data as SeedResult
+        setResult(data)
+        toast({
+          title: 'Ville pré-chargée',
+          description: `${data.created} plaques créées pour ${data.commune} (${data.department}).`,
+        })
+      }
+    } catch {
+      setError('Erreur réseau. Vérifiez votre connexion et réessayez.')
+      toast({ title: 'Erreur réseau', variant: 'destructive' })
+    } finally {
+      setGenerating(false)
+    }
+  }
+
+  const reset = () => {
+    setResult(null)
+    setError(null)
+    setSelectedDept(null)
+  }
+
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-3 sm:p-4"
+      onClick={onClose}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Pré-charger une commune"
+    >
+      <div
+        className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-2xl bg-white shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#EAE5DC] bg-white px-5 py-4 sm:px-6">
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#2E5C8A]/10">
+              <Map className="h-5 w-5 text-[#2E5C8A]" />
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-[#1A1A1A]" style={SERIF}>
+                Pré-charger une ville
+              </h3>
+              <p className="text-xs text-[#1A1A1A]/60">
+                Région de Dakar · {ALL_COMMUNES.length} communes disponibles
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg p-2 text-[#1A1A1A]/50 transition hover:bg-[#EAE5DC] hover:text-[#1A1A1A]"
+            aria-label="Fermer"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="px-5 py-5 sm:px-6">
+          {/* Breadcrumb-like step indicator */}
+          <div className="mb-5 flex items-center gap-2 text-xs">
+            <span className={cn('rounded-full px-2.5 py-1 font-medium', selectedDept ? 'bg-[#4A7C59]/12 text-[#4A7C59]' : 'bg-[#1A1A1A]/8 text-[#1A1A1A]/70')}>
+              1. Département
+            </span>
+            <span className="text-[#1A1A1A]/30">›</span>
+            <span className={cn('rounded-full px-2.5 py-1 font-medium', selectedDept ? 'bg-[#1A1A1A]/8 text-[#1A1A1A]/70' : 'bg-[#1A1A1A]/5 text-[#1A1A1A]/40')}>
+              2. Commune
+            </span>
+            <span className="text-[#1A1A1A]/30">›</span>
+            <span className={cn('rounded-full px-2.5 py-1 font-medium', result || error || generating ? 'bg-[#1A1A1A]/8 text-[#1A1A1A]/70' : 'bg-[#1A1A1A]/5 text-[#1A1A1A]/40')}>
+              3. Génération
+            </span>
+          </div>
+
+          {/* ---------- STEP 1: Departments ---------- */}
+          <div className="mb-4">
+            <p className="mb-2 text-sm font-medium text-[#1A1A1A]/70">
+              Sélectionnez un département :
+            </p>
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5">
+              {DAKAR_REGION.map((dept) => {
+                const c = deptColor(dept.name)
+                const active = selectedDept === dept.name
+                return (
+                  <button
+                    key={dept.name}
+                    onClick={() => {
+                      setSelectedDept(dept.name)
+                      setResult(null)
+                      setError(null)
+                    }}
+                    className={cn(
+                      'flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition',
+                      active
+                        ? cn('border-transparent ring-2', c.ring, c.bg)
+                        : 'border-[#EAE5DC] bg-white hover:border-[#C9A961]/40 hover:bg-[#FAFAF7]',
+                    )}
+                  >
+                    <span className="flex items-center gap-1.5">
+                      <span className={cn('h-2 w-2 rounded-full', c.dot)} />
+                      <span className={cn('text-sm font-semibold', active ? c.text : 'text-[#1A1A1A]')}>
+                        {dept.name}
+                      </span>
+                    </span>
+                    <span className="text-[11px] text-[#1A1A1A]/55">
+                      {dept.communes.length} communes
+                    </span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* ---------- STEP 2: Communes for selected department ---------- */}
+          {selectedDept && !result && (
+            <div className="mt-5">
+              <div className="mb-2 flex items-center justify-between">
+                <p className="text-sm font-medium text-[#1A1A1A]/70">
+                  Communes de <span className="font-semibold text-[#1A1A1A]">{selectedDept}</span> :
+                </p>
+                <span className="text-xs text-[#1A1A1A]/50">
+                  Cliquez sur « Générer les plaques » pour pré-charger tous les quartiers
+                </span>
+              </div>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                {DAKAR_REGION.find((d) => d.name === selectedDept)?.communes.map((commune) => {
+                  const c = deptColor(commune.department)
+                  return (
+                    <div
+                      key={commune.code}
+                      className={cn('flex flex-col rounded-xl border border-[#EAE5DC] bg-white p-4 shadow-sm transition hover:border-[#C9A961]/40', generating && 'opacity-60')}
+                    >
+                      <div className="mb-2 flex items-start justify-between gap-2">
+                        <div className="flex items-center gap-2">
+                          <span className={cn('rounded-md px-2 py-0.5 text-xs font-bold', c.bg, c.text)}>
+                            {commune.code}
+                          </span>
+                          <h4 className="text-sm font-semibold text-[#1A1A1A]">{commune.name}</h4>
+                        </div>
+                      </div>
+
+                      <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-[#1A1A1A]/60">
+                        <span className="inline-flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {commune.quartiers.length} quartiers
+                        </span>
+                        <span className="inline-flex items-center gap-1 font-mono">
+                          {commune.centerLat.toFixed(4)}, {commune.centerLng.toFixed(4)}
+                        </span>
+                      </div>
+
+                      {/* Aperçu des quartiers (5 max) */}
+                      <div className="mb-3 flex flex-wrap gap-1">
+                        {commune.quartiers.slice(0, 5).map((q) => (
+                          <span
+                            key={q.name}
+                            className="rounded bg-[#FAFAF7] px-1.5 py-0.5 text-[10px] text-[#1A1A1A]/60"
+                          >
+                            {q.name}
+                          </span>
+                        ))}
+                        {commune.quartiers.length > 5 && (
+                          <span className="rounded bg-[#FAFAF7] px-1.5 py-0.5 text-[10px] text-[#1A1A1A]/45">
+                            +{commune.quartiers.length - 5} autres
+                          </span>
+                        )}
+                      </div>
+
+                      <Button
+                        size="sm"
+                        onClick={() => handleGenerate(commune)}
+                        disabled={generating}
+                        className={cn('mt-auto w-full text-white', c.btn)}
+                      >
+                        {generating ? (
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        ) : (
+                          <Map className="h-4 w-4 mr-2" />
+                        )}
+                        {generating ? 'Génération…' : 'Générer les plaques'}
+                      </Button>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* ---------- STEP 3: Generating loader ---------- */}
+          {generating && (
+            <div className="mt-6 flex flex-col items-center justify-center gap-3 rounded-xl bg-[#FAFAF7] py-10 text-center">
+              <Loader2 className="h-8 w-8 animate-spin text-[#C9A961]" />
+              <p className="text-sm text-[#1A1A1A]/70">
+                Génération des plaques en cours…
+              </p>
+              <p className="text-xs text-[#1A1A1A]/50">
+                Chaque quartier devient une plaque avec GPS pré-rempli.
+              </p>
+            </div>
+          )}
+
+          {/* ---------- STEP 3: Error (typically 409) ---------- */}
+          {error && !generating && (
+            <div className="mt-6 rounded-xl border border-[#E30613]/30 bg-[#E30613]/8 p-5">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-[#E30613]" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-[#E30613]">Génération impossible</p>
+                  <p className="mt-1 text-sm text-[#1A1A1A]/80">{error}</p>
+                </div>
+              </div>
+              <div className="mt-4 flex justify-end gap-2">
+                <Button variant="outline" size="sm" onClick={reset}>
+                  Choisir une autre commune
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* ---------- STEP 4: Success result ---------- */}
+          {result && !generating && (
+            <div className="mt-6 rounded-xl border border-[#4A7C59]/30 bg-[#4A7C59]/8 p-5">
+              <div className="flex items-start gap-3">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#4A7C59] text-white">
+                  <Check className="h-5 w-5" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-base font-bold text-[#4A7C59]">
+                    {result.created} plaques créées
+                  </p>
+                  <p className="mt-0.5 text-sm text-[#1A1A1A]/80">
+                    Commune de <span className="font-semibold">{result.commune}</span> · {result.department}
+                  </p>
+                </div>
+              </div>
+
+              {/* Liste des 5 premières plaques */}
+              <div className="mt-4">
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-[#1A1A1A]/60">
+                  Aperçu des plaques générées
+                </p>
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                  {result.plates.slice(0, 5).map((p) => (
+                    <div
+                      key={p.id}
+                      className="flex items-center justify-between rounded-lg border border-[#EAE5DC] bg-white px-3 py-2"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="rounded-md bg-[#2E5C8A]/10 px-1.5 py-0.5 font-mono text-[11px] font-bold text-[#2E5C8A]">
+                          {p.plateNumber}
+                        </span>
+                        <span className="truncate text-sm text-[#1A1A1A]/80">{p.label}</span>
+                      </div>
+                      <MapPin className="h-3.5 w-3.5 shrink-0 text-[#1A1A1A]/30" />
+                    </div>
+                  ))}
+                </div>
+                {result.plates.length > 5 && (
+                  <p className="mt-2 text-xs text-[#1A1A1A]/50">
+                    + {result.plates.length - 5} autres plaques. Visible dans le tableau ci-dessous après fermeture.
+                  </p>
+                )}
+              </div>
+
+              <div className="mt-5 flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <Button variant="outline" size="sm" onClick={reset}>
+                  Pré-charger une autre commune
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={onClose}
+                  className="bg-[#4A7C59] text-white hover:bg-[#3D6B4D]"
+                >
+                  <Check className="h-4 w-4 mr-2" /> Fermer &amp; actualiser
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Footer actions when idle (no result, no error, no generating) */}
+          {!result && !error && !generating && !selectedDept && (
+            <div className="mt-6 flex flex-col gap-3 rounded-xl bg-[#FAFAF7] p-4 text-xs text-[#1A1A1A]/60">
+              <p className="flex items-start gap-2">
+                <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#C9A961]" />
+                <span>
+                  Cette fonction crée automatiquement une plaque QR par quartier de la commune choisie,
+                  avec des coordonnées GPS pré-remplies (centre approximatif + légère spirale).
+                </span>
+              </p>
+              <p className="flex items-start gap-2">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#FF6B00]" />
+                <span>
+                  Une commune ne peut être pré-chargée qu&apos;une seule fois. Pour régénérer,
+                  supprimez d&apos;abord les plaques portant son préfixe (ex : <code className="rounded bg-white px-1 font-mono">DD#001</code>).
+                </span>
+              </p>
+            </div>
+          )}
+
+          {/* Bottom close (always visible) */}
+          <div className="mt-6 flex justify-end border-t border-[#EAE5DC] pt-4">
+            <Button variant="outline" onClick={onClose}>
+              Fermer
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
 // PlatesManagementView — Gestion plaques avec lot + recherche + édition GPS
 // ============================================================
 
@@ -2139,6 +2550,7 @@ function PlatesManagementView({
   const [editLng, setEditLng] = useState<string>('')
   const [savingPlate, setSavingPlate] = useState(false)
   const [locating, setLocating] = useState(false)
+  const [showSeeder, setShowSeeder] = useState(false)
 
   // Filtrage
   const filtered = useMemo(() => {
@@ -2267,6 +2679,14 @@ function PlatesManagementView({
         </h2>
         <div className="flex items-center gap-2">
           {cityLogoUrl && <Badge className="bg-[#C9A961]/15 text-[#8B6F47]">Logo ✓</Badge>}
+          <Button
+            size="sm"
+            onClick={() => setShowSeeder(true)}
+            className="bg-[#2E5C8A] text-white hover:bg-[#1F4A75]"
+            title="Générer automatiquement toutes les plaques d'une commune de la région de Dakar"
+          >
+            <Map className="h-4 w-4 mr-1.5" /> Pré-charger une ville
+          </Button>
           <Button size="sm" onClick={() => setShowBatchDialog(true)} className="bg-[#C9A961] text-[#1A1A1A] hover:bg-[#B8964F]">
             <Plus className="h-4 w-4 mr-1" /> Générer un lot
           </Button>
@@ -2497,6 +2917,21 @@ function PlatesManagementView({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Pré-charger une ville (modal commune → seed plates) */}
+      {showSeeder && (
+        <CommuneSeederModal
+          onClose={async () => {
+            setShowSeeder(false)
+            // Réactualise la liste des plaques côté parent.
+            try {
+              await onRefresh()
+            } catch {
+              /* ignore — toast already handled upstream */
+            }
+          }}
+        />
       )}
     </div>
   )
@@ -3645,11 +4080,47 @@ function ArtisansView({
 //      → boutons Approuver / Rejeter (PATCH status=approved|rejected)
 //   2. "Commerces actifs" — fetch /api/city/businesses?status=approved
 //      → toggle Premium, formulaire Sponsoriser (offerText + offerEndsAt),
-//        boutons "Voir le menu" / "Voir la grille tarifaire" si données dispo.
+//        boutons "Voir le menu" / "Voir la grille tarifaire" si données dispo,
+//        boutons "Éditer le menu" / "Éditer la grille tarifaire" pour les
+//        commerces premium (restaurants → menu, autres → grille tarifaire).
 //
 // Panneau "Premium activation" dédié : liste des commerces premium + toggle
 // par feature (menu, priceGrid, sponsored).
 // ============================================================
+
+/** Resize une image (File) en data URL JPEG — maxDim 400px, qualité 0.7.
+ *  Pattern identique à celui utilisé dans city-scan-view.tsx (handlePhoto). */
+function resizePhotoToDataUrl(
+  file: File,
+  maxDim: number,
+  quality: number,
+  done: (dataUrl: string) => void,
+) {
+  const reader = new FileReader()
+  reader.onload = () => {
+    const img = new Image()
+    img.onload = () => {
+      const canvas = document.createElement('canvas')
+      const ratio = Math.min(maxDim / img.width, maxDim / img.height, 1)
+      canvas.width = Math.round(img.width * ratio)
+      canvas.height = Math.round(img.height * ratio)
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+        done(canvas.toDataURL('image/jpeg', quality))
+      }
+    }
+    img.onerror = () => done('')
+    img.src = reader.result as string
+  }
+  reader.onerror = () => done('')
+  reader.readAsDataURL(file)
+}
+
+/** Génère un ID court pour un item de menu / priceGrid (pas persisté côté DB). */
+function makeItemId(prefix: string): string {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
+}
 
 function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void> }) {
   const { toast } = useToast()
@@ -3671,6 +4142,19 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
 
   // Pour le panneau d'activation premium (choix de la feature)
   const [premiumSetup, setPremiumSetup] = useState<CityBusiness | null>(null)
+
+  // --- Éditeurs menu / grille tarifaire (commerces premium) ---
+  // editingMenu / editingPriceGrid : commerce actuellement édité (ouvre le modal)
+  // menuItems / priceItems        : buffer d'édition local (add/remove/update)
+  const [editingMenu, setEditingMenu] = useState<CityBusiness | null>(null)
+  const [editingPriceGrid, setEditingPriceGrid] = useState<CityBusiness | null>(null)
+  const [menuItems, setMenuItems] = useState<BusinessMenuItem[]>([])
+  const [priceItems, setPriceItems] = useState<BusinessPriceItem[]>([])
+  const [savingMenu, setSavingMenu] = useState(false)
+  const [savingPriceGrid, setSavingPriceGrid] = useState(false)
+  // Refs pour les inputs file (un par item) — clés = index de l'item
+  const menuFileRefs = useRef<Record<number, HTMLInputElement | null>>({})
+  const priceFileRefs = useRef<Record<number, HTMLInputElement | null>>({})
 
   // --- Fetch les deux listes ---
   const fetchLists = useCallback(async () => {
@@ -3812,6 +4296,185 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
       `Sponsoring désactivé — ${b.name}`,
     )
 
+  // ============================================================
+  // Éditeurs menu & grille tarifaire (commerces premium)
+  // ------------------------------------------------------------
+  // Les commerces premium (isPremium=true) peuvent publier :
+  //   - restaurants   → menu   (jusqu'à 10 plats : {name, photo, price})
+  //   - autres        → grille  (jusqu'à 10 prestations : {service, photo, price, unit})
+  // Le contenu est sérialisé en JSON string côté client puis PATCHé vers
+  // /api/city/businesses/{id} avec {menu: JSON.stringify(items)} ou
+  // {priceGrid: JSON.stringify(items)}.
+  // ============================================================
+
+  const openMenuEditor = (b: CityBusiness) => {
+    setEditingMenu(b)
+    setMenuItems(
+      (b.menu ?? []).map((it) => ({
+        id: it.id ?? makeItemId('mi'),
+        name: it.name ?? '',
+        price: typeof it.price === 'number' ? it.price : 0,
+        description: it.description ?? null,
+        photo: it.photo ?? null,
+      })),
+    )
+  }
+
+  const openPriceGridEditor = (b: CityBusiness) => {
+    setEditingPriceGrid(b)
+    setPriceItems(
+      // Compatibilité ascendante : anciens items pouvaient utiliser `label`
+      // au lieu de `service` — on bascule proprement vers `service`.
+      (b.priceGrid ?? []).map((it) => {
+        const serviceStr =
+          typeof it.service === 'string'
+            ? it.service
+            : ((it as unknown as { label?: string }).label ?? '')
+        return {
+          id: it.id ?? makeItemId('pi'),
+          service: serviceStr,
+          price: typeof it.price === 'number' ? it.price : 0,
+          unit: it.unit ?? null,
+          photo: it.photo ?? null,
+        }
+      }),
+    )
+  }
+
+  // --- Menu : add / update / remove ---
+  const addMenuItem = () => {
+    if (menuItems.length >= 10) {
+      toast({
+        title: 'Maximum atteint',
+        description: '10 plats maximum par menu.',
+        variant: 'destructive',
+      })
+      return
+    }
+    setMenuItems((arr) => [
+      ...arr,
+      { id: makeItemId('mi'), name: '', price: 0, photo: null },
+    ])
+  }
+
+  const updateMenuItem = (idx: number, patch: Partial<BusinessMenuItem>) =>
+    setMenuItems((arr) => arr.map((it, i) => (i === idx ? { ...it, ...patch } : it)))
+
+  const removeMenuItem = (idx: number) =>
+    setMenuItems((arr) => arr.filter((_, i) => i !== idx))
+
+  const handleMenuItemPhoto = (
+    idx: number,
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    resizePhotoToDataUrl(file, 400, 0.7, (dataUrl) => {
+      if (dataUrl) updateMenuItem(idx, { photo: dataUrl })
+      // reset input pour permettre de re-picker le même fichier
+      e.target.value = ''
+    })
+  }
+
+  // --- Price grid : add / update / remove ---
+  const addPriceItem = () => {
+    if (priceItems.length >= 10) {
+      toast({
+        title: 'Maximum atteint',
+        description: '10 prestations maximum par grille.',
+        variant: 'destructive',
+      })
+      return
+    }
+    setPriceItems((arr) => [
+      ...arr,
+      { id: makeItemId('pi'), service: '', price: 0, unit: '', photo: null },
+    ])
+  }
+
+  const updatePriceItem = (idx: number, patch: Partial<BusinessPriceItem>) =>
+    setPriceItems((arr) => arr.map((it, i) => (i === idx ? { ...it, ...patch } : it)))
+
+  const removePriceItem = (idx: number) =>
+    setPriceItems((arr) => arr.filter((_, i) => i !== idx))
+
+  const handlePriceItemPhoto = (
+    idx: number,
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    resizePhotoToDataUrl(file, 400, 0.7, (dataUrl) => {
+      if (dataUrl) updatePriceItem(idx, { photo: dataUrl })
+      e.target.value = ''
+    })
+  }
+
+  // --- Save menu ---
+  const handleSaveMenu = async () => {
+    if (!editingMenu) return
+    // Nettoyage : on retire les plats sans nom (saisie inachevée)
+    const cleaned: BusinessMenuItem[] = menuItems
+      .map((it) => ({
+        id: it.id,
+        name: (it.name ?? '').trim(),
+        price: Number.isFinite(it.price) ? Math.max(0, Math.round(it.price)) : 0,
+        description: it.description?.trim() || null,
+        photo: it.photo ?? null,
+      }))
+      .filter((it) => it.name.length > 0)
+
+    if (cleaned.length === 0) {
+      toast({
+        title: 'Menu vide',
+        description: 'Ajoutez au moins un plat avec un nom.',
+        variant: 'destructive',
+      })
+      return
+    }
+    setSavingMenu(true)
+    await patchBusiness(
+      editingMenu.id,
+      { menu: JSON.stringify(cleaned) },
+      `Menu enregistré — ${editingMenu.name} (${cleaned.length} plats)`,
+    )
+    setSavingMenu(false)
+    setEditingMenu(null)
+    setMenuItems([])
+  }
+
+  // --- Save price grid ---
+  const handleSavePriceGrid = async () => {
+    if (!editingPriceGrid) return
+    const cleaned: BusinessPriceItem[] = priceItems
+      .map((it) => ({
+        id: it.id,
+        service: (it.service ?? '').trim(),
+        price: Number.isFinite(it.price) ? Math.max(0, Math.round(it.price)) : 0,
+        unit: it.unit?.trim() || null,
+        photo: it.photo ?? null,
+      }))
+      .filter((it) => it.service.length > 0)
+
+    if (cleaned.length === 0) {
+      toast({
+        title: 'Grille vide',
+        description: 'Ajoutez au moins une prestation avec un nom.',
+        variant: 'destructive',
+      })
+      return
+    }
+    setSavingPriceGrid(true)
+    await patchBusiness(
+      editingPriceGrid.id,
+      { priceGrid: JSON.stringify(cleaned) },
+      `Grille enregistrée — ${editingPriceGrid.name} (${cleaned.length} prestations)`,
+    )
+    setSavingPriceGrid(false)
+    setEditingPriceGrid(null)
+    setPriceItems([])
+  }
+
   // --- Recherche dans la liste approuvée ---
   const filteredApproved = useMemo(() => {
     if (!search.trim()) return approved
@@ -3941,6 +4604,8 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
                       onDeactivateSponsor={() => handleDeactivateSponsor(b)}
                       onViewMenu={() => setViewMenu(b)}
                       onViewPriceGrid={() => setViewPriceGrid(b)}
+                      onEditMenu={() => openMenuEditor(b)}
+                      onEditPriceGrid={() => openPriceGridEditor(b)}
                     />
                   ))}
                 </div>
@@ -4232,9 +4897,18 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
               <ul className="divide-y divide-[#EAE5DC]/60">
                 {(viewMenu.menu ?? []).map((item, idx) => (
                   <li key={item.id ?? idx} className="flex items-start gap-3 py-3">
-                    <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#0066CC]/12 text-[#0066CC]">
-                      <Utensils className="h-4 w-4" />
-                    </span>
+                    {item.photo ? (
+                      <img
+                        src={item.photo}
+                        alt={`Photo du plat : ${item.name}`}
+                        className="h-12 w-12 shrink-0 rounded-lg border border-[#EAE5DC] object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#0066CC]/12 text-[#0066CC]">
+                        <Utensils className="h-4 w-4" />
+                      </span>
+                    )}
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-semibold text-[#1A1A1A]">{item.name}</p>
                       {item.description && (
@@ -4288,12 +4962,26 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
               <ul className="divide-y divide-[#EAE5DC]/60">
                 {(viewPriceGrid.priceGrid ?? []).map((item, idx) => (
                   <li key={item.id ?? idx} className="flex items-center gap-3 py-3">
-                    <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#6B4C9A]/12 text-[#6B4C9A]">
-                      <Tag className="h-4 w-4" />
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-[#1A1A1A]">
-                      {item.label}
-                    </span>
+                    {item.photo ? (
+                      <img
+                        src={item.photo}
+                        alt={`Photo de la prestation : ${item.service}`}
+                        className="h-12 w-12 shrink-0 rounded-lg border border-[#EAE5DC] object-cover"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#6B4C9A]/12 text-[#6B4C9A]">
+                        <Tag className="h-4 w-4" />
+                      </span>
+                    )}
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-[#1A1A1A]">
+                        {item.service}
+                      </p>
+                      {item.unit && (
+                        <p className="text-xs text-[#1A1A1A]/55">{item.unit}</p>
+                      )}
+                    </div>
                     <span className="shrink-0 text-sm font-bold tabular-nums text-[#6B4C9A]">
                       {item.price.toLocaleString('fr-FR')} FCFA
                     </span>
@@ -4301,6 +4989,369 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
                 ))}
               </ul>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* ---------- Modal : éditeur de menu (commerce premium restaurant) ---------- */}
+      {editingMenu && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => !savingMenu && setEditingMenu(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-[#1A1A1A]" style={SERIF}>
+                  Éditer le menu — {editingMenu.name}
+                </h3>
+                <p className="text-xs text-[#1A1A1A]/55">
+                  {editingMenu.trade} · {menuItems.length}/10 plats
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => !savingMenu && setEditingMenu(null)}
+                className="text-[#1A1A1A]/40 hover:text-[#1A1A1A]"
+                aria-label="Fermer"
+                disabled={savingMenu}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <p className="mb-3 text-xs text-[#1A1A1A]/55">
+              Ajoutez jusqu&apos;à 10 plats avec nom, prix (FCFA) et photo. Les photos
+              sont prises directement depuis l&apos;appareil photo (mobile) ou
+              téléversées (desktop), puis redimensionnées à 400 px.
+            </p>
+
+            <div className="space-y-3">
+              {menuItems.length === 0 && (
+                <p className="rounded-xl border border-dashed border-[#EAE5DC] bg-[#FAFAF7] px-4 py-6 text-center text-xs text-[#1A1A1A]/50">
+                  Aucun plat. Cliquez sur « Ajouter un plat » pour commencer.
+                </p>
+              )}
+              {menuItems.map((item, idx) => (
+                <div
+                  key={item.id ?? idx}
+                  className="rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] p-3"
+                >
+                  <div className="flex items-start gap-3">
+                    {/* Photo (clic → input file caméra) */}
+                    <button
+                      type="button"
+                      onClick={() => menuFileRefs.current[idx]?.click()}
+                      className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-[#EAE5DC] bg-white transition hover:border-[#0066CC] hover:shadow-md"
+                      aria-label={`Photo du plat ${idx + 1}`}
+                    >
+                      {item.photo ? (
+                        <img
+                          src={item.photo}
+                          alt={`Photo du plat : ${item.name || `Plat ${idx + 1}`}`}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="flex h-full w-full items-center justify-center text-[#1A1A1A]/40">
+                          <Camera className="h-5 w-5" />
+                        </span>
+                      )}
+                      <span className="absolute inset-x-0 bottom-0 bg-black/55 py-0.5 text-center text-[9px] font-medium uppercase tracking-wide text-white opacity-0 transition group-hover:opacity-100">
+                        Photo
+                      </span>
+                    </button>
+                    <input
+                      ref={(el) => {
+                        menuFileRefs.current[idx] = el
+                      }}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={(e) => handleMenuItemPhoto(idx, e)}
+                      className="hidden"
+                    />
+
+                    {/* Champs nom + prix */}
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div>
+                        <label className="block text-[10px] font-semibold uppercase tracking-wide text-[#1A1A1A]/50">
+                          Nom du plat
+                        </label>
+                        <input
+                          type="text"
+                          value={item.name}
+                          onChange={(e) => updateMenuItem(idx, { name: e.target.value })}
+                          placeholder="ex : Thiéboudienne au poisson"
+                          maxLength={80}
+                          className="mt-0.5 w-full rounded-lg border border-[#EAE5DC] bg-white px-2.5 py-1.5 text-sm focus:border-[#0066CC] focus:outline-none focus:ring-1 focus:ring-[#0066CC]/20"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-semibold uppercase tracking-wide text-[#1A1A1A]/50">
+                          Prix (FCFA)
+                        </label>
+                        <input
+                          type="number"
+                          inputMode="numeric"
+                          min={0}
+                          step={100}
+                          value={Number.isFinite(item.price) ? item.price : 0}
+                          onChange={(e) =>
+                            updateMenuItem(idx, {
+                              price: Number.parseInt(e.target.value, 10) || 0,
+                            })
+                          }
+                          placeholder="2500"
+                          className="mt-0.5 w-full rounded-lg border border-[#EAE5DC] bg-white px-2.5 py-1.5 text-sm tabular-nums focus:border-[#0066CC] focus:outline-none focus:ring-1 focus:ring-[#0066CC]/20"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Bouton supprimer */}
+                    <button
+                      type="button"
+                      onClick={() => removeMenuItem(idx)}
+                      disabled={savingMenu}
+                      className="shrink-0 rounded-lg p-1.5 text-[#E30613] transition hover:bg-[#E30613]/8 disabled:opacity-40"
+                      aria-label={`Supprimer le plat ${idx + 1}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={addMenuItem}
+                disabled={savingMenu || menuItems.length >= 10}
+                className="border-[#0066CC]/30 text-[#0066CC] hover:bg-[#0066CC]/5"
+              >
+                <Plus className="mr-1 h-3.5 w-3.5" /> Ajouter un plat
+              </Button>
+              <span className="ml-auto text-[10px] text-[#1A1A1A]/40">
+                {menuItems.length}/10
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setEditingMenu(null)}
+                disabled={savingMenu}
+                className="border-[#EAE5DC]"
+              >
+                Annuler
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSaveMenu}
+                disabled={savingMenu}
+                className="gap-1.5 rounded-lg bg-[#0066CC] text-white hover:bg-[#0055ad]"
+              >
+                {savingMenu ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Utensils className="h-3.5 w-3.5" />
+                )}
+                {savingMenu ? 'Enregistrement…' : 'Enregistrer le menu'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ---------- Modal : éditeur de grille tarifaire (commerce premium artisan) ---------- */}
+      {editingPriceGrid && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => !savingPriceGrid && setEditingPriceGrid(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="max-h-[90vh] w-full max-w-2xl overflow-y-auto rounded-2xl bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-[#1A1A1A]" style={SERIF}>
+                  Éditer la grille tarifaire — {editingPriceGrid.name}
+                </h3>
+                <p className="text-xs text-[#1A1A1A]/55">
+                  {editingPriceGrid.trade} · {priceItems.length}/10 prestations
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => !savingPriceGrid && setEditingPriceGrid(null)}
+                className="text-[#1A1A1A]/40 hover:text-[#1A1A1A]"
+                aria-label="Fermer"
+                disabled={savingPriceGrid}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <p className="mb-3 text-xs text-[#1A1A1A]/55">
+              Ajoutez jusqu&apos;à 10 prestations avec service, prix (FCFA), unité
+              (forfait, à l&apos;heure, m²…) et photo. Les photos sont prises
+              depuis l&apos;appareil photo et redimensionnées à 400 px.
+            </p>
+
+            <div className="space-y-3">
+              {priceItems.length === 0 && (
+                <p className="rounded-xl border border-dashed border-[#EAE5DC] bg-[#FAFAF7] px-4 py-6 text-center text-xs text-[#1A1A1A]/50">
+                  Aucune prestation. Cliquez sur « Ajouter une prestation » pour commencer.
+                </p>
+              )}
+              {priceItems.map((item, idx) => (
+                <div
+                  key={item.id ?? idx}
+                  className="rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] p-3"
+                >
+                  <div className="flex items-start gap-3">
+                    {/* Photo (clic → input file caméra) */}
+                    <button
+                      type="button"
+                      onClick={() => priceFileRefs.current[idx]?.click()}
+                      className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-[#EAE5DC] bg-white transition hover:border-[#6B4C9A] hover:shadow-md"
+                      aria-label={`Photo de la prestation ${idx + 1}`}
+                    >
+                      {item.photo ? (
+                        <img
+                          src={item.photo}
+                          alt={`Photo de la prestation : ${item.service || `Prestation ${idx + 1}`}`}
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        <span className="flex h-full w-full items-center justify-center text-[#1A1A1A]/40">
+                          <Camera className="h-5 w-5" />
+                        </span>
+                      )}
+                      <span className="absolute inset-x-0 bottom-0 bg-black/55 py-0.5 text-center text-[9px] font-medium uppercase tracking-wide text-white opacity-0 transition group-hover:opacity-100">
+                        Photo
+                      </span>
+                    </button>
+                    <input
+                      ref={(el) => {
+                        priceFileRefs.current[idx] = el
+                      }}
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={(e) => handlePriceItemPhoto(idx, e)}
+                      className="hidden"
+                    />
+
+                    {/* Champs service + prix + unité */}
+                    <div className="min-w-0 flex-1 space-y-2">
+                      <div>
+                        <label className="block text-[10px] font-semibold uppercase tracking-wide text-[#1A1A1A]/50">
+                          Prestation
+                        </label>
+                        <input
+                          type="text"
+                          value={item.service}
+                          onChange={(e) => updatePriceItem(idx, { service: e.target.value })}
+                          placeholder="ex : Réparation fuite robinet"
+                          maxLength={80}
+                          className="mt-0.5 w-full rounded-lg border border-[#EAE5DC] bg-white px-2.5 py-1.5 text-sm focus:border-[#6B4C9A] focus:outline-none focus:ring-1 focus:ring-[#6B4C9A]/20"
+                        />
+                      </div>
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <label className="block text-[10px] font-semibold uppercase tracking-wide text-[#1A1A1A]/50">
+                            Prix (FCFA)
+                          </label>
+                          <input
+                            type="number"
+                            inputMode="numeric"
+                            min={0}
+                            step={500}
+                            value={Number.isFinite(item.price) ? item.price : 0}
+                            onChange={(e) =>
+                              updatePriceItem(idx, {
+                                price: Number.parseInt(e.target.value, 10) || 0,
+                              })
+                            }
+                            placeholder="15000"
+                            className="mt-0.5 w-full rounded-lg border border-[#EAE5DC] bg-white px-2.5 py-1.5 text-sm tabular-nums focus:border-[#6B4C9A] focus:outline-none focus:ring-1 focus:ring-[#6B4C9A]/20"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[10px] font-semibold uppercase tracking-wide text-[#1A1A1A]/50">
+                            Unité
+                          </label>
+                          <input
+                            type="text"
+                            value={item.unit ?? ''}
+                            onChange={(e) => updatePriceItem(idx, { unit: e.target.value })}
+                            placeholder="forfait, à l'heure, m²…"
+                            maxLength={20}
+                            className="mt-0.5 w-full rounded-lg border border-[#EAE5DC] bg-white px-2.5 py-1.5 text-sm focus:border-[#6B4C9A] focus:outline-none focus:ring-1 focus:ring-[#6B4C9A]/20"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Bouton supprimer */}
+                    <button
+                      type="button"
+                      onClick={() => removePriceItem(idx)}
+                      disabled={savingPriceGrid}
+                      className="shrink-0 rounded-lg p-1.5 text-[#E30613] transition hover:bg-[#E30613]/8 disabled:opacity-40"
+                      aria-label={`Supprimer la prestation ${idx + 1}`}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={addPriceItem}
+                disabled={savingPriceGrid || priceItems.length >= 10}
+                className="border-[#6B4C9A]/30 text-[#6B4C9A] hover:bg-[#6B4C9A]/5"
+              >
+                <Plus className="mr-1 h-3.5 w-3.5" /> Ajouter une prestation
+              </Button>
+              <span className="ml-auto text-[10px] text-[#1A1A1A]/40">
+                {priceItems.length}/10
+              </span>
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setEditingPriceGrid(null)}
+                disabled={savingPriceGrid}
+                className="border-[#EAE5DC]"
+              >
+                Annuler
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSavePriceGrid}
+                disabled={savingPriceGrid}
+                className="gap-1.5 rounded-lg bg-[#6B4C9A] text-white hover:bg-[#583e82]"
+              >
+                {savingPriceGrid ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Tag className="h-3.5 w-3.5" />
+                )}
+                {savingPriceGrid ? 'Enregistrement…' : 'Enregistrer la grille'}
+              </Button>
+            </div>
           </div>
         </div>
       )}
@@ -4322,6 +5373,8 @@ function BusinessCard({
   onDeactivateSponsor,
   onViewMenu,
   onViewPriceGrid,
+  onEditMenu,
+  onEditPriceGrid,
 }: {
   business: CityBusiness
   mode: 'pending' | 'approved'
@@ -4332,6 +5385,8 @@ function BusinessCard({
   onDeactivateSponsor?: () => void
   onViewMenu?: () => void
   onViewPriceGrid?: () => void
+  onEditMenu?: () => void
+  onEditPriceGrid?: () => void
 }) {
   const [pending, setPending] = useState(false)
   const [photoOpen, setPhotoOpen] = useState(false)
@@ -4342,6 +5397,12 @@ function BusinessCard({
     fn()
     setTimeout(() => setPending(false), 400)
   }
+
+  // Détermine si la carte doit afficher le bouton d'édition du menu (restaurant
+  // premium) ou de la grille tarifaire (artisan premium non-restaurant).
+  const isRestaurant = (b.category ?? '').toLowerCase() === 'restaurant'
+  const canEditMenu = mode === 'approved' && b.isPremium && isRestaurant
+  const canEditPriceGrid = mode === 'approved' && b.isPremium && !isRestaurant
 
   return (
     <article
@@ -4521,6 +5582,30 @@ function BusinessCard({
                   className="border-[#6B4C9A]/30 text-[#6B4C9A] hover:bg-[#6B4C9A]/5"
                 >
                   <Tag className="mr-1 h-3.5 w-3.5" /> Tarifs ({(b.priceGrid ?? []).length})
+                </Button>
+              )}
+              {/* Bouton d'édition (commerce premium) : menu pour les
+                  restaurants, grille tarifaire pour les autres catégories. */}
+              {canEditMenu && (
+                <Button
+                  size="sm"
+                  onClick={() => handleAction(onEditMenu)}
+                  className="gap-1.5 rounded-lg bg-[#0066CC] text-white hover:bg-[#0055ad]"
+                  aria-label={`Éditer le menu de ${b.name}`}
+                >
+                  <Utensils className="h-3.5 w-3.5" />
+                  {(b.menu ?? []).length > 0 ? 'Éditer le menu' : 'Créer le menu'}
+                </Button>
+              )}
+              {canEditPriceGrid && (
+                <Button
+                  size="sm"
+                  onClick={() => handleAction(onEditPriceGrid)}
+                  className="gap-1.5 rounded-lg bg-[#6B4C9A] text-white hover:bg-[#583e82]"
+                  aria-label={`Éditer la grille tarifaire de ${b.name}`}
+                >
+                  <Tag className="h-3.5 w-3.5" />
+                  {(b.priceGrid ?? []).length > 0 ? 'Éditer la grille' : 'Créer la grille'}
                 </Button>
               )}
             </>
@@ -7495,6 +8580,255 @@ function TeamsView() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+// ============================================================
+// TarifsView — la mairie définit les prix des options premium
+// ============================================================
+
+type PricingTier = {
+  label: string
+  price: number
+  currency: string
+  period: string
+  description: string
+  photoUrl?: string | null
+}
+
+type PricingTiers = {
+  menu: PricingTier
+  priceGrid: PricingTier
+  sponsored: PricingTier
+}
+
+function TarifsView() {
+  const { toast } = useToast()
+  const [tiers, setTiers] = useState<PricingTiers | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  const fetchTiers = useCallback(async () => {
+    try {
+      const res = await fetch('/api/city/pricing', { cache: 'no-store' })
+      const json = await res.json()
+      if (json?.ok && json.data?.tiers) {
+        setTiers(json.data.tiers)
+      }
+    } catch {
+      /* ignore */
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    fetchTiers()
+  }, [fetchTiers])
+
+  const handleSave = async () => {
+    if (!tiers) return
+    setSaving(true)
+    try {
+      const res = await fetch('/api/city/pricing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(tiers),
+      })
+      const json = await res.json()
+      if (json?.ok) {
+        toast({ title: 'Tarifs enregistrés', description: 'Les prix premium sont mis à jour.' })
+      } else {
+        toast({ title: 'Erreur', description: json?.error || 'Enregistrement impossible.' })
+      }
+    } catch {
+      toast({ title: 'Erreur réseau' })
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const updateTier = (key: keyof PricingTiers, field: keyof PricingTier, value: string | number) => {
+    setTiers((prev) => {
+      if (!prev) return prev
+      return {
+        ...prev,
+        [key]: { ...prev[key], [field]: value },
+      }
+    })
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="size-6 animate-spin text-[#C9A961]" />
+      </div>
+    )
+  }
+
+  if (!tiers) {
+    return <p className="text-sm text-[#1A1A1A]/60">Erreur de chargement des tarifs.</p>
+  }
+
+  const tierCards: { key: keyof PricingTiers; icon: typeof Tag; color: string; target: string }[] = [
+    { key: 'menu', icon: Utensils, color: '#0066CC', target: 'Restaurants' },
+    { key: 'priceGrid', icon: Wrench, color: '#00A651', target: 'Artisans' },
+    { key: 'sponsored', icon: Sparkles, color: '#C9A961', target: 'Tous commerces' },
+  ]
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-[#1A1A1A]" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
+            Tarifs Premium
+          </h2>
+          <p className="text-sm text-[#1A1A1A]/60">
+            Définissez les prix des options premium. Les commerçants les voient à l'inscription.
+          </p>
+        </div>
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          className="gap-2 rounded-xl bg-[#C9A961] text-white hover:bg-[#a88a48]"
+        >
+          {saving ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
+          {saving ? 'Enregistrement…' : 'Enregistrer'}
+        </Button>
+      </div>
+
+      {/* Version gratuite info */}
+      <div className="rounded-2xl border-2 border-[#00A651]/20 bg-[#00A651]/5 p-4">
+        <div className="flex items-center gap-3">
+          <div className="flex size-10 items-center justify-center rounded-xl bg-[#00A651]">
+            <Check className="size-5 text-white" />
+          </div>
+          <div>
+            <h3 className="text-sm font-bold text-[#00A651]">Version Standard — GRATUITE</h3>
+            <p className="text-xs text-[#1A1A1A]/60">
+              Fiche de base : nom, catégorie, téléphone, adresse, horaires, description, photo. Visible par tous les citoyens après validation.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* 3 cartes de tarifs premium */}
+      <div className="grid gap-4 lg:grid-cols-3">
+        {tierCards.map(({ key, icon: Icon, color, target }) => {
+          const tier = tiers[key]
+          return (
+            <div
+              key={key}
+              className="rounded-2xl border-2 border-[#EAE5DC] bg-white p-5 shadow-sm"
+            >
+              {/* Header avec icône */}
+              <div className="mb-4 flex items-center gap-3">
+                <div
+                  className="flex size-10 items-center justify-center rounded-xl text-white"
+                  style={{ backgroundColor: color }}
+                >
+                  <Icon className="size-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-wide" style={{ color }}>
+                    {target}
+                  </p>
+                  <h3 className="text-sm font-bold text-[#1A1A1A]">{tier.label}</h3>
+                </div>
+              </div>
+
+              {/* Prix */}
+              <div className="mb-3">
+                <label className="text-xs font-semibold text-[#1A1A1A]/60">Prix</label>
+                <div className="mt-1 flex items-center gap-2">
+                  <input
+                    type="number"
+                    value={tier.price}
+                    onChange={(e) => updateTier(key, 'price', parseInt(e.target.value) || 0)}
+                    className="w-full rounded-xl border-2 border-[#EAE5DC] px-3 py-2 text-lg font-bold text-[#1A1A1A] focus:border-[#C9A961] focus:outline-none"
+                  />
+                  <span className="text-sm font-bold text-[#1A1A1A]/60">FCFA</span>
+                </div>
+              </div>
+
+              {/* Période */}
+              <div className="mb-3">
+                <label className="text-xs font-semibold text-[#1A1A1A]/60">Par</label>
+                <select
+                  value={tier.period}
+                  onChange={(e) => updateTier(key, 'period', e.target.value)}
+                  className="mt-1 w-full rounded-xl border-2 border-[#EAE5DC] px-3 py-2 text-sm focus:border-[#C9A961] focus:outline-none"
+                >
+                  <option value="mois">Mois</option>
+                  <option value="semaine">Semaine</option>
+                  <option value="jour">Jour</option>
+                  <option value="an">An</option>
+                  <option value="once">Once (paiement unique)</option>
+                </select>
+              </div>
+
+              {/* Label */}
+              <div className="mb-3">
+                <label className="text-xs font-semibold text-[#1A1A1A]/60">Nom de l'option</label>
+                <input
+                  type="text"
+                  value={tier.label}
+                  onChange={(e) => updateTier(key, 'label', e.target.value)}
+                  maxLength={60}
+                  className="mt-1 w-full rounded-xl border-2 border-[#EAE5DC] px-3 py-2 text-sm focus:border-[#C9A961] focus:outline-none"
+                />
+              </div>
+
+              {/* Description */}
+              <div className="mb-3">
+                <label className="text-xs font-semibold text-[#1A1A1A]/60">Description</label>
+                <textarea
+                  value={tier.description}
+                  onChange={(e) => updateTier(key, 'description', e.target.value)}
+                  maxLength={200}
+                  rows={2}
+                  className="mt-1 w-full rounded-xl border-2 border-[#EAE5DC] px-3 py-2 text-xs focus:border-[#C9A961] focus:outline-none"
+                />
+              </div>
+
+              {/* Photo exemple */}
+              <div>
+                <label className="text-xs font-semibold text-[#1A1A1A]/60">Photo d'exemple (optionnel)</label>
+                {tier.photoUrl ? (
+                  <div className="mt-1 space-y-1">
+                    <img src={tier.photoUrl} alt="Exemple" className="h-24 w-full rounded-xl object-cover" />
+                    <button
+                      onClick={() => updateTier(key, 'photoUrl', '')}
+                      className="text-xs font-medium text-[#E30613] hover:underline"
+                    >
+                      Supprimer la photo
+                    </button>
+                  </div>
+                ) : (
+                  <div className="mt-1 flex h-20 items-center justify-center rounded-xl border-2 border-dashed border-[#EAE5DC] text-[#1A1A1A]/30">
+                    <Camera className="size-6" />
+                  </div>
+                )}
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {/* Info paiement */}
+      <div className="rounded-2xl bg-[#1A1A1A] p-4 text-white">
+        <div className="flex items-center gap-3">
+          <Wallet className="size-5 text-[#FFD700]" />
+          <div>
+            <h3 className="text-sm font-bold text-[#FFD700]">Paiement en mairie</h3>
+            <p className="text-xs text-white/70">
+              Les commerçants qui choisissent la version Premium doivent se rendre à la mairie pour payer (espèces, Wave, Orange Money). La mairie active ensuite l'option Premium manuellement dans l'onglet Commerces.
+            </p>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }

@@ -67,6 +67,7 @@ import {
   Sparkles,
   DoorOpen,
   LogIn,
+  Plus,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -1420,6 +1421,7 @@ export function CityScanView({
               selectedCategory={selectedCategory}
               onSelectCategory={setSelectedCategory}
               onContact={handleContactBusiness}
+              plate={plate}
             />
           )}
           {activeModule === 'mairie' && (
@@ -2464,6 +2466,7 @@ function ArtisansView({
   selectedCategory,
   onSelectCategory,
   onContact,
+  plate,
 }: {
   businesses: CityBusiness[]
   loading: boolean
@@ -2471,7 +2474,10 @@ function ArtisansView({
   selectedCategory: string
   onSelectCategory: (cat: string) => void
   onContact: (b: CityBusiness) => void
+  plate: CityPlate
 }) {
+  const [showRegForm, setShowRegForm] = useState(false)
+
   // Tri : sponsorisés en premier, puis par distance croissante.
   const sorted = useMemo(() => {
     return [...businesses].sort((a, b) => {
@@ -2494,8 +2500,31 @@ function ArtisansView({
     )
   }
 
+  // Si le formulaire d'inscription est ouvert, on l'affiche à la place de la liste
+  if (showRegForm) {
+    return (
+      <BusinessRegistrationForm
+        plate={plate}
+        onCancel={() => setShowRegForm(false)}
+        onSuccess={() => setShowRegForm(false)}
+      />
+    )
+  }
+
   return (
     <div className="space-y-4">
+      {/* Bouton Inscrire ma boutique — self-service */}
+      <button
+        onClick={() => setShowRegForm(true)}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#00A651] p-4 text-white shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.98]"
+        style={{ borderRadius: '16px' }}
+      >
+        <Plus className="size-5" />
+        <span className="text-sm font-bold uppercase tracking-wide" style={TITLE_FONT}>
+          Inscrire ma boutique
+        </span>
+      </button>
+
       {/* Filtres catégories — chips horizontaux scrollables */}
       <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
         {BUSINESS_CATEGORIES.map((chip) => {
@@ -2551,6 +2580,487 @@ function ArtisansView({
           />
         ))
       )}
+    </div>
+  )
+}
+
+// ============================================================
+// BusinessRegistrationForm — formulaire self-service pour les artisans
+// L'artisan remplit sa fiche (nom, catégorie, contact, photo, horaires,
+// description) depuis le QR code de sa plaque. La fiche est soumise avec
+// status=pending → la mairie la valide dans le dashboard.
+// GPS auto-rempli depuis les coordonnées de la plaque.
+// ============================================================
+
+function BusinessRegistrationForm({
+  plate,
+  onCancel,
+  onSuccess,
+}: {
+  plate: CityPlate
+  onCancel: () => void
+  onSuccess: () => void
+}) {
+  const { toast } = useToast()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Champs du formulaire
+  const [name, setName] = useState('')
+  const [category, setCategory] = useState('artisan')
+  const [trade, setTrade] = useState('')
+  const [phone, setPhone] = useState('')
+  const [whatsapp, setWhatsapp] = useState('')
+  const [address, setAddress] = useState(plate.address ?? '')
+  const [hours, setHours] = useState('')
+  const [description, setDescription] = useState('')
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+  const [plan, setPlan] = useState<'standard' | 'premium'>('standard')
+  const [pricing, setPricing] = useState<{
+    menu: { label: string; price: number; period: string; description: string }
+    priceGrid: { label: string; price: number; period: string; description: string }
+    sponsored: { label: string; price: number; period: string; description: string }
+  } | null>(null)
+
+  // Fetch les tarifs premium définis par la mairie
+  useEffect(() => {
+    fetch('/api/city/pricing')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.ok && d.data?.tiers) setPricing(d.data.tiers)
+      })
+      .catch(() => {})
+  }, [])
+
+  // Catégories disponibles (doit correspondre à BUSINESS_CATEGORIES)
+  const CATS = [
+    { id: 'artisan', label: 'Artisan (plombier, électricien…)' },
+    { id: 'commerce', label: 'Commerce (boutique, alimentation…)' },
+    { id: 'restaurant', label: 'Restaurant / Restauration' },
+    { id: 'coiffure', label: 'Coiffure / Beauté' },
+    { id: 'mecanicien', label: 'Mécanicien / Auto' },
+    { id: 'telephonie', label: 'Téléphonie / Électronique' },
+    { id: 'nettoyage', label: 'Nettoyage / Pressing' },
+  ]
+
+  // Capture photo — resize 800px max, JPEG 0.7 quality (même pattern que TaxFraudView)
+  const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const maxDim = 800
+        const ratio = Math.min(maxDim / img.width, maxDim / img.height, 1)
+        canvas.width = Math.round(img.width * ratio)
+        canvas.height = Math.round(img.height * ratio)
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+          setPhotoUrl(canvas.toDataURL('image/jpeg', 0.7))
+        }
+      }
+      img.src = reader.result as string
+    }
+    reader.readAsDataURL(file)
+  }
+
+  // Soumission → POST /api/city/businesses
+  const handleSubmit = async () => {
+    if (name.trim().length < 2) {
+      toast({ title: 'Nom requis', description: 'Indiquez le nom de votre boutique.' })
+      return
+    }
+    if (trade.trim().length < 2) {
+      toast({ title: 'Activité requise', description: 'Indiquez votre activité (ex: Plombier).' })
+      return
+    }
+    if (phone.trim().length < 6) {
+      toast({ title: 'Téléphone requis', description: 'Indiquez un numéro de téléphone.' })
+      return
+    }
+    setSubmitting(true)
+    try {
+      const res = await fetch('/api/city/businesses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: name.trim(),
+          category,
+          trade: trade.trim(),
+          phone: phone.trim(),
+          whatsapp: whatsapp.trim() || null,
+          district: plate.district ?? null,
+          address: address.trim() || null,
+          lat: plate.lat ?? null,
+          lng: plate.lng ?? null,
+          photoUrl: photoUrl ?? null,
+          hours: hours.trim() || null,
+          description: plan === 'premium'
+            ? `${description.trim() ? description.trim() + ' — ' : ''}[Plan demandé: Premium — Paiement à la mairie]`
+            : (description.trim() || null),
+        }),
+      })
+      const json = await res.json()
+      if (json?.ok) {
+        setSubmitted(true)
+        try { parler('Votre demande a été envoyée. La mairie validera votre fiche.') } catch {}
+      } else {
+        toast({ title: 'Erreur', description: json?.error || 'Inscription impossible.' })
+      }
+    } catch {
+      toast({ title: 'Erreur réseau', description: 'Vérifiez votre connexion.' })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  // Écran de confirmation après soumission
+  if (submitted) {
+    return (
+      <div className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center px-6 text-center">
+        <div className="flex size-20 items-center justify-center rounded-full bg-[#00A651] shadow-lg">
+          <Check className="size-10 text-white" />
+        </div>
+        <h2 className="mt-5 text-xl font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+          Demande envoyée !
+        </h2>
+        <p className="mt-2 text-sm text-[#1A1A1A]/70">
+          Votre fiche « {name.trim()} » a été soumise à la mairie.
+          Elle apparaîtra dans l&apos;annuaire après validation
+          (généralement sous 48h).
+        </p>
+        <div className="mt-4 rounded-xl bg-[#00A651]/5 p-3 text-xs text-[#1A1A1A]/60">
+          <p>📍 Plaque : #{plate.plateNumber} · {plate.district ?? 'Dakar'}</p>
+          <p className="mt-1">🏷️ Catégorie : {CATS.find(c => c.id === category)?.label}</p>
+          <p className="mt-1">📊 Statut : En attente de validation</p>
+        </div>
+        <Button
+          onClick={onSuccess}
+          className="mt-6 w-full rounded-xl bg-[#00A651] py-4 text-white hover:bg-[#009444]"
+        >
+          Retour à l&apos;annuaire
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header avec retour */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onCancel}
+          className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#1A1A1A] shadow-sm"
+        >
+          <ArrowLeft className="size-5" />
+        </button>
+        <div>
+          <h2 className="text-lg font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+            Inscrire ma boutique
+          </h2>
+          <p className="text-xs text-[#1A1A1A]/55">
+            Plaque #{plate.plateNumber} · {plate.district ?? 'Dakar'}
+          </p>
+        </div>
+      </div>
+
+      {/* === Sélecteur de version : Standard (gratuit) ou Premium (payant) === */}
+      <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <label className="text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+          Choisissez votre formule
+        </label>
+        <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {/* Standard */}
+          <button
+            type="button"
+            onClick={() => setPlan('standard')}
+            className={cn(
+              'rounded-xl border-2 p-4 text-left transition-all',
+              plan === 'standard'
+                ? 'border-[#00A651] bg-[#00A651]/5 ring-2 ring-[#00A651]/20'
+                : 'border-[#d5d3d4] bg-white',
+            )}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold text-[#00A651]">Standard</span>
+              <span className="rounded-full bg-[#00A651] px-2 py-0.5 text-[10px] font-bold uppercase text-white">
+                Gratuit
+              </span>
+            </div>
+            <p className="mt-2 text-xs text-[#1A1A1A]/60">
+              Fiche de base : nom, catégorie, téléphone, adresse, horaires, description, photo. Visible par tous les citoyens après validation de la mairie.
+            </p>
+          </button>
+
+          {/* Premium */}
+          <button
+            type="button"
+            onClick={() => setPlan('premium')}
+            className={cn(
+              'rounded-xl border-2 p-4 text-left transition-all',
+              plan === 'premium'
+                ? 'border-[#C9A961] bg-[#C9A961]/5 ring-2 ring-[#C9A961]/20'
+                : 'border-[#d5d3d4] bg-white',
+            )}
+          >
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-bold text-[#C9A961]">Premium</span>
+              <span className="rounded-full bg-[#C9A961] px-2 py-0.5 text-[10px] font-bold uppercase text-white">
+                Payant
+              </span>
+            </div>
+            <p className="mt-2 text-xs text-[#1A1A1A]/60">
+              Tout ce qui est Standard + Menu & Commande WhatsApp, Grille Tarifaire, Annonce sponsorisée. Paiement à la mairie.
+            </p>
+          </button>
+        </div>
+      </div>
+
+      {/* === Détail des tarifs Premium (si Premium sélectionné) === */}
+      {plan === 'premium' && pricing && (
+        <div className="space-y-3">
+          <div className="rounded-2xl bg-[#C9A961]/5 p-4">
+            <h3 className="text-sm font-bold text-[#C9A961]" style={TITLE_FONT}>
+              Options Premium — Tarifs
+            </h3>
+            <div className="mt-3 space-y-2">
+              {/* Menu */}
+              <div className="flex items-center justify-between rounded-xl bg-white p-3 shadow-sm">
+                <div>
+                  <p className="text-sm font-bold text-[#1A1A1A]">{pricing.menu.label}</p>
+                  <p className="text-xs text-[#1A1A1A]/55">{pricing.menu.description}</p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-lg font-bold text-[#C9A961]">{pricing.menu.price.toLocaleString('fr-FR')}</p>
+                  <p className="text-[10px] text-[#1A1A1A]/50">FCFA / {pricing.menu.period}</p>
+                </div>
+              </div>
+              {/* Grille tarifaire */}
+              <div className="flex items-center justify-between rounded-xl bg-white p-3 shadow-sm">
+                <div>
+                  <p className="text-sm font-bold text-[#1A1A1A]">{pricing.priceGrid.label}</p>
+                  <p className="text-xs text-[#1A1A1A]/55">{pricing.priceGrid.description}</p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-lg font-bold text-[#C9A961]">{pricing.priceGrid.price.toLocaleString('fr-FR')}</p>
+                  <p className="text-[10px] text-[#1A1A1A]/50">FCFA / {pricing.priceGrid.period}</p>
+                </div>
+              </div>
+              {/* Sponsorisé */}
+              <div className="flex items-center justify-between rounded-xl bg-white p-3 shadow-sm">
+                <div>
+                  <p className="text-sm font-bold text-[#1A1A1A]">{pricing.sponsored.label}</p>
+                  <p className="text-xs text-[#1A1A1A]/55">{pricing.sponsored.description}</p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-lg font-bold text-[#C9A961]">{pricing.sponsored.price.toLocaleString('fr-FR')}</p>
+                  <p className="text-[10px] text-[#1A1A1A]/50">FCFA / {pricing.sponsored.period}</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Bouton Paiement en mairie */}
+          <div className="rounded-2xl bg-[#1A1A1A] p-4 text-center text-white">
+            <p className="text-sm font-bold text-[#FFD700]" style={TITLE_FONT}>
+              Paiement en mairie
+            </p>
+            <p className="mt-1 text-xs text-white/70">
+              Pour activer le Premium, rendez-vous à la mairie de Dakar avec votre paiement
+              (espèces, Wave, Orange Money). La mairie activera vos options Premium après réception du paiement.
+            </p>
+            <div className="mt-3 flex items-center justify-center gap-2 rounded-xl bg-white/10 px-4 py-2">
+              <MapPin className="size-4 text-[#FFD700]" />
+              <span className="text-xs font-semibold text-white">Mairie de Dakar — Plateau</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Photo de la vitrine */}
+      <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <label className="text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+          Photo de la vitrine / atelier
+        </label>
+        <p className="mt-0.5 text-xs text-[#1A1A1A]/50">Optionnel — rend votre fiche plus attractive</p>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handlePhoto}
+          className="hidden"
+        />
+        {photoUrl ? (
+          <div className="mt-3 space-y-2">
+            <img
+              src={photoUrl}
+              alt="Vitrine"
+              className="h-40 w-full rounded-xl object-cover"
+            />
+            <button
+              onClick={() => setPhotoUrl(null)}
+              className="text-xs font-medium text-[#E30613] hover:underline"
+            >
+              Supprimer la photo
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="mt-3 flex h-32 w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#00A651]/30 bg-[#00A651]/5 text-[#00A651]"
+          >
+            <Camera className="size-8" />
+            <span className="text-xs font-bold uppercase tracking-wide">Prendre une photo</span>
+          </button>
+        )}
+      </div>
+
+      {/* Nom de la boutique */}
+      <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <label className="text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+          Nom de la boutique *
+        </label>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Ex : Boutique Téranga, Plomberie Diop…"
+          maxLength={80}
+          className="mt-2 w-full rounded-xl border-2 border-[#d5d3d4] px-3 py-2.5 text-sm focus:border-[#00A651] focus:outline-none"
+        />
+      </div>
+
+      {/* Catégorie + Activité */}
+      <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <label className="text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+          Catégorie *
+        </label>
+        <select
+          value={category}
+          onChange={(e) => setCategory(e.target.value)}
+          className="mt-2 w-full rounded-xl border-2 border-[#d5d3d4] px-3 py-2.5 text-sm focus:border-[#00A651] focus:outline-none"
+        >
+          {CATS.map((c) => (
+            <option key={c.id} value={c.id}>{c.label}</option>
+          ))}
+        </select>
+        <label className="mt-3 block text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+          Activité / Spécialité *
+        </label>
+        <input
+          type="text"
+          value={trade}
+          onChange={(e) => setTrade(e.target.value)}
+          placeholder="Ex : Plombier, Coiffeur, Restaurant sénégalais…"
+          maxLength={60}
+          className="mt-2 w-full rounded-xl border-2 border-[#d5d3d4] px-3 py-2.5 text-sm focus:border-[#00A651] focus:outline-none"
+        />
+      </div>
+
+      {/* Téléphone + WhatsApp */}
+      <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <label className="text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+          Téléphone *
+        </label>
+        <input
+          type="tel"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="Ex : 77 123 45 67"
+          maxLength={20}
+          className="mt-2 w-full rounded-xl border-2 border-[#d5d3d4] px-3 py-2.5 text-sm focus:border-[#00A651] focus:outline-none"
+        />
+        <label className="mt-3 block text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+          WhatsApp (optionnel)
+        </label>
+        <input
+          type="tel"
+          value={whatsapp}
+          onChange={(e) => setWhatsapp(e.target.value)}
+          placeholder="Ex : 221771234567"
+          maxLength={20}
+          className="mt-2 w-full rounded-xl border-2 border-[#d5d3d4] px-3 py-2.5 text-sm focus:border-[#00A651] focus:outline-none"
+        />
+      </div>
+
+      {/* Adresse + Horaires */}
+      <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <label className="text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+          Adresse
+        </label>
+        <input
+          type="text"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          placeholder="Ex : Rue Mohamed V, Dakar"
+          maxLength={200}
+          className="mt-2 w-full rounded-xl border-2 border-[#d5d3d4] px-3 py-2.5 text-sm focus:border-[#00A651] focus:outline-none"
+        />
+        <label className="mt-3 block text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+          Horaires d&apos;ouverture
+        </label>
+        <input
+          type="text"
+          value={hours}
+          onChange={(e) => setHours(e.target.value)}
+          placeholder="Ex : Lun-Ven 8h-18h, Sam 8h-12h"
+          maxLength={100}
+          className="mt-2 w-full rounded-xl border-2 border-[#d5d3d4] px-3 py-2.5 text-sm focus:border-[#00A651] focus:outline-none"
+        />
+      </div>
+
+      {/* Description */}
+      <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <label className="text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+          Description
+        </label>
+        <p className="mt-0.5 text-xs text-[#1A1A1A]/50">
+          Décrivez vos services, produits ou spécialités
+        </p>
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Ex : Plombier-chauffagiste depuis 15 ans. Dépannage urgent, installation sanitaire, chauffe-eau…"
+          maxLength={500}
+          rows={3}
+          className="mt-2 w-full rounded-xl border-2 border-[#d5d3d4] px-3 py-2.5 text-sm focus:border-[#00A651] focus:outline-none"
+        />
+        <p className="mt-1 text-right text-[10px] text-[#1A1A1A]/40">
+          {description.length}/500
+        </p>
+      </div>
+
+      {/* Info GPS auto */}
+      <div className="rounded-xl bg-[#00A651]/5 p-3 text-xs text-[#1A1A1A]/60">
+        <p className="flex items-center gap-1.5">
+          <MapPin className="size-3" />
+          Position GPS automatiquement liée à la plaque #{plate.plateNumber}
+          {plate.lat != null && plate.lng != null && ' (précise)'}
+        </p>
+      </div>
+
+      {/* Bouton soumettre */}
+      <Button
+        onClick={handleSubmit}
+        disabled={submitting}
+        className="w-full rounded-2xl bg-[#00A651] py-4 text-base font-bold text-white hover:bg-[#009444] disabled:opacity-50"
+      >
+        {submitting ? (
+          <Loader2 className="size-5 animate-spin" />
+        ) : (
+          <Send className="size-5" />
+        )}
+        {submitting ? 'Envoi en cours…' : 'Envoyer ma demande'}
+      </Button>
+
+      <p className="text-center text-xs text-[#1A1A1A]/40">
+        Votre fiche sera visible après validation de la mairie (sous 48h).
+      </p>
     </div>
   )
 }

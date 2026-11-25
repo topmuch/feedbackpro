@@ -33,6 +33,18 @@ export const dynamic = 'force-dynamic'
 
 const VALID_STATUSES = new Set(['approved', 'rejected'])
 
+/** Parse un champ JSON stocké en base (menu / priceGrid) en tableau typé.
+ *  Renvoie [] si la valeur est null ou invalide — defensive parsing. */
+function parseJsonArray<T>(raw: string | null): T[] {
+  if (!raw || typeof raw !== 'string') return []
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? (parsed as T[]) : []
+  } catch {
+    return []
+  }
+}
+
 /** Sérialise un business pour la réponse API. */
 function serialize(a: {
   id: string
@@ -58,6 +70,8 @@ function serialize(a: {
   reviewCount: number
   contactCount: number
   active: boolean
+  menu: string | null
+  priceGrid: string | null
   createdAt: Date
   updatedAt: Date
 }) {
@@ -85,6 +99,21 @@ function serialize(a: {
     reviewCount: a.reviewCount,
     contactCount: a.contactCount,
     active: a.active,
+    // Champs premium : JSON parsé côté serveur → tableau prêt à l'emploi
+    menu: parseJsonArray<{
+      id?: string
+      name: string
+      price: number
+      description?: string | null
+      photo?: string | null
+    }>(a.menu),
+    priceGrid: parseJsonArray<{
+      id?: string
+      service: string
+      price: number
+      unit?: string | null
+      photo?: string | null
+    }>(a.priceGrid),
     createdAt: a.createdAt.toISOString(),
     updatedAt: a.updatedAt.toISOString(),
   }
@@ -114,6 +143,10 @@ export async function PATCH(
     isSponsored?: boolean
     offerText?: string
     offerEndsAt?: string
+    premiumFeatures?: string[]
+    // Premium features — JSON string sérialisé côté client
+    menu?: string | null
+    priceGrid?: string | null
   }
 
   const current = await db.cityArtisan.findUnique({ where: { id } })
@@ -184,6 +217,59 @@ export async function PATCH(
       data.offerEndsAt = parsed
     } else {
       return fail('offerEndsAt invalide (chaîne ISO attendue)', 400)
+    }
+  }
+
+  // --- menu (JSON string : [{name, photo, price, description?}])
+  //      Limité à 10 items, photos en data URL (max ~500 KB par item).
+  if (b.menu !== undefined) {
+    if (b.menu === null || b.menu === '') {
+      data.menu = null
+    } else if (typeof b.menu === 'string') {
+      // Validation : doit parser en tableau ≤ 10 items
+      try {
+        const parsed = JSON.parse(b.menu)
+        if (!Array.isArray(parsed)) {
+          return fail('menu invalide (tableau JSON attendu)', 400)
+        }
+        if (parsed.length > 10) {
+          return fail('menu trop long (max. 10 articles)', 400)
+        }
+        // Limite anti-abus sur la taille totale du JSON stocké
+        if (b.menu.length > 5_000_000) {
+          return fail('menu trop volumineux (max. 5 Mo)', 400)
+        }
+      } catch {
+        return fail('menu invalide (JSON malformé)', 400)
+      }
+      data.menu = b.menu
+    } else {
+      return fail('menu invalide (chaîne JSON attendue)', 400)
+    }
+  }
+
+  // --- priceGrid (JSON string : [{service, photo, price, unit?}])
+  if (b.priceGrid !== undefined) {
+    if (b.priceGrid === null || b.priceGrid === '') {
+      data.priceGrid = null
+    } else if (typeof b.priceGrid === 'string') {
+      try {
+        const parsed = JSON.parse(b.priceGrid)
+        if (!Array.isArray(parsed)) {
+          return fail('priceGrid invalide (tableau JSON attendu)', 400)
+        }
+        if (parsed.length > 10) {
+          return fail('priceGrid trop long (max. 10 prestations)', 400)
+        }
+        if (b.priceGrid.length > 5_000_000) {
+          return fail('priceGrid trop volumineux (max. 5 Mo)', 400)
+        }
+      } catch {
+        return fail('priceGrid invalide (JSON malformé)', 400)
+      }
+      data.priceGrid = b.priceGrid
+    } else {
+      return fail('priceGrid invalide (chaîne JSON attendue)', 400)
     }
   }
 

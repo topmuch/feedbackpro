@@ -328,34 +328,62 @@ export async function GET(req: NextRequest) {
     !Number.isNaN(radiusNum) &&
     radiusNum > 0
 
-  const serialize = (
-    a: (typeof businesses)[number],
-    distance?: number,
-  ) => ({
-    id: a.id,
-    name: a.name,
-    trade: a.trade,
-    category: a.category,
-    phone: a.phone,
-    whatsapp: a.whatsapp,
-    district: a.district,
-    address: a.address,
-    lat: a.lat,
-    lng: a.lng,
-    photoUrl: a.photoUrl,
-    hours: a.hours,
-    description: a.description,
-    verified: a.verified,
-    status: a.status,
-    isPremium: a.premium,
-    isSponsored: a.isSponsored,
-    offerText: a.offerText,
-    offerEndsAt: a.offerEndsAt ? a.offerEndsAt.toISOString() : null,
-    rating: a.rating,
-    reviewCount: a.reviewCount,
-    contactCount: a.contactCount,
-    distance: distance ?? undefined,
-  })
+/** Parse un champ JSON stocké en base (menu / priceGrid) en tableau typé.
+ *  Renvoie [] si la valeur est null ou invalide — defensive parsing. */
+function parseJsonArray<T>(raw: string | null): T[] {
+  if (!raw || typeof raw !== 'string') return []
+  try {
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? (parsed as T[]) : []
+  } catch {
+    return []
+  }
+}
+
+/** Sérialise un business pour la réponse API. */
+const serialize = (
+  a: (typeof businesses)[number],
+  distance?: number,
+) => ({
+  id: a.id,
+  name: a.name,
+  trade: a.trade,
+  category: a.category,
+  phone: a.phone,
+  whatsapp: a.whatsapp,
+  district: a.district,
+  address: a.address,
+  lat: a.lat,
+  lng: a.lng,
+  photoUrl: a.photoUrl,
+  hours: a.hours,
+  description: a.description,
+  verified: a.verified,
+  status: a.status,
+  isPremium: a.premium,
+  isSponsored: a.isSponsored,
+  offerText: a.offerText,
+  offerEndsAt: a.offerEndsAt ? a.offerEndsAt.toISOString() : null,
+  rating: a.rating,
+  reviewCount: a.reviewCount,
+  contactCount: a.contactCount,
+  // Champs premium : JSON parsé côté serveur → tableau prêt à l'emploi
+  menu: parseJsonArray<{
+    id?: string
+    name: string
+    price: number
+    description?: string | null
+    photo?: string | null
+  }>(a.menu),
+  priceGrid: parseJsonArray<{
+    id?: string
+    service: string
+    price: number
+    unit?: string | null
+    photo?: string | null
+  }>(a.priceGrid),
+  distance: distance ?? undefined,
+})
 
   if (hasGeo) {
     const withDistance = businesses
