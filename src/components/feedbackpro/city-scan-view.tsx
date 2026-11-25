@@ -1601,65 +1601,85 @@ function MainView({
         <span className="text-white/60">👥 1 247 CIT. CONNECTÉS</span>
       </div>
 
-      {/* === PANNEAUX SIGNALÉTIQUES — grille 2 colonnes === */}
-      <main className="mt-3 grid grid-cols-2 gap-3">
+      {/* === PANNEAUX SIGNALÉTIQUES === */}
+      <main className="mt-3 flex flex-col gap-3">
         {MODULES.map((mod) => {
           const style = SIGNAGE_STYLE[mod.id]
           const isInverted = style.inverted
           const bgColor = style.bg
           const textColor = isInverted ? '#FFFFFF' : '#1A1A1A'
+          const tileBg = '#FFFFFF'
+          const tileIconColor = isInverted ? '#1A1A1A' : '#1A1A1A'
+          const arrowBg = isInverted ? '#FFFFFF' : '#FFFFFF'
+          const arrowColor = '#1A1A1A'
 
           return (
             <button
               key={mod.id}
               onClick={() => onOpenModule(mod.id)}
-              className="group relative flex flex-col items-center gap-2 rounded-2xl p-3 text-center shadow-lg transition-all hover:-translate-y-1 hover:shadow-2xl active:scale-[0.98]"
+              className="group flex items-center gap-4 rounded-2xl p-4 shadow-lg transition-all hover:-translate-y-1 hover:shadow-2xl active:scale-[0.98]"
               style={{
                 background: bgColor,
                 borderRadius: '16px',
               }}
             >
-              {/* Badge spécial (urgence SOS) */}
-              {mod.id === 'urgence' && (
-                <span
-                  className="absolute right-2 top-2 rounded-md bg-[#FFDD00] px-1.5 py-0.5 text-[9px] font-bold uppercase text-[#1A1A1A]"
-                >
-                  SOS
-                </span>
-              )}
-
-              {/* Tuile icône blanche (centrée) */}
+              {/* Tuile icône blanche (gauche) */}
               <div
-                className="flex h-12 w-12 items-center justify-center rounded-xl text-2xl transition-transform group-hover:scale-110"
+                className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-3xl transition-transform group-hover:scale-110"
                 style={{
-                  background: '#FFFFFF',
+                  background: tileBg,
                   borderRadius: '12px',
                 }}
               >
                 {mod.emoji}
               </div>
 
-              {/* Texte centré */}
-              <div className="flex-1">
+              {/* Texte central */}
+              <div className="min-w-0 flex-1 text-left">
                 <h2
-                  className="text-xs font-bold uppercase leading-tight tracking-wide"
+                  className="text-base font-bold uppercase leading-tight tracking-wide"
                   style={{ color: textColor, fontFamily: 'Arial, Helvetica, sans-serif' }}
                 >
                   {mod.title}
                 </h2>
                 <p
-                  className="mt-0.5 text-[10px] leading-snug"
+                  className="mt-0.5 text-xs leading-snug"
                   style={{ color: isInverted ? 'rgba(255,255,255,0.7)' : 'rgba(26,26,26,0.6)' }}
                 >
                   {mod.desc}
                 </p>
                 <p
-                  className="mt-1 text-[9px] font-bold uppercase tracking-wider"
+                  className="mt-1 text-[10px] font-bold uppercase tracking-wider"
                   style={{ color: isInverted ? '#FFDD00' : '#1B2A8C' }}
                 >
                   {mod.sub}
                 </p>
               </div>
+
+              {/* Cercle flèche blanche (droite) */}
+              <div
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full transition-transform group-hover:translate-x-1"
+                style={{
+                  background: arrowBg,
+                }}
+              >
+                <svg
+                  width="20" height="20" viewBox="0 0 24 24" fill="none"
+                  stroke={arrowColor} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"
+                >
+                  <line x1="5" y1="12" x2="19" y2="12" />
+                  <polyline points="12 5 19 12 12 19" />
+                </svg>
+              </div>
+
+              {/* Badge spécial (urgence SOS) */}
+              {mod.id === 'urgence' && (
+                <span
+                  className="absolute right-4 top-4 rounded-md bg-[#FFDD00] px-2 py-0.5 text-[10px] font-bold uppercase text-[#1A1A1A]"
+                >
+                  SOS
+                </span>
+              )}
             </button>
           )
         })}
