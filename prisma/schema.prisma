@@ -1817,6 +1817,7 @@ model CityPlate {
   taxReports      CityTaxReport[]
   checkins        CitySchoolCheckin[]
   appointments    CityAppointment[]
+  quartierAds     CityQuartierAd[]
 
   @@index([status])
   @@index([district])
@@ -2047,4 +2048,70 @@ model CityAppointment {
   @@index([status])
   @@index([reference])
   @@index([plateId])
+}
+
+// ============================================================
+// Ville Connectée — Annonces du Quartier (entre particuliers)
+// ============================================================
+// Ventes (meubles, téléphones, électroménager...), dons, et
+// services (déménagement, ménage, garde d'enfants, cours...).
+// Distinct des commerces établis — c'est du particulier à
+// particulier, hyper-local (≤500m de la plaque).
+
+model CityQuartierAd {
+  id          String   @id @default(cuid())
+  type        String                          // vente | don | service
+  title       String                          // titre court
+  description String?
+  price       String?                         // "15000 FCFA", "Gratuit", "À débattre", "Tarif horaire"
+  photoUrl    String?                         // photo du produit/service (data URL)
+  phone       String
+  whatsapp    String?
+  plateId     String?
+  plate       CityPlate? @relation(fields: [plateId], references: [id], onDelete: SetNull)
+  qrToken     String?
+  district    String?
+  lat         Float?
+  lng         Float?
+  status      String   @default("active")    // active | sold | removed
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([district])
+  @@index([plateId])
+}
+
+// ============================================================
+// Ville Connectée — Écoles & Cours (Éducation locale)
+// ============================================================
+// Annuaire des écoles + soutien scolaire + cours particuliers.
+// Monétisation : gratuit pour public, payant pour privé/formation.
+
+model CitySchool {
+  id          String   @id @default(cuid())
+  name        String
+  type        String                          // creche | primaire | college | lycee | institut | formation | repetiteur
+  levels      String?                         // "Maternelle à CM2", "6e à Terminale"...
+  phone       String
+  whatsapp    String?
+  address     String?
+  lat         Float?
+  lng         Float?
+  hours       String?                         // "7h30-17h"
+  photoUrl    String?
+  description String?
+  district    String?
+  isPremium   Boolean  @default(false)       // payant = mise en avant + brochures + tarifs
+  coursePrice String?                         // "5000 FCFA/mois" (pour repetiteurs/formation)
+  status      String   @default("pending")   // pending | approved | rejected
+  verified    Boolean  @default(false)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([type])
+  @@index([status])
+  @@index([district])
 }

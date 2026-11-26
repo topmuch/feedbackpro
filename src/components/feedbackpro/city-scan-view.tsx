@@ -68,6 +68,8 @@ import {
   DoorOpen,
   LogIn,
   Plus,
+  GraduationCap,
+  Luggage,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -204,7 +206,7 @@ const TITLE_FONT: React.CSSProperties = {
 // Configuration des 5 modules (banner d'accueil Aminata)
 // ============================================================
 
-type ModuleId = 'urgence' | 'signalement' | 'orientation' | 'artisans' | 'mairie' | 'tax_fraud' | 'itineraire' | 'annonces' | 'sante'
+type ModuleId = 'urgence' | 'signalement' | 'orientation' | 'artisans' | 'mairie' | 'tax_fraud' | 'itineraire' | 'annonces' | 'sante' | 'quartier_ads' | 'ecoles'
 
 type ModuleConfig = {
   id: ModuleId
@@ -279,6 +281,22 @@ const MODULES: ReadonlyArray<ModuleConfig> = [
     desc: 'Messages de la mairie',
     sub: 'INFO MUNICIPALE',
     color: COLORS.orange,
+  },
+  {
+    id: 'quartier_ads',
+    emoji: '🧳',
+    title: 'ANNONCES DU QUARTIER',
+    desc: 'Ventes · Dons · Services',
+    sub: 'ENTRE PARTICULIERS',
+    color: COLORS.green,
+  },
+  {
+    id: 'ecoles',
+    emoji: '🎓',
+    title: 'ÉCOLES & COURS',
+    desc: 'Établissements · Soutien · Formation',
+    sub: 'AUTOUR DE VOUS',
+    color: COLORS.blue,
   },
 ]
 
@@ -1443,6 +1461,8 @@ export function CityScanView({
           {activeModule === 'itineraire' && <ItineraireView plate={plate} />}
           {activeModule === 'annonces' && <AnnoncesView plate={plate} />}
           {activeModule === 'sante' && <SanteView plate={plate} />}
+          {activeModule === 'quartier_ads' && <QuartierAdsView plate={plate} />}
+          {activeModule === 'ecoles' && <SchoolsView plate={plate} />}
         </SubViewShell>
 
         {/* Overlay d'inscription citoyenne (SOS silencieux / école) */}
@@ -1536,6 +1556,8 @@ function MainView({
     itineraire: { bg: '#FFDD00', inverted: false },   // Jaune
     annonces: { bg: '#FFDD00', inverted: false },     // Jaune
     sante: { bg: '#FFDD00', inverted: false },        // Jaune
+    quartier_ads: { bg: '#FFDD00', inverted: false },
+    ecoles: { bg: '#FFDD00', inverted: false },
   }
 
   return (
@@ -3461,17 +3483,17 @@ function BusinessCard({
         </span>
       )}
 
-      <div className="flex items-start gap-3">
-        {/* Photo thumbnail */}
-        {business.photoUrl && (
-          <img
-            src={business.photoUrl}
-            alt={business.name}
-            className="size-16 shrink-0 rounded-xl object-cover"
-            loading="lazy"
-          />
-        )}
+      {/* Photo banner — full width, top of card (3x larger than thumbnail) */}
+      {business.photoUrl && (
+        <img
+          src={business.photoUrl}
+          alt={business.name}
+          className="mb-3 h-32 w-full rounded-xl object-cover"
+          loading="lazy"
+        />
+      )}
 
+      <div className="flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-1.5">
             <h3 className="text-base font-bold text-[#1A1A1A]" style={TITLE_FONT}>
@@ -3555,7 +3577,7 @@ function BusinessCard({
                   <img
                     src={item.photoUrl}
                     alt={item.name}
-                    className="size-10 shrink-0 rounded-lg object-cover"
+                    className="size-16 shrink-0 rounded-lg object-cover"
                     loading="lazy"
                   />
                 )}
@@ -3578,7 +3600,7 @@ function BusinessCard({
                   <img
                     src={item.photoUrl}
                     alt={item.service}
-                    className="size-10 shrink-0 rounded-lg object-cover"
+                    className="size-16 shrink-0 rounded-lg object-cover"
                     loading="lazy"
                   />
                 )}
@@ -5110,6 +5132,1345 @@ function SanteView({ plate }: { plate: CityPlate }) {
           ))}
         </ul>
       </section>
+    </div>
+  )
+}
+
+// ============================================================
+// QuartierAdsView — Annonces entre particuliers (ventes · dons · services)
+//    Green section header + Luggage icon. Filtres type, cartes avec photo
+//    large, prix prominent, boutons Appeler / WhatsApp, temps relatif.
+//    Form self-service: type, titre, description, prix, photo, téléphone.
+// ============================================================
+
+type QuartierAd = {
+  id: string
+  type: 'vente' | 'don' | 'service'
+  title: string
+  description: string | null
+  price: string | null // "15000 FCFA", "Gratuit", "À débattre"
+  photoUrl: string | null
+  phone: string
+  whatsapp?: string | null
+  district?: string | null
+  distance?: number | null
+  createdAt: string
+  status?: string
+}
+
+const QUARTIER_AD_TYPES: ReadonlyArray<{ id: string; label: string; color: string }> = [
+  { id: 'all',     label: 'Tous',    color: '#00A651' },
+  { id: 'vente',   label: 'Vente',   color: '#FF6B00' },
+  { id: 'don',     label: 'Don',     color: '#00A651' },
+  { id: 'service', label: 'Service', color: '#0066CC' },
+]
+
+function quartierAdTypeColor(type: string): string {
+  return QUARTIER_AD_TYPES.find((t) => t.id === type)?.color ?? '#00A651'
+}
+
+function QuartierAdsView({ plate }: { plate: CityPlate }) {
+  const { toast } = useToast()
+  const [ads, setAds] = useState<QuartierAd[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedType, setSelectedType] = useState<string>('all')
+  const [showForm, setShowForm] = useState(false)
+
+  const fetchAds = useCallback(async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const params = new URLSearchParams()
+      if (selectedType !== 'all') params.set('type', selectedType)
+      if (plate.district) params.set('district', plate.district)
+      const res = await fetch(`/api/city/quartier-ads?${params.toString()}`, {
+        cache: 'no-store',
+      })
+      const json = (await res.json().catch(() => null)) as
+        | { ok: true; data: { ads?: QuartierAd[] } }
+        | { ok: false; error?: string }
+        | null
+      if (json?.ok && Array.isArray(json.data?.ads)) {
+        setAds(json.data.ads)
+      } else {
+        setAds([])
+        if (json && !json.ok) setError(json.error ?? 'Service indisponible')
+      }
+    } catch {
+      setError('Connexion impossible. Vérifiez votre réseau.')
+      setAds([])
+    } finally {
+      setLoading(false)
+    }
+  }, [selectedType, plate.district])
+
+  useEffect(() => {
+    fetchAds()
+  }, [fetchAds])
+
+  if (showForm) {
+    return (
+      <QuartierAdForm
+        plate={plate}
+        onCancel={() => setShowForm(false)}
+        onSuccess={() => {
+          setShowForm(false)
+          fetchAds()
+        }}
+      />
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header — green gradient with luggage icon */}
+      <section
+        className="rounded-2xl p-4 text-white shadow-sm"
+        style={{
+          background: `linear-gradient(135deg, ${COLORS.green} 0%, #007a3c 100%)`,
+        }}
+      >
+        <div className="mb-2 flex items-center gap-2">
+          <Luggage className="size-5 text-white/90" />
+          <h2 className="text-sm font-bold uppercase tracking-wide text-white/95">
+            Annonces du Quartier · Entre particuliers
+          </h2>
+        </div>
+        <p className="text-xs leading-relaxed text-white/85">
+          Ventes, dons et services de vos voisins. Contactez directement par
+          téléphone ou WhatsApp. Déposez votre propre annonce en un geste.
+        </p>
+      </section>
+
+      {/* Bouton Déposer une annonce — green, prominent */}
+      <button
+        onClick={() => setShowForm(true)}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#00A651] p-4 text-white shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.98]"
+        style={{ borderRadius: '16px' }}
+      >
+        <Plus className="size-5" />
+        <span className="text-sm font-bold uppercase tracking-wide" style={TITLE_FONT}>
+          Déposer une annonce
+        </span>
+      </button>
+
+      {/* Filtres type — chips horizontaux scrollables */}
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+        {QUARTIER_AD_TYPES.map((chip) => {
+          const active = selectedType === chip.id
+          const color = chip.color
+          return (
+            <button
+              key={chip.id}
+              onClick={() => setSelectedType(chip.id)}
+              className={cn(
+                'shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition',
+                active
+                  ? 'text-white shadow'
+                  : 'bg-white text-[#1A1A1A]/70 ring-1 ring-[#1A1A1A]/10 hover:ring-[#1A1A1A]/25',
+              )}
+              style={active ? { backgroundColor: color } : undefined}
+            >
+              {chip.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Liste */}
+      {loading ? (
+        <div className="flex flex-col items-center justify-center gap-3 py-16">
+          <Loader2 className="size-8 animate-spin text-[#00A651]" />
+          <p className="text-sm text-[#1A1A1A]/55">Chargement des annonces…</p>
+        </div>
+      ) : error ? (
+        <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
+          <AlertTriangle className="mx-auto size-10 text-[#E30613]" />
+          <p className="mt-3 text-sm font-semibold text-[#1A1A1A]" style={TITLE_FONT}>
+            {error}
+          </p>
+          <p className="mt-1 text-xs text-[#1A1A1A]/55">
+            Réessayez dans quelques instants.
+          </p>
+        </div>
+      ) : ads.length === 0 ? (
+        <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
+          <span className="text-4xl" aria-hidden>
+            🧳
+          </span>
+          <p className="mt-3 text-sm font-semibold text-[#1A1A1A]" style={TITLE_FONT}>
+            Aucune annonce pour le moment.
+          </p>
+          <p className="mt-1 text-xs text-[#1A1A1A]/55">
+            Soyez le premier à déposer une annonce dans votre quartier.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-[#1A1A1A]/60">
+              {ads.length} annonce{ads.length > 1 ? 's' : ''}
+            </h2>
+            <Badge className="bg-[#00A651]/10 text-[#00A651]">
+              <Check className="size-3" />
+              Particuliers
+            </Badge>
+          </div>
+          {ads.map((ad) => (
+            <QuartierAdCard key={ad.id} ad={ad} />
+          ))}
+        </>
+      )}
+    </div>
+  )
+}
+
+function QuartierAdCard({ ad }: { ad: QuartierAd }) {
+  const color = quartierAdTypeColor(ad.type)
+  const typeLabel =
+    ad.type === 'vente' ? 'VENTE' : ad.type === 'don' ? 'DON' : 'SERVICE'
+
+  const whatsappUrl = ad.whatsapp
+    ? `https://wa.me/${ad.whatsapp.replace(/[^\d]/g, '')}?text=${encodeURIComponent(
+        `Bonjour, je suis intéressé(e) par votre annonce: ${ad.title}`,
+      )}`
+    : null
+
+  // Price display — "Gratuit" for dons, value, or "À débattre" fallback.
+  const priceDisplay =
+    ad.type === 'don'
+      ? 'Gratuit'
+      : ad.price && ad.price.trim().length > 0
+        ? ad.price
+        : 'À débattre'
+
+  return (
+    <article
+      className="relative rounded-2xl bg-white p-4 shadow-sm"
+      style={{ borderLeft: `4px solid ${color}` }}
+    >
+      {/* Type badge + relative time */}
+      <div className="mb-2 flex items-center gap-2">
+        <span
+          className="rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+          style={{ backgroundColor: color, color: '#FFFFFF' }}
+        >
+          {typeLabel}
+        </span>
+        <span className="text-[10px] text-[#1A1A1A]/45">
+          {relTime(ad.createdAt)}
+        </span>
+      </div>
+
+      {/* Photo — large, full-width */}
+      {ad.photoUrl && (
+        <img
+          src={ad.photoUrl}
+          alt={ad.title}
+          className="mb-3 h-40 w-full rounded-xl object-cover"
+          loading="lazy"
+        />
+      )}
+
+      {/* Title */}
+      <h3 className="text-base font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+        {ad.title}
+      </h3>
+
+      {/* Description (truncated) */}
+      {ad.description && (
+        <p className="mt-1 line-clamp-3 text-sm text-[#1A1A1A]/75">
+          {ad.description}
+        </p>
+      )}
+
+      {/* Price (prominent) */}
+      <div
+        className="mt-2 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5"
+        style={{ backgroundColor: `${color}15` }}
+      >
+        <span className="text-base font-bold" style={{ color }}>
+          {priceDisplay}
+        </span>
+      </div>
+
+      {/* District / distance info */}
+      <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-[#1A1A1A]/55">
+        {ad.district && (
+          <span className="inline-flex items-center gap-1">
+            <MapPin className="size-3" />
+            {ad.district}
+          </span>
+        )}
+        {ad.distance != null && (
+          <span className="inline-flex items-center gap-1">
+            <Navigation className="size-3" />
+            {Math.round(ad.distance)} m
+          </span>
+        )}
+      </div>
+
+      {/* Boutons d'action */}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <a
+          href={`tel:${ad.phone}`}
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#00A651] py-2.5 text-sm font-bold text-white transition hover:bg-[#008a44]"
+        >
+          <Phone className="size-4" />
+          Appeler
+        </a>
+        {whatsappUrl && (
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] py-2.5 text-sm font-bold text-white transition hover:bg-[#1da851]"
+          >
+            <MessageCircle className="size-4" />
+            WhatsApp
+          </a>
+        )}
+      </div>
+    </article>
+  )
+}
+
+function QuartierAdForm({
+  plate,
+  onCancel,
+  onSuccess,
+}: {
+  plate: CityPlate
+  onCancel: () => void
+  onSuccess: () => void
+}) {
+  const { toast } = useToast()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [type, setType] = useState<'vente' | 'don' | 'service'>('vente')
+  const [title, setTitle] = useState('')
+  const [description, setDescription] = useState('')
+  const [price, setPrice] = useState('')
+  const [phone, setPhone] = useState('')
+  const [whatsapp, setWhatsapp] = useState('')
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+
+  const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const maxDim = 800
+        const ratio = Math.min(maxDim / img.width, maxDim / img.height, 1)
+        canvas.width = Math.round(img.width * ratio)
+        canvas.height = Math.round(img.height * ratio)
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+          setPhotoUrl(canvas.toDataURL('image/jpeg', 0.7))
+        }
+      }
+      img.src = reader.result as string
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleSubmit = async () => {
+    if (title.trim().length < 3) {
+      toast({
+        title: 'Titre requis',
+        description: "Indiquez un titre d'au moins 3 caractères.",
+      })
+      return
+    }
+    if (phone.trim().length < 6) {
+      toast({
+        title: 'Téléphone requis',
+        description: 'Indiquez un numéro de téléphone.',
+      })
+      return
+    }
+    setSubmitting(true)
+    try {
+      const body: Record<string, unknown> = {
+        type,
+        title: title.trim(),
+        description: description.trim() || null,
+        price: type === 'don' ? 'Gratuit' : price.trim() || 'À débattre',
+        photoUrl: photoUrl ?? null,
+        phone: phone.trim(),
+        whatsapp: whatsapp.trim() || null,
+        plateId: plate.id,
+        qrToken: plate.qrToken,
+        district: plate.district ?? null,
+        lat: plate.lat ?? null,
+        lng: plate.lng ?? null,
+      }
+      const res = await fetch('/api/city/quartier-ads', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const json = (await res.json().catch(() => null)) as {
+        ok: boolean
+        error?: string
+      } | null
+      if (json?.ok) {
+        setSubmitted(true)
+        try {
+          parler('Votre annonce a été publiée.')
+        } catch {
+          /* ignore */
+        }
+      } else {
+        toast({
+          title: 'Erreur',
+          description: json?.error || 'Publication impossible.',
+        })
+      }
+    } catch {
+      toast({ title: 'Erreur réseau', description: 'Vérifiez votre connexion.' })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (submitted) {
+    return (
+      <div className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center px-6 text-center">
+        <div
+          className="flex size-20 items-center justify-center rounded-full shadow-lg"
+          style={{ background: '#00A651' }}
+        >
+          <Check className="size-10 text-white" />
+        </div>
+        <h2 className="mt-5 text-xl font-bold text-[#00A651]" style={TITLE_FONT}>
+          Annonce publiée !
+        </h2>
+        <p className="mt-2 text-sm text-[#1A1A1A]/70">
+          Votre annonce « {title.trim()} » est désormais visible par les
+          citoyens du quartier.
+        </p>
+        <Button
+          onClick={onSuccess}
+          className="mt-6 w-full rounded-xl bg-[#00A651] py-4 text-white hover:bg-[#008a44]"
+        >
+          Retour aux annonces
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header avec retour */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onCancel}
+          className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#1A1A1A] shadow-sm"
+        >
+          <ArrowLeft className="size-5" />
+        </button>
+        <div>
+          <h2 className="text-lg font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+            Déposer une annonce
+          </h2>
+          <p className="text-xs text-[#1A1A1A]/55">
+            Plaque #{plate.plateNumber} · {plate.district ?? 'Dakar'}
+          </p>
+        </div>
+      </div>
+
+      {/* Type select */}
+      <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <label
+          className="mb-2 block text-sm font-bold text-[#1A1A1A]"
+          style={TITLE_FONT}
+        >
+          Type d&apos;annonce
+        </label>
+        <div className="grid grid-cols-3 gap-2">
+          {(
+            [
+              { id: 'vente', label: 'Vente', color: '#FF6B00' },
+              { id: 'don', label: 'Don', color: '#00A651' },
+              { id: 'service', label: 'Service', color: '#0066CC' },
+            ] as const
+          ).map((opt) => (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => setType(opt.id)}
+              className={cn(
+                'rounded-xl border-2 px-3 py-2.5 text-sm font-bold uppercase tracking-wide transition-all',
+                type === opt.id ? 'text-white shadow' : 'bg-white text-[#1A1A1A]/70',
+              )}
+              style={
+                type === opt.id
+                  ? { backgroundColor: opt.color, borderColor: opt.color }
+                  : { borderColor: '#d5d3d4' }
+              }
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Title */}
+      <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <label className="mb-1.5 block text-sm font-bold text-[#1A1A1A]">
+          Titre <span className="text-[#E30613]">*</span>
+        </label>
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          placeholder="Ex: Vélo VTT en bon état"
+          className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-3 text-base focus:border-[#00A651] focus:outline-none focus:ring-2 focus:ring-[#00A651]/20"
+        />
+      </div>
+
+      {/* Description */}
+      <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <label className="mb-1.5 block text-sm font-bold text-[#1A1A1A]">
+          Description
+        </label>
+        <Textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Décrivez votre annonce (état, dimensions, conditions…)"
+          rows={3}
+          className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] focus:border-[#00A651] focus:outline-none focus:ring-2 focus:ring-[#00A651]/20"
+        />
+      </div>
+
+      {/* Price (hidden for dons — forced to "Gratuit") */}
+      {type !== 'don' && (
+        <div className="rounded-2xl bg-white p-4 shadow-sm">
+          <label className="mb-1.5 block text-sm font-bold text-[#1A1A1A]">
+            Prix
+          </label>
+          <input
+            type="text"
+            value={price}
+            onChange={(e) => setPrice(e.target.value)}
+            placeholder="15000 FCFA · Gratuit · À débattre"
+            className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-3 text-base focus:border-[#00A651] focus:outline-none focus:ring-2 focus:ring-[#00A651]/20"
+          />
+          <p className="mt-1 text-xs text-[#1A1A1A]/50">
+            Indiquez le prix en FCFA, « Gratuit » ou « À débattre ».
+          </p>
+        </div>
+      )}
+
+      {/* Photo */}
+      <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <label className="mb-1.5 block text-sm font-bold text-[#1A1A1A]">
+          Photo
+        </label>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handlePhoto}
+          className="hidden"
+        />
+        {photoUrl ? (
+          <div className="relative">
+            <img
+              src={photoUrl}
+              alt="Aperçu"
+              className="h-40 w-full rounded-xl object-cover"
+            />
+            <button
+              type="button"
+              onClick={() => setPhotoUrl(null)}
+              className="absolute right-2 top-2 rounded-full bg-black/60 p-1.5 text-white"
+              aria-label="Supprimer la photo"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#00A651]/30 bg-[#00A651]/5 px-4 py-6 text-[#00A651] transition hover:bg-[#00A651]/10"
+          >
+            <Camera className="size-6" />
+            <span className="text-sm font-semibold">Prendre une photo</span>
+          </button>
+        )}
+      </div>
+
+      {/* Phone (required) */}
+      <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <label className="mb-1.5 block text-sm font-bold text-[#1A1A1A]">
+          Téléphone <span className="text-[#E30613]">*</span>
+        </label>
+        <input
+          type="tel"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="+221 77 000 00 00"
+          autoComplete="tel"
+          className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-3 text-base focus:border-[#00A651] focus:outline-none focus:ring-2 focus:ring-[#00A651]/20"
+        />
+      </div>
+
+      {/* WhatsApp (optional) */}
+      <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <label className="mb-1.5 block text-sm font-bold text-[#1A1A1A]">
+          WhatsApp <span className="text-[#1A1A1A]/40">(optionnel)</span>
+        </label>
+        <input
+          type="tel"
+          value={whatsapp}
+          onChange={(e) => setWhatsapp(e.target.value)}
+          placeholder="+221 77 000 00 00"
+          className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-3 text-base focus:border-[#00A651] focus:outline-none focus:ring-2 focus:ring-[#00A651]/20"
+        />
+      </div>
+
+      {/* Submit */}
+      <Button
+        onClick={handleSubmit}
+        disabled={submitting}
+        className="w-full rounded-xl bg-[#00A651] py-5 text-base font-bold uppercase tracking-wide text-white hover:bg-[#008a44]"
+      >
+        {submitting ? (
+          <>
+            <Loader2 className="size-4 animate-spin" />
+            Publication…
+          </>
+        ) : (
+          <>
+            <Send className="size-4" />
+            Publier l&apos;annonce
+          </>
+        )}
+      </Button>
+    </div>
+  )
+}
+
+// ============================================================
+// SchoolsView — Écoles & cours (établissements · soutien · formation)
+//    Blue section header + GraduationCap icon. Filtres type (crèche, primaire,
+//    collège, lycée, institut, formation, répétiteur). Cartes avec photo,
+//    niveaux, horaires, prix cours, badges premium/vérifié, boutons Appeler /
+//    WhatsApp / Y aller. Form self-service pour référencer une école.
+// ============================================================
+
+type School = {
+  id: string
+  name: string
+  type: string // creche | primaire | college | lycee | institut | formation | repetiteur
+  levels: string | null
+  phone: string
+  whatsapp?: string | null
+  address: string | null
+  hours: string | null
+  description: string | null
+  photoUrl: string | null
+  lat?: number | null
+  lng?: number | null
+  price?: string | null
+  district?: string | null
+  distance?: number | null
+  verified?: boolean
+  isPremium?: boolean
+}
+
+const SCHOOL_TYPES: ReadonlyArray<{ id: string; label: string; color: string }> = [
+  { id: 'all',        label: 'Tous',        color: '#0066CC' },
+  { id: 'creche',     label: 'Crèche',      color: '#FF6B00' },
+  { id: 'primaire',   label: 'Primaire',    color: '#00A651' },
+  { id: 'college',    label: 'Collège',     color: '#0066CC' },
+  { id: 'lycee',      label: 'Lycée',       color: '#6B4C9A' },
+  { id: 'institut',   label: 'Institut',    color: '#8B0000' },
+  { id: 'formation',  label: 'Formation',   color: '#C9A961' },
+  { id: 'repetiteur', label: 'Répétiteur',  color: '#008B8B' },
+]
+
+function schoolTypeColor(type: string): string {
+  return SCHOOL_TYPES.find((t) => t.id === type)?.color ?? '#0066CC'
+}
+
+function schoolTypeLabel(type: string): string {
+  const found = SCHOOL_TYPES.find((t) => t.id === type)
+  return found ? found.label.toUpperCase() : type.toUpperCase()
+}
+
+function SchoolsView({ plate }: { plate: CityPlate }) {
+  const { toast } = useToast()
+  const [schools, setSchools] = useState<School[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [selectedType, setSelectedType] = useState<string>('all')
+  const [showForm, setShowForm] = useState(false)
+
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    setError(null)
+    ;(async () => {
+      try {
+        const params = new URLSearchParams()
+        if (selectedType !== 'all') params.set('type', selectedType)
+        if (plate.district) params.set('district', plate.district)
+        const res = await fetch(`/api/city/schools?${params.toString()}`, {
+          cache: 'no-store',
+        })
+        const json = (await res.json().catch(() => null)) as
+          | { ok: true; data: { schools?: School[] } }
+          | { ok: false; error?: string }
+          | null
+        if (cancelled) return
+        if (json?.ok && Array.isArray(json.data?.schools)) {
+          setSchools(json.data.schools)
+        } else {
+          setSchools([])
+          if (json && !json.ok) setError(json.error ?? 'Service indisponible')
+        }
+      } catch {
+        if (cancelled) return
+        setError('Connexion impossible. Vérifiez votre réseau.')
+        setSchools([])
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    })()
+    return () => {
+      cancelled = true
+    }
+  }, [selectedType, plate.district])
+
+  if (showForm) {
+    return (
+      <SchoolRegistrationForm
+        plate={plate}
+        onCancel={() => setShowForm(false)}
+        onSuccess={() => {
+          setShowForm(false)
+        }}
+      />
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header — blue gradient with graduation cap icon */}
+      <section
+        className="rounded-2xl p-4 text-white shadow-sm"
+        style={{
+          background: `linear-gradient(135deg, ${COLORS.blue} 0%, #004488 100%)`,
+        }}
+      >
+        <div className="mb-2 flex items-center gap-2">
+          <GraduationCap className="size-5 text-white/90" />
+          <h2 className="text-sm font-bold uppercase tracking-wide text-white/95">
+            Écoles &amp; Cours · Autour de vous
+          </h2>
+        </div>
+        <p className="text-xs leading-relaxed text-white/85">
+          Crèches, primaires, collèges, lycées, instituts, centres de formation
+          et répétiteurs. Appelez ou lancez le guidage en un geste.
+        </p>
+      </section>
+
+      {/* Bouton Référencer une école */}
+      <button
+        onClick={() => setShowForm(true)}
+        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#0066CC] p-4 text-white shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.98]"
+        style={{ borderRadius: '16px' }}
+      >
+        <Plus className="size-5" />
+        <span className="text-sm font-bold uppercase tracking-wide" style={TITLE_FONT}>
+          Référencer une école
+        </span>
+      </button>
+
+      {/* Filtres type — chips horizontaux scrollables */}
+      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+        {SCHOOL_TYPES.map((chip) => {
+          const active = selectedType === chip.id
+          const color = chip.color
+          return (
+            <button
+              key={chip.id}
+              onClick={() => setSelectedType(chip.id)}
+              className={cn(
+                'shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition',
+                active
+                  ? 'text-white shadow'
+                  : 'bg-white text-[#1A1A1A]/70 ring-1 ring-[#1A1A1A]/10 hover:ring-[#1A1A1A]/25',
+              )}
+              style={active ? { backgroundColor: color } : undefined}
+            >
+              {chip.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Liste */}
+      {loading ? (
+        <div className="flex flex-col items-center justify-center gap-3 py-16">
+          <Loader2 className="size-8 animate-spin text-[#0066CC]" />
+          <p className="text-sm text-[#1A1A1A]/55">Chargement des écoles…</p>
+        </div>
+      ) : error ? (
+        <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
+          <AlertTriangle className="mx-auto size-10 text-[#E30613]" />
+          <p className="mt-3 text-sm font-semibold text-[#1A1A1A]" style={TITLE_FONT}>
+            {error}
+          </p>
+          <p className="mt-1 text-xs text-[#1A1A1A]/55">
+            Réessayez dans quelques instants.
+          </p>
+        </div>
+      ) : schools.length === 0 ? (
+        <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
+          <span className="text-4xl" aria-hidden>
+            🎓
+          </span>
+          <p className="mt-3 text-sm font-semibold text-[#1A1A1A]" style={TITLE_FONT}>
+            Aucun établissement pour ce filtre.
+          </p>
+          <p className="mt-1 text-xs text-[#1A1A1A]/55">
+            Référencez une école ou un cours dans votre quartier.
+          </p>
+        </div>
+      ) : (
+        <>
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-bold uppercase tracking-wide text-[#1A1A1A]/60">
+              {schools.length} établissement{schools.length > 1 ? 's' : ''}
+            </h2>
+            <Badge className="bg-[#0066CC]/10 text-[#0066CC]">
+              <Check className="size-3" />
+              Écoles
+            </Badge>
+          </div>
+          {schools.map((s) => (
+            <SchoolCard key={s.id} school={s} plate={plate} />
+          ))}
+        </>
+      )}
+    </div>
+  )
+}
+
+function SchoolCard({ school, plate }: { school: School; plate: CityPlate }) {
+  const color = schoolTypeColor(school.type)
+
+  const directionsUrl =
+    school.lat != null && school.lng != null
+      ? `https://www.google.com/maps/dir/?api=1&destination=${school.lat},${school.lng}&travelmode=walking`
+      : null
+
+  const whatsappUrl = school.whatsapp
+    ? `https://wa.me/${school.whatsapp.replace(/[^\d]/g, '')}?text=${encodeURIComponent(
+        `Bonjour, je vous contacte au sujet de ${school.name}.`,
+      )}`
+    : null
+
+  return (
+    <article
+      className="relative rounded-2xl bg-white p-4 shadow-sm"
+      style={{ borderLeft: `4px solid ${color}` }}
+    >
+      {/* Premium / Verified badges */}
+      {(school.isPremium || school.verified) && (
+        <div className="mb-2 flex flex-wrap items-center gap-1.5">
+          {school.verified && (
+            <span className="inline-flex items-center gap-0.5 rounded-full bg-[#0066CC]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#0066CC]">
+              <BadgeCheck className="size-3" />
+              Vérifié
+            </span>
+          )}
+          {school.isPremium && (
+            <Badge className="bg-[#C9A961]/15 text-[#C9A961]">
+              <Star className="size-3 fill-[#C9A961]" />
+              Premium
+            </Badge>
+          )}
+        </div>
+      )}
+
+      {/* Photo — prominent, full-width */}
+      {school.photoUrl && (
+        <img
+          src={school.photoUrl}
+          alt={school.name}
+          className="mb-3 h-40 w-full rounded-xl object-cover"
+          loading="lazy"
+        />
+      )}
+
+      {/* Name + type badge */}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <h3 className="text-base font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+          {school.name}
+        </h3>
+        <span
+          className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
+          style={{ backgroundColor: `${color}20`, color }}
+        >
+          {schoolTypeLabel(school.type)}
+        </span>
+      </div>
+
+      {/* Levels */}
+      {school.levels && (
+        <p className="mt-1 text-sm text-[#1A1A1A]/70">{school.levels}</p>
+      )}
+
+      {/* Hours */}
+      {school.hours && (
+        <p className="mt-1 inline-flex items-center gap-1 text-xs text-[#1A1A1A]/55">
+          <Clock className="size-3" />
+          {school.hours}
+        </p>
+      )}
+
+      {/* Address */}
+      {school.address && (
+        <p className="mt-1 inline-flex items-center gap-1 text-xs text-[#1A1A1A]/55">
+          <MapPin className="size-3" />
+          {school.address}
+        </p>
+      )}
+
+      {/* Description */}
+      {school.description && (
+        <p className="mt-2 line-clamp-2 text-xs text-[#1A1A1A]/65">
+          {school.description}
+        </p>
+      )}
+
+      {/* Course price (for repetiteur / formation) */}
+      {school.price && (
+        <div
+          className="mt-2 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5"
+          style={{ backgroundColor: `${color}15` }}
+        >
+          <span className="text-sm font-bold" style={{ color }}>
+            {school.price}
+          </span>
+        </div>
+      )}
+
+      {/* Distance */}
+      {school.distance != null && (
+        <p className="mt-2 inline-flex items-center gap-1 text-xs text-[#1A1A1A]/55">
+          <Navigation className="size-3" />
+          {Math.round(school.distance)} m
+        </p>
+      )}
+
+      {/* Boutons d'action */}
+      <div className="mt-3 flex flex-wrap gap-2">
+        <a
+          href={`tel:${school.phone}`}
+          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#0066CC] py-2.5 text-sm font-bold text-white transition hover:bg-[#0055aa]"
+        >
+          <Phone className="size-4" />
+          Appeler
+        </a>
+        {whatsappUrl && (
+          <a
+            href={whatsappUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] py-2.5 text-sm font-bold text-white transition hover:bg-[#1da851]"
+          >
+            <MessageCircle className="size-4" />
+            WhatsApp
+          </a>
+        )}
+        {directionsUrl && (
+          <a
+            href={directionsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-[#0066CC]/30 py-2.5 text-sm font-bold text-[#0066CC] transition hover:bg-[#0066CC]/5"
+          >
+            <Navigation className="size-4" />
+            Y aller
+          </a>
+        )}
+      </div>
+
+      {/* For école-type plates: link to Check-in école */}
+      {plate.plateType === 'ecole' && (
+        <div className="mt-3 rounded-xl bg-[#1B2A8C]/5 px-3 py-2 text-center">
+          <p className="text-xs text-[#1B2A8C]">
+            <DoorOpen className="mr-1 inline size-3" />
+            Pointage école disponible sur cette plaque
+          </p>
+        </div>
+      )}
+    </article>
+  )
+}
+
+function SchoolRegistrationForm({
+  plate,
+  onCancel,
+  onSuccess,
+}: {
+  plate: CityPlate
+  onCancel: () => void
+  onSuccess: () => void
+}) {
+  const { toast } = useToast()
+  const fileInputRef = useRef<HTMLInputElement>(null)
+  const [name, setName] = useState('')
+  const [type, setType] = useState<string>('primaire')
+  const [levels, setLevels] = useState('')
+  const [phone, setPhone] = useState('')
+  const [whatsapp, setWhatsapp] = useState('')
+  const [address, setAddress] = useState(plate.address ?? '')
+  const [hours, setHours] = useState('')
+  const [description, setDescription] = useState('')
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted] = useState(false)
+
+  const handlePhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = () => {
+      const img = new Image()
+      img.onload = () => {
+        const canvas = document.createElement('canvas')
+        const maxDim = 800
+        const ratio = Math.min(maxDim / img.width, maxDim / img.height, 1)
+        canvas.width = Math.round(img.width * ratio)
+        canvas.height = Math.round(img.height * ratio)
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+          setPhotoUrl(canvas.toDataURL('image/jpeg', 0.7))
+        }
+      }
+      img.src = reader.result as string
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const handleSubmit = async () => {
+    if (name.trim().length < 2) {
+      toast({
+        title: 'Nom requis',
+        description: "Indiquez le nom de l'établissement.",
+      })
+      return
+    }
+    if (phone.trim().length < 6) {
+      toast({
+        title: 'Téléphone requis',
+        description: 'Indiquez un numéro de téléphone.',
+      })
+      return
+    }
+    setSubmitting(true)
+    try {
+      const body: Record<string, unknown> = {
+        name: name.trim(),
+        type,
+        levels: levels.trim() || null,
+        phone: phone.trim(),
+        whatsapp: whatsapp.trim() || null,
+        address: address.trim() || null,
+        hours: hours.trim() || null,
+        description: description.trim() || null,
+        photoUrl: photoUrl ?? null,
+        district: plate.district ?? null,
+        lat: plate.lat ?? null,
+        lng: plate.lng ?? null,
+        plateId: plate.id,
+        qrToken: plate.qrToken,
+      }
+      const res = await fetch('/api/city/schools', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+      const json = (await res.json().catch(() => null)) as {
+        ok: boolean
+        error?: string
+      } | null
+      if (json?.ok) {
+        setSubmitted(true)
+        try {
+          parler('Votre établissement a été soumis. Validation sous 48 heures.')
+        } catch {
+          /* ignore */
+        }
+      } else {
+        toast({
+          title: 'Erreur',
+          description: json?.error || 'Soumission impossible.',
+        })
+      }
+    } catch {
+      toast({ title: 'Erreur réseau', description: 'Vérifiez votre connexion.' })
+    } finally {
+      setSubmitting(false)
+    }
+  }
+
+  if (submitted) {
+    return (
+      <div className="mx-auto flex min-h-[60vh] max-w-md flex-col items-center justify-center px-6 text-center">
+        <div
+          className="flex size-20 items-center justify-center rounded-full shadow-lg"
+          style={{ background: '#0066CC' }}
+        >
+          <Check className="size-10 text-white" />
+        </div>
+        <h2 className="mt-5 text-xl font-bold text-[#0066CC]" style={TITLE_FONT}>
+          Établissement soumis !
+        </h2>
+        <p className="mt-2 text-sm text-[#1A1A1A]/70">
+          Votre fiche « {name.trim()} » sera visible après validation de la mairie.
+        </p>
+        <p className="mt-1 text-xs font-semibold text-[#1A1A1A]/55">
+          Validation sous 48h.
+        </p>
+        <Button
+          onClick={onSuccess}
+          className="mt-6 w-full rounded-xl bg-[#0066CC] py-4 text-white hover:bg-[#0055aa]"
+        >
+          Retour à la liste
+        </Button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Header avec retour */}
+      <div className="flex items-center gap-3">
+        <button
+          onClick={onCancel}
+          className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white text-[#1A1A1A] shadow-sm"
+        >
+          <ArrowLeft className="size-5" />
+        </button>
+        <div>
+          <h2 className="text-lg font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+            Référencer une école
+          </h2>
+          <p className="text-xs text-[#1A1A1A]/55">
+            Plaque #{plate.plateNumber} · {plate.district ?? 'Dakar'}
+          </p>
+        </div>
+      </div>
+
+      {/* Name */}
+      <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <label className="mb-1.5 block text-sm font-bold text-[#1A1A1A]">
+          Nom de l&apos;établissement <span className="text-[#E30613]">*</span>
+        </label>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="Ex: École Élémentaire Dakar"
+          className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-3 text-base focus:border-[#0066CC] focus:outline-none focus:ring-2 focus:ring-[#0066CC]/20"
+        />
+      </div>
+
+      {/* Type select */}
+      <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <label
+          className="mb-2 block text-sm font-bold text-[#1A1A1A]"
+          style={TITLE_FONT}
+        >
+          Type d&apos;établissement
+        </label>
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          {SCHOOL_TYPES.filter((t) => t.id !== 'all').map((opt) => (
+            <button
+              key={opt.id}
+              type="button"
+              onClick={() => setType(opt.id)}
+              className={cn(
+                'rounded-xl border-2 px-2 py-2 text-xs font-bold uppercase tracking-wide transition-all',
+                type === opt.id ? 'text-white shadow' : 'bg-white text-[#1A1A1A]/70',
+              )}
+              style={
+                type === opt.id
+                  ? { backgroundColor: opt.color, borderColor: opt.color }
+                  : { borderColor: '#d5d3d4' }
+              }
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Levels */}
+      <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <label className="mb-1.5 block text-sm font-bold text-[#1A1A1A]">
+          Niveaux
+        </label>
+        <input
+          type="text"
+          value={levels}
+          onChange={(e) => setLevels(e.target.value)}
+          placeholder="Ex: Maternelle à CM2"
+          className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-3 text-base focus:border-[#0066CC] focus:outline-none focus:ring-2 focus:ring-[#0066CC]/20"
+        />
+      </div>
+
+      {/* Phone */}
+      <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <label className="mb-1.5 block text-sm font-bold text-[#1A1A1A]">
+          Téléphone <span className="text-[#E30613]">*</span>
+        </label>
+        <input
+          type="tel"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="+221 33 800 00 00"
+          autoComplete="tel"
+          className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-3 text-base focus:border-[#0066CC] focus:outline-none focus:ring-2 focus:ring-[#0066CC]/20"
+        />
+      </div>
+
+      {/* WhatsApp */}
+      <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <label className="mb-1.5 block text-sm font-bold text-[#1A1A1A]">
+          WhatsApp <span className="text-[#1A1A1A]/40">(optionnel)</span>
+        </label>
+        <input
+          type="tel"
+          value={whatsapp}
+          onChange={(e) => setWhatsapp(e.target.value)}
+          placeholder="+221 77 000 00 00"
+          className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-3 text-base focus:border-[#0066CC] focus:outline-none focus:ring-2 focus:ring-[#0066CC]/20"
+        />
+      </div>
+
+      {/* Address */}
+      <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <label className="mb-1.5 block text-sm font-bold text-[#1A1A1A]">
+          Adresse
+        </label>
+        <input
+          type="text"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
+          placeholder="Rue, quartier, ville"
+          className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-3 text-base focus:border-[#0066CC] focus:outline-none focus:ring-2 focus:ring-[#0066CC]/20"
+        />
+      </div>
+
+      {/* Hours */}
+      <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <label className="mb-1.5 block text-sm font-bold text-[#1A1A1A]">
+          Horaires
+        </label>
+        <input
+          type="text"
+          value={hours}
+          onChange={(e) => setHours(e.target.value)}
+          placeholder="Ex: Lun–Ven · 8h–17h"
+          className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-3 text-base focus:border-[#0066CC] focus:outline-none focus:ring-2 focus:ring-[#0066CC]/20"
+        />
+      </div>
+
+      {/* Description */}
+      <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <label className="mb-1.5 block text-sm font-bold text-[#1A1A1A]">
+          Description
+        </label>
+        <Textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          placeholder="Présentation, spécialités, pédagogie…"
+          rows={3}
+          className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] focus:border-[#0066CC] focus:outline-none focus:ring-2 focus:ring-[#0066CC]/20"
+        />
+      </div>
+
+      {/* Photo */}
+      <div className="rounded-2xl bg-white p-4 shadow-sm">
+        <label className="mb-1.5 block text-sm font-bold text-[#1A1A1A]">
+          Photo
+        </label>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handlePhoto}
+          className="hidden"
+        />
+        {photoUrl ? (
+          <div className="relative">
+            <img
+              src={photoUrl}
+              alt="Aperçu"
+              className="h-40 w-full rounded-xl object-cover"
+            />
+            <button
+              type="button"
+              onClick={() => setPhotoUrl(null)}
+              className="absolute right-2 top-2 rounded-full bg-black/60 p-1.5 text-white"
+              aria-label="Supprimer la photo"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className="flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#0066CC]/30 bg-[#0066CC]/5 px-4 py-6 text-[#0066CC] transition hover:bg-[#0066CC]/10"
+          >
+            <Camera className="size-6" />
+            <span className="text-sm font-semibold">Prendre une photo</span>
+          </button>
+        )}
+      </div>
+
+      {/* Submit */}
+      <Button
+        onClick={handleSubmit}
+        disabled={submitting}
+        className="w-full rounded-xl bg-[#0066CC] py-5 text-base font-bold uppercase tracking-wide text-white hover:bg-[#0055aa]"
+      >
+        {submitting ? (
+          <>
+            <Loader2 className="size-4 animate-spin" />
+            Soumission…
+          </>
+        ) : (
+          <>
+            <Send className="size-4" />
+            Soumettre l&apos;établissement
+          </>
+        )}
+      </Button>
+
+      <p className="text-center text-xs text-[#1A1A1A]/50">
+        Validation sous 48h par la mairie.
+      </p>
     </div>
   )
 }
