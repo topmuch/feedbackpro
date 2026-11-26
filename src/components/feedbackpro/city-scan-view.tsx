@@ -1544,6 +1544,17 @@ function MainView({
 }) {
   const isNight = currentHour >= 22 || currentHour < 6
 
+  // Logo de la mairie — fetch depuis l'API (stocké en base par le dashboard)
+  const [mairieLogo, setMairieLogo] = useState<string | null>(null)
+  useEffect(() => {
+    fetch('/api/city/logo')
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.ok && d.data?.logoUrl) setMairieLogo(d.data.logoUrl)
+      })
+      .catch(() => {})
+  }, [])
+
   // Config signalétique: jaune = standard, bleu = inversé (mairie),
   // rouge = URGENCE (repérage instantané par enfant ou personne en stress)
   const SIGNAGE_STYLE: Record<ModuleId, { bg: string; inverted: boolean }> = {
@@ -1569,9 +1580,13 @@ function MainView({
       >
         {/* Top bar: logo */}
         <div className="flex items-center gap-3">
-          {/* Tuile blanche avec icône */}
+          {/* Tuile blanche avec logo mairie (ou emoji fallback) */}
           <div className="flex h-12 w-12 items-center justify-center bg-white" style={{ borderRadius: '14px' }}>
-            <span className="text-2xl">👋</span>
+            {mairieLogo ? (
+              <img src={mairieLogo} alt="Logo mairie" className="h-10 w-10 rounded-lg object-cover" />
+            ) : (
+              <span className="text-2xl">👋</span>
+            )}
           </div>
           <div>
             <p className="text-sm font-bold uppercase tracking-wider text-white">

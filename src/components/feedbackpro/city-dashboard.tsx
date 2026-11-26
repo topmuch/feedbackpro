@@ -418,7 +418,7 @@ const COLOR_RED = '#E30613'
 const COLOR_ORANGE = '#FF6B00'
 const COLOR_BLUE = '#0066CC'
 const COLOR_GREEN = '#00A651'
-const COLOR_GOLD = '#C9A961'
+const COLOR_GOLD = '#FFD700'
 const COLOR_PURPLE = '#6B4C9A'
 const COLOR_ANTHRACITE = '#1A1A1A'
 const COLOR_CREAM = '#FAFAF7'
@@ -456,12 +456,25 @@ export default function CityDashboard() {
   const logoInputRef = useRef<HTMLInputElement>(null)
   const [composedQrs, setComposedQrs] = useState<Record<string, string>>({})
 
-  // Charger le logo depuis localStorage au montage
+  // Charger le logo depuis localStorage OU depuis l'API (settings)
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem('city_logo_url')
-      if (saved) setCityLogoUrl(saved)
-    } catch { /* ignore */ }
+    const loadLogo = async () => {
+      try {
+        const saved = localStorage.getItem('city_logo_url')
+        if (saved) {
+          setCityLogoUrl(saved)
+        } else {
+          // Fallback: fetch from API (cross-device)
+          const res = await fetch('/api/city/logo')
+          const json = await res.json()
+          if (json?.ok && json.data?.logoUrl) {
+            setCityLogoUrl(json.data.logoUrl)
+            try { localStorage.setItem('city_logo_url', json.data.logoUrl) } catch {}
+          }
+        }
+      } catch { /* ignore */ }
+    }
+    loadLogo()
   }, [])
 
   // Compose les QR codes premium avec le logo quand les plaques ou le logo changent
@@ -690,7 +703,13 @@ export default function CityDashboard() {
       const dataUrl = reader.result as string
       setCityLogoUrl(dataUrl)
       try { localStorage.setItem('city_logo_url', dataUrl) } catch { /* ignore */ }
-      toast({ title: 'Logo enregistré', description: 'Le logo apparaîtra au centre des QR codes.' })
+      // Persiste en base (settings) pour que le QR citoyen puisse l'afficher
+      fetch('/api/city/logo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ logoUrl: dataUrl }),
+      }).catch(() => { /* non bloquant */ })
+      toast({ title: 'Logo enregistré', description: 'Le logo apparaîtra sur les QR codes citoyens et au centre des plaques.' })
     }
     reader.readAsDataURL(file)
   }, [toast])
@@ -919,7 +938,7 @@ export default function CityDashboard() {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#FAFAF7]">
         <div className="text-center">
-          <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#C9A961]" />
+          <Loader2 className="mx-auto h-8 w-8 animate-spin text-[#FFD700]" />
           <p className="mt-3 font-mono text-sm text-[#1A1A1A]/60">
             Connexion au Centre de Supervision Urbain…
           </p>
@@ -943,7 +962,7 @@ export default function CityDashboard() {
       {/* ---------- SIDEBAR ---------- */}
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-30 flex w-[280px] flex-col bg-[#1A1A1A] text-[#FAFAF7] transition-transform duration-300 lg:translate-x-0',
+          'fixed inset-y-0 left-0 z-30 flex w-[280px] flex-col bg-[#0026A3] text-white transition-transform duration-300 lg:translate-x-0',
           sidebarOpen ? 'translate-x-0' : '-translate-x-full',
         )}
       >
@@ -958,19 +977,19 @@ export default function CityDashboard() {
           )}
           <div className="min-w-0 flex-1">
             <h1
-              className="truncate text-sm font-bold leading-tight text-[#FAFAF7]"
+              className="truncate text-sm font-bold leading-tight text-white"
               style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
             >
               FeedVoice · Ville Connectée
             </h1>
-            <p className="text-[11px] leading-tight text-[#FAFAF7]/60">
+            <p className="text-[11px] leading-tight text-white/60">
               Dakar · Centre de Supervision
             </p>
           </div>
           <button
             type="button"
             onClick={() => setSidebarOpen(false)}
-            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-[#FAFAF7]/60 hover:bg-white/5 hover:text-[#FAFAF7] lg:hidden"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-white/60 hover:bg-white/5 hover:text-white lg:hidden"
             aria-label="Fermer le menu"
           >
             <X className="h-4 w-4" />
@@ -979,12 +998,12 @@ export default function CityDashboard() {
 
         {/* Navigation scrollable */}
         <nav
-          className="min-h-0 flex-1 overflow-y-auto px-3 py-2"
+          className="flex-1 px-3 py-2"
           aria-label="Navigation principale"
         >
           {NAV_SECTIONS.map((section) => (
             <div key={section.title} className="mb-4">
-              <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-[#FAFAF7]/40">
+              <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-white/40">
                 {section.title}
               </p>
               <ul className="space-y-0.5">
@@ -1013,8 +1032,8 @@ export default function CityDashboard() {
                         className={cn(
                           'flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
                           active
-                            ? 'bg-[#C9A961] text-[#1A1A1A]'
-                            : 'text-[#FAFAF7]/75 hover:bg-white/5 hover:text-[#FAFAF7]',
+                            ? 'bg-[#FFD700] text-[#1A1A1A]'
+                            : 'text-white/75 hover:bg-white/5 hover:text-white',
                         )}
                       >
                         <Icon className="h-4 w-4 shrink-0" />
@@ -1029,7 +1048,7 @@ export default function CityDashboard() {
                                 ? 'bg-[#E30613] text-white'
                                 : active
                                   ? 'bg-[#1A1A1A]/15 text-[#1A1A1A]'
-                                  : 'bg-white/10 text-[#FAFAF7]',
+                                  : 'bg-white/10 text-white',
                             )}
                           >
                             {badgeValue}
@@ -1047,14 +1066,14 @@ export default function CityDashboard() {
         {/* User + Logout */}
         <div className="border-t border-white/10 px-4 py-3">
           <div className="mb-2 flex items-center gap-2.5">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#C9A961] text-sm font-bold text-[#1A1A1A]">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#FFD700] text-sm font-bold text-[#1A1A1A]">
               OD
             </div>
             <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-semibold text-[#FAFAF7]">
+              <p className="truncate text-xs font-semibold text-white">
                 Ousmane Diallo
               </p>
-              <p className="truncate text-[10px] text-[#FAFAF7]/60">
+              <p className="truncate text-[10px] text-white/60">
                 Directeur Supervision
               </p>
             </div>
@@ -1063,7 +1082,7 @@ export default function CityDashboard() {
             variant="ghost"
             size="sm"
             onClick={handleLogout}
-            className="w-full justify-start gap-2 text-[#FAFAF7]/70 hover:bg-white/5 hover:text-[#FAFAF7]"
+            className="w-full justify-start gap-2 text-white/70 hover:bg-white/5 hover:text-white"
           >
             <LogOut className="h-3.5 w-3.5" />
             <span className="text-xs">Déconnexion</span>
@@ -1114,8 +1133,8 @@ export default function CityDashboard() {
               onClick={toggleSound}
               title={soundOn ? "Désactiver la voix Aminata" : "Activer la voix Aminata"}
               className={cn(
-                "border-[#EAE5DC] bg-white hover:border-[#C9A961]",
-                soundOn ? "text-[#C9A961] border-[#C9A961]/40 bg-[#C9A961]/8" : "text-[#1A1A1A]"
+                "border-[#EAE5DC] bg-white hover:border-[#FFD700]",
+                soundOn ? "text-[#FFD700] border-[#FFD700]/40 bg-[#FFD700]/8" : "text-[#1A1A1A]"
               )}
             >
               {soundOn ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
@@ -1126,7 +1145,7 @@ export default function CityDashboard() {
               size="sm"
               onClick={handleRefresh}
               disabled={refreshing}
-              className="border-[#EAE5DC] bg-white text-[#1A1A1A] hover:border-[#C9A961] hover:bg-[#FAFAF7]"
+              className="border-[#EAE5DC] bg-white text-[#1A1A1A] hover:border-[#FFD700] hover:bg-[#FAFAF7]"
             >
               <RefreshCw
                 className={cn('h-3.5 w-3.5', refreshing && 'animate-spin')}
@@ -1136,7 +1155,7 @@ export default function CityDashboard() {
             <Button
               size="sm"
               onClick={handleExport}
-              className="bg-[#C9A961] text-[#1A1A1A] hover:bg-[#B8964F]"
+              className="bg-[#FFD700] text-[#1A1A1A] hover:bg-[#B8964F]"
             >
               <Download className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Exporter rapport</span>
@@ -1146,10 +1165,10 @@ export default function CityDashboard() {
 
         {/* Bannière activation sonore */}
         {showSoundBanner && !soundOn && (
-          <div className="mb-4 flex items-center justify-between rounded-xl border border-[#C9A961]/30 bg-[#C9A961]/8 px-4 py-3">
+          <div className="mb-4 flex items-center justify-between rounded-xl border border-[#FFD700]/30 bg-[#FFD700]/8 px-4 py-3">
             <div className="flex items-center gap-3">
-              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#C9A961]/15">
-                <Volume2 className="h-4 w-4 text-[#C9A961]" />
+              <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#FFD700]/15">
+                <Volume2 className="h-4 w-4 text-[#FFD700]" />
               </span>
               <div>
                 <p className="text-sm font-semibold text-[#1A1A1A]">
@@ -1216,7 +1235,7 @@ export default function CityDashboard() {
                       variant="outline"
                       size="sm"
                       onClick={() => logoInputRef.current?.click()}
-                      className="border-[#C9A961]/40 text-[#1A1A1A] hover:bg-[#C9A961]/8"
+                      className="border-[#FFD700]/40 text-[#1A1A1A] hover:bg-[#FFD700]/8"
                     >
                       📷 {cityLogoUrl ? 'Changer le logo' : 'Uploader un logo'}
                     </Button>
@@ -1257,7 +1276,7 @@ export default function CityDashboard() {
                 </h3>
                 <div className="flex items-center justify-between rounded-xl bg-[#FAFAF7] px-4 py-3">
                   <div className="flex items-center gap-3">
-                    {soundOn ? <Volume2 className="h-5 w-5 text-[#C9A961]" /> : <VolumeX className="h-5 w-5 text-[#1A1A1A]/40" />}
+                    {soundOn ? <Volume2 className="h-5 w-5 text-[#FFD700]" /> : <VolumeX className="h-5 w-5 text-[#1A1A1A]/40" />}
                     <div>
                       <p className="text-sm font-medium text-[#1A1A1A]">Alertes vocales</p>
                       <p className="text-xs text-[#1A1A1A]/50">Ding + annonces à chaque nouveau signalement</p>
@@ -1382,10 +1401,10 @@ export default function CityDashboard() {
           {activeNav === 'overview' && (
             <>
           {/* ---------- HERO BANNER ---------- */}
-          <section className="mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-[#1A1A1A] via-[#2C2620] to-[#1A1A1A] p-5 text-[#FAFAF7] shadow-md sm:p-6">
+          <section className="mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-[#1A1A1A] via-[#2C2620] to-[#1A1A1A] p-5 text-white shadow-md sm:p-6">
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#C9A961]">
+                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#FFD700]">
                   Centre de Supervision Urbaine · Dakar
                 </p>
                 <h2
@@ -1394,7 +1413,7 @@ export default function CityDashboard() {
                 >
                   Vue d&apos;ensemble
                 </h2>
-                <p className="mt-1 max-w-xl text-xs text-[#FAFAF7]/65">
+                <p className="mt-1 max-w-xl text-xs text-white/65">
                   Supervision temps réel des plaques QR, alertes citoyennes,
                   artisans vérifiés et annonces municipales.
                 </p>
@@ -1404,10 +1423,10 @@ export default function CityDashboard() {
                   <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#4A7C59] opacity-75" />
                   <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#4A7C59]" />
                 </span>
-                <span className="text-xs font-medium text-[#FAFAF7]/80">
+                <span className="text-xs font-medium text-white/80">
                   Système actif
                 </span>
-                <span className="ml-2 text-[10px] text-[#FAFAF7]/40" suppressHydrationWarning>
+                <span className="ml-2 text-[10px] text-white/40" suppressHydrationWarning>
                   {clock}
                 </span>
               </div>
@@ -1484,7 +1503,7 @@ export default function CityDashboard() {
               <section className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white shadow-sm">
                 <div className="flex items-center justify-between border-b border-[#EAE5DC] px-4 py-3">
                   <div className="flex items-center gap-2">
-                    <Activity className="h-4 w-4 text-[#C9A961]" />
+                    <Activity className="h-4 w-4 text-[#FFD700]" />
                     <h3
                       className="text-sm font-bold text-[#1A1A1A]"
                       style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
@@ -1508,7 +1527,7 @@ export default function CityDashboard() {
                     <ol className="relative space-y-3">
                       {/* Ligne verticale */}
                       <span
-                        className="absolute left-3 top-2 bottom-2 w-px bg-gradient-to-b from-[#C9A961]/30 via-[#EAE5DC] to-transparent"
+                        className="absolute left-3 top-2 bottom-2 w-px bg-gradient-to-b from-[#FFD700]/30 via-[#EAE5DC] to-transparent"
                         aria-hidden
                       />
                       {recentAlerts.slice(0, 8).map((inc) => {
@@ -1617,9 +1636,9 @@ export default function CityDashboard() {
             {/* === COL 2 : Quick Actions + Alertes en direct === */}
             <div className="space-y-5">
               {/* Quick Actions */}
-              <section className="overflow-hidden rounded-2xl border border-[#C9A961]/30 bg-gradient-to-br from-white to-[#C9A961]/5 shadow-sm">
+              <section className="overflow-hidden rounded-2xl border border-[#FFD700]/30 bg-gradient-to-br from-white to-[#FFD700]/5 shadow-sm">
                 <div className="flex items-center gap-2 border-b border-[#EAE5DC] px-4 py-3">
-                  <Plus className="h-4 w-4 text-[#C9A961]" />
+                  <Plus className="h-4 w-4 text-[#FFD700]" />
                   <h3
                     className="text-sm font-bold text-[#1A1A1A]"
                     style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
@@ -1747,7 +1766,7 @@ export default function CityDashboard() {
                             variant="outline"
                             size="sm"
                             onClick={() => setActiveNav(inc.type === 'emergency' ? 'emergencies' : 'reports')}
-                            className="h-6 border-[#EAE5DC] px-2 text-[10px] text-[#1A1A1A] hover:border-[#C9A961] hover:bg-[#FAFAF7]"
+                            className="h-6 border-[#EAE5DC] px-2 text-[10px] text-[#1A1A1A] hover:border-[#FFD700] hover:bg-[#FAFAF7]"
                           >
                             Traiter
                           </Button>
@@ -1828,7 +1847,7 @@ export default function CityDashboard() {
                   <button
                     type="button"
                     onClick={() => setActiveNav('plates-map')}
-                    className="absolute right-2 top-2 rounded-lg bg-[#C9A961] px-2.5 py-1 text-[10px] font-bold text-[#1A1A1A] transition hover:bg-[#B8964F]"
+                    className="absolute right-2 top-2 rounded-lg bg-[#FFD700] px-2.5 py-1 text-[10px] font-bold text-[#1A1A1A] transition hover:bg-[#B8964F]"
                   >
                     Voir carte →
                   </button>
@@ -1836,10 +1855,10 @@ export default function CityDashboard() {
               </Panel>
 
               {/* Revenus artisans (dark) */}
-              <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#1A1A1A] to-[#2C2C2C] p-5 text-[#FAFAF7] shadow-sm">
+              <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#1A1A1A] to-[#2C2C2C] p-5 text-white shadow-sm">
                 <div className="mb-3 flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-[#C9A961]" />
+                    <TrendingUp className="h-4 w-4 text-[#FFD700]" />
                     <h3
                       className="text-sm font-bold"
                       style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
@@ -1847,16 +1866,16 @@ export default function CityDashboard() {
                       Revenus Artisans
                     </h3>
                   </div>
-                  <Badge className="bg-[#C9A961] text-[10px] font-bold text-[#1A1A1A]">
+                  <Badge className="bg-[#FFD700] text-[10px] font-bold text-[#1A1A1A]">
                     Premium
                   </Badge>
                 </div>
                 <p
-                  className="text-3xl font-bold tabular-nums text-[#C9A961]"
+                  className="text-3xl font-bold tabular-nums text-[#FFD700]"
                   style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
                 >
                   {formatFCFA(revenueTotal)}
-                  <span className="ml-1 text-sm font-medium text-[#FAFAF7]/60">
+                  <span className="ml-1 text-sm font-medium text-white/60">
                     FCFA
                   </span>
                 </p>
@@ -1883,16 +1902,16 @@ export default function CityDashboard() {
                   variant="outline"
                   size="sm"
                   onClick={() => setActiveNav('revenue')}
-                  className="mt-3 w-full justify-center border-[#C9A961]/40 bg-transparent text-[#C9A961] hover:bg-[#C9A961]/10 hover:text-[#C9A961]"
+                  className="mt-3 w-full justify-center border-[#FFD700]/40 bg-transparent text-[#FFD700] hover:bg-[#FFD700]/10 hover:text-[#FFD700]"
                 >
                   Détails revenus →
                 </Button>
               </div>
 
               {/* Aminata — assistant vocal citoyen (dark) */}
-              <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#1A1A1A] to-[#2C2C2C] p-5 text-[#FAFAF7] shadow-sm">
+              <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#1A1A1A] to-[#2C2C2C] p-5 text-white shadow-sm">
                 <div className="mb-3 flex items-center gap-3">
-                  <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#C9A961] to-[#B8964F] text-base font-bold text-[#1A1A1A]">
+                  <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#FFD700] to-[#B8964F] text-base font-bold text-[#1A1A1A]">
                     A
                     <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3">
                       <span className="absolute h-full w-full animate-ping rounded-full bg-[#00A651] opacity-75" />
@@ -1901,7 +1920,7 @@ export default function CityDashboard() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p
-                      className="truncate text-sm font-bold text-[#FAFAF7]"
+                      className="truncate text-sm font-bold text-white"
                       style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
                     >
                       Aminata · Écoute active
@@ -1912,15 +1931,15 @@ export default function CityDashboard() {
                   </div>
                 </div>
                 <div className="rounded-lg bg-white/5 px-3 py-2.5">
-                  <p className="mb-1.5 text-[10px] uppercase tracking-wider text-[#FAFAF7]/50">
+                  <p className="mb-1.5 text-[10px] uppercase tracking-wider text-white/50">
                     Dernière annonce
                   </p>
                   {latestAnnouncement ? (
                     <>
-                      <p className="text-xs leading-relaxed text-[#FAFAF7]/85">
+                      <p className="text-xs leading-relaxed text-white/85">
                         « {latestAnnouncement.message} »
                       </p>
-                      <p className="mt-2 text-[10px] text-[#FAFAF7]/40">
+                      <p className="mt-2 text-[10px] text-white/40">
                         {timeAgo(latestAnnouncement.createdAt)}
                         {latestAnnouncement.targetDistrict
                           ? ` · ${latestAnnouncement.targetDistrict}`
@@ -1928,7 +1947,7 @@ export default function CityDashboard() {
                       </p>
                     </>
                   ) : (
-                    <p className="text-xs leading-relaxed text-[#FAFAF7]/55">
+                    <p className="text-xs leading-relaxed text-white/55">
                       Aucune annonce active
                     </p>
                   )}
@@ -1937,7 +1956,7 @@ export default function CityDashboard() {
                   variant="outline"
                   size="sm"
                   onClick={() => setActiveNav('announcements')}
-                  className="mt-3 w-full justify-center border-[#C9A961]/40 bg-transparent text-[#C9A961] hover:bg-[#C9A961]/10 hover:text-[#C9A961]"
+                  className="mt-3 w-full justify-center border-[#FFD700]/40 bg-transparent text-[#FFD700] hover:bg-[#FFD700]/10 hover:text-[#FFD700]"
                 >
                   <Radio className="h-3.5 w-3.5" />
                   Diffuser une annonce
@@ -2181,7 +2200,7 @@ function QuickAction({ label, icon: Icon, color, badge, onClick }: QuickActionPr
     <button
       type="button"
       onClick={onClick}
-      className="group relative flex flex-col items-start gap-2 rounded-xl border border-[#EAE5DC] bg-white p-3 text-left transition-all hover:-translate-y-0.5 hover:border-[#C9A961]/40 hover:shadow-md"
+      className="group relative flex flex-col items-start gap-2 rounded-xl border border-[#EAE5DC] bg-white p-3 text-left transition-all hover:-translate-y-0.5 hover:border-[#FFD700]/40 hover:shadow-md"
     >
       <div className="flex w-full items-center justify-between">
         <span
@@ -2202,7 +2221,7 @@ function QuickAction({ label, icon: Icon, color, badge, onClick }: QuickActionPr
       <span className="text-xs font-semibold leading-tight text-[#1A1A1A]">
         {label}
       </span>
-      <span className="text-[10px] text-[#1A1A1A]/40 transition group-hover:text-[#C9A961]">
+      <span className="text-[10px] text-[#1A1A1A]/40 transition group-hover:text-[#FFD700]">
         Ouvrir →
       </span>
     </button>
@@ -2268,11 +2287,11 @@ function RevenueRow({
 }) {
   return (
     <div className="flex items-center justify-between gap-2">
-      <span className="text-xs text-[#FAFAF7]/60">{label}</span>
+      <span className="text-xs text-white/60">{label}</span>
       <span
         className={cn(
           'text-xs font-semibold tabular-nums',
-          highlight ? 'text-[#C9A961]' : 'text-[#FAFAF7]',
+          highlight ? 'text-[#FFD700]' : 'text-white',
         )}
       >
         {value}
@@ -2298,11 +2317,11 @@ const DEPARTMENT_COLORS: Record<string, { bg: string; ring: string; text: string
 function deptColor(name: string) {
   return (
     DEPARTMENT_COLORS[name] ?? {
-      bg: 'bg-[#C9A961]/10',
-      ring: 'ring-[#C9A961]',
+      bg: 'bg-[#FFD700]/10',
+      ring: 'ring-[#FFD700]',
       text: 'text-[#8B6F47]',
-      dot: 'bg-[#C9A961]',
-      btn: 'bg-[#C9A961] hover:bg-[#B8964F]',
+      dot: 'bg-[#FFD700]',
+      btn: 'bg-[#FFD700] hover:bg-[#B8964F]',
     }
   )
 }
@@ -2447,7 +2466,7 @@ function CommuneSeederModal({ onClose }: { onClose: () => void }) {
                       'flex flex-col items-start gap-1 rounded-xl border p-3 text-left transition',
                       active
                         ? cn('border-transparent ring-2', c.ring, c.bg)
-                        : 'border-[#EAE5DC] bg-white hover:border-[#C9A961]/40 hover:bg-[#FAFAF7]',
+                        : 'border-[#EAE5DC] bg-white hover:border-[#FFD700]/40 hover:bg-[#FAFAF7]',
                     )}
                   >
                     <span className="flex items-center gap-1.5">
@@ -2482,7 +2501,7 @@ function CommuneSeederModal({ onClose }: { onClose: () => void }) {
                   return (
                     <div
                       key={commune.code}
-                      className={cn('flex flex-col rounded-xl border border-[#EAE5DC] bg-white p-4 shadow-sm transition hover:border-[#C9A961]/40', generating && 'opacity-60')}
+                      className={cn('flex flex-col rounded-xl border border-[#EAE5DC] bg-white p-4 shadow-sm transition hover:border-[#FFD700]/40', generating && 'opacity-60')}
                     >
                       <div className="mb-2 flex items-start justify-between gap-2">
                         <div className="flex items-center gap-2">
@@ -2543,7 +2562,7 @@ function CommuneSeederModal({ onClose }: { onClose: () => void }) {
           {/* ---------- STEP 3: Generating loader ---------- */}
           {generating && (
             <div className="mt-6 flex flex-col items-center justify-center gap-3 rounded-xl bg-[#FAFAF7] py-10 text-center">
-              <Loader2 className="h-8 w-8 animate-spin text-[#C9A961]" />
+              <Loader2 className="h-8 w-8 animate-spin text-[#FFD700]" />
               <p className="text-sm text-[#1A1A1A]/70">
                 Génération des plaques en cours…
               </p>
@@ -2635,7 +2654,7 @@ function CommuneSeederModal({ onClose }: { onClose: () => void }) {
           {!result && !error && !generating && !selectedDept && (
             <div className="mt-6 flex flex-col gap-3 rounded-xl bg-[#FAFAF7] p-4 text-xs text-[#1A1A1A]/60">
               <p className="flex items-start gap-2">
-                <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#C9A961]" />
+                <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#FFD700]" />
                 <span>
                   Cette fonction crée automatiquement une plaque QR par quartier de la commune choisie,
                   avec des coordonnées GPS pré-remplies (centre approximatif + légère spirale).
@@ -2820,7 +2839,7 @@ function PlatesManagementView({
           Plaques QR · {stats.total} au total
         </h2>
         <div className="flex items-center gap-2">
-          {cityLogoUrl && <Badge className="bg-[#C9A961]/15 text-[#8B6F47]">Logo ✓</Badge>}
+          {cityLogoUrl && <Badge className="bg-[#FFD700]/15 text-[#8B6F47]">Logo ✓</Badge>}
           <Button
             size="sm"
             onClick={() => setShowSeeder(true)}
@@ -2829,7 +2848,7 @@ function PlatesManagementView({
           >
             <Map className="h-4 w-4 mr-1.5" /> Pré-charger une ville
           </Button>
-          <Button size="sm" onClick={() => setShowBatchDialog(true)} className="bg-[#C9A961] text-[#1A1A1A] hover:bg-[#B8964F]">
+          <Button size="sm" onClick={() => setShowBatchDialog(true)} className="bg-[#FFD700] text-[#1A1A1A] hover:bg-[#B8964F]">
             <Plus className="h-4 w-4 mr-1" /> Générer un lot
           </Button>
         </div>
@@ -2847,7 +2866,7 @@ function PlatesManagementView({
           <button
             key={s.label}
             onClick={() => setStatusFilter(s.label === 'Total' ? 'all' : s.label.toLowerCase().replace(' ', '_').replace('hors ligne', 'offline').replace('en attente', 'pending'))}
-            className={cn('rounded-lg px-3 py-1.5 font-medium transition', s.color, statusFilter === (s.label === 'Total' ? 'all' : s.label.toLowerCase().replace(' ', '_').replace('hors ligne', 'offline').replace('en attente', 'pending')) && 'ring-2 ring-[#C9A961]')}
+            className={cn('rounded-lg px-3 py-1.5 font-medium transition', s.color, statusFilter === (s.label === 'Total' ? 'all' : s.label.toLowerCase().replace(' ', '_').replace('hors ligne', 'offline').replace('en attente', 'pending')) && 'ring-2 ring-[#FFD700]')}
           >
             {s.label}: {s.value}
           </button>
@@ -2862,7 +2881,7 @@ function PlatesManagementView({
           placeholder="Rechercher par numéro, nom, quartier, adresse…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-xl border border-[#EAE5DC] bg-white py-2.5 pl-10 pr-4 text-sm text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/20"
+          className="w-full rounded-xl border border-[#EAE5DC] bg-white py-2.5 pl-10 pr-4 text-sm text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:border-[#FFD700] focus:outline-none focus:ring-2 focus:ring-[#FFD700]/20"
         />
       </div>
 
@@ -2902,7 +2921,7 @@ function PlatesManagementView({
                 </td>
                 <td className="px-4 py-3 text-[#1A1A1A]/60">{p.scanCount}</td>
                 <td className="px-4 py-3 text-right">
-                  <Button size="sm" variant="outline" onClick={() => openEdit(p)} className="border-[#EAE5DC] text-[#1A1A1A] hover:border-[#C9A961]">
+                  <Button size="sm" variant="outline" onClick={() => openEdit(p)} className="border-[#EAE5DC] text-[#1A1A1A] hover:border-[#FFD700]">
                     Éditer
                   </Button>
                 </td>
@@ -2939,12 +2958,12 @@ function PlatesManagementView({
               max={500}
               value={batchCount}
               onChange={(e) => setBatchCount(Math.min(500, Math.max(1, parseInt(e.target.value) || 1)))}
-              className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-2.5 text-sm focus:border-[#C9A961] focus:outline-none"
+              className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-2.5 text-sm focus:border-[#FFD700] focus:outline-none"
             />
             <p className="mt-2 text-xs text-[#1A1A1A]/50">Maximum 500 par lot. Les numéros continuent à partir du dernier existant.</p>
             <div className="mt-6 flex justify-end gap-3">
               <Button variant="outline" onClick={() => setShowBatchDialog(false)}>Annuler</Button>
-              <Button onClick={handleGenerateBatch} disabled={generating} className="bg-[#C9A961] text-[#1A1A1A] hover:bg-[#B8964F]">
+              <Button onClick={handleGenerateBatch} disabled={generating} className="bg-[#FFD700] text-[#1A1A1A] hover:bg-[#B8964F]">
                 {generating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
                 {generating ? 'Génération…' : `Générer ${batchCount} plaques`}
               </Button>
@@ -2986,7 +3005,7 @@ function PlatesManagementView({
                   value={editLabel}
                   onChange={(e) => setEditLabel(e.target.value)}
                   placeholder="ex: Marché Sandaga, Rue Félix Faure…"
-                  className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-2.5 text-sm focus:border-[#C9A961] focus:outline-none"
+                  className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-2.5 text-sm focus:border-[#FFD700] focus:outline-none"
                 />
               </div>
 
@@ -2998,7 +3017,7 @@ function PlatesManagementView({
                   value={editDistrict}
                   onChange={(e) => setEditDistrict(e.target.value)}
                   placeholder="ex: Plateau, Médina, Grand Dakar…"
-                  className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-2.5 text-sm focus:border-[#C9A961] focus:outline-none"
+                  className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-2.5 text-sm focus:border-[#FFD700] focus:outline-none"
                 />
               </div>
 
@@ -3010,7 +3029,7 @@ function PlatesManagementView({
                   value={editAddress}
                   onChange={(e) => setEditAddress(e.target.value)}
                   placeholder="ex: Avenue Léopold Sédar Senghor"
-                  className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-2.5 text-sm focus:border-[#C9A961] focus:outline-none"
+                  className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-2.5 text-sm focus:border-[#FFD700] focus:outline-none"
                 />
               </div>
 
@@ -3023,14 +3042,14 @@ function PlatesManagementView({
                     value={editLat}
                     onChange={(e) => setEditLat(e.target.value)}
                     placeholder="Latitude"
-                    className="flex-1 rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2.5 text-sm focus:border-[#C9A961] focus:outline-none"
+                    className="flex-1 rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2.5 text-sm focus:border-[#FFD700] focus:outline-none"
                   />
                   <input
                     type="text"
                     value={editLng}
                     onChange={(e) => setEditLng(e.target.value)}
                     placeholder="Longitude"
-                    className="flex-1 rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2.5 text-sm focus:border-[#C9A961] focus:outline-none"
+                    className="flex-1 rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2.5 text-sm focus:border-[#FFD700] focus:outline-none"
                   />
                 </div>
                 <Button
@@ -3038,7 +3057,7 @@ function PlatesManagementView({
                   size="sm"
                   onClick={handleLocate}
                   disabled={locating}
-                  className="mt-2 border-[#C9A961]/40 text-[#1A1A1A] hover:bg-[#C9A961]/8"
+                  className="mt-2 border-[#FFD700]/40 text-[#1A1A1A] hover:bg-[#FFD700]/8"
                 >
                   {locating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <MapPin className="h-4 w-4 mr-2" />}
                   {locating ? 'Localisation…' : '📍 Ma position GPS'}
@@ -3215,7 +3234,7 @@ function PhotoThumb({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="group relative overflow-hidden rounded-lg border border-[#EAE5DC] bg-white transition hover:border-[#C9A961] hover:shadow-md"
+        className="group relative overflow-hidden rounded-lg border border-[#EAE5DC] bg-white transition hover:border-[#FFD700] hover:shadow-md"
         style={{ width: size, height: size }}
         aria-label={`Agrandir la photo ${label}`}
         title={`Cliquez pour agrandir — ${label}`}
@@ -3540,7 +3559,7 @@ function EmergenciesView({
             className={cn(
               'rounded-lg px-3 py-1.5 font-medium transition',
               s.color,
-              statusFilter === s.key && 'ring-2 ring-[#C9A961]',
+              statusFilter === s.key && 'ring-2 ring-[#FFD700]',
             )}
           >
             {s.label}: {s.value}
@@ -3556,7 +3575,7 @@ function EmergenciesView({
           placeholder="Rechercher par catégorie, description, plaque, service…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-xl border border-[#EAE5DC] bg-white py-2.5 pl-10 pr-4 text-sm text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/20"
+          className="w-full rounded-xl border border-[#EAE5DC] bg-white py-2.5 pl-10 pr-4 text-sm text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:border-[#FFD700] focus:outline-none focus:ring-2 focus:ring-[#FFD700]/20"
         />
       </div>
 
@@ -3653,7 +3672,7 @@ function ReportsView({
           placeholder="Rechercher par catégorie, description, plaque…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-xl border border-[#EAE5DC] bg-white py-2.5 pl-10 pr-4 text-sm text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/20"
+          className="w-full rounded-xl border border-[#EAE5DC] bg-white py-2.5 pl-10 pr-4 text-sm text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:border-[#FFD700] focus:outline-none focus:ring-2 focus:ring-[#FFD700]/20"
         />
       </div>
 
@@ -4051,9 +4070,9 @@ function ArtisansView({
                   type="checkbox"
                   checked={form.premium}
                   onChange={(e) => setForm((f) => ({ ...f, premium: e.target.checked }))}
-                  className="h-4 w-4 rounded border-[#EAE5DC] accent-[#C9A961]"
+                  className="h-4 w-4 rounded border-[#EAE5DC] accent-[#FFD700]"
                 />
-                <Star className="h-3.5 w-3.5 fill-[#C9A961] text-[#C9A961]" />
+                <Star className="h-3.5 w-3.5 fill-[#FFD700] text-[#FFD700]" />
                 Premium
               </label>
             </div>
@@ -4091,7 +4110,7 @@ function ArtisansView({
         {[
           { key: 'all' as const, label: 'Tous', value: stats.total, color: 'bg-[#EAE5DC] text-[#1A1A1A]' },
           { key: 'verified' as const, label: 'Vérifiés', value: stats.verified, color: 'bg-[#0066CC]/12 text-[#0066CC]' },
-          { key: 'premium' as const, label: 'Premium', value: stats.premium, color: 'bg-[#C9A961]/15 text-[#8B6F47]' },
+          { key: 'premium' as const, label: 'Premium', value: stats.premium, color: 'bg-[#FFD700]/15 text-[#8B6F47]' },
         ].map((s) => (
           <button
             key={s.key}
@@ -4100,7 +4119,7 @@ function ArtisansView({
             className={cn(
               'rounded-lg px-3 py-1.5 font-medium transition',
               s.color,
-              filter === s.key && 'ring-2 ring-[#C9A961]',
+              filter === s.key && 'ring-2 ring-[#FFD700]',
             )}
           >
             {s.label}: {s.value}
@@ -4116,7 +4135,7 @@ function ArtisansView({
           placeholder="Rechercher par nom, métier, quartier, téléphone…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-xl border border-[#EAE5DC] bg-white py-2.5 pl-10 pr-4 text-sm text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/20"
+          className="w-full rounded-xl border border-[#EAE5DC] bg-white py-2.5 pl-10 pr-4 text-sm text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:border-[#FFD700] focus:outline-none focus:ring-2 focus:ring-[#FFD700]/20"
         />
       </div>
 
@@ -4149,7 +4168,7 @@ function ArtisansView({
                 <tr key={a.id} className="border-b border-[#EAE5DC]/50 hover:bg-[#FAFAF7]">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#C9A961]/15 text-xs font-bold text-[#8B6F47]">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#FFD700]/15 text-xs font-bold text-[#8B6F47]">
                         {a.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0">
@@ -4162,7 +4181,7 @@ function ArtisansView({
                   <td className="px-4 py-3">
                     <a
                       href={`tel:${a.phone.replace(/\s/g, '')}`}
-                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#EAE5DC] px-2.5 py-1 text-xs font-medium text-[#1A1A1A] transition hover:border-[#C9A961] hover:bg-[#C9A961]/8"
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-[#EAE5DC] px-2.5 py-1 text-xs font-medium text-[#1A1A1A] transition hover:border-[#FFD700] hover:bg-[#FFD700]/8"
                     >
                       <Phone className="h-3 w-3 text-[#4A7C59]" />
                       {a.phone}
@@ -4176,7 +4195,7 @@ function ArtisansView({
                         </Badge>
                       )}
                       {a.premium && (
-                        <Badge className="bg-[#C9A961]/15 text-[#8B6F47] text-[10px]">
+                        <Badge className="bg-[#FFD700]/15 text-[#8B6F47] text-[10px]">
                           <Star className="mr-0.5 h-2.5 w-2.5" /> Premium
                         </Badge>
                       )}
@@ -4187,7 +4206,7 @@ function ArtisansView({
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
-                      <Star className="h-3.5 w-3.5 fill-[#C9A961] text-[#C9A961]" />
+                      <Star className="h-3.5 w-3.5 fill-[#FFD700] text-[#FFD700]" />
                       <span className="font-semibold tabular-nums text-[#1A1A1A]">
                         {a.rating.toFixed(1)}
                       </span>
@@ -4656,7 +4675,7 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
       {/* Loading */}
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-[#C9A961]" />
+          <Loader2 className="h-6 w-6 animate-spin text-[#FFD700]" />
         </div>
       ) : (
         <>
@@ -4719,7 +4738,7 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                   placeholder="Rechercher commerce, métier, quartier…"
-                  className="w-full rounded-lg border border-[#EAE5DC] bg-white py-2 pl-9 pr-3 text-xs text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:border-[#C9A961] focus:outline-none focus:ring-1 focus:ring-[#C9A961]/20"
+                  className="w-full rounded-lg border border-[#EAE5DC] bg-white py-2 pl-9 pr-3 text-xs text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:border-[#FFD700] focus:outline-none focus:ring-1 focus:ring-[#FFD700]/20"
                 />
               </div>
             </div>
@@ -4756,20 +4775,20 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
           </section>
 
           {/* ============== Panneau : Premium activation ============== */}
-          <section className="overflow-hidden rounded-2xl border border-[#C9A961]/30 bg-gradient-to-br from-white to-[#C9A961]/5 shadow-sm">
+          <section className="overflow-hidden rounded-2xl border border-[#FFD700]/30 bg-gradient-to-br from-white to-[#FFD700]/5 shadow-sm">
             <div className="flex items-center gap-2 border-b border-[#EAE5DC] px-4 py-3">
-              <Sparkles className="h-4 w-4 text-[#C9A961]" />
+              <Sparkles className="h-4 w-4 text-[#FFD700]" />
               <h3 className="text-sm font-bold text-[#1A1A1A]" style={SERIF}>
                 Activation Premium
               </h3>
-              <Badge className="ml-auto bg-[#C9A961]/15 text-[#8B6F47]">
+              <Badge className="ml-auto bg-[#FFD700]/15 text-[#8B6F47]">
                 {premiumCount} premium
               </Badge>
             </div>
             <div className="divide-y divide-[#EAE5DC]/60">
               {approved.filter((b) => b.isPremium).length === 0 ? (
                 <div className="px-4 py-8 text-center">
-                  <Star className="mx-auto mb-2 h-7 w-7 text-[#C9A961]/40" />
+                  <Star className="mx-auto mb-2 h-7 w-7 text-[#FFD700]/40" />
                   <p className="text-sm font-medium text-[#1A1A1A]/60">
                     Aucun commerce premium pour le moment
                   </p>
@@ -4782,7 +4801,7 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
                   .filter((b) => b.isPremium)
                   .map((b) => (
                     <div key={b.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#C9A961]/15 text-xs font-bold text-[#8B6F47]">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#FFD700]/15 text-xs font-bold text-[#8B6F47]">
                         {b.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
@@ -4813,7 +4832,7 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
                         size="sm"
                         variant="outline"
                         onClick={() => setPremiumSetup(b)}
-                        className="border-[#C9A961]/40 text-[#1A1A1A] hover:bg-[#C9A961]/8"
+                        className="border-[#FFD700]/40 text-[#1A1A1A] hover:bg-[#FFD700]/8"
                       >
                         <Plus className="mr-1 h-3 w-3" /> Feature
                       </Button>
@@ -5561,7 +5580,7 @@ function BusinessCard({
             <button
               type="button"
               onClick={() => setPhotoOpen(true)}
-              className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-[#EAE5DC] transition hover:border-[#C9A961] hover:shadow-md"
+              className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-[#EAE5DC] transition hover:border-[#FFD700] hover:shadow-md"
               aria-label={`Agrandir la photo de ${b.name}`}
               title="Cliquez pour agrandir"
             >
@@ -5573,7 +5592,7 @@ function BusinessCard({
               />
             </button>
           ) : (
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-[#C9A961]/15 text-xl font-bold text-[#8B6F47]">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-[#FFD700]/15 text-xl font-bold text-[#8B6F47]">
               {b.name.charAt(0).toUpperCase()}
             </div>
           )}
@@ -5627,8 +5646,8 @@ function BusinessCard({
         {mode === 'approved' && (b.isPremium || b.isSponsored) && (
           <div className="mt-3 flex flex-wrap gap-1.5">
             {b.isPremium && (
-              <Badge className="bg-[#C9A961]/15 text-[10px] text-[#8B6F47]">
-                <Star className="mr-0.5 h-2.5 w-2.5 fill-[#C9A961]" /> Premium
+              <Badge className="bg-[#FFD700]/15 text-[10px] text-[#8B6F47]">
+                <Star className="mr-0.5 h-2.5 w-2.5 fill-[#FFD700]" /> Premium
               </Badge>
             )}
             {b.isSponsored && (
@@ -5680,11 +5699,11 @@ function BusinessCard({
                 className={cn(
                   'gap-1.5 rounded-lg',
                   b.isPremium
-                    ? 'bg-[#C9A961]/15 text-[#8B6F47] hover:bg-[#C9A961]/25'
-                    : 'bg-[#C9A961] text-[#1A1A1A] hover:bg-[#B8964F]',
+                    ? 'bg-[#FFD700]/15 text-[#8B6F47] hover:bg-[#FFD700]/25'
+                    : 'bg-[#FFD700] text-[#1A1A1A] hover:bg-[#B8964F]',
                 )}
               >
-                <Star className={cn('h-3.5 w-3.5', b.isPremium && 'fill-[#C9A961]')} />
+                <Star className={cn('h-3.5 w-3.5', b.isPremium && 'fill-[#FFD700]')} />
                 {b.isPremium ? 'Désactiver Premium' : 'Activer Premium'}
               </Button>
               {b.isSponsored ? (
@@ -5835,7 +5854,7 @@ function taxReportStatusInfo(status: string): { label: string; bg: string; color
     case 'tax_collected':
       return { label: 'Taxe encaissée', bg: 'bg-[#4A7C59]/12 text-[#4A7C59]', color: COLOR_GREEN }
     case 'rewarded':
-      return { label: 'Récompensé', bg: 'bg-[#C9A961]/15 text-[#8B6F47]', color: COLOR_GOLD }
+      return { label: 'Récompensé', bg: 'bg-[#FFD700]/15 text-[#8B6F47]', color: COLOR_GOLD }
     default:
       return { label: status, bg: 'bg-[#EAE5DC] text-[#1A1A1A]', color: COLOR_ANTHRACITE }
   }
@@ -6014,7 +6033,7 @@ function TaxReportsView() {
           { key: 'reported', label: 'Signalés', value: counts.reported, color: 'bg-[#FF6B00]/12 text-[#FF6B00]' },
           { key: 'verified', label: 'Vérifiés', value: counts.verified, color: 'bg-[#0066CC]/12 text-[#0066CC]' },
           { key: 'tax_collected', label: 'Encaissés', value: counts.tax_collected, color: 'bg-[#4A7C59]/12 text-[#4A7C59]' },
-          { key: 'rewarded', label: 'Récompensés', value: counts.rewarded, color: 'bg-[#C9A961]/15 text-[#8B6F47]' },
+          { key: 'rewarded', label: 'Récompensés', value: counts.rewarded, color: 'bg-[#FFD700]/15 text-[#8B6F47]' },
         ].map((s) => (
           <button
             key={s.key}
@@ -6023,7 +6042,7 @@ function TaxReportsView() {
             className={cn(
               'rounded-lg px-3 py-1.5 font-medium transition',
               s.color,
-              statusFilter === s.key && 'ring-2 ring-[#C9A961]',
+              statusFilter === s.key && 'ring-2 ring-[#FFD700]',
             )}
           >
             {s.label}: {s.value}
@@ -6039,14 +6058,14 @@ function TaxReportsView() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Rechercher par plaque, véhicule, description, quartier…"
-          className="w-full rounded-xl border border-[#EAE5DC] bg-white py-2.5 pl-10 pr-4 text-sm text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/20"
+          className="w-full rounded-xl border border-[#EAE5DC] bg-white py-2.5 pl-10 pr-4 text-sm text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:border-[#FFD700] focus:outline-none focus:ring-2 focus:ring-[#FFD700]/20"
         />
       </div>
 
       {/* Liste */}
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="h-6 w-6 animate-spin text-[#C9A961]" />
+          <Loader2 className="h-6 w-6 animate-spin text-[#FFD700]" />
         </div>
       ) : filtered.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-[#EAE5DC] bg-white p-12 text-center">
@@ -6102,11 +6121,11 @@ function TaxReportsView() {
                 <X className="h-5 w-5" />
               </button>
             </div>
-            <div className="mb-4 rounded-xl bg-[#C9A961]/8 p-3">
+            <div className="mb-4 rounded-xl bg-[#FFD700]/8 p-3">
               <p className="text-xs font-medium text-[#8B6F47]">
                 Montant de la récompense (calculé automatiquement) :
               </p>
-              <p className="text-xl font-bold tabular-nums text-[#C9A961]" style={SERIF}>
+              <p className="text-xl font-bold tabular-nums text-[#FFD700]" style={SERIF}>
                 {(rewardTarget.vehiclePlate && rewardTarget.vehiclePlate.trim().length > 0
                   ? 1000
                   : 500
@@ -6127,7 +6146,7 @@ function TaxReportsView() {
                 <select
                   value={rewardForm.rewardMethod}
                   onChange={(e) => setRewardForm((f) => ({ ...f, rewardMethod: e.target.value }))}
-                  className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/15"
+                  className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#FFD700] focus:outline-none focus:ring-2 focus:ring-[#FFD700]/15"
                 >
                   <option value="wave">Wave</option>
                   <option value="orange_money">Orange Money</option>
@@ -6144,7 +6163,7 @@ function TaxReportsView() {
                   value={rewardForm.citizenPhone}
                   onChange={(e) => setRewardForm((f) => ({ ...f, citizenPhone: e.target.value }))}
                   placeholder="+221 77 000 00 00"
-                  className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/15"
+                  className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#FFD700] focus:outline-none focus:ring-2 focus:ring-[#FFD700]/15"
                 />
               </div>
             </div>
@@ -6161,7 +6180,7 @@ function TaxReportsView() {
                 size="sm"
                 onClick={handleSaveReward}
                 disabled={savingReward}
-                className="gap-1.5 rounded-lg bg-[#C9A961] text-[#1A1A1A] hover:bg-[#B8964F]"
+                className="gap-1.5 rounded-lg bg-[#FFD700] text-[#1A1A1A] hover:bg-[#B8964F]"
               >
                 {savingReward ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -6219,7 +6238,7 @@ function TaxReportCard({
               <button
                 type="button"
                 onClick={() => setPhotoOpen(true)}
-                className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-[#EAE5DC] transition hover:border-[#C9A961] hover:shadow-md"
+                className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-xl border border-[#EAE5DC] transition hover:border-[#FFD700] hover:shadow-md"
                 aria-label="Agrandir la photo du signalement"
                 title="Cliquez pour agrandir"
               >
@@ -6364,7 +6383,7 @@ function TaxReportCard({
               </div>
             )}
             {r.rewardAmount > 0 && (
-              <div className="rounded-lg bg-[#C9A961]/8 p-2">
+              <div className="rounded-lg bg-[#FFD700]/8 p-2">
                 <p className="text-[9px] font-semibold uppercase tracking-wide text-[#8B6F47]">
                   Récompense ({rewardMethodLabel(r.rewardMethod)})
                 </p>
@@ -6413,7 +6432,7 @@ function TaxReportCard({
               size="sm"
               onClick={() => handleAction(onReward)}
               disabled={pending}
-              className="gap-1.5 rounded-lg bg-[#C9A961] text-[#1A1A1A] hover:bg-[#B8964F]"
+              className="gap-1.5 rounded-lg bg-[#FFD700] text-[#1A1A1A] hover:bg-[#B8964F]"
             >
               {pending ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -6424,7 +6443,7 @@ function TaxReportCard({
             </Button>
           )}
           {r.status === 'rewarded' && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#C9A961]/12 px-3 py-1 text-[11px] font-bold text-[#8B6F47]">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FFD700]/12 px-3 py-1 text-[11px] font-bold text-[#8B6F47]">
               <Check className="h-3.5 w-3.5" />
               Récompense envoyée
               {r.rewardedAt && (
@@ -6767,7 +6786,7 @@ function MairieDynamicView() {
                   value={row.hours}
                   onChange={(e) => updateHour(idx, 'hours', e.target.value)}
                   placeholder="8h00 - 16h00 ou Fermé"
-                  className="flex-1 rounded-lg border border-transparent bg-transparent px-2 py-1 text-sm tabular-nums text-[#1A1A1A] hover:border-[#EAE5DC] focus:border-[#C9A961] focus:bg-[#FAFAF7] focus:outline-none focus:ring-1 focus:ring-[#C9A961]/30"
+                  className="flex-1 rounded-lg border border-transparent bg-transparent px-2 py-1 text-sm tabular-nums text-[#1A1A1A] hover:border-[#EAE5DC] focus:border-[#FFD700] focus:bg-[#FAFAF7] focus:outline-none focus:ring-1 focus:ring-[#FFD700]/30"
                 />
                 <button
                   type="button"
@@ -6800,7 +6819,7 @@ function MairieDynamicView() {
             <Button
               size="sm"
               onClick={openAddService}
-              className="gap-1.5 rounded-lg bg-[#C9A961] text-[#1A1A1A] hover:bg-[#B8964F]"
+              className="gap-1.5 rounded-lg bg-[#FFD700] text-[#1A1A1A] hover:bg-[#B8964F]"
             >
               <Plus className="h-3.5 w-3.5" /> Ajouter un service
             </Button>
@@ -6815,21 +6834,21 @@ function MairieDynamicView() {
                   value={serviceForm.name}
                   onChange={(e) => setServiceForm((f) => ({ ...f, name: e.target.value }))}
                   placeholder="Nom du service *"
-                  className="rounded-lg border border-[#EAE5DC] bg-white px-3 py-2 text-sm focus:border-[#C9A961] focus:outline-none"
+                  className="rounded-lg border border-[#EAE5DC] bg-white px-3 py-2 text-sm focus:border-[#FFD700] focus:outline-none"
                 />
                 <input
                   type="tel"
                   value={serviceForm.phone}
                   onChange={(e) => setServiceForm((f) => ({ ...f, phone: e.target.value }))}
                   placeholder="Téléphone (+221 …)"
-                  className="rounded-lg border border-[#EAE5DC] bg-white px-3 py-2 text-sm focus:border-[#C9A961] focus:outline-none"
+                  className="rounded-lg border border-[#EAE5DC] bg-white px-3 py-2 text-sm focus:border-[#FFD700] focus:outline-none"
                 />
                 <input
                   type="text"
                   value={serviceForm.desc}
                   onChange={(e) => setServiceForm((f) => ({ ...f, desc: e.target.value }))}
                   placeholder="Description courte"
-                  className="rounded-lg border border-[#EAE5DC] bg-white px-3 py-2 text-sm focus:border-[#C9A961] focus:outline-none sm:col-span-2"
+                  className="rounded-lg border border-[#EAE5DC] bg-white px-3 py-2 text-sm focus:border-[#FFD700] focus:outline-none sm:col-span-2"
                 />
                 <div className="flex flex-wrap gap-1 sm:col-span-2">
                   {EMOJI_CHOICES.map((em) => (
@@ -6840,7 +6859,7 @@ function MairieDynamicView() {
                       className={cn(
                         'flex h-8 w-8 items-center justify-center rounded-lg text-lg transition',
                         serviceForm.icon === em
-                          ? 'bg-[#C9A961]/20 ring-2 ring-[#C9A961]'
+                          ? 'bg-[#FFD700]/20 ring-2 ring-[#FFD700]'
                           : 'bg-white hover:bg-[#FAFAF7]',
                       )}
                     >
@@ -6895,7 +6914,7 @@ function MairieDynamicView() {
                   <button
                     type="button"
                     onClick={() => openEditService(svc)}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#C9A961]/12 text-[#8B6F47] transition hover:bg-[#C9A961] hover:text-white"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#FFD700]/12 text-[#8B6F47] transition hover:bg-[#FFD700] hover:text-white"
                     aria-label={`Modifier ${svc.name}`}
                     title="Modifier"
                   >
@@ -6921,7 +6940,7 @@ function MairieDynamicView() {
       <section className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-[#EAE5DC] px-4 py-3">
           <div className="flex items-center gap-2">
-            <Bell className="h-4 w-4 text-[#C9A961]" />
+            <Bell className="h-4 w-4 text-[#FFD700]" />
             <h3 className="text-sm font-bold text-[#1A1A1A]" style={SERIF}>
               Annonces récentes
             </h3>
@@ -7112,22 +7131,22 @@ function RevenueView({
       {/* KPI grid */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {/* Total */}
-        <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#1A1A1A] to-[#2C2C2C] p-5 text-[#FAFAF7] shadow-sm">
+        <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#1A1A1A] to-[#2C2C2C] p-5 text-white shadow-sm">
           <div className="mb-2 flex items-center gap-2">
-            <Wallet className="h-4 w-4 text-[#C9A961]" />
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-[#FAFAF7]/55">
+            <Wallet className="h-4 w-4 text-[#FFD700]" />
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-white/55">
               Revenus totaux
             </p>
           </div>
-          <p className="text-3xl font-bold tabular-nums text-[#C9A961]" style={SERIF}>
+          <p className="text-3xl font-bold tabular-nums text-[#FFD700]" style={SERIF}>
             {formatFCFA(displayTotal)}
-            <span className="ml-1 text-sm font-medium text-[#FAFAF7]/60">FCFA</span>
+            <span className="ml-1 text-sm font-medium text-white/60">FCFA</span>
           </p>
-          <p className="mt-2 text-[10px] text-[#FAFAF7]/45">Cumul artisans via Aminata</p>
+          <p className="mt-2 text-[10px] text-white/45">Cumul artisans via Aminata</p>
         </div>
 
         {/* Part mairie */}
-        <div className="overflow-hidden rounded-2xl border border-[#C9A961]/30 bg-[#C9A961]/5 p-5 shadow-sm">
+        <div className="overflow-hidden rounded-2xl border border-[#FFD700]/30 bg-[#FFD700]/5 p-5 shadow-sm">
           <div className="mb-2 flex items-center gap-2">
             <Building2 className="h-4 w-4 text-[#8B6F47]" />
             <p className="text-[11px] font-semibold uppercase tracking-wider text-[#8B6F47]">
@@ -7146,7 +7165,7 @@ function RevenueView({
         {/* Premium */}
         <div className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white p-5 shadow-sm">
           <div className="mb-2 flex items-center gap-2">
-            <Star className="h-4 w-4 text-[#C9A961]" />
+            <Star className="h-4 w-4 text-[#FFD700]" />
             <p className="text-[11px] font-semibold uppercase tracking-wider text-[#1A1A1A]/55">
               Artisans premium
             </p>
@@ -7185,7 +7204,7 @@ function RevenueView({
                     <div
                       className={cn(
                         'w-full rounded-t-md transition-all',
-                        isLast ? 'bg-[#C9A961]' : 'bg-[#4A7C59]/70',
+                        isLast ? 'bg-[#FFD700]' : 'bg-[#4A7C59]/70',
                       )}
                       style={{ height: `${h}%` }}
                     />
@@ -7208,7 +7227,7 @@ function RevenueView({
       <section className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white shadow-sm">
         <div className="flex items-center justify-between border-b border-[#EAE5DC] px-4 py-3">
           <div className="flex items-center gap-2">
-            <Users className="h-4 w-4 text-[#C9A961]" />
+            <Users className="h-4 w-4 text-[#FFD700]" />
             <h3 className="text-sm font-bold text-[#1A1A1A]" style={SERIF}>
               Top artisans contributeurs
             </h3>
@@ -7235,7 +7254,7 @@ function RevenueView({
                   className={cn(
                     'flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold',
                     i === 0
-                      ? 'bg-[#C9A961] text-[#1A1A1A]'
+                      ? 'bg-[#FFD700] text-[#1A1A1A]'
                       : i === 1
                         ? 'bg-[#EAE5DC] text-[#1A1A1A]'
                         : i === 2
@@ -7248,7 +7267,7 @@ function RevenueView({
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <p className="truncate text-sm font-semibold text-[#1A1A1A]">{a.name}</p>
-                    {a.premium && <Star className="h-3 w-3 fill-[#C9A961] text-[#C9A961]" />}
+                    {a.premium && <Star className="h-3 w-3 fill-[#FFD700] text-[#FFD700]" />}
                   </div>
                   <p className="truncate text-xs text-[#1A1A1A]/55">
                     {a.trade}
@@ -7430,12 +7449,12 @@ function PlatesMapView({
               size="sm"
               variant="outline"
               onClick={() => onNavigate('plates-mgmt')}
-              className="border-[#EAE5DC] text-[#1A1A1A] hover:border-[#C9A961]"
+              className="border-[#EAE5DC] text-[#1A1A1A] hover:border-[#FFD700]"
             >
               <QrCode className="h-4 w-4" /> Gérer les plaques
             </Button>
           )}
-          <Badge className="bg-[#C9A961]/15 text-[#8B6F47]">
+          <Badge className="bg-[#FFD700]/15 text-[#8B6F47]">
             <MapPin className="mr-1 h-3 w-3" /> {stats.total} localisations
           </Badge>
         </div>
@@ -7456,7 +7475,7 @@ function PlatesMapView({
             className={cn(
               'rounded-lg px-3 py-1.5 font-medium transition',
               s.color,
-              statusFilter === s.key && 'ring-2 ring-[#C9A961]',
+              statusFilter === s.key && 'ring-2 ring-[#FFD700]',
             )}
           >
             {s.label}: {s.value}
@@ -7472,7 +7491,7 @@ function PlatesMapView({
           placeholder="Rechercher par numéro, lieu, quartier…"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full rounded-xl border border-[#EAE5DC] bg-white py-2.5 pl-10 pr-4 text-sm text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/20"
+          className="w-full rounded-xl border border-[#EAE5DC] bg-white py-2.5 pl-10 pr-4 text-sm text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:border-[#FFD700] focus:outline-none focus:ring-2 focus:ring-[#FFD700]/20"
         />
       </div>
 
@@ -7516,7 +7535,7 @@ function PlatesMapView({
                     <button
                       type="button"
                       onClick={() => setZoomQr({ url: qrImg, plate: p })}
-                      className="group relative h-[100px] w-[100px] shrink-0 overflow-hidden rounded-xl border border-[#EAE5DC] bg-white p-1 transition hover:border-[#C9A961] hover:shadow-md"
+                      className="group relative h-[100px] w-[100px] shrink-0 overflow-hidden rounded-xl border border-[#EAE5DC] bg-white p-1 transition hover:border-[#FFD700] hover:shadow-md"
                       aria-label={`Agrandir le QR code de la plaque ${p.plateNumber}`}
                       title="Cliquez pour agrandir"
                     >
@@ -7615,7 +7634,7 @@ function PlatesMapView({
                       size="sm"
                       variant="outline"
                       onClick={() => openEdit(p)}
-                      className="border-[#C9A961]/40 text-[#1A1A1A] hover:bg-[#C9A961]/8"
+                      className="border-[#FFD700]/40 text-[#1A1A1A] hover:bg-[#FFD700]/8"
                     >
                       Modifier
                     </Button>
@@ -7716,7 +7735,7 @@ function PlatesMapView({
                   value={editForm.label}
                   onChange={(e) => setEditForm((f) => ({ ...f, label: e.target.value }))}
                   placeholder="ex: Marché Sandaga, Rue Félix Faure…"
-                  className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-2.5 text-sm focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/15"
+                  className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-2.5 text-sm focus:border-[#FFD700] focus:outline-none focus:ring-2 focus:ring-[#FFD700]/15"
                 />
               </div>
               <div>
@@ -7728,7 +7747,7 @@ function PlatesMapView({
                   value={editForm.district}
                   onChange={(e) => setEditForm((f) => ({ ...f, district: e.target.value }))}
                   placeholder="ex: Plateau, Médina, Grand Dakar…"
-                  className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-2.5 text-sm focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/15"
+                  className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-2.5 text-sm focus:border-[#FFD700] focus:outline-none focus:ring-2 focus:ring-[#FFD700]/15"
                 />
               </div>
               <div>
@@ -7740,7 +7759,7 @@ function PlatesMapView({
                   value={editForm.address}
                   onChange={(e) => setEditForm((f) => ({ ...f, address: e.target.value }))}
                   placeholder="ex: Avenue Léopold Sédar Senghor"
-                  className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-2.5 text-sm focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/15"
+                  className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-2.5 text-sm focus:border-[#FFD700] focus:outline-none focus:ring-2 focus:ring-[#FFD700]/15"
                 />
               </div>
               <div>
@@ -7753,14 +7772,14 @@ function PlatesMapView({
                     value={editForm.lat}
                     onChange={(e) => setEditForm((f) => ({ ...f, lat: e.target.value }))}
                     placeholder="Latitude"
-                    className="flex-1 rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2.5 text-sm focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/15"
+                    className="flex-1 rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2.5 text-sm focus:border-[#FFD700] focus:outline-none focus:ring-2 focus:ring-[#FFD700]/15"
                   />
                   <input
                     type="text"
                     value={editForm.lng}
                     onChange={(e) => setEditForm((f) => ({ ...f, lng: e.target.value }))}
                     placeholder="Longitude"
-                    className="flex-1 rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2.5 text-sm focus:border-[#C9A961] focus:outline-none focus:ring-2 focus:ring-[#C9A961]/15"
+                    className="flex-1 rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2.5 text-sm focus:border-[#FFD700] focus:outline-none focus:ring-2 focus:ring-[#FFD700]/15"
                   />
                 </div>
                 <p className="mt-1.5 text-xs text-[#1A1A1A]/50">
@@ -8221,7 +8240,7 @@ function TransportView() {
       ? { bg: 'bg-[#0066CC]/12 text-[#0066CC]', color: COLOR_BLUE, emoji: '🚌' }
       : t === 'train'
         ? { bg: 'bg-[#6B4C9A]/12 text-[#6B4C9A]', color: COLOR_PURPLE, emoji: '🚆' }
-        : { bg: 'bg-[#C9A961]/15 text-[#8B6F47]', color: COLOR_GOLD, emoji: '🚕' }
+        : { bg: 'bg-[#FFD700]/15 text-[#8B6F47]', color: COLOR_GOLD, emoji: '🚕' }
 
   const SERIF = { fontFamily: 'Georgia, "Playfair Display", serif' } as const
 
@@ -8826,7 +8845,7 @@ function TarifsView() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-16">
-        <Loader2 className="size-6 animate-spin text-[#C9A961]" />
+        <Loader2 className="size-6 animate-spin text-[#FFD700]" />
       </div>
     )
   }
@@ -8838,7 +8857,7 @@ function TarifsView() {
   const tierCards: { key: keyof PricingTiers; icon: typeof Tag; color: string; target: string }[] = [
     { key: 'menu', icon: Utensils, color: '#0066CC', target: 'Restaurants' },
     { key: 'priceGrid', icon: Wrench, color: '#00A651', target: 'Artisans' },
-    { key: 'sponsored', icon: Sparkles, color: '#C9A961', target: 'Tous commerces' },
+    { key: 'sponsored', icon: Sparkles, color: '#FFD700', target: 'Tous commerces' },
   ]
 
   return (
@@ -8856,7 +8875,7 @@ function TarifsView() {
         <Button
           onClick={handleSave}
           disabled={saving}
-          className="gap-2 rounded-xl bg-[#C9A961] text-white hover:bg-[#a88a48]"
+          className="gap-2 rounded-xl bg-[#FFD700] text-white hover:bg-[#a88a48]"
         >
           {saving ? <Loader2 className="size-4 animate-spin" /> : <Check className="size-4" />}
           {saving ? 'Enregistrement…' : 'Enregistrer'}
@@ -8911,7 +8930,7 @@ function TarifsView() {
                     type="number"
                     value={tier.price}
                     onChange={(e) => updateTier(key, 'price', parseInt(e.target.value) || 0)}
-                    className="w-full rounded-xl border-2 border-[#EAE5DC] px-3 py-2 text-lg font-bold text-[#1A1A1A] focus:border-[#C9A961] focus:outline-none"
+                    className="w-full rounded-xl border-2 border-[#EAE5DC] px-3 py-2 text-lg font-bold text-[#1A1A1A] focus:border-[#FFD700] focus:outline-none"
                   />
                   <span className="text-sm font-bold text-[#1A1A1A]/60">FCFA</span>
                 </div>
@@ -8923,7 +8942,7 @@ function TarifsView() {
                 <select
                   value={tier.period}
                   onChange={(e) => updateTier(key, 'period', e.target.value)}
-                  className="mt-1 w-full rounded-xl border-2 border-[#EAE5DC] px-3 py-2 text-sm focus:border-[#C9A961] focus:outline-none"
+                  className="mt-1 w-full rounded-xl border-2 border-[#EAE5DC] px-3 py-2 text-sm focus:border-[#FFD700] focus:outline-none"
                 >
                   <option value="mois">Mois</option>
                   <option value="semaine">Semaine</option>
@@ -8941,7 +8960,7 @@ function TarifsView() {
                   value={tier.label}
                   onChange={(e) => updateTier(key, 'label', e.target.value)}
                   maxLength={60}
-                  className="mt-1 w-full rounded-xl border-2 border-[#EAE5DC] px-3 py-2 text-sm focus:border-[#C9A961] focus:outline-none"
+                  className="mt-1 w-full rounded-xl border-2 border-[#EAE5DC] px-3 py-2 text-sm focus:border-[#FFD700] focus:outline-none"
                 />
               </div>
 
@@ -8953,7 +8972,7 @@ function TarifsView() {
                   onChange={(e) => updateTier(key, 'description', e.target.value)}
                   maxLength={200}
                   rows={2}
-                  className="mt-1 w-full rounded-xl border-2 border-[#EAE5DC] px-3 py-2 text-xs focus:border-[#C9A961] focus:outline-none"
+                  className="mt-1 w-full rounded-xl border-2 border-[#EAE5DC] px-3 py-2 text-xs focus:border-[#FFD700] focus:outline-none"
                 />
               </div>
 
@@ -9226,7 +9245,7 @@ function AppointmentsView() {
       {/* Liste */}
       {loading ? (
         <div className="flex items-center justify-center py-12">
-          <Loader2 className="size-6 animate-spin text-[#C9A961]" />
+          <Loader2 className="size-6 animate-spin text-[#FFD700]" />
         </div>
       ) : appointments.length === 0 ? (
         <div className="rounded-2xl border-2 border-dashed border-[#d5d3d4] p-12 text-center">
