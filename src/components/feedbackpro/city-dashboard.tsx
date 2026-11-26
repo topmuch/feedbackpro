@@ -872,13 +872,13 @@ export default function CityDashboard() {
 
   // --- Densité d'activité par quartier (réel : incidents groupés par district) ---
   const heatmapData = useMemo(() => {
-    const counts = new Map<string, number>()
+    const counts: Record<string, number> = {}
     for (const inc of incidents) {
       const district = inc.plate?.district
       if (!district) continue
-      counts.set(district, (counts.get(district) ?? 0) + 1)
+      counts[district] = (counts[district] ?? 0) + 1
     }
-    return [...counts.entries()]
+    return Object.entries(counts)
       .map(([district, count]) => ({ district, count }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 5)
