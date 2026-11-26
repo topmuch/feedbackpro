@@ -13,7 +13,7 @@ WORKDIR /app
 # un echo cache-bust.
 ADD https://github.com/topmuch/feedbackpro/archive/refs/heads/main.tar.gz /tmp/code.tar.gz
 RUN tar -xzf /tmp/code.tar.gz -C /app --strip-components=1 && rm /tmp/code.tar.gz && \
-    echo "build-v48-qr-theme-selector-modern-design" && git log --oneline -1 2>/dev/null || echo "no git log"
+    echo "build-v49-fix-toast-tdz-dashboard-crash" && git log --oneline -1 2>/dev/null || echo "no git log"
 
 RUN bun install
 RUN npx prisma generate

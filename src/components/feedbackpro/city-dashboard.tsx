@@ -486,21 +486,6 @@ export default function CityDashboard() {
       .catch(() => {})
   }, [])
 
-  // Changer le thème QR
-  const handleThemeChange = useCallback(async (theme: 'signaletique' | 'modern') => {
-    setQrTheme(theme)
-    try {
-      await fetch('/api/city/qr-theme', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ theme }),
-      })
-      toast({ title: 'Thème QR mis à jour', description: theme === 'modern' ? 'Design moderne avec dégradés.' : 'Design signalétique classique.' })
-    } catch {
-      toast({ title: 'Erreur', description: 'Impossible de changer le thème.' })
-    }
-  }, [toast])
-
   // Compose les QR codes premium avec le logo quand les plaques ou le logo changent
   useEffect(() => {
     if (!plates.length) return
@@ -526,6 +511,21 @@ export default function CityDashboard() {
   const logout = useAppStore((s) => s.logout)
   const setView = useAppStore((s) => s.setView)
   const { toast } = useToast()
+
+  // Changer le thème QR (déclaré après toast pour éviter l'erreur TDZ)
+  const handleThemeChange = useCallback(async (theme: 'signaletique' | 'modern') => {
+    setQrTheme(theme)
+    try {
+      await fetch('/api/city/qr-theme', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ theme }),
+      })
+      toast({ title: 'Thème QR mis à jour', description: theme === 'modern' ? 'Design moderne avec dégradés.' : 'Design signalétique classique.' })
+    } catch {
+      toast({ title: 'Erreur', description: 'Impossible de changer le thème.' })
+    }
+  }, [toast])
 
   // --- Mount SSR-safe ---
   useEffect(() => {
