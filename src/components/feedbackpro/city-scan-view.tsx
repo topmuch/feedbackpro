@@ -78,6 +78,13 @@ import {
   ChefHat,
   Flame,
   CheckCircle2,
+  HeartPulse,
+  Stethoscope,
+  Briefcase,
+  Tag,
+  Package,
+  Gift,
+  ArrowRight,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -208,6 +215,233 @@ const COLORS = {
 /** Style de titre serif (Georgia / Playfair Display) appliqué aux titres. */
 const TITLE_FONT: React.CSSProperties = {
   fontFamily: 'Georgia, "Playfair Display", serif',
+}
+
+// ============================================================
+// Palette "Aminata · Annonces · Santé · Écoles" (refonte 2024)
+// ------------------------------------------------------------
+// Tokens partagés par QuartierAdsView, SanteView, SchoolsView.
+//   --jaune     : #FFD700   --jaune-dark : #F59E0B
+//   --bleu      : #1E3A8A   --bleu-clair : #3B82F6
+//   --rouge     : #DC2626   --vert       : #059669
+//   --vert-clair: #10B981   --violet     : #6B4C9A
+//   --orange    : #F97316   --blanc      : #FFFBEB
+// ============================================================
+
+const AMINATA_TOKENS = {
+  jaune: '#FFD700',
+  jauneDark: '#F59E0B',
+  bleu: '#1E3A8A',
+  bleuClair: '#3B82F6',
+  rouge: '#DC2626',
+  vert: '#059669',
+  vertClair: '#10B981',
+  violet: '#6B4C9A',
+  orange: '#F97316',
+  blanc: '#FFFBEB',
+  texte: '#1F2937',
+  gris: '#6B7280',
+  grisClair: '#E5E7EB',
+} as const
+
+/** Famille Playfair Display (titres) — chargée par <link> dans les vues. */
+const PLAYFAIR_FONT: React.CSSProperties = {
+  fontFamily: '"Playfair Display", Georgia, serif',
+}
+
+/** Famille Inter — chargée par <link> dans les vues. */
+const INTER_FONT: React.CSSProperties = {
+  fontFamily: '"Inter", system-ui, sans-serif',
+}
+
+/** Lien Google Fonts Inter + Playfair Display — hoisté vers <head> par Next. */
+const AMINATA_FONT_LINK = (
+  <link
+    rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Inter:wght@300;400;500;600;700;800&display=swap"
+  />
+)
+
+/** Petites keyframes partagées (cascade + pulse). */
+const AMINATA_KEYFRAMES_STYLE = (
+  <style>{`
+    @keyframes aminata-slide-up {
+      from { opacity: 0; transform: translateY(18px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes aminata-fade-in {
+      from { opacity: 0; transform: translateX(16px); }
+      to   { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes aminata-pulse-dot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: 0.45; transform: scale(0.85); }
+    }
+    .aminata-card-enter {
+      opacity: 0;
+      transform: translateY(18px);
+      animation: aminata-slide-up 0.55s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+    }
+    .aminata-screen-enter {
+      animation: aminata-fade-in 0.4s ease;
+    }
+    .aminata-pulse {
+      animation: aminata-pulse-dot 2s infinite;
+    }
+    /* Scrollbar discrète pour les filtres horizontaux */
+    .aminata-filters-scroll::-webkit-scrollbar { display: none; }
+    .aminata-filters-scroll { scrollbar-width: none; -ms-overflow-style: none; }
+  `}</style>
+)
+
+/** Cartouche d'en-tête de module (header coloré + icône blanche). */
+function AminataModuleHeader({
+  gradient,
+  icon,
+  title,
+  subtitle,
+  badge,
+}: {
+  gradient: string
+  icon: React.ReactNode
+  title: string
+  subtitle?: string | null
+  badge?: React.ReactNode
+}) {
+  return (
+    <div
+      className="relative flex items-center gap-3 overflow-hidden rounded-2xl p-4 shadow-md"
+      style={{
+        background: gradient,
+        boxShadow: '0 8px 28px rgba(0,0,0,0.18)',
+      }}
+    >
+      {/* Pastille décorative */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-10 -top-12 size-36 rounded-full"
+        style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%)' }}
+      />
+      {/* Tuile icône blanche */}
+      <div
+        className="flex size-12 shrink-0 items-center justify-center rounded-2xl bg-white"
+        style={{ boxShadow: '0 6px 16px rgba(0,0,0,0.14)' }}
+      >
+        {icon}
+      </div>
+      <div className="min-w-0 flex-1">
+        <h2
+          className="truncate text-base font-bold leading-tight text-white"
+          style={PLAYFAIR_FONT}
+        >
+          {title}
+        </h2>
+        {subtitle ? (
+          <p className="mt-0.5 truncate text-[11px] font-medium text-white/85">
+            {subtitle}
+          </p>
+        ) : null}
+        {badge ? <div className="mt-1.5">{badge}</div> : null}
+      </div>
+    </div>
+  )
+}
+
+/** Bannière descriptive (texte long) placée sous le header. */
+function AminataBanner({
+  gradient,
+  eyebrow,
+  text,
+}: {
+  gradient: string
+  eyebrow: string
+  text: string
+}) {
+  return (
+    <div
+      className="relative overflow-hidden rounded-2xl p-4 text-white"
+      style={{ background: gradient }}
+    >
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-12 -top-16 size-44 rounded-full"
+        style={{ background: 'radial-gradient(circle, rgba(255,255,255,0.18) 0%, transparent 70%)' }}
+      />
+      <p className="relative text-[10px] font-bold uppercase tracking-[0.12em] opacity-95">
+        {eyebrow}
+      </p>
+      <p className="relative mt-1 text-[13px] leading-relaxed opacity-95">
+        {text}
+      </p>
+    </div>
+  )
+}
+
+/** Bouton primaire large (action principale : Déposer une annonce…). */
+function AminataPrimaryButton({
+  gradient,
+  icon,
+  label,
+  onClick,
+}: {
+  gradient: string
+  icon: React.ReactNode
+  label: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="group flex w-full items-center justify-center gap-2 rounded-2xl px-4 py-4 text-sm font-bold uppercase tracking-wide text-white transition-all hover:-translate-y-0.5 active:scale-[0.98]"
+      style={{
+        background: gradient,
+        boxShadow: '0 10px 25px rgba(0,0,0,0.18)',
+        fontFamily: '"Inter", system-ui, sans-serif',
+      }}
+    >
+      {icon}
+      <span style={PLAYFAIR_FONT} className="text-[15px]">
+        {label}
+      </span>
+    </button>
+  )
+}
+
+/** Chip de filtre rond, actif/inactif. */
+function AminataFilterChip({
+  label,
+  active,
+  color,
+  onClick,
+}: {
+  label: string
+  active: boolean
+  color: string
+  onClick: () => void
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={cn(
+        'shrink-0 rounded-full px-3.5 py-1.5 text-[11px] font-bold uppercase tracking-wide transition-all',
+        active
+          ? 'text-white'
+          : 'bg-white text-[#1F2937]/70 ring-1 ring-[#E5E7EB] hover:ring-[#9CA3AF]',
+      )}
+      style={
+        active
+          ? {
+              backgroundColor: color,
+              boxShadow: `0 6px 14px ${color}55`,
+            }
+          : undefined
+      }
+    >
+      {label}
+    </button>
+  )
 }
 
 // ============================================================
@@ -6243,49 +6477,100 @@ function SanteView({ plate }: { plate: CityPlate }) {
     return `https://www.google.com/maps/dir/?${params.toString()}`
   }
 
-  return (
-    <div className="space-y-5">
-      {/* En-tête de section */}
-      <section
-        className="rounded-2xl p-4 text-white shadow-sm"
-        style={{
-          background: `linear-gradient(135deg, ${COLORS.green} 0%, #007a3c 100%)`,
-        }}
-      >
-        <div className="mb-2 flex items-center gap-2">
-          <Pill className="size-5 text-white/80" />
-          <h2 className="text-sm font-bold uppercase tracking-wide text-white/90">
-            Santé · Pharmacies · Cliniques · Médecins
-          </h2>
-        </div>
-        <p className="text-xs leading-relaxed text-white/85">
-          Pharmacie de garde 24h/24, centres de santé & cliniques, et médecins
-          de la ville. Appelez ou lancez le guidage Google Maps en un geste.
-        </p>
-      </section>
+  // Gradient de bordure gauche par section (vert / bleu / violet).
+  const gradientVert = `linear-gradient(180deg, ${AMINATA_TOKENS.vertClair} 0%, ${AMINATA_TOKENS.vert} 100%)`
+  const gradientBleu = `linear-gradient(180deg, ${AMINATA_TOKENS.bleuClair} 0%, ${AMINATA_TOKENS.bleu} 100%)`
+  const gradientViolet = `linear-gradient(180deg, #8B5CB8 0%, ${AMINATA_TOKENS.violet} 100%)`
 
-      {/* Section 1 : Pharmacie de garde */}
-      <section className="rounded-2xl bg-white p-4 shadow-sm">
-        <div className="mb-3 flex items-center gap-2">
-          <Pill className="size-5 text-[#00A651]" />
-          <h2 className="text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+  const plateSubtitle = plate.district
+    ? `Plaque #${plate.plateNumber} · ${plate.district}`
+    : `Plaque #${plate.plateNumber}`
+
+  return (
+    <div
+      className="aminata-screen-enter space-y-5"
+      style={{ ...INTER_FONT, backgroundColor: AMINATA_TOKENS.blanc, color: AMINATA_TOKENS.texte }}
+    >
+      {AMINATA_FONT_LINK}
+      {AMINATA_KEYFRAMES_STYLE}
+
+      {/* Header — green emerald gradient + HeartPulse icon tile (white) */}
+      <AminataModuleHeader
+        gradient={`linear-gradient(135deg, ${AMINATA_TOKENS.vert} 0%, #047857 100%)`}
+        icon={<HeartPulse className="size-6" style={{ color: AMINATA_TOKENS.vert }} />}
+        title="Santé"
+        subtitle={plateSubtitle}
+      />
+
+      {/* Bannière descriptive */}
+      <AminataBanner
+        gradient={`linear-gradient(135deg, ${AMINATA_TOKENS.vertClair} 0%, ${AMINATA_TOKENS.vert} 100%)`}
+        eyebrow="Santé · Pharmacies · Cliniques · Médecins"
+        text="Pharmacie de garde 24h/24, centres de santé & cliniques, et médecins de la ville. Appelez ou lancez le guidage Google Maps en un geste."
+      />
+
+      {/* ============ Section 1 : Pharmacie de garde ============ */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2 px-0.5">
+          <Pill className="size-5" style={{ color: AMINATA_TOKENS.vert }} />
+          <h3
+            className="text-base font-bold"
+            style={{ ...PLAYFAIR_FONT, color: AMINATA_TOKENS.texte }}
+          >
             Pharmacie de garde
-          </h2>
+          </h3>
         </div>
-        <div className="rounded-xl bg-[#00A651]/5 p-3">
-          <p className="text-base font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+
+        {/* Carte « pharmacie de garde » — fond radial vert, badge lune + dot pulsant */}
+        <div
+          className="relative overflow-hidden rounded-2xl p-4"
+          style={{
+            background:
+              'radial-gradient(circle at top right, rgba(16,185,129,0.18) 0%, rgba(5,150,105,0.06) 60%, transparent 100%), #FFFFFF',
+            border: `2px solid ${AMINATA_TOKENS.vertClair}`,
+            boxShadow: '0 8px 20px rgba(16,185,129,0.15)',
+          }}
+        >
+          {/* Badge lune 🌙 flottant en haut à droite */}
+          <div
+            aria-hidden
+            className="absolute right-3 top-2 flex items-center gap-1 rounded-full bg-white/95 px-2 py-0.5 text-sm shadow-sm"
+            style={{ color: AMINATA_TOKENS.vert }}
+          >
+            <span>🌙</span>
+            <span className="text-[10px] font-bold uppercase tracking-wide">Garde</span>
+          </div>
+
+          <p
+            className="text-base font-bold"
+            style={{ ...PLAYFAIR_FONT, color: AMINATA_TOKENS.vert }}
+          >
             {PHARMACIE_GARDE_SANTE.name}
           </p>
-          <p className="mt-1 text-xs text-[#1A1A1A]/60">
+          <p className="mt-1 text-[12px]" style={{ color: AMINATA_TOKENS.gris }}>
             {PHARMACIE_GARDE_SANTE.address}
           </p>
-          <p className="mt-0.5 text-xs font-semibold text-[#00A651]">
+          <p
+            className="mt-1 flex items-center gap-1.5 text-[11px] font-bold"
+            style={{ color: AMINATA_TOKENS.vert }}
+          >
+            {/* Point vert pulsant */}
+            <span
+              className="aminata-pulse inline-block size-2 rounded-full"
+              style={{ backgroundColor: AMINATA_TOKENS.vert }}
+              aria-hidden
+            />
             {PHARMACIE_GARDE_SANTE.hours}
           </p>
-          <div className="mt-3 flex gap-2">
+
+          <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <a
               href={`tel:${PHARMACIE_GARDE_SANTE.phone}`}
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#00A651] py-2.5 text-sm font-bold text-white transition hover:bg-[#008a44]"
+              className="flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-bold text-white transition-all hover:-translate-y-0.5"
+              style={{
+                backgroundColor: AMINATA_TOKENS.vert,
+                boxShadow: '0 4px 10px rgba(5,150,105,0.25)',
+              }}
             >
               <Phone className="size-4" />
               Appeler
@@ -6294,7 +6579,11 @@ function SanteView({ plate }: { plate: CityPlate }) {
               href={buildDirectionsUrl(PHARMACIE_GARDE_SANTE)}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-[#00A651]/30 py-2.5 text-sm font-semibold text-[#00A651] transition hover:bg-[#00A651]/5"
+              className="flex items-center justify-center gap-1.5 rounded-xl bg-white py-2.5 text-sm font-bold transition-all hover:-translate-y-0.5"
+              style={{
+                color: AMINATA_TOKENS.vert,
+                border: `2px solid ${AMINATA_TOKENS.vert}`,
+              }}
             >
               <Navigation className="size-4" />
               Y aller
@@ -6303,44 +6592,68 @@ function SanteView({ plate }: { plate: CityPlate }) {
         </div>
       </section>
 
-      {/* Section 2 : Pharmacies de la ville */}
-      <section className="rounded-2xl bg-white p-4 shadow-sm">
-        <div className="mb-3 flex items-center gap-2">
-          <MapPin className="size-5 text-[#00A651]" />
-          <h2 className="text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+      {/* ============ Section 2 : Pharmacies de la ville ============ */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2 px-0.5">
+          <span className="text-base" aria-hidden>💊</span>
+          <h3
+            className="text-base font-bold"
+            style={{ ...PLAYFAIR_FONT, color: AMINATA_TOKENS.texte }}
+          >
             Pharmacies de la ville
-          </h2>
+          </h3>
         </div>
-        <ul className="space-y-3">
-          {PHARMACIES_VILLE.map((p) => (
+        <ul className="space-y-2.5">
+          {PHARMACIES_VILLE.map((p, idx) => (
             <li
               key={p.id}
-              className="rounded-xl bg-[#00A651]/5 p-3"
+              className="aminata-card-enter relative overflow-hidden rounded-2xl bg-white p-3.5 transition-all duration-300 hover:-translate-y-0.5"
+              style={{
+                borderLeft: `4px solid`,
+                borderImageSlice: 1,
+                borderImageSource: gradientVert,
+                boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+                animationDelay: `${Math.min(idx * 0.07, 0.4)}s`,
+              }}
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-[#1A1A1A]">
-                    {p.name}
-                  </p>
-                  <p className="mt-0.5 truncate text-xs text-[#1A1A1A]/55">
-                    {p.address}
-                  </p>
-                  <p className="mt-0.5 text-xs text-[#00A651]">{p.hours}</p>
-                </div>
-              </div>
-              <div className="mt-2 flex gap-2">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-y-0 left-0 w-1"
+                style={{ background: gradientVert }}
+              />
+              <p
+                className="truncate text-[14px] font-bold"
+                style={{ ...PLAYFAIR_FONT, color: AMINATA_TOKENS.texte }}
+              >
+                {p.name}
+              </p>
+              <p className="mt-0.5 truncate text-[11px]" style={{ color: AMINATA_TOKENS.gris }}>
+                {p.address}
+              </p>
+              <p className="mt-0.5 text-[11px] font-bold" style={{ color: AMINATA_TOKENS.vert }}>
+                {p.hours}
+              </p>
+              <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
                 <a
                   href={`tel:${p.phone}`}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#00A651] py-2 text-xs font-bold text-white transition hover:bg-[#008a44]"
+                  className="flex items-center justify-center gap-1.5 rounded-lg py-2 text-[12px] font-bold text-white transition-all hover:-translate-y-0.5"
+                  style={{
+                    backgroundColor: AMINATA_TOKENS.vert,
+                    boxShadow: '0 3px 8px rgba(5,150,105,0.22)',
+                  }}
                 >
                   <Phone className="size-3.5" />
-                  Contacter
+                  Appeler
                 </a>
                 <a
                   href={buildDirectionsUrl(p)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#00A651]/30 py-2 text-xs font-semibold text-[#00A651] transition hover:bg-[#00A651]/5"
+                  className="flex items-center justify-center gap-1.5 rounded-lg bg-white py-2 text-[12px] font-bold transition-all hover:-translate-y-0.5"
+                  style={{
+                    color: AMINATA_TOKENS.vert,
+                    border: `2px solid ${AMINATA_TOKENS.vert}`,
+                  }}
                 >
                   <Navigation className="size-3.5" />
                   Y aller
@@ -6351,36 +6664,55 @@ function SanteView({ plate }: { plate: CityPlate }) {
         </ul>
       </section>
 
-      {/* Section 3 : Centres de santé & Cliniques */}
-      <section className="rounded-2xl bg-white p-4 shadow-sm">
-        <div className="mb-3 flex items-center gap-2">
-          <Building2 className="size-5 text-[#0066CC]" />
-          <h2 className="text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+      {/* ============ Section 3 : Centres de santé & Cliniques ============ */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2 px-0.5">
+          <span className="text-base" aria-hidden>🏥</span>
+          <h3
+            className="text-base font-bold"
+            style={{ ...PLAYFAIR_FONT, color: AMINATA_TOKENS.texte }}
+          >
             Centres de santé &amp; Cliniques
-          </h2>
+          </h3>
         </div>
-        <ul className="space-y-3">
-          {CENTRES_SANTE.map((c) => (
+        <ul className="space-y-2.5">
+          {CENTRES_SANTE.map((c, idx) => (
             <li
               key={c.id}
-              className="rounded-xl bg-[#0066CC]/5 p-3"
-              style={{ borderLeft: '3px solid #0066CC' }}
+              className="aminata-card-enter relative overflow-hidden rounded-2xl bg-white p-3.5 transition-all duration-300 hover:-translate-y-0.5"
+              style={{
+                borderLeft: `4px solid`,
+                borderImageSlice: 1,
+                borderImageSource: gradientBleu,
+                boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+                animationDelay: `${Math.min(idx * 0.07, 0.4)}s`,
+              }}
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
-                    {c.name}
-                  </p>
-                  <p className="mt-0.5 truncate text-xs text-[#1A1A1A]/55">
-                    {c.address}
-                  </p>
-                  <p className="mt-0.5 text-xs text-[#0066CC]">{c.hours}</p>
-                </div>
-              </div>
-              <div className="mt-2 flex gap-2">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-y-0 left-0 w-1"
+                style={{ background: gradientBleu }}
+              />
+              <p
+                className="truncate text-[14px] font-bold"
+                style={{ ...PLAYFAIR_FONT, color: AMINATA_TOKENS.texte }}
+              >
+                {c.name}
+              </p>
+              <p className="mt-0.5 truncate text-[11px]" style={{ color: AMINATA_TOKENS.gris }}>
+                {c.address}
+              </p>
+              <p className="mt-0.5 text-[11px] font-bold" style={{ color: AMINATA_TOKENS.bleu }}>
+                {c.hours}
+              </p>
+              <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
                 <a
                   href={`tel:${c.phone}`}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#0066CC] py-2 text-xs font-bold text-white transition hover:bg-[#0055aa]"
+                  className="flex items-center justify-center gap-1.5 rounded-lg py-2 text-[12px] font-bold text-white transition-all hover:-translate-y-0.5"
+                  style={{
+                    backgroundColor: AMINATA_TOKENS.bleuClair,
+                    boxShadow: '0 3px 8px rgba(59,130,246,0.22)',
+                  }}
                 >
                   <Phone className="size-3.5" />
                   Appeler
@@ -6389,7 +6721,11 @@ function SanteView({ plate }: { plate: CityPlate }) {
                   href={buildDirectionsUrl(c)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#0066CC]/30 py-2 text-xs font-semibold text-[#0066CC] transition hover:bg-[#0066CC]/5"
+                  className="flex items-center justify-center gap-1.5 rounded-lg bg-white py-2 text-[12px] font-bold transition-all hover:-translate-y-0.5"
+                  style={{
+                    color: AMINATA_TOKENS.bleuClair,
+                    border: `2px solid ${AMINATA_TOKENS.bleuClair}`,
+                  }}
                 >
                   <Navigation className="size-3.5" />
                   Y aller
@@ -6400,39 +6736,58 @@ function SanteView({ plate }: { plate: CityPlate }) {
         </ul>
       </section>
 
-      {/* Section 4 : Médecins */}
-      <section className="rounded-2xl bg-white p-4 shadow-sm">
-        <div className="mb-3 flex items-center gap-2">
-          <User className="size-5 text-[#6B4C9A]" />
-          <h2 className="text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+      {/* ============ Section 4 : Médecins ============ */}
+      <section className="space-y-3">
+        <div className="flex items-center gap-2 px-0.5">
+          <span className="text-base" aria-hidden>👨‍⚕️</span>
+          <h3
+            className="text-base font-bold"
+            style={{ ...PLAYFAIR_FONT, color: AMINATA_TOKENS.texte }}
+          >
             Médecins
-          </h2>
+          </h3>
         </div>
-        <ul className="space-y-3">
-          {MEDECINS.map((m) => (
+        <ul className="space-y-2.5">
+          {MEDECINS.map((m, idx) => (
             <li
               key={m.id}
-              className="rounded-xl bg-[#6B4C9A]/5 p-3"
-              style={{ borderLeft: '3px solid #6B4C9A' }}
+              className="aminata-card-enter relative overflow-hidden rounded-2xl bg-white p-3.5 transition-all duration-300 hover:-translate-y-0.5"
+              style={{
+                borderLeft: `4px solid`,
+                borderImageSlice: 1,
+                borderImageSource: gradientViolet,
+                boxShadow: '0 2px 10px rgba(0,0,0,0.05)',
+                animationDelay: `${Math.min(idx * 0.07, 0.4)}s`,
+              }}
             >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
-                    {m.name}
-                  </p>
-                  <p className="mt-0.5 text-xs font-semibold text-[#6B4C9A]">
-                    {m.specialty}
-                  </p>
-                  <p className="mt-0.5 truncate text-xs text-[#1A1A1A]/55">
-                    {m.address}
-                  </p>
-                  <p className="mt-0.5 text-xs text-[#1A1A1A]/60">{m.hours}</p>
-                </div>
-              </div>
-              <div className="mt-2 flex gap-2">
+              <div
+                aria-hidden
+                className="pointer-events-none absolute inset-y-0 left-0 w-1"
+                style={{ background: gradientViolet }}
+              />
+              <p
+                className="truncate text-[14px] font-bold"
+                style={{ ...PLAYFAIR_FONT, color: AMINATA_TOKENS.texte }}
+              >
+                {m.name}
+              </p>
+              <p className="mt-0.5 text-[11px] font-bold" style={{ color: AMINATA_TOKENS.violet }}>
+                {m.specialty}
+              </p>
+              <p className="mt-0.5 truncate text-[11px]" style={{ color: AMINATA_TOKENS.gris }}>
+                {m.address}
+              </p>
+              <p className="mt-0.5 text-[11px] font-bold" style={{ color: AMINATA_TOKENS.violet }}>
+                {m.hours}
+              </p>
+              <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
                 <a
                   href={`tel:${m.phone}`}
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#6B4C9A] py-2 text-xs font-bold text-white transition hover:bg-[#5a3d82]"
+                  className="flex items-center justify-center gap-1.5 rounded-lg py-2 text-[12px] font-bold text-white transition-all hover:-translate-y-0.5"
+                  style={{
+                    backgroundColor: AMINATA_TOKENS.violet,
+                    boxShadow: '0 3px 8px rgba(107,76,154,0.25)',
+                  }}
                 >
                   <Phone className="size-3.5" />
                   Appeler
@@ -6441,7 +6796,11 @@ function SanteView({ plate }: { plate: CityPlate }) {
                   href={buildDirectionsUrl(m)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#6B4C9A]/30 py-2 text-xs font-semibold text-[#6B4C9A] transition hover:bg-[#6B4C9A]/5"
+                  className="flex items-center justify-center gap-1.5 rounded-lg bg-white py-2 text-[12px] font-bold transition-all hover:-translate-y-0.5"
+                  style={{
+                    color: AMINATA_TOKENS.violet,
+                    border: `2px solid ${AMINATA_TOKENS.violet}`,
+                  }}
                 >
                   <Navigation className="size-3.5" />
                   Y aller
@@ -6478,14 +6837,30 @@ type QuartierAd = {
 }
 
 const QUARTIER_AD_TYPES: ReadonlyArray<{ id: string; label: string; color: string }> = [
-  { id: 'all',     label: 'Tous',    color: '#00A651' },
-  { id: 'vente',   label: 'Vente',   color: '#FF6B00' },
-  { id: 'don',     label: 'Don',     color: '#00A651' },
-  { id: 'service', label: 'Service', color: '#0066CC' },
+  { id: 'all',     label: 'TOUS',    color: AMINATA_TOKENS.jauneDark },
+  { id: 'vente',   label: 'VENTE',   color: AMINATA_TOKENS.orange },
+  { id: 'don',     label: 'DON',     color: AMINATA_TOKENS.vertClair },
+  { id: 'service', label: 'SERVICE', color: AMINATA_TOKENS.bleuClair },
 ]
 
+/** Bordure gauche dégradée selon le type d'annonce (orange→rouge / vert / bleu). */
+function quartierAdBorderGradient(type: string): string {
+  if (type === 'vente') {
+    return `linear-gradient(180deg, ${AMINATA_TOKENS.orange} 0%, ${AMINATA_TOKENS.rouge} 100%)`
+  }
+  if (type === 'don') {
+    return `linear-gradient(180deg, ${AMINATA_TOKENS.vertClair} 0%, ${AMINATA_TOKENS.vert} 100%)`
+  }
+  // service
+  return `linear-gradient(180deg, ${AMINATA_TOKENS.bleuClair} 0%, ${AMINATA_TOKENS.bleu} 100%)`
+}
+
+/** Couleur unie (pour badge / prix) selon le type d'annonce. */
 function quartierAdTypeColor(type: string): string {
-  return QUARTIER_AD_TYPES.find((t) => t.id === type)?.color ?? '#00A651'
+  if (type === 'vente') return AMINATA_TOKENS.rouge
+  if (type === 'don') return AMINATA_TOKENS.vert
+  // service
+  return AMINATA_TOKENS.bleu
 }
 
 function QuartierAdsView({ plate }: { plate: CityPlate }) {
@@ -6541,103 +6916,113 @@ function QuartierAdsView({ plate }: { plate: CityPlate }) {
     )
   }
 
-  return (
-    <div className="space-y-4">
-      {/* Header — green gradient with luggage icon */}
-      <section
-        className="rounded-2xl p-4 text-white shadow-sm"
-        style={{
-          background: `linear-gradient(135deg, ${COLORS.green} 0%, #007a3c 100%)`,
-        }}
-      >
-        <div className="mb-2 flex items-center gap-2">
-          <Luggage className="size-5 text-white/90" />
-          <h2 className="text-sm font-bold uppercase tracking-wide text-white/95">
-            Annonces du Quartier · Entre particuliers
-          </h2>
-        </div>
-        <p className="text-xs leading-relaxed text-white/85">
-          Ventes, dons et services de vos voisins. Contactez directement par
-          téléphone ou WhatsApp. Déposez votre propre annonce en un geste.
-        </p>
-      </section>
+  const plateSubtitle = plate.district
+    ? `Plaque #${plate.plateNumber} · ${plate.district}`
+    : `Plaque #${plate.plateNumber}`
 
-      {/* Bouton Déposer une annonce — green, prominent */}
-      <button
+  return (
+    <div
+      className="aminata-screen-enter space-y-4"
+      style={{ ...INTER_FONT, backgroundColor: AMINATA_TOKENS.blanc, color: AMINATA_TOKENS.texte }}
+    >
+      {AMINATA_FONT_LINK}
+      {AMINATA_KEYFRAMES_STYLE}
+
+      {/* Header — yellow gradient + Luggage icon tile (white) */}
+      <AminataModuleHeader
+        gradient={`linear-gradient(135deg, ${AMINATA_TOKENS.jaune} 0%, ${AMINATA_TOKENS.jauneDark} 100%)`}
+        icon={<Luggage className="size-6" style={{ color: AMINATA_TOKENS.jauneDark }} />}
+        title="Annonces du Quartier"
+        subtitle={plateSubtitle}
+      />
+
+      {/* Bannière descriptive */}
+      <AminataBanner
+        gradient={`linear-gradient(135deg, ${AMINATA_TOKENS.vert} 0%, #047857 100%)`}
+        eyebrow="Annonces du Quartier · Entre particuliers"
+        text="Ventes, dons et services de vos voisins. Contactez directement par téléphone ou WhatsApp. Déposez votre propre annonce en un geste."
+      />
+
+      {/* Bouton Déposer une annonce — green #059669, prominent */}
+      <AminataPrimaryButton
+        gradient={`linear-gradient(135deg, ${AMINATA_TOKENS.vert} 0%, #047857 100%)`}
+        icon={<Plus className="size-5" />}
+        label="Déposer une annonce"
         onClick={() => setShowForm(true)}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#00A651] p-4 text-white shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.98]"
-        style={{ borderRadius: '16px' }}
-      >
-        <Plus className="size-5" />
-        <span className="text-sm font-bold uppercase tracking-wide" style={TITLE_FONT}>
-          Déposer une annonce
-        </span>
-      </button>
+      />
 
       {/* Filtres type — chips horizontaux scrollables */}
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-        {QUARTIER_AD_TYPES.map((chip) => {
-          const active = selectedType === chip.id
-          const color = chip.color
-          return (
-            <button
-              key={chip.id}
-              onClick={() => setSelectedType(chip.id)}
-              className={cn(
-                'shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition',
-                active
-                  ? 'text-white shadow'
-                  : 'bg-white text-[#1A1A1A]/70 ring-1 ring-[#1A1A1A]/10 hover:ring-[#1A1A1A]/25',
-              )}
-              style={active ? { backgroundColor: color } : undefined}
-            >
-              {chip.label}
-            </button>
-          )
-        })}
+      <div className="aminata-filters-scroll -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+        {QUARTIER_AD_TYPES.map((chip) => (
+          <AminataFilterChip
+            key={chip.id}
+            label={chip.label}
+            active={selectedType === chip.id}
+            color={chip.color}
+            onClick={() => setSelectedType(chip.id)}
+          />
+        ))}
       </div>
 
       {/* Liste */}
       {loading ? (
-        <div className="flex flex-col items-center justify-center gap-3 py-16">
-          <Loader2 className="size-8 animate-spin text-[#00A651]" />
-          <p className="text-sm text-[#1A1A1A]/55">Chargement des annonces…</p>
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl bg-white py-16 shadow-sm">
+          <Loader2 className="size-8 animate-spin" style={{ color: AMINATA_TOKENS.vert }} />
+          <p className="text-sm" style={{ color: AMINATA_TOKENS.gris }}>
+            Chargement des annonces…
+          </p>
         </div>
       ) : error ? (
         <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
-          <AlertTriangle className="mx-auto size-10 text-[#E30613]" />
-          <p className="mt-3 text-sm font-semibold text-[#1A1A1A]" style={TITLE_FONT}>
+          <AlertTriangle className="mx-auto size-10" style={{ color: AMINATA_TOKENS.rouge }} />
+          <p className="mt-3 text-sm font-semibold" style={{ ...PLAYFAIR_FONT, color: AMINATA_TOKENS.texte }}>
             {error}
           </p>
-          <p className="mt-1 text-xs text-[#1A1A1A]/55">
+          <p className="mt-1 text-xs" style={{ color: AMINATA_TOKENS.gris }}>
             Réessayez dans quelques instants.
           </p>
         </div>
       ) : ads.length === 0 ? (
+        // Empty state — friendly message with Luggage icon
         <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
-          <span className="text-4xl" aria-hidden>
-            🧳
-          </span>
-          <p className="mt-3 text-sm font-semibold text-[#1A1A1A]" style={TITLE_FONT}>
+          <div
+            className="mx-auto flex size-16 items-center justify-center rounded-2xl"
+            style={{ backgroundColor: `${AMINATA_TOKENS.jauneDark}18` }}
+          >
+            <Luggage className="size-8" style={{ color: AMINATA_TOKENS.jauneDark }} />
+          </div>
+          <p className="mt-3 text-base font-bold" style={{ ...PLAYFAIR_FONT, color: AMINATA_TOKENS.texte }}>
             Aucune annonce pour le moment.
           </p>
-          <p className="mt-1 text-xs text-[#1A1A1A]/55">
+          <p className="mt-1 text-xs" style={{ color: AMINATA_TOKENS.gris }}>
             Soyez le premier à déposer une annonce dans votre quartier.
           </p>
         </div>
       ) : (
         <>
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold uppercase tracking-wide text-[#1A1A1A]/60">
+          {/* Header résultats : nombre + badge "Particuliers" */}
+          <div className="flex items-center justify-between px-0.5">
+            <span
+              className="text-[11px] font-extrabold uppercase tracking-[0.12em]"
+              style={{ color: AMINATA_TOKENS.texte }}
+            >
               {ads.length} annonce{ads.length > 1 ? 's' : ''}
-            </h2>
-            <Badge className="bg-[#00A651]/10 text-[#00A651]">
+            </span>
+            <span
+              className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold"
+              style={{
+                backgroundColor: `${AMINATA_TOKENS.vert}15`,
+                color: AMINATA_TOKENS.vert,
+              }}
+            >
               <Check className="size-3" />
               Particuliers
-            </Badge>
+            </span>
           </div>
-          {ads.map((ad) => (
-            <QuartierAdCard key={ad.id} ad={ad} />
+
+          {/* Cartes — cascade animation via animation-delay */}
+          {ads.map((ad, idx) => (
+            <QuartierAdCard key={ad.id} ad={ad} index={idx} />
           ))}
         </>
       )}
@@ -6645,10 +7030,15 @@ function QuartierAdsView({ plate }: { plate: CityPlate }) {
   )
 }
 
-function QuartierAdCard({ ad }: { ad: QuartierAd }) {
+function QuartierAdCard({ ad, index = 0 }: { ad: QuartierAd; index?: number }) {
   const color = quartierAdTypeColor(ad.type)
+  const borderGradient = quartierAdBorderGradient(ad.type)
   const typeLabel =
     ad.type === 'vente' ? 'VENTE' : ad.type === 'don' ? 'DON' : 'SERVICE'
+
+  // Icône associée au type (Tag pour Vente, Gift pour Don, Briefcase pour Service)
+  const TypeIcon =
+    ad.type === 'vente' ? Tag : ad.type === 'don' ? Gift : Briefcase
 
   const whatsappUrl = ad.whatsapp
     ? `https://wa.me/${ad.whatsapp.replace(/[^\d]/g, '')}?text=${encodeURIComponent(
@@ -6664,25 +7054,43 @@ function QuartierAdCard({ ad }: { ad: QuartierAd }) {
         ? ad.price
         : 'À débattre'
 
+  // Cascade delay (0 → 0.4s max)
+  const cascadeDelay = `${Math.min(index * 0.07, 0.4)}s`
+
   return (
     <article
-      className="relative rounded-2xl bg-white p-4 shadow-sm"
-      style={{ borderLeft: `4px solid ${color}` }}
+      className="aminata-card-enter group relative overflow-hidden rounded-2xl bg-white p-4 transition-all duration-300 hover:-translate-y-0.5"
+      style={{
+        borderLeft: `4px solid`,
+        borderImageSlice: 1,
+        borderImageSource: borderGradient,
+        boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
+        animationDelay: cascadeDelay,
+      }}
     >
-      {/* Type badge + relative time */}
-      <div className="mb-2 flex items-center gap-2">
+      {/* Liseré gauche dégradé — fallback navigateurs sans border-image :
+          on ajoute aussi un pseudo-élément visuel via inline style sur un div. */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 left-0 w-1"
+        style={{ background: borderGradient }}
+      />
+
+      {/* Top : badge type + temps relatif */}
+      <div className="mb-2 flex items-center justify-between">
         <span
-          className="rounded-md px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
-          style={{ backgroundColor: color, color: '#FFFFFF' }}
+          className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-[0.08em]"
+          style={{ backgroundColor: `${color}15`, color }}
         >
+          <TypeIcon className="size-3" />
           {typeLabel}
         </span>
-        <span className="text-[10px] text-[#1A1A1A]/45">
+        <span className="text-[10px] font-medium" style={{ color: AMINATA_TOKENS.gris }}>
           {relTime(ad.createdAt)}
         </span>
       </div>
 
-      {/* Photo — large, full-width */}
+      {/* Photo — large, full-width rounded */}
       {ad.photoUrl && (
         <img
           src={ad.photoUrl}
@@ -6692,30 +7100,41 @@ function QuartierAdCard({ ad }: { ad: QuartierAd }) {
         />
       )}
 
-      {/* Title */}
-      <h3 className="text-base font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+      {/* Title — bold, Playfair Display */}
+      <h3
+        className="text-base font-bold leading-tight"
+        style={{ ...PLAYFAIR_FONT, color: AMINATA_TOKENS.texte }}
+      >
         {ad.title}
       </h3>
 
-      {/* Description (truncated) */}
+      {/* Description (truncated 3 lines) */}
       {ad.description && (
-        <p className="mt-1 line-clamp-3 text-sm text-[#1A1A1A]/75">
+        <p
+          className="mt-1 line-clamp-3 text-[13px] leading-relaxed"
+          style={{ color: AMINATA_TOKENS.gris }}
+        >
           {ad.description}
         </p>
       )}
 
-      {/* Price (prominent) */}
+      {/* Price (prominent — pill colored by type) */}
       <div
-        className="mt-2 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5"
-        style={{ backgroundColor: `${color}15` }}
+        className="mt-2 inline-flex items-center rounded-lg px-3 py-1.5 text-[15px] font-extrabold"
+        style={{
+          backgroundColor: `${color}12`,
+          color,
+          fontFamily: '"Playfair Display", serif',
+        }}
       >
-        <span className="text-base font-bold" style={{ color }}>
-          {priceDisplay}
-        </span>
+        {priceDisplay}
       </div>
 
       {/* District / distance info */}
-      <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-[#1A1A1A]/55">
+      <div
+        className="mt-2 flex flex-wrap items-center gap-3 text-[11px] font-medium"
+        style={{ color: AMINATA_TOKENS.gris }}
+      >
         {ad.district && (
           <span className="inline-flex items-center gap-1">
             <MapPin className="size-3" />
@@ -6730,25 +7149,37 @@ function QuartierAdCard({ ad }: { ad: QuartierAd }) {
         )}
       </div>
 
-      {/* Boutons d'action */}
-      <div className="mt-3 flex flex-wrap gap-2">
+      {/* Boutons d'action — Appeler (dark) + WhatsApp (green #25D366) */}
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
         <a
           href={`tel:${ad.phone}`}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#00A651] py-2.5 text-sm font-bold text-white transition hover:bg-[#008a44]"
+          className="flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-bold text-white transition-all hover:-translate-y-0.5"
+          style={{
+            backgroundColor: AMINATA_TOKENS.texte,
+            boxShadow: '0 4px 10px rgba(0,0,0,0.18)',
+          }}
         >
           <Phone className="size-4" />
           Appeler
         </a>
-        {whatsappUrl && (
+        {whatsappUrl ? (
           <a
             href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] py-2.5 text-sm font-bold text-white transition hover:bg-[#1da851]"
+            className="flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-bold text-white transition-all hover:-translate-y-0.5"
+            style={{
+              backgroundColor: '#25D366',
+              boxShadow: '0 4px 10px rgba(37,211,102,0.25)',
+            }}
           >
             <MessageCircle className="size-4" />
             WhatsApp
           </a>
+        ) : (
+          // Quand pas de WhatsApp : on garde une seule colonne pleine largeur
+          // pour Appeler (grille sm:grid-cols-2 → on ajoute un spacer invisible)
+          <span aria-hidden className="hidden sm:block" />
         )}
       </div>
     </article>
@@ -6916,9 +7347,9 @@ function QuartierAdForm({
         <div className="grid grid-cols-3 gap-2">
           {(
             [
-              { id: 'vente', label: 'Vente', color: '#FF6B00' },
-              { id: 'don', label: 'Don', color: '#00A651' },
-              { id: 'service', label: 'Service', color: '#0066CC' },
+              { id: 'vente', label: 'Vente', color: AMINATA_TOKENS.rouge },
+              { id: 'don', label: 'Don', color: AMINATA_TOKENS.vert },
+              { id: 'service', label: 'Service', color: AMINATA_TOKENS.bleu },
             ] as const
           ).map((opt) => (
             <button
@@ -7109,18 +7540,38 @@ type School = {
 }
 
 const SCHOOL_TYPES: ReadonlyArray<{ id: string; label: string; color: string }> = [
-  { id: 'all',        label: 'Tous',        color: '#0066CC' },
-  { id: 'creche',     label: 'Crèche',      color: '#FF6B00' },
-  { id: 'primaire',   label: 'Primaire',    color: '#00A651' },
-  { id: 'college',    label: 'Collège',     color: '#0066CC' },
-  { id: 'lycee',      label: 'Lycée',       color: '#6B4C9A' },
-  { id: 'institut',   label: 'Institut',    color: '#8B0000' },
-  { id: 'formation',  label: 'Formation',   color: '#C9A961' },
-  { id: 'repetiteur', label: 'Répétiteur',  color: '#008B8B' },
+  { id: 'all',        label: 'TOUS',         color: AMINATA_TOKENS.bleu },
+  { id: 'primaire',   label: 'PRIMAIRE',     color: AMINATA_TOKENS.vert },
+  { id: 'college',    label: 'COLLÈGE',      color: AMINATA_TOKENS.bleuClair },
+  { id: 'lycee',      label: 'LYCÉE',        color: AMINATA_TOKENS.violet },
+  { id: 'institut',   label: 'INSTITUT',     color: AMINATA_TOKENS.rouge },
+  { id: 'formation',  label: 'FORMATION',    color: AMINATA_TOKENS.jauneDark },
+  { id: 'repetiteur', label: 'RÉPÉTITEUR',   color: AMINATA_TOKENS.vertClair },
+  { id: 'creche',     label: 'CRÈCHE',       color: AMINATA_TOKENS.orange },
 ]
 
+/** Couleur unie associée au type d'établissement. */
 function schoolTypeColor(type: string): string {
-  return SCHOOL_TYPES.find((t) => t.id === type)?.color ?? '#0066CC'
+  const found = SCHOOL_TYPES.find((t) => t.id === type)
+  return found ? found.color : AMINATA_TOKENS.bleu
+}
+
+/** Dégradé vertical (clair→foncé) pour la bordure gauche, selon le type. */
+function schoolTypeBorderGradient(type: string): string {
+  const color = schoolTypeColor(type)
+  // Variante foncée pour le bas du dégradé — on dérive une teinte plus sombre
+  // via une seconde couleur fixe par type pour garder un contraste net.
+  const dark: Record<string, string> = {
+    primaire: '#047857',
+    college: AMINATA_TOKENS.bleu,
+    lycee: '#4A2D6E',
+    institut: '#8B0000',
+    formation: AMINATA_TOKENS.jauneDark,
+    repetiteur: AMINATA_TOKENS.vert,
+    creche: AMINATA_TOKENS.rouge,
+  }
+  const end = dark[type] ?? color
+  return `linear-gradient(180deg, ${color} 0%, ${end} 100%)`
 }
 
 function schoolTypeLabel(type: string): string {
@@ -7184,103 +7635,113 @@ function SchoolsView({ plate }: { plate: CityPlate }) {
     )
   }
 
+  const plateSubtitle = plate.district
+    ? `Plaque #${plate.plateNumber} · ${plate.district}`
+    : `Plaque #${plate.plateNumber}`
+
   return (
-    <div className="space-y-4">
-      {/* Header — blue gradient with graduation cap icon */}
-      <section
-        className="rounded-2xl p-4 text-white shadow-sm"
-        style={{
-          background: `linear-gradient(135deg, ${COLORS.blue} 0%, #004488 100%)`,
-        }}
-      >
-        <div className="mb-2 flex items-center gap-2">
-          <GraduationCap className="size-5 text-white/90" />
-          <h2 className="text-sm font-bold uppercase tracking-wide text-white/95">
-            Écoles &amp; Cours · Autour de vous
-          </h2>
-        </div>
-        <p className="text-xs leading-relaxed text-white/85">
-          Crèches, primaires, collèges, lycées, instituts, centres de formation
-          et répétiteurs. Appelez ou lancez le guidage en un geste.
-        </p>
-      </section>
+    <div
+      className="aminata-screen-enter space-y-4"
+      style={{ ...INTER_FONT, backgroundColor: AMINATA_TOKENS.blanc, color: AMINATA_TOKENS.texte }}
+    >
+      {AMINATA_FONT_LINK}
+      {AMINATA_KEYFRAMES_STYLE}
 
-      {/* Bouton Référencer une école */}
-      <button
+      {/* Header — blue gradient + GraduationCap icon tile (white) */}
+      <AminataModuleHeader
+        gradient={`linear-gradient(135deg, ${AMINATA_TOKENS.bleu} 0%, #1E40AF 100%)`}
+        icon={<GraduationCap className="size-6" style={{ color: AMINATA_TOKENS.bleu }} />}
+        title="Écoles & Cours"
+        subtitle={plateSubtitle}
+      />
+
+      {/* Bannière descriptive */}
+      <AminataBanner
+        gradient={`linear-gradient(135deg, ${AMINATA_TOKENS.bleu} 0%, #1E40AF 100%)`}
+        eyebrow="Écoles & Cours · Autour de vous"
+        text="Crèches, primaires, collèges, lycées, instituts, centres de formation et répétiteurs. Appelez ou lancez le guidage en un geste."
+      />
+
+      {/* Bouton Référencer une école — blue premium #1E3A8A, shadow */}
+      <AminataPrimaryButton
+        gradient={`linear-gradient(135deg, ${AMINATA_TOKENS.bleu} 0%, #1E40AF 100%)`}
+        icon={<Plus className="size-5" />}
+        label="Référencer une école"
         onClick={() => setShowForm(true)}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#0066CC] p-4 text-white shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.98]"
-        style={{ borderRadius: '16px' }}
-      >
-        <Plus className="size-5" />
-        <span className="text-sm font-bold uppercase tracking-wide" style={TITLE_FONT}>
-          Référencer une école
-        </span>
-      </button>
+      />
 
-      {/* Filtres type — chips horizontaux scrollables */}
-      <div className="-mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
-        {SCHOOL_TYPES.map((chip) => {
-          const active = selectedType === chip.id
-          const color = chip.color
-          return (
-            <button
-              key={chip.id}
-              onClick={() => setSelectedType(chip.id)}
-              className={cn(
-                'shrink-0 rounded-full px-3 py-1.5 text-xs font-bold uppercase tracking-wide transition',
-                active
-                  ? 'text-white shadow'
-                  : 'bg-white text-[#1A1A1A]/70 ring-1 ring-[#1A1A1A]/10 hover:ring-[#1A1A1A]/25',
-              )}
-              style={active ? { backgroundColor: color } : undefined}
-            >
-              {chip.label}
-            </button>
-          )
-        })}
+      {/* Filtres type — chips horizontaux scrollables, couleur par type */}
+      <div className="aminata-filters-scroll -mx-4 flex gap-2 overflow-x-auto px-4 pb-1">
+        {SCHOOL_TYPES.map((chip) => (
+          <AminataFilterChip
+            key={chip.id}
+            label={chip.label}
+            active={selectedType === chip.id}
+            color={chip.color}
+            onClick={() => setSelectedType(chip.id)}
+          />
+        ))}
       </div>
 
       {/* Liste */}
       {loading ? (
-        <div className="flex flex-col items-center justify-center gap-3 py-16">
-          <Loader2 className="size-8 animate-spin text-[#0066CC]" />
-          <p className="text-sm text-[#1A1A1A]/55">Chargement des écoles…</p>
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl bg-white py-16 shadow-sm">
+          <Loader2 className="size-8 animate-spin" style={{ color: AMINATA_TOKENS.bleu }} />
+          <p className="text-sm" style={{ color: AMINATA_TOKENS.gris }}>
+            Chargement des écoles…
+          </p>
         </div>
       ) : error ? (
         <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
-          <AlertTriangle className="mx-auto size-10 text-[#E30613]" />
-          <p className="mt-3 text-sm font-semibold text-[#1A1A1A]" style={TITLE_FONT}>
+          <AlertTriangle className="mx-auto size-10" style={{ color: AMINATA_TOKENS.rouge }} />
+          <p className="mt-3 text-sm font-semibold" style={{ ...PLAYFAIR_FONT, color: AMINATA_TOKENS.texte }}>
             {error}
           </p>
-          <p className="mt-1 text-xs text-[#1A1A1A]/55">
+          <p className="mt-1 text-xs" style={{ color: AMINATA_TOKENS.gris }}>
             Réessayez dans quelques instants.
           </p>
         </div>
       ) : schools.length === 0 ? (
+        // Empty state — friendly message with GraduationCap icon
         <div className="rounded-2xl bg-white p-8 text-center shadow-sm">
-          <span className="text-4xl" aria-hidden>
-            🎓
-          </span>
-          <p className="mt-3 text-sm font-semibold text-[#1A1A1A]" style={TITLE_FONT}>
+          <div
+            className="mx-auto flex size-16 items-center justify-center rounded-2xl"
+            style={{ backgroundColor: `${AMINATA_TOKENS.bleu}18` }}
+          >
+            <GraduationCap className="size-8" style={{ color: AMINATA_TOKENS.bleu }} />
+          </div>
+          <p className="mt-3 text-base font-bold" style={{ ...PLAYFAIR_FONT, color: AMINATA_TOKENS.texte }}>
             Aucun établissement pour ce filtre.
           </p>
-          <p className="mt-1 text-xs text-[#1A1A1A]/55">
+          <p className="mt-1 text-xs" style={{ color: AMINATA_TOKENS.gris }}>
             Référencez une école ou un cours dans votre quartier.
           </p>
         </div>
       ) : (
         <>
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-bold uppercase tracking-wide text-[#1A1A1A]/60">
+          {/* Header résultats : nombre + badge "Écoles" */}
+          <div className="flex items-center justify-between px-0.5">
+            <span
+              className="text-[11px] font-extrabold uppercase tracking-[0.12em]"
+              style={{ color: AMINATA_TOKENS.texte }}
+            >
               {schools.length} établissement{schools.length > 1 ? 's' : ''}
-            </h2>
-            <Badge className="bg-[#0066CC]/10 text-[#0066CC]">
-              <Check className="size-3" />
+            </span>
+            <span
+              className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold"
+              style={{
+                backgroundColor: `${AMINATA_TOKENS.bleu}15`,
+                color: AMINATA_TOKENS.bleu,
+              }}
+            >
+              <GraduationCap className="size-3" />
               Écoles
-            </Badge>
+            </span>
           </div>
-          {schools.map((s) => (
-            <SchoolCard key={s.id} school={s} plate={plate} />
+
+          {/* Cartes — cascade animation */}
+          {schools.map((s, idx) => (
+            <SchoolCard key={s.id} school={s} plate={plate} index={idx} />
           ))}
         </>
       )}
@@ -7288,8 +7749,17 @@ function SchoolsView({ plate }: { plate: CityPlate }) {
   )
 }
 
-function SchoolCard({ school, plate }: { school: School; plate: CityPlate }) {
+function SchoolCard({
+  school,
+  plate,
+  index = 0,
+}: {
+  school: School
+  plate: CityPlate
+  index?: number
+}) {
   const color = schoolTypeColor(school.type)
+  const borderGradient = schoolTypeBorderGradient(school.type)
 
   const directionsUrl =
     school.lat != null && school.lng != null
@@ -7304,28 +7774,53 @@ function SchoolCard({ school, plate }: { school: School; plate: CityPlate }) {
 
   return (
     <article
-      className="relative rounded-2xl bg-white p-4 shadow-sm"
-      style={{ borderLeft: `4px solid ${color}` }}
+      className="aminata-card-enter group relative overflow-hidden rounded-2xl bg-white p-4 transition-all duration-300 hover:-translate-y-0.5"
+      style={{
+        borderLeft: `4px solid`,
+        borderImageSlice: 1,
+        borderImageSource: borderGradient,
+        boxShadow: '0 2px 10px rgba(0,0,0,0.06)',
+        animationDelay: `${Math.min(index * 0.07, 0.4)}s`,
+      }}
     >
-      {/* Premium / Verified badges */}
+      {/* Liseré gauche dégradé (fallback visuel pour les navigateurs sans border-image) */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 left-0 w-1"
+        style={{ background: borderGradient }}
+      />
+
+      {/* Premium (gold) / Verified (blue checkmark) badges */}
       {(school.isPremium || school.verified) && (
         <div className="mb-2 flex flex-wrap items-center gap-1.5">
           {school.verified && (
-            <span className="inline-flex items-center gap-0.5 rounded-full bg-[#0066CC]/10 px-1.5 py-0.5 text-[10px] font-bold text-[#0066CC]">
+            <span
+              className="inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-bold"
+              style={{
+                backgroundColor: `${AMINATA_TOKENS.bleuClair}18`,
+                color: AMINATA_TOKENS.bleu,
+              }}
+            >
               <BadgeCheck className="size-3" />
               Vérifié
             </span>
           )}
           {school.isPremium && (
-            <Badge className="bg-[#C9A961]/15 text-[#C9A961]">
-              <Star className="size-3 fill-[#C9A961]" />
+            <span
+              className="inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10px] font-bold"
+              style={{
+                backgroundColor: `${AMINATA_TOKENS.jauneDark}18`,
+                color: AMINATA_TOKENS.jauneDark,
+              }}
+            >
+              <Star className="size-3" style={{ fill: AMINATA_TOKENS.jauneDark }} />
               Premium
-            </Badge>
+            </span>
           )}
         </div>
       )}
 
-      {/* Photo — prominent, full-width */}
+      {/* Photo — prominent, full-width rounded */}
       {school.photoUrl && (
         <img
           src={school.photoUrl}
@@ -7336,13 +7831,16 @@ function SchoolCard({ school, plate }: { school: School; plate: CityPlate }) {
       )}
 
       {/* Name + type badge */}
-      <div className="flex flex-wrap items-center gap-1.5">
-        <h3 className="text-base font-bold text-[#1A1A1A]" style={TITLE_FONT}>
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <h3
+          className="text-base font-bold leading-tight"
+          style={{ ...PLAYFAIR_FONT, color: AMINATA_TOKENS.texte }}
+        >
           {school.name}
         </h3>
         <span
-          className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide"
-          style={{ backgroundColor: `${color}20`, color }}
+          className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-extrabold uppercase tracking-[0.08em]"
+          style={{ backgroundColor: `${color}18`, color }}
         >
           {schoolTypeLabel(school.type)}
         </span>
@@ -7350,28 +7848,38 @@ function SchoolCard({ school, plate }: { school: School; plate: CityPlate }) {
 
       {/* Levels */}
       {school.levels && (
-        <p className="mt-1 text-sm text-[#1A1A1A]/70">{school.levels}</p>
-      )}
-
-      {/* Hours */}
-      {school.hours && (
-        <p className="mt-1 inline-flex items-center gap-1 text-xs text-[#1A1A1A]/55">
-          <Clock className="size-3" />
-          {school.hours}
+        <p className="mt-1 text-[13px] font-semibold" style={{ color: AMINATA_TOKENS.texte }}>
+          {school.levels}
         </p>
       )}
 
-      {/* Address */}
-      {school.address && (
-        <p className="mt-1 inline-flex items-center gap-1 text-xs text-[#1A1A1A]/55">
-          <MapPin className="size-3" />
-          {school.address}
-        </p>
+      {/* Hours + Address — compact meta row */}
+      {(school.hours || school.address) && (
+        <div
+          className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[11px] font-medium"
+          style={{ color: AMINATA_TOKENS.gris }}
+        >
+          {school.hours && (
+            <span className="inline-flex items-center gap-1">
+              <Clock className="size-3" />
+              {school.hours}
+            </span>
+          )}
+          {school.address && (
+            <span className="inline-flex items-center gap-1">
+              <MapPin className="size-3" />
+              {school.address}
+            </span>
+          )}
+        </div>
       )}
 
-      {/* Description */}
+      {/* Description (truncated 2 lines) */}
       {school.description && (
-        <p className="mt-2 line-clamp-2 text-xs text-[#1A1A1A]/65">
+        <p
+          className="mt-2 line-clamp-2 text-[12px] leading-relaxed"
+          style={{ color: AMINATA_TOKENS.gris }}
+        >
           {school.description}
         </p>
       )}
@@ -7379,60 +7887,84 @@ function SchoolCard({ school, plate }: { school: School; plate: CityPlate }) {
       {/* Course price (for repetiteur / formation) */}
       {school.price && (
         <div
-          className="mt-2 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5"
-          style={{ backgroundColor: `${color}15` }}
+          className="mt-2 inline-flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[14px] font-extrabold"
+          style={{
+            backgroundColor: `${color}12`,
+            color,
+            fontFamily: '"Playfair Display", serif',
+          }}
         >
-          <span className="text-sm font-bold" style={{ color }}>
-            {school.price}
-          </span>
+          {school.price}
         </div>
       )}
 
       {/* Distance */}
       {school.distance != null && (
-        <p className="mt-2 inline-flex items-center gap-1 text-xs text-[#1A1A1A]/55">
+        <p
+          className="mt-2 inline-flex items-center gap-1 text-[11px]"
+          style={{ color: AMINATA_TOKENS.gris }}
+        >
           <Navigation className="size-3" />
           {Math.round(school.distance)} m
         </p>
       )}
 
-      {/* Boutons d'action */}
-      <div className="mt-3 flex flex-wrap gap-2">
+      {/* Boutons d'action — 3 colonnes : Appeler (bleu) / WhatsApp (vert) / Y aller (blanc bordé) */}
+      <div className="mt-3 grid gap-2 sm:grid-cols-3">
         <a
           href={`tel:${school.phone}`}
-          className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#0066CC] py-2.5 text-sm font-bold text-white transition hover:bg-[#0055aa]"
+          className="flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-[13px] font-bold text-white transition-all hover:-translate-y-0.5"
+          style={{
+            backgroundColor: AMINATA_TOKENS.bleuClair,
+            boxShadow: '0 4px 10px rgba(59,130,246,0.25)',
+          }}
         >
           <Phone className="size-4" />
           Appeler
         </a>
-        {whatsappUrl && (
+        {whatsappUrl ? (
           <a
             href={whatsappUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] py-2.5 text-sm font-bold text-white transition hover:bg-[#1da851]"
+            className="flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-[13px] font-bold text-white transition-all hover:-translate-y-0.5"
+            style={{
+              backgroundColor: '#25D366',
+              boxShadow: '0 4px 10px rgba(37,211,102,0.25)',
+            }}
           >
             <MessageCircle className="size-4" />
             WhatsApp
           </a>
+        ) : (
+          <span aria-hidden className="hidden sm:block" />
         )}
-        {directionsUrl && (
+        {directionsUrl ? (
           <a
             href={directionsUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl border border-[#0066CC]/30 py-2.5 text-sm font-bold text-[#0066CC] transition hover:bg-[#0066CC]/5"
+            className="flex items-center justify-center gap-1.5 rounded-xl bg-white py-2.5 text-[13px] font-bold transition-all hover:-translate-y-0.5"
+            style={{
+              color: AMINATA_TOKENS.bleu,
+              border: `2px solid ${AMINATA_TOKENS.bleu}`,
+            }}
           >
             <Navigation className="size-4" />
             Y aller
           </a>
+        ) : (
+          <span aria-hidden className="hidden sm:block" />
         )}
       </div>
 
       {/* For école-type plates: link to Check-in école */}
       {plate.plateType === 'ecole' && (
-        <div className="mt-3 rounded-xl bg-[#1B2A8C]/5 px-3 py-2 text-center">
-          <p className="text-xs text-[#1B2A8C]">
+        <div
+          className="mt-3 rounded-xl px-3 py-2 text-center"
+          style={{ backgroundColor: `${AMINATA_TOKENS.bleu}08` }}
+        >
+          <p className="text-xs" style={{ color: AMINATA_TOKENS.bleu }}>
             <DoorOpen className="mr-1 inline size-3" />
             Pointage école disponible sur cette plaque
           </p>
