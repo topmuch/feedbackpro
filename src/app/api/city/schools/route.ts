@@ -27,9 +27,13 @@ export async function GET(req: NextRequest) {
   const district = url.searchParams.get('district')
 
   const where: { type?: string; status?: string; district?: string; active?: boolean } = {
-    status: 'approved',
     active: true,
   }
+  // Par défaut on montre toutes les écoles actives (y compris pending
+  // pour que le citoyen voie les établissements même en cours de validation).
+  // Si ?status=approved est explicitement demandé, on filtre.
+  const statusFilter = url.searchParams.get('status')
+  if (statusFilter === 'approved') where.status = 'approved'
   if (type && VALID_TYPES.has(type)) where.type = type
   if (district) where.district = district
 
