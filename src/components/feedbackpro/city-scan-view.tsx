@@ -70,6 +70,14 @@ import {
   Plus,
   GraduationCap,
   Luggage,
+  Minus,
+  ShoppingBag,
+  Utensils,
+  Moon,
+  Sun,
+  ChefHat,
+  Flame,
+  CheckCircle2,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -2614,6 +2622,1156 @@ function OrientationView({
 }
 
 // ============================================================
+// 3b. RestaurantOrderView — expérience de commande premium
+//     Convertit un commerce "Restaurant" premium en carte de menu
+//     immersive : hero, onglets catégories sticky, cartes plats avec
+//     photo / prix / badges, tiroir panier, notes par plat, suivi de
+//     commande, et envoi WhatsApp automatique au restaurateur.
+// ============================================================
+
+/** Palette Le Teranga — cream / brique / gold / charcoal / sage / terracotta. */
+const RO_COLORS = {
+  cream: '#FAF6F0',
+  creamDark: '#F0E9DE',
+  brique: '#9A3412',
+  briqueDark: '#7C2D12',
+  gold: '#C9A961',
+  goldLight: '#E5D4A8',
+  charcoal: '#1F2937',
+  sage: '#2D8B6F',
+  terracotta: '#C4785A',
+} as const
+
+const RO_TITLE_FONT: React.CSSProperties = {
+  fontFamily: '"Playfair Display", Georgia, serif',
+}
+
+/** Plat enrichi pour le rendu — dérivé du menu brut du commerce. */
+type RoMenuItem = {
+  id: string
+  cat: 'Entrées' | 'Plats' | 'Desserts' | 'Boissons'
+  name: string
+  desc: string
+  price: number
+  badge: 'pop' | 'veg' | 'chef' | null
+  allerg: string
+  photoUrl?: string | null
+}
+
+/** Ligne panier persistée en localStorage. */
+type RoCartLine = {
+  id: string
+  name: string
+  price: number
+  photoUrl?: string | null
+  qty: number
+  note?: string
+}
+
+const RO_CATS = ['Tout', 'Entrées', 'Plats', 'Desserts', 'Boissons'] as const
+const RO_SERVICE_RATE = 0.1 // service 10 % (sur la commande)
+
+/**
+ * Parse le menu brut (string JSON ou array) en une liste typée
+ * RoMenuItem. Catégorisation, badges et allergènes sont déduits
+ * heuristiquement depuis le nom du plat quand l'API ne les fournit pas.
+ */
+function parseRestaurantMenu(
+  raw: CityBusiness['menu'],
+): RoMenuItem[] {
+  if (!raw) return []
+  let arr: unknown = raw
+  if (typeof raw === 'string') {
+    try {
+      arr = JSON.parse(raw)
+    } catch {
+      return []
+    }
+  }
+  if (!Array.isArray(arr)) return []
+
+  const lower = (s: string) => s.toLowerCase()
+  return arr
+    .filter((it): it is Record<string, unknown> => typeof it === 'object' && it !== null && 'name' in it)
+    .map((it, idx): RoMenuItem => {
+      const name = String(it.name ?? '')
+      const n = lower(name)
+      // Prix — accepte number, "2500", "2500 FCFA", "2 500 FCFA"
+      let price = 0
+      const rawPrice = it.price
+      if (typeof rawPrice === 'number') {
+        price = rawPrice
+      } else if (typeof rawPrice === 'string') {
+        const m = rawPrice.replace(/[^\d]/g, '')
+        if (m) price = parseInt(m, 10)
+      }
+      // Catégorie heuristique
+      let cat: RoMenuItem['cat'] = 'Plats'
+      if (/(jus|bissap|gingembre|eau|boisson|soda|café|cafe|thé|the|bière|bierre|vin)/.test(n)) cat = 'Boissons'
+      else if (/(salade|accras|beignet|soupe|entrée|entree|starter|tapas|brick|pastel)/.test(n)) cat = 'Entrées'
+      else if (/(dessert|lakh|ananas|fruit|glace|gateau|gâteau|banana|banane|sucré|sucre|yaourt|caramel|nougat)/.test(n)) cat = 'Desserts'
+      // Badge heuristique
+      let badge: RoMenuItem['badge'] = null
+      if (/(salade|papaye|végé|vege|vegetarien|végétarien|lentille|jus|bissap|gingembre)/.test(n)) badge = 'veg'
+      else if (/(chef|signature|spécial|special|royal|teranga)/.test(n)) badge = 'chef'
+      else if (idx === 0 || (idx === 1 && n.includes('thieb'))) badge = 'pop'
+      // Allergènes heuristiques
+      const allergs: string[] = []
+      if (/(poisson|morue|thiof|crevette|crevette|sardine|merou)/.test(n)) allergs.push('Poisson')
+      if (/(arachide|mafe|mafé|domoda|cacahuète|cacahuete|ngatha|arachide)/.test(n)) allergs.push('Arachide')
+      if (/(accras|beignet|gateau|gâteau|lakh|pain|farine|blé|ble)/.test(n)) allergs.push('Gluten')
+      if (/(lakh|lait|yaourt|creme|crème|fromage)/.test(n)) allergs.push('Lait')
+      const allerg = allergs.length ? allergs.join(', ') : '—'
+      // Description auto-courte
+      const desc = it.desc
+        ? String(it.desc).slice(0, 120)
+        : cat === 'Boissons'
+          ? 'Boisson fraîche maison, servie bien fraîche.'
+          : cat === 'Desserts'
+            ? 'Douceur de fin de repas, faite maison.'
+            : cat === 'Entrées'
+              ? 'Entrée légère pour ouvrir l\'appétit.'
+              : 'Plat signature préparé minute par notre chef.'
+      return {
+        id: `item-${idx}-${name.replace(/\s+/g, '-').toLowerCase().slice(0, 24)}`,
+        cat,
+        name,
+        desc,
+        price,
+        badge,
+        allerg,
+        photoUrl: (it.photoUrl as string | null | undefined) ?? null,
+      }
+    })
+}
+
+function RestaurantOrderView({
+  business,
+  plate,
+  onClose,
+}: {
+  business: CityBusiness
+  plate: CityPlate
+  onClose: () => void
+}) {
+  // --- Menu dérivé (stable) ---
+  const menu = useMemo(() => parseRestaurantMenu(business.menu), [business.menu])
+  const menuById = useMemo(() => {
+    const m: Record<string, RoMenuItem> = {}
+    for (const it of menu) m[it.id] = it
+    return m
+  }, [menu])
+
+  // --- État persistant ---
+  const lsKey = `cart_${business.name}`
+  const [cart, setCart] = useState<RoCartLine[]>([])
+  const [cartOpen, setCartOpen] = useState(false)
+  const [orderMode, setOrderMode] = useState<'sur_place' | 'emporter'>('sur_place')
+  const [darkMode, setDarkMode] = useState(false)
+  const [activeCat, setActiveCat] = useState<string>('Tout')
+  const [orderRef, setOrderRef] = useState<string | null>(null)
+  const [orderStep, setOrderStep] = useState<0 | 1 | 2 | 3>(0)
+  const [noteTarget, setNoteTarget] = useState<RoCartLine | null>(null)
+  const [noteDraft, setNoteDraft] = useState('')
+  const [cartBump, setCartBump] = useState(false)
+  const [flyItems, setFlyItems] = useState<
+    Array<{ id: string; src: string; fromX: number; fromY: number; toX: number; toY: number }>
+  >([])
+  const cartFabRef = useRef<HTMLDivElement>(null)
+  const trackingTimers = useRef<Array<ReturnType<typeof setTimeout>>>([])
+
+  // --- Hydratation localStorage ---
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(lsKey)
+      if (raw) {
+        const p = JSON.parse(raw)
+        if (p && Array.isArray(p.cart)) setCart(p.cart)
+        if (p && (p.orderMode === 'sur_place' || p.orderMode === 'emporter')) setOrderMode(p.orderMode)
+      }
+      const t = localStorage.getItem(`${lsKey}_theme`)
+      if (t === 'dark') setDarkMode(true)
+    } catch {
+      /* ignore */
+    }
+  }, [lsKey])
+
+  // --- Persistance localStorage ---
+  useEffect(() => {
+    try {
+      localStorage.setItem(lsKey, JSON.stringify({ cart, orderMode }))
+    } catch {
+      /* ignore */
+    }
+  }, [cart, orderMode, lsKey])
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(`${lsKey}_theme`, darkMode ? 'dark' : 'light')
+    } catch {
+      /* ignore */
+    }
+  }, [darkMode, lsKey])
+
+  // --- Cleanup des timers de tracking au démontage ---
+  useEffect(() => {
+    return () => {
+      trackingTimers.current.forEach(clearTimeout)
+      trackingTimers.current = []
+    }
+  }, [])
+
+  // --- Totaux ---
+  const totals = useMemo(() => {
+    const count = cart.reduce((s, l) => s + l.qty, 0)
+    const sub = cart.reduce((s, l) => s + l.price * l.qty, 0)
+    const service = Math.round(sub * RO_SERVICE_RATE)
+    return { count, sub, service, total: sub + service }
+  }, [cart])
+
+  // --- Sections affichées selon l'onglet actif ---
+  const visibleCats = useMemo(() => {
+    if (activeCat === 'Tout') return ['Entrées', 'Plats', 'Desserts', 'Boissons'] as const
+    return [activeCat as 'Entrées' | 'Plats' | 'Desserts' | 'Boissons']
+  }, [activeCat])
+
+  const fmt = (n: number) => `${n.toLocaleString('fr-FR')} FCFA`
+
+  // --- Couleurs dépendant du thème ---
+  const themeVars = darkMode
+    ? { cream: '#0F0F0F', creamDark: '#1A1A1A', charcoal: '#F5F5F0' }
+    : { cream: RO_COLORS.cream, creamDark: RO_COLORS.creamDark, charcoal: RO_COLORS.charcoal }
+
+  // --- Helpers panier ---
+  const findLine = (id: string) => cart.find((l) => l.id === id)
+
+  const addToCart = (item: RoMenuItem, e: React.MouseEvent) => {
+    setCart((prev) => {
+      const existing = prev.find((l) => l.id === item.id)
+      if (existing) {
+        return prev.map((l) => (l.id === item.id ? { ...l, qty: l.qty + 1 } : l))
+      }
+      return [
+        ...prev,
+        { id: item.id, name: item.name, price: item.price, photoUrl: item.photoUrl ?? null, qty: 1 },
+      ]
+    })
+    // bump animation
+    setCartBump(false)
+    requestAnimationFrame(() => setCartBump(true))
+    // fly-to-cart animation
+    const btn = e.currentTarget as HTMLElement
+    const start = btn.getBoundingClientRect()
+    const fab = cartFabRef.current
+    if (fab && item.photoUrl) {
+      const end = fab.getBoundingClientRect()
+      const flyId = `fly-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      setFlyItems((prev) => [
+        ...prev,
+        {
+          id: flyId,
+          src: item.photoUrl,
+          fromX: start.left + start.width / 2 - 20,
+          fromY: start.top + start.height / 2 - 20,
+          toX: end.left + end.width / 2 - 20,
+          toY: end.top + 10,
+        },
+      ])
+      setTimeout(() => {
+        setFlyItems((prev) => prev.filter((f) => f.id !== flyId))
+      }, 700)
+    }
+  }
+
+  const changeQty = (id: string, delta: number) => {
+    setCart((prev) => {
+      const existing = prev.find((l) => l.id === id)
+      if (!existing) return prev
+      const nextQty = existing.qty + delta
+      if (nextQty <= 0) return prev.filter((l) => l.id !== id)
+      return prev.map((l) => (l.id === id ? { ...l, qty: nextQty } : l))
+    })
+  }
+
+  // --- Notes ---
+  const openNote = (line: RoCartLine) => {
+    setNoteTarget(line)
+    setNoteDraft(line.note ?? '')
+  }
+  const closeNote = () => {
+    setNoteTarget(null)
+    setNoteDraft('')
+  }
+  const saveNote = () => {
+    if (!noteTarget) return
+    const trimmed = noteDraft.trim()
+    setCart((prev) =>
+      prev.map((l) => (l.id === noteTarget.id ? { ...l, note: trimmed || undefined } : l)),
+    )
+    closeNote()
+  }
+
+  // --- Commande ---
+  const buildWhatsAppUrl = (ref: string) => {
+    const phone = (business.whatsapp ?? business.phone ?? '').replace(/[^\d]/g, '')
+    if (!phone) return null
+    const lines: string[] = []
+    lines.push(`Bonjour ${business.name}, nouvelle commande ${ref}:`)
+    for (const l of cart) {
+      const notePart = l.note ? ` (${l.note})` : ''
+      lines.push(`- ${l.qty}x ${l.name}${notePart} (${fmt(l.price)}) = ${fmt(l.price * l.qty)}`)
+    }
+    lines.push(`Sous-total: ${fmt(totals.sub)}`)
+    lines.push(`Service (10%): ${fmt(totals.service)}`)
+    lines.push(`Total: ${fmt(totals.total)}`)
+    lines.push(`Mode: ${orderMode === 'sur_place' ? 'Sur place' : 'À emporter'}`)
+    lines.push(`Plaque: ${plate.plateNumber} - ${plate.district ?? plate.label}`)
+    return `https://wa.me/${phone}?text=${encodeURIComponent(lines.join('\n'))}`
+  }
+
+  const placeOrder = () => {
+    if (cart.length === 0) return
+    const ref = `CMD-${Math.floor(1000 + Math.random() * 9000)}`
+    setOrderRef(ref)
+    setOrderStep(1)
+    setCartOpen(false)
+    // Vider le panier (la commande est partie)
+    setCart([])
+    // Ouvrir WhatsApp (peut être bloqué — fallback manuel via bouton)
+    const url = buildWhatsAppUrl(ref)
+    if (url) {
+      try {
+        window.open(url, '_blank', 'noopener,noreferrer')
+      } catch {
+        /* ignore — l'utilisateur peut cliquer le bouton manuel */
+      }
+    }
+    // Simulation de suivi (en prod : WebSocket / polling API)
+    trackingTimers.current.forEach(clearTimeout)
+    trackingTimers.current = []
+    trackingTimers.current.push(setTimeout(() => setOrderStep(2), 4000))
+    trackingTimers.current.push(setTimeout(() => setOrderStep(3), 9000))
+  }
+
+  const closeTracking = () => {
+    setOrderRef(null)
+    setOrderStep(0)
+    trackingTimers.current.forEach(clearTimeout)
+    trackingTimers.current = []
+  }
+
+  // --- Backgrounds du hero ---
+  const heroBg =
+    business.photoUrl ||
+    'https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=800&q=80'
+
+  const plaqueLabel = `Plaque ${plate.plateNumber} · ${plate.district ?? plate.label}`
+
+  // --- Render ---
+  return (
+    <div
+      className="fixed inset-0 z-[60] flex flex-col overflow-y-auto"
+      style={{
+        backgroundColor: themeVars.cream,
+        color: themeVars.charcoal,
+        fontFamily: '"Inter", system-ui, sans-serif',
+        transition: 'background 0.5s ease, color 0.5s ease',
+      }}
+    >
+      {/* Polices Playfair Display + Inter */}
+      <link
+        rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;0,700;1,400;1,500&family=Inter:wght@300;400;500;600;700;800&display=swap"
+      />
+      {/* Keyframes locales (fly-to-cart + pulse + scaleIn + popIn + bump) */}
+      <style>{`
+        @keyframes roFlyToCart {
+          0%   { left: var(--from-x); top: var(--from-y); transform: scale(1); opacity: 1; }
+          100% { left: var(--to-x);  top: var(--to-y);  transform: scale(0.3); opacity: 0; }
+        }
+        @keyframes roPulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+        @keyframes roScaleIn { from{transform:scale(0);opacity:0} to{transform:scale(1);opacity:1} }
+        @keyframes roPopIn { from{transform:scale(0.9);opacity:0} to{transform:scale(1);opacity:1} }
+        @keyframes roBump { 0%{transform:scale(1)} 50%{transform:scale(1.35)} 100%{transform:scale(1)} }
+        .ro-scroll::-webkit-scrollbar { display: none; }
+        .ro-scroll { scrollbar-width: none; }
+      `}</style>
+
+      {/* ============ HERO ============ */}
+      <header
+        className="relative overflow-hidden"
+        style={{ height: 240, flexShrink: 0 }}
+      >
+        <img
+          src={heroBg}
+          alt={business.name}
+          className="h-full w-full object-cover"
+          style={{ filter: 'brightness(0.7)' }}
+        />
+        <div
+          className="absolute inset-0 flex flex-col justify-between"
+          style={{
+            background:
+              'linear-gradient(180deg, rgba(154,52,18,0.3) 0%, rgba(31,41,55,0.85) 100%)',
+            padding: '1.2rem 1.5rem',
+          }}
+        >
+          {/* Top row */}
+          <div className="flex items-start justify-between">
+            <div
+              className="flex items-center gap-2 rounded-2xl px-3 py-2"
+              style={{
+                background: 'rgba(255,255,255,0.15)',
+                backdropFilter: 'blur(15px)',
+                border: '1px solid rgba(201,169,97,0.5)',
+                color: 'white',
+              }}
+            >
+              <button
+                onClick={onClose}
+                className="flex h-7 w-7 items-center justify-center rounded-full"
+                style={{ background: 'rgba(255,255,255,0.2)' }}
+                aria-label="Retour aux commerces"
+              >
+                <ArrowLeft className="size-4" />
+              </button>
+              <div>
+                <div
+                  className="leading-none"
+                  style={{ ...RO_TITLE_FONT, fontSize: '1.1rem', fontWeight: 700, color: RO_COLORS.gold }}
+                >
+                  {plate.plateNumber}
+                </div>
+                <div
+                  className="leading-none"
+                  style={{ fontSize: '0.6rem', letterSpacing: '0.15em', textTransform: 'uppercase', opacity: 0.85 }}
+                >
+                  {plate.district ?? plate.label}
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setDarkMode((v) => !v)}
+              className="flex h-10 w-10 items-center justify-center rounded-full text-white transition-all hover:rotate-12"
+              style={{
+                background: 'rgba(255,255,255,0.15)',
+                backdropFilter: 'blur(15px)',
+                border: '1px solid rgba(255,255,255,0.25)',
+              }}
+              aria-label="Changer de thème"
+            >
+              {darkMode ? <Sun className="size-4" /> : <Moon className="size-4" />}
+            </button>
+          </div>
+
+          {/* Bottom row : name + tagline + mode toggle */}
+          <div className="text-white">
+            <h1
+              style={{ ...RO_TITLE_FONT, fontSize: '1.9rem', fontWeight: 700, textShadow: '0 2px 10px rgba(0,0,0,0.3)', marginBottom: '0.2rem' }}
+            >
+              {business.name}
+            </h1>
+            <p style={{ fontSize: '0.85rem', fontStyle: 'italic', opacity: 0.9 }}>
+              {business.trade || business.description || 'Cuisine locale · préparée minute'}
+            </p>
+
+            <div className="mt-3 flex flex-wrap items-center gap-2">
+              {/* Mode toggle Sur place / À emporter */}
+              <div
+                className="inline-flex rounded-full p-0.5"
+                style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(15px)' }}
+              >
+                <button
+                  onClick={() => setOrderMode('sur_place')}
+                  className="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition-all"
+                  style={{
+                    background: orderMode === 'sur_place' ? RO_COLORS.gold : 'transparent',
+                    color: orderMode === 'sur_place' ? '#1F2937' : 'white',
+                  }}
+                >
+                  <Utensils className="size-3" />
+                  Sur place
+                </button>
+                <button
+                  onClick={() => setOrderMode('emporter')}
+                  className="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition-all"
+                  style={{
+                    background: orderMode === 'emporter' ? RO_COLORS.gold : 'transparent',
+                    color: orderMode === 'emporter' ? '#1F2937' : 'white',
+                  }}
+                >
+                  <ShoppingBag className="size-3" />
+                  À emporter
+                </button>
+              </div>
+
+              {/* Statut ouvert */}
+              <div
+                className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[0.72rem] font-bold"
+                style={{
+                  background: 'rgba(45,139,111,0.3)',
+                  border: '1px solid rgba(45,139,111,0.5)',
+                }}
+              >
+                <span
+                  className="inline-block size-1.5 rounded-full"
+                  style={{ background: '#4ADE80', animation: 'roPulse 2s infinite' }}
+                />
+                Ouvert · Service en cours
+              </div>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* ============ ONGLETS CATÉGORIES STICKY ============ */}
+      <nav
+        className="sticky top-0 z-40 flex gap-2 overflow-x-auto px-4 py-3.5"
+        style={{
+          background: themeVars.cream,
+          borderBottom: '1px solid rgba(154,52,18,0.1)',
+        }}
+      >
+        {RO_CATS.map((c) => {
+          const active = activeCat === c
+          const count =
+            c === 'Tout'
+              ? menu.length
+              : menu.filter((m) => m.cat === c).length
+          return (
+            <button
+              key={c}
+              onClick={() => setActiveCat(c)}
+              className="shrink-0 rounded-full px-4 py-2 text-xs font-bold transition-all"
+              style={{
+                background: active ? RO_COLORS.brique : themeVars.creamDark,
+                color: active ? 'white' : themeVars.charcoal,
+                border: `1.5px solid ${active ? RO_COLORS.brique : 'transparent'}`,
+                boxShadow: active ? '0 4px 12px rgba(154,52,18,0.3)' : 'none',
+              }}
+            >
+              {c} <span style={{ opacity: 0.7 }}>{count}</span>
+            </button>
+          )
+        })}
+      </nav>
+
+      {/* ============ MENU ============ */}
+      <main className="mx-auto w-full max-w-[560px] flex-1 px-4 pb-32 pt-4">
+        {menu.length === 0 ? (
+          <div className="rounded-2xl p-8 text-center" style={{ background: themeVars.creamDark }}>
+            <Utensils className="mx-auto size-10" style={{ opacity: 0.3 }} />
+            <p className="mt-3 text-sm font-semibold" style={RO_TITLE_FONT}>
+              Menu indisponible
+            </p>
+            <p className="mt-1 text-xs" style={{ opacity: 0.6 }}>
+              Ce restaurant n'a pas encore publié son menu. Contactez-le directement.
+            </p>
+          </div>
+        ) : (
+          visibleCats.map((cat) => {
+            const dishes = menu.filter((m) => m.cat === cat)
+            if (!dishes.length) return null
+            return (
+              <section key={cat} className="mb-6">
+                <div className="mb-3 flex items-baseline gap-2">
+                  <h2 style={{ ...RO_TITLE_FONT, fontSize: '1.3rem', fontWeight: 700, color: themeVars.charcoal }}>
+                    {cat}
+                  </h2>
+                  <span className="text-xs font-semibold" style={{ color: RO_COLORS.terracotta }}>
+                    {dishes.length} plat{dishes.length > 1 ? 's' : ''}
+                  </span>
+                </div>
+                <div className="space-y-3">
+                  {dishes.map((d) => (
+                    <DishCard
+                      key={d.id}
+                      item={d}
+                      line={findLine(d.id)}
+                      themeVars={themeVars}
+                      onAdd={(e) => addToCart(d, e)}
+                      onQty={(delta) => changeQty(d.id, delta)}
+                    />
+                  ))}
+                </div>
+              </section>
+            )
+          })
+        )}
+      </main>
+
+      {/* ============ PANIER FLOTTANT ============ */}
+      <div
+        ref={cartFabRef}
+        onClick={() => setCartOpen(true)}
+        className="fixed bottom-4 left-4 right-4 z-50 mx-auto flex max-w-[560px] cursor-pointer items-center justify-between rounded-2xl px-5 py-3.5"
+        style={{
+          background: darkMode ? RO_COLORS.gold : RO_COLORS.charcoal,
+          color: darkMode ? '#0F0F0F' : RO_COLORS.cream,
+          boxShadow: '0 15px 40px rgba(31,41,55,0.4)',
+          border: '1px solid rgba(201,169,97,0.3)',
+          transform: totals.count > 0 ? 'translateY(0)' : 'translateY(140%)',
+          transition: 'transform 0.4s cubic-bezier(0.4,0,0.2,1)',
+          pointerEvents: totals.count > 0 ? 'auto' : 'none',
+        }}
+      >
+        <div className="flex items-center gap-3">
+          <div
+            className="relative flex h-11 w-11 items-center justify-center rounded-xl"
+            style={{ background: darkMode ? 'rgba(0,0,0,0.15)' : 'rgba(201,169,97,0.2)' }}
+          >
+            <ShoppingBag className="size-5" />
+            <span
+              key={cartBump ? 'bump-on' : 'bump-off'}
+              className="absolute -right-1.5 -top-1.5 flex h-5 min-w-[22px] items-center justify-center rounded-full px-1 text-[0.7rem] font-extrabold"
+              style={{
+                background: RO_COLORS.brique,
+                color: 'white',
+                border: `2px solid ${darkMode ? RO_COLORS.gold : RO_COLORS.charcoal}`,
+                animation: cartBump ? 'roBump 0.3s ease' : 'none',
+              }}
+            >
+              {totals.count}
+            </span>
+          </div>
+          <div>
+            <div className="text-sm font-bold">Voir le panier</div>
+            <div className="text-xs" style={{ opacity: 0.7 }}>
+              {totals.count} article{totals.count > 1 ? 's' : ''} ·{' '}
+              {orderMode === 'sur_place' ? 'Sur place' : 'À emporter'}
+            </div>
+          </div>
+        </div>
+        <div style={{ ...RO_TITLE_FONT, fontSize: '1.3rem', fontWeight: 700, color: darkMode ? '#0F0F0F' : RO_COLORS.gold }}>
+          {fmt(totals.total)}
+        </div>
+      </div>
+
+      {/* ============ BACKDROP PANIER ============ */}
+      <div
+        onClick={() => setCartOpen(false)}
+        className="fixed inset-0 z-[60]"
+        style={{
+          background: 'rgba(0,0,0,0.5)',
+          backdropFilter: 'blur(4px)',
+          opacity: cartOpen ? 1 : 0,
+          pointerEvents: cartOpen ? 'auto' : 'none',
+          transition: 'opacity 0.3s ease',
+        }}
+      />
+
+      {/* ============ TIROIR PANIER ============ */}
+      <div
+        className="fixed bottom-0 left-0 right-0 z-[70] mx-auto flex max-h-[85vh] flex-col"
+        style={{
+          maxWidth: 560,
+          background: themeVars.cream,
+          borderRadius: '28px 28px 0 0',
+          boxShadow: '0 -10px 40px rgba(0,0,0,0.2)',
+          transform: cartOpen ? 'translateY(0)' : 'translateY(100%)',
+          transition: 'transform 0.4s cubic-bezier(0.4,0,0.2,1)',
+        }}
+      >
+        <div
+          className="mx-auto mt-3.5 mb-1 h-1.5 w-11 rounded"
+          style={{ background: 'rgba(154,52,18,0.3)' }}
+        />
+        <div
+          className="flex items-center justify-between px-6 pb-4 pt-2"
+          style={{ borderBottom: '1px solid rgba(154,52,18,0.1)' }}
+        >
+          <h3 style={{ ...RO_TITLE_FONT, fontSize: '1.3rem', fontWeight: 700, color: themeVars.charcoal }}>
+            Votre commande
+          </h3>
+          <button
+            onClick={() => setCartOpen(false)}
+            className="flex h-9 w-9 items-center justify-center rounded-full transition-all hover:bg-[#9A3412] hover:text-white"
+            style={{ background: themeVars.creamDark, color: themeVars.charcoal }}
+            aria-label="Fermer le panier"
+          >
+            <X className="size-5" />
+          </button>
+        </div>
+
+        <div className="ro-scroll flex-1 overflow-y-auto px-6 py-3">
+          {totals.count === 0 ? (
+            <div className="py-12 text-center" style={{ color: themeVars.charcoal, opacity: 0.5 }}>
+              <ShoppingBag className="mx-auto size-14" style={{ opacity: 0.4 }} />
+              <p className="mt-3 text-sm">
+                Votre panier est vide.
+                <br />
+                Ajoutez un plat depuis le menu !
+              </p>
+            </div>
+          ) : (
+            cart.map((l) => (
+              <div
+                key={l.id}
+                className="flex items-center gap-3.5 border-b py-3"
+                style={{ borderBottom: '1px solid rgba(154,52,18,0.08)' }}
+              >
+                <DishThumb item={menuById[l.id]} photoUrl={l.photoUrl} cat={menuById[l.id]?.cat} />
+                <div className="min-w-0 flex-1">
+                  <div className="text-sm font-bold" style={{ color: themeVars.charcoal }}>
+                    {l.name}
+                  </div>
+                  <div className="text-xs font-semibold" style={{ color: RO_COLORS.brique }}>
+                    {fmt(l.price)} / pièce
+                  </div>
+                  {l.note && (
+                    <div className="mt-0.5 text-xs italic" style={{ color: RO_COLORS.sage }}>
+                      📝 {l.note}
+                    </div>
+                  )}
+                  <button
+                    onClick={() => openNote(l)}
+                    className="mt-1 text-xs underline"
+                    style={{ color: RO_COLORS.terracotta, background: 'none', border: 'none', padding: 0 }}
+                  >
+                    {l.note ? 'Modifier la note' : '+ Ajouter une note'}
+                  </button>
+                </div>
+                <div className="flex flex-col items-end gap-2">
+                  <div style={{ ...RO_TITLE_FONT, fontWeight: 700, color: themeVars.charcoal }}>
+                    {fmt(l.price * l.qty)}
+                  </div>
+                  <div
+                    className="flex items-center gap-2 rounded-full px-1.5 py-1"
+                    style={{ background: themeVars.creamDark }}
+                  >
+                    <button
+                      onClick={() => changeQty(l.id, -1)}
+                      className="flex h-6 w-6 items-center justify-center rounded-full text-white"
+                      style={{ background: RO_COLORS.brique }}
+                      aria-label="Retirer un"
+                    >
+                      <Minus className="size-3" />
+                    </button>
+                    <span className="min-w-[16px] text-center text-sm font-bold">{l.qty}</span>
+                    <button
+                      onClick={() => changeQty(l.id, 1)}
+                      className="flex h-6 w-6 items-center justify-center rounded-full text-white"
+                      style={{ background: RO_COLORS.brique }}
+                      aria-label="Ajouter un"
+                    >
+                      <Plus className="size-3" />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {totals.count > 0 && (
+          <div className="px-6 pb-6 pt-3" style={{ borderTop: '1px solid rgba(154,52,18,0.1)' }}>
+            <div className="mb-1 flex justify-between text-xs" style={{ color: themeVars.charcoal, opacity: 0.7 }}>
+              <span>Sous-total</span>
+              <span>{fmt(totals.sub)}</span>
+            </div>
+            <div className="mb-1 flex justify-between text-xs" style={{ color: themeVars.charcoal, opacity: 0.7 }}>
+              <span>Service (10%)</span>
+              <span>{fmt(totals.service)}</span>
+            </div>
+            <div
+              className="flex justify-between border-t border-dashed pt-2.5"
+              style={{ borderColor: 'rgba(154,52,18,0.2)', marginTop: '0.4rem', fontSize: '1.05rem', fontWeight: 700, color: themeVars.charcoal }}
+            >
+              <span>Total</span>
+              <span style={{ ...RO_TITLE_FONT, color: RO_COLORS.brique, fontSize: '1.3rem' }}>
+                {fmt(totals.total)}
+              </span>
+            </div>
+            <button
+              onClick={placeOrder}
+              className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-base font-bold text-white transition-all hover:-translate-y-0.5"
+              style={{
+                background: 'linear-gradient(135deg, #9A3412 0%, #7C2D12 100%)',
+                boxShadow: '0 8px 20px rgba(154,52,18,0.3)',
+              }}
+            >
+              <Send className="size-4" />
+              Envoyer en cuisine
+            </button>
+            <button
+              onClick={() => setCart(cart.filter((l) => l.qty > 0))}
+              className="mt-1.5 w-full text-center text-xs"
+              style={{ color: RO_COLORS.terracotta, background: 'none', border: 'none' }}
+            >
+              <Trash2 className="mr-1 inline size-3" />
+              Vider le panier
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* ============ MODAL NOTE ============ */}
+      {noteTarget && (
+        <div
+          className="fixed inset-0 z-[80] flex items-center justify-center p-6"
+          style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+          onClick={closeNote}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="w-full max-w-[380px] rounded-3xl p-6"
+            style={{
+              background: themeVars.cream,
+              animation: 'roPopIn 0.3s ease',
+            }}
+          >
+            <h4 style={{ ...RO_TITLE_FONT, fontSize: '1.15rem', marginBottom: '0.3rem', color: themeVars.charcoal }}>
+              Une note pour le chef ?
+            </h4>
+            <p className="mb-3 text-xs" style={{ opacity: 0.6, color: themeVars.charcoal }}>
+              {noteTarget.name}
+            </p>
+            <textarea
+              value={noteDraft}
+              onChange={(e) => setNoteDraft(e.target.value)}
+              placeholder="Ex : sans piment, bien cuit, à partager..."
+              className="w-full resize-none rounded-xl p-3 text-sm outline-none"
+              style={{
+                background: themeVars.creamDark,
+                border: '1.5px solid rgba(154,52,18,0.2)',
+                color: themeVars.charcoal,
+                height: 90,
+              }}
+              autoFocus
+            />
+            <div className="mt-3 flex gap-2">
+              <button
+                onClick={closeNote}
+                className="flex-1 rounded-xl py-2.5 text-sm font-bold"
+                style={{ background: themeVars.creamDark, color: themeVars.charcoal }}
+              >
+                Annuler
+              </button>
+              <button
+                onClick={saveNote}
+                className="flex-1 rounded-xl py-2.5 text-sm font-bold text-white"
+                style={{ background: RO_COLORS.brique }}
+              >
+                Enregistrer
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============ ÉCRAN DE SUIVI DE COMMANDE ============ */}
+      {orderRef && (
+        <div
+          className="fixed inset-0 z-[90] flex flex-col items-center justify-center p-6 text-center"
+          style={{ background: themeVars.cream }}
+        >
+          <button
+            onClick={onClose}
+            className="absolute left-4 top-4 flex h-9 w-9 items-center justify-center rounded-full"
+            style={{ background: themeVars.creamDark, color: themeVars.charcoal }}
+            aria-label="Fermer"
+          >
+            <X className="size-5" />
+          </button>
+
+          <div
+            className="mb-5 flex h-[90px] w-[90px] items-center justify-center rounded-full"
+            style={{
+              background: 'linear-gradient(135deg, #2D8B6F 0%, #1F6B50 100%)',
+              boxShadow: '0 15px 40px rgba(45,139,111,0.4)',
+              animation: 'roScaleIn 0.5s cubic-bezier(0.4,0,0.2,1)',
+            }}
+          >
+            <CheckCircle2 className="size-11 text-white" />
+          </div>
+          <h2 style={{ ...RO_TITLE_FONT, fontSize: '1.7rem', fontWeight: 700, color: themeVars.charcoal }}>
+            Commande envoyée !
+          </h2>
+          <div className="mb-3 mt-1 text-sm font-bold" style={{ color: RO_COLORS.brique }}>
+            Réf. {orderRef} · {plaqueLabel}
+          </div>
+          <p className="mb-5 max-w-[300px] text-sm" style={{ color: themeVars.charcoal, opacity: 0.7, lineHeight: 1.5 }}>
+            Le chef a reçu votre commande. Suivez sa préparation en temps réel ci-dessous.
+          </p>
+
+          {/* Suivi 3 étapes */}
+          <div className="mb-5 flex items-center gap-1.5">
+            <TrackStep
+              icon={<ChefHat className="size-4" />}
+              label="Reçue"
+              state={orderStep >= 1 ? (orderStep > 1 ? 'done' : 'active') : 'idle'}
+            />
+            <TrackLine active={orderStep >= 2} />
+            <TrackStep
+              icon={<Flame className="size-4" />}
+              label="En cuisine"
+              state={orderStep >= 2 ? (orderStep > 2 ? 'done' : 'active') : 'idle'}
+            />
+            <TrackLine active={orderStep >= 3} />
+            <TrackStep
+              icon={<Check className="size-4" />}
+              label="Prête"
+              state={orderStep >= 3 ? 'active' : 'idle'}
+            />
+          </div>
+
+          {/* Message contextuel selon l'étape */}
+          <div
+            className="mb-5 max-w-[300px] rounded-2xl px-4 py-3 text-xs font-semibold"
+            style={{
+              background: themeVars.creamDark,
+              color: themeVars.charcoal,
+            }}
+          >
+            {orderStep === 1 && '✓ Commande reçue par la cuisine. Le chef prépare ses ingrédients…'}
+            {orderStep === 2 && '🔥 Cuisson en cours. Ça sent bon !'}
+            {orderStep === 3 &&
+              (orderMode === 'sur_place'
+                ? '✓ Votre commande est prête ! Un serveur l\'apporte à votre table.'
+                : '✓ Votre commande est prête ! Vous pouvez venir la récupérer.')}
+          </div>
+
+          {/* Bouton manuel WhatsApp (fallback si popup bloqué) */}
+          {(() => {
+            const url = buildWhatsAppUrl(orderRef)
+            if (!url) return null
+            return (
+              <a
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mb-2 flex w-full max-w-[280px] items-center justify-center gap-2 rounded-full py-2.5 text-sm font-bold text-white"
+                style={{ background: '#25D366' }}
+              >
+                <MessageCircle className="size-4" />
+                Renvoyer sur WhatsApp
+              </a>
+            )
+          })()}
+
+          <button
+            onClick={closeTracking}
+            className="rounded-full px-8 py-2.5 text-sm font-bold"
+            style={{ background: themeVars.charcoal, color: themeVars.cream }}
+          >
+            Retour au menu
+          </button>
+        </div>
+      )}
+
+      {/* ============ ANIMATIONS FLY-TO-CART ============ */}
+      {flyItems.map((f) => (
+        <img
+          key={f.id}
+          src={f.src}
+          alt=""
+          className="pointer-events-none fixed z-[200] size-10 rounded-xl object-cover"
+          style={
+            {
+              left: 0,
+              top: 0,
+              '--from-x': `${f.fromX}px`,
+              '--from-y': `${f.fromY}px`,
+              '--to-x': `${f.toX}px`,
+              '--to-y': `${f.toY}px`,
+              animation: 'roFlyToCart 0.6s cubic-bezier(0.5,-0.3,0.5,1) forwards',
+            } as React.CSSProperties
+          }
+        />
+      ))}
+    </div>
+  )
+}
+
+/** Carte d'un plat — image, nom, badges, prix, allergènes, action Ajouter/Quantité. */
+function DishCard({
+  item,
+  line,
+  themeVars,
+  onAdd,
+  onQty,
+}: {
+  item: RoMenuItem
+  line: RoCartLine | undefined
+  themeVars: { cream: string; creamDark: string; charcoal: string }
+  onAdd: (e: React.MouseEvent) => void
+  onQty: (delta: number) => void
+}) {
+  return (
+    <article
+      className="flex gap-4 rounded-2xl p-3 transition-all"
+      style={{
+        background: themeVars.creamDark,
+        border: '1.5px solid transparent',
+      }}
+    >
+      <DishThumb item={item} photoUrl={item.photoUrl} cat={item.cat} />
+      <div className="flex flex-1 flex-col">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <div className="text-[0.95rem] font-bold leading-tight" style={{ color: themeVars.charcoal }}>
+              {item.name}
+            </div>
+            {item.badge && (
+              <span
+                className="mt-1 inline-block rounded-md px-2 py-0.5 text-[0.58rem] font-bold uppercase"
+                style={{
+                  letterSpacing: '0.05em',
+                  background:
+                    item.badge === 'pop'
+                      ? 'rgba(201,169,97,0.2)'
+                      : item.badge === 'veg'
+                        ? 'rgba(45,139,111,0.15)'
+                        : 'rgba(154,52,18,0.12)',
+                  color:
+                    item.badge === 'veg' ? RO_COLORS.sage : RO_COLORS.brique,
+                }}
+              >
+                {item.badge === 'pop' ? '★ Populaire' : item.badge === 'veg' ? '🌿 Végé' : "👨‍🍳 Signature"}
+              </span>
+            )}
+          </div>
+          <div
+            className="whitespace-nowrap"
+            style={{ ...RO_TITLE_FONT, fontSize: '1rem', fontWeight: 700, color: RO_COLORS.brique }}
+          >
+            {item.price > 0 ? `${item.price.toLocaleString('fr-FR')} FCFA` : '—'}
+          </div>
+        </div>
+        <p className="mt-1 mb-2 text-[0.75rem] leading-snug" style={{ color: themeVars.charcoal, opacity: 0.6 }}>
+          {item.desc}
+        </p>
+        <div className="mt-auto flex items-center justify-between">
+          <span className="text-[0.65rem]" style={{ color: themeVars.charcoal, opacity: 0.45 }}>
+            {item.allerg !== '—' ? `⚠ ${item.allerg}` : 'Sans allergène'}
+          </span>
+          {line ? (
+            <div
+              className="flex items-center gap-2 rounded-full px-1.5 py-1"
+              style={{ background: RO_COLORS.brique }}
+            >
+              <button
+                onClick={() => onQty(-1)}
+                className="flex h-6 w-6 items-center justify-center rounded-full text-white transition-all hover:bg-white/30"
+                aria-label="Retirer un"
+              >
+                <Minus className="size-3" />
+              </button>
+              <span className="min-w-[16px] text-center text-sm font-bold text-white">{line.qty}</span>
+              <button
+                onClick={() => onQty(1)}
+                className="flex h-6 w-6 items-center justify-center rounded-full text-white transition-all hover:bg-white/30"
+                aria-label="Ajouter un"
+              >
+                <Plus className="size-3" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={onAdd}
+              className="flex items-center gap-1.5 rounded-full px-3.5 py-2 text-xs font-bold text-white transition-all hover:scale-105 active:scale-95"
+              style={{ background: RO_COLORS.brique }}
+            >
+              <Plus className="size-3" />
+              Ajouter
+            </button>
+          )}
+        </div>
+      </div>
+    </article>
+  )
+}
+
+/** Vignette photo d'un plat — avec fallback coloré selon la catégorie. */
+function DishThumb({
+  item,
+  photoUrl,
+  cat: catProp,
+}: {
+  item?: RoMenuItem
+  photoUrl?: string | null
+  cat?: RoMenuItem['cat']
+}) {
+  const cat = item?.cat ?? catProp
+  const palette: Record<RoMenuItem['cat'], { bg: string; emoji: string }> = {
+    Entrées: { bg: '#2D8B6F', emoji: '🥗' },
+    Plats: { bg: '#9A3412', emoji: '🍲' },
+    Desserts: { bg: '#C4785A', emoji: '🍰' },
+    Boissons: { bg: '#C9A961', emoji: '🥤' },
+  }
+  const meta = palette[cat ?? 'Plats']
+  if (photoUrl) {
+    return (
+      <img
+        src={photoUrl}
+        alt={item?.name ?? ''}
+        className="size-[92px] shrink-0 rounded-2xl object-cover sm:size-[110px]"
+        loading="lazy"
+      />
+    )
+  }
+  return (
+    <div
+      className="flex size-[92px] shrink-0 items-center justify-center rounded-2xl text-3xl sm:size-[110px]"
+      style={{ background: `linear-gradient(135deg, ${meta.bg} 0%, ${meta.bg}AA 100%)` }}
+      aria-hidden
+    >
+      {meta.emoji}
+    </div>
+  )
+}
+
+/** Étape du suivi de commande (Reçue / En cuisine / Prête). */
+function TrackStep({
+  icon,
+  label,
+  state,
+}: {
+  icon: React.ReactNode
+  label: string
+  state: 'idle' | 'active' | 'done'
+}) {
+  const bg =
+    state === 'done'
+      ? RO_COLORS.brique
+      : state === 'active'
+        ? RO_COLORS.sage
+        : '#F0E9DE'
+  const color = state === 'idle' ? '#9A3412' : 'white'
+  return (
+    <div className="flex flex-col items-center gap-1.5">
+      <div
+        className="flex size-9 items-center justify-center rounded-full transition-all"
+        style={{
+          background: bg,
+          color,
+          transform: state === 'active' ? 'scale(1.1)' : 'scale(1)',
+        }}
+      >
+        {icon}
+      </div>
+      <span
+        className="text-[0.6rem] font-semibold uppercase"
+        style={{ letterSpacing: '0.05em', opacity: 0.6, color: '#1F2937' }}
+      >
+        {label}
+      </span>
+    </div>
+  )
+}
+
+/** Ligne entre deux étapes du suivi (s'allume quand l'étape précédente est atteinte). */
+function TrackLine({ active }: { active: boolean }) {
+  return (
+    <div
+      className="mt-[-12px] h-0.5 w-6"
+      style={{ background: active ? RO_COLORS.sage : '#F0E9DE' }}
+    />
+  )
+}
+
+// ============================================================
 // 4. ArtisansView (vert) — annuaire étendu des commerces du quartier
 //    Catégories, WhatsApp, cartes détaillées, premium (menu/tarifs),
 //    sponsorisé, vérifié. Tri : sponsorisés en premier puis distance.
@@ -2637,6 +3795,10 @@ function ArtisansView({
   plate: CityPlate
 }) {
   const [showRegForm, setShowRegForm] = useState(false)
+  // Commerce sélectionné pour ouvrir l'expérience de commande premium.
+  // Quand non-null ET commerce restaurant premium avec menu, on remplace
+  // la liste par <RestaurantOrderView /> (overlay plein écran).
+  const [selectedRestaurant, setSelectedRestaurant] = useState<CityBusiness | null>(null)
 
   // Tri : sponsorisés en premier, puis par distance croissante.
   const sorted = useMemo(() => {
@@ -2667,6 +3829,23 @@ function ArtisansView({
         plate={plate}
         onCancel={() => setShowRegForm(false)}
         onSuccess={() => setShowRegForm(false)}
+      />
+    )
+  }
+
+  // Expérience de commande premium — remplace la liste des commerces
+  // quand un restaurant premium avec menu est sélectionné.
+  if (
+    selectedRestaurant &&
+    selectedRestaurant.isPremium &&
+    selectedRestaurant.category?.toLowerCase() === 'restaurant' &&
+    selectedRestaurant.menu
+  ) {
+    return (
+      <RestaurantOrderView
+        business={selectedRestaurant}
+        plate={plate}
+        onClose={() => setSelectedRestaurant(null)}
       />
     )
   }
@@ -2737,6 +3916,7 @@ function ArtisansView({
             key={b.id}
             business={b}
             onContact={onContact}
+            onOpenMenu={(biz) => setSelectedRestaurant(biz)}
           />
         ))
       )}
@@ -3525,9 +4705,11 @@ function BusinessRegistrationForm({
 function BusinessCard({
   business,
   onContact,
+  onOpenMenu,
 }: {
   business: CityBusiness
   onContact: (b: CityBusiness) => void
+  onOpenMenu?: (b: CityBusiness) => void
 }) {
   const color = businessCategoryColor(business.category)
 
@@ -3761,7 +4943,17 @@ function BusinessCard({
             WhatsApp
           </a>
         )}
-        {isRestaurantWithMenu && orderUrl && (
+        {isRestaurantWithMenu && onOpenMenu && (
+          <button
+            type="button"
+            onClick={() => onOpenMenu(business)}
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#9A3412] py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-[#7C2D12]"
+          >
+            <Utensils className="size-4" />
+            Commander
+          </button>
+        )}
+        {isRestaurantWithMenu && !onOpenMenu && orderUrl && (
           <a
             href={orderUrl}
             target="_blank"
