@@ -301,6 +301,83 @@ const MODULES: ReadonlyArray<ModuleConfig> = [
 ]
 
 // ============================================================
+// Thèmes visuels pour la page citoyenne QR
+// ------------------------------------------------------------
+// signaletique = style actuel (couleurs pleines, Arial, fond blanc)
+// modern       = style alternatif (dégradés, Inter, fond crème,
+//                tuiles d'icônes semi-transparentes)
+// Sélectionné par la mairie via GET /api/city/qr-theme
+// ============================================================
+
+type QrTheme = 'signaletique' | 'modern'
+
+type ThemeModuleStyle = { bg: string; textColor: string; iconBg: string }
+
+type ThemeConfig = {
+  pageBg: string
+  headerBg: string
+  headerRadius: string
+  cardRadius: string
+  fontFamily: string
+  iconTileBg: string
+  iconTileRadius: string
+  liveBarBg: string
+  liveBarText: string
+  modules: Record<ModuleId, ThemeModuleStyle>
+}
+
+const THEMES: Record<QrTheme, ThemeConfig> = {
+  signaletique: {
+    pageBg: '#FFFFFF',
+    headerBg: '#1B2A8C',
+    headerRadius: '24px',
+    cardRadius: '16px',
+    fontFamily: 'Arial, Helvetica, sans-serif',
+    iconTileBg: '#FFFFFF',
+    iconTileRadius: '12px',
+    liveBarBg: '#1A1A1A',
+    liveBarText: '#FFDD00',
+    modules: {
+      urgence:      { bg: '#E30613', textColor: '#FFFFFF', iconBg: '#FFFFFF' },
+      signalement:  { bg: '#FFDD00', textColor: '#1A1A1A', iconBg: '#FFFFFF' },
+      orientation:  { bg: '#FFDD00', textColor: '#1A1A1A', iconBg: '#FFFFFF' },
+      artisans:     { bg: '#FFDD00', textColor: '#1A1A1A', iconBg: '#FFFFFF' },
+      mairie:       { bg: '#1B2A8C', textColor: '#FFFFFF', iconBg: '#FFFFFF' },
+      tax_fraud:    { bg: '#FFDD00', textColor: '#1A1A1A', iconBg: '#FFFFFF' },
+      itineraire:   { bg: '#FFDD00', textColor: '#1A1A1A', iconBg: '#FFFFFF' },
+      annonces:     { bg: '#FFDD00', textColor: '#1A1A1A', iconBg: '#FFFFFF' },
+      sante:        { bg: '#FFDD00', textColor: '#1A1A1A', iconBg: '#FFFFFF' },
+      quartier_ads: { bg: '#FFDD00', textColor: '#1A1A1A', iconBg: '#FFFFFF' },
+      ecoles:       { bg: '#FFDD00', textColor: '#1A1A1A', iconBg: '#FFFFFF' },
+    },
+  },
+  modern: {
+    pageBg: '#FFFBEB',
+    headerBg: 'linear-gradient(135deg, #1E3A8A 0%, #1E40AF 100%)',
+    headerRadius: '0px',
+    cardRadius: '18px',
+    fontFamily: "'Inter', sans-serif",
+    iconTileBg: 'rgba(255,255,255,0.2)',
+    iconTileRadius: '14px',
+    liveBarBg: 'linear-gradient(135deg, #1E3A8A 0%, #1E40AF 100%)',
+    liveBarText: '#FFD700',
+    modules: {
+      urgence:      { bg: 'linear-gradient(135deg, #DC2626 0%, #991B1B 100%)', textColor: '#FFFFFF', iconBg: 'rgba(255,255,255,0.2)' },
+      signalement:  { bg: 'linear-gradient(135deg, #FFD700 0%, #F59E0B 100%)', textColor: '#1F2937', iconBg: 'rgba(0,0,0,0.1)' },
+      orientation:  { bg: 'linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%)', textColor: '#FFFFFF', iconBg: 'rgba(255,255,255,0.2)' },
+      artisans:     { bg: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', textColor: '#FFFFFF', iconBg: 'rgba(255,255,255,0.2)' },
+      mairie:       { bg: 'linear-gradient(135deg, #1E3A8A 0%, #1E40AF 100%)', textColor: '#FFFFFF', iconBg: 'rgba(255,255,255,0.2)' },
+      tax_fraud:    { bg: 'linear-gradient(135deg, #F59E0B 0%, #D97706 100%)', textColor: '#FFFFFF', iconBg: 'rgba(255,255,255,0.2)' },
+      itineraire:   { bg: 'linear-gradient(135deg, #3B82F6 0%, #1E40AF 100%)', textColor: '#FFFFFF', iconBg: 'rgba(255,255,255,0.2)' },
+      annonces:     { bg: 'linear-gradient(135deg, #FFD700 0%, #F59E0B 100%)', textColor: '#1F2937', iconBg: 'rgba(0,0,0,0.1)' },
+      sante:        { bg: 'linear-gradient(135deg, #10B981 0%, #059669 100%)', textColor: '#FFFFFF', iconBg: 'rgba(255,255,255,0.2)' },
+      quartier_ads: { bg: 'linear-gradient(135deg, #F97316 0%, #EA580C 100%)', textColor: '#FFFFFF', iconBg: 'rgba(255,255,255,0.2)' },
+      ecoles:       { bg: 'linear-gradient(135deg, #6B4C9A 0%, #4A3570 100%)', textColor: '#FFFFFF', iconBg: 'rgba(255,255,255,0.2)' },
+    },
+  },
+}
+
+// ============================================================
 // Catégories de signalement (module orange)
 // ============================================================
 
@@ -803,6 +880,19 @@ export function CityScanView({
   // --- QR premium côté citoyen ---
   const [premiumQrUrl, setPremiumQrUrl] = useState<string | null>(null)
 
+  // --- Thème visuel de la page citoyenne (signaletique | modern) ---
+  // Récupéré une fois au montage depuis /api/city/qr-theme.
+  // Par défaut 'signaletique' (style actuel) tant que l'API n'a pas répondu.
+  const [qrTheme, setQrTheme] = useState<QrTheme>('signaletique')
+  useEffect(() => {
+    fetch('/api/city/qr-theme', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((d: { ok?: boolean; data?: { theme?: QrTheme } }) => {
+        if (d?.ok && d.data?.theme) setQrTheme(d.data.theme)
+      })
+      .catch(() => {})
+  }, [])
+
   useEffect(() => {
     if (!plate) return
     const compose = async () => {
@@ -1184,12 +1274,22 @@ export function CityScanView({
     backgroundColor: COLORS.bg,
   }
 
+  // Lien Google Fonts Inter — injecté uniquement si le thème 'modern'
+  // est actif. Next.js hoiste automatiquement ce <link> vers le <head>.
+  const interFontLinkEl = qrTheme === 'modern' ? (
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+  ) : null
+
   // ---------------------------------------------------------------
   // 6.1. Phase loading
   // ---------------------------------------------------------------
   if (phase === 'loading') {
     return (
       <div className={rootClass} style={rootStyle}>
+        {interFontLinkEl}
         <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-6 text-center">
           <Loader2 className="size-10 animate-spin text-[#0066CC]" />
           <p
@@ -1222,12 +1322,14 @@ export function CityScanView({
       setPhase('main')
     }
 
+    const tcWelcome = THEMES[qrTheme]
     return (
       <div className={rootClass} style={rootStyle}>
+        {interFontLinkEl}
         {/* Fond bleu signalétique (harmonisé avec header page principale) */}
         <div
           className="flex min-h-screen flex-col items-center justify-center px-6 text-center"
-          style={{ background: '#1B2A8C' }}
+          style={{ background: tcWelcome.headerBg }}
         >
           {/* Carte d'accueil — tuile blanche arrondie (style signalétique) */}
           <div
@@ -1275,7 +1377,7 @@ export function CityScanView({
             {/* Carte lieu — tuile bleue signalétique */}
             <div
               className="mb-6 flex items-center gap-3 rounded-2xl p-4"
-              style={{ background: '#1B2A8C', borderRadius: '16px' }}
+              style={{ background: tcWelcome.headerBg, borderRadius: tcWelcome.cardRadius }}
             >
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-white">
                 <span className="text-xl">📍</span>
@@ -1328,6 +1430,7 @@ export function CityScanView({
   if (phase === 'error') {
     return (
       <div className={rootClass} style={rootStyle}>
+        {interFontLinkEl}
         <div className="flex min-h-screen flex-col items-center justify-center gap-6 px-6 text-center">
           <div
             className="flex size-20 items-center justify-center rounded-full bg-[#E30613]/10"
@@ -1363,6 +1466,7 @@ export function CityScanView({
   if (phase === 'confirmation' && confirmation && plate) {
     return (
       <div className={rootClass} style={rootStyle}>
+        {interFontLinkEl}
         <ConfirmationView
           confirmation={confirmation}
           plateNumber={plate.plateNumber}
@@ -1383,10 +1487,12 @@ export function CityScanView({
   if (phase === 'sub' && activeModule) {
     return (
       <div className={rootClass} style={rootStyle}>
+        {interFontLinkEl}
         <SubViewShell
           plate={plate}
           module={MODULES.find((m) => m.id === activeModule)!}
           onBack={backToMain}
+          theme={qrTheme}
         >
           {activeModule === 'urgence' && (
             <UrgenceView
@@ -1489,6 +1595,7 @@ export function CityScanView({
   if (isSchoolPlate && !forceFullMenu) {
     return (
       <div className={rootClass} style={rootStyle}>
+        {interFontLinkEl}
         <SchoolCheckinView
           plate={plate}
           citizenPhone={citizenPhone}
@@ -1512,7 +1619,8 @@ export function CityScanView({
   }
   return (
     <div className={rootClass} style={rootStyle}>
-      <MainView plate={plate} onOpenModule={openModule} onExit={onExit} currentHour={currentHour} />
+      {interFontLinkEl}
+      <MainView plate={plate} onOpenModule={openModule} onExit={onExit} currentHour={currentHour} theme={qrTheme} />
       {showCitizenModal && (
         <CitizenRegistrationModal
           open={showCitizenModal}
@@ -1536,11 +1644,13 @@ function MainView({
   onOpenModule,
   onExit,
   currentHour,
+  theme,
 }: {
   plate: CityPlate
   onOpenModule: (id: ModuleId) => void
   onExit?: () => void
   currentHour: number
+  theme: QrTheme
 }) {
   const isNight = currentHour >= 22 || currentHour < 6
 
@@ -1555,28 +1665,19 @@ function MainView({
       .catch(() => {})
   }, [])
 
-  // Config signalétique: jaune = standard, bleu = inversé (mairie),
-  // rouge = URGENCE (repérage instantané par enfant ou personne en stress)
-  const SIGNAGE_STYLE: Record<ModuleId, { bg: string; inverted: boolean }> = {
-    urgence: { bg: '#E30613', inverted: true },       // Rouge franc (urgence)
-    signalement: { bg: '#FFDD00', inverted: false },  // Jaune
-    orientation: { bg: '#FFDD00', inverted: false },  // Jaune
-    artisans: { bg: '#FFDD00', inverted: false },     // Jaune
-    mairie: { bg: '#1B2A8C', inverted: true },        // Bleu (inversé)
-    tax_fraud: { bg: '#FFDD00', inverted: false },    // Jaune
-    itineraire: { bg: '#FFDD00', inverted: false },   // Jaune
-    annonces: { bg: '#FFDD00', inverted: false },     // Jaune
-    sante: { bg: '#FFDD00', inverted: false },        // Jaune
-    quartier_ads: { bg: '#FFDD00', inverted: false },
-    ecoles: { bg: '#FFDD00', inverted: false },
-  }
+  // Configuration du thème visuel (signaletique = par défaut, modern = alternatif)
+  // tc.modules[mod.id] fournit bg / textColor / iconBg par module.
+  const tc = THEMES[theme]
 
   return (
-    <div className="mx-auto min-h-screen max-w-md bg-white p-3">
+    <div
+      className="mx-auto min-h-screen max-w-md p-3"
+      style={{ backgroundColor: tc.pageBg, fontFamily: tc.fontFamily }}
+    >
       {/* === HEADER — panneau bleu signalétique arrondi === */}
       <header
         className="relative overflow-hidden px-5 pb-6 pt-5 shadow-xl"
-        style={{ background: '#1B2A8C', borderRadius: '24px' }}
+        style={{ background: tc.headerBg, borderRadius: tc.headerRadius }}
       >
         {/* Top bar: logo */}
         <div className="flex items-center gap-3">
@@ -1623,7 +1724,7 @@ function MainView({
       {/* === LIVE BAR === */}
       <div
         className="mt-3 flex items-center justify-between px-5 py-2 text-[11px] font-bold uppercase tracking-wider"
-        style={{ background: '#1A1A1A', color: '#FFDD00', borderRadius: '12px' }}
+        style={{ background: tc.liveBarBg, color: tc.liveBarText, borderRadius: '12px' }}
       >
         <div className="flex items-center gap-2">
           <span className="h-2 w-2 rounded-full bg-[#FFDD00]" style={{ animation: 'pulse 1.5s infinite' }} />
@@ -1635,11 +1736,12 @@ function MainView({
       {/* === PANNEAUX SIGNALÉTIQUES === */}
       <main className="mt-3 flex flex-col gap-3">
         {MODULES.map((mod) => {
-          const style = SIGNAGE_STYLE[mod.id]
-          const isInverted = style.inverted
-          const bgColor = style.bg
-          const textColor = isInverted ? '#FFFFFF' : '#1A1A1A'
-          const tileBg = '#FFFFFF'
+          // Couleurs du module depuis la config du thème
+          const modStyle = tc.modules[mod.id]
+          const isInverted = modStyle.textColor === '#FFFFFF'
+          const bgColor = modStyle.bg
+          const textColor = modStyle.textColor
+          const tileBg = tc.iconTileBg
           const tileIconColor = isInverted ? '#1A1A1A' : '#1A1A1A'
           const arrowBg = isInverted ? '#FFFFFF' : '#FFFFFF'
           const arrowColor = '#1A1A1A'
@@ -1657,7 +1759,8 @@ function MainView({
               )}
               style={{
                 background: bgColor,
-                borderRadius: '16px',
+                borderRadius: tc.cardRadius,
+                color: textColor,
                 ...(isTaxFraud
                   ? { boxShadow: '0 10px 25px rgba(227,6,19,0.25), 0 0 0 2px rgba(227,6,19,0.15)' }
                   : {}),
@@ -1668,7 +1771,7 @@ function MainView({
                 className="flex h-14 w-14 shrink-0 items-center justify-center rounded-xl text-3xl transition-transform group-hover:scale-110"
                 style={{
                   background: tileBg,
-                  borderRadius: '12px',
+                  borderRadius: tc.iconTileRadius,
                 }}
               >
                 {mod.emoji}
@@ -1678,7 +1781,7 @@ function MainView({
               <div className="min-w-0 flex-1 text-left">
                 <h2
                   className="text-base font-bold uppercase leading-tight tracking-wide"
-                  style={{ color: textColor, fontFamily: 'Arial, Helvetica, sans-serif' }}
+                  style={{ color: textColor, fontFamily: tc.fontFamily }}
                 >
                   {mod.title}
                 </h2>
@@ -1690,7 +1793,7 @@ function MainView({
                 </p>
                 <p
                   className="mt-1 text-[10px] font-bold uppercase tracking-wider"
-                  style={{ color: isInverted ? '#FFDD00' : '#1B2A8C' }}
+                  style={{ color: isInverted ? tc.liveBarText : '#1B2A8C' }}
                 >
                   {mod.sub}
                 </p>
@@ -1774,20 +1877,29 @@ function SubViewShell({
   plate,
   module: mod,
   onBack,
+  theme,
   children,
 }: {
   plate: CityPlate
   module: ModuleConfig
   onBack: () => void
+  theme: QrTheme
   children: React.ReactNode
 }) {
-  // Style signalétique: bleu pour urgence/mairie, jaune pour les autres
-  const isInverted = mod.id === 'urgence' || mod.id === 'mairie'
-  const headerBg = isInverted ? '#1B2A8C' : '#FFDD00'
-  const headerText = isInverted ? '#FFFFFF' : '#1A1A1A'
+  // Configuration du thème visuel — les en-têtes de sous-vue utilisent
+  // les mêmes couleurs (pleines ou dégradés) que les cartes de la page
+  // principale, pour une cohérence visuelle totale.
+  const tc = THEMES[theme]
+  const modStyle = tc.modules[mod.id]
+  const headerBg = modStyle.bg
+  const headerText = modStyle.textColor
+  const isInverted = headerText === '#FFFFFF'
 
   return (
-    <div className="mx-auto flex min-h-screen max-w-md flex-col bg-white">
+    <div
+      className="mx-auto flex min-h-screen max-w-md flex-col"
+      style={{ backgroundColor: tc.pageBg, fontFamily: tc.fontFamily }}
+    >
       {/* Header signalétique — harmonisé avec page principale */}
       <header
         className="px-5 pb-5 pt-5 shadow-lg"
@@ -1806,15 +1918,15 @@ function SubViewShell({
         <div className="flex items-center gap-3">
           {/* Tuile icône blanche */}
           <div
-            className="flex h-14 w-14 items-center justify-center rounded-xl bg-white text-3xl"
-            style={{ borderRadius: '12px' }}
+            className="flex h-14 w-14 items-center justify-center rounded-xl text-3xl"
+            style={{ background: tc.iconTileBg, borderRadius: tc.iconTileRadius }}
           >
             {mod.emoji}
           </div>
           <div>
             <h1
               className="text-lg font-bold uppercase leading-tight tracking-wide"
-              style={{ color: headerText, fontFamily: 'Arial, Helvetica, sans-serif' }}
+              style={{ color: headerText, fontFamily: tc.fontFamily }}
             >
               {mod.title}
             </h1>

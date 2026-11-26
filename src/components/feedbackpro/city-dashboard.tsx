@@ -453,6 +453,7 @@ export default function CityDashboard() {
 
   // --- Logo ville (pour QR codes premium) ---
   const [cityLogoUrl, setCityLogoUrl] = useState<string | null>(null)
+  const [qrTheme, setQrTheme] = useState<'signaletique' | 'modern'>('signaletique')
   const logoInputRef = useRef<HTMLInputElement>(null)
   const [composedQrs, setComposedQrs] = useState<Record<string, string>>({})
 
@@ -476,6 +477,29 @@ export default function CityDashboard() {
     }
     loadLogo()
   }, [])
+
+  // Charger le thème QR depuis l'API
+  useEffect(() => {
+    fetch('/api/city/qr-theme')
+      .then(r => r.json())
+      .then(d => { if (d?.ok && d.data?.theme) setQrTheme(d.data.theme) })
+      .catch(() => {})
+  }, [])
+
+  // Changer le thème QR
+  const handleThemeChange = useCallback(async (theme: 'signaletique' | 'modern') => {
+    setQrTheme(theme)
+    try {
+      await fetch('/api/city/qr-theme', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ theme }),
+      })
+      toast({ title: 'Thème QR mis à jour', description: theme === 'modern' ? 'Design moderne avec dégradés.' : 'Design signalétique classique.' })
+    } catch {
+      toast({ title: 'Erreur', description: 'Impossible de changer le thème.' })
+    }
+  }, [toast])
 
   // Compose les QR codes premium avec le logo quand les plaques ou le logo changent
   useEffect(() => {
@@ -1267,6 +1291,60 @@ export default function CityDashboard() {
                     )}
                   </div>
                 )}
+              </div>
+
+              {/* Thème QR Code */}
+              <div className="rounded-2xl border border-[#EAE5DC] bg-white p-6 shadow-sm">
+                <h3 className="mb-1 text-sm font-bold uppercase tracking-wide text-[#1A1A1A]/60">
+                  Thème QR Code Citoyen
+                </h3>
+                <p className="mb-4 text-xs text-[#1A1A1A]/50">
+                  Choisissez le design visuel affiché sur les QR codes scannés par les citoyens.
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => handleThemeChange('signaletique')}
+                    className={cn(
+                      'rounded-xl border-2 p-4 text-left transition-all',
+                      qrTheme === 'signaletique'
+                        ? 'border-[#0026A3] bg-[#0026A3]/5 ring-2 ring-[#0026A3]/20'
+                        : 'border-[#EAE5DC] hover:border-[#0026A3]/30',
+                    )}
+                  >
+                    <div className="mb-2 flex h-16 overflow-hidden rounded-lg bg-white">
+                      <div className="flex items-center justify-center" style={{ background: '#1B2A8C', width: '40%' }}>
+                        <span className="text-lg">👋</span>
+                      </div>
+                      <div className="flex flex-1 flex-col gap-1 p-2">
+                        <div className="h-3 rounded" style={{ background: '#FFDD00' }} />
+                        <div className="h-3 rounded" style={{ background: '#E30613' }} />
+                      </div>
+                    </div>
+                    <p className="text-sm font-bold text-[#1A1A1A]">Signalétique</p>
+                    <p className="text-xs text-[#1A1A1A]/50">Couleurs pleines — Arial</p>
+                  </button>
+                  <button
+                    onClick={() => handleThemeChange('modern')}
+                    className={cn(
+                      'rounded-xl border-2 p-4 text-left transition-all',
+                      qrTheme === 'modern'
+                        ? 'border-[#0026A3] bg-[#0026A3]/5 ring-2 ring-[#0026A3]/20'
+                        : 'border-[#EAE5DC] hover:border-[#0026A3]/30',
+                    )}
+                  >
+                    <div className="mb-2 flex h-16 overflow-hidden rounded-lg" style={{ background: '#FFFBEB' }}>
+                      <div className="flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #1E3A8A 0%, #1E40AF 100%)', width: '40%' }}>
+                        <span className="text-lg">👋</span>
+                      </div>
+                      <div className="flex flex-1 flex-col gap-1 p-2">
+                        <div className="h-3 rounded" style={{ background: 'linear-gradient(135deg, #DC2626 0%, #991B1B 100%)' }} />
+                        <div className="h-3 rounded" style={{ background: 'linear-gradient(135deg, #FFD700 0%, #F59E0B 100%)' }} />
+                      </div>
+                    </div>
+                    <p className="text-sm font-bold text-[#1A1A1A]">Moderne</p>
+                    <p className="text-xs text-[#1A1A1A]/50">Dégradés — Inter — crème</p>
+                  </button>
+                </div>
               </div>
 
               {/* Configuration Aminata */}
