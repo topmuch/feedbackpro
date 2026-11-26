@@ -411,13 +411,14 @@ const NAV_SECTIONS: readonly NavSection[] = [
 ] as const
 
 // ---------------------------------------------------------------
-// Palette design — or/anthracite/crème
+// Palette design — bleu wallboard (#0026A3) + jaune accent (#FFD700)
 // ---------------------------------------------------------------
 
-const COLOR_RED = '#E30613'
-const COLOR_ORANGE = '#FF6B00'
-const COLOR_BLUE = '#0066CC'
-const COLOR_GREEN = '#00A651'
+const COLOR_RED = '#DC2626'
+const COLOR_ORANGE = '#F97316'
+const COLOR_BLUE = '#0026A3'
+const COLOR_BLUE_HOVER = '#1E40AF'
+const COLOR_GREEN = '#059669'
 const COLOR_GOLD = '#FFD700'
 const COLOR_PURPLE = '#6B4C9A'
 const COLOR_ANTHRACITE = '#1A1A1A'
@@ -1069,7 +1070,7 @@ export default function CityDashboard() {
                             className={cn(
                               'inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-bold tabular-nums',
                               item.badge === 'red'
-                                ? 'bg-[#E30613] text-white'
+                                ? 'bg-[#DC2626] text-white'
                                 : active
                                   ? 'bg-[#1A1A1A]/15 text-[#1A1A1A]'
                                   : 'bg-white/10 text-white',
@@ -1126,7 +1127,10 @@ export default function CityDashboard() {
       {/* ---------- MAIN ---------- */}
       <div className="lg:pl-[280px]">
         {/* Header */}
-        <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-[#EAE5DC] bg-white/95 px-4 backdrop-blur sm:px-6 lg:px-8">
+        <header
+          className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-[#FFD700]/30 px-4 backdrop-blur sm:px-6 lg:px-8"
+          style={{ backgroundColor: '#0026A3' }}
+        >
           <div className="ml-10 flex items-center gap-3 lg:ml-0">
             <div className="flex items-center gap-2">
               <span className="text-xl" aria-hidden>
@@ -1134,31 +1138,38 @@ export default function CityDashboard() {
               </span>
               <div>
                 <h2
-                  className="text-base font-bold leading-tight text-[#1A1A1A]"
+                  className="text-base font-bold leading-tight text-white"
                   style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
                 >
                   Centre de Supervision Urbaine
                 </h2>
                 <p
-                  className="text-[11px] text-[#1A1A1A]/55"
+                  className="text-[11px] font-medium"
+                  style={{ color: 'rgba(255,255,255,0.65)' }}
                   suppressHydrationWarning
                 >
-                  {today ? formatDateLong(today) : ''} · {clock}
+                  {today ? formatDateLong(today) : ''}
+                  {' · '}
+                  <span style={{ color: '#FFD700', fontVariantNumeric: 'tabular-nums' }}>
+                    {clock}
+                  </span>
                 </p>
               </div>
             </div>
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Toggle son Aminata */}
+            {/* Toggle son Aminata — jaune quand ON */}
             <Button
               variant="outline"
               size="sm"
               onClick={toggleSound}
               title={soundOn ? "Désactiver la voix Aminata" : "Activer la voix Aminata"}
               className={cn(
-                "border-[#EAE5DC] bg-white hover:border-[#FFD700]",
-                soundOn ? "text-[#FFD700] border-[#FFD700]/40 bg-[#FFD700]/8" : "text-[#1A1A1A]"
+                "border-white/20 bg-transparent transition",
+                soundOn
+                  ? "border-[#FFD700]/60 bg-[#FFD700] text-[#0026A3] hover:bg-[#FFD700]/85"
+                  : "text-white hover:bg-white/10 hover:text-white",
               )}
             >
               {soundOn ? <Volume2 className="h-3.5 w-3.5" /> : <VolumeX className="h-3.5 w-3.5" />}
@@ -1169,7 +1180,7 @@ export default function CityDashboard() {
               size="sm"
               onClick={handleRefresh}
               disabled={refreshing}
-              className="border-[#EAE5DC] bg-white text-[#1A1A1A] hover:border-[#FFD700] hover:bg-[#FAFAF7]"
+              className="border-white/20 bg-transparent text-white hover:border-[#FFD700]/40 hover:bg-white/10 hover:text-white"
             >
               <RefreshCw
                 className={cn('h-3.5 w-3.5', refreshing && 'animate-spin')}
@@ -1179,7 +1190,7 @@ export default function CityDashboard() {
             <Button
               size="sm"
               onClick={handleExport}
-              className="bg-[#FFD700] text-[#1A1A1A] hover:bg-[#B8964F]"
+              className="bg-[#FFD700] text-[#0026A3] hover:bg-[#FFD700]/85"
             >
               <Download className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Exporter rapport</span>
@@ -1204,7 +1215,7 @@ export default function CityDashboard() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button size="sm" onClick={toggleSound} className="bg-[#4A7C59] text-white hover:bg-[#3D6B4D]">
+              <Button size="sm" onClick={toggleSound} className="bg-[#059669] text-white hover:bg-[#047857]">
                 <Volume2 className="h-3.5 w-3.5 mr-1" /> Activer
               </Button>
               <button
@@ -1224,7 +1235,7 @@ export default function CityDashboard() {
           {/* ====== VUE PARAMÈTRES ====== */}
           {activeNav === 'settings' && (
             <div className="mx-auto max-w-2xl space-y-5">
-              <h2 className="text-xl font-bold text-[#1A1A1A]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
+              <h2 className="text-xl font-bold text-[#0026A3]" style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}>
                 Paramètres · Ville Connectée
               </h2>
 
@@ -1272,7 +1283,7 @@ export default function CityDashboard() {
                           try { localStorage.removeItem('city_logo_url') } catch { /* ignore */ }
                           toast({ title: 'Logo supprimé' })
                         }}
-                        className="text-[#E30613]"
+                        className="text-[#DC2626]"
                       >
                         Supprimer
                       </Button>
@@ -1317,7 +1328,7 @@ export default function CityDashboard() {
                       </div>
                       <div className="flex flex-1 flex-col gap-1 p-2">
                         <div className="h-3 rounded" style={{ background: '#FFDD00' }} />
-                        <div className="h-3 rounded" style={{ background: '#E30613' }} />
+                        <div className="h-3 rounded" style={{ background: '#DC2626' }} />
                       </div>
                     </div>
                     <p className="text-sm font-bold text-[#1A1A1A]">Signalétique</p>
@@ -1361,7 +1372,7 @@ export default function CityDashboard() {
                     </div>
                   </div>
                   <Button size="sm" variant={soundOn ? 'default' : 'outline'} onClick={toggleSound}
-                    className={soundOn ? 'bg-[#4A7C59] text-white' : 'border-[#EAE5DC]'}>
+                    className={soundOn ? 'bg-[#059669] text-white' : 'border-[#EAE5DC]'}>
                     {soundOn ? 'ON' : 'OFF'}
                   </Button>
                 </div>
@@ -1380,7 +1391,7 @@ export default function CityDashboard() {
                       <p className="text-xs text-[#1A1A1A]/50">"Bonjour, je suis Aminata, votre guide..."</p>
                     </div>
                   </div>
-                  <Badge className="bg-[#4A7C59]/12 text-[#4A7C59]">Activé</Badge>
+                  <Badge className="bg-[#059669]/12 text-[#059669]">Activé</Badge>
                 </div>
               </div>
             </div>
@@ -1479,32 +1490,42 @@ export default function CityDashboard() {
           {activeNav === 'overview' && (
             <>
           {/* ---------- HERO BANNER ---------- */}
-          <section className="mb-6 overflow-hidden rounded-2xl bg-gradient-to-br from-[#1A1A1A] via-[#2C2620] to-[#1A1A1A] p-5 text-white shadow-md sm:p-6">
+          <section
+            className="mb-6 overflow-hidden rounded-2xl p-5 text-white shadow-md sm:p-6"
+            style={{
+              background:
+                'linear-gradient(135deg, #0026A3 0%, #1E40AF 50%, #0026A3 100%)',
+            }}
+          >
             <div className="flex flex-wrap items-end justify-between gap-3">
               <div>
                 <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#FFD700]">
                   Centre de Supervision Urbaine · Dakar
                 </p>
                 <h2
-                  className="mt-1 text-2xl font-bold leading-tight sm:text-3xl"
+                  className="mt-1 text-2xl font-bold leading-tight sm:text-3xl text-white"
                   style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
                 >
                   Vue d&apos;ensemble
                 </h2>
-                <p className="mt-1 max-w-xl text-xs text-white/65">
+                <p className="mt-1 max-w-xl text-xs text-white/75">
                   Supervision temps réel des plaques QR, alertes citoyennes,
                   artisans vérifiés et annonces municipales.
                 </p>
               </div>
-              <div className="flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2">
+              <div className="flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2 ring-1 ring-[#FFD700]/30">
                 <span className="relative flex h-2.5 w-2.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#4A7C59] opacity-75" />
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#4A7C59]" />
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#FFD700] opacity-75" />
+                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#FFD700]" />
                 </span>
-                <span className="text-xs font-medium text-white/80">
+                <span className="text-xs font-medium text-white/90">
                   Système actif
                 </span>
-                <span className="ml-2 text-[10px] text-white/40" suppressHydrationWarning>
+                <span
+                  className="ml-2 text-[10px] tabular-nums"
+                  style={{ color: '#FFD700' }}
+                  suppressHydrationWarning
+                >
                   {clock}
                 </span>
               </div>
@@ -1556,7 +1577,7 @@ export default function CityDashboard() {
               title="Satisfaction"
               value={`${kpis.satisfaction}/5`}
               sub="Évaluation citoyenne"
-              color={COLOR_GOLD}
+              color={'#3B82F6'}
               icon={Star}
               trend="+0.2"
               trendDirection="up"
@@ -1565,7 +1586,7 @@ export default function CityDashboard() {
               title="Revenus artisans"
               value={formatFCFA(revenueTotal)}
               sub={`Part mairie ${formatFCFA(revenueMairieShare)}`}
-              color={COLOR_PURPLE}
+              color={'#F59E0B'}
               icon={TrendingUp}
               trend={revenueTotal > 0 ? `${artisans.filter((a) => a.premium).length} premium` : '—'}
               trendDirection={revenueTotal > 0 ? 'up' : 'flat'}
@@ -1579,11 +1600,11 @@ export default function CityDashboard() {
             <div className="space-y-5">
               {/* Activity Timeline */}
               <section className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white shadow-sm">
-                <div className="flex items-center justify-between border-b border-[#EAE5DC] px-4 py-3">
+                <div className="flex items-center justify-between border-b border-[#EAE5DC] border-l-4 border-l-[#FFD700] bg-[#0026A3]/5 px-4 py-3">
                   <div className="flex items-center gap-2">
                     <Activity className="h-4 w-4 text-[#FFD700]" />
                     <h3
-                      className="text-sm font-bold text-[#1A1A1A]"
+                      className="text-sm font-bold text-[#0026A3]"
                       style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
                     >
                       Fil d&apos;activité
@@ -1715,10 +1736,10 @@ export default function CityDashboard() {
             <div className="space-y-5">
               {/* Quick Actions */}
               <section className="overflow-hidden rounded-2xl border border-[#FFD700]/30 bg-gradient-to-br from-white to-[#FFD700]/5 shadow-sm">
-                <div className="flex items-center gap-2 border-b border-[#EAE5DC] px-4 py-3">
+                <div className="flex items-center gap-2 border-b border-[#EAE5DC] border-l-4 border-l-[#FFD700] bg-[#0026A3]/5 px-4 py-3">
                   <Plus className="h-4 w-4 text-[#FFD700]" />
                   <h3
-                    className="text-sm font-bold text-[#1A1A1A]"
+                    className="text-sm font-bold text-[#0026A3]"
                     style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
                   >
                     Actions rapides
@@ -2187,8 +2208,11 @@ function KpiCardEnhanced({
     trendDirection === 'up' ? TrendingUp : trendDirection === 'down' ? Activity : Activity
   return (
     <div
-      className="relative overflow-hidden rounded-2xl bg-white shadow-sm transition-all hover:-translate-y-0.5 hover:shadow-md"
-      style={{ borderTop: `3px solid ${color}` }}
+      className="relative overflow-hidden rounded-2xl bg-white transition-all hover:-translate-y-0.5"
+      style={{
+        borderLeft: `4px solid ${color}`,
+        boxShadow: `0 4px 14px -8px ${color}55, 0 1px 2px rgba(0,0,0,0.04)`,
+      }}
     >
       {/* Halo coloré discret en bas à droite */}
       <div
@@ -2198,7 +2222,7 @@ function KpiCardEnhanced({
       />
       <div className="relative px-4 py-3 sm:px-4 sm:py-4">
         <div className="mb-2 flex items-start justify-between">
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-[#1A1A1A]/55">
+          <p className="text-[11px] font-semibold uppercase tracking-wider text-[#1F2937]">
             {title}
           </p>
           <div
@@ -2209,13 +2233,13 @@ function KpiCardEnhanced({
           </div>
         </div>
         <p
-          className="text-2xl font-bold tabular-nums leading-none text-[#1A1A1A]"
-          style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
+          className="text-2xl font-bold tabular-nums leading-none"
+          style={{ fontFamily: 'Georgia, "Playfair Display", serif', color }}
         >
           {value}
         </p>
         {sub && (
-          <p className="mt-1 truncate text-[10px] text-[#1A1A1A]/50">{sub}</p>
+          <p className="mt-1 truncate text-[10px] text-[#1F2937]/55">{sub}</p>
         )}
         <div className="mt-2 flex items-center justify-between gap-2">
           {trend && (
@@ -2317,14 +2341,14 @@ type PanelProps = {
 function Panel({ title, icon: Icon, subtitle, accent, children }: PanelProps) {
   return (
     <section className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white shadow-sm">
-      <div className="flex items-center justify-between border-b border-[#EAE5DC] px-4 py-3">
+      <div className="flex items-center justify-between border-b border-[#EAE5DC] border-l-4 border-l-[#FFD700] bg-[#0026A3]/5 px-4 py-3">
         <div className="flex items-center gap-2">
           <Icon
             className="h-4 w-4"
             style={{ color: accent ?? COLOR_ANTHRACITE }}
           />
           <h3
-            className="text-sm font-bold text-[#1A1A1A]"
+            className="text-sm font-bold text-[#0026A3]"
             style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
           >
             {title}
@@ -2386,8 +2410,8 @@ function RevenueRow({
 // Palette par département — couleurs distinctes (aucun indigo/bleu franc).
 const DEPARTMENT_COLORS: Record<string, { bg: string; ring: string; text: string; dot: string; btn: string }> = {
   Dakar: { bg: 'bg-[#2E5C8A]/10', ring: 'ring-[#2E5C8A]', text: 'text-[#2E5C8A]', dot: 'bg-[#2E5C8A]', btn: 'bg-[#2E5C8A] hover:bg-[#1F4A75]' },
-  Pikine: { bg: 'bg-[#4A7C59]/10', ring: 'ring-[#4A7C59]', text: 'text-[#4A7C59]', dot: 'bg-[#4A7C59]', btn: 'bg-[#4A7C59] hover:bg-[#3D6B4D]' },
-  'Guédiawaye': { bg: 'bg-[#FF6B00]/10', ring: 'ring-[#FF6B00]', text: 'text-[#FF6B00]', dot: 'bg-[#FF6B00]', btn: 'bg-[#FF6B00] hover:bg-[#E55F00]' },
+  Pikine: { bg: 'bg-[#059669]/10', ring: 'ring-[#059669]', text: 'text-[#059669]', dot: 'bg-[#059669]', btn: 'bg-[#059669] hover:bg-[#047857]' },
+  'Guédiawaye': { bg: 'bg-[#F97316]/10', ring: 'ring-[#F97316]', text: 'text-[#F97316]', dot: 'bg-[#F97316]', btn: 'bg-[#F97316] hover:bg-[#EA580C]' },
   'Keur Massar': { bg: 'bg-[#7A4FB0]/10', ring: 'ring-[#7A4FB0]', text: 'text-[#7A4FB0]', dot: 'bg-[#7A4FB0]', btn: 'bg-[#7A4FB0] hover:bg-[#6840A0]' },
   'Rufisque': { bg: 'bg-[#0F8A8A]/10', ring: 'ring-[#0F8A8A]', text: 'text-[#0F8A8A]', dot: 'bg-[#0F8A8A]', btn: 'bg-[#0F8A8A] hover:bg-[#0B7575]' },
 }
@@ -2397,7 +2421,7 @@ function deptColor(name: string) {
     DEPARTMENT_COLORS[name] ?? {
       bg: 'bg-[#FFD700]/10',
       ring: 'ring-[#FFD700]',
-      text: 'text-[#8B6F47]',
+      text: 'text-[#B8964F]',
       dot: 'bg-[#FFD700]',
       btn: 'bg-[#FFD700] hover:bg-[#B8964F]',
     }
@@ -2510,7 +2534,7 @@ function CommuneSeederModal({ onClose }: { onClose: () => void }) {
         <div className="px-5 py-5 sm:px-6">
           {/* Breadcrumb-like step indicator */}
           <div className="mb-5 flex items-center gap-2 text-xs">
-            <span className={cn('rounded-full px-2.5 py-1 font-medium', selectedDept ? 'bg-[#4A7C59]/12 text-[#4A7C59]' : 'bg-[#1A1A1A]/8 text-[#1A1A1A]/70')}>
+            <span className={cn('rounded-full px-2.5 py-1 font-medium', selectedDept ? 'bg-[#059669]/12 text-[#059669]' : 'bg-[#1A1A1A]/8 text-[#1A1A1A]/70')}>
               1. Département
             </span>
             <span className="text-[#1A1A1A]/30">›</span>
@@ -2652,11 +2676,11 @@ function CommuneSeederModal({ onClose }: { onClose: () => void }) {
 
           {/* ---------- STEP 3: Error (typically 409) ---------- */}
           {error && !generating && (
-            <div className="mt-6 rounded-xl border border-[#E30613]/30 bg-[#E30613]/8 p-5">
+            <div className="mt-6 rounded-xl border border-[#DC2626]/30 bg-[#DC2626]/8 p-5">
               <div className="flex items-start gap-3">
-                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-[#E30613]" />
+                <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-[#DC2626]" />
                 <div className="flex-1">
-                  <p className="text-sm font-semibold text-[#E30613]">Génération impossible</p>
+                  <p className="text-sm font-semibold text-[#DC2626]">Génération impossible</p>
                   <p className="mt-1 text-sm text-[#1A1A1A]/80">{error}</p>
                 </div>
               </div>
@@ -2670,13 +2694,13 @@ function CommuneSeederModal({ onClose }: { onClose: () => void }) {
 
           {/* ---------- STEP 4: Success result ---------- */}
           {result && !generating && (
-            <div className="mt-6 rounded-xl border border-[#4A7C59]/30 bg-[#4A7C59]/8 p-5">
+            <div className="mt-6 rounded-xl border border-[#059669]/30 bg-[#059669]/8 p-5">
               <div className="flex items-start gap-3">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#4A7C59] text-white">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-[#059669] text-white">
                   <Check className="h-5 w-5" />
                 </div>
                 <div className="flex-1">
-                  <p className="text-base font-bold text-[#4A7C59]">
+                  <p className="text-base font-bold text-[#059669]">
                     {result.created} plaques créées
                   </p>
                   <p className="mt-0.5 text-sm text-[#1A1A1A]/80">
@@ -2720,7 +2744,7 @@ function CommuneSeederModal({ onClose }: { onClose: () => void }) {
                 <Button
                   size="sm"
                   onClick={onClose}
-                  className="bg-[#4A7C59] text-white hover:bg-[#3D6B4D]"
+                  className="bg-[#059669] text-white hover:bg-[#047857]"
                 >
                   <Check className="h-4 w-4 mr-2" /> Fermer &amp; actualiser
                 </Button>
@@ -2739,7 +2763,7 @@ function CommuneSeederModal({ onClose }: { onClose: () => void }) {
                 </span>
               </p>
               <p className="flex items-start gap-2">
-                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#FF6B00]" />
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-[#F97316]" />
                 <span>
                   Une commune ne peut être pré-chargée qu&apos;une seule fois. Pour régénérer,
                   supprimez d&apos;abord les plaques portant son préfixe (ex : <code className="rounded bg-white px-1 font-mono">DD#001</code>).
@@ -2913,11 +2937,11 @@ function PlatesManagementView({
     <div className="space-y-5">
       {/* Header + actions */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-xl font-bold text-[#1A1A1A]" style={SERIF}>
+        <h2 className="text-xl font-bold text-[#0026A3]" style={SERIF}>
           Plaques QR · {stats.total} au total
         </h2>
         <div className="flex items-center gap-2">
-          {cityLogoUrl && <Badge className="bg-[#FFD700]/15 text-[#8B6F47]">Logo ✓</Badge>}
+          {cityLogoUrl && <Badge className="bg-[#FFD700]/15 text-[#B8964F]">Logo ✓</Badge>}
           <Button
             size="sm"
             onClick={() => setShowSeeder(true)}
@@ -2926,7 +2950,7 @@ function PlatesManagementView({
           >
             <Map className="h-4 w-4 mr-1.5" /> Pré-charger une ville
           </Button>
-          <Button size="sm" onClick={() => setShowBatchDialog(true)} className="bg-[#FFD700] text-[#1A1A1A] hover:bg-[#B8964F]">
+          <Button size="sm" onClick={() => setShowBatchDialog(true)} className="bg-[#0026A3] text-white hover:bg-[#1E40AF]">
             <Plus className="h-4 w-4 mr-1" /> Générer un lot
           </Button>
         </div>
@@ -2937,9 +2961,9 @@ function PlatesManagementView({
         {[
           { label: 'Total', value: stats.total, color: 'bg-[#EAE5DC] text-[#1A1A1A]' },
           { label: 'En attente', value: stats.pending, color: 'bg-amber-100 text-amber-800' },
-          { label: 'Actives', value: stats.active, color: 'bg-[#4A7C59]/12 text-[#4A7C59]' },
-          { label: 'Maintenance', value: stats.maintenance, color: 'bg-[#FF6B00]/12 text-[#FF6B00]' },
-          { label: 'Hors ligne', value: stats.offline, color: 'bg-[#E30613]/12 text-[#E30613]' },
+          { label: 'Actives', value: stats.active, color: 'bg-[#059669]/12 text-[#059669]' },
+          { label: 'Maintenance', value: stats.maintenance, color: 'bg-[#F97316]/12 text-[#F97316]' },
+          { label: 'Hors ligne', value: stats.offline, color: 'bg-[#DC2626]/12 text-[#DC2626]' },
         ].map((s) => (
           <button
             key={s.label}
@@ -2989,10 +3013,10 @@ function PlatesManagementView({
                 <td className="px-4 py-3">
                   <Badge className={cn(
                     'text-[10px]',
-                    p.status === 'active' ? 'bg-[#4A7C59]/12 text-[#4A7C59]' :
+                    p.status === 'active' ? 'bg-[#059669]/12 text-[#059669]' :
                     p.status === 'pending' ? 'bg-amber-100 text-amber-800' :
-                    p.status === 'maintenance' ? 'bg-[#FF6B00]/12 text-[#FF6B00]' :
-                    'bg-[#E30613]/12 text-[#E30613]'
+                    p.status === 'maintenance' ? 'bg-[#F97316]/12 text-[#F97316]' :
+                    'bg-[#DC2626]/12 text-[#DC2626]'
                   )}>
                     {p.status === 'pending' ? 'En attente' : p.status}
                   </Badge>
@@ -3041,7 +3065,7 @@ function PlatesManagementView({
             <p className="mt-2 text-xs text-[#1A1A1A]/50">Maximum 500 par lot. Les numéros continuent à partir du dernier existant.</p>
             <div className="mt-6 flex justify-end gap-3">
               <Button variant="outline" onClick={() => setShowBatchDialog(false)}>Annuler</Button>
-              <Button onClick={handleGenerateBatch} disabled={generating} className="bg-[#FFD700] text-[#1A1A1A] hover:bg-[#B8964F]">
+              <Button onClick={handleGenerateBatch} disabled={generating} className="bg-[#0026A3] text-white hover:bg-[#1E40AF]">
                 {generating ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Plus className="h-4 w-4 mr-2" />}
                 {generating ? 'Génération…' : `Générer ${batchCount} plaques`}
               </Button>
@@ -3149,7 +3173,7 @@ function PlatesManagementView({
             {/* Actions */}
             <div className="mt-6 flex justify-end gap-3">
               <Button variant="outline" onClick={() => setEditingPlate(null)}>Annuler</Button>
-              <Button onClick={handleSavePlate} disabled={savingPlate} className="bg-[#4A7C59] text-white hover:bg-[#3D6B4D]">
+              <Button onClick={handleSavePlate} disabled={savingPlate} className="bg-[#059669] text-white hover:bg-[#047857]">
                 {savingPlate ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Check className="h-4 w-4 mr-2" />}
                 {savingPlate ? 'Sauvegarde…' : 'Sauvegarder & activer'}
               </Button>
@@ -3206,13 +3230,13 @@ function incidentStatusInfo(status: string): {
 } {
   switch (status) {
     case 'pending':
-      return { label: 'En attente', bg: 'bg-[#FF6B00]/12 text-[#FF6B00]', color: COLOR_ORANGE }
+      return { label: 'En attente', bg: 'bg-[#F97316]/12 text-[#F97316]', color: COLOR_ORANGE }
     case 'assigned':
-      return { label: 'Assigné', bg: 'bg-[#0066CC]/12 text-[#0066CC]', color: COLOR_BLUE }
+      return { label: 'Assigné', bg: 'bg-[#0026A3]/12 text-[#0026A3]', color: COLOR_BLUE }
     case 'in_progress':
-      return { label: 'En cours', bg: 'bg-[#0066CC]/12 text-[#0066CC]', color: COLOR_BLUE }
+      return { label: 'En cours', bg: 'bg-[#0026A3]/12 text-[#0026A3]', color: COLOR_BLUE }
     case 'resolved':
-      return { label: 'Résolu', bg: 'bg-[#4A7C59]/12 text-[#4A7C59]', color: COLOR_GREEN }
+      return { label: 'Résolu', bg: 'bg-[#059669]/12 text-[#059669]', color: COLOR_GREEN }
     default:
       return { label: status, bg: 'bg-[#EAE5DC] text-[#1A1A1A]', color: COLOR_ANTHRACITE }
   }
@@ -3407,7 +3431,7 @@ function IncidentCard({ inc, accent, onUpdateStatus }: IncidentCardProps) {
   return (
     <article
       className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white shadow-sm transition-shadow hover:shadow-md"
-      style={{ borderTop: `3px solid ${accent}` }}
+      style={{ borderLeft: `4px solid ${accent}` }}
     >
       <div className="p-4">
         <div className="mb-3 flex items-start justify-between gap-2">
@@ -3416,7 +3440,7 @@ function IncidentCard({ inc, accent, onUpdateStatus }: IncidentCardProps) {
               {incidentEmoji(inc.type, inc.category)}
             </span>
             <div className="min-w-0">
-              <p className="truncate text-sm font-bold text-[#1A1A1A]">
+              <p className="truncate text-sm font-bold text-[#0026A3]">
                 {inc.category ?? incidentTypeLabel(inc.type)}
               </p>
               <p className="text-[10px] uppercase tracking-wider text-[#1A1A1A]/45">
@@ -3455,7 +3479,7 @@ function IncidentCard({ inc, accent, onUpdateStatus }: IncidentCardProps) {
             {/* Badge "Pris en charge le …" */}
             {inc.arrivedAt && (
               <div className="flex flex-wrap items-center gap-2">
-                <Badge className="gap-1 bg-[#0066CC]/12 text-[10px] text-[#0066CC]">
+                <Badge className="gap-1 bg-[#0026A3]/12 text-[10px] text-[#0026A3]">
                   <Clock className="h-3 w-3" />
                   Pris en charge le {formatDateTime(inc.arrivedAt)}
                 </Badge>
@@ -3463,7 +3487,7 @@ function IncidentCard({ inc, accent, onUpdateStatus }: IncidentCardProps) {
                   const mins = resolutionMinutes(inc.arrivedAt!, inc.resolvedAt)
                   if (mins == null) return null
                   return (
-                    <Badge className="gap-1 bg-[#4A7C59]/12 text-[10px] text-[#4A7C59]">
+                    <Badge className="gap-1 bg-[#059669]/12 text-[10px] text-[#059669]">
                       <Check className="h-3 w-3" />
                       Résolu en {formatDurationLabel(mins)}
                     </Badge>
@@ -3506,7 +3530,7 @@ function IncidentCard({ inc, accent, onUpdateStatus }: IncidentCardProps) {
                 size="sm"
                 onClick={() => handleChange('in_progress')}
                 disabled={pending}
-                className="gap-1.5 rounded-lg bg-[#0066CC] text-white hover:bg-[#0055a8]"
+                className="gap-1.5 rounded-lg bg-[#0026A3] text-white hover:bg-[#1E40AF]"
               >
                 {pending ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -3521,7 +3545,7 @@ function IncidentCard({ inc, accent, onUpdateStatus }: IncidentCardProps) {
                 size="sm"
                 onClick={() => handleChange('resolved')}
                 disabled={pending}
-                className="gap-1.5 rounded-lg bg-[#4A7C59] text-white hover:bg-[#3D6B4D]"
+                className="gap-1.5 rounded-lg bg-[#059669] text-white hover:bg-[#047857]"
               >
                 {pending ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -3540,11 +3564,11 @@ function IncidentCard({ inc, accent, onUpdateStatus }: IncidentCardProps) {
         {/* Badge "Résolu" vert si déjà résolu */}
         {onUpdateStatus && inc.status === 'resolved' && (
           <div className="mt-3 flex items-center justify-between border-t border-[#EAE5DC] pt-3">
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#4A7C59]/12 px-3 py-1 text-[11px] font-bold text-[#4A7C59]">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#059669]/12 px-3 py-1 text-[11px] font-bold text-[#059669]">
               <Check className="h-3.5 w-3.5" />
               Résolu
               {inc.resolvedAt && (
-                <span className="font-normal text-[#4A7C59]/70">
+                <span className="font-normal text-[#059669]/70">
                   · {timeAgo(inc.resolvedAt)}
                 </span>
               )}
@@ -3610,14 +3634,14 @@ function EmergenciesView({
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-[#1A1A1A]" style={SERIF}>
+          <h2 className="text-xl font-bold text-[#0026A3]" style={SERIF}>
             Urgences citoyennes
           </h2>
           <p className="text-xs text-[#1A1A1A]/55">
             {counts.pending} en attente · {counts.assigned} assignées · {counts.resolved} résolues
           </p>
         </div>
-        <Badge className="bg-[#E30613]/12 text-[#E30613]">
+        <Badge className="bg-[#DC2626]/12 text-[#DC2626]">
           <AlertTriangle className="mr-1 h-3 w-3" /> {emergencies.length} total
         </Badge>
       </div>
@@ -3626,9 +3650,9 @@ function EmergenciesView({
       <div className="flex flex-wrap gap-2 text-xs">
         {[
           { key: 'all', label: 'Tous', value: counts.all, color: 'bg-[#EAE5DC] text-[#1A1A1A]' },
-          { key: 'pending', label: 'En attente', value: counts.pending, color: 'bg-[#FF6B00]/12 text-[#FF6B00]' },
-          { key: 'assigned', label: 'Assignées', value: counts.assigned, color: 'bg-[#0066CC]/12 text-[#0066CC]' },
-          { key: 'resolved', label: 'Résolues', value: counts.resolved, color: 'bg-[#4A7C59]/12 text-[#4A7C59]' },
+          { key: 'pending', label: 'En attente', value: counts.pending, color: 'bg-[#F97316]/12 text-[#F97316]' },
+          { key: 'assigned', label: 'Assignées', value: counts.assigned, color: 'bg-[#0026A3]/12 text-[#0026A3]' },
+          { key: 'resolved', label: 'Résolues', value: counts.resolved, color: 'bg-[#059669]/12 text-[#059669]' },
         ].map((s) => (
           <button
             key={s.key}
@@ -3730,14 +3754,14 @@ function ReportsView({
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-[#1A1A1A]" style={SERIF}>
+          <h2 className="text-xl font-bold text-[#0026A3]" style={SERIF}>
             Signalements citoyens
           </h2>
           <p className="text-xs text-[#1A1A1A]/55">
             {reports.length} signalements au total
           </p>
         </div>
-        <Badge className="bg-[#FF6B00]/12 text-[#FF6B00]">
+        <Badge className="bg-[#F97316]/12 text-[#F97316]">
           <Bell className="mr-1 h-3 w-3" /> {reports.length}
         </Badge>
       </div>
@@ -3818,7 +3842,7 @@ function ReportGroup({
   return (
     <section className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white shadow-sm">
       <div
-        className="flex items-center justify-between border-b border-[#EAE5DC] px-4 py-3"
+        className="flex items-center justify-between border-b border-[#EAE5DC] border-l-4 border-l-[#FFD700] bg-[#0026A3]/5 px-4 py-3"
         style={{ borderLeft: `4px solid ${color}` }}
       >
         <div className="flex items-center gap-2">
@@ -3826,7 +3850,7 @@ function ReportGroup({
             {icon}
           </span>
           <h3
-            className="text-sm font-bold text-[#1A1A1A]"
+            className="text-sm font-bold text-[#0026A3]"
             style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
           >
             {title}
@@ -4026,7 +4050,7 @@ function ArtisansView({
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-[#1A1A1A]" style={SERIF}>
+          <h2 className="text-xl font-bold text-[#0026A3]" style={SERIF}>
             Artisans vérifiés
           </h2>
           <p className="text-xs text-[#1A1A1A]/55">
@@ -4034,13 +4058,13 @@ function ArtisansView({
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge className="bg-[#4A7C59]/12 text-[#4A7C59]">
+          <Badge className="bg-[#059669]/12 text-[#059669]">
             <Wrench className="mr-1 h-3 w-3" /> {allArtisans.length} artisans
           </Badge>
           <Button
             size="sm"
             onClick={() => setShowForm((v) => !v)}
-            className="gap-1.5 rounded-lg bg-[#4A7C59] text-white hover:bg-[#3D6B4D]"
+            className="gap-1.5 rounded-lg bg-[#059669] text-white hover:bg-[#047857]"
           >
             {showForm ? (
               <>
@@ -4057,8 +4081,8 @@ function ArtisansView({
 
       {/* Formulaire d'ajout */}
       {showForm && (
-        <div className="rounded-2xl border-2 border-[#4A7C59]/20 bg-white p-5 shadow-sm">
-          <h3 className="mb-4 text-sm font-bold text-[#1A1A1A]">
+        <div className="rounded-2xl border-2 border-[#059669]/20 bg-white p-5 shadow-sm">
+          <h3 className="mb-4 text-sm font-bold text-[#0026A3]">
             Ajouter un artisan
           </h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -4071,7 +4095,7 @@ function ArtisansView({
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 placeholder="Ex : Mamadou Sow"
                 maxLength={80}
-                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#4A7C59] focus:outline-none focus:ring-2 focus:ring-[#4A7C59]/15"
+                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#059669] focus:outline-none focus:ring-2 focus:ring-[#059669]/15"
               />
             </div>
             {/* Métier */}
@@ -4083,7 +4107,7 @@ function ArtisansView({
                 onChange={(e) => setForm((f) => ({ ...f, trade: e.target.value }))}
                 placeholder="Ex : Plombier"
                 maxLength={60}
-                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#4A7C59] focus:outline-none focus:ring-2 focus:ring-[#4A7C59]/15"
+                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#059669] focus:outline-none focus:ring-2 focus:ring-[#059669]/15"
               />
             </div>
             {/* Téléphone */}
@@ -4094,7 +4118,7 @@ function ArtisansView({
                 value={form.phone}
                 onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                 placeholder="+221 77 000 00 00"
-                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#4A7C59] focus:outline-none focus:ring-2 focus:ring-[#4A7C59]/15"
+                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#059669] focus:outline-none focus:ring-2 focus:ring-[#059669]/15"
               />
             </div>
             {/* Quartier */}
@@ -4106,7 +4130,7 @@ function ArtisansView({
                 onChange={(e) => setForm((f) => ({ ...f, district: e.target.value }))}
                 placeholder="Ex : Plateau"
                 maxLength={60}
-                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#4A7C59] focus:outline-none focus:ring-2 focus:ring-[#4A7C59]/15"
+                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#059669] focus:outline-none focus:ring-2 focus:ring-[#059669]/15"
               />
             </div>
             {/* GPS */}
@@ -4120,14 +4144,14 @@ function ArtisansView({
                   value={form.lat}
                   onChange={(e) => setForm((f) => ({ ...f, lat: e.target.value }))}
                   placeholder="Latitude (14.69)"
-                  className="flex-1 rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#4A7C59] focus:outline-none focus:ring-2 focus:ring-[#4A7C59]/15"
+                  className="flex-1 rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#059669] focus:outline-none focus:ring-2 focus:ring-[#059669]/15"
                 />
                 <input
                   type="text"
                   value={form.lng}
                   onChange={(e) => setForm((f) => ({ ...f, lng: e.target.value }))}
                   placeholder="Longitude (-17.44)"
-                  className="flex-1 rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#4A7C59] focus:outline-none focus:ring-2 focus:ring-[#4A7C59]/15"
+                  className="flex-1 rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#059669] focus:outline-none focus:ring-2 focus:ring-[#059669]/15"
                 />
               </div>
             </div>
@@ -4138,9 +4162,9 @@ function ArtisansView({
                   type="checkbox"
                   checked={form.verified}
                   onChange={(e) => setForm((f) => ({ ...f, verified: e.target.checked }))}
-                  className="h-4 w-4 rounded border-[#EAE5DC] accent-[#0066CC]"
+                  className="h-4 w-4 rounded border-[#EAE5DC] accent-[#0026A3]"
                 />
-                <Check className="h-3.5 w-3.5 text-[#0066CC]" />
+                <Check className="h-3.5 w-3.5 text-[#0026A3]" />
                 Vérifié
               </label>
               <label className="flex cursor-pointer items-center gap-2 text-sm font-medium text-[#1A1A1A]">
@@ -4170,7 +4194,7 @@ function ArtisansView({
               size="sm"
               onClick={handleSubmit}
               disabled={creating}
-              className="gap-1.5 rounded-lg bg-[#4A7C59] text-white hover:bg-[#3D6B4D]"
+              className="gap-1.5 rounded-lg bg-[#059669] text-white hover:bg-[#047857]"
             >
               {creating ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
@@ -4187,8 +4211,8 @@ function ArtisansView({
       <div className="flex flex-wrap gap-2 text-xs">
         {[
           { key: 'all' as const, label: 'Tous', value: stats.total, color: 'bg-[#EAE5DC] text-[#1A1A1A]' },
-          { key: 'verified' as const, label: 'Vérifiés', value: stats.verified, color: 'bg-[#0066CC]/12 text-[#0066CC]' },
-          { key: 'premium' as const, label: 'Premium', value: stats.premium, color: 'bg-[#FFD700]/15 text-[#8B6F47]' },
+          { key: 'verified' as const, label: 'Vérifiés', value: stats.verified, color: 'bg-[#0026A3]/12 text-[#0026A3]' },
+          { key: 'premium' as const, label: 'Premium', value: stats.premium, color: 'bg-[#FFD700]/15 text-[#B8964F]' },
         ].map((s) => (
           <button
             key={s.key}
@@ -4246,7 +4270,7 @@ function ArtisansView({
                 <tr key={a.id} className="border-b border-[#EAE5DC]/50 hover:bg-[#FAFAF7]">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2.5">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#FFD700]/15 text-xs font-bold text-[#8B6F47]">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#FFD700]/15 text-xs font-bold text-[#B8964F]">
                         {a.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0">
@@ -4261,19 +4285,19 @@ function ArtisansView({
                       href={`tel:${a.phone.replace(/\s/g, '')}`}
                       className="inline-flex items-center gap-1.5 rounded-lg border border-[#EAE5DC] px-2.5 py-1 text-xs font-medium text-[#1A1A1A] transition hover:border-[#FFD700] hover:bg-[#FFD700]/8"
                     >
-                      <Phone className="h-3 w-3 text-[#4A7C59]" />
+                      <Phone className="h-3 w-3 text-[#059669]" />
                       {a.phone}
                     </a>
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-1">
                       {a.verified && (
-                        <Badge className="bg-[#0066CC]/12 text-[#0066CC] text-[10px]">
+                        <Badge className="bg-[#0026A3]/12 text-[#0026A3] text-[10px]">
                           <Check className="mr-0.5 h-2.5 w-2.5" /> Vérifié
                         </Badge>
                       )}
                       {a.premium && (
-                        <Badge className="bg-[#FFD700]/15 text-[#8B6F47] text-[10px]">
+                        <Badge className="bg-[#FFD700]/15 text-[#B8964F] text-[10px]">
                           <Star className="mr-0.5 h-2.5 w-2.5" /> Premium
                         </Badge>
                       )}
@@ -4733,7 +4757,7 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-[#1A1A1A]" style={SERIF}>
+          <h2 className="text-xl font-bold text-[#0026A3]" style={SERIF}>
             Commerces
           </h2>
           <p className="text-xs text-[#1A1A1A]/55">
@@ -4741,10 +4765,10 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Badge className="bg-[#FF6B00]/12 text-[#FF6B00]">
+          <Badge className="bg-[#F97316]/12 text-[#F97316]">
             <Clock className="mr-1 h-3 w-3" /> {pending.length} à valider
           </Badge>
-          <Badge className="bg-[#4A7C59]/12 text-[#4A7C59]">
+          <Badge className="bg-[#059669]/12 text-[#059669]">
             <ShoppingBag className="mr-1 h-3 w-3" /> {approved.length} actifs
           </Badge>
         </div>
@@ -4758,25 +4782,25 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
       ) : (
         <>
           {/* ============== Section 1 : En attente de validation ============== */}
-          <section className="overflow-hidden rounded-2xl border border-[#FF6B00]/30 bg-white shadow-sm">
+          <section className="overflow-hidden rounded-2xl border border-[#F97316]/30 bg-white shadow-sm">
             <div
-              className="flex items-center justify-between border-b border-[#EAE5DC] px-4 py-3"
-              style={{ borderLeft: '4px solid #FF6B00' }}
+              className="flex items-center justify-between border-b border-[#EAE5DC] border-l-4 border-l-[#FFD700] bg-[#0026A3]/5 px-4 py-3"
+              style={{ borderLeft: '4px solid #F97316' }}
             >
               <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-[#FF6B00]" />
-                <h3 className="text-sm font-bold text-[#1A1A1A]" style={SERIF}>
+                <Clock className="h-4 w-4 text-[#F97316]" />
+                <h3 className="text-sm font-bold text-[#0026A3]" style={SERIF}>
                   En attente de validation
                 </h3>
               </div>
-              <span className="rounded-full bg-[#FF6B00] px-2.5 py-0.5 text-xs font-bold text-white">
+              <span className="rounded-full bg-[#F97316] px-2.5 py-0.5 text-xs font-bold text-white">
                 {pending.length}
               </span>
             </div>
             <div className="p-4">
               {pending.length === 0 ? (
                 <div className="py-8 text-center">
-                  <Check className="mx-auto mb-2 h-7 w-7 text-[#4A7C59]/40" />
+                  <Check className="mx-auto mb-2 h-7 w-7 text-[#059669]/40" />
                   <p className="text-sm font-medium text-[#1A1A1A]/60">
                     Aucun commerce en attente
                   </p>
@@ -4802,10 +4826,10 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
 
           {/* ============== Section 2 : Commerces actifs ============== */}
           <section className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#EAE5DC] px-4 py-3">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[#EAE5DC] border-l-4 border-l-[#FFD700] bg-[#0026A3]/5 px-4 py-3">
               <div className="flex items-center gap-2">
-                <ShoppingBag className="h-4 w-4 text-[#4A7C59]" />
-                <h3 className="text-sm font-bold text-[#1A1A1A]" style={SERIF}>
+                <ShoppingBag className="h-4 w-4 text-[#059669]" />
+                <h3 className="text-sm font-bold text-[#0026A3]" style={SERIF}>
                   Commerces actifs
                 </h3>
               </div>
@@ -4854,12 +4878,12 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
 
           {/* ============== Panneau : Premium activation ============== */}
           <section className="overflow-hidden rounded-2xl border border-[#FFD700]/30 bg-gradient-to-br from-white to-[#FFD700]/5 shadow-sm">
-            <div className="flex items-center gap-2 border-b border-[#EAE5DC] px-4 py-3">
+            <div className="flex items-center gap-2 border-b border-[#EAE5DC] border-l-4 border-l-[#FFD700] bg-[#0026A3]/5 px-4 py-3">
               <Sparkles className="h-4 w-4 text-[#FFD700]" />
-              <h3 className="text-sm font-bold text-[#1A1A1A]" style={SERIF}>
+              <h3 className="text-sm font-bold text-[#0026A3]" style={SERIF}>
                 Activation Premium
               </h3>
-              <Badge className="ml-auto bg-[#FFD700]/15 text-[#8B6F47]">
+              <Badge className="ml-auto bg-[#FFD700]/15 text-[#B8964F]">
                 {premiumCount} premium
               </Badge>
             </div>
@@ -4879,7 +4903,7 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
                   .filter((b) => b.isPremium)
                   .map((b) => (
                     <div key={b.id} className="flex flex-wrap items-center gap-3 px-4 py-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#FFD700]/15 text-xs font-bold text-[#8B6F47]">
+                      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[#FFD700]/15 text-xs font-bold text-[#B8964F]">
                         {b.name.charAt(0).toUpperCase()}
                       </div>
                       <div className="min-w-0 flex-1">
@@ -4891,7 +4915,7 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
                       </div>
                       <div className="flex flex-wrap items-center gap-1.5">
                         {(b.premiumFeatures ?? []).includes('menu') && (
-                          <Badge className="bg-[#0066CC]/12 text-[10px] text-[#0066CC]">
+                          <Badge className="bg-[#0026A3]/12 text-[10px] text-[#0026A3]">
                             <Utensils className="mr-0.5 h-2.5 w-2.5" /> Menu
                           </Badge>
                         )}
@@ -4901,7 +4925,7 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
                           </Badge>
                         )}
                         {b.isSponsored && (
-                          <Badge className="bg-[#FF6B00]/12 text-[10px] text-[#FF6B00]">
+                          <Badge className="bg-[#F97316]/12 text-[10px] text-[#F97316]">
                             <Megaphone className="mr-0.5 h-2.5 w-2.5" /> Sponsorisé
                           </Badge>
                         )}
@@ -4918,7 +4942,7 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
                         size="sm"
                         variant="ghost"
                         onClick={() => handleTogglePremium(b)}
-                        className="text-[#E30613] hover:bg-[#E30613]/8"
+                        className="text-[#DC2626] hover:bg-[#DC2626]/8"
                       >
                         Désactiver Premium
                       </Button>
@@ -4967,9 +4991,9 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
               <button
                 type="button"
                 onClick={() => handleActivatePremiumWithFeature('menu')}
-                className="flex w-full items-center gap-3 rounded-xl border-2 border-[#EAE5DC] bg-white p-3 text-left transition hover:border-[#0066CC] hover:bg-[#0066CC]/5"
+                className="flex w-full items-center gap-3 rounded-xl border-2 border-[#EAE5DC] bg-white p-3 text-left transition hover:border-[#0026A3] hover:bg-[#0026A3]/5"
               >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#0066CC]/12 text-[#0066CC]">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#0026A3]/12 text-[#0026A3]">
                   <Utensils className="h-5 w-5" />
                 </span>
                 <div className="min-w-0 flex-1">
@@ -4997,9 +5021,9 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
               <button
                 type="button"
                 onClick={() => handleActivatePremiumWithFeature('sponsored')}
-                className="flex w-full items-center gap-3 rounded-xl border-2 border-[#EAE5DC] bg-white p-3 text-left transition hover:border-[#FF6B00] hover:bg-[#FF6B00]/5"
+                className="flex w-full items-center gap-3 rounded-xl border-2 border-[#EAE5DC] bg-white p-3 text-left transition hover:border-[#F97316] hover:bg-[#F97316]/5"
               >
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#FF6B00]/12 text-[#FF6B00]">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-[#F97316]/12 text-[#F97316]">
                   <Megaphone className="h-5 w-5" />
                 </span>
                 <div className="min-w-0 flex-1">
@@ -5055,7 +5079,7 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
                   placeholder="ex : -20% sur tous nos plats ce week-end !"
                   maxLength={200}
                   rows={3}
-                  className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#FF6B00] focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/15"
+                  className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#F97316] focus:outline-none focus:ring-2 focus:ring-[#F97316]/15"
                 />
                 <p className="mt-1 text-[10px] text-[#1A1A1A]/40">
                   {sponsorForm.offerText.length}/200 caractères
@@ -5069,7 +5093,7 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
                   type="datetime-local"
                   value={sponsorForm.offerEndsAt}
                   onChange={(e) => setSponsorForm((f) => ({ ...f, offerEndsAt: e.target.value }))}
-                  className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#FF6B00] focus:outline-none focus:ring-2 focus:ring-[#FF6B00]/15"
+                  className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#F97316] focus:outline-none focus:ring-2 focus:ring-[#F97316]/15"
                 />
               </div>
             </div>
@@ -5086,7 +5110,7 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
                 size="sm"
                 onClick={handleSaveSponsor}
                 disabled={savingSponsor}
-                className="gap-1.5 rounded-lg bg-[#FF6B00] text-white hover:bg-[#e65f00]"
+                className="gap-1.5 rounded-lg bg-[#F97316] text-white hover:bg-[#EA580C]"
               >
                 {savingSponsor ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -5144,7 +5168,7 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
                         loading="lazy"
                       />
                     ) : (
-                      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#0066CC]/12 text-[#0066CC]">
+                      <span className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[#0026A3]/12 text-[#0026A3]">
                         <Utensils className="h-4 w-4" />
                       </span>
                     )}
@@ -5154,7 +5178,7 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
                         <p className="text-xs text-[#1A1A1A]/55">{item.description}</p>
                       )}
                     </div>
-                    <span className="shrink-0 text-sm font-bold tabular-nums text-[#4A7C59]">
+                    <span className="shrink-0 text-sm font-bold tabular-nums text-[#059669]">
                       {item.price.toLocaleString('fr-FR')} FCFA
                     </span>
                   </li>
@@ -5286,7 +5310,7 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
                     <button
                       type="button"
                       onClick={() => menuFileRefs.current[idx]?.click()}
-                      className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-[#EAE5DC] bg-white transition hover:border-[#0066CC] hover:shadow-md"
+                      className="group relative h-16 w-16 shrink-0 overflow-hidden rounded-lg border border-[#EAE5DC] bg-white transition hover:border-[#0026A3] hover:shadow-md"
                       aria-label={`Photo du plat ${idx + 1}`}
                     >
                       {item.photo ? (
@@ -5327,7 +5351,7 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
                           onChange={(e) => updateMenuItem(idx, { name: e.target.value })}
                           placeholder="ex : Thiéboudienne au poisson"
                           maxLength={80}
-                          className="mt-0.5 w-full rounded-lg border border-[#EAE5DC] bg-white px-2.5 py-1.5 text-sm focus:border-[#0066CC] focus:outline-none focus:ring-1 focus:ring-[#0066CC]/20"
+                          className="mt-0.5 w-full rounded-lg border border-[#EAE5DC] bg-white px-2.5 py-1.5 text-sm focus:border-[#0026A3] focus:outline-none focus:ring-1 focus:ring-[#0026A3]/20"
                         />
                       </div>
                       <div>
@@ -5346,7 +5370,7 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
                             })
                           }
                           placeholder="2500"
-                          className="mt-0.5 w-full rounded-lg border border-[#EAE5DC] bg-white px-2.5 py-1.5 text-sm tabular-nums focus:border-[#0066CC] focus:outline-none focus:ring-1 focus:ring-[#0066CC]/20"
+                          className="mt-0.5 w-full rounded-lg border border-[#EAE5DC] bg-white px-2.5 py-1.5 text-sm tabular-nums focus:border-[#0026A3] focus:outline-none focus:ring-1 focus:ring-[#0026A3]/20"
                         />
                       </div>
                     </div>
@@ -5356,7 +5380,7 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
                       type="button"
                       onClick={() => removeMenuItem(idx)}
                       disabled={savingMenu}
-                      className="shrink-0 rounded-lg p-1.5 text-[#E30613] transition hover:bg-[#E30613]/8 disabled:opacity-40"
+                      className="shrink-0 rounded-lg p-1.5 text-[#DC2626] transition hover:bg-[#DC2626]/8 disabled:opacity-40"
                       aria-label={`Supprimer le plat ${idx + 1}`}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -5372,7 +5396,7 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
                 variant="outline"
                 onClick={addMenuItem}
                 disabled={savingMenu || menuItems.length >= 10}
-                className="border-[#0066CC]/30 text-[#0066CC] hover:bg-[#0066CC]/5"
+                className="border-[#0026A3]/30 text-[#0026A3] hover:bg-[#0026A3]/5"
               >
                 <Plus className="mr-1 h-3.5 w-3.5" /> Ajouter un plat
               </Button>
@@ -5392,7 +5416,7 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
                 size="sm"
                 onClick={handleSaveMenu}
                 disabled={savingMenu}
-                className="gap-1.5 rounded-lg bg-[#0066CC] text-white hover:bg-[#0055ad]"
+                className="gap-1.5 rounded-lg bg-[#0026A3] text-white hover:bg-[#1E40AF]"
               >
                 {savingMenu ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -5545,7 +5569,7 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
                       type="button"
                       onClick={() => removePriceItem(idx)}
                       disabled={savingPriceGrid}
-                      className="shrink-0 rounded-lg p-1.5 text-[#E30613] transition hover:bg-[#E30613]/8 disabled:opacity-40"
+                      className="shrink-0 rounded-lg p-1.5 text-[#DC2626] transition hover:bg-[#DC2626]/8 disabled:opacity-40"
                       aria-label={`Supprimer la prestation ${idx + 1}`}
                     >
                       <Trash2 className="h-4 w-4" />
@@ -5647,9 +5671,9 @@ function BusinessCard({
     <article
       className={cn(
         'overflow-hidden rounded-2xl border bg-white shadow-sm transition-shadow hover:shadow-md',
-        mode === 'pending' ? 'border-[#FF6B00]/30' : 'border-[#EAE5DC]',
+        mode === 'pending' ? 'border-[#F97316]/30' : 'border-[#EAE5DC]',
       )}
-      style={{ borderTop: mode === 'pending' ? '3px solid #FF6B00' : '3px solid #4A7C59' }}
+      style={{ borderTop: mode === 'pending' ? '3px solid #F97316' : '3px solid #059669' }}
     >
       <div className="p-4">
         {/* Header : photo + nom + métier */}
@@ -5670,7 +5694,7 @@ function BusinessCard({
               />
             </button>
           ) : (
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-[#FFD700]/15 text-xl font-bold text-[#8B6F47]">
+            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-[#FFD700]/15 text-xl font-bold text-[#B8964F]">
               {b.name.charAt(0).toUpperCase()}
             </div>
           )}
@@ -5692,7 +5716,7 @@ function BusinessCard({
               <span className="text-[#1A1A1A]/50">Téléphone</span>
               <a
                 href={`tel:${b.phone.replace(/\s/g, '')}`}
-                className="inline-flex items-center gap-1 font-medium text-[#4A7C59] hover:underline"
+                className="inline-flex items-center gap-1 font-medium text-[#059669] hover:underline"
               >
                 <Phone className="h-3 w-3" />
                 {b.phone}
@@ -5724,17 +5748,17 @@ function BusinessCard({
         {mode === 'approved' && (b.isPremium || b.isSponsored) && (
           <div className="mt-3 flex flex-wrap gap-1.5">
             {b.isPremium && (
-              <Badge className="bg-[#FFD700]/15 text-[10px] text-[#8B6F47]">
+              <Badge className="bg-[#FFD700]/15 text-[10px] text-[#B8964F]">
                 <Star className="mr-0.5 h-2.5 w-2.5 fill-[#FFD700]" /> Premium
               </Badge>
             )}
             {b.isSponsored && (
-              <Badge className="bg-[#FF6B00]/12 text-[10px] text-[#FF6B00]">
+              <Badge className="bg-[#F97316]/12 text-[10px] text-[#F97316]">
                 <Megaphone className="mr-0.5 h-2.5 w-2.5" /> Sponsorisé
               </Badge>
             )}
             {b.offerText && b.isSponsored && (
-              <span className="ml-auto line-clamp-1 text-[10px] italic text-[#FF6B00]">
+              <span className="ml-auto line-clamp-1 text-[10px] italic text-[#F97316]">
                 « {b.offerText} »
               </span>
             )}
@@ -5749,7 +5773,7 @@ function BusinessCard({
                 size="sm"
                 onClick={() => handleAction(onApprove)}
                 disabled={pending}
-                className="gap-1.5 rounded-lg bg-[#4A7C59] text-white hover:bg-[#3D6B4D]"
+                className="gap-1.5 rounded-lg bg-[#059669] text-white hover:bg-[#047857]"
               >
                 {pending ? (
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -5762,7 +5786,7 @@ function BusinessCard({
                 size="sm"
                 onClick={() => handleAction(onReject)}
                 disabled={pending}
-                className="gap-1.5 rounded-lg bg-[#E30613] text-white hover:bg-[#c90512]"
+                className="gap-1.5 rounded-lg bg-[#DC2626] text-white hover:bg-[#B91C1C]"
               >
                 <X className="h-3.5 w-3.5" />
                 Rejeter
@@ -5777,7 +5801,7 @@ function BusinessCard({
                 className={cn(
                   'gap-1.5 rounded-lg',
                   b.isPremium
-                    ? 'bg-[#FFD700]/15 text-[#8B6F47] hover:bg-[#FFD700]/25'
+                    ? 'bg-[#FFD700]/15 text-[#B8964F] hover:bg-[#FFD700]/25'
                     : 'bg-[#FFD700] text-[#1A1A1A] hover:bg-[#B8964F]',
                 )}
               >
@@ -5789,7 +5813,7 @@ function BusinessCard({
                   size="sm"
                   variant="outline"
                   onClick={() => handleAction(onDeactivateSponsor)}
-                  className="border-[#FF6B00]/30 text-[#FF6B00] hover:bg-[#FF6B00]/5"
+                  className="border-[#F97316]/30 text-[#F97316] hover:bg-[#F97316]/5"
                 >
                   Arrêter sponsoring
                 </Button>
@@ -5798,7 +5822,7 @@ function BusinessCard({
                   size="sm"
                   variant="outline"
                   onClick={() => handleAction(onOpenSponsor)}
-                  className="border-[#FF6B00]/30 text-[#FF6B00] hover:bg-[#FF6B00]/5"
+                  className="border-[#F97316]/30 text-[#F97316] hover:bg-[#F97316]/5"
                 >
                   <Megaphone className="mr-1 h-3.5 w-3.5" /> Sponsoriser
                 </Button>
@@ -5808,7 +5832,7 @@ function BusinessCard({
                   size="sm"
                   variant="outline"
                   onClick={onViewMenu}
-                  className="border-[#0066CC]/30 text-[#0066CC] hover:bg-[#0066CC]/5"
+                  className="border-[#0026A3]/30 text-[#0026A3] hover:bg-[#0026A3]/5"
                 >
                   <Utensils className="mr-1 h-3.5 w-3.5" /> Menu ({(b.menu ?? []).length})
                 </Button>
@@ -5829,7 +5853,7 @@ function BusinessCard({
                 <Button
                   size="sm"
                   onClick={() => handleAction(onEditMenu)}
-                  className="gap-1.5 rounded-lg bg-[#0066CC] text-white hover:bg-[#0055ad]"
+                  className="gap-1.5 rounded-lg bg-[#0026A3] text-white hover:bg-[#1E40AF]"
                   aria-label={`Éditer le menu de ${b.name}`}
                 >
                   <Utensils className="h-3.5 w-3.5" />
@@ -5909,16 +5933,16 @@ function depositTypeColor(type: string | undefined): { bg: string; color: string
   if (!type) return { bg: 'bg-[#EAE5DC]', color: '#1A1A1A', label: 'Inconnu' }
   const t = type.toLowerCase()
   if (t.includes('dump') || t.includes('décharge') || t.includes('decharge')) {
-    return { bg: 'bg-[#FF6B00]/12 text-[#FF6B00]', color: COLOR_ORANGE, label: 'Dump sauvage' }
+    return { bg: 'bg-[#F97316]/12 text-[#F97316]', color: COLOR_ORANGE, label: 'Dump sauvage' }
   }
   if (t.includes('vehicle') || t.includes('véhicule') || t.includes('vehicule') || t.includes('camion')) {
-    return { bg: 'bg-[#E30613]/12 text-[#E30613]', color: COLOR_RED, label: 'Véhicule' }
+    return { bg: 'bg-[#DC2626]/12 text-[#DC2626]', color: COLOR_RED, label: 'Véhicule' }
   }
   if (t.includes('container') || t.includes('conteneur')) {
     return { bg: 'bg-[#6B4C9A]/12 text-[#6B4C9A]', color: COLOR_PURPLE, label: 'Conteneur' }
   }
   if (t.includes('construction') || t.includes('chantier')) {
-    return { bg: 'bg-[#8B6F47]/12 text-[#8B6F47]', color: '#8B6F47', label: 'Chantier' }
+    return { bg: 'bg-[#B8964F]/12 text-[#B8964F]', color: '#B8964F', label: 'Chantier' }
   }
   return { bg: 'bg-[#EAE5DC]', color: '#1A1A1A', label: type }
 }
@@ -5926,13 +5950,13 @@ function depositTypeColor(type: string | undefined): { bg: string; color: string
 function taxReportStatusInfo(status: string): { label: string; bg: string; color: string } {
   switch (status) {
     case 'reported':
-      return { label: 'Signalé', bg: 'bg-[#FF6B00]/12 text-[#FF6B00]', color: COLOR_ORANGE }
+      return { label: 'Signalé', bg: 'bg-[#F97316]/12 text-[#F97316]', color: COLOR_ORANGE }
     case 'verified':
-      return { label: 'Vérifié', bg: 'bg-[#0066CC]/12 text-[#0066CC]', color: COLOR_BLUE }
+      return { label: 'Vérifié', bg: 'bg-[#0026A3]/12 text-[#0026A3]', color: COLOR_BLUE }
     case 'tax_collected':
-      return { label: 'Taxe encaissée', bg: 'bg-[#4A7C59]/12 text-[#4A7C59]', color: COLOR_GREEN }
+      return { label: 'Taxe encaissée', bg: 'bg-[#059669]/12 text-[#059669]', color: COLOR_GREEN }
     case 'rewarded':
-      return { label: 'Récompensé', bg: 'bg-[#FFD700]/15 text-[#8B6F47]', color: COLOR_GOLD }
+      return { label: 'Récompensé', bg: 'bg-[#FFD700]/15 text-[#B8964F]', color: COLOR_GOLD }
     default:
       return { label: status, bg: 'bg-[#EAE5DC] text-[#1A1A1A]', color: COLOR_ANTHRACITE }
   }
@@ -6092,7 +6116,7 @@ function TaxReportsView() {
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-[#1A1A1A]" style={SERIF}>
+          <h2 className="text-xl font-bold text-[#0026A3]" style={SERIF}>
             Rapports fiscaux citoyens
           </h2>
           <p className="text-xs text-[#1A1A1A]/55">
@@ -6108,10 +6132,10 @@ function TaxReportsView() {
       <div className="flex flex-wrap gap-2 text-xs">
         {[
           { key: 'all', label: 'Tous', value: counts.all, color: 'bg-[#EAE5DC] text-[#1A1A1A]' },
-          { key: 'reported', label: 'Signalés', value: counts.reported, color: 'bg-[#FF6B00]/12 text-[#FF6B00]' },
-          { key: 'verified', label: 'Vérifiés', value: counts.verified, color: 'bg-[#0066CC]/12 text-[#0066CC]' },
-          { key: 'tax_collected', label: 'Encaissés', value: counts.tax_collected, color: 'bg-[#4A7C59]/12 text-[#4A7C59]' },
-          { key: 'rewarded', label: 'Récompensés', value: counts.rewarded, color: 'bg-[#FFD700]/15 text-[#8B6F47]' },
+          { key: 'reported', label: 'Signalés', value: counts.reported, color: 'bg-[#F97316]/12 text-[#F97316]' },
+          { key: 'verified', label: 'Vérifiés', value: counts.verified, color: 'bg-[#0026A3]/12 text-[#0026A3]' },
+          { key: 'tax_collected', label: 'Encaissés', value: counts.tax_collected, color: 'bg-[#059669]/12 text-[#059669]' },
+          { key: 'rewarded', label: 'Récompensés', value: counts.rewarded, color: 'bg-[#FFD700]/15 text-[#B8964F]' },
         ].map((s) => (
           <button
             key={s.key}
@@ -6200,7 +6224,7 @@ function TaxReportsView() {
               </button>
             </div>
             <div className="mb-4 rounded-xl bg-[#FFD700]/8 p-3">
-              <p className="text-xs font-medium text-[#8B6F47]">
+              <p className="text-xs font-medium text-[#B8964F]">
                 Montant de la récompense (calculé automatiquement) :
               </p>
               <p className="text-xl font-bold tabular-nums text-[#FFD700]" style={SERIF}>
@@ -6379,7 +6403,7 @@ function TaxReportCard({
               <Badge className={cn('text-[10px]', deposit.bg)}>{deposit.label}</Badge>
               {/* Vehicle plate (si détecté) */}
               {(ai.vehiclePlate || r.vehiclePlate) && (
-                <Badge className="bg-[#E30613]/12 text-[10px] font-mono text-[#E30613]">
+                <Badge className="bg-[#DC2626]/12 text-[10px] font-mono text-[#DC2626]">
                   🚛 {ai.vehiclePlate ?? r.vehiclePlate}
                 </Badge>
               )}
@@ -6416,7 +6440,7 @@ function TaxReportCard({
           {r.vehiclePlate && (
             <div className="flex items-center justify-between gap-2">
               <span className="text-[#1A1A1A]/50">Véhicule signalé</span>
-              <span className="font-mono font-bold text-[#E30613]">{r.vehiclePlate}</span>
+              <span className="font-mono font-bold text-[#DC2626]">{r.vehiclePlate}</span>
             </div>
           )}
           {r.plate && (
@@ -6432,7 +6456,7 @@ function TaxReportCard({
               <span className="text-[#1A1A1A]/50">Citoyen</span>
               <a
                 href={`tel:${r.citizenPhone.replace(/\s/g, '')}`}
-                className="inline-flex items-center gap-1 font-medium text-[#4A7C59] hover:underline"
+                className="inline-flex items-center gap-1 font-medium text-[#059669] hover:underline"
               >
                 <Phone className="h-3 w-3" />
                 {r.citizenPhone}
@@ -6451,21 +6475,21 @@ function TaxReportCard({
         {(r.taxAmount > 0 || r.rewardAmount > 0) && (
           <div className="mt-3 grid grid-cols-2 gap-2 border-t border-[#EAE5DC] pt-3">
             {r.taxAmount > 0 && (
-              <div className="rounded-lg bg-[#4A7C59]/8 p-2">
-                <p className="text-[9px] font-semibold uppercase tracking-wide text-[#4A7C59]">
+              <div className="rounded-lg bg-[#059669]/8 p-2">
+                <p className="text-[9px] font-semibold uppercase tracking-wide text-[#059669]">
                   Taxe encaissée
                 </p>
-                <p className="text-sm font-bold tabular-nums text-[#4A7C59]">
+                <p className="text-sm font-bold tabular-nums text-[#059669]">
                   {r.taxAmount.toLocaleString('fr-FR')} FCFA
                 </p>
               </div>
             )}
             {r.rewardAmount > 0 && (
               <div className="rounded-lg bg-[#FFD700]/8 p-2">
-                <p className="text-[9px] font-semibold uppercase tracking-wide text-[#8B6F47]">
+                <p className="text-[9px] font-semibold uppercase tracking-wide text-[#B8964F]">
                   Récompense ({rewardMethodLabel(r.rewardMethod)})
                 </p>
-                <p className="text-sm font-bold tabular-nums text-[#8B6F47]">
+                <p className="text-sm font-bold tabular-nums text-[#B8964F]">
                   {r.rewardAmount.toLocaleString('fr-FR')} FCFA
                 </p>
               </div>
@@ -6480,7 +6504,7 @@ function TaxReportCard({
               size="sm"
               onClick={() => handleAction(onValidate)}
               disabled={pending}
-              className="gap-1.5 rounded-lg bg-[#0066CC] text-white hover:bg-[#0055a8]"
+              className="gap-1.5 rounded-lg bg-[#0026A3] text-white hover:bg-[#1E40AF]"
             >
               {pending ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -6495,7 +6519,7 @@ function TaxReportCard({
               size="sm"
               onClick={() => handleAction(onCollect)}
               disabled={pending}
-              className="gap-1.5 rounded-lg bg-[#4A7C59] text-white hover:bg-[#3D6B4D]"
+              className="gap-1.5 rounded-lg bg-[#059669] text-white hover:bg-[#047857]"
             >
               {pending ? (
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -6521,11 +6545,11 @@ function TaxReportCard({
             </Button>
           )}
           {r.status === 'rewarded' && (
-            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FFD700]/12 px-3 py-1 text-[11px] font-bold text-[#8B6F47]">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-[#FFD700]/12 px-3 py-1 text-[11px] font-bold text-[#B8964F]">
               <Check className="h-3.5 w-3.5" />
               Récompense envoyée
               {r.rewardedAt && (
-                <span className="font-normal text-[#8B6F47]/70">
+                <span className="font-normal text-[#B8964F]/70">
                   · {timeAgo(r.rewardedAt)}
                 </span>
               )}
@@ -6790,7 +6814,7 @@ function MairieDynamicView() {
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-xl font-bold text-[#1A1A1A]" style={SERIF}>
+        <h2 className="text-xl font-bold text-[#0026A3]" style={SERIF}>
           Mairie dynamique
         </h2>
         <p className="text-xs text-[#1A1A1A]/55">
@@ -6803,21 +6827,21 @@ function MairieDynamicView() {
         className={cn(
           'flex items-center justify-between rounded-2xl border p-5 shadow-sm',
           isOpen
-            ? 'border-[#4A7C59]/30 bg-[#4A7C59]/5'
-            : 'border-[#E30613]/30 bg-[#E30613]/5',
+            ? 'border-[#059669]/30 bg-[#059669]/5'
+            : 'border-[#DC2626]/30 bg-[#DC2626]/5',
         )}
       >
         <div className="flex items-center gap-3">
           <div
             className={cn(
               'flex h-12 w-12 items-center justify-center rounded-full',
-              isOpen ? 'bg-[#4A7C59]/15' : 'bg-[#E30613]/15',
+              isOpen ? 'bg-[#059669]/15' : 'bg-[#DC2626]/15',
             )}
           >
             {isOpen ? (
-              <Check className="h-6 w-6 text-[#4A7C59]" />
+              <Check className="h-6 w-6 text-[#059669]" />
             ) : (
-              <X className="h-6 w-6 text-[#E30613]" />
+              <X className="h-6 w-6 text-[#DC2626]" />
             )}
           </div>
           <div>
@@ -6844,9 +6868,9 @@ function MairieDynamicView() {
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         {/* Horaires éditables */}
         <section className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white shadow-sm">
-          <div className="flex items-center gap-2 border-b border-[#EAE5DC] px-4 py-3">
+          <div className="flex items-center gap-2 border-b border-[#EAE5DC] border-l-4 border-l-[#FFD700] bg-[#0026A3]/5 px-4 py-3">
             <Clock className="h-4 w-4 text-[#1A1A1A]" />
-            <h3 className="text-sm font-bold text-[#1A1A1A]" style={SERIF}>
+            <h3 className="text-sm font-bold text-[#0026A3]" style={SERIF}>
               Horaires d&apos;ouverture
             </h3>
             <Badge variant="outline" className="ml-auto border-[#EAE5DC] text-[10px] text-[#1A1A1A]/60">
@@ -6872,8 +6896,8 @@ function MairieDynamicView() {
                   className={cn(
                     'inline-flex h-6 w-6 items-center justify-center rounded-full transition',
                     row.open
-                      ? 'bg-[#4A7C59]/15 text-[#4A7C59]'
-                      : 'bg-[#E30613]/15 text-[#E30613]',
+                      ? 'bg-[#059669]/15 text-[#059669]'
+                      : 'bg-[#DC2626]/15 text-[#DC2626]',
                   )}
                   aria-label={row.open ? 'Marquer comme fermé' : 'Marquer comme ouvert'}
                   title={row.open ? 'Ouvert (cliquer pour fermer)' : 'Fermé (cliquer pour ouvrir)'}
@@ -6887,17 +6911,17 @@ function MairieDynamicView() {
 
         {/* Services éditables */}
         <section className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white shadow-sm">
-          <div className="flex items-center justify-between border-b border-[#EAE5DC] px-4 py-3">
+          <div className="flex items-center justify-between border-b border-[#EAE5DC] border-l-4 border-l-[#FFD700] bg-[#0026A3]/5 px-4 py-3">
             <div className="flex items-center gap-2">
               <Landmark className="h-4 w-4 text-[#1A1A1A]" />
-              <h3 className="text-sm font-bold text-[#1A1A1A]" style={SERIF}>
+              <h3 className="text-sm font-bold text-[#0026A3]" style={SERIF}>
                 Services municipaux
               </h3>
             </div>
             <Button
               size="sm"
               onClick={openAddService}
-              className="gap-1.5 rounded-lg bg-[#FFD700] text-[#1A1A1A] hover:bg-[#B8964F]"
+              className="gap-1.5 rounded-lg bg-[#0026A3] text-white hover:bg-[#1E40AF]"
             >
               <Plus className="h-3.5 w-3.5" /> Ajouter un service
             </Button>
@@ -6958,7 +6982,7 @@ function MairieDynamicView() {
                 <Button
                   size="sm"
                   onClick={saveService}
-                  className="bg-[#4A7C59] text-white hover:bg-[#3D6B4D]"
+                  className="bg-[#059669] text-white hover:bg-[#047857]"
                 >
                   {editingServiceId ? 'Mettre à jour' : 'Ajouter'}
                 </Button>
@@ -6984,7 +7008,7 @@ function MairieDynamicView() {
                 <div className="flex items-center gap-1.5">
                   <a
                     href={`tel:${svc.phone.replace(/\s/g, '')}`}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#4A7C59]/12 text-[#4A7C59] transition hover:bg-[#4A7C59] hover:text-white"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#059669]/12 text-[#059669] transition hover:bg-[#059669] hover:text-white"
                     aria-label={`Appeler ${svc.name}`}
                   >
                     <Phone className="h-4 w-4" />
@@ -6992,7 +7016,7 @@ function MairieDynamicView() {
                   <button
                     type="button"
                     onClick={() => openEditService(svc)}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#FFD700]/12 text-[#8B6F47] transition hover:bg-[#FFD700] hover:text-white"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#FFD700]/12 text-[#B8964F] transition hover:bg-[#FFD700] hover:text-white"
                     aria-label={`Modifier ${svc.name}`}
                     title="Modifier"
                   >
@@ -7001,7 +7025,7 @@ function MairieDynamicView() {
                   <button
                     type="button"
                     onClick={() => deleteService(svc.id)}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#E30613]/10 text-[#E30613] transition hover:bg-[#E30613] hover:text-white"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-full bg-[#DC2626]/10 text-[#DC2626] transition hover:bg-[#DC2626] hover:text-white"
                     aria-label={`Supprimer ${svc.name}`}
                     title="Supprimer"
                   >
@@ -7016,10 +7040,10 @@ function MairieDynamicView() {
 
       {/* Annonces éditables */}
       <section className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-[#EAE5DC] px-4 py-3">
+        <div className="flex items-center justify-between border-b border-[#EAE5DC] border-l-4 border-l-[#FFD700] bg-[#0026A3]/5 px-4 py-3">
           <div className="flex items-center gap-2">
             <Bell className="h-4 w-4 text-[#FFD700]" />
-            <h3 className="text-sm font-bold text-[#1A1A1A]" style={SERIF}>
+            <h3 className="text-sm font-bold text-[#0026A3]" style={SERIF}>
               Annonces récentes
             </h3>
           </div>
@@ -7123,7 +7147,7 @@ function MairieDynamicView() {
               <button
                 type="button"
                 onClick={() => deleteAnnouncement(a.id)}
-                className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#E30613]/10 text-[#E30613] transition hover:bg-[#E30613] hover:text-white"
+                className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-[#DC2626]/10 text-[#DC2626] transition hover:bg-[#DC2626] hover:text-white"
                 aria-label="Supprimer l'annonce"
                 title="Supprimer"
               >
@@ -7198,7 +7222,7 @@ function RevenueView({
   return (
     <div className="space-y-5">
       <div>
-        <h2 className="text-xl font-bold text-[#1A1A1A]" style={SERIF}>
+        <h2 className="text-xl font-bold text-[#0026A3]" style={SERIF}>
           Revenus artisans
         </h2>
         <p className="text-xs text-[#1A1A1A]/55">
@@ -7226,14 +7250,14 @@ function RevenueView({
         {/* Part mairie */}
         <div className="overflow-hidden rounded-2xl border border-[#FFD700]/30 bg-[#FFD700]/5 p-5 shadow-sm">
           <div className="mb-2 flex items-center gap-2">
-            <Building2 className="h-4 w-4 text-[#8B6F47]" />
-            <p className="text-[11px] font-semibold uppercase tracking-wider text-[#8B6F47]">
+            <Building2 className="h-4 w-4 text-[#B8964F]" />
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-[#B8964F]">
               Part mairie (30%)
             </p>
           </div>
-          <p className="text-3xl font-bold tabular-nums text-[#8B6F47]" style={SERIF}>
+          <p className="text-3xl font-bold tabular-nums text-[#B8964F]" style={SERIF}>
             {formatFCFA(mairieShare)}
-            <span className="ml-1 text-sm font-medium text-[#8B6F47]/70">FCFA</span>
+            <span className="ml-1 text-sm font-medium text-[#B8964F]/70">FCFA</span>
           </p>
           <p className="mt-2 text-[10px] text-[#1A1A1A]/50">
             Commission sur chaque mise en relation
@@ -7259,8 +7283,8 @@ function RevenueView({
       <section className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <TrendingUp className="h-4 w-4 text-[#4A7C59]" />
-            <h3 className="text-sm font-bold text-[#1A1A1A]" style={SERIF}>
+            <TrendingUp className="h-4 w-4 text-[#059669]" />
+            <h3 className="text-sm font-bold text-[#0026A3]" style={SERIF}>
               Tendance mensuelle
             </h3>
           </div>
@@ -7282,7 +7306,7 @@ function RevenueView({
                     <div
                       className={cn(
                         'w-full rounded-t-md transition-all',
-                        isLast ? 'bg-[#FFD700]' : 'bg-[#4A7C59]/70',
+                        isLast ? 'bg-[#FFD700]' : 'bg-[#059669]/70',
                       )}
                       style={{ height: `${h}%` }}
                     />
@@ -7303,10 +7327,10 @@ function RevenueView({
 
       {/* Top artisans */}
       <section className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white shadow-sm">
-        <div className="flex items-center justify-between border-b border-[#EAE5DC] px-4 py-3">
+        <div className="flex items-center justify-between border-b border-[#EAE5DC] border-l-4 border-l-[#FFD700] bg-[#0026A3]/5 px-4 py-3">
           <div className="flex items-center gap-2">
             <Users className="h-4 w-4 text-[#FFD700]" />
-            <h3 className="text-sm font-bold text-[#1A1A1A]" style={SERIF}>
+            <h3 className="text-sm font-bold text-[#0026A3]" style={SERIF}>
               Top artisans contributeurs
             </h3>
           </div>
@@ -7336,7 +7360,7 @@ function RevenueView({
                       : i === 1
                         ? 'bg-[#EAE5DC] text-[#1A1A1A]'
                         : i === 2
-                          ? 'bg-[#D4A574]/30 text-[#8B6F47]'
+                          ? 'bg-[#D4A574]/30 text-[#B8964F]'
                           : 'bg-[#FAFAF7] text-[#1A1A1A]/50',
                   )}
                 >
@@ -7354,7 +7378,7 @@ function RevenueView({
                 </div>
                 <div className="hidden h-2 w-24 overflow-hidden rounded-full bg-[#F2EEE5] sm:block">
                   <div
-                    className="h-full rounded-full bg-[#4A7C59]"
+                    className="h-full rounded-full bg-[#059669]"
                     style={{ width: `${(a.revenue / maxRevenue) * 100}%` }}
                   />
                 </div>
@@ -7514,7 +7538,7 @@ function PlatesMapView({
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-[#1A1A1A]" style={SERIF}>
+          <h2 className="text-xl font-bold text-[#0026A3]" style={SERIF}>
             Carte des plaques
           </h2>
           <p className="text-xs text-[#1A1A1A]/55">
@@ -7532,7 +7556,7 @@ function PlatesMapView({
               <QrCode className="h-4 w-4" /> Gérer les plaques
             </Button>
           )}
-          <Badge className="bg-[#FFD700]/15 text-[#8B6F47]">
+          <Badge className="bg-[#FFD700]/15 text-[#B8964F]">
             <MapPin className="mr-1 h-3 w-3" /> {stats.total} localisations
           </Badge>
         </div>
@@ -7542,9 +7566,9 @@ function PlatesMapView({
       <div className="flex flex-wrap gap-2 text-xs">
         {[
           { key: 'all', label: 'Tous', value: stats.total, color: 'bg-[#EAE5DC] text-[#1A1A1A]' },
-          { key: 'active', label: 'Actives', value: stats.active, color: 'bg-[#4A7C59]/12 text-[#4A7C59]' },
-          { key: 'maintenance', label: 'Maintenance', value: stats.maintenance, color: 'bg-[#FF6B00]/12 text-[#FF6B00]' },
-          { key: 'offline', label: 'Hors ligne', value: stats.offline, color: 'bg-[#E30613]/12 text-[#E30613]' },
+          { key: 'active', label: 'Actives', value: stats.active, color: 'bg-[#059669]/12 text-[#059669]' },
+          { key: 'maintenance', label: 'Maintenance', value: stats.maintenance, color: 'bg-[#F97316]/12 text-[#F97316]' },
+          { key: 'offline', label: 'Hors ligne', value: stats.offline, color: 'bg-[#DC2626]/12 text-[#DC2626]' },
         ].map((s) => (
           <button
             key={s.key}
@@ -7634,7 +7658,7 @@ function PlatesMapView({
                           {p.plateNumber}
                         </p>
                         {emergencyCount > 0 && (
-                          <Badge className="animate-pulse bg-[#E30613] text-[10px] text-white">
+                          <Badge className="animate-pulse bg-[#DC2626] text-[10px] text-white">
                             <AlertTriangle className="mr-0.5 h-2.5 w-2.5" /> {emergencyCount}
                           </Badge>
                         )}
@@ -7645,11 +7669,11 @@ function PlatesMapView({
                           className={cn(
                             'text-[9px]',
                             p.status === 'active'
-                              ? 'bg-[#4A7C59]/12 text-[#4A7C59]'
+                              ? 'bg-[#059669]/12 text-[#059669]'
                               : p.status === 'maintenance'
-                                ? 'bg-[#FF6B00]/12 text-[#FF6B00]'
+                                ? 'bg-[#F97316]/12 text-[#F97316]'
                                 : p.status === 'offline'
-                                  ? 'bg-[#E30613]/12 text-[#E30613]'
+                                  ? 'bg-[#DC2626]/12 text-[#DC2626]'
                                   : 'bg-amber-100 text-amber-800',
                           )}
                         >
@@ -7873,7 +7897,7 @@ function PlatesMapView({
               <Button
                 onClick={handleSavePlate}
                 disabled={savingPlate}
-                className="bg-[#4A7C59] text-white hover:bg-[#3D6B4D]"
+                className="bg-[#059669] text-white hover:bg-[#047857]"
               >
                 {savingPlate ? (
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -8020,7 +8044,7 @@ function AnnouncementsView() {
       {/* Header + bouton créer */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-[#1A1A1A]" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
+          <h2 className="text-xl font-bold text-[#0026A3]" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
             Annonces vocales
           </h2>
           <p className="text-sm text-[#1A1A1A]/60">
@@ -8039,7 +8063,7 @@ function AnnouncementsView() {
       {/* Formulaire de création */}
       {showForm && (
         <div className="rounded-2xl border-2 border-[#6B4C9A]/20 bg-white p-5 shadow-sm">
-          <h3 className="mb-4 text-sm font-bold text-[#1A1A1A]">Créer une annonce</h3>
+          <h3 className="mb-4 text-sm font-bold text-[#0026A3]">Créer une annonce</h3>
           <div className="space-y-3">
             {/* Titre */}
             <div>
@@ -8113,7 +8137,7 @@ function AnnouncementsView() {
                       className="inline-flex items-center gap-1 rounded-full bg-[#6B4C9A]/10 px-3 py-1 text-xs font-bold text-[#6B4C9A]"
                     >
                       {h}
-                      <button onClick={() => removeHour(h)} className="text-[#6B4C9A]/60 hover:text-[#E30613]">
+                      <button onClick={() => removeHour(h)} className="text-[#6B4C9A]/60 hover:text-[#DC2626]">
                         <X className="size-3" />
                       </button>
                     </span>
@@ -8208,7 +8232,7 @@ function AnnouncementsView() {
                   onClick={() => handleDelete(a.id)}
                   size="sm"
                   variant="outline"
-                  className="gap-1.5 rounded-lg border-[#E30613]/30 text-[#E30613] hover:bg-[#E30613]/5"
+                  className="gap-1.5 rounded-lg border-[#DC2626]/30 text-[#DC2626] hover:bg-[#DC2626]/5"
                 >
                   <Trash2 className="size-3.5" />
                   Supprimer
@@ -8315,10 +8339,10 @@ function TransportView() {
 
   const typeColor = (t: Transport['type']) =>
     t === 'bus'
-      ? { bg: 'bg-[#0066CC]/12 text-[#0066CC]', color: COLOR_BLUE, emoji: '🚌' }
+      ? { bg: 'bg-[#0026A3]/12 text-[#0026A3]', color: COLOR_BLUE, emoji: '🚌' }
       : t === 'train'
         ? { bg: 'bg-[#6B4C9A]/12 text-[#6B4C9A]', color: COLOR_PURPLE, emoji: '🚆' }
-        : { bg: 'bg-[#FFD700]/15 text-[#8B6F47]', color: COLOR_GOLD, emoji: '🚕' }
+        : { bg: 'bg-[#FFD700]/15 text-[#B8964F]', color: COLOR_GOLD, emoji: '🚕' }
 
   const SERIF = { fontFamily: 'Georgia, "Playfair Display", serif' } as const
 
@@ -8326,7 +8350,7 @@ function TransportView() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-[#1A1A1A]" style={SERIF}>
+          <h2 className="text-xl font-bold text-[#0026A3]" style={SERIF}>
             Transports urbains
           </h2>
           <p className="text-xs text-[#1A1A1A]/55">
@@ -8336,7 +8360,7 @@ function TransportView() {
         <Button
           size="sm"
           onClick={() => setShowForm((v) => !v)}
-          className="gap-1.5 rounded-lg bg-[#0066CC] text-white hover:bg-[#0055a8]"
+          className="gap-1.5 rounded-lg bg-[#0026A3] text-white hover:bg-[#1E40AF]"
         >
           {showForm ? (
             <>
@@ -8352,9 +8376,9 @@ function TransportView() {
 
       {/* Formulaire d'ajout */}
       {showForm && (
-        <div className="rounded-2xl border-2 border-[#0066CC]/20 bg-white p-5 shadow-sm">
-          <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-[#1A1A1A]">
-            <Bus className="h-4 w-4 text-[#0066CC]" /> Ajouter une ligne de transport
+        <div className="rounded-2xl border-2 border-[#0026A3]/20 bg-white p-5 shadow-sm">
+          <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-[#0026A3]">
+            <Bus className="h-4 w-4 text-[#0026A3]" /> Ajouter une ligne de transport
           </h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
@@ -8364,7 +8388,7 @@ function TransportView() {
                 value={form.line}
                 onChange={(e) => setForm((f) => ({ ...f, line: e.target.value }))}
                 placeholder="ex : Bus 25, TER Dakar-AIBD, Taxi collectif Médina"
-                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#0066CC] focus:outline-none focus:ring-2 focus:ring-[#0066CC]/15"
+                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#0026A3] focus:outline-none focus:ring-2 focus:ring-[#0026A3]/15"
               />
             </div>
             <div>
@@ -8374,7 +8398,7 @@ function TransportView() {
                 value={form.destination}
                 onChange={(e) => setForm((f) => ({ ...f, destination: e.target.value }))}
                 placeholder="ex : Plateau → Pikine"
-                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#0066CC] focus:outline-none focus:ring-2 focus:ring-[#0066CC]/15"
+                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#0026A3] focus:outline-none focus:ring-2 focus:ring-[#0026A3]/15"
               />
             </div>
             <div className="sm:col-span-2">
@@ -8384,7 +8408,7 @@ function TransportView() {
                 value={form.schedule}
                 onChange={(e) => setForm((f) => ({ ...f, schedule: e.target.value }))}
                 placeholder="ex : Toutes les 15 min · 6h - 22h"
-                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#0066CC] focus:outline-none focus:ring-2 focus:ring-[#0066CC]/15"
+                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#0026A3] focus:outline-none focus:ring-2 focus:ring-[#0026A3]/15"
               />
             </div>
             <div className="sm:col-span-2">
@@ -8398,8 +8422,8 @@ function TransportView() {
                     className={cn(
                       'flex-1 rounded-xl border-2 px-3 py-2 text-sm font-medium capitalize transition',
                       form.type === t
-                        ? 'border-[#0066CC] bg-[#0066CC]/8 text-[#0066CC]'
-                        : 'border-[#EAE5DC] bg-white text-[#1A1A1A]/60 hover:border-[#0066CC]/40',
+                        ? 'border-[#0026A3] bg-[#0026A3]/8 text-[#0026A3]'
+                        : 'border-[#EAE5DC] bg-white text-[#1A1A1A]/60 hover:border-[#0026A3]/40',
                     )}
                   >
                     {t === 'bus' ? '🚌 Bus' : t === 'train' ? '🚆 Train' : '🚕 Taxi'}
@@ -8420,7 +8444,7 @@ function TransportView() {
             <Button
               size="sm"
               onClick={handleAdd}
-              className="gap-1.5 rounded-lg bg-[#0066CC] text-white hover:bg-[#0055a8]"
+              className="gap-1.5 rounded-lg bg-[#0026A3] text-white hover:bg-[#1E40AF]"
             >
               <Plus className="h-4 w-4" /> Ajouter
             </Button>
@@ -8475,7 +8499,7 @@ function TransportView() {
                       size="sm"
                       variant="ghost"
                       onClick={() => handleDelete(t.id)}
-                      className="gap-1.5 rounded-lg text-[#E30613] hover:bg-[#E30613]/8"
+                      className="gap-1.5 rounded-lg text-[#DC2626] hover:bg-[#DC2626]/8"
                     >
                       <Trash2 className="h-3.5 w-3.5" /> Supprimer
                     </Button>
@@ -8627,7 +8651,7 @@ function TeamsView() {
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-xl font-bold text-[#1A1A1A]" style={SERIF}>
+          <h2 className="text-xl font-bold text-[#0026A3]" style={SERIF}>
             Équipes terrain
           </h2>
           <p className="text-xs text-[#1A1A1A]/55">
@@ -8637,7 +8661,7 @@ function TeamsView() {
         <Button
           size="sm"
           onClick={() => setShowForm((v) => !v)}
-          className="gap-1.5 rounded-lg bg-[#4A7C59] text-white hover:bg-[#3D6B4D]"
+          className="gap-1.5 rounded-lg bg-[#059669] text-white hover:bg-[#047857]"
         >
           {showForm ? (
             <>
@@ -8653,9 +8677,9 @@ function TeamsView() {
 
       {/* Formulaire d'ajout */}
       {showForm && (
-        <div className="rounded-2xl border-2 border-[#4A7C59]/20 bg-white p-5 shadow-sm">
-          <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-[#1A1A1A]">
-            <Users2 className="h-4 w-4 text-[#4A7C59]" /> Ajouter un membre d&apos;équipe
+        <div className="rounded-2xl border-2 border-[#059669]/20 bg-white p-5 shadow-sm">
+          <h3 className="mb-4 flex items-center gap-2 text-sm font-bold text-[#0026A3]">
+            <Users2 className="h-4 w-4 text-[#059669]" /> Ajouter un membre d&apos;équipe
           </h3>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <div>
@@ -8665,7 +8689,7 @@ function TeamsView() {
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 placeholder="ex : Cheikh Ndiaye"
-                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#4A7C59] focus:outline-none focus:ring-2 focus:ring-[#4A7C59]/15"
+                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#059669] focus:outline-none focus:ring-2 focus:ring-[#059669]/15"
               />
             </div>
             <div>
@@ -8673,7 +8697,7 @@ function TeamsView() {
               <select
                 value={form.role}
                 onChange={(e) => setForm((f) => ({ ...f, role: e.target.value }))}
-                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#4A7C59] focus:outline-none focus:ring-2 focus:ring-[#4A7C59]/15"
+                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#059669] focus:outline-none focus:ring-2 focus:ring-[#059669]/15"
               >
                 {TEAM_ROLES.map((r) => (
                   <option key={r} value={r}>
@@ -8689,7 +8713,7 @@ function TeamsView() {
                 value={form.phone}
                 onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
                 placeholder="+221 77 000 00 00"
-                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#4A7C59] focus:outline-none focus:ring-2 focus:ring-[#4A7C59]/15"
+                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#059669] focus:outline-none focus:ring-2 focus:ring-[#059669]/15"
               />
             </div>
             <div>
@@ -8699,7 +8723,7 @@ function TeamsView() {
                 value={form.district}
                 onChange={(e) => setForm((f) => ({ ...f, district: e.target.value }))}
                 placeholder="ex : Plateau"
-                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#4A7C59] focus:outline-none focus:ring-2 focus:ring-[#4A7C59]/15"
+                className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#059669] focus:outline-none focus:ring-2 focus:ring-[#059669]/15"
               />
             </div>
             <div className="sm:col-span-2">
@@ -8711,8 +8735,8 @@ function TeamsView() {
                   className={cn(
                     'flex-1 rounded-xl border-2 px-3 py-2 text-sm font-medium transition',
                     form.status === 'active'
-                      ? 'border-[#4A7C59] bg-[#4A7C59]/8 text-[#4A7C59]'
-                      : 'border-[#EAE5DC] bg-white text-[#1A1A1A]/60 hover:border-[#4A7C59]/40',
+                      ? 'border-[#059669] bg-[#059669]/8 text-[#059669]'
+                      : 'border-[#EAE5DC] bg-white text-[#1A1A1A]/60 hover:border-[#059669]/40',
                   )}
                 >
                   ● En service
@@ -8744,7 +8768,7 @@ function TeamsView() {
             <Button
               size="sm"
               onClick={handleAdd}
-              className="gap-1.5 rounded-lg bg-[#4A7C59] text-white hover:bg-[#3D6B4D]"
+              className="gap-1.5 rounded-lg bg-[#059669] text-white hover:bg-[#047857]"
             >
               <Plus className="h-4 w-4" /> Ajouter
             </Button>
@@ -8770,7 +8794,7 @@ function TeamsView() {
                 className={cn(
                   'overflow-hidden rounded-xl border bg-white p-4 transition-shadow hover:shadow-md',
                   tm.status === 'active'
-                    ? 'border-[#4A7C59]/30'
+                    ? 'border-[#059669]/30'
                     : 'border-[#EAE5DC]',
                 )}
               >
@@ -8779,7 +8803,7 @@ function TeamsView() {
                     className={cn(
                       'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-base font-bold',
                       tm.status === 'active'
-                        ? 'bg-[#4A7C59]/15 text-[#4A7C59]'
+                        ? 'bg-[#059669]/15 text-[#059669]'
                         : 'bg-[#1A1A1A]/8 text-[#1A1A1A]/60',
                     )}
                   >
@@ -8803,7 +8827,7 @@ function TeamsView() {
                     className={cn(
                       'inline-flex h-7 items-center gap-1 rounded-full px-2.5 text-[10px] font-bold transition',
                       tm.status === 'active'
-                        ? 'bg-[#4A7C59]/12 text-[#4A7C59]'
+                        ? 'bg-[#059669]/12 text-[#059669]'
                         : 'bg-[#1A1A1A]/8 text-[#1A1A1A]/55',
                     )}
                     title="Basculer le statut"
@@ -8811,7 +8835,7 @@ function TeamsView() {
                     <span
                       className={cn(
                         'h-1.5 w-1.5 rounded-full',
-                        tm.status === 'active' ? 'bg-[#4A7C59]' : 'bg-[#1A1A1A]/40',
+                        tm.status === 'active' ? 'bg-[#059669]' : 'bg-[#1A1A1A]/40',
                       )}
                     />
                     {tm.status === 'active' ? 'En service' : 'Repos'}
@@ -8821,7 +8845,7 @@ function TeamsView() {
                 <div className="flex items-center gap-2 border-t border-[#EAE5DC] pt-3">
                   <a
                     href={`tel:${tm.phone.replace(/\s/g, '')}`}
-                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#4A7C59]/12 px-3 py-2 text-xs font-semibold text-[#4A7C59] transition hover:bg-[#4A7C59] hover:text-white"
+                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#059669]/12 px-3 py-2 text-xs font-semibold text-[#059669] transition hover:bg-[#059669] hover:text-white"
                     aria-label={`Appeler ${tm.name}`}
                   >
                     <Phone className="h-3.5 w-3.5" /> Appeler
@@ -8829,7 +8853,7 @@ function TeamsView() {
                   <button
                     type="button"
                     onClick={() => handleDelete(tm.id)}
-                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-[#E30613]/10 text-[#E30613] transition hover:bg-[#E30613] hover:text-white"
+                    className="inline-flex h-9 w-9 items-center justify-center rounded-lg bg-[#DC2626]/10 text-[#DC2626] transition hover:bg-[#DC2626] hover:text-white"
                     aria-label={`Supprimer ${tm.name}`}
                     title="Supprimer"
                   >
@@ -8933,7 +8957,7 @@ function TarifsView() {
   }
 
   const tierCards: { key: keyof PricingTiers; icon: typeof Tag; color: string; target: string }[] = [
-    { key: 'menu', icon: Utensils, color: '#0066CC', target: 'Restaurants' },
+    { key: 'menu', icon: Utensils, color: '#0026A3', target: 'Restaurants' },
     { key: 'priceGrid', icon: Wrench, color: '#00A651', target: 'Artisans' },
     { key: 'sponsored', icon: Sparkles, color: '#FFD700', target: 'Tous commerces' },
   ]
@@ -8943,7 +8967,7 @@ function TarifsView() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-xl font-bold text-[#1A1A1A]" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
+          <h2 className="text-xl font-bold text-[#0026A3]" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
             Tarifs Premium
           </h2>
           <p className="text-sm text-[#1A1A1A]/60">
@@ -9062,7 +9086,7 @@ function TarifsView() {
                     <img src={tier.photoUrl} alt="Exemple" className="h-24 w-full rounded-xl object-cover" />
                     <button
                       onClick={() => updateTier(key, 'photoUrl', '')}
-                      className="text-xs font-medium text-[#E30613] hover:underline"
+                      className="text-xs font-medium text-[#DC2626] hover:underline"
                     >
                       Supprimer la photo
                     </button>
@@ -9221,7 +9245,7 @@ function AppointmentsView() {
       <div className="flex items-start justify-between gap-3">
         <div>
           <h2
-            className="text-xl font-bold text-[#1A1A1A]"
+            className="text-xl font-bold text-[#0026A3]"
             style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}
           >
             Rendez-vous
@@ -9427,7 +9451,7 @@ function AppointmentsView() {
                         variant="outline"
                         onClick={() => updateStatus(a.id, 'cancelled')}
                         disabled={busy}
-                        className="gap-1.5 rounded-lg border-[#E30613]/40 text-[#E30613] hover:bg-[#E30613]/5"
+                        className="gap-1.5 rounded-lg border-[#DC2626]/40 text-[#DC2626] hover:bg-[#DC2626]/5"
                       >
                         <X className="size-3.5" />
                         Annuler
@@ -9438,7 +9462,7 @@ function AppointmentsView() {
                         size="sm"
                         onClick={() => updateStatus(a.id, 'completed')}
                         disabled={busy}
-                        className="gap-1.5 rounded-lg bg-[#0066CC] text-white hover:bg-[#0058ad]"
+                        className="gap-1.5 rounded-lg bg-[#0026A3] text-white hover:bg-[#1E40AF]"
                       >
                         {busy ? (
                           <Loader2 className="size-3.5 animate-spin" />

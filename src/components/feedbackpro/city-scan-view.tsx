@@ -1896,6 +1896,11 @@ function MainView({
 }) {
   const isNight = currentHour >= 22 || currentHour < 6
 
+  // "Plus de services" — les 4 premiers modules sont toujours visibles,
+  // les autres sont regroupés sous un bouton dépliable pour éviter
+  // de surcharger la page d'accueil.
+  const [showMoreServices, setShowMoreServices] = useState(false)
+
   // Logo de la mairie — fetch depuis l'API (stocké en base par le dashboard)
   const [mairieLogo, setMairieLogo] = useState<string | null>(null)
   useEffect(() => {
@@ -1977,7 +1982,7 @@ function MainView({
 
       {/* === PANNEAUX SIGNALÉTIQUES === */}
       <main className="mt-3 flex flex-col gap-3">
-        {MODULES.map((mod) => {
+        {(showMoreServices ? MODULES : MODULES.slice(0, 4)).map((mod) => {
           // Couleurs du module depuis la config du thème
           const modStyle = tc.modules[mod.id]
           const isInverted = modStyle.textColor === '#FFFFFF'
@@ -2078,6 +2083,31 @@ function MainView({
             </button>
           )
         })}
+
+        {/* === BOUTON "PLUS DE SERVICES" === */}
+        <button
+          onClick={() => setShowMoreServices((v) => !v)}
+          className="group flex items-center justify-center gap-3 rounded-2xl border-2 border-dashed py-4 text-center transition-all hover:-translate-y-0.5"
+          style={{
+            borderColor: showMoreServices ? '#E30613' : '#1B2A8C',
+            borderRadius: tc.cardRadius,
+            color: showMoreServices ? '#E30613' : '#1B2A8C',
+            fontFamily: tc.fontFamily,
+            background: showMoreServices ? 'rgba(227,6,19,0.03)' : 'rgba(27,42,140,0.03)',
+          }}
+        >
+          <span className="text-sm font-bold uppercase tracking-wide">
+            {showMoreServices ? 'Voir moins' : 'Plus de services'}
+          </span>
+          <svg
+            className="transition-transform group-hover:scale-110"
+            width="20" height="20" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"
+            style={{ transform: showMoreServices ? 'rotate(180deg)' : 'none' }}
+          >
+            <polyline points="6 9 12 15 18 9" />
+          </svg>
+        </button>
       </main>
 
       {/* === SOS FLOATING === */}
