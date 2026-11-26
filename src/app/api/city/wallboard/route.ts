@@ -42,10 +42,8 @@ import { ok } from '@/lib/session'
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-// Mock KPIs (V1) — remplacés par collecte réelle quand le tunnel
-// citoyen de notation + le module monétisation artisans seront live.
-const MOCK_SATISFACTION = 4.6
-const MOCK_REVENUE_FCFA = 18_400_000
+// Taux de monétisation : FCFA par mise en relation citoyen→commerce
+const RATE_PER_CONTACT = 5000
 
 export async function GET() {
   const now = Date.now()
@@ -56,48 +54,35 @@ export async function GET() {
   const startOfToday = new Date()
   startOfToday.setHours(0, 0, 0, 0)
 
-  // --- Compteurs parallélisables (4 requêtes courtes + 2 count +
-  //     1 findMany pour les incidents récents). ---
+  // --- Compteurs parallélisables ---
   const [
     totalIncidents24h,
     pendingEmergencies,
     pendingReports,
     resolvedToday,
     platesCount,
-    activeArtisans,
+    artisanData,
     recentRaw,
   ] = await Promise.all([
-    // Total incidents sur 24h (tous types confondus)
     db.cityIncident.count({ where: { createdAt: { gte: since24 } } }),
-
-    // Urgences non résolues (status=assigned|in_progress|pending).
-    // Les emergencies démarrent en "assigned" (voir POST /api/city/incidents),
-    // donc on ne filtre PAS sur "pending" seul.
     db.cityIncident.count({
       where: {
         type: 'emergency',
         status: { in: ['assigned', 'in_progress', 'pending'] },
       },
     }),
-
-    // Signalements citoyens en attente de routage/traitement.
     db.cityIncident.count({
       where: { type: 'report', status: 'pending' },
     }),
-
-    // Incidents résolus depuis minuit (aujourd'hui).
     db.cityIncident.count({
       where: { status: 'resolved', resolvedAt: { gte: startOfToday } },
     }),
-
-    // Plaques QR installées (toutes, peu importe le status — l'UI
-    // distinguera active vs maintenance si besoin).
     db.cityPlate.count(),
-
-    // Artisans actifs (inscrits et non désactivés).
-    db.cityArtisan.count({ where: { active: true } }),
-
-    // 10 derniers incidents (avec plaque liée pour contexte quartier).
+    // Fetch artisans with rating + contactCount for real satisfaction + revenue
+    db.cityArtisan.findMany({
+      where: { active: true },
+      select: { rating: true, contactCount: true },
+    }),
     db.cityIncident.findMany({
       orderBy: { createdAt: 'desc' },
       take: 10,
@@ -113,6 +98,13 @@ export async function GET() {
       },
     }),
   ])
+
+  // --- Calculs réels (plus de mocks) ---
+  const activeArtisans = artisanData.length
+  const avgSatisfaction = activeArtisans > 0
+    ? Math.round((artisanData.reduce((s, a) => s + a.rating, 0) / activeArtisans) * 10) / 10
+    : 0
+  const revenueTotal = artisanData.reduce((s, a) => s + a.contactCount * RATE_PER_CONTACT, 0)
 
   // --- Sérialisation des incidents récents ---
   // Même shape que /api/city/incidents (cohérence avec le type
@@ -150,8 +142,8 @@ export async function GET() {
       resolvedToday,
       platesCount,
       activeArtisans,
-      avgSatisfaction: MOCK_SATISFACTION,
-      revenueTotal: MOCK_REVENUE_FCFA,
+      avgSatisfaction: avgSatisfaction,
+      revenueTotal: revenueTotal,
     },
     recentIncidents,
   })

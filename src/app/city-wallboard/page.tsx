@@ -629,14 +629,14 @@ export default function CityWallboardPage() {
           icon={Star}
           label="Satisfaction"
           value={stats ? stats.avgSatisfaction.toFixed(1) : '—'}
-          sub="Citoyens (mock)"
+          sub="Évaluation citoyenne"
           variant="blue"
         />
         <KpiCard
           icon={Wallet}
           label="Revenus"
           value={stats ? fmtFCFA(stats.revenueTotal) : '—'}
-          sub="Cumul (mock)"
+          sub="Cumul artisans"
           variant="blue"
         />
       </section>

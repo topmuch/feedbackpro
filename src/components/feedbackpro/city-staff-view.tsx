@@ -49,6 +49,7 @@ import {
   Check,
   Star,
   Building2,
+  Camera,
   Navigation,
   AlertTriangle,
   LogOut,
@@ -75,6 +76,7 @@ import {
   SelectValue,
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
+import { parler } from '@/lib/staff-tts'
 
 // ============================================================
 // Types (contrat API — formes sérialisées par /api/city/*)
@@ -276,6 +278,42 @@ function captureGps(): Promise<{ lat: number; lng: number } | null> {
 }
 
 /**
+ * Redimensionne une photo d'intervention SLA : 800px max de côté,
+ * JPEG qualité 0.7, renvoyée en data URL. Pattern FileReader → Image →
+ * canvas → toDataURL (même que city-scan-view.tsx / city-dashboard.tsx).
+ */
+function resizeIncidentPhoto(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith('image/')) {
+      reject(new Error('Fichier non image'))
+      return
+    }
+    const reader = new FileReader()
+    reader.onerror = () => reject(new Error('Lecture du fichier impossible'))
+    reader.onload = () => {
+      const img = new Image()
+      img.onerror = () => reject(new Error('Image invalide'))
+      img.onload = () => {
+        const maxDim = 800
+        const ratio = Math.min(maxDim / img.width, maxDim / img.height, 1)
+        const canvas = document.createElement('canvas')
+        canvas.width = Math.round(img.width * ratio)
+        canvas.height = Math.round(img.height * ratio)
+        const ctx = canvas.getContext('2d')
+        if (!ctx) {
+          reject(new Error('Canvas indisponible'))
+          return
+        }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height)
+        resolve(canvas.toDataURL('image/jpeg', 0.7))
+      }
+      img.src = reader.result as string
+    }
+    reader.readAsDataURL(file)
+  })
+}
+
+/**
  * Tente de mettre à jour le statut d'un incident via PATCH.
  * L'endpoint /api/city/incidents/[id] n'est peut-être pas encore déployé
  * (seuls GET et POST existent sur /api/city/incidents). On tolère l'échec :
@@ -283,7 +321,15 @@ function captureGps(): Promise<{ lat: number; lng: number } | null> {
  */
 async function patchIncident(
   id: string,
-  patch: { status: string; staffName?: string; assignedTo?: string; resolvedAt?: string },
+  patch: {
+    status?: string
+    staffName?: string
+    assignedTo?: string
+    resolvedAt?: string
+    arrivedAt?: string
+    beforePhoto?: string
+    afterPhoto?: string
+  },
 ): Promise<boolean> {
   try {
     const res = await fetch(`/api/city/incidents/${id}`, {
@@ -359,6 +405,12 @@ export function CityStaffView({
   // --- Réf pour éviter les fuites (polling annulé au unmount) ---
   const cancelledRef = useRef(false)
 
+  // --- Réf mémoire des incidents du précédent poll (pour annoncer
+  //     vocalement les nouvelles urgences + les résolutions via parler).
+  //     null au premier chargement → pas d'annonce (sinon on spammerait
+  //     toutes les urgences déjà existantes à l'ouverture de l'app).
+  const prevIncidentsRef = useRef<CityIncident[] | null>(null)
+
   // ---------------------------------------------------------------
   // Lifecycle 1 — restaurer la session staff depuis localStorage
   // ---------------------------------------------------------------
@@ -421,7 +473,29 @@ export function CityStaffView({
         | null
       if (cancelledRef.current) return
       if (json?.ok && Array.isArray(json.data?.incidents)) {
-        setIncidents(json.data.incidents)
+        const fresh = json.data.incidents
+        // Voix Nathalie (parler) : on compare le nouvel état serveur au
+        // précédent poll pour détecter (a) les nouvelles urgences et
+        // (b) les transitions vers 'resolved'. Pas d'annonce au premier
+        // chargement (previous est null).
+        const previous = prevIncidentsRef.current
+        if (previous) {
+          const prevById = new Map(previous.map((i) => [i.id, i]))
+          for (const inc of fresh) {
+            const old = prevById.get(inc.id)
+            const isNew = !old
+            if (isNew && inc.type === 'emergency') {
+              parler(
+                `Nouvelle urgence. ${inc.category || 'Urgence'}. ${inc.assignedTo || 'Police'} notifié.`,
+              )
+            }
+            if (old && old.status !== 'resolved' && inc.status === 'resolved') {
+              parler(`Signalement résolu. ${inc.category || 'Signalement'}.`)
+            }
+          }
+        }
+        prevIncidentsRef.current = fresh
+        setIncidents(fresh)
         setLastPoll(new Date())
         // Réconcilie les overrides : si le serveur a maintenant le même
         // statut que l'override, on peut l'oublier (le serveur a pris le relais).
@@ -590,6 +664,96 @@ export function CityStaffView({
     setResolveComment('')
   }, [])
 
+  /**
+   * PHOTO AVANT — capture une photo d'arrivée (caméra mobile), la
+   * redimensionne à 800px max (JPEG 0.7) et PATCH l'incident avec
+   * beforePhoto + arrivedAt + status=in_progress. Marque le début
+   * d'intervention SLA (alternative à PRENDRE EN CHARGE, avec preuve).
+   */
+  const handlePhotoBefore = useCallback(
+    async (incident: CityIncident, file: File) => {
+      setActionPending(incident.id)
+      try {
+        const dataUrl = await resizeIncidentPhoto(file)
+        const override = {
+          status: 'in_progress',
+          staffName: staffName,
+          assignedTo:
+            role === 'Polyvalent'
+              ? incident.assignedTo ?? 'Mairie'
+              : (ROLES.find((r) => r.id === role)?.service ?? 'Mairie'),
+        }
+        setLocalOverrides((prev) => {
+          const next = new Map(prev)
+          next.set(incident.id, override)
+          return next
+        })
+        toast({
+          title: 'Photo avant enregistrée',
+          description: 'Début d\'intervention marqué.',
+        })
+        const ok = await patchIncident(incident.id, {
+          ...override,
+          arrivedAt: new Date().toISOString(),
+          beforePhoto: dataUrl,
+        })
+        if (ok) void fetchIncidents()
+      } catch {
+        toast({
+          title: 'Photo invalide',
+          description: 'Impossible de traiter l\'image. Réessayez.',
+        })
+      } finally {
+        setActionPending(null)
+      }
+    },
+    [staffName, role, toast, fetchIncidents],
+  )
+
+  /**
+   * PHOTO APRÈS + RÉSOUDRE — capture une photo de fin d'intervention,
+   * la redimensionne à 800px max (JPEG 0.7) et PATCH l'incident avec
+   * afterPhoto + status=resolved. Clôture SLA (alternative à RÉSOUDRE,
+   * avec preuve visuelle).
+   */
+  const handlePhotoAfter = useCallback(
+    async (incident: CityIncident, file: File) => {
+      setActionPending(incident.id)
+      try {
+        const dataUrl = await resizeIncidentPhoto(file)
+        const override = {
+          status: 'resolved',
+          staffName: staffName,
+          assignedTo: incident.assignedTo ?? undefined,
+        }
+        setLocalOverrides((prev) => {
+          const next = new Map(prev)
+          next.set(incident.id, override)
+          return next
+        })
+        toast({
+          title: 'Photo après enregistrée',
+          description: 'Incident clôturé. Merci.',
+        })
+        const ok = await patchIncident(incident.id, {
+          ...override,
+          resolvedAt: new Date().toISOString(),
+          afterPhoto: dataUrl,
+        })
+        setResolveTargetId(null)
+        if (ok) void fetchIncidents()
+      } catch {
+        toast({
+          title: 'Photo invalide',
+          description: 'Impossible de traiter l\'image. Réessayez.',
+        })
+      } finally {
+        setActionPending(null)
+      }
+    },
+    [staffName, toast, fetchIncidents],
+  )
+
   // ---------------------------------------------------------------
   // Dérivés : incidents fusionnés (serveur + overrides) filtrés par rôle
   // ---------------------------------------------------------------
@@ -671,6 +835,8 @@ export function CityStaffView({
         onResolveClick={handleResolveClick}
         onConfirmResolve={handleConfirmResolve}
         onCancelResolve={handleCancelResolve}
+        onPhotoBefore={handlePhotoBefore}
+        onPhotoAfter={handlePhotoAfter}
         staffTag={staffTag}
       />
     </div>
@@ -868,6 +1034,8 @@ function FeedScreen({
   onResolveClick: (id: string) => void
   onConfirmResolve: () => void
   onCancelResolve: () => void
+  onPhotoBefore: (inc: CityIncident, file: File) => void
+  onPhotoAfter: (inc: CityIncident, file: File) => void
   staffTag: string
 }) {
   const roleMeta = ROLES.find((r) => r.id === role)
@@ -1034,6 +1202,8 @@ function FeedScreen({
               onResolveClick={() => onResolveClick(inc.id)}
               onConfirmResolve={onConfirmResolve}
               onCancelResolve={onCancelResolve}
+              onPhotoBefore={(file) => onPhotoBefore(inc, file)}
+              onPhotoAfter={(file) => onPhotoAfter(inc, file)}
             />
           ))
         )}
@@ -1141,7 +1311,11 @@ function IncidentCard({
   onResolveClick: () => void
   onConfirmResolve: () => void
   onCancelResolve: () => void
+  onPhotoBefore: (file: File) => void
+  onPhotoAfter: (file: File) => void
 }) {
+  const beforeInputRef = useRef<HTMLInputElement>(null)
+  const afterInputRef = useRef<HTMLInputElement>(null)
   const tMeta = typeMeta(incident.type)
   const cMeta = categoryMeta(incident.category)
   const sc = statusColor(incident.status)
@@ -1292,43 +1466,107 @@ function IncidentCard({
             </div>
           </div>
         ) : (
-          <div className="flex gap-2">
+          <>
+            <div className="flex gap-2">
+              {isPending && (
+                <Button
+                  onClick={onTakeCharge}
+                  disabled={actionPending}
+                  className="flex-1 rounded-lg bg-[#C9A961] text-[#0A0A0A] hover:bg-[#b8965a]"
+                >
+                  {actionPending ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <ChevronRight className="size-4" />
+                  )}
+                  PRENDRE EN CHARGE
+                </Button>
+              )}
+              {isInProgress && (
+                <Button
+                  onClick={onResolveClick}
+                  disabled={actionPending}
+                  className="flex-1 rounded-lg bg-[#00A651] text-white hover:bg-[#008a44]"
+                >
+                  <CircleCheck className="size-4" />
+                  RÉSOUDRE
+                </Button>
+              )}
+              {isResolved && (
+                <div className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#00A651]/10 py-2 text-xs font-bold text-[#00A651]">
+                  <Check className="size-3.5" />
+                  Clôturé
+                  {incident.resolvedAt && (
+                    <span className="ml-1 font-normal text-[#6A6A65]">
+                      · {relTime(incident.resolvedAt)}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+            {/* SLA Photo avant — capture caméra + PATCH beforePhoto + arrivedAt */}
             {isPending && (
-              <Button
-                onClick={onTakeCharge}
-                disabled={actionPending}
-                className="flex-1 rounded-lg bg-[#C9A961] text-[#0A0A0A] hover:bg-[#b8965a]"
-              >
-                {actionPending ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : (
-                  <ChevronRight className="size-4" />
-                )}
-                PRENDRE EN CHARGE
-              </Button>
+              <>
+                <Button
+                  onClick={() => beforeInputRef.current?.click()}
+                  disabled={actionPending}
+                  variant="outline"
+                  className="w-full rounded-lg border-[#C9A961]/40 text-[#C9A961] hover:bg-[#C9A961]/10 hover:text-[#C9A961]"
+                >
+                  {actionPending ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Camera className="size-4" />
+                  )}
+                  Photo avant
+                </Button>
+                <input
+                  ref={beforeInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  aria-hidden
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    if (f) onPhotoBefore(f)
+                    e.target.value = ''
+                  }}
+                />
+              </>
             )}
+            {/* SLA Photo après + Résoudre — capture caméra + PATCH afterPhoto + resolved */}
             {isInProgress && (
-              <Button
-                onClick={onResolveClick}
-                disabled={actionPending}
-                className="flex-1 rounded-lg bg-[#00A651] text-white hover:bg-[#008a44]"
-              >
-                <CircleCheck className="size-4" />
-                RÉSOUDRE
-              </Button>
+              <>
+                <Button
+                  onClick={() => afterInputRef.current?.click()}
+                  disabled={actionPending}
+                  variant="outline"
+                  className="w-full rounded-lg border-[#00A651]/40 text-[#00A651] hover:bg-[#00A651]/10 hover:text-[#00A651]"
+                >
+                  {actionPending ? (
+                    <Loader2 className="size-4 animate-spin" />
+                  ) : (
+                    <Camera className="size-4" />
+                  )}
+                  Photo après + Résoudre
+                </Button>
+                <input
+                  ref={afterInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  aria-hidden
+                  onChange={(e) => {
+                    const f = e.target.files?.[0]
+                    if (f) onPhotoAfter(f)
+                    e.target.value = ''
+                  }}
+                />
+              </>
             )}
-            {isResolved && (
-              <div className="flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#00A651]/10 py-2 text-xs font-bold text-[#00A651]">
-                <Check className="size-3.5" />
-                Clôturé
-                {incident.resolvedAt && (
-                  <span className="ml-1 font-normal text-[#6A6A65]">
-                    · {relTime(incident.resolvedAt)}
-                  </span>
-                )}
-              </div>
-            )}
-          </div>
+          </>
         )}
       </div>
     </article>

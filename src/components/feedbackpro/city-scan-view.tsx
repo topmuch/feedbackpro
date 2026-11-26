@@ -6731,7 +6731,7 @@ function SchoolCheckinView({
     try {
       const msg =
         status === 'arrived'
-          ? `Aminata confirme votre arrivée à l'école ${plate.label}. Notification envoyée à votre parent.`
+          ? `Aminata confirme votre arrivée à l'école ${plate.label}. Pointage enregistré. Le parent sera notifié à la prochaine synchronisation.`
           : status === 'left'
             ? `Aminata confirme votre départ de l'école ${plate.label}. Bon retour à la maison.`
             : `Aminata a transmis votre signalement à l'école ${plate.label}. Un responsable va vous contacter.`
@@ -7026,7 +7026,7 @@ function SchoolCheckinConfirmation({
         >
           <Check className="size-4" />
           <span className="text-sm font-semibold">
-            Notification envoyée à votre parent
+            Pointage enregistré. Le parent sera notifié à la prochaine synchronisation.
           </span>
         </div>
       )}

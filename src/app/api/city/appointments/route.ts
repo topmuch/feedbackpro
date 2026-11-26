@@ -14,6 +14,7 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { ok, fail } from '@/lib/session'
 import { sendEmail } from '@/lib/email'
+import { getSetting } from '@/lib/settings'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -152,7 +153,11 @@ export async function POST(req: NextRequest) {
       <hr>
       <p>Connectez-vous au dashboard mairie → onglet Rendez-vous pour confirmer ou assigner ce RDV.</p>
     `
-    await sendEmail('oni@gmail.com', subject, html)
+    await sendEmail(
+      await getSetting('city_secretariat_email', 'oni@gmail.com'),
+      subject,
+      html,
+    )
     console.log('[city-appointments] 📧 Email envoyé au secretariat')
   } catch (e) {
     console.warn('[city-appointments] Email non envoyé (non bloquant):', e)

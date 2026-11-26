@@ -291,6 +291,45 @@ function formatDurationLabel(min: number): string {
   return rem === 0 ? `${h} h` : `${h} h ${rem}`
 }
 
+/**
+ * Extrait un numéro de téléphone depuis un texte libre (description
+ * d'incident laissée par le citoyen). Reconnaît les formats :
+ *   - "+221 77 123 45 67"  (intl avec espaces)
+ *   - "771234567"            (local Sénégal, 9 chiffres)
+ *   - "221771234567"         (intl sans + ni séparateurs)
+ *   - "+33 6 12 34 56 78"    (intl France)
+ *
+ * On exclut les dates ISO (2026-11-20) et les montants (1000 FCFA)
+ * via un filtre post-match : le candidat doit contenir 8 à 15 chiffres
+ * au total et ne pas ressembler à une date YYYY-MM-DD.
+ *
+ * Retourne le premier candidat valide, ou null si aucun trouvé.
+ */
+function extractPhoneFromDescription(text: string | null | undefined): string | null {
+  if (!text || typeof text !== 'string') return null
+  // Matche des séquences commençant optionnellement par '+' puis 8 à 15
+  // chiffres, potentiellement séparés par des espaces, points ou tirets.
+  const candidates = text.match(/\+?\d(?:[\s.\-]?\d){7,14}/g)
+  if (!candidates || candidates.length === 0) return null
+  for (const c of candidates) {
+    // Compte les chiffres uniquement.
+    const digits = c.replace(/[^\d]/g, '')
+    // Un téléphone valide fait 8 à 15 chiffres (E.164 max = 15).
+    if (digits.length < 8 || digits.length > 15) continue
+    // Exclut les dates ISO (ex: "2026-11-20" → 8 chiffres mais pattern date).
+    if (/^\d{4}-\d{2}-\d{2}/.test(c)) continue
+    return c.trim()
+  }
+  return null
+}
+
+/** Formate un montant FCFA en abrégé ("18,4M" / "450k" / "0"). */
+function formatFCFA(n: number): string {
+  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace('.', ',')}M`
+  if (n >= 1_000) return `${Math.round(n / 1000)}k`
+  return String(n)
+}
+
 /** Traduit un type d'incident en libellé français lisible. */
 function incidentTypeLabel(type: string): string {
   switch (type) {
@@ -384,24 +423,6 @@ const COLOR_PURPLE = '#6B4C9A'
 const COLOR_ANTHRACITE = '#1A1A1A'
 const COLOR_CREAM = '#FAFAF7'
 
-// ---------------------------------------------------------------
-// Mock data (infrastructures hors-API)
-// ---------------------------------------------------------------
-
-const HEATMAP_DATA = [
-  { district: 'Plateau', value: 85 },
-  { district: 'Médina', value: 65 },
-  { district: 'Grand Dakar', value: 45 },
-  { district: 'Parcelles', value: 38 },
-  { district: 'Yoff', value: 28 },
-  { district: 'Pikine', value: 22 },
-] as const
-
-const AMINATA_MESSAGE = {
-  text: 'Bonjour chers habitants de Dakar, la collecte des déchets aura lieu ce matin dans les quartiers de Plateau et Médina. Merci de sortir vos bacs avant 7h.',
-  timestamp: 'il y a 12 min',
-}
-
 // ============================================================
 // Composant principal
 // ============================================================
@@ -411,6 +432,7 @@ export default function CityDashboard() {
   const [plates, setPlates] = useState<CityPlate[]>([])
   const [incidents, setIncidents] = useState<CityIncident[]>([])
   const [artisans, setArtisans] = useState<CityArtisan[]>([])
+  const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
 
@@ -477,17 +499,21 @@ export default function CityDashboard() {
     return () => clearTimeout(t)
   }, [])
 
-  // --- Fetch des données depuis les 3 APIs ---
+  // --- Fetch des données depuis les APIs ---
   const loadData = useCallback(async () => {
     try {
-      const [platesRes, incRes, artRes] = await Promise.all([
+      const [platesRes, incRes, artRes, annRes] = await Promise.all([
         fetch('/api/city/plates').then((r) => r.json()),
         fetch('/api/city/incidents').then((r) => r.json()),
         fetch('/api/city/artisans').then((r) => r.json()),
+        fetch('/api/city/announcements', { cache: 'no-store' }).then((r) => r.json()),
       ])
       if (platesRes?.ok) setPlates(platesRes.data.plates)
       if (incRes?.ok) setIncidents(incRes.data.incidents)
       if (artRes?.ok) setArtisans(artRes.data.artisans)
+      if (annRes?.ok && Array.isArray(annRes.data?.announcements)) {
+        setAnnouncements(annRes.data.announcements)
+      }
     } catch (e) {
       console.error('[city-dashboard] erreur fetch :', e)
       toast({
@@ -741,6 +767,56 @@ export default function CityDashboard() {
                 ? 'Le citoyen sera notifié de la résolution.'
                 : "L'incident est maintenant en cours de traitement.",
           })
+
+          // Feature #1 — Notification WhatsApp du citoyen lors de la
+          // résolution. On cherche un numéro dans la description du
+          // signalement ; si trouvé, on appelle /api/city/notify-resolution
+          // qui génère un lien wa.me pré-rempli, puis on l'ouvre dans un
+          // nouvel onglet pour que l'agent valide l'envoi (V1 manuelle,
+          // zéro coût API).
+          if (newStatus === 'resolved') {
+            const inc = snapshot.find((i) => i.id === id)
+            const phone = extractPhoneFromDescription(inc?.description)
+            if (phone) {
+              try {
+                const notifyRes = await fetch('/api/city/notify-resolution', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ incidentId: id, phone }),
+                })
+                const notifyJson = await notifyRes.json()
+                if (notifyJson?.ok && notifyJson?.data?.whatsappUrl) {
+                  // Ouvre WhatsApp dans un nouvel onglet (deep link wa.me).
+                  // L'agent confirme/envoie manuellement — pas d'envoi
+                  // automatique payant en V1.
+                  if (typeof window !== 'undefined') {
+                    window.open(notifyJson.data.whatsappUrl, '_blank', 'noopener,noreferrer')
+                  }
+                  toast({
+                    title: 'Citoyen notifié par WhatsApp',
+                    description: `Message de résolution prêt pour ${phone}`,
+                  })
+                } else {
+                  console.warn(
+                    '[handleUpdateIncident] notify-resolution a échoué:',
+                    notifyJson?.error,
+                  )
+                }
+              } catch (notifyErr) {
+                // Non bloquant : l'incident est déjà résolu côté API.
+                console.warn(
+                  '[handleUpdateIncident] Erreur notification WhatsApp:',
+                  notifyErr,
+                )
+              }
+            } else {
+              // Pas de téléphone dans la description — on logge seulement
+              // (le toast "Incident résolu" standard a déjà été affiché).
+              console.log(
+                `[handleUpdateIncident] Aucun téléphone trouvé dans la description de l'incident ${id} — notification WhatsApp ignorée`,
+              )
+            }
+          }
         } else {
           // Revert + message
           setIncidents(snapshot)
@@ -770,7 +846,12 @@ export default function CityDashboard() {
       (i) => i.type === 'orientation' && isToday(i.createdAt),
     ).length,
     artisansContactes: artisans.reduce((sum, a) => sum + a.contactCount, 0),
-    satisfaction: 4.6,
+    satisfaction:
+      artisans.length > 0
+        ? Math.round(
+            (artisans.reduce((s, a) => s + a.rating, 0) / artisans.length) * 10,
+          ) / 10
+        : 0,
   }
 
   const platesActive = plates.filter((p) => p.status === 'active').length
@@ -781,6 +862,40 @@ export default function CityDashboard() {
   const platesUrgence = incidents.filter(
     (i) => i.type === 'emergency' && i.plateId,
   ).length
+
+  // --- Revenus artisans (réel : contactCount × tarif) ---
+  const revenueTotal = useMemo(
+    () => artisans.reduce((s, a) => s + a.contactCount * RATE_PER_CONTACT, 0),
+    [artisans],
+  )
+  const revenueMairieShare = Math.round(revenueTotal * 0.3)
+
+  // --- Densité d'activité par quartier (réel : incidents groupés par district) ---
+  const heatmapData = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const inc of incidents) {
+      const district = inc.plate?.district
+      if (!district) continue
+      counts.set(district, (counts.get(district) ?? 0) + 1)
+    }
+    return [...counts.entries()]
+      .map(([district, count]) => ({ district, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5)
+  }, [incidents])
+  const heatmapMax = heatmapData.length > 0 ? heatmapData[0].count : 0
+
+  // --- Dernière annonce active (réel : depuis /api/city/announcements) ---
+  const latestAnnouncement = useMemo(() => {
+    const active = announcements.filter(
+      (a) => a.status === 'active' || a.status === 'scheduled',
+    )
+    if (active.length === 0) return null
+    return active.sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+    )[0]
+  }, [announcements])
 
   // --- Alertes récentes (10 max) ---
   const recentAlerts = incidents.slice(0, 10)
@@ -1218,7 +1333,7 @@ export default function CityDashboard() {
 
           {/* ====== VUE REVENUS ====== */}
           {activeNav === 'revenue' && (
-            <RevenueView artisans={artisans} />
+            <RevenueView artisans={artisans} incidents={incidents} />
           )}
 
           {/* ====== VUE CARTE DES PLAQUES ====== */}
@@ -1351,13 +1466,13 @@ export default function CityDashboard() {
             />
             <KpiCardEnhanced
               title="Revenus artisans"
-              value="18,4M"
-              sub="Part mairie 5,5M"
+              value={formatFCFA(revenueTotal)}
+              sub={`Part mairie ${formatFCFA(revenueMairieShare)}`}
               color={COLOR_PURPLE}
               icon={TrendingUp}
-              trend="+12%"
-              trendDirection="up"
-              success
+              trend={revenueTotal > 0 ? `${artisans.filter((a) => a.premium).length} premium` : '—'}
+              trendDirection={revenueTotal > 0 ? 'up' : 'flat'}
+              success={revenueTotal > 0}
             />
           </section>
 
@@ -1451,40 +1566,50 @@ export default function CityDashboard() {
                 </div>
               </section>
 
-              {/* Heatmap par quartier (compact) */}
+              {/* Heatmap par quartier (compact) — incidents réels par district */}
               <Panel
                 title="Densité d'activité par quartier"
                 icon={Activity}
-                subtitle="Scans QR / 24h"
+                subtitle="Incidents par district"
               >
                 <div className="space-y-3 px-1 pb-1">
-                  {HEATMAP_DATA.map((row) => {
-                    const isHigh = row.value >= 60
-                    const isMid = row.value >= 35 && row.value < 60
-                    const barColor = isHigh
-                      ? COLOR_RED
-                      : isMid
-                        ? COLOR_ORANGE
-                        : COLOR_BLUE
-                    return (
-                      <div key={row.district} className="flex items-center gap-3">
-                        <div className="w-24 shrink-0 text-xs font-medium text-[#1A1A1A]">
-                          {row.district}
-                        </div>
-                        <div className="h-6 flex-1 overflow-hidden rounded-md bg-[#F2EEE5]">
-                          <div
-                            className="flex h-full items-center justify-end rounded-md px-2 text-[10px] font-bold text-white transition-all"
-                            style={{
-                              width: `${row.value}%`,
-                              backgroundColor: barColor,
-                            }}
-                          >
-                            {row.value}%
+                  {heatmapData.length === 0 ? (
+                    <p className="px-1 py-6 text-center text-xs text-[#1A1A1A]/50">
+                      Aucune donnée par district disponible.
+                    </p>
+                  ) : (
+                    heatmapData.map((row) => {
+                      const pct =
+                        heatmapMax > 0
+                          ? Math.round((row.count / heatmapMax) * 100)
+                          : 0
+                      const isHigh = pct >= 60
+                      const isMid = pct >= 35 && pct < 60
+                      const barColor = isHigh
+                        ? COLOR_RED
+                        : isMid
+                          ? COLOR_ORANGE
+                          : COLOR_BLUE
+                      return (
+                        <div key={row.district} className="flex items-center gap-3">
+                          <div className="w-24 shrink-0 text-xs font-medium text-[#1A1A1A]">
+                            {row.district}
+                          </div>
+                          <div className="h-6 flex-1 overflow-hidden rounded-md bg-[#F2EEE5]">
+                            <div
+                              className="flex h-full items-center justify-end rounded-md px-2 text-[10px] font-bold text-white transition-all"
+                              style={{
+                                width: `${pct}%`,
+                                backgroundColor: barColor,
+                              }}
+                            >
+                              {row.count}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )
-                  })}
+                      )
+                    })
+                  )}
                 </div>
               </Panel>
             </div>
@@ -1730,7 +1855,7 @@ export default function CityDashboard() {
                   className="text-3xl font-bold tabular-nums text-[#C9A961]"
                   style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
                 >
-                  18,4M
+                  {formatFCFA(revenueTotal)}
                   <span className="ml-1 text-sm font-medium text-[#FAFAF7]/60">
                     FCFA
                   </span>
@@ -1742,16 +1867,16 @@ export default function CityDashboard() {
                   />
                   <RevenueRow
                     label="Part mairie (30%)"
-                    value="5,5M FCFA"
+                    value={`${formatFCFA(revenueMairieShare)} FCFA`}
                     highlight
                   />
                   <RevenueRow
                     label="Versements mois en cours"
-                    value="2,1M FCFA"
+                    value="—"
                   />
                   <RevenueRow
                     label="Taux de conversion"
-                    value="68%"
+                    value="—"
                   />
                 </div>
                 <Button
@@ -1790,12 +1915,23 @@ export default function CityDashboard() {
                   <p className="mb-1.5 text-[10px] uppercase tracking-wider text-[#FAFAF7]/50">
                     Dernière annonce
                   </p>
-                  <p className="text-xs leading-relaxed text-[#FAFAF7]/85">
-                    « {AMINATA_MESSAGE.text} »
-                  </p>
-                  <p className="mt-2 text-[10px] text-[#FAFAF7]/40">
-                    {AMINATA_MESSAGE.timestamp} · diffusion 4 plaques
-                  </p>
+                  {latestAnnouncement ? (
+                    <>
+                      <p className="text-xs leading-relaxed text-[#FAFAF7]/85">
+                        « {latestAnnouncement.message} »
+                      </p>
+                      <p className="mt-2 text-[10px] text-[#FAFAF7]/40">
+                        {timeAgo(latestAnnouncement.createdAt)}
+                        {latestAnnouncement.targetDistrict
+                          ? ` · ${latestAnnouncement.targetDistrict}`
+                          : ' · toute la ville'}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs leading-relaxed text-[#FAFAF7]/55">
+                      Aucune annonce active
+                    </p>
+                  )}
                 </div>
                 <Button
                   variant="outline"
@@ -6908,18 +7044,15 @@ function MairieDynamicView() {
 // RevenueView — Revenus artisans + part mairie + top contributeurs
 // ---------------------------------------------------------------
 
-const MONTHLY_TREND = [
-  { month: 'Juil', value: 12.5 },
-  { month: 'Août', value: 14.2 },
-  { month: 'Sept', value: 15.8 },
-  { month: 'Oct', value: 16.1 },
-  { month: 'Nov', value: 17.3 },
-  { month: 'Déc', value: 18.4 },
-] as const
-
 const RATE_PER_CONTACT = 5000 // FCFA par mise en relation générée
 
-function RevenueView({ artisans }: { artisans: CityArtisan[] }) {
+function RevenueView({
+  artisans,
+  incidents,
+}: {
+  artisans: CityArtisan[]
+  incidents: CityIncident[]
+}) {
   const SERIF = { fontFamily: 'Georgia, "Playfair Display", serif' } as const
 
   const totalRevenue = useMemo(
@@ -6927,8 +7060,7 @@ function RevenueView({ artisans }: { artisans: CityArtisan[] }) {
     [artisans],
   )
 
-  // Fallback mock réaliste si pas d'artisans (cohérent avec l'overview)
-  const displayTotal = totalRevenue > 0 ? totalRevenue : 18_400_000
+  const displayTotal = totalRevenue
   const mairieShare = Math.round(displayTotal * 0.3)
   const premiumCount = artisans.filter((a) => a.premium).length
 
@@ -6940,13 +7072,31 @@ function RevenueView({ artisans }: { artisans: CityArtisan[] }) {
   }, [artisans])
 
   const maxRevenue = topArtisans[0]?.revenue ?? 1
-  const maxTrend = Math.max(...MONTHLY_TREND.map((m) => m.value))
 
-  const formatFCFA = (n: number) => {
-    if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace('.', ',')}M`
-    if (n >= 1_000) return `${Math.round(n / 1000)}k`
-    return String(n)
-  }
+  // --- Tendance mensuelle réelle : incidents par mois (6 derniers mois) ---
+  const monthlyTrend = useMemo(() => {
+    const now = new Date()
+    const months: { month: string; count: number }[] = []
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1)
+      const label = d.toLocaleDateString('fr-FR', { month: 'short' })
+      months.push({ month: label, count: 0 })
+    }
+    const baseYear = now.getFullYear()
+    const baseMonth = now.getMonth()
+    for (const inc of incidents) {
+      const created = new Date(inc.createdAt)
+      const diffMonths =
+        (baseYear - created.getFullYear()) * 12 +
+        (baseMonth - created.getMonth())
+      if (diffMonths >= 0 && diffMonths < 6) {
+        months[5 - diffMonths].count += 1
+      }
+    }
+    return months
+  }, [incidents])
+  const maxTrend = Math.max(1, ...monthlyTrend.map((m) => m.count))
+  const hasTrendData = monthlyTrend.some((m) => m.count > 0)
 
   return (
     <div className="space-y-5">
@@ -7008,7 +7158,7 @@ function RevenueView({ artisans }: { artisans: CityArtisan[] }) {
         </div>
       </div>
 
-      {/* Tendance mensuelle */}
+      {/* Tendance mensuelle — incidents réels par mois (6 derniers mois) */}
       <section className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <div className="flex items-center gap-2">
@@ -7018,32 +7168,40 @@ function RevenueView({ artisans }: { artisans: CityArtisan[] }) {
             </h3>
           </div>
           <span className="text-[10px] font-medium text-[#1A1A1A]/50">
-            en millions FCFA
+            incidents par mois
           </span>
         </div>
-        <div className="flex h-40 items-end justify-between gap-3 sm:gap-4">
-          {MONTHLY_TREND.map((m, i) => {
-            const h = (m.value / maxTrend) * 100
-            const isLast = i === MONTHLY_TREND.length - 1
-            return (
-              <div key={m.month} className="flex flex-1 flex-col items-center gap-2">
-                <span className="text-[10px] font-bold tabular-nums text-[#1A1A1A]/70">
-                  {m.value.toFixed(1).replace('.', ',')}
-                </span>
-                <div className="flex w-full flex-1 items-end">
-                  <div
-                    className={cn(
-                      'w-full rounded-t-md transition-all',
-                      isLast ? 'bg-[#C9A961]' : 'bg-[#4A7C59]/70',
-                    )}
-                    style={{ height: `${h}%` }}
-                  />
+        {hasTrendData ? (
+          <div className="flex h-40 items-end justify-between gap-3 sm:gap-4">
+            {monthlyTrend.map((m, i) => {
+              const h = (m.count / maxTrend) * 100
+              const isLast = i === monthlyTrend.length - 1
+              return (
+                <div key={m.month} className="flex flex-1 flex-col items-center gap-2">
+                  <span className="text-[10px] font-bold tabular-nums text-[#1A1A1A]/70">
+                    {m.count}
+                  </span>
+                  <div className="flex w-full flex-1 items-end">
+                    <div
+                      className={cn(
+                        'w-full rounded-t-md transition-all',
+                        isLast ? 'bg-[#C9A961]' : 'bg-[#4A7C59]/70',
+                      )}
+                      style={{ height: `${h}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] font-medium text-[#1A1A1A]/55">{m.month}</span>
                 </div>
-                <span className="text-[10px] font-medium text-[#1A1A1A]/55">{m.month}</span>
-              </div>
-            )
-          })}
-        </div>
+              )
+            })}
+          </div>
+        ) : (
+          <div className="flex h-40 items-center justify-center">
+            <p className="text-sm font-medium text-[#1A1A1A]/55">
+              Données insuffisantes
+            </p>
+          </div>
+        )}
       </section>
 
       {/* Top artisans */}
