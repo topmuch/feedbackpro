@@ -1706,16 +1706,16 @@ export function CityScanView({
             {/* Avatar — logo de la mairie (ou emoji fallback) */}
             <div className="relative mx-auto mb-5">
               <div
-                className="flex h-20 w-20 items-center justify-center rounded-2xl shadow-lg mx-auto overflow-hidden"
+                className="flex h-32 w-32 items-center justify-center rounded-2xl shadow-lg mx-auto overflow-hidden"
                 style={{
                   background: welcomeLogo ? '#FFFFFF' : '#FFD700',
-                  borderRadius: '18px',
+                  borderRadius: '20px',
                 }}
               >
                 {welcomeLogo ? (
-                  <img src={welcomeLogo} alt="Logo mairie" className="h-16 w-16 rounded-xl object-cover" />
+                  <img src={welcomeLogo} alt="Logo mairie" className="h-28 w-28 rounded-xl object-cover" />
                 ) : (
-                  <span className="text-4xl">👋</span>
+                  <span className="text-6xl">👋</span>
                 )}
               </div>
               {/* Anneau pulsant jaune */}
@@ -1725,8 +1725,8 @@ export function CityScanView({
                   border: '3px solid rgba(255,221,0,0.5)',
                   borderRadius: '22px',
                   animation: 'pulse 2s infinite',
-                  width: '80px',
-                  height: '80px',
+                  width: '128px',
+                  height: '128px',
                   margin: '0 auto',
                 }}
               />
@@ -2098,9 +2098,9 @@ function MainView({
         {/* Top bar: logo */}
         <div className="flex items-center gap-3">
           {/* Tuile blanche avec logo mairie (ou emoji fallback) */}
-          <div className="flex h-12 w-12 items-center justify-center bg-white" style={{ borderRadius: '14px' }}>
+          <div className="flex h-16 w-16 items-center justify-center bg-white" style={{ borderRadius: '14px' }}>
             {mairieLogo ? (
-              <img src={mairieLogo} alt="Logo mairie" className="h-10 w-10 rounded-lg object-cover" />
+              <img src={mairieLogo} alt="Logo mairie" className="h-14 w-14 rounded-lg object-cover" />
             ) : (
               <span className="text-2xl">👋</span>
             )}
