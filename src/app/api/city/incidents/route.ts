@@ -13,7 +13,10 @@
 //          - emergency → assignedTo="Police", status="assigned"
 //          - report    → auto-routage par category vers Mairie /
 //                        Senelec / ONAS.
-// Body : { qrToken?, type, category?, description?, gpsLat?, gpsLng? }
+//          - après création : génère les URLs WhatsApp de notification
+//            (agent assigné + confirmation citoyen si téléphone fourni).
+// Body : { qrToken?, type, category?, description?, gpsLat?, gpsLng?,
+//          citizenPhone?, agentPhone? }
 // ============================================================
 
 import { NextRequest } from 'next/server'
@@ -70,6 +73,133 @@ function resolveAssignedTo(type: string, category?: string | null): string | nul
     return CATEGORY_ROUTING[normalized] ?? 'Mairie'
   }
   return null
+}
+
+// ---------------------------------------------------------------
+// WhatsApp — helpers de construction des messages & URLs
+// ---------------------------------------------------------------
+
+/**
+ * Extrait un numéro de téléphone sénégalais d'un texte libre
+ * (typiquement la description d'un incident). Reconnaît les formats :
+ *   - +221 77 123 45 67 / 00221 77 123 45 67
+ *   - 221771234567
+ *   - 77 123 45 67 / 77.123.45.67 / 77-123-45-67 / 771234567
+ * Retourne le numéro au format international SANS le « + » (attendu par
+ * wa.me), ex: "221771234567", ou null si aucun numéro valide trouvé.
+ */
+function extractPhoneFromText(text: string | null | undefined): string | null {
+  if (!text) return null
+  // Cherche des séquences « numéro-like » : préfixe international optionnel
+  // (+221 / 00221) puis un numéro local de 9 chiffres commençant par 7/8/9,
+  // les chiffres pouvant être séparés par des espaces, points ou tirets.
+  const candidates = text.match(
+    /(?:\+?221|00221)?[\s.\-]*[7-9](?:[\s.\-]?\d){8}/g,
+  )
+  if (candidates) {
+    for (const c of candidates) {
+      const digits = c.replace(/\D/g, '')
+      if (digits.length === 9 && /^[7-9]/.test(digits)) return `221${digits}`
+      if (digits.length === 12 && digits.startsWith('221')) return digits
+      if (digits.length === 13 && digits.startsWith('00221')) return digits.slice(2)
+    }
+  }
+  // Fallback : numéro local collé (9 chiffres) commençant par 7/8/9.
+  const m = text.match(/\b([7-9]\d{8})\b/)
+  if (m) {
+    return `221${m[1]}`
+  }
+  return null
+}
+
+/** Normalise un numéro saisi (citoyen ou agent) pour wa.me : chiffres only,
+ * au format international sans « + ». Si le numéro est local (9 chiffres
+ * Sénégal), on préfixe avec 221. */
+function normalizePhone(phone: string | null | undefined): string | null {
+  if (!phone) return null
+  const digits = phone.replace(/[^\d]/g, '')
+  if (digits.length === 9 && /^[7-9]/.test(digits)) return `221${digits}`
+  if (digits.length === 12 && digits.startsWith('221')) return digits
+  if (digits.length === 13 && digits.startsWith('00221')) return digits.slice(2)
+  if (digits.length >= 8) return digits // best-effort (autre pays)
+  return null
+}
+
+/**
+ * Construit le message WhatsApp de notification à destination de l'agent
+ * (Police / Senelec / ONAS / Mairie) assigné au signalement. Inclut tous
+ * les détails : type, catégorie, description, GPS, plaque, service, date.
+ */
+function buildAgentNotificationMessage(opts: {
+  type: string
+  category: string | null
+  description: string | null
+  gpsLat: number | null
+  gpsLng: number | null
+  plate: { plateNumber: string; label: string; district: string | null } | null
+  assignedTo: string | null
+  createdAt: Date
+}): string {
+  const { type, category, description, gpsLat, gpsLng, plate, assignedTo, createdAt } = opts
+  const typeLabel =
+    type === 'emergency'
+      ? 'Urgence'
+      : type === 'report'
+        ? 'Signalement'
+        : type === 'orientation'
+          ? 'Orientation'
+          : type === 'artisan'
+            ? 'Artisan'
+            : type === 'mairie'
+              ? 'Mairie'
+              : type
+  const lines: string[] = ['🚨 NOUVEAU SIGNALEMENT']
+  lines.push(`Type: ${typeLabel} (${type})`)
+  if (category) lines.push(`Catégorie: ${category}`)
+  if (description) {
+    lines.push(`Description: ${description}`)
+  }
+  if (gpsLat != null && gpsLng != null) {
+    lines.push(`Position GPS: ${gpsLat}, ${gpsLng}`)
+    lines.push(`Carte: https://www.google.com/maps?q=${gpsLat},${gpsLng}`)
+  }
+  if (plate) {
+    lines.push(
+      `Plaque: ${plate.plateNumber} - ${plate.label}${plate.district ? ` (${plate.district})` : ''}`,
+    )
+  }
+  if (assignedTo) lines.push(`Service assigné: ${assignedTo}`)
+  lines.push(`Date: ${createdAt.toISOString()}`)
+  return lines.join('\n')
+}
+
+/**
+ * Construit le message WhatsApp de confirmation à destination du citoyen
+ * qui vient de créer le signalement. Rassure le citoyen, donne la référence
+ * courte (#xxxxxx) et le service assigné.
+ */
+function buildCitizenConfirmationMessage(opts: {
+  category: string | null
+  type: string
+  incidentId: string
+  assignedTo: string | null
+}): string {
+  const { category, type, incidentId, assignedTo } = opts
+  const sujet = category || type
+  const lines: string[] = ['✅ SIGNALEMENT CONFIRMÉ']
+  lines.push(`Votre signalement "${sujet}" a été enregistré.`)
+  lines.push(`Référence: #${incidentId.slice(-6)}`)
+  if (assignedTo) lines.push(`Service assigné: ${assignedTo}`)
+  lines.push('Vous serez notifié(e) de la résolution.')
+  return lines.join('\n')
+}
+
+/** Construit une URL wa.me. Si phone est null/empty → wa.me/?text=… (ouvre
+ * le sélecteur de contact WhatsApp avec le message pré-rempli). */
+function buildWhatsappUrl(phone: string | null, message: string): string {
+  const encoded = encodeURIComponent(message)
+  if (phone) return `https://wa.me/${phone}?text=${encoded}`
+  return `https://wa.me/?text=${encoded}`
 }
 
 // ---------------------------------------------------------------
@@ -154,6 +284,14 @@ export async function POST(req: NextRequest) {
     description?: string
     gpsLat?: number
     gpsLng?: number
+    // Téléphone citoyen (optionnel) : si fourni, on génère un message
+    // WhatsApp de confirmation à destination du citoyen. Sinon, on tente
+    // d'extraire un numéro depuis la description.
+    citizenPhone?: string
+    // Téléphone agent (optionnel) : surcharge du destinataire de la
+    // notification agent. Par défaut, on génère un lien wa.me/?text=…
+    // (sélecteur de contact) car aucun téléphone par service n'est stocké.
+    agentPhone?: string
   }
 
   // type obligatoire
@@ -189,6 +327,20 @@ export async function POST(req: NextRequest) {
       return fail('description trop longue (max. 1000 caractères)', 400)
     }
     description = trimmed || null
+  }
+
+  // citizenPhone optionnel (chaîne)
+  if (b.citizenPhone !== undefined && b.citizenPhone !== null) {
+    if (typeof b.citizenPhone !== 'string') {
+      return fail('citizenPhone invalide', 400)
+    }
+  }
+
+  // agentPhone optionnel (chaîne)
+  if (b.agentPhone !== undefined && b.agentPhone !== null) {
+    if (typeof b.agentPhone !== 'string') {
+      return fail('agentPhone invalide', 400)
+    }
   }
 
   // GPS optionnel
@@ -293,7 +445,60 @@ export async function POST(req: NextRequest) {
   )
 
   // ---------------------------------------------------------------
-  // 4. Réponse
+  // 4. Notifications WhatsApp (agent assigné + confirmation citoyen)
+  // ---------------------------------------------------------------
+  // On construit deux deep links wa.me (V1 manuelle, zéro coût API) :
+  //   - agentWhatsappUrl : message détaillé à destination de l'agent
+  //     (Police / Senelec / ONAS / Mairie). Si agentPhone fourni → wa.me
+  //     direct, sinon wa.me/?text=… (ouvre le sélecteur de contact).
+  //   - citizenWhatsappUrl : message de confirmation à destination du
+  //     citoyen (référence + service assigné), seulement si un téléphone
+  //     est disponible (citizenPhone fourni OU extrait de la description).
+  // Les URLs + messages bruts sont renvoyés dans la réponse pour que le
+  // frontend puisse les ouvrir dans un nouvel onglet (comme notify-resolution).
+  const plateForMsg = incident.plate
+    ? {
+        plateNumber: incident.plate.plateNumber,
+        label: incident.plate.label,
+        district: incident.plate.district,
+      }
+    : null
+
+  const agentMessage = buildAgentNotificationMessage({
+    type: incident.type,
+    category: incident.category,
+    description: incident.description,
+    gpsLat: incident.gpsLat,
+    gpsLng: incident.gpsLng,
+    plate: plateForMsg,
+    assignedTo: incident.assignedTo,
+    createdAt: incident.createdAt,
+  })
+  const agentPhoneNormalized = normalizePhone(b.agentPhone)
+  const agentWhatsappUrl = buildWhatsappUrl(agentPhoneNormalized, agentMessage)
+
+  // Téléphone citoyen : priorité au champ explicite, sinon extraction depuis
+  // la description (un citoyen laisse souvent son numéro pour être rappelé).
+  const citizenPhoneNormalized =
+    normalizePhone(b.citizenPhone) ?? extractPhoneFromText(incident.description)
+
+  let citizenWhatsappUrl: string | null = null
+  let citizenMessage: string | null = null
+  if (citizenPhoneNormalized) {
+    citizenMessage = buildCitizenConfirmationMessage({
+      category: incident.category,
+      type: incident.type,
+      incidentId: incident.id,
+      assignedTo: incident.assignedTo,
+    })
+    citizenWhatsappUrl = buildWhatsappUrl(citizenPhoneNormalized, citizenMessage)
+    console.log(
+      `[city-incidents] 💬 Confirmation citoyen générée → ${citizenPhoneNormalized}`,
+    )
+  }
+
+  // ---------------------------------------------------------------
+  // 5. Réponse
   // ---------------------------------------------------------------
   return ok(
     {
@@ -320,6 +525,22 @@ export async function POST(req: NextRequest) {
         resolvedAt: incident.resolvedAt ? incident.resolvedAt.toISOString() : null,
         createdAt: incident.createdAt.toISOString(),
         updatedAt: incident.updatedAt.toISOString(),
+      },
+      // URLs WhatsApp (deep links wa.me) — à ouvrir côté frontend dans un
+      // nouvel onglet. L'envoi reste manuel (V1 zéro coût API).
+      whatsapp: {
+        agent: {
+          phone: agentPhoneNormalized,
+          message: agentMessage,
+          url: agentWhatsappUrl,
+        },
+        citizen: citizenPhoneNormalized
+          ? {
+              phone: citizenPhoneNormalized,
+              message: citizenMessage,
+              url: citizenWhatsappUrl,
+            }
+          : null,
       },
     },
     201,

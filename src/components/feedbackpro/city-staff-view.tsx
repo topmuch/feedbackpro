@@ -8,8 +8,11 @@
 // accents dorés #C9A961 — cohérent avec le CityDashboard de supervision.
 //
 // FLUX
-//   1. Login simple (nom + rôle, pas de PIN pour cette V1)
+//   1. Login (nom + rôle + code PIN = '1968', soft gate)
 //      - Rôles : Propreté / Voirie / Éclairage / Polyvalent
+//      - PWA autonome : AUCUN bouton "Retour à l'accueil" — seul la
+//        fermeture de l'onglet quitte le PWA. Le prop onExit reste
+//        accepté pour rétro-compat mais n'est plus déstructuré ni appelé.
 //      - Le rôle détermine le filtre des incidents affichés :
 //          Propreté   → category=propreté (routé Mairie)
 //          Voirie     → category=voirie (routé Mairie)
@@ -44,7 +47,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Loader2,
-  ArrowLeft,
   MapPin,
   Check,
   Star,
@@ -62,6 +64,8 @@ import {
   CircleDot,
   Inbox,
   Radio,
+  Volume2,
+  VolumeX,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -77,6 +81,12 @@ import {
 } from '@/components/ui/select'
 import { useToast } from '@/hooks/use-toast'
 import { parler } from '@/lib/staff-tts'
+
+// ============================================================
+// Code PIN staff (V1 — soft gate, pas d'auth réelle).
+// Saisi sur l'écran de login avant d'accéder au feed.
+// ============================================================
+const STAFF_PIN = '1968'
 
 // ============================================================
 // Types (contrat API — formes sérialisées par /api/city/*)
@@ -359,9 +369,15 @@ type StaffScreen = 'login' | 'feed'
 
 export function CityStaffView({
   staffTag,
-  onExit,
 }: {
   staffTag: string
+  /**
+   * Le PWA Staff Municipal est une application autonome : aucun bouton
+   * "Retour à l'accueil" ni aucun moyen de revenir au FeedVoice principal.
+   * Seule la fermeture de l'onglet quitte le PWA. Le prop onExit reste
+   * accepté pour rétro-compat avec src/app/page.tsx, mais il n'est plus
+   * déstructuré ni appelé.
+   */
   onExit?: () => void
 }) {
   const { toast } = useToast()
@@ -372,6 +388,15 @@ export function CityStaffView({
   // --- Identité staff ---
   const [staffName, setStaffName] = useState('')
   const [role, setRole] = useState<StaffRole | ''>('')
+  // --- Code PIN (saisi sur l'écran login, vérifié contre STAFF_PIN) ---
+  const [pin, setPin] = useState('')
+  const [pinError, setPinError] = useState(false)
+  // --- Voix Nathalie (toggle header, persistée en localStorage) ---
+  const [soundOn, setSoundOn] = useState(false)
+  // Ref miroir de soundOn pour lire la valeur courante dans
+  // fetchIncidents (useCallback []) sans re-créer le callback ni
+  // relancer le polling à chaque bascule du toggle.
+  const soundOnRef = useRef(false)
 
   // --- Données ---
   const [incidents, setIncidents] = useState<CityIncident[]>([])
@@ -442,6 +467,48 @@ export function CityStaffView({
   }, [])
 
   // ---------------------------------------------------------------
+  // Lifecycle 2b — Préférence voix Nathalie (localStorage) + sync ref
+  // ---------------------------------------------------------------
+  // La voix est OFF par défaut (les navigateurs bloquent l'autoplay
+  // audio avant interaction ; l'agent l'active explicitement via le
+  // toggle du header). Persistée en localStorage pour la prochaine
+  // session. Le ref miroir permet à fetchIncidents (useCallback [])
+  // de lire la valeur courante sans changer de deps.
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    try {
+      const saved = localStorage.getItem('fp-city-staff-sound')
+      if (saved === '1') setSoundOn(true)
+    } catch {
+      /* ignore */
+    }
+  }, [])
+
+  useEffect(() => {
+    soundOnRef.current = soundOn
+  }, [soundOn])
+
+  const toggleSound = useCallback(() => {
+    setSoundOn((prev) => {
+      const next = !prev
+      try {
+        localStorage.setItem('fp-city-staff-sound', next ? '1' : '0')
+      } catch {
+        /* ignore */
+      }
+      if (next) {
+        // Confirmation vocale : l'agent sait immédiatement que la voix
+        // est active (et déverrouille l'AudioContext côté navigateur).
+        window.setTimeout(
+          () => parler('Voix Nathalie activée. Je surveille les incidents.'),
+          200,
+        )
+      }
+      return next
+    })
+  }, [])
+
+  // ---------------------------------------------------------------
   // Lifecycle 3 — GPS staff au login + refresh 60 s
   // ---------------------------------------------------------------
   useEffect(() => {
@@ -475,11 +542,17 @@ export function CityStaffView({
       if (json?.ok && Array.isArray(json.data?.incidents)) {
         const fresh = json.data.incidents
         // Voix Nathalie (parler) : on compare le nouvel état serveur au
-        // précédent poll pour détecter (a) les nouvelles urgences et
-        // (b) les transitions vers 'resolved'. Pas d'annonce au premier
-        // chargement (previous est null).
+        // précédent poll pour détecter (a) les nouvelles urgences,
+        // (b) les nouveaux signalements, et (c) les transitions vers
+        // 'resolved' (résolution annoncée aussi bien par le dashboard
+        // de supervision que par un autre agent). Pas d'annonce au
+        // premier chargement (previous est null). Gâtée par soundOnRef
+        // (toggle header) : si la voix est OFF, on ne parle pas.
+        // NB : parler() est appelé synchrone, avant tout await, dans le
+        // callback du poll — jamais dans un useEffect séparé (évite les
+        // double-annonces et les closures périmées).
         const previous = prevIncidentsRef.current
-        if (previous) {
+        if (previous && soundOnRef.current) {
           const prevById = new Map(previous.map((i) => [i.id, i]))
           for (const inc of fresh) {
             const old = prevById.get(inc.id)
@@ -487,6 +560,11 @@ export function CityStaffView({
             if (isNew && inc.type === 'emergency') {
               parler(
                 `Nouvelle urgence. ${inc.category || 'Urgence'}. ${inc.assignedTo || 'Police'} notifié.`,
+              )
+            }
+            if (isNew && inc.type === 'report') {
+              parler(
+                `Nouveau signalement. ${inc.category || 'Signalement'}. ${inc.description || ''}.`,
               )
             }
             if (old && old.status !== 'resolved' && inc.status === 'resolved') {
@@ -544,6 +622,13 @@ export function CityStaffView({
   // Handlers
   // ---------------------------------------------------------------
 
+  const handlePinChange = useCallback((v: string) => {
+    // On ne garde que les chiffres (le PIN est numérique).
+    setPin(v.replace(/\D/g, ''))
+    // On efface l'erreur dès que l'agent corrige sa saisie.
+    setPinError(false)
+  }, [])
+
   const handleLogin = useCallback(() => {
     const name = staffName.trim()
     if (!name) {
@@ -554,6 +639,18 @@ export function CityStaffView({
       toast({ title: 'Choisissez votre rôle', description: 'Propreté, Voirie, Éclairage ou Polyvalent.' })
       return
     }
+    // Vérification du code PIN (soft gate — STAFF_PIN en clair dans le
+    // bundle ; c'est un simple filtre, pas une authentification réelle).
+    if (pin !== STAFF_PIN) {
+      setPinError(true)
+      toast({
+        title: 'Code PIN incorrect',
+        description: 'Vérifiez le code à 4 chiffres et réessayez.',
+        variant: 'destructive',
+      })
+      return
+    }
+    setPinError(false)
     if (typeof window !== 'undefined') {
       localStorage.setItem(STAFF_NAME_KEY, name)
       localStorage.setItem(STAFF_ROLE_KEY, role)
@@ -564,7 +661,7 @@ export function CityStaffView({
       title: `Bienvenue ${name.split(' ')[0]}`,
       description: `Service : ${role}. Incidents chargés.`,
     })
-  }, [staffName, role, toast])
+  }, [staffName, role, pin, toast])
 
   const handleLogout = useCallback(() => {
     // 1. On purge la session persistée (localStorage).
@@ -580,6 +677,8 @@ export function CityStaffView({
     setScreen('login')
     setStaffName('')
     setRole('')
+    setPin('')
+    setPinError(false)
     setIncidents([])
     setIncidentsLoading(false)
     setLastPoll(null)
@@ -824,9 +923,11 @@ export function CityStaffView({
           setStaffName={setStaffName}
           role={role}
           setRole={setRole as (v: StaffRole) => void}
+          pin={pin}
+          pinError={pinError}
+          onPinChange={handlePinChange}
           staffTag={staffTag}
           onLogin={handleLogin}
-          onExit={onExit}
         />
       </div>
     )
@@ -844,6 +945,8 @@ export function CityStaffView({
         incidentsLoading={incidentsLoading}
         onRefresh={() => void fetchIncidents()}
         onLogout={handleLogout}
+        soundOn={soundOn}
+        onToggleSound={toggleSound}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
         counts={counts}
@@ -873,17 +976,21 @@ function LoginScreen({
   setStaffName,
   role,
   setRole,
+  pin,
+  pinError,
+  onPinChange,
   staffTag,
   onLogin,
-  onExit,
 }: {
   staffName: string
   setStaffName: (v: string) => void
   role: StaffRole | ''
   setRole: (v: StaffRole) => void
+  pin: string
+  pinError: boolean
+  onPinChange: (v: string) => void
   staffTag: string
   onLogin: () => void
-  onExit?: () => void
 }) {
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-10">
@@ -977,6 +1084,36 @@ function LoginScreen({
         })}
       </div>
 
+      {/* Code PIN — soft gate d'accès au feed (STAFF_PIN = '1968') */}
+      <div className="mt-5 space-y-2">
+        <label className="text-xs font-bold uppercase tracking-wide text-[#9A9A95]">
+          Code PIN
+        </label>
+        <Input
+          type="password"
+          inputMode="numeric"
+          autoComplete="off"
+          maxLength={6}
+          value={pin}
+          onChange={(e) => onPinChange(e.target.value)}
+          placeholder="••••"
+          className={cn(
+            'rounded-xl bg-[#161616] text-base tracking-[0.3em] text-[#F5F5F0] placeholder:tracking-normal placeholder:text-[#6A6A65] focus-visible:border-[#C9A961]',
+            pinError
+              ? 'border-[#E30613] focus-visible:border-[#E30613]'
+              : 'border-[#2A2A2A]',
+          )}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') onLogin()
+          }}
+        />
+        {pinError && (
+          <p className="text-xs font-bold text-[#E30613]">
+            Code PIN incorrect — réessayez.
+          </p>
+        )}
+      </div>
+
       {/* Bouton connexion */}
       <Button
         onClick={onLogin}
@@ -991,19 +1128,9 @@ function LoginScreen({
 
       {/* Aide */}
       <p className="mt-4 text-center text-xs text-[#6A6A65]">
-        Pas de PIN pour cette version. Votre nom et votre service sont mémorisés
-        sur cet appareil.
+        Code PIN requis pour accéder au service. Votre nom et votre rôle sont
+        mémorisés sur cet appareil pour la prochaine session.
       </p>
-
-      {onExit && (
-        <button
-          onClick={onExit}
-          className="mt-6 inline-flex items-center justify-center gap-1.5 text-sm font-medium text-[#9A9A95] transition hover:text-[#F5F5F0]"
-        >
-          <ArrowLeft className="size-4" />
-          Retour à l&apos;accueil
-        </button>
-      )}
     </div>
   )
 }
@@ -1021,6 +1148,8 @@ function FeedScreen({
   incidentsLoading,
   onRefresh,
   onLogout,
+  soundOn,
+  onToggleSound,
   activeTab,
   setActiveTab,
   counts,
@@ -1043,6 +1172,8 @@ function FeedScreen({
   incidentsLoading: boolean
   onRefresh: () => void
   onLogout: () => void
+  soundOn: boolean
+  onToggleSound: () => void
   activeTab: StatusTab
   setActiveTab: (v: StatusTab) => void
   counts: { pending: number; in_progress: number; resolved: number }
@@ -1099,7 +1230,7 @@ function FeedScreen({
           </button>
         </div>
 
-        {/* Ligne 2 : GPS + online + refresh */}
+        {/* Ligne 2 : GPS + online + son Nathalie + refresh */}
         <div className="mt-2.5 flex items-center gap-2 text-xs">
           {/* GPS */}
           <span
@@ -1132,17 +1263,36 @@ function FeedScreen({
             {isOnline ? 'En ligne' : 'Hors ligne'}
           </span>
 
-          {/* Refresh */}
-          <button
-            onClick={onRefresh}
-            className="ml-auto inline-flex items-center gap-1.5 rounded-full border border-[#2A2A2A] px-2.5 py-1 font-medium text-[#9A9A95] transition hover:text-[#F5F5F0]"
-            title={lastPoll ? `Dernier sync : ${lastPoll.toLocaleTimeString('fr-FR')}` : 'Jamais synchronisé'}
-          >
-            <RefreshCw
-              className={cn('size-3', incidentsLoading && 'animate-spin')}
-            />
-            {lastPoll ? lastPoll.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Sync'}
-          </button>
+          {/* Droite : son Nathalie + refresh */}
+          <div className="ml-auto flex items-center gap-2">
+            {/* Son Nathalie — doré quand ON */}
+            <button
+              onClick={onToggleSound}
+              title={soundOn ? 'Désactiver la voix Nathalie' : 'Activer la voix Nathalie'}
+              aria-pressed={soundOn}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-medium transition',
+                soundOn
+                  ? 'border-[#C9A961]/60 bg-[#C9A961]/10 text-[#C9A961]'
+                  : 'border-[#2A2A2A] text-[#9A9A95] hover:text-[#F5F5F0]',
+              )}
+            >
+              {soundOn ? <Volume2 className="size-3" /> : <VolumeX className="size-3" />}
+              {soundOn ? 'Son ON' : 'Son OFF'}
+            </button>
+
+            {/* Refresh */}
+            <button
+              onClick={onRefresh}
+              className="inline-flex items-center gap-1.5 rounded-full border border-[#2A2A2A] px-2.5 py-1 font-medium text-[#9A9A95] transition hover:text-[#F5F5F0]"
+              title={lastPoll ? `Dernier sync : ${lastPoll.toLocaleTimeString('fr-FR')}` : 'Jamais synchronisé'}
+            >
+              <RefreshCw
+                className={cn('size-3', incidentsLoading && 'animate-spin')}
+              />
+              {lastPoll ? lastPoll.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : 'Sync'}
+            </button>
+          </div>
         </div>
 
         {/* Offline banner */}

@@ -28,7 +28,13 @@ export default function RootLayout({
             <link rel="manifest"> dans le HTML pour émettre l'événement
             beforeinstallprompt, utilisé par « Garder Nathalie »). */}
         <link rel="manifest" href="/manifest.webmanifest" />
-        <meta name="theme-color" content="#C9A961" />
+        {/* theme-color alignée sur le bleu signalétique Ville Connectée
+            (#0066CC) — DOIT correspondre au theme_color du manifest pour
+            que Chrome émette beforeinstallprompt (cohérence PWA). */}
+        <meta name="theme-color" content="#0066CC" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="Aminata" />
         <link rel="apple-touch-icon" href="/icon-192.png" />
         {/* Typographie « Luxe Silencieux » — Playfair Display pour les
             titres (serif élégant, italique pour les accents) et Inter

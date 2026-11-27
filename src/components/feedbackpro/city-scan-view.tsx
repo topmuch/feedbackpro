@@ -90,6 +90,14 @@ import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 import { useToast } from '@/hooks/use-toast'
 import { parler } from '@/lib/staff-tts'
 import { composeQrPremium, qrServerUrl } from '@/lib/qr-premium'
@@ -211,6 +219,34 @@ const COLORS = {
   gold: '#C9A961',
   bg: '#FAFAF7',
 } as const
+
+// ============================================================
+// PWA — détection plateforme pour les instructions d'installation
+// ------------------------------------------------------------
+// iOS Safari ne déclenche JAMAIS beforeinstallprompt : il faut guider
+// le citoyen vers Partager → « Sur l'écran d'accueil ». Android/Chrome
+// déclenche l'événement, mais on garde un fallback manuel (menu ⋮ →
+// Installer) au cas où l'événement n'arrive pas (app déjà installée,
+// navigateur non compatible…). On détecte aussi le mode standalone
+// (déjà installé) pour masquer le bouton.
+// ============================================================
+function detectInstallPlatform(): 'ios' | 'android' | 'desktop' {
+  if (typeof navigator === 'undefined') return 'desktop'
+  const ua = navigator.userAgent.toLowerCase()
+  if (/iphone|ipad|ipod/.test(ua)) return 'ios'
+  if (/android/.test(ua)) return 'android'
+  return 'desktop'
+}
+
+function isRunningStandalone(): boolean {
+  if (typeof window === 'undefined') return false
+  // iOS Safari : window.navigator.standalone (déprécié mais fiable sur iOS)
+  // Standards : display-mode standalone
+  return (
+    window.matchMedia?.('(display-mode: standalone)').matches === true ||
+    (navigator as unknown as { standalone?: boolean }).standalone === true
+  )
+}
 
 /** Style de titre serif (Georgia / Playfair Display) appliqué aux titres. */
 const TITLE_FONT: React.CSSProperties = {
@@ -571,26 +607,26 @@ type ThemeConfig = {
 const THEMES: Record<QrTheme, ThemeConfig> = {
   signaletique: {
     pageBg: '#FFFFFF',
-    headerBg: '#1B2A8C',
+    headerBg: '#0026A3',
     headerRadius: '32px',
     cardRadius: '16px',
     fontFamily: 'Arial, Helvetica, sans-serif',
     iconTileBg: '#FFFFFF',
     iconTileRadius: '12px',
     liveBarBg: '#1A1A1A',
-    liveBarText: '#FFDD00',
+    liveBarText: '#FFD700',
     modules: {
       urgence:      { bg: '#E30613', textColor: '#FFFFFF', iconBg: '#FFFFFF' },
-      signalement:  { bg: '#FFDD00', textColor: '#1A1A1A', iconBg: '#FFFFFF' },
-      orientation:  { bg: '#FFDD00', textColor: '#1A1A1A', iconBg: '#FFFFFF' },
-      artisans:     { bg: '#FFDD00', textColor: '#1A1A1A', iconBg: '#FFFFFF' },
-      mairie:       { bg: '#1B2A8C', textColor: '#FFFFFF', iconBg: '#FFFFFF' },
-      tax_fraud:    { bg: '#FFDD00', textColor: '#1A1A1A', iconBg: '#FFFFFF' },
-      itineraire:   { bg: '#FFDD00', textColor: '#1A1A1A', iconBg: '#FFFFFF' },
-      annonces:     { bg: '#FFDD00', textColor: '#1A1A1A', iconBg: '#FFFFFF' },
-      sante:        { bg: '#FFDD00', textColor: '#1A1A1A', iconBg: '#FFFFFF' },
-      quartier_ads: { bg: '#FFDD00', textColor: '#1A1A1A', iconBg: '#FFFFFF' },
-      ecoles:       { bg: '#FFDD00', textColor: '#1A1A1A', iconBg: '#FFFFFF' },
+      signalement:  { bg: '#FFD700', textColor: '#1A1A1A', iconBg: '#FFFFFF' },
+      orientation:  { bg: '#FFD700', textColor: '#1A1A1A', iconBg: '#FFFFFF' },
+      artisans:     { bg: '#FFD700', textColor: '#1A1A1A', iconBg: '#FFFFFF' },
+      mairie:       { bg: '#0026A3', textColor: '#FFFFFF', iconBg: '#FFFFFF' },
+      tax_fraud:    { bg: '#FFD700', textColor: '#1A1A1A', iconBg: '#FFFFFF' },
+      itineraire:   { bg: '#FFD700', textColor: '#1A1A1A', iconBg: '#FFFFFF' },
+      annonces:     { bg: '#FFD700', textColor: '#1A1A1A', iconBg: '#FFFFFF' },
+      sante:        { bg: '#FFD700', textColor: '#1A1A1A', iconBg: '#FFFFFF' },
+      quartier_ads: { bg: '#FFD700', textColor: '#1A1A1A', iconBg: '#FFFFFF' },
+      ecoles:       { bg: '#FFD700', textColor: '#1A1A1A', iconBg: '#FFFFFF' },
     },
   },
   modern: {
@@ -745,7 +781,9 @@ function captureGps(): Promise<{ lat: number; lng: number } | null> {
 
 /**
  * Envoie un incident citoyen à /api/city/incidents.
- * Retourne l'incident créé (avec assignedTo calculé serveur) ou une erreur.
+ * Retourne l'incident créé (avec assignedTo calculé serveur) + les URLs
+ * WhatsApp de notification (agent + confirmation citoyen si téléphone
+ * trouvé), ou une erreur.
  */
 async function postIncident(payload: {
   qrToken: string
@@ -754,7 +792,18 @@ async function postIncident(payload: {
   description?: string
   gpsLat?: number
   gpsLng?: number
-}): Promise<{ ok: true; incident: CityIncident } | { ok: false; error: string }> {
+  citizenPhone?: string
+}): Promise<
+  | {
+      ok: true
+      incident: CityIncident
+      whatsapp?: {
+        agent: { phone: string | null; message: string; url: string }
+        citizen: { phone: string; message: string; url: string } | null
+      }
+    }
+  | { ok: false; error: string }
+> {
   try {
     const res = await fetch('/api/city/incidents', {
       method: 'POST',
@@ -763,11 +812,21 @@ async function postIncident(payload: {
     })
     const json = (await res.json().catch(() => null)) as {
       ok: boolean
-      data?: { incident?: CityIncident }
+      data?: {
+        incident?: CityIncident
+        whatsapp?: {
+          agent: { phone: string | null; message: string; url: string }
+          citizen: { phone: string; message: string; url: string } | null
+        }
+      }
       error?: string
     } | null
     if (json?.ok && json.data?.incident) {
-      return { ok: true, incident: json.data.incident }
+      return {
+        ok: true,
+        incident: json.data.incident,
+        whatsapp: json.data.whatsapp,
+      }
     }
     return { ok: false, error: json?.error ?? 'Erreur inconnue' }
   } catch {
@@ -1043,7 +1102,7 @@ const BUSINESS_CATEGORIES: ReadonlyArray<{ id: string; label: string; color: str
   { id: 'Restaurant',  label: 'Restaurant',   color: '#FF6B00' },
   { id: 'Coiffure',    label: 'Coiffure',     color: '#6B4C9A' },
   { id: 'Mécanicien',  label: 'Mécanicien',   color: '#8B0000' },
-  { id: 'Téléphonie',  label: 'Téléphonie',   color: '#1B2A8C' },
+  { id: 'Téléphonie',  label: 'Téléphonie',   color: '#0026A3' },
   { id: 'Nettoyage',   label: 'Nettoyage',    color: '#008B8B' },
 ]
 
@@ -1453,6 +1512,10 @@ export function CityScanView({
         description: payload.description,
         gpsLat,
         gpsLng,
+        // Téléphone citoyen (si le citoyen s'est inscrit via la modale
+        // d'inscription légère) : permet au serveur de générer un message
+        // WhatsApp de confirmation à destination du citoyen.
+        citizenPhone: citizenPhone ?? undefined,
       })
 
       setSubmitting(false)
@@ -1463,6 +1526,14 @@ export function CityScanView({
           description: result.error,
         })
         return
+      }
+
+      // WhatsApp — si le serveur a généré un lien de confirmation citoyen
+      // (citizenPhone fourni OU extrait de la description), on l'ouvre dans
+      // un nouvel onglet pour que le citoyen reçoive sa référence. V1 : le
+      // clic reste manuel côté citoyen (zéro coût API WhatsApp Cloud).
+      if (result.whatsapp?.citizen?.url && typeof window !== 'undefined') {
+        window.open(result.whatsapp.citizen.url, '_blank', 'noopener,noreferrer')
       }
 
       // Confirmation : on enrichit avec le service réellement notifié
@@ -1479,7 +1550,7 @@ export function CityScanView({
       })
       setPhase('confirmation')
     },
-    [plate, gpsConsent, toast],
+    [plate, gpsConsent, citizenPhone, toast],
   )
 
   // ---------------------------------------------------------------
@@ -1637,7 +1708,7 @@ export function CityScanView({
               <div
                 className="flex h-20 w-20 items-center justify-center rounded-2xl shadow-lg mx-auto overflow-hidden"
                 style={{
-                  background: welcomeLogo ? '#FFFFFF' : '#FFDD00',
+                  background: welcomeLogo ? '#FFFFFF' : '#FFD700',
                   borderRadius: '18px',
                 }}
               >
@@ -1670,7 +1741,7 @@ export function CityScanView({
             </h1>
 
             {/* Sous-titre */}
-            <p className="mb-6 text-sm font-bold uppercase tracking-wider text-[#1B2A8C]">
+            <p className="mb-6 text-sm font-bold uppercase tracking-wider text-[#0026A3]">
               Votre guide citoyenne
             </p>
 
@@ -1698,7 +1769,7 @@ export function CityScanView({
               onClick={handleEnter}
               className="flex w-full items-center justify-center gap-3 rounded-2xl px-8 py-5 text-base font-bold uppercase tracking-wide shadow-lg transition-all hover:-translate-y-1 hover:shadow-2xl active:scale-[0.98]"
               style={{
-                background: '#FFDD00',
+                background: '#FFD700',
                 color: '#1A1A1A',
                 borderRadius: '16px',
                 fontFamily: 'Arial, Helvetica, sans-serif',
@@ -1979,18 +2050,36 @@ function MainView({
   // --- PWA : "Aminata dans ma poche" ---
   // On capture l'événement `beforeinstallprompt` (Chrome/Edge Android) pour
   // pouvoir déclencher l'installation au clic. iOS Safari ne déclenche jamais
-  // cet événement : on garde alors le bouton visible et on affiche une toast
-  // avec les instructions manuelles (Partager → Sur l'écran d'accueil).
+  // cet événement : on garde alors le bouton visible et on ouvre une MODALE
+  // d'instructions manuelles (Partager → Sur l'écran d'accueil sur iOS,
+  // menu ⋮ → Installer l'application sur Android). On masque aussi le bouton
+  // quand la PWA est déjà lancée en mode standalone (installée).
   const { toast } = useToast()
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
+  const [showInstallModal, setShowInstallModal] = useState(false)
+  const installPlatform = useMemo(() => detectInstallPlatform(), [])
+  const alreadyInstalled = useMemo(() => isRunningStandalone(), [])
   useEffect(() => {
     const handler = (e: Event) => {
       e.preventDefault()
       setDeferredPrompt(e)
     }
+    // L'événement appinstalled permet de recharger proprement vers la
+    // PWA standalone (Chrome le déclenche après installation réussie).
+    const installed = () => {
+      setDeferredPrompt(null)
+      toast({
+        title: 'Aminata installée',
+        description: 'L’application est maintenant sur votre écran d’accueil.',
+      })
+    }
     window.addEventListener('beforeinstallprompt', handler)
-    return () => window.removeEventListener('beforeinstallprompt', handler)
-  }, [])
+    window.addEventListener('appinstalled', installed)
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler)
+      window.removeEventListener('appinstalled', installed)
+    }
+  }, [toast])
 
   // Configuration du thème visuel (signaletique = par défaut, modern = alternatif)
   // tc.modules[mod.id] fournit bg / textColor / iconBg par module.
@@ -2034,31 +2123,124 @@ function MainView({
           {isNight ? '🌙 Service nuit actif.' : (qrConfig?.qrSubtitle ?? 'Je suis là pour vous aider dans votre quartier.')}
         </p>
 
-        {/* PWA — "Aminata dans ma poche" : installer l'app sur l'écran d'accueil */}
-        <button
-          type="button"
-          onClick={() => {
-            if (deferredPrompt) {
-              deferredPrompt.prompt()
-              deferredPrompt.userChoice.then(() => setDeferredPrompt(null))
-            } else {
-              // iOS Safari ne supporte pas beforeinstallprompt — instructions manuelles
-              toast({
-                title: 'Installer Aminata',
-                description: "Appuyez sur Partager → Sur l'écran d'accueil.",
-              })
-            }
-          }}
-          className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-xs font-bold shadow-md transition-transform hover:scale-105 active:scale-95"
-          style={{ color: COLORS.blue }}
-          aria-label="Installer Aminata sur mon téléphone"
-        >
-          📱 Aminata dans ma poche
-        </button>
+        {/* PWA — "Aminata dans ma poche" : installer l'app sur l'écran d'accueil.
+            Masqué si la PWA est déjà lancée en mode standalone (installée). */}
+        {!alreadyInstalled && (
+          <button
+            type="button"
+            onClick={() => {
+              if (deferredPrompt) {
+                // Chrome/Edge Android : on déclenche l'invite native.
+                deferredPrompt.prompt()
+                deferredPrompt.userChoice.then(
+                  (choice: { outcome: string }) => {
+                    setDeferredPrompt(null)
+                    if (choice?.outcome === 'accepted') {
+                      toast({
+                        title: 'Aminata installée',
+                        description: 'L’application est sur votre écran d’accueil.',
+                      })
+                    }
+                  },
+                )
+              } else {
+                // Pas d'événement beforeinstallprompt (iOS Safari, ou navigateur
+                // non compatible, ou app déjà installée mais pas en standalone) :
+                // on ouvre la modale d'instructions manuelles adaptée à la
+                // plateforme détectée.
+                setShowInstallModal(true)
+              }
+            }}
+            className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-xs font-bold shadow-md transition-transform hover:scale-105 active:scale-95"
+            style={{ color: COLORS.blue }}
+            aria-label="Installer Aminata sur mon téléphone"
+          >
+            📱 Aminata dans ma poche
+          </button>
+        )}
+
+        {/* Modale d'instructions d'installation manuelle (fallback iOS /
+            Android / desktop). S'ouvre quand beforeinstallprompt n'a pas
+            déclenché (cas le plus fréquent sur iOS Safari). */}
+        <Dialog open={showInstallModal} onOpenChange={setShowInstallModal}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle>Installer Aminata sur mon téléphone</DialogTitle>
+              <DialogDescription>
+                Aminata fonctionne comme une application native, même hors
+                connexion. Suivez les étapes selon votre téléphone.
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="space-y-3 text-sm">
+              {installPlatform === 'ios' && (
+                <ol className="list-decimal space-y-2 pl-5 text-foreground">
+                  <li>
+                    Appuyez sur le bouton <strong>Partager</strong>{' '}
+                    <span aria-hidden="true">⎋</span> dans la barre du bas de
+                    Safari.
+                  </li>
+                  <li>
+                    Sélectionnez{' '}
+                    <strong>« Sur l’écran d’accueil »</strong>{' '}
+                    <span aria-hidden="true">➕</span>.
+                  </li>
+                  <li>
+                    Appuyez sur <strong>Ajouter</strong> en haut à droite.
+                  </li>
+                </ol>
+              )}
+              {installPlatform === 'android' && (
+                <ol className="list-decimal space-y-2 pl-5 text-foreground">
+                  <li>
+                    Appuyez sur le menu <strong>(⋮)</strong> en haut à droite
+                    du navigateur.
+                  </li>
+                  <li>
+                    Sélectionnez{' '}
+                    <strong>« Installer l’application »</strong> (ou{' '}
+                    « Ajouter à l’écran d’accueil »).
+                  </li>
+                  <li>
+                    Confirmez en appuyant sur{' '}
+                    <strong>Installer</strong>.
+                  </li>
+                </ol>
+              )}
+              {installPlatform === 'desktop' && (
+                <ol className="list-decimal space-y-2 pl-5 text-foreground">
+                  <li>
+                    Cliquez sur l’icône{' '}
+                    <strong>« Installer »</strong> dans la barre d’adresse du
+                    navigateur (Chrome/Edge).
+                  </li>
+                  <li>
+                    Ou ouvrez le menu <strong>(⋮)</strong> →{' '}
+                    <strong>« Installer Aminata… »</strong>.
+                  </li>
+                </ol>
+              )}
+
+              <p className="rounded-md bg-muted p-3 text-xs text-muted-foreground">
+                Astuce : une fois installée, Aminata s’ouvre en plein écran,
+                comme une application, et reste disponible même sans réseau.
+              </p>
+            </div>
+
+            <DialogFooter>
+              <Button
+                type="button"
+                onClick={() => setShowInstallModal(false)}
+              >
+                J’ai compris
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
 
         {/* Location — tuile blanche signalétique arrondie */}
         <div className="mt-4 flex items-center gap-3 bg-white px-4 py-3" style={{ borderRadius: '16px' }}>
-          <div className="flex h-10 w-10 items-center justify-center bg-[#1B2A8C]" style={{ borderRadius: '10px' }}>
+          <div className="flex h-10 w-10 items-center justify-center bg-[#0026A3]" style={{ borderRadius: '10px' }}>
             <span className="text-xl">📍</span>
           </div>
           <div className="min-w-0 flex-1">
@@ -2076,7 +2258,7 @@ function MainView({
         style={{ background: tc.liveBarBg, color: tc.liveBarText, borderRadius: '12px' }}
       >
         <div className="flex items-center gap-2">
-          <span className="h-2 w-2 rounded-full bg-[#FFDD00]" style={{ animation: 'pulse 1.5s infinite' }} />
+          <span className="h-2 w-2 rounded-full bg-[#FFD700]" style={{ animation: 'pulse 1.5s infinite' }} />
           <span>EN DIRECT</span>
         </div>
         <span className="text-white/60">👥 1 247 CIT. CONNECTÉS</span>
@@ -2142,7 +2324,7 @@ function MainView({
                 </p>
                 <p
                   className="mt-1 text-[10px] font-bold uppercase tracking-wider"
-                  style={{ color: isInverted ? tc.liveBarText : '#1B2A8C' }}
+                  style={{ color: isInverted ? tc.liveBarText : '#0026A3' }}
                 >
                   {mod.sub}
                 </p>
@@ -2167,7 +2349,7 @@ function MainView({
               {/* Badge spécial (urgence SOS) */}
               {mod.id === 'urgence' && (
                 <span
-                  className="absolute right-4 top-4 rounded-md bg-[#FFDD00] px-2 py-0.5 text-[10px] font-bold uppercase text-[#1A1A1A]"
+                  className="absolute right-4 top-4 rounded-md bg-[#FFD700] px-2 py-0.5 text-[10px] font-bold uppercase text-[#1A1A1A]"
                 >
                   SOS
                 </span>
@@ -2191,9 +2373,9 @@ function MainView({
           onClick={() => setShowMoreServices((v) => !v)}
           className="group flex items-center justify-center gap-3 rounded-2xl border-2 border-dashed py-4 text-center transition-all hover:-translate-y-0.5"
           style={{
-            borderColor: showMoreServices ? '#E30613' : '#1B2A8C',
+            borderColor: showMoreServices ? '#E30613' : '#0026A3',
             borderRadius: tc.cardRadius,
-            color: showMoreServices ? '#E30613' : '#1B2A8C',
+            color: showMoreServices ? '#E30613' : '#0026A3',
             fontFamily: tc.fontFamily,
             background: showMoreServices ? 'rgba(227,6,19,0.03)' : 'rgba(27,42,140,0.03)',
           }}
@@ -2546,13 +2728,13 @@ function UrgenceView({
       {/* === SOS SILENCIEUX — appui long 3 s === */}
       <div className="rounded-2xl bg-[#1A1A1A] p-4 text-white shadow-lg">
         <div className="mb-3 flex items-center gap-2">
-          <Hand className="size-5 text-[#FFDD00]" />
+          <Hand className="size-5 text-[#FFD700]" />
           <h3 className="text-sm font-bold text-white" style={TITLE_FONT}>
             SOS silencieux
           </h3>
         </div>
         <p className="mb-3 text-xs leading-relaxed text-white/75">
-          Maintenez <strong className="text-[#FFDD00]">3 secondes</strong> pour
+          Maintenez <strong className="text-[#FFD700]">3 secondes</strong> pour
           envoyer un SOS silencieux avec photo et audio aux secours. Aucun son
           n&apos;est émis — votre sécurité n&apos;est pas compromise.
         </p>
@@ -2589,7 +2771,7 @@ function UrgenceView({
                 cy="40"
                 r={radius}
                 fill="none"
-                stroke="#FFDD00"
+                stroke="#FFD700"
                 strokeWidth="4"
                 strokeLinecap="round"
                 strokeDasharray={circumference}
@@ -2608,7 +2790,7 @@ function UrgenceView({
 
           {/* Texte sous le bouton */}
           {sosSending ? (
-            <p className="flex items-center gap-1.5 text-xs font-semibold text-[#FFDD00]">
+            <p className="flex items-center gap-1.5 text-xs font-semibold text-[#FFD700]">
               <Camera className="size-3" />
               <Mic className="size-3" />
               Capture discrète en cours…
@@ -2619,7 +2801,7 @@ function UrgenceView({
               SOS envoyé
             </p>
           ) : sosHolding ? (
-            <p className="text-xs font-semibold text-[#FFDD00]">
+            <p className="text-xs font-semibold text-[#FFD700]">
               Maintenez… {Math.round(sosProgress)}%
             </p>
           ) : (
@@ -5677,7 +5859,7 @@ function MairieView({
             {/* Nom et prénom */}
             <div>
               <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-white/80">
-                Nom et prénom <span className="text-[#FFDD00]">*</span>
+                Nom et prénom <span className="text-[#FFD700]">*</span>
               </label>
               <input
                 type="text"
@@ -5686,14 +5868,14 @@ function MairieView({
                 placeholder="Ex : Aminata Diop"
                 maxLength={80}
                 required
-                className="w-full rounded-xl border-0 bg-white px-3 py-2.5 text-sm text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:outline-none focus:ring-2 focus:ring-[#FFDD00]"
+                className="w-full rounded-xl border-0 bg-white px-3 py-2.5 text-sm text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:outline-none focus:ring-2 focus:ring-[#FFD700]"
               />
             </div>
 
             {/* Téléphone */}
             <div>
               <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-white/80">
-                Téléphone <span className="text-[#FFDD00]">*</span>
+                Téléphone <span className="text-[#FFD700]">*</span>
               </label>
               <input
                 type="tel"
@@ -5702,14 +5884,14 @@ function MairieView({
                 placeholder="Ex : 77 123 45 67"
                 maxLength={20}
                 required
-                className="w-full rounded-xl border-0 bg-white px-3 py-2.5 text-sm text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:outline-none focus:ring-2 focus:ring-[#FFDD00]"
+                className="w-full rounded-xl border-0 bg-white px-3 py-2.5 text-sm text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:outline-none focus:ring-2 focus:ring-[#FFD700]"
               />
             </div>
 
             {/* Motif du RDV */}
             <div>
               <label className="mb-1 block text-xs font-bold uppercase tracking-wide text-white/80">
-                Motif du RDV <span className="text-[#FFDD00]">*</span>
+                Motif du RDV <span className="text-[#FFD700]">*</span>
               </label>
               <textarea
                 value={rdvMotif}
@@ -5718,7 +5900,7 @@ function MairieView({
                 maxLength={500}
                 rows={3}
                 required
-                className="w-full rounded-xl border-0 bg-white px-3 py-2.5 text-sm text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:outline-none focus:ring-2 focus:ring-[#FFDD00]"
+                className="w-full rounded-xl border-0 bg-white px-3 py-2.5 text-sm text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:outline-none focus:ring-2 focus:ring-[#FFD700]"
               />
               <p className="mt-0.5 text-right text-[10px] text-white/50">
                 {rdvMotif.length}/500
@@ -5736,7 +5918,7 @@ function MairieView({
                 onChange={(e) => setRdvPreferredDate(e.target.value)}
                 placeholder="Ex : Mardi prochain matin"
                 maxLength={100}
-                className="w-full rounded-xl border-0 bg-white px-3 py-2.5 text-sm text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:outline-none focus:ring-2 focus:ring-[#FFDD00]"
+                className="w-full rounded-xl border-0 bg-white px-3 py-2.5 text-sm text-[#1A1A1A] placeholder:text-[#1A1A1A]/40 focus:outline-none focus:ring-2 focus:ring-[#FFD700]"
               />
             </div>
 
@@ -8646,14 +8828,14 @@ function CitizenRegistrationModal({
       <div
         className="w-full max-w-md rounded-t-3xl bg-white p-6 shadow-2xl sm:rounded-3xl"
         onClick={(e) => e.stopPropagation()}
-        style={{ borderTop: '6px solid #1B2A8C' }}
+        style={{ borderTop: '6px solid #0026A3' }}
       >
         {/* Header */}
         <div className="mb-5 flex items-start justify-between gap-3">
           <div className="flex items-center gap-3">
             <div
               className="flex h-12 w-12 items-center justify-center rounded-xl text-2xl"
-              style={{ background: '#FFDD00' }}
+              style={{ background: '#FFD700' }}
             >
               {isSchool ? '🏫' : '🪪'}
             </div>
@@ -8690,7 +8872,7 @@ function CitizenRegistrationModal({
               placeholder="+221 77 000 00 00"
               autoComplete="tel"
               required
-              className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-3 text-base focus:border-[#1B2A8C] focus:outline-none focus:ring-2 focus:ring-[#1B2A8C]/20"
+              className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-3 text-base focus:border-[#0026A3] focus:outline-none focus:ring-2 focus:ring-[#0026A3]/20"
             />
             <p className="mt-1 text-xs text-[#1A1A1A]/50">
               Nous vous identifierons par ce numéro pour vos prochaines visites.
@@ -8708,7 +8890,7 @@ function CitizenRegistrationModal({
               onChange={(e) => setName(e.target.value)}
               placeholder="Aminata Diop"
               autoComplete="name"
-              className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-3 text-base focus:border-[#1B2A8C] focus:outline-none focus:ring-2 focus:ring-[#1B2A8C]/20"
+              className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-3 text-base focus:border-[#0026A3] focus:outline-none focus:ring-2 focus:ring-[#0026A3]/20"
             />
           </div>
 
@@ -8725,7 +8907,7 @@ function CitizenRegistrationModal({
                 onChange={(e) => setParentPhone(e.target.value)}
                 placeholder="+221 77 123 45 67"
                 autoComplete="tel"
-                className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-3 text-base focus:border-[#1B2A8C] focus:outline-none focus:ring-2 focus:ring-[#1B2A8C]/20"
+                className="w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-4 py-3 text-base focus:border-[#0026A3] focus:outline-none focus:ring-2 focus:ring-[#0026A3]/20"
               />
               <p className="mt-1 text-xs text-[#1A1A1A]/50">
                 Un SMS sera envoyé à votre parent à chaque pointage.
@@ -8734,9 +8916,9 @@ function CitizenRegistrationModal({
           )}
 
           {/* Note privacy */}
-          <div className="rounded-xl bg-[#1B2A8C]/5 px-3 py-2.5">
+          <div className="rounded-xl bg-[#0026A3]/5 px-3 py-2.5">
             <p className="text-xs leading-relaxed text-[#1A1A1A]/65">
-              <Shield className="mr-1 inline size-3 text-[#1B2A8C]" />
+              <Shield className="mr-1 inline size-3 text-[#0026A3]" />
               Vos données restent confidentielles et ne sont partagées qu&apos;avec
               les services municipaux pour votre sécurité.
             </p>
@@ -8746,7 +8928,7 @@ function CitizenRegistrationModal({
           <Button
             type="submit"
             disabled={!phoneValid || submitting || localSubmitting}
-            className="w-full rounded-xl bg-[#1B2A8C] py-5 text-base font-bold uppercase tracking-wide text-white hover:bg-[#142066]"
+            className="w-full rounded-xl bg-[#0026A3] py-5 text-base font-bold uppercase tracking-wide text-white hover:bg-[#1E40AF]"
           >
             {submitting || localSubmitting ? (
               <>
@@ -8876,7 +9058,7 @@ function SchoolCheckinView({
       {/* Header signalétique bleu */}
       <header
         className="px-5 pb-6 pt-5 shadow-xl"
-        style={{ background: '#1B2A8C', borderRadius: '0 0 24px 24px' }}
+        style={{ background: '#0026A3', borderRadius: '0 0 24px 24px' }}
       >
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -8909,7 +9091,7 @@ function SchoolCheckinView({
           style={{ borderRadius: '16px' }}
         >
           <div
-            className="flex h-10 w-10 items-center justify-center bg-[#1B2A8C]"
+            className="flex h-10 w-10 items-center justify-center bg-[#0026A3]"
             style={{ borderRadius: '10px' }}
           >
             <span className="text-xl">📍</span>
@@ -8937,10 +9119,10 @@ function SchoolCheckinView({
         {/* Bannière identification si pas encore inscrit */}
         {!citizenPhone && (
           <div
-            className="rounded-2xl border border-[#FFDD00]/40 bg-[#FFDD00]/10 p-4"
+            className="rounded-2xl border border-[#FFD700]/40 bg-[#FFD700]/10 p-4"
           >
             <div className="mb-2 flex items-center gap-2">
-              <LogIn className="size-4 text-[#1B2A8C]" />
+              <LogIn className="size-4 text-[#0026A3]" />
               <p className="text-sm font-bold text-[#1A1A1A]">Identifiez-vous</p>
             </div>
             <p className="text-xs text-[#1A1A1A]/65">
@@ -8949,7 +9131,7 @@ function SchoolCheckinView({
             </p>
             <Button
               onClick={() => void onEnsureCitizen('school')}
-              className="mt-3 w-full rounded-xl bg-[#1B2A8C] py-3 text-sm font-bold text-white hover:bg-[#142066]"
+              className="mt-3 w-full rounded-xl bg-[#0026A3] py-3 text-sm font-bold text-white hover:bg-[#1E40AF]"
             >
               <LogIn className="size-4" />
               S&apos;identifier
@@ -9028,7 +9210,7 @@ function SchoolCheckinView({
         {/* Lien menu complet */}
         <button
           onClick={onOpenFullMenu}
-          className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#1A1A1A]/10 py-3 text-sm font-semibold text-[#1B2A8C] transition hover:bg-[#F5F5F5]"
+          className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-xl border border-[#1A1A1A]/10 py-3 text-sm font-semibold text-[#0026A3] transition hover:bg-[#F5F5F5]"
         >
           Menu complet des services
           <ArrowLeft className="size-3 rotate-180" />

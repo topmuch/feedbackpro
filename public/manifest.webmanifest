@@ -1,18 +1,27 @@
 {
-  "name": "FeedVoice — Le Coach IA d'Audit Qualité Continu",
-  "short_name": "FeedVoice",
-  "description": "Transformez vos clients en auditeurs qualité. Rapport IA quotidien avec 3 priorités pour améliorer votre service.",
+  "name": "Ville Connectée — Aminata, votre assistante municipale",
+  "short_name": "Aminata",
+  "description": "Signalez un incident (voirie, éclairage, eau, propreté, sécurité) depuis les plaques QR de votre quartier. Aminata, l'assistante municipale, vous accompagne et vous notifie de la résolution.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#FAFAF7",
-  "theme_color": "#bc7155",
+  "theme_color": "#0066CC",
   "orientation": "portrait-primary",
+  "lang": "fr",
+  "categories": ["productivity", "utilities", "government"],
   "icons": [
     {
       "src": "/icon-192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
     },
     {
       "src": "/icon-512.png",
