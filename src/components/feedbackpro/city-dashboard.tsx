@@ -1496,582 +1496,110 @@ export default function CityDashboard() {
           )}
 
           {/* ====== VUE OVERVIEW (défaut) — redesign moderne ====== */}
+          {/* ====== VUE D'ENSEMBLE — design simple avec KPI multicolores ====== */}
           {activeNav === 'overview' && (
             <>
-          {/* ---------- HERO BANNER ---------- */}
-          <section
-            className="mb-6 overflow-hidden rounded-2xl p-5 text-white shadow-md sm:p-6"
-            style={{
-              background:
-                'linear-gradient(135deg, #0026A3 0%, #1E40AF 50%, #0026A3 100%)',
-            }}
-          >
-            <div className="flex flex-wrap items-end justify-between gap-3">
-              <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-[#FFD700]">
-                  Centre de Supervision Urbaine · Dakar
-                </p>
-                <h2
-                  className="mt-1 text-2xl font-bold leading-tight sm:text-3xl text-white"
-                  style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
-                >
-                  Vue d&apos;ensemble
-                </h2>
-                <p className="mt-1 max-w-xl text-xs text-white/75">
-                  Supervision temps réel des plaques QR, alertes citoyennes,
-                  artisans vérifiés et annonces municipales.
-                </p>
-              </div>
-              <div className="flex items-center gap-2 rounded-lg bg-white/10 px-3 py-2 ring-1 ring-[#FFD700]/30">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#FFD700] opacity-75" />
-                  <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-[#FFD700]" />
-                </span>
-                <span className="text-xs font-medium text-white/90">
-                  Système actif
-                </span>
-                <span
-                  className="ml-2 text-[10px] tabular-nums"
-                  style={{ color: '#FFD700' }}
-                  suppressHydrationWarning
-                >
-                  {clock}
-                </span>
-              </div>
+          {/* ---------- HEADER SIMPLE ---------- */}
+          <div className="mb-5 flex items-center justify-between">
+            <div>
+              <h2 className="text-xl font-bold text-[#0026A3]" style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}>
+                Vue d&apos;ensemble
+              </h2>
+              <p className="text-xs text-[#1A1A1A]/50">Supervision temps réel · Dakar</p>
             </div>
-          </section>
+            <div className="flex items-center gap-2 rounded-lg bg-[#0026A3]/5 px-3 py-1.5">
+              <span className="relative flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#059669] opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-[#059669]" />
+              </span>
+              <span className="text-xs font-medium text-[#0026A3]">En direct</span>
+              <span className="ml-1 text-[10px] tabular-nums text-[#1A1A1A]/50" suppressHydrationWarning>{clock}</span>
+            </div>
+          </div>
 
-          {/* ---------- KPI GRID (cartes avec trends + bordure colorée) ---------- */}
-          <section className="mb-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-3 xl:grid-cols-6">
-            <KpiCardEnhanced
-              title="Urgences"
-              value={kpis.urgences}
-              sub="Police notifiée"
-              color={COLOR_RED}
-              icon={AlertTriangle}
-              trend={kpis.urgences > 0 ? `+${kpis.urgences}` : '0'}
-              trendDirection={kpis.urgences > 0 ? 'up' : 'flat'}
-              critical
-            />
-            <KpiCardEnhanced
-              title="Signalements"
-              value={kpis.signalements}
-              sub="En cours"
-              color={COLOR_ORANGE}
-              icon={Bell}
-              trend={kpis.signalements > 0 ? `+${kpis.signalements}` : '0'}
-              trendDirection={kpis.signalements > 0 ? 'up' : 'flat'}
-              warning
-            />
-            <KpiCardEnhanced
-              title="Orientations"
-              value={kpis.orientations}
-              sub="Aujourd'hui"
-              color={COLOR_BLUE}
-              icon={Radio}
-              trend={`${Math.max(0, kpis.orientations - 3)}`}
-              trendDirection="up"
-            />
-            <KpiCardEnhanced
-              title="Artisans contactés"
-              value={kpis.artisansContactes}
-              sub="Cumul Aminata"
-              color={COLOR_GREEN}
-              icon={Users}
-              trend="+8%"
-              trendDirection="up"
-              success
-            />
-            <KpiCardEnhanced
-              title="Satisfaction"
-              value={`${kpis.satisfaction}/5`}
-              sub="Évaluation citoyenne"
-              color={'#3B82F6'}
-              icon={Star}
-              trend="+0.2"
-              trendDirection="up"
-            />
-            <KpiCardEnhanced
-              title="Revenus artisans"
-              value={formatFCFA(revenueTotal)}
-              sub={`Part mairie ${formatFCFA(revenueMairieShare)}`}
-              color={'#F59E0B'}
-              icon={TrendingUp}
-              trend={revenueTotal > 0 ? `${artisans.filter((a) => a.premium).length} premium` : '—'}
-              trendDirection={revenueTotal > 0 ? 'up' : 'flat'}
-              success={revenueTotal > 0}
-            />
-          </section>
+          {/* ---------- KPI MULTICOLORES (6 cartes) ---------- */}
+          <div className="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+            {/* Urgences — ROUGE */}
+            <div className="rounded-2xl p-4 text-white shadow-md" style={{ background: '#DC2626' }}>
+              <AlertTriangle className="size-6 opacity-80" />
+              <p className="mt-2 text-3xl font-bold">{kpis.urgences}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wide opacity-80">Urgences</p>
+              <p className="text-[9px] opacity-60">Police notifiée</p>
+            </div>
+            {/* Signalements — ORANGE */}
+            <div className="rounded-2xl p-4 text-white shadow-md" style={{ background: '#F97316' }}>
+              <Bell className="size-6 opacity-80" />
+              <p className="mt-2 text-3xl font-bold">{kpis.signalements}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wide opacity-80">Signalements</p>
+              <p className="text-[9px] opacity-60">En cours</p>
+            </div>
+            {/* Plaques — BLEU */}
+            <div className="rounded-2xl p-4 text-white shadow-md" style={{ background: '#0026A3' }}>
+              <MapPin className="size-6 opacity-80" />
+              <p className="mt-2 text-3xl font-bold">{platesActive}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wide opacity-80">Plaques QR</p>
+              <p className="text-[9px] opacity-60">{plates.length} au total</p>
+            </div>
+            {/* Artisans — VERT */}
+            <div className="rounded-2xl p-4 text-white shadow-md" style={{ background: '#059669' }}>
+              <Wrench className="size-6 opacity-80" />
+              <p className="mt-2 text-3xl font-bold">{artisans.length}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wide opacity-80">Artisans</p>
+              <p className="text-[9px] opacity-60">{kpis.artisansContactes} contacts</p>
+            </div>
+            {/* Satisfaction — VIOLET */}
+            <div className="rounded-2xl p-4 text-white shadow-md" style={{ background: '#6B4C9A' }}>
+              <Star className="size-6 opacity-80" />
+              <p className="mt-2 text-3xl font-bold">{kpis.satisfaction}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wide opacity-80">/5 Satisfaction</p>
+              <p className="text-[9px] opacity-60">Évaluation citoyenne</p>
+            </div>
+            {/* Revenus — DORÉ */}
+            <div className="rounded-2xl p-4 text-white shadow-md" style={{ background: '#F59E0B' }}>
+              <Wallet className="size-6 opacity-80" />
+              <p className="mt-2 text-2xl font-bold">{formatFCFA(revenueTotal)}</p>
+              <p className="text-[10px] font-semibold uppercase tracking-wide opacity-80">Revenus FCFA</p>
+              <p className="text-[9px] opacity-60">Mairie: {formatFCFA(revenueMairieShare)}</p>
+            </div>
+          </div>
 
-          {/* ---------- 3-COLUMN GRID (Timeline | Quick Actions | Map+Alerts) ---------- */}
-          <section className="grid grid-cols-1 gap-5 xl:grid-cols-3">
-            {/* === COL 1 : Activity Timeline + Heatmap === */}
-            <div className="space-y-5">
-              {/* Activity Timeline */}
-              <section className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white shadow-sm">
-                <div className="flex items-center justify-between border-b border-[#EAE5DC] border-l-4 border-l-[#FFD700] bg-[#0026A3]/5 px-4 py-3">
-                  <div className="flex items-center gap-2">
-                    <Activity className="h-4 w-4 text-[#FFD700]" />
-                    <h3
-                      className="text-sm font-bold text-[#0026A3]"
-                      style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
+          {/* ---------- INCIDENTS RÉCENTS (liste simple) ---------- */}
+          <div className="rounded-2xl border border-[#EAE5DC] bg-white p-4 shadow-sm">
+            <div className="mb-3 flex items-center gap-2">
+              <Activity className="size-4 text-[#0026A3]" />
+              <h3 className="text-sm font-bold text-[#0026A3]">Incidents récents</h3>
+              <span className="ml-auto text-xs text-[#1A1A1A]/40">{incidents.length} total</span>
+            </div>
+            <div className="space-y-2">
+              {incidents.length === 0 ? (
+                <p className="py-6 text-center text-sm text-[#1A1A1A]/40">Aucun incident pour le moment.</p>
+              ) : (
+                incidents.slice(0, 8).map((inc) => {
+                  const statusInfo = incidentStatusInfo(inc.status)
+                  return (
+                    <div key={inc.id} className="flex items-center gap-3 rounded-xl border-l-4 bg-[#FAFAF7] px-3 py-2.5"
+                      style={{ borderColor: statusInfo.color }}
                     >
-                      Fil d&apos;activité
-                    </h3>
-                  </div>
-                  <span className="text-[10px] font-medium text-[#1A1A1A]/50">
-                    {recentAlerts.length} récents
-                  </span>
-                </div>
-                <div className="max-h-[400px] overflow-y-auto px-4 py-3">
-                  {recentAlerts.length === 0 ? (
-                    <div className="py-8 text-center">
-                      <Activity className="mx-auto mb-2 h-7 w-7 text-[#1A1A1A]/15" />
-                      <p className="text-xs text-[#1A1A1A]/45">
-                        Aucune activité récente.
-                      </p>
-                    </div>
-                  ) : (
-                    <ol className="relative space-y-3">
-                      {/* Ligne verticale */}
-                      <span
-                        className="absolute left-3 top-2 bottom-2 w-px bg-gradient-to-b from-[#FFD700]/30 via-[#EAE5DC] to-transparent"
-                        aria-hidden
-                      />
-                      {recentAlerts.slice(0, 8).map((inc) => {
-                        const color =
-                          inc.type === 'emergency'
-                            ? COLOR_RED
-                            : inc.type === 'report'
-                              ? COLOR_ORANGE
-                              : inc.type === 'orientation'
-                                ? COLOR_BLUE
-                                : COLOR_PURPLE
-                        return (
-                          <li key={inc.id} className="relative flex gap-3">
-                            <span
-                              className="relative z-10 mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 border-white text-[10px] shadow-sm"
-                              style={{ backgroundColor: color }}
-                              aria-hidden
-                            >
-                              <span className="text-[10px]">
-                                {incidentEmoji(inc.type, inc.category)}
-                              </span>
-                            </span>
-                            <div className="min-w-0 flex-1 pb-1">
-                              <div className="flex items-center justify-between gap-2">
-                                <p
-                                  className="truncate text-xs font-semibold"
-                                  style={{ color }}
-                                >
-                                  {inc.category ?? incidentTypeLabel(inc.type)}
-                                </p>
-                                <span className="shrink-0 text-[10px] text-[#1A1A1A]/45">
-                                  {timeAgo(inc.createdAt)}
-                                </span>
-                              </div>
-                              <p className="line-clamp-2 text-[11px] leading-snug text-[#1A1A1A]/70">
-                                {inc.description ??
-                                  (inc.plate
-                                    ? inc.plate.plateNumber
-                                    : incidentTypeLabel(inc.type))}
-                              </p>
-                              <div className="mt-0.5 flex items-center gap-1 text-[10px] text-[#1A1A1A]/50">
-                                <MapPin className="h-2.5 w-2.5" />
-                                <span className="truncate">
-                                  {inc.plate
-                                    ? `${inc.plate.plateNumber}${inc.plate.district ? ` · ${inc.plate.district}` : ''}`
-                                    : 'GPS citoyen'}
-                                </span>
-                              </div>
-                            </div>
-                          </li>
-                        )
-                      })}
-                    </ol>
-                  )}
-                </div>
-              </section>
-
-              {/* Heatmap par quartier (compact) — incidents réels par district */}
-              <Panel
-                title="Densité d'activité par quartier"
-                icon={Activity}
-                subtitle="Incidents par district"
-              >
-                <div className="space-y-3 px-1 pb-1">
-                  {heatmapData.length === 0 ? (
-                    <p className="px-1 py-6 text-center text-xs text-[#1A1A1A]/50">
-                      Aucune donnée par district disponible.
-                    </p>
-                  ) : (
-                    heatmapData.map((row) => {
-                      const pct =
-                        heatmapMax > 0
-                          ? Math.round((row.count / heatmapMax) * 100)
-                          : 0
-                      const isHigh = pct >= 60
-                      const isMid = pct >= 35 && pct < 60
-                      const barColor = isHigh
-                        ? COLOR_RED
-                        : isMid
-                          ? COLOR_ORANGE
-                          : COLOR_BLUE
-                      return (
-                        <div key={row.district} className="flex items-center gap-3">
-                          <div className="w-24 shrink-0 text-xs font-medium text-[#1A1A1A]">
-                            {row.district}
-                          </div>
-                          <div className="h-6 flex-1 overflow-hidden rounded-md bg-[#F2EEE5]">
-                            <div
-                              className="flex h-full items-center justify-end rounded-md px-2 text-[10px] font-bold text-white transition-all"
-                              style={{
-                                width: `${pct}%`,
-                                backgroundColor: barColor,
-                              }}
-                            >
-                              {row.count}
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })
-                  )}
-                </div>
-              </Panel>
-            </div>
-
-            {/* === COL 2 : Quick Actions + Alertes en direct === */}
-            <div className="space-y-5">
-              {/* Quick Actions */}
-              <section className="overflow-hidden rounded-2xl border border-[#FFD700]/30 bg-gradient-to-br from-white to-[#FFD700]/5 shadow-sm">
-                <div className="flex items-center gap-2 border-b border-[#EAE5DC] border-l-4 border-l-[#FFD700] bg-[#0026A3]/5 px-4 py-3">
-                  <Plus className="h-4 w-4 text-[#FFD700]" />
-                  <h3
-                    className="text-sm font-bold text-[#0026A3]"
-                    style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
-                  >
-                    Actions rapides
-                  </h3>
-                </div>
-                <div className="grid grid-cols-2 gap-2.5 p-4">
-                  <QuickAction
-                    label="Ajouter plaque"
-                    icon={QrCode}
-                    color={COLOR_GOLD}
-                    onClick={() => setActiveNav('plates-mgmt')}
-                  />
-                  <QuickAction
-                    label="Voir urgences"
-                    icon={AlertTriangle}
-                    color={COLOR_RED}
-                    badge={kpis.urgences}
-                    onClick={() => setActiveNav('emergencies')}
-                  />
-                  <QuickAction
-                    label="Créer annonce"
-                    icon={Megaphone}
-                    color={COLOR_PURPLE}
-                    onClick={() => setActiveNav('announcements')}
-                  />
-                  <QuickAction
-                    label="Nouvel artisan"
-                    icon={Wrench}
-                    color={COLOR_GREEN}
-                    onClick={() => setActiveNav('artisans')}
-                  />
-                  <QuickAction
-                    label="Carte plaques"
-                    icon={MapPin}
-                    color={COLOR_BLUE}
-                    onClick={() => setActiveNav('plates-map')}
-                  />
-                  <QuickAction
-                    label="Mairie dynamique"
-                    icon={Landmark}
-                    color={COLOR_ANTHRACITE}
-                    onClick={() => setActiveNav('mairie-dynamic')}
-                  />
-                  <QuickAction
-                    label="Équipes terrain"
-                    icon={Users2}
-                    color={COLOR_GREEN}
-                    onClick={() => setActiveNav('teams')}
-                  />
-                  <QuickAction
-                    label="Transports"
-                    icon={Bus}
-                    color={COLOR_BLUE}
-                    onClick={() => setActiveNav('transports')}
-                  />
-                </div>
-              </section>
-
-              {/* Alertes en direct */}
-              <Panel
-                title="Alertes en direct"
-                icon={Bell}
-                subtitle={`${recentAlerts.length} récentes`}
-                accent={kpis.urgences > 0 ? COLOR_RED : undefined}
-              >
-                <div className="max-h-72 space-y-2 overflow-y-auto px-1">
-                  {recentAlerts.length === 0 && (
-                    <p className="px-1 py-4 text-center text-xs text-[#1A1A1A]/50">
-                      Aucune alerte. La ville est calme.
-                    </p>
-                  )}
-                  {recentAlerts.slice(0, 5).map((inc) => {
-                    const isEmergency = inc.type === 'emergency'
-                    const borderColor = isEmergency
-                      ? COLOR_RED
-                      : inc.type === 'report'
-                        ? COLOR_ORANGE
-                        : inc.type === 'orientation'
-                          ? COLOR_BLUE
-                          : COLOR_PURPLE
-                    const plateLabel = inc.plate
-                      ? `${inc.plate.plateNumber} · ${inc.plate.label}`
-                      : 'GPS citoyen'
-                    return (
-                      <div
-                        key={inc.id}
-                        className="rounded-lg border-l-4 bg-[#FAFAF7] px-3 py-2.5"
-                        style={{ borderLeftColor: borderColor }}
-                      >
-                        <div className="mb-1 flex items-center justify-between gap-2">
-                          <span
-                            className="rounded px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white"
-                            style={{ backgroundColor: borderColor }}
-                          >
-                            {incidentTypeLabel(inc.type)}
-                          </span>
-                          <span className="text-[10px] text-[#1A1A1A]/50">
-                            {timeAgo(inc.createdAt)}
-                          </span>
-                        </div>
-                        <p className="line-clamp-2 text-xs font-medium text-[#1A1A1A]">
-                          {inc.description ??
-                            (inc.category
-                              ? `Catégorie : ${inc.category}`
-                              : incidentTypeLabel(inc.type))}
+                      <span className="text-lg">{incidentEmoji(inc.type)}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-medium text-[#1A1A1A]">
+                          {inc.category || inc.type} {inc.description ? `· ${inc.description.slice(0, 50)}` : ''}
                         </p>
-                        <div className="mt-1.5 flex items-center justify-between gap-2">
-                          <span className="flex items-center gap-1 text-[10px] text-[#1A1A1A]/55">
-                            <MapPin className="h-3 w-3" />
-                            <span className="truncate">{plateLabel}</span>
-                          </span>
-                          {inc.assignedTo && (
-                            <Badge
-                              variant="outline"
-                              className="border-[#EAE5DC] text-[9px] font-semibold text-[#1A1A1A]/70"
-                            >
-                              {inc.assignedTo}
-                            </Badge>
-                          )}
-                        </div>
-                        <div className="mt-2 flex items-center gap-1.5">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => setActiveNav(inc.type === 'emergency' ? 'emergencies' : 'reports')}
-                            className="h-6 border-[#EAE5DC] px-2 text-[10px] text-[#1A1A1A] hover:border-[#FFD700] hover:bg-[#FAFAF7]"
-                          >
-                            Traiter
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setActiveNav('reports')}
-                            className="h-6 px-2 text-[10px] text-[#1A1A1A]/60 hover:bg-[#F2EEE5] hover:text-[#1A1A1A]"
-                          >
-                            Détails
-                          </Button>
-                        </div>
+                        <p className="text-[10px] text-[#1A1A1A]/50">
+                          {inc.plate?.label || 'Plaque inconnue'} · {timeAgo(inc.createdAt)}
+                        </p>
                       </div>
-                    )
-                  })}
-                </div>
-              </Panel>
+                      <span className="rounded-full px-2 py-0.5 text-[10px] font-bold"
+                        style={{ background: `${statusInfo.color}20`, color: statusInfo.color }}
+                      >
+                        {statusInfo.label}
+                      </span>
+                    </div>
+                  )
+                })
+              )}
             </div>
-
-            {/* === COL 3 : Carte + Revenus + Aminata === */}
-            <div className="space-y-5">
-              {/* Carte des plaques (compacte) */}
-              <Panel title="Carte des plaques QR" icon={MapPin} subtitle={`${plates.length} installées`}>
-                <div className="relative h-[260px] overflow-hidden rounded-xl bg-gradient-to-br from-[#0a2a4a] via-[#1A1A1A] to-[#0a1f3a]">
-                  <div
-                    className="absolute inset-0 opacity-20"
-                    style={{
-                      backgroundImage:
-                        'linear-gradient(rgba(201,169,97,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(201,169,97,0.15) 1px, transparent 1px)',
-                      backgroundSize: '40px 40px',
-                    }}
-                    aria-hidden
-                  />
-                  <div className="absolute inset-0">
-                    {plates.slice(0, 12).map((p, i) => {
-                      const isEmergency =
-                        incidents.some(
-                          (inc) =>
-                            inc.plateId === p.id && inc.type === 'emergency',
-                        )
-                      const color = isEmergency
-                        ? COLOR_RED
-                        : p.status === 'maintenance'
-                          ? COLOR_ORANGE
-                          : p.status === 'offline'
-                            ? '#666'
-                            : COLOR_GOLD
-                      const left = 15 + (i % 6) * 13 + ((i % 3) * 2)
-                      const top = 20 + Math.floor(i / 6) * 35
-                      return (
-                        <div
-                          key={p.id}
-                          className="absolute flex flex-col items-center"
-                          style={{ left: `${left}%`, top: `${top}%` }}
-                          title={`${p.plateNumber} · ${p.label}`}
-                        >
-                          <div
-                            className={cn(
-                              'flex h-5 w-5 items-center justify-center rounded-full border-2 text-[8px] font-bold text-white shadow-lg',
-                              isEmergency && 'animate-pulse',
-                            )}
-                            style={{
-                              backgroundColor: color,
-                              borderColor: 'rgba(255,255,255,0.4)',
-                            }}
-                          >
-                            <MapPin className="h-2.5 w-2.5" />
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                  <div className="absolute bottom-2 left-2 right-2 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-black/60 px-2 py-1.5 backdrop-blur">
-                    <LegendDot color={COLOR_GOLD} label={`Actives (${platesActive})`} />
-                    <LegendDot color={COLOR_RED} label={`Urgences (${platesUrgence})`} />
-                    <LegendDot color="#666" label={`Hors ligne (${platesOffline})`} />
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => setActiveNav('plates-map')}
-                    className="absolute right-2 top-2 rounded-lg bg-[#FFD700] px-2.5 py-1 text-[10px] font-bold text-[#1A1A1A] transition hover:bg-[#B8964F]"
-                  >
-                    Voir carte →
-                  </button>
-                </div>
-              </Panel>
-
-              {/* Revenus artisans (dark) */}
-              <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#1A1A1A] to-[#2C2C2C] p-5 text-white shadow-sm">
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <TrendingUp className="h-4 w-4 text-[#FFD700]" />
-                    <h3
-                      className="text-sm font-bold"
-                      style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
-                    >
-                      Revenus Artisans
-                    </h3>
-                  </div>
-                  <Badge className="bg-[#FFD700] text-[10px] font-bold text-[#1A1A1A]">
-                    Premium
-                  </Badge>
-                </div>
-                <p
-                  className="text-3xl font-bold tabular-nums text-[#FFD700]"
-                  style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
-                >
-                  {formatFCFA(revenueTotal)}
-                  <span className="ml-1 text-sm font-medium text-white/60">
-                    FCFA
-                  </span>
-                </p>
-                <div className="mt-3 space-y-2 border-t border-white/10 pt-3">
-                  <RevenueRow
-                    label="Artisans premium"
-                    value={`${artisans.filter((a) => a.premium).length} actifs`}
-                  />
-                  <RevenueRow
-                    label="Part mairie (30%)"
-                    value={`${formatFCFA(revenueMairieShare)} FCFA`}
-                    highlight
-                  />
-                  <RevenueRow
-                    label="Versements mois en cours"
-                    value="—"
-                  />
-                  <RevenueRow
-                    label="Taux de conversion"
-                    value="—"
-                  />
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setActiveNav('revenue')}
-                  className="mt-3 w-full justify-center border-[#FFD700]/40 bg-transparent text-[#FFD700] hover:bg-[#FFD700]/10 hover:text-[#FFD700]"
-                >
-                  Détails revenus →
-                </Button>
-              </div>
-
-              {/* Aminata — assistant vocal citoyen (dark) */}
-              <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-[#1A1A1A] to-[#2C2C2C] p-5 text-white shadow-sm">
-                <div className="mb-3 flex items-center gap-3">
-                  <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-[#FFD700] to-[#B8964F] text-base font-bold text-[#1A1A1A]">
-                    A
-                    <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3">
-                      <span className="absolute h-full w-full animate-ping rounded-full bg-[#00A651] opacity-75" />
-                      <span className="relative h-3 w-3 rounded-full bg-[#00A651]" />
-                    </span>
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p
-                      className="truncate text-sm font-bold text-white"
-                      style={{ fontFamily: 'Georgia, "Playfair Display", serif' }}
-                    >
-                      Aminata · Écoute active
-                    </p>
-                    <p className="text-[10px] text-[#00A651]">
-                      ● En ligne — voix wolof/français
-                    </p>
-                  </div>
-                </div>
-                <div className="rounded-lg bg-white/5 px-3 py-2.5">
-                  <p className="mb-1.5 text-[10px] uppercase tracking-wider text-white/50">
-                    Dernière annonce
-                  </p>
-                  {latestAnnouncement ? (
-                    <>
-                      <p className="text-xs leading-relaxed text-white/85">
-                        « {latestAnnouncement.message} »
-                      </p>
-                      <p className="mt-2 text-[10px] text-white/40">
-                        {timeAgo(latestAnnouncement.createdAt)}
-                        {latestAnnouncement.targetDistrict
-                          ? ` · ${latestAnnouncement.targetDistrict}`
-                          : ' · toute la ville'}
-                      </p>
-                    </>
-                  ) : (
-                    <p className="text-xs leading-relaxed text-white/55">
-                      Aucune annonce active
-                    </p>
-                  )}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setActiveNav('announcements')}
-                  className="mt-3 w-full justify-center border-[#FFD700]/40 bg-transparent text-[#FFD700] hover:bg-[#FFD700]/10 hover:text-[#FFD700]"
-                >
-                  <Radio className="h-3.5 w-3.5" />
-                  Diffuser une annonce
-                </Button>
-              </div>
-            </div>
-          </section>
+          </div>
           </>
           )}
 
