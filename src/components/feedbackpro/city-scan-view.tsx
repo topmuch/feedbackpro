@@ -1961,6 +1961,22 @@ function MainView({
       .catch(() => {})
   }, [])
 
+  // --- PWA : "Aminata dans ma poche" ---
+  // On capture l'événement `beforeinstallprompt` (Chrome/Edge Android) pour
+  // pouvoir déclencher l'installation au clic. iOS Safari ne déclenche jamais
+  // cet événement : on garde alors le bouton visible et on affiche une toast
+  // avec les instructions manuelles (Partager → Sur l'écran d'accueil).
+  const { toast } = useToast()
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
+  useEffect(() => {
+    const handler = (e: Event) => {
+      e.preventDefault()
+      setDeferredPrompt(e)
+    }
+    window.addEventListener('beforeinstallprompt', handler)
+    return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [])
+
   // Configuration du thème visuel (signaletique = par défaut, modern = alternatif)
   // tc.modules[mod.id] fournit bg / textColor / iconBg par module.
   const tc = THEMES[theme]
@@ -2002,6 +2018,28 @@ function MainView({
         <p className="mt-1 text-sm text-white/80">
           {isNight ? '🌙 Service nuit actif.' : (qrConfig?.qrSubtitle ?? 'Je suis là pour vous aider dans votre quartier.')}
         </p>
+
+        {/* PWA — "Aminata dans ma poche" : installer l'app sur l'écran d'accueil */}
+        <button
+          type="button"
+          onClick={() => {
+            if (deferredPrompt) {
+              deferredPrompt.prompt()
+              deferredPrompt.userChoice.then(() => setDeferredPrompt(null))
+            } else {
+              // iOS Safari ne supporte pas beforeinstallprompt — instructions manuelles
+              toast({
+                title: 'Installer Aminata',
+                description: "Appuyez sur Partager → Sur l'écran d'accueil.",
+              })
+            }
+          }}
+          className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-xs font-bold shadow-md transition-transform hover:scale-105 active:scale-95"
+          style={{ color: COLORS.blue }}
+          aria-label="Installer Aminata sur mon téléphone"
+        >
+          📱 Aminata dans ma poche
+        </button>
 
         {/* Location — tuile blanche signalétique arrondie */}
         <div className="mt-4 flex items-center gap-3 bg-white px-4 py-3" style={{ borderRadius: '16px' }}>
@@ -3090,7 +3128,7 @@ function RestaurantOrderView({
   const lsKey = `cart_${business.name}`
   const [cart, setCart] = useState<RoCartLine[]>([])
   const [cartOpen, setCartOpen] = useState(false)
-  const [orderMode, setOrderMode] = useState<'sur_place' | 'emporter'>('sur_place')
+  const [orderMode, setOrderMode] = useState<'livrer' | 'recuperer'>('recuperer')
   const [darkMode, setDarkMode] = useState(false)
   const [activeCat, setActiveCat] = useState<string>('Tout')
   const [orderRef, setOrderRef] = useState<string | null>(null)
@@ -3111,7 +3149,7 @@ function RestaurantOrderView({
       if (raw) {
         const p = JSON.parse(raw)
         if (p && Array.isArray(p.cart)) setCart(p.cart)
-        if (p && (p.orderMode === 'sur_place' || p.orderMode === 'emporter')) setOrderMode(p.orderMode)
+        if (p && (p.orderMode === 'livrer' || p.orderMode === 'recuperer')) setOrderMode(p.orderMode)
       }
       const t = localStorage.getItem(`${lsKey}_theme`)
       if (t === 'dark') setDarkMode(true)
@@ -3248,7 +3286,7 @@ function RestaurantOrderView({
     lines.push(`Sous-total: ${fmt(totals.sub)}`)
     lines.push(`Service (10%): ${fmt(totals.service)}`)
     lines.push(`Total: ${fmt(totals.total)}`)
-    lines.push(`Mode: ${orderMode === 'sur_place' ? 'Sur place' : 'À emporter'}`)
+    lines.push(`Mode: ${orderMode === 'livrer' ? 'Livraison' : 'À récupérer sur place'}`)
     lines.push(`Plaque: ${plate.plateNumber} - ${plate.district ?? plate.label}`)
     return `https://wa.me/${phone}?text=${encodeURIComponent(lines.join('\n'))}`
   }
@@ -3410,34 +3448,7 @@ function RestaurantOrderView({
             </p>
 
             <div className="mt-3 flex flex-wrap items-center gap-2">
-              {/* Mode toggle Sur place / À emporter */}
-              <div
-                className="inline-flex rounded-full p-0.5"
-                style={{ background: 'rgba(255,255,255,0.15)', backdropFilter: 'blur(15px)' }}
-              >
-                <button
-                  onClick={() => setOrderMode('sur_place')}
-                  className="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition-all"
-                  style={{
-                    background: orderMode === 'sur_place' ? RO_COLORS.gold : 'transparent',
-                    color: orderMode === 'sur_place' ? '#1F2937' : 'white',
-                  }}
-                >
-                  <Utensils className="size-3" />
-                  Sur place
-                </button>
-                <button
-                  onClick={() => setOrderMode('emporter')}
-                  className="flex items-center gap-1 rounded-full px-3 py-1 text-xs font-bold transition-all"
-                  style={{
-                    background: orderMode === 'emporter' ? RO_COLORS.gold : 'transparent',
-                    color: orderMode === 'emporter' ? '#1F2937' : 'white',
-                  }}
-                >
-                  <ShoppingBag className="size-3" />
-                  À emporter
-                </button>
-              </div>
+              {/* Mode de remise déplacé vers le tiroir panier (avant « Envoyer en cuisine ») */}
 
               {/* Statut ouvert */}
               <div
@@ -3572,7 +3583,7 @@ function RestaurantOrderView({
             <div className="text-sm font-bold">Voir le panier</div>
             <div className="text-xs" style={{ opacity: 0.7 }}>
               {totals.count} article{totals.count > 1 ? 's' : ''} ·{' '}
-              {orderMode === 'sur_place' ? 'Sur place' : 'À emporter'}
+              {orderMode === 'livrer' ? 'À livrer' : 'À récupérer'}
             </div>
           </div>
         </div>
@@ -3716,6 +3727,49 @@ function RestaurantOrderView({
                 {fmt(totals.total)}
               </span>
             </div>
+
+            {/* Mode de remise : À livrer / À récupérer sur place */}
+            <div className="mt-3">
+              <div
+                className="mb-1.5 text-xs font-bold uppercase tracking-wide"
+                style={{ color: themeVars.charcoal, opacity: 0.6 }}
+              >
+                Mode de remise
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={() => setOrderMode('livrer')}
+                  className="flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold transition-all hover:-translate-y-0.5"
+                  style={{
+                    background: orderMode === 'livrer' ? RO_COLORS.brique : themeVars.creamDark,
+                    color: orderMode === 'livrer' ? 'white' : themeVars.charcoal,
+                    border: `1.5px solid ${orderMode === 'livrer' ? RO_COLORS.brique : 'rgba(154,52,18,0.15)'}`,
+                    boxShadow: orderMode === 'livrer' ? '0 4px 12px rgba(154,52,18,0.25)' : 'none',
+                  }}
+                  aria-pressed={orderMode === 'livrer'}
+                >
+                  <span className="text-base" aria-hidden>🛵</span>
+                  À livrer
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setOrderMode('recuperer')}
+                  className="flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-xs font-bold transition-all hover:-translate-y-0.5"
+                  style={{
+                    background: orderMode === 'recuperer' ? RO_COLORS.brique : themeVars.creamDark,
+                    color: orderMode === 'recuperer' ? 'white' : themeVars.charcoal,
+                    border: `1.5px solid ${orderMode === 'recuperer' ? RO_COLORS.brique : 'rgba(154,52,18,0.15)'}`,
+                    boxShadow: orderMode === 'recuperer' ? '0 4px 12px rgba(154,52,18,0.25)' : 'none',
+                  }}
+                  aria-pressed={orderMode === 'recuperer'}
+                >
+                  <span className="text-base" aria-hidden>🍽️</span>
+                  À récupérer sur place
+                </button>
+              </div>
+            </div>
+
             <button
               onClick={placeOrder}
               className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl py-3.5 text-base font-bold text-white transition-all hover:-translate-y-0.5"
@@ -3860,9 +3914,9 @@ function RestaurantOrderView({
             {orderStep === 1 && '✓ Commande reçue par la cuisine. Le chef prépare ses ingrédients…'}
             {orderStep === 2 && '🔥 Cuisson en cours. Ça sent bon !'}
             {orderStep === 3 &&
-              (orderMode === 'sur_place'
-                ? '✓ Votre commande est prête ! Un serveur l\'apporte à votre table.'
-                : '✓ Votre commande est prête ! Vous pouvez venir la récupérer.')}
+              (orderMode === 'livrer'
+                ? '✓ Le livreur est en route vers vous !'
+                : '✓ Votre commande est prête ! Présentez-vous au comptoir.')}
           </div>
 
           {/* Bouton manuel WhatsApp (fallback si popup bloqué) */}

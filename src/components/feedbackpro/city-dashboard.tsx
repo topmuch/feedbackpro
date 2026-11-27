@@ -4411,6 +4411,16 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
   const [sponsorForm, setSponsorForm] = useState({ offerText: '', offerEndsAt: '' })
   const [savingSponsor, setSavingSponsor] = useState(false)
 
+  // --- Bannière commerce (restaurant notamment) ---
+  // La bannière est stockée sur le CityArtisan via les champs existants :
+  //   - offerText    → texte affiché dans la bannière
+  //   - isSponsored  → true = bannière visible, false = masquée
+  // Pas besoin de nouveau champ Prisma : on réutilise offerText/isSponsored
+  // exactement comme pour le sponsoring, mais via une UI dédiée bannière.
+  const [bannerBusiness, setBannerBusiness] = useState<CityBusiness | null>(null)
+  const [bannerForm, setBannerForm] = useState({ offerText: '', active: false })
+  const [savingBanner, setSavingBanner] = useState(false)
+
   // Pour le panneau d'activation premium (choix de la feature)
   const [premiumSetup, setPremiumSetup] = useState<CityBusiness | null>(null)
 
@@ -4566,6 +4576,58 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
       { isSponsored: false, offerText: null, offerEndsAt: null },
       `Sponsoring désactivé — ${b.name}`,
     )
+
+  // ============================================================
+  // Bannière commerce — formulaire dédié
+  // ------------------------------------------------------------
+  // On réutilise offerText + isSponsored (mêmes champs que le
+  // sponsoring) mais via une UI « bannière » plus simple :
+  //   - texte libre (offerText)
+  //   - toggle actif/inactif (isSponsored)
+  // La vue restaurant/artisan lit ces deux champs pour afficher
+  // une bannière promo en haut de sa fiche.
+  // ============================================================
+
+  const openBannerForm = (b: CityBusiness) => {
+    setBannerBusiness(b)
+    setBannerForm({
+      offerText: b.offerText ?? '',
+      active: !!b.isSponsored,
+    })
+  }
+
+  const handleSaveBanner = async () => {
+    if (!bannerBusiness) return
+    // Si on active la bannière, il faut un texte non vide.
+    if (bannerForm.active && bannerForm.offerText.trim().length < 3) {
+      toast({
+        title: 'Texte requis',
+        description: 'Saisissez au moins 3 caractères pour la bannière.',
+        variant: 'destructive',
+      })
+      return
+    }
+    setSavingBanner(true)
+    const patch: Record<string, unknown> = {
+      isSponsored: bannerForm.active,
+      offerText: bannerForm.active ? bannerForm.offerText.trim() : null,
+    }
+    // Quand on désactive la bannière, on nettoie aussi offerEndsAt
+    // pour éviter qu'une ancienne date d'expiration sponsorisée ne
+    // traîne dans la fiche.
+    if (!bannerForm.active) {
+      patch.offerEndsAt = null
+    }
+    await patchBusiness(
+      bannerBusiness.id,
+      patch,
+      bannerForm.active
+        ? `Bannière activée — ${bannerBusiness.name}`
+        : `Bannière désactivée — ${bannerBusiness.name}`,
+    )
+    setSavingBanner(false)
+    setBannerBusiness(null)
+  }
 
   // ============================================================
   // Éditeurs menu & grille tarifaire (commerces premium)
@@ -4873,6 +4935,7 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
                       onTogglePremium={() => handleTogglePremium(b)}
                       onOpenSponsor={() => openSponsorForm(b)}
                       onDeactivateSponsor={() => handleDeactivateSponsor(b)}
+                      onOpenBanner={() => openBannerForm(b)}
                       onViewMenu={() => setViewMenu(b)}
                       onViewPriceGrid={() => setViewPriceGrid(b)}
                       onEditMenu={() => openMenuEditor(b)}
@@ -5626,6 +5689,142 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
           </div>
         </div>
       )}
+
+      {/* ---------- Modal : configuration de la bannière commerce ---------- */}
+      {bannerBusiness && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => !savingBanner && setBannerBusiness(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-[#1A1A1A]" style={SERIF}>
+                  Configurer la bannière
+                </h3>
+                <p className="text-xs text-[#1A1A1A]/55">
+                  {bannerBusiness.name} · {bannerBusiness.trade}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => !savingBanner && setBannerBusiness(null)}
+                className="text-[#1A1A1A]/40 hover:text-[#1A1A1A]"
+                aria-label="Fermer"
+                disabled={savingBanner}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <p className="mb-3 text-xs text-[#1A1A1A]/60">
+              La bannière s&apos;affiche en haut de la fiche commerce/restaurant
+              (vue citoyenne). Texte court et percutant conseillé.
+            </p>
+            <div className="space-y-4">
+              {/* Texte de la bannière */}
+              <div>
+                <label className="block text-xs font-semibold text-[#1A1A1A]/60">
+                  Texte de la bannière
+                </label>
+                <textarea
+                  value={bannerForm.offerText}
+                  onChange={(e) =>
+                    setBannerForm((f) => ({ ...f, offerText: e.target.value }))
+                  }
+                  placeholder="ex : -15% sur tous nos plats ce midi !"
+                  maxLength={200}
+                  rows={3}
+                  disabled={savingBanner}
+                  className="mt-1 w-full rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] px-3 py-2 text-sm focus:border-[#F97316] focus:outline-none focus:ring-2 focus:ring-[#F97316]/15 disabled:opacity-60"
+                />
+                <p className="mt-1 text-[10px] text-[#1A1A1A]/40">
+                  {bannerForm.offerText.length}/200 caractères · stocké comme offre
+                  promo (offerText)
+                </p>
+              </div>
+              {/* Toggle bannière active */}
+              <div className="rounded-xl border border-[#EAE5DC] bg-[#FAFAF7] p-3">
+                <label className="flex cursor-pointer items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-[#1A1A1A]">
+                      Bannière visible
+                    </p>
+                    <p className="text-[11px] text-[#1A1A1A]/55">
+                      Active = affichée en haut de la fiche. Inactif = masquée
+                      (mais le texte est conservé).
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={bannerForm.active}
+                    onClick={() =>
+                      setBannerForm((f) => ({ ...f, active: !f.active }))
+                    }
+                    disabled={savingBanner}
+                    className={cn(
+                      'relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition disabled:opacity-60',
+                      bannerForm.active ? 'bg-[#F97316]' : 'bg-[#1A1A1A]/20',
+                    )}
+                    aria-label="Activer ou désactiver la bannière"
+                  >
+                    <span
+                      className={cn(
+                        'inline-block h-4 w-4 transform rounded-full bg-white shadow transition',
+                        bannerForm.active ? 'translate-x-6' : 'translate-x-1',
+                      )}
+                    />
+                  </button>
+                </label>
+              </div>
+              {/* Aperçu live */}
+              {bannerForm.active && bannerForm.offerText.trim().length > 0 && (
+                <div className="rounded-xl border-l-4 border-[#F97316] bg-gradient-to-r from-[#F97316]/8 to-transparent px-3 py-2">
+                  <p className="text-[10px] font-bold uppercase tracking-wide text-[#F97316]">
+                    Aperçu bannière
+                  </p>
+                  <p className="mt-0.5 text-sm font-semibold text-[#1A1A1A]">
+                    {bannerForm.offerText}
+                  </p>
+                </div>
+              )}
+            </div>
+            <div className="mt-5 flex justify-end gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setBannerBusiness(null)}
+                disabled={savingBanner}
+                className="border-[#EAE5DC]"
+              >
+                Annuler
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSaveBanner}
+                disabled={savingBanner}
+                className="gap-1.5 rounded-lg bg-[#F97316] text-white hover:bg-[#EA580C]"
+              >
+                {savingBanner ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Megaphone className="h-3.5 w-3.5" />
+                )}
+                {savingBanner
+                  ? 'Enregistrement…'
+                  : bannerForm.active
+                    ? 'Activer la bannière'
+                    : 'Désactiver la bannière'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -5642,6 +5841,7 @@ function BusinessCard({
   onTogglePremium,
   onOpenSponsor,
   onDeactivateSponsor,
+  onOpenBanner,
   onViewMenu,
   onViewPriceGrid,
   onEditMenu,
@@ -5654,6 +5854,7 @@ function BusinessCard({
   onTogglePremium?: () => void
   onOpenSponsor?: () => void
   onDeactivateSponsor?: () => void
+  onOpenBanner?: () => void
   onViewMenu?: () => void
   onViewPriceGrid?: () => void
   onEditMenu?: () => void
@@ -5815,6 +6016,23 @@ function BusinessCard({
               >
                 <Star className={cn('h-3.5 w-3.5', b.isPremium && 'fill-[#FFD700]')} />
                 {b.isPremium ? 'Désactiver Premium' : 'Activer Premium'}
+              </Button>
+              {/* Bannière : ouvre le formulaire dédié (texte + toggle actif).
+                  Stocké via offerText + isSponsored côté API. */}
+              <Button
+                size="sm"
+                onClick={() => handleAction(onOpenBanner)}
+                className={cn(
+                  'gap-1.5 rounded-lg',
+                  b.isSponsored
+                    ? 'bg-[#F97316]/15 text-[#F97316] hover:bg-[#F97316]/25'
+                    : 'bg-[#F97316] text-white hover:bg-[#EA580C]',
+                )}
+                aria-label={`Configurer la bannière de ${b.name}`}
+                title="Configurer la bannière promo"
+              >
+                <Megaphone className="h-3.5 w-3.5" />
+                {b.isSponsored ? 'Bannière ON' : 'Bannière'}
               </Button>
               {b.isSponsored ? (
                 <Button
@@ -8561,6 +8779,11 @@ function TeamsView() {
     status: 'active' as TeamMember['status'],
   })
 
+  // --- QR PWA modal : membre pour lequel on affiche le QR grand format ---
+  // L'URL du PWA staff est https://feedback.qrbags.com/?cityStaff=<name>
+  // (le routeur du PWA restaure la session via ce tag).
+  const [qrModalMember, setQrModalMember] = useState<TeamMember | null>(null)
+
   // --- Hydratation localStorage ---
   useEffect(() => {
     try {
@@ -8796,7 +9019,10 @@ function TeamsView() {
       ) : (
         <div className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white shadow-sm">
           <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
-            {teams.map((tm) => (
+            {teams.map((tm) => {
+              const staffUrl = `https://feedback.qrbags.com/?cityStaff=${encodeURIComponent(tm.name)}`
+              const staffQrUrl = qrServerUrl(staffUrl, 200)
+              return (
               <article
                 key={tm.id}
                 className={cn(
@@ -8850,6 +9076,33 @@ function TeamsView() {
                   </button>
                 </div>
 
+                {/* QR PWA : miniature cliquable → agrandit dans le modal */}
+                <button
+                  type="button"
+                  onClick={() => setQrModalMember(tm)}
+                  className="group mb-3 flex w-full items-center gap-3 rounded-lg border border-[#EAE5DC] bg-[#FAFAF7] p-2 text-left transition hover:border-[#0026A3] hover:bg-[#0026A3]/3"
+                  aria-label={`Afficher le QR PWA de ${tm.name}`}
+                  title="Cliquez pour agrandir le QR PWA"
+                >
+                  <img
+                    src={staffQrUrl}
+                    alt={`QR PWA — ${tm.name}`}
+                    className="h-20 w-20 shrink-0 rounded-md bg-white p-1"
+                    loading="lazy"
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="flex items-center gap-1 text-xs font-bold text-[#0026A3]">
+                      <QrCode className="h-3.5 w-3.5" /> PWA Staff
+                    </p>
+                    <p className="mt-0.5 truncate text-[11px] text-[#1A1A1A]/55">
+                      Flashez pour ouvrir l&apos;app staff de {tm.name.split(' ')[0]}
+                    </p>
+                    <span className="mt-1 inline-flex items-center gap-1 text-[10px] font-medium text-[#0026A3]/70 group-hover:underline">
+                      Agrandir →
+                    </span>
+                  </div>
+                </button>
+
                 <div className="flex items-center gap-2 border-t border-[#EAE5DC] pt-3">
                   <a
                     href={`tel:${tm.phone.replace(/\s/g, '')}`}
@@ -8858,6 +9111,15 @@ function TeamsView() {
                   >
                     <Phone className="h-3.5 w-3.5" /> Appeler
                   </a>
+                  <button
+                    type="button"
+                    onClick={() => setQrModalMember(tm)}
+                    className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#0026A3]/12 px-3 py-2 text-xs font-semibold text-[#0026A3] transition hover:bg-[#0026A3] hover:text-white"
+                    aria-label={`QR PWA de ${tm.name}`}
+                    title="Afficher le QR PWA"
+                  >
+                    <QrCode className="h-3.5 w-3.5" /> QR PWA
+                  </button>
                   <button
                     type="button"
                     onClick={() => handleDelete(tm.id)}
@@ -8869,7 +9131,90 @@ function TeamsView() {
                   </button>
                 </div>
               </article>
-            ))}
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* ---------- Modal : QR PWA agrandi (200x200) ---------- */}
+      {qrModalMember && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          onClick={() => setQrModalMember(null)}
+          role="dialog"
+          aria-modal="true"
+        >
+          <div
+            className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="mb-4 flex items-center justify-between">
+              <div>
+                <h3 className="text-base font-bold text-[#1A1A1A]" style={SERIF}>
+                  QR PWA Staff
+                </h3>
+                <p className="text-xs text-[#1A1A1A]/55">
+                  {qrModalMember.name} · {qrModalMember.role}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setQrModalMember(null)}
+                className="text-[#1A1A1A]/40 hover:text-[#1A1A1A]"
+                aria-label="Fermer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <div className="flex flex-col items-center gap-3">
+              <a
+                href={qrServerUrl(
+                  `https://feedback.qrbags.com/?cityStaff=${encodeURIComponent(qrModalMember.name)}`,
+                  400,
+                )}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block transition hover:scale-[1.02]"
+                aria-label={`Ouvrir le QR PWA de ${qrModalMember.name} en grand`}
+                title="Cliquez pour agrandir"
+              >
+                <img
+                  src={qrServerUrl(
+                    `https://feedback.qrbags.com/?cityStaff=${encodeURIComponent(qrModalMember.name)}`,
+                    200,
+                  )}
+                  alt={`QR PWA — ${qrModalMember.name}`}
+                  className="h-[200px] w-[200px] rounded-lg border border-[#EAE5DC] bg-white p-2"
+                />
+              </a>
+              <p className="text-center text-[11px] text-[#1A1A1A]/55">
+                Flashez ce QR pour ouvrir l&apos;app staff de{' '}
+                <strong className="text-[#1A1A1A]">{qrModalMember.name}</strong> sur
+                n&apos;importe quel mobile.
+              </p>
+              <div className="flex w-full items-center gap-2 rounded-lg bg-[#0026A3]/5 p-2">
+                <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-[#0026A3]/70">
+                  Lien PWA
+                </span>
+                <code className="min-w-0 flex-1 truncate text-[11px] text-[#1A1A1A]/70">
+                  https://feedback.qrbags.com/?cityStaff=
+                  {encodeURIComponent(qrModalMember.name)}
+                </code>
+              </div>
+              <a
+                href={qrServerUrl(
+                  `https://feedback.qrbags.com/?cityStaff=${encodeURIComponent(qrModalMember.name)}`,
+                  600,
+                )}
+                download={`qr-pwa-${qrModalMember.name
+                  .toLowerCase()
+                  .replace(/\s+/g, '-')}.png`}
+                className="inline-flex w-full items-center justify-center gap-1.5 rounded-lg bg-[#0026A3] px-4 py-2 text-sm font-semibold text-white transition hover:bg-[#1E40AF]"
+              >
+                <Download className="h-4 w-4" /> Télécharger
+              </a>
+            </div>
           </div>
         </div>
       )}

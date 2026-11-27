@@ -567,18 +567,39 @@ export function CityStaffView({
   }, [staffName, role, toast])
 
   const handleLogout = useCallback(() => {
+    // 1. On purge la session persistée (localStorage).
     if (typeof window !== 'undefined') {
       localStorage.removeItem(STAFF_NAME_KEY)
       localStorage.removeItem(STAFF_ROLE_KEY)
     }
+    // 2. On réinitialise TOUT l'état interne à ses valeurs initiales,
+    //    afin que l'écran LOGIN soit la première chose affichée (et non
+    //    le dashboard/home, ni le feed précédent).
+    //    Important : on n'appelle PAS onExit — sinon le parent ferme
+    //    la CityStaffView et bascule sur le home/dashboard principal.
     setScreen('login')
     setStaffName('')
     setRole('')
     setIncidents([])
+    setIncidentsLoading(false)
+    setLastPoll(null)
     setLocalOverrides(new Map())
+    setActiveTab('pending')
+    setResolveTargetId(null)
+    setResolveComment('')
+    setActionPending(null)
     setGps(null)
-    onExit?.()
-  }, [onExit])
+    // Réinitialise la mémoire des annonces vocales : sinon, au prochain
+    // login, l'ancien snapshot d'incidents déclencherait des annonces
+    // erronées (résolutions/urgences fantômes).
+    prevIncidentsRef.current = null
+    // Toast de confirmation (delay léger pour laisser le DOM se
+    // retourner proprement sur l'écran login).
+    toast({
+      title: 'Déconnexion réussie',
+      description: 'À bientôt sur le PWA Staff Municipal.',
+    })
+  }, [toast])
 
   /**
    * PRENDRE EN CHARGE : override local optimiste (status=in_progress,
