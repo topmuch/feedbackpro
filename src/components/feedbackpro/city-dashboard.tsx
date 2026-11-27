@@ -65,9 +65,11 @@ import {
   Sparkles,
   Camera,
   Map,
+  Save,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { useAppStore } from '@/store/app-store'
 import { useToast } from '@/hooks/use-toast'
@@ -401,6 +403,7 @@ const NAV_SECTIONS: readonly NavSection[] = [
       { id: 'plates-mgmt', label: 'Gestion plaques', icon: QrCode },
       { id: 'businesses', label: 'Commerces', icon: ShoppingBag },
       { id: 'tarifs', label: 'Tarifs', icon: Tag },
+      { id: 'qr-config', label: 'QR Code', icon: QrCode },
       { id: 'announcements', label: 'Annonces', icon: Megaphone },
       { id: 'appointments', label: 'Rendez-vous', icon: Calendar },
       { id: 'revenue', label: 'Revenus', icon: Wallet },
@@ -1464,6 +1467,11 @@ export default function CityDashboard() {
           {/* ====== VUE TARIFS ====== */}
           {activeNav === 'tarifs' && (
             <TarifsView />
+          )}
+
+          {/* ====== VUE CONFIG QR CODE ====== */}
+          {activeNav === 'qr-config' && (
+            <QrCodeConfigView />
           )}
 
           {/* ====== VUE ANNONCES ====== */}
@@ -9113,6 +9121,290 @@ function TarifsView() {
             </p>
           </div>
         </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================================
+// <QrCodeConfigView /> — Personnalisation du QR code citoyen
+// ------------------------------------------------------------
+// La mairie personnalise le titre, sous-titre et la liste des
+// services municipaux affichés sur la page QR code du citoyen.
+// GET /api/city/qr-config → { qrTitle, qrSubtitle, mairieServices }
+// POST /api/city/qr-config → sauvegarde la configuration.
+// ============================================================
+
+type MairieService = { label: string; phone: string }
+
+function QrCodeConfigView() {
+  const { toast } = useToast()
+  const [qrTitle, setQrTitle] = useState('')
+  const [qrSubtitle, setQrSubtitle] = useState('')
+  const [mairieServices, setMairieServices] = useState<MairieService[]>([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+
+  // --- Chargement initial de la configuration ---
+  useEffect(() => {
+    let cancelled = false
+    setLoading(true)
+    fetch('/api/city/qr-config', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((res: { ok?: boolean; data?: { qrTitle: string; qrSubtitle: string; mairieServices: MairieService[] } }) => {
+        if (cancelled) return
+        if (res?.ok && res.data) {
+          setQrTitle(res.data.qrTitle ?? '')
+          setQrSubtitle(res.data.qrSubtitle ?? '')
+          setMairieServices(Array.isArray(res.data.mairieServices) ? res.data.mairieServices : [])
+        }
+      })
+      .catch(() => {
+        if (cancelled) return
+        toast({
+          title: 'Erreur',
+          description: 'Impossible de charger la configuration QR.',
+          variant: 'destructive',
+        })
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [toast])
+
+  const addService = useCallback(() => {
+    setMairieServices((prev) => {
+      if (prev.length >= 20) {
+        toast({
+          title: 'Limite atteinte',
+          description: 'Vous ne pouvez pas ajouter plus de 20 services.',
+          variant: 'destructive',
+        })
+        return prev
+      }
+      return [...prev, { label: '', phone: '' }]
+    })
+  }, [toast])
+
+  const updateService = useCallback((index: number, field: keyof MairieService, value: string) => {
+    setMairieServices((prev) =>
+      prev.map((s, i) => (i === index ? { ...s, [field]: value } : s)),
+    )
+  }, [])
+
+  const removeService = useCallback((index: number) => {
+    setMairieServices((prev) => prev.filter((_, i) => i !== index))
+  }, [])
+
+  const handleSave = useCallback(async () => {
+    setSaving(true)
+    try {
+      const res = await fetch('/api/city/qr-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ qrTitle, qrSubtitle, mairieServices }),
+      })
+      if (!res.ok) throw new Error('HTTP error')
+      const json = await res.json()
+      if (json?.ok) {
+        toast({
+          title: 'Enregistré',
+          description: 'Configuration QR enregistrée',
+        })
+      } else {
+        throw new Error('API error')
+      }
+    } catch {
+      toast({
+        title: 'Erreur',
+        description: "Erreur lors de l'enregistrement",
+        variant: 'destructive',
+      })
+    } finally {
+      setSaving(false)
+    }
+  }, [qrTitle, qrSubtitle, mairieServices, toast])
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-16">
+        <Loader2 className="size-6 animate-spin text-[#FFD700]" />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-5">
+      {/* Header */}
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <h2
+            className="text-xl font-bold text-[#0026A3]"
+            style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}
+          >
+            QR Code citoyen
+          </h2>
+          <p className="text-sm text-[#1A1A1A]/60">
+            Personnalisez le message d'accueil et les services municipaux affichés sur la page QR du citoyen.
+          </p>
+        </div>
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          className="gap-2 rounded-xl bg-[#0026A3] text-white hover:bg-[#FFD700] hover:text-[#1A1A1A]"
+        >
+          {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+          {saving ? 'Enregistrement…' : 'Enregistrer'}
+        </Button>
+      </div>
+
+      {/* Aperçu en-tête QR */}
+      <div className="rounded-2xl bg-[#0026A3] p-5 text-white">
+        <div className="mb-3 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[#FFD700]">
+          <QrCode className="size-4" />
+          Aperçu de l'en-tête QR
+        </div>
+        <h3 className="text-lg font-bold">{qrTitle || 'Bonjour, je suis Aminata.'}</h3>
+        <p className="mt-1 text-sm text-white/80">
+          {qrSubtitle || 'Je suis là pour vous aider dans votre quartier.'}
+        </p>
+      </div>
+
+      {/* Carte : Titre + Sous-titre */}
+      <div className="rounded-2xl border border-[#0026A3]/15 bg-white p-5 shadow-sm">
+        <h3
+          className="mb-4 text-base font-bold text-[#0026A3]"
+          style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}
+        >
+          Message d'accueil
+        </h3>
+
+        <div className="space-y-4">
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-[#1A1A1A]">
+              Titre du QR code
+            </label>
+            <Input
+              value={qrTitle}
+              maxLength={200}
+              onChange={(e) => setQrTitle(e.target.value)}
+              placeholder="Bonjour, je suis Aminata."
+              className="border-[#0026A3]/20 focus:border-[#0026A3] focus-visible:ring-[#0026A3]/30"
+            />
+            <p className="mt-1 text-xs text-[#1A1A1A]/50">
+              {qrTitle.length}/200 — salutation principale affichée en en-tête.
+            </p>
+          </div>
+
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-[#1A1A1A]">
+              Sous-titre
+            </label>
+            <Input
+              value={qrSubtitle}
+              maxLength={300}
+              onChange={(e) => setQrSubtitle(e.target.value)}
+              placeholder="Je suis là pour vous aider dans votre quartier."
+              className="border-[#0026A3]/20 focus:border-[#0026A3] focus-visible:ring-[#0026A3]/30"
+            />
+            <p className="mt-1 text-xs text-[#1A1A1A]/50">
+              {qrSubtitle.length}/300 — phrase affichée sous le titre.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Carte : Services municipaux */}
+      <div className="rounded-2xl border border-[#0026A3]/15 bg-white p-5 shadow-sm">
+        <div className="mb-4 flex items-center justify-between">
+          <div>
+            <h3
+              className="text-base font-bold text-[#0026A3]"
+              style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}
+            >
+              Services municipaux
+            </h3>
+            <p className="text-xs text-[#1A1A1A]/60">
+              {mairieServices.length}/20 services — affichés sur la page QR du citoyen.
+            </p>
+          </div>
+          <Button
+            onClick={addService}
+            disabled={mairieServices.length >= 20}
+            className="gap-2 rounded-xl bg-[#0026A3] text-white hover:bg-[#1E40AF]"
+          >
+            <Plus className="size-4" />
+            Ajouter un service
+          </Button>
+        </div>
+
+        {mairieServices.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-[#0026A3]/25 bg-[#0026A3]/5 p-6 text-center">
+            <p className="text-sm text-[#1A1A1A]/60">
+              Aucun service configuré. Cliquez sur « Ajouter un service » pour commencer.
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {mairieServices.map((service, index) => (
+              <div
+                key={index}
+                className="rounded-xl border border-[#0026A3]/10 bg-white p-3 shadow-sm"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="grid flex-1 gap-3 sm:grid-cols-2">
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-[#1A1A1A]/70">
+                        Libellé
+                      </label>
+                      <Input
+                        value={service.label}
+                        onChange={(e) => updateService(index, 'label', e.target.value)}
+                        placeholder="Ex : État civil"
+                        className="border-[#0026A3]/20 focus:border-[#0026A3] focus-visible:ring-[#0026A3]/30"
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1 block text-xs font-medium text-[#1A1A1A]/70">
+                        Téléphone
+                      </label>
+                      <Input
+                        value={service.phone}
+                        onChange={(e) => updateService(index, 'phone', e.target.value)}
+                        placeholder="Ex : +221 33 800 00 00"
+                        className="border-[#0026A3]/20 focus:border-[#0026A3] focus-visible:ring-[#0026A3]/30"
+                      />
+                    </div>
+                  </div>
+                  <Button
+                    onClick={() => removeService(index)}
+                    size="sm"
+                    variant="outline"
+                    className="shrink-0 gap-1.5 rounded-lg border-[#dc2626]/30 text-[#dc2626] hover:bg-[#dc2626]/10 hover:text-[#dc2626]"
+                  >
+                    <Trash2 className="size-3.5" />
+                    Supprimer
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Bouton Enregistrer (en bas, pour la commodité) */}
+      <div className="flex justify-end">
+        <Button
+          onClick={handleSave}
+          disabled={saving}
+          className="gap-2 rounded-xl bg-[#0026A3] px-6 text-white hover:bg-[#FFD700] hover:text-[#1A1A1A]"
+        >
+          {saving ? <Loader2 className="size-4 animate-spin" /> : <Save className="size-4" />}
+          {saving ? 'Enregistrement…' : 'Enregistrer'}
+        </Button>
       </div>
     </div>
   )

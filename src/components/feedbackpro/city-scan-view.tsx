@@ -479,7 +479,7 @@ const MODULES: ReadonlyArray<ModuleConfig> = [
   {
     id: 'tax_fraud',
     emoji: '📡',
-    title: 'RADAR TAXES & DÉPÔTS',
+    title: 'PROTÉGEZ MON QUARTIER',
     desc: 'Camion · Conteneur · Chantier',
     sub: 'ANTI-FRAUDE IA · Récompense',
     color: '#8B0000',
@@ -572,7 +572,7 @@ const THEMES: Record<QrTheme, ThemeConfig> = {
   signaletique: {
     pageBg: '#FFFFFF',
     headerBg: '#1B2A8C',
-    headerRadius: '24px',
+    headerRadius: '32px',
     cardRadius: '16px',
     fontFamily: 'Arial, Helvetica, sans-serif',
     iconTileBg: '#FFFFFF',
@@ -596,7 +596,7 @@ const THEMES: Record<QrTheme, ThemeConfig> = {
   modern: {
     pageBg: '#FFFBEB',
     headerBg: 'linear-gradient(135deg, #1E3A8A 0%, #1E40AF 100%)',
-    headerRadius: '0px',
+    headerRadius: '24px',
     cardRadius: '18px',
     fontFamily: "'Inter', sans-serif",
     iconTileBg: 'rgba(255,255,255,0.2)',
@@ -630,15 +630,16 @@ type CategoryConfig = {
   hint: string
   service: string // service notifié (affiché en confirmation)
   Icon?: React.ComponentType<{ className?: string }> // icône lucide d'accent
+  tint: string // couleur unie (hex) servant de teinte de fond + accent
 }
 
 const CATEGORIES: ReadonlyArray<CategoryConfig> = [
-  { id: 'voirie', emoji: '🛣️', label: 'Voirie', hint: 'Nid-de-poule, trou, chaussée', service: 'Mairie' },
-  { id: 'éclairage', emoji: '💡', label: 'Éclairage', hint: 'Lampadaire en panne', service: 'Senelec', Icon: Lightbulb },
-  { id: 'eau', emoji: '💧', label: 'Eau', hint: 'Fuite, coupure, débordement', service: 'ONAS', Icon: Droplet },
-  { id: 'propreté', emoji: '🗑️', label: 'Propreté', hint: 'Déchets, tags, dépôt sauvage', service: 'Mairie', Icon: Trash2 },
-  { id: 'sécurité', emoji: '🔒', label: 'Sécurité', hint: 'Incivilité, trouble, agression', service: 'Police', Icon: Lock },
-  { id: 'transport', emoji: '🚌', label: 'Transport', hint: 'Arrêt, bus, gare routière', service: 'Mairie' },
+  { id: 'voirie', emoji: '🛣️', label: 'Voirie', hint: 'Nid-de-poule, trou, chaussée', service: 'Mairie', tint: '#3B82F6' },
+  { id: 'éclairage', emoji: '💡', label: 'Éclairage', hint: 'Lampadaire en panne', service: 'Senelec', Icon: Lightbulb, tint: '#F59E0B' },
+  { id: 'eau', emoji: '💧', label: 'Eau', hint: 'Fuite, coupure, débordement', service: 'ONAS', Icon: Droplet, tint: '#06B6D4' },
+  { id: 'propreté', emoji: '🗑️', label: 'Propreté', hint: 'Déchets, tags, dépôt sauvage', service: 'Mairie', Icon: Trash2, tint: '#10B981' },
+  { id: 'sécurité', emoji: '🔒', label: 'Sécurité', hint: 'Incivilité, trouble, agression', service: 'Police', Icon: Lock, tint: '#EF4444' },
+  { id: 'transport', emoji: '🚌', label: 'Transport', hint: 'Arrêt, bus, gare routière', service: 'Mairie', tint: '#8B5CF6' },
 ]
 
 // ============================================================
@@ -1135,6 +1136,42 @@ export function CityScanView({
       .catch(() => {})
   }, [])
 
+  // --- Configuration personnalisable du QR citoyen ---
+  // Titre / sous-titre d'accueil et services municipaux, configurables
+  // par la mairie via /api/city/qr-config. Récupéré une fois au montage.
+  // Tant que l'API n'a pas répondu, qrConfig reste null → les vues utilisent
+  // leurs valeurs codées en dur (isNight greeting, MAIRIE_SERVICES…).
+  const [qrConfig, setQrConfig] = useState<{
+    qrTitle: string
+    qrSubtitle: string
+    mairieServices: Array<{ label: string; phone: string }>
+  } | null>(null)
+  useEffect(() => {
+    fetch('/api/city/qr-config', { cache: 'no-store' })
+      .then((r) => r.json())
+      .then(
+        (d: {
+          ok?: boolean
+          data?: {
+            qrTitle?: string
+            qrSubtitle?: string
+            mairieServices?: Array<{ label: string; phone: string }>
+          }
+        }) => {
+          if (d?.ok && d.data) {
+            setQrConfig({
+              qrTitle: d.data.qrTitle ?? '',
+              qrSubtitle: d.data.qrSubtitle ?? '',
+              mairieServices: Array.isArray(d.data.mairieServices)
+                ? d.data.mairieServices
+                : [],
+            })
+          }
+        },
+      )
+      .catch(() => {})
+  }, [])
+
   useEffect(() => {
     if (!plate) return
     const compose = async () => {
@@ -1463,9 +1500,15 @@ export function CityScanView({
   // ---------------------------------------------------------------
   // 5b. Contact commerce étendu (ArtisansView refactorisé)
   //     Incrément optimiste + fire-and-forget vers /api/city/businesses/:id/contact
+  //     NOTE — la voix (parler) est déclenchée côté <BusinessCard> dans le geste
+  //     utilisateur (iOS Safari exige que speechSynthesis.speak() soit appelé
+  //     synchronement dans le handler de clic). On ne parle PAS ici pour éviter
+  //     une double synthèse entre le bouton Appeler et le bouton WhatsApp.
   // ---------------------------------------------------------------
   const handleContactBusiness = useCallback(
     (business: CityBusiness) => {
+      // VOIX — avant toute opération (geste utilisateur iOS).
+      // Le message précis (Appeler vs WhatsApp) est prononcé côté <BusinessCard>.
       setBusinesses((prev) =>
         prev.map((b) =>
           b.id === business.id
@@ -1783,7 +1826,7 @@ export function CityScanView({
             />
           )}
           {activeModule === 'mairie' && (
-            <MairieView currentHour={currentHour} plate={plate} />
+            <MairieView currentHour={currentHour} plate={plate} qrConfig={qrConfig} />
           )}
           {activeModule === 'tax_fraud' && (
             <TaxFraudView
@@ -1862,7 +1905,7 @@ export function CityScanView({
   return (
     <div className={rootClass} style={rootStyle}>
       {interFontLinkEl}
-      <MainView plate={plate} onOpenModule={openModule} onExit={onExit} currentHour={currentHour} theme={qrTheme} />
+      <MainView plate={plate} onOpenModule={openModule} onExit={onExit} currentHour={currentHour} theme={qrTheme} qrConfig={qrConfig} />
       {showCitizenModal && (
         <CitizenRegistrationModal
           open={showCitizenModal}
@@ -1887,12 +1930,18 @@ function MainView({
   onExit,
   currentHour,
   theme,
+  qrConfig,
 }: {
   plate: CityPlate
   onOpenModule: (id: ModuleId) => void
   onExit?: () => void
   currentHour: number
   theme: QrTheme
+  qrConfig?: {
+    qrTitle: string
+    qrSubtitle: string
+    mairieServices: Array<{ label: string; phone: string }>
+  } | null
 }) {
   const isNight = currentHour >= 22 || currentHour < 6
 
@@ -1948,10 +1997,10 @@ function MainView({
 
         {/* Greeting */}
         <h1 className="mt-5 text-2xl font-bold leading-tight text-white">
-          {isNight ? 'Bonsoir, je suis Aminata.' : 'Bonjour, je suis Aminata.'}
+          {qrConfig?.qrTitle ?? (isNight ? 'Bonsoir, je suis Aminata.' : 'Bonjour, je suis Aminata.')}
         </h1>
         <p className="mt-1 text-sm text-white/80">
-          {isNight ? '🌙 Service nuit actif.' : 'Je suis là pour vous aider dans votre quartier.'}
+          {isNight ? '🌙 Service nuit actif.' : (qrConfig?.qrSubtitle ?? 'Je suis là pour vous aider dans votre quartier.')}
         </p>
 
         {/* Location — tuile blanche signalétique arrondie */}
@@ -2647,7 +2696,7 @@ function SignalementView({
         <h2 className="text-sm font-bold uppercase tracking-wide text-[#1A1A1A]/60">
           Type d&apos;incident
         </h2>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-4">
           {CATEGORIES.map((cat) => {
             const active = category === cat.id
             const Icon = cat.Icon
@@ -2656,24 +2705,35 @@ function SignalementView({
                 key={cat.id}
                 onClick={() => setCategory(cat.id)}
                 className={cn(
-                  'relative rounded-2xl bg-white p-4 text-left shadow-sm transition-all',
+                  'relative flex min-h-32 flex-col items-center rounded-2xl p-4 text-center shadow-sm transition-all',
                   active
                     ? 'ring-2 ring-[#FF6B00] ring-offset-2'
-                    : 'hover:shadow-md',
+                    : 'hover:shadow-md hover:-translate-y-0.5',
                 )}
-                style={active ? { borderLeft: '4px solid #FF6B00' } : undefined}
+                style={{
+                  // Teinte de fond légère par catégorie (~8% opacité) +
+                  // bordure gauche colorée quand inactif, orange quand actif.
+                  backgroundColor: `${cat.tint}14`,
+                  borderLeft: active ? '4px solid #FF6B00' : `4px solid ${cat.tint}`,
+                }}
               >
                 {Icon && (
-                  <Icon className="absolute right-3 top-3 size-3.5 text-[#1A1A1A]/25" />
+                  <Icon
+                    className="absolute right-2 top-2 size-4"
+                    style={{ color: cat.tint }}
+                  />
                 )}
-                <span className="text-2xl" aria-hidden>
+                <span className="text-4xl" aria-hidden>
                   {cat.emoji}
                 </span>
                 <p className="mt-2 text-sm font-bold text-[#1A1A1A]" style={TITLE_FONT}>
                   {cat.label}
                 </p>
-                <p className="mt-0.5 text-xs text-[#1A1A1A]/55">{cat.hint}</p>
-                <p className="mt-1.5 text-xs font-semibold text-[#FF6B00]">
+                <p className="mt-1 text-[11px] leading-tight text-[#1A1A1A]/55">{cat.hint}</p>
+                <p
+                  className="mt-2 text-[11px] font-semibold"
+                  style={{ color: cat.tint }}
+                >
                   → {cat.service}
                 </p>
               </button>
@@ -3195,6 +3255,15 @@ function RestaurantOrderView({
 
   const placeOrder = () => {
     if (cart.length === 0) return
+    // VOIX — Aminata confirme l'envoi en cuisine DANS le geste utilisateur
+    // (clic sur le bouton). iOS Safari et Chrome mobile exigent que
+    // speechSynthesis.speak() soit appelé synchronement dans un handler de
+    // geste ; on parle donc ICI, avant window.open et les setTimeout.
+    try {
+      parler('Commande envoyée en cuisine.')
+    } catch {
+      /* ignore — synthèse vocale indisponible */
+    }
     const ref = `CMD-${Math.floor(1000 + Math.random() * 9000)}`
     setOrderRef(ref)
     setOrderStep(1)
@@ -5189,7 +5258,15 @@ function BusinessCard({
       <div className="mt-3 flex flex-wrap gap-2">
         <a
           href={`tel:${business.phone}`}
-          onClick={() => onContact(business)}
+          onClick={() => {
+            // VOIX — Aminata confirme dans le geste utilisateur (iOS Safari).
+            try {
+              parler(`Contact lancé avec ${business.name}.`)
+            } catch {
+              /* ignore — synthèse vocale indisponible */
+            }
+            onContact(business)
+          }}
           className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#00A651] py-2.5 text-sm font-bold text-white transition hover:bg-[#008a44]"
         >
           <Phone className="size-4" />
@@ -5200,7 +5277,15 @@ function BusinessCard({
             href={`https://wa.me/${business.whatsapp.replace(/[^\d]/g, '')}`}
             target="_blank"
             rel="noopener noreferrer"
-            onClick={() => onContact(business)}
+            onClick={() => {
+              // VOIX — Aminata confirme l'ouverture de WhatsApp (iOS Safari).
+              try {
+                parler(`Ouverture de WhatsApp pour ${business.name}.`)
+              } catch {
+                /* ignore — synthèse vocale indisponible */
+              }
+              onContact(business)
+            }}
             className="flex flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#25D366] py-2.5 text-sm font-bold text-white transition hover:bg-[#1da851]"
           >
             <MessageCircle className="size-4" />
@@ -5238,7 +5323,19 @@ function BusinessCard({
 // 5. MairieView (violet) — contenu dynamique selon l'heure
 // ============================================================
 
-function MairieView({ currentHour, plate }: { currentHour: number; plate: CityPlate }) {
+function MairieView({
+  currentHour,
+  plate,
+  qrConfig,
+}: {
+  currentHour: number
+  plate: CityPlate
+  qrConfig?: {
+    qrTitle: string
+    qrSubtitle: string
+    mairieServices: Array<{ label: string; phone: string }>
+  } | null
+}) {
   const { toast } = useToast()
   const greeting = getMairieGreeting(currentHour)
   const [selectedMotif, setSelectedMotif] = useState<string | null>(null)
@@ -5280,6 +5377,15 @@ function MairieView({ currentHour, plate }: { currentHour: number; plate: CityPl
       toast({ title: 'Motif requis', description: 'Décrivez le motif de votre rendez-vous.' })
       return
     }
+    // VOIX — Aminata confirme la demande DANS le geste utilisateur (clic sur
+    // le bouton d'envoi). iOS Safari et Chrome mobile exigent que
+    // speechSynthesis.speak() soit appelé synchronement dans un handler de
+    // geste ; un appel différé (après await fetch) est ignoré silencieusement.
+    try {
+      parler('Votre demande de rendez-vous a été envoyée. Vous recevrez une confirmation par téléphone.')
+    } catch {
+      /* ignore — synthèse vocale indisponible */
+    }
     setRdvSubmitting(true)
     try {
       const res = await fetch('/api/city/appointments', {
@@ -5301,11 +5407,6 @@ function MairieView({ currentHour, plate }: { currentHour: number; plate: CityPl
       } | null
       if (json?.ok && json.data?.appointment?.reference) {
         setRdvReference(json.data.appointment.reference)
-        try {
-          parler('Votre demande de rendez-vous a été envoyée. Vous recevrez une confirmation par téléphone.')
-        } catch {
-          /* ignore */
-        }
       } else {
         toast({
           title: 'Envoi impossible',
@@ -5357,7 +5458,7 @@ function MairieView({ currentHour, plate }: { currentHour: number; plate: CityPl
           Services municipaux
         </h2>
         <ul className="space-y-2">
-          {MAIRIE_SERVICES.map((s) => (
+          {(qrConfig?.mairieServices ?? MAIRIE_SERVICES).map((s) => (
             <li
               key={s.label}
               className="flex items-center justify-between rounded-xl bg-[#6B4C9A]/5 px-3 py-2.5"
@@ -6112,6 +6213,14 @@ function ItineraireView({ plate }: { plate: CityPlate }) {
                 href={buildDirectionsUrl(d)}
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={() => {
+                  // VOIX — Aminata confirme dans le geste utilisateur (iOS Safari).
+                  try {
+                    parler('Itinéraire ouvert dans Google Maps.')
+                  } catch {
+                    /* ignore — synthèse vocale indisponible */
+                  }
+                }}
                 className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-[#0066CC] px-4 py-2 text-xs font-bold text-white transition hover:bg-[#0055aa]"
               >
                 <Navigation className="size-3.5" />
@@ -6596,6 +6705,14 @@ function SanteView({ plate }: { plate: CityPlate }) {
           <div className="mt-3 grid gap-2 sm:grid-cols-2">
             <a
               href={`tel:${PHARMACIE_GARDE_SANTE.phone}`}
+              onClick={() => {
+                // VOIX — Aminata confirme l'appel pharmacie (geste iOS).
+                try {
+                  parler('Appel de la pharmacie.')
+                } catch {
+                  /* ignore — synthèse vocale indisponible */
+                }
+              }}
               className="flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-bold text-white transition-all hover:-translate-y-0.5"
               style={{
                 backgroundColor: AMINATA_TOKENS.vert,
@@ -6666,6 +6783,14 @@ function SanteView({ plate }: { plate: CityPlate }) {
               <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
                 <a
                   href={`tel:${p.phone}`}
+                  onClick={() => {
+                    // VOIX — Aminata confirme l'appel pharmacie (geste iOS).
+                    try {
+                      parler('Appel de la pharmacie.')
+                    } catch {
+                      /* ignore — synthèse vocale indisponible */
+                    }
+                  }}
                   className="flex items-center justify-center gap-1.5 rounded-lg py-2 text-[12px] font-bold text-white transition-all hover:-translate-y-0.5"
                   style={{
                     backgroundColor: AMINATA_TOKENS.vert,
@@ -6738,6 +6863,14 @@ function SanteView({ plate }: { plate: CityPlate }) {
               <div className="mt-2.5 grid gap-2 sm:grid-cols-2">
                 <a
                   href={`tel:${c.phone}`}
+                  onClick={() => {
+                    // VOIX — Aminata confirme l'appel du centre de santé (geste iOS).
+                    try {
+                      parler('Appel en cours.')
+                    } catch {
+                      /* ignore — synthèse vocale indisponible */
+                    }
+                  }}
                   className="flex items-center justify-center gap-1.5 rounded-lg py-2 text-[12px] font-bold text-white transition-all hover:-translate-y-0.5"
                   style={{
                     backgroundColor: AMINATA_TOKENS.bleuClair,
@@ -7275,6 +7408,15 @@ function QuartierAdForm({
       })
       return
     }
+    // VOIX — Aminata confirme la publication DANS le geste utilisateur
+    // (clic sur le bouton d'envoi). iOS Safari et Chrome mobile exigent
+    // que speechSynthesis.speak() soit appelé synchronement dans un handler
+    // de geste ; un appel différé (après await fetch) est ignoré.
+    try {
+      parler('Votre annonce a été publiée.')
+    } catch {
+      /* ignore — synthèse vocale indisponible */
+    }
     setSubmitting(true)
     try {
       const body: Record<string, unknown> = {
@@ -7302,11 +7444,6 @@ function QuartierAdForm({
       } | null
       if (json?.ok) {
         setSubmitted(true)
-        try {
-          parler('Votre annonce a été publiée.')
-        } catch {
-          /* ignore */
-        }
       } else {
         toast({
           title: 'Erreur',
@@ -8065,6 +8202,15 @@ function SchoolRegistrationForm({
       })
       return
     }
+    // VOIX — Aminata confirme la soumission DANS le geste utilisateur
+    // (clic sur le bouton d'envoi). iOS Safari et Chrome mobile exigent
+    // que speechSynthesis.speak() soit appelé synchronement dans un handler
+    // de geste ; un appel différé (après await fetch) est ignoré.
+    try {
+      parler('Établissement soumis. Validation sous 48 heures.')
+    } catch {
+      /* ignore — synthèse vocale indisponible */
+    }
     setSubmitting(true)
     try {
       const body: Record<string, unknown> = {
@@ -8094,11 +8240,6 @@ function SchoolRegistrationForm({
       } | null
       if (json?.ok) {
         setSubmitted(true)
-        try {
-          parler('Votre établissement a été soumis. Validation sous 48 heures.')
-        } catch {
-          /* ignore */
-        }
       } else {
         toast({
           title: 'Erreur',
