@@ -66,6 +66,7 @@ import {
   Camera,
   Map,
   Save,
+  Key,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -8745,6 +8746,10 @@ function TransportView() {
 // ============================================================
 // Persistance localStorage (clé `city_teams`). Chaque membre a :
 //   - id, name, role, phone, district, status (active | off_duty)
+//   - pin : code PIN 4 chiffres aléatoire (généré à la création).
+//     Le PIN est embarqué dans l'URL du QR PWA staff
+//     (?cityStaff=Name&pin=4827) ; le PWA staff lit ce PIN depuis
+//     l'URL pour valider le login sans hardcoded `1968`.
 // On peut ajouter / supprimer des membres. Bouton « Appeler » (tel:).
 // ---------------------------------------------------------------
 
@@ -8755,15 +8760,21 @@ type TeamMember = {
   phone: string
   district: string
   status: 'active' | 'off_duty'
+  pin: string // Code PIN 4 chiffres (aléatoire, propre à chaque agent)
+}
+
+/** Génère un code PIN à 4 chiffres aléatoire (1000–9999). */
+function generatePin(): string {
+  return String(Math.floor(1000 + Math.random() * 9000))
 }
 
 const TEAM_ROLES = ['Chef de quartier', 'Agent', 'Technicien', 'Coordinateur', 'Inspecteur'] as const
 
 const DEFAULT_TEAMS: TeamMember[] = [
-  { id: 'tm-1', name: 'Cheikh Ndiaye', role: 'Chef de quartier', phone: '+221770200001', district: 'Plateau', status: 'active' },
-  { id: 'tm-2', name: 'Awa Diop', role: 'Agent', phone: '+221770200002', district: 'Médina', status: 'active' },
-  { id: 'tm-3', name: 'Modou Fall', role: 'Technicien', phone: '+221770200003', district: 'Grand Dakar', status: 'off_duty' },
-  { id: 'tm-4', name: 'Fatou Sow', role: 'Coordinateur', phone: '+221770200004', district: 'Parcelles', status: 'active' },
+  { id: 'tm-1', name: 'Cheikh Ndiaye', role: 'Chef de quartier', phone: '+221770200001', district: 'Plateau', status: 'active', pin: '4827' },
+  { id: 'tm-2', name: 'Awa Diop', role: 'Agent', phone: '+221770200002', district: 'Médina', status: 'active', pin: '1593' },
+  { id: 'tm-3', name: 'Modou Fall', role: 'Technicien', phone: '+221770200003', district: 'Grand Dakar', status: 'off_duty', pin: '7240' },
+  { id: 'tm-4', name: 'Fatou Sow', role: 'Coordinateur', phone: '+221770200004', district: 'Parcelles', status: 'active', pin: '8615' },
 ]
 
 function TeamsView() {
@@ -8785,12 +8796,28 @@ function TeamsView() {
   const [qrModalMember, setQrModalMember] = useState<TeamMember | null>(null)
 
   // --- Hydratation localStorage ---
+  // Au passage, on retro-attribue un PIN aux anciens membres qui n'en
+  // ont pas (données créées avant l'ajout du champ `pin`).
   useEffect(() => {
     try {
       const saved = localStorage.getItem('city_teams')
       if (saved) {
         const parsed = JSON.parse(saved) as TeamMember[]
-        if (Array.isArray(parsed)) setTeams(parsed)
+        if (Array.isArray(parsed)) {
+          let mutated = false
+          const withPins = parsed.map((t) => {
+            if (!t.pin || !/^\d{4}$/.test(t.pin)) {
+              mutated = true
+              return { ...t, pin: generatePin() }
+            }
+            return t
+          })
+          setTeams(withPins)
+          // Si on a ajouté des PINs, on persiste la mise à jour.
+          if (mutated) {
+            localStorage.setItem('city_teams', JSON.stringify(withPins))
+          }
+        }
       }
     } catch {
       /* ignore */
@@ -8824,11 +8851,12 @@ function TeamsView() {
       phone: form.phone.trim(),
       district: form.district.trim() || 'Non assigné',
       status: form.status,
+      pin: generatePin(),
     }
     persist([next, ...teams])
     toast({
       title: 'Membre ajouté',
-      description: `${next.name} (${next.role}) — ${next.district}`,
+      description: `${next.name} (${next.role}) — PIN staff : ${next.pin}`,
     })
     setForm({
       name: '',
@@ -9020,7 +9048,7 @@ function TeamsView() {
         <div className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white shadow-sm">
           <div className="grid grid-cols-1 gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
             {teams.map((tm) => {
-              const staffUrl = `https://feedback.qrbags.com/?cityStaff=${encodeURIComponent(tm.name)}`
+              const staffUrl = `https://feedback.qrbags.com/?cityStaff=${encodeURIComponent(tm.name)}&pin=${tm.pin}`
               const staffQrUrl = qrServerUrl(staffUrl, 200)
               return (
               <article
@@ -9137,7 +9165,7 @@ function TeamsView() {
         </div>
       )}
 
-      {/* ---------- Modal : QR PWA agrandi (200x200) ---------- */}
+      {/* ---------- Modal : QR PWA agrandi (200x200) + PIN ---------- */}
       {qrModalMember && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
@@ -9170,7 +9198,7 @@ function TeamsView() {
             <div className="flex flex-col items-center gap-3">
               <a
                 href={qrServerUrl(
-                  `https://feedback.qrbags.com/?cityStaff=${encodeURIComponent(qrModalMember.name)}`,
+                  `https://feedback.qrbags.com/?cityStaff=${encodeURIComponent(qrModalMember.name)}&pin=${qrModalMember.pin}`,
                   400,
                 )}
                 target="_blank"
@@ -9181,7 +9209,7 @@ function TeamsView() {
               >
                 <img
                   src={qrServerUrl(
-                    `https://feedback.qrbags.com/?cityStaff=${encodeURIComponent(qrModalMember.name)}`,
+                    `https://feedback.qrbags.com/?cityStaff=${encodeURIComponent(qrModalMember.name)}&pin=${qrModalMember.pin}`,
                     200,
                   )}
                   alt={`QR PWA — ${qrModalMember.name}`}
@@ -9193,18 +9221,36 @@ function TeamsView() {
                 <strong className="text-[#1A1A1A]">{qrModalMember.name}</strong> sur
                 n&apos;importe quel mobile.
               </p>
+
+              {/* ---- Code PIN mis en avant (communiqué à l'agent) ---- */}
+              <div className="flex w-full flex-col items-center gap-1 rounded-xl border-2 border-[#FFD700] bg-gradient-to-br from-[#FFD700]/15 to-[#FFD700]/5 px-4 py-3">
+                <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-[#a88a48]">
+                  <Key className="h-3 w-3" /> Code PIN Staff
+                </span>
+                <span
+                  className="text-4xl font-black tracking-[0.35em] text-[#1A1A1A]"
+                  style={SERIF}
+                  aria-label={`Code PIN ${qrModalMember.pin}`}
+                >
+                  {qrModalMember.pin}
+                </span>
+                <span className="text-[10px] text-[#1A1A1A]/55">
+                  À communiquer à l&apos;agent pour le login PWA
+                </span>
+              </div>
+
               <div className="flex w-full items-center gap-2 rounded-lg bg-[#0026A3]/5 p-2">
                 <span className="shrink-0 text-[10px] font-semibold uppercase tracking-wide text-[#0026A3]/70">
                   Lien PWA
                 </span>
                 <code className="min-w-0 flex-1 truncate text-[11px] text-[#1A1A1A]/70">
                   https://feedback.qrbags.com/?cityStaff=
-                  {encodeURIComponent(qrModalMember.name)}
+                  {encodeURIComponent(qrModalMember.name)}&amp;pin={qrModalMember.pin}
                 </code>
               </div>
               <a
                 href={qrServerUrl(
-                  `https://feedback.qrbags.com/?cityStaff=${encodeURIComponent(qrModalMember.name)}`,
+                  `https://feedback.qrbags.com/?cityStaff=${encodeURIComponent(qrModalMember.name)}&pin=${qrModalMember.pin}`,
                   600,
                 )}
                 download={`qr-pwa-${qrModalMember.name

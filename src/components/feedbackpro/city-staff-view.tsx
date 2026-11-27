@@ -66,6 +66,7 @@ import {
   Radio,
   Volume2,
   VolumeX,
+  Download,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -388,7 +389,7 @@ export function CityStaffView({
   // --- Identité staff ---
   const [staffName, setStaffName] = useState('')
   const [role, setRole] = useState<StaffRole | ''>('')
-  // --- Code PIN (saisi sur l'écran login, vérifié contre STAFF_PIN) ---
+  // --- Code PIN (saisi sur l'écran login, vérifié contre expectedPin) ---
   const [pin, setPin] = useState('')
   const [pinError, setPinError] = useState(false)
   // --- Voix Nathalie (toggle header, persistée en localStorage) ---
@@ -397,6 +398,17 @@ export function CityStaffView({
   // fetchIncidents (useCallback []) sans re-créer le callback ni
   // relancer le polling à chaque bascule du toggle.
   const soundOnRef = useRef(false)
+
+  // --- Code PIN attendu (lu depuis l'URL ?pin=xxxx, sinon STAFF_PIN) ---
+  // Le dashboard embarque le PIN de chaque agent dans l'URL du QR PWA
+  // (?cityStaff=Name&pin=4827) ; on le lit ici pour valider le login
+  // sans dépendre du PIN hardcoded '1968' (rétro-compat).
+  const [expectedPin, setExpectedPin] = useState<string>(STAFF_PIN)
+
+  // --- PWA install prompt (beforeinstallprompt) ---
+  // Masqué si déjà en mode standalone (PWA déjà installée).
+  const [deferredPrompt, setDeferredPrompt] = useState<any>(null)
+  const [isStandalone, setIsStandalone] = useState(false)
 
   // --- Données ---
   const [incidents, setIncidents] = useState<CityIncident[]>([])
@@ -449,6 +461,80 @@ export function CityStaffView({
       setScreen('feed')
     }
   }, [])
+
+  // ---------------------------------------------------------------
+  // Lifecycle 1b — Lecture du PIN et du tag cityStaff depuis l'URL
+  // ---------------------------------------------------------------
+  // Le QR PWA généré par le dashboard embarque ?cityStaff=Name&pin=4827.
+  // - pin        → devient le PIN attendu pour le login (à la place du
+  //                STAFF_PIN '1968' hardcoded, gardé en fallback).
+  // - cityStaff  → pré-remplit le champ nom sur l'écran login si aucune
+  //                session n'est déjà mémorisée (1ère ouverture du QR).
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const params = new URLSearchParams(window.location.search)
+    const urlPin = params.get('pin')
+    if (urlPin && /^\d{3,6}$/.test(urlPin)) {
+      setExpectedPin(urlPin)
+    }
+    const urlStaff = params.get('cityStaff')
+    if (urlStaff) {
+      // Ne pré-remplit que si l'agent n'a pas déjà de session mémorisée
+      // (sinon on écraserait son nom habituel).
+      const savedName = localStorage.getItem(STAFF_NAME_KEY) ?? ''
+      if (!savedName) {
+        setStaffName(decodeURIComponent(urlStaff))
+      }
+    }
+  }, [])
+
+  // ---------------------------------------------------------------
+  // Lifecycle 1c — PWA install prompt (beforeinstallprompt) + standalone
+  // ---------------------------------------------------------------
+  // On capture l'événement beforeinstallprompt pour pouvoir déclencher
+  // l'installation native via le bouton "📱 Installer". Masqué si déjà
+  // en mode standalone (PWA déjà installée — window.matchMedia).
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    // Détection standalone (Chrome/Edge + iOS Safari).
+    const mql = window.matchMedia('(display-mode: standalone)')
+    const iosStandalone = (window.navigator as any).standalone === true
+    setIsStandalone(mql.matches || iosStandalone)
+
+    const handler = (e: Event) => {
+      e.preventDefault()
+      setDeferredPrompt(e)
+    }
+    window.addEventListener('beforeinstallprompt', handler)
+    return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [])
+
+  const handleInstall = useCallback(() => {
+    if (!deferredPrompt) {
+      // Aucun prompt natif disponible (navigateur non compatible ou
+      // critère d'engagement non rempli). On guide l'agent vers
+      // l'option manuelle du menu navigateur.
+      toast({
+        title: 'Installer l\'application',
+        description:
+          'Ouvrez le menu du navigateur (⋮ ou Partager) puis sélectionnez « Ajouter à l\'écran d\'accueil » ou « Installer l\'application ».',
+      })
+      return
+    }
+    try {
+      deferredPrompt.prompt()
+      // On attend le choix de l'utilisateur puis on purge le prompt
+      // (Chrome ne peut le ré-afficher qu'après un nouveau beforeinstallprompt).
+      deferredPrompt.userChoice?.finally(() => setDeferredPrompt(null))
+    } catch {
+      toast({
+        title: 'Installation impossible',
+        description: 'Utilisez le menu navigateur > « Ajouter à l\'écran d\'accueil ».',
+      })
+    }
+  }, [deferredPrompt, toast])
+
+  const showInstall = !isStandalone
 
   // ---------------------------------------------------------------
   // Lifecycle 2 — online/offline indicator
@@ -639,9 +725,10 @@ export function CityStaffView({
       toast({ title: 'Choisissez votre rôle', description: 'Propreté, Voirie, Éclairage ou Polyvalent.' })
       return
     }
-    // Vérification du code PIN (soft gate — STAFF_PIN en clair dans le
-    // bundle ; c'est un simple filtre, pas une authentification réelle).
-    if (pin !== STAFF_PIN) {
+    // Vérification du code PIN (soft gate — le PIN attendu vient soit
+    // de l'URL (?pin=xxxx embarqué dans le QR PWA du dashboard), soit
+    // du fallback STAFF_PIN='1968' pour les anciennes URLs sans pin).
+    if (pin !== expectedPin) {
       setPinError(true)
       toast({
         title: 'Code PIN incorrect',
@@ -661,7 +748,7 @@ export function CityStaffView({
       title: `Bienvenue ${name.split(' ')[0]}`,
       description: `Service : ${role}. Incidents chargés.`,
     })
-  }, [staffName, role, pin, toast])
+  }, [staffName, role, pin, expectedPin, toast])
 
   const handleLogout = useCallback(() => {
     // 1. On purge la session persistée (localStorage).
@@ -928,6 +1015,8 @@ export function CityStaffView({
           onPinChange={handlePinChange}
           staffTag={staffTag}
           onLogin={handleLogin}
+          showInstall={showInstall}
+          onInstall={handleInstall}
         />
       </div>
     )
@@ -962,6 +1051,8 @@ export function CityStaffView({
         onPhotoBefore={handlePhotoBefore}
         onPhotoAfter={handlePhotoAfter}
         staffTag={staffTag}
+        showInstall={showInstall}
+        onInstall={handleInstall}
       />
     </div>
   )
@@ -981,6 +1072,8 @@ function LoginScreen({
   onPinChange,
   staffTag,
   onLogin,
+  showInstall,
+  onInstall,
 }: {
   staffName: string
   setStaffName: (v: string) => void
@@ -991,6 +1084,8 @@ function LoginScreen({
   onPinChange: (v: string) => void
   staffTag: string
   onLogin: () => void
+  showInstall: boolean
+  onInstall: () => void
 }) {
   return (
     <div className="mx-auto flex min-h-screen max-w-md flex-col justify-center px-6 py-10">
@@ -1131,6 +1226,19 @@ function LoginScreen({
         Code PIN requis pour accéder au service. Votre nom et votre rôle sont
         mémorisés sur cet appareil pour la prochaine session.
       </p>
+
+      {/* Installer l'application PWA — masqué en mode standalone (déjà installée) */}
+      {showInstall && (
+        <button
+          type="button"
+          onClick={onInstall}
+          className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-[#C9A961]/40 bg-[#C9A961]/8 px-4 py-3 text-sm font-bold text-[#C9A961] transition hover:border-[#C9A961] hover:bg-[#C9A961]/15"
+          aria-label="Installer l'application Staff Municipal"
+        >
+          <Download className="size-4" />
+          📱 Installer
+        </button>
+      )}
     </div>
   )
 }
@@ -1163,6 +1271,8 @@ function FeedScreen({
   onConfirmResolve,
   onCancelResolve,
   staffTag,
+  showInstall,
+  onInstall,
 }: {
   staffName: string
   role: StaffRole
@@ -1189,6 +1299,8 @@ function FeedScreen({
   onPhotoBefore: (inc: CityIncident, file: File) => void
   onPhotoAfter: (inc: CityIncident, file: File) => void
   staffTag: string
+  showInstall: boolean
+  onInstall: () => void
 }) {
   const roleMeta = ROLES.find((r) => r.id === role)
 
@@ -1263,7 +1375,7 @@ function FeedScreen({
             {isOnline ? 'En ligne' : 'Hors ligne'}
           </span>
 
-          {/* Droite : son Nathalie + refresh */}
+          {/* Droite : son Nathalie + installer PWA + refresh */}
           <div className="ml-auto flex items-center gap-2">
             {/* Son Nathalie — doré quand ON */}
             <button
@@ -1280,6 +1392,19 @@ function FeedScreen({
               {soundOn ? <Volume2 className="size-3" /> : <VolumeX className="size-3" />}
               {soundOn ? 'Son ON' : 'Son OFF'}
             </button>
+
+            {/* Installer l'application PWA — masqué en mode standalone */}
+            {showInstall && (
+              <button
+                onClick={onInstall}
+                title="Installer l'application Staff Municipal sur cet appareil"
+                aria-label="Installer l'application"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[#C9A961]/40 bg-[#C9A961]/10 px-2.5 py-1 font-bold text-[#C9A961] transition hover:border-[#C9A961] hover:bg-[#C9A961]/20"
+              >
+                <Download className="size-3" />
+                📱 Installer
+              </button>
+            )}
 
             {/* Refresh */}
             <button
