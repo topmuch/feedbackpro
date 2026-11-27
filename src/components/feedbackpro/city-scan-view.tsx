@@ -1172,6 +1172,17 @@ export function CityScanView({
       .catch(() => {})
   }, [])
 
+  // --- Logo de la mairie (affiché sur la page d'entrée + page principale) ---
+  const [welcomeLogo, setWelcomeLogo] = useState<string | null>(null)
+  useEffect(() => {
+    fetch('/api/city/logo')
+      .then((r) => r.json())
+      .then((d: { ok?: boolean; data?: { logoUrl?: string | null } }) => {
+        if (d?.ok && d.data?.logoUrl) setWelcomeLogo(d.data.logoUrl)
+      })
+      .catch(() => {})
+  }, [])
+
   useEffect(() => {
     if (!plate) return
     const compose = async () => {
@@ -1621,16 +1632,20 @@ export function CityScanView({
             className="relative z-10 w-full max-w-sm rounded-3xl bg-white p-8 shadow-2xl"
             style={{ borderRadius: '28px' }}
           >
-            {/* Avatar Aminata — tuile bleue avec icône */}
+            {/* Avatar — logo de la mairie (ou emoji fallback) */}
             <div className="relative mx-auto mb-5">
               <div
-                className="flex h-20 w-20 items-center justify-center rounded-2xl text-4xl shadow-lg mx-auto"
+                className="flex h-20 w-20 items-center justify-center rounded-2xl shadow-lg mx-auto overflow-hidden"
                 style={{
-                  background: '#FFDD00',
+                  background: welcomeLogo ? '#FFFFFF' : '#FFDD00',
                   borderRadius: '18px',
                 }}
               >
-                👋
+                {welcomeLogo ? (
+                  <img src={welcomeLogo} alt="Logo mairie" className="h-16 w-16 rounded-xl object-cover" />
+                ) : (
+                  <span className="text-4xl">👋</span>
+                )}
               </div>
               {/* Anneau pulsant jaune */}
               <div
