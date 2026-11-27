@@ -2123,121 +2123,6 @@ function MainView({
           {isNight ? '🌙 Service nuit actif.' : (qrConfig?.qrSubtitle ?? 'Je suis là pour vous aider dans votre quartier.')}
         </p>
 
-        {/* PWA — "Aminata dans ma poche" : installer l'app sur l'écran d'accueil.
-            Masqué si la PWA est déjà lancée en mode standalone (installée). */}
-        {!alreadyInstalled && (
-          <button
-            type="button"
-            onClick={() => {
-              if (deferredPrompt) {
-                // Chrome/Edge Android : on déclenche l'invite native.
-                deferredPrompt.prompt()
-                deferredPrompt.userChoice.then(
-                  (choice: { outcome: string }) => {
-                    setDeferredPrompt(null)
-                    if (choice?.outcome === 'accepted') {
-                      toast({
-                        title: 'Aminata installée',
-                        description: 'L’application est sur votre écran d’accueil.',
-                      })
-                    }
-                  },
-                )
-              } else {
-                // Pas d'événement beforeinstallprompt (iOS Safari, ou navigateur
-                // non compatible, ou app déjà installée mais pas en standalone) :
-                // on ouvre la modale d'instructions manuelles adaptée à la
-                // plateforme détectée.
-                setShowInstallModal(true)
-              }
-            }}
-            className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-2 text-xs font-bold shadow-md transition-transform hover:scale-105 active:scale-95"
-            style={{ color: COLORS.blue }}
-            aria-label="Installer Aminata sur mon téléphone"
-          >
-            📱 Aminata dans ma poche
-          </button>
-        )}
-
-        {/* Modale d'instructions d'installation manuelle (fallback iOS /
-            Android / desktop). S'ouvre quand beforeinstallprompt n'a pas
-            déclenché (cas le plus fréquent sur iOS Safari). */}
-        <Dialog open={showInstallModal} onOpenChange={setShowInstallModal}>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Installer Aminata sur mon téléphone</DialogTitle>
-              <DialogDescription>
-                Aminata fonctionne comme une application native, même hors
-                connexion. Suivez les étapes selon votre téléphone.
-              </DialogDescription>
-            </DialogHeader>
-
-            <div className="space-y-3 text-sm">
-              {installPlatform === 'ios' && (
-                <ol className="list-decimal space-y-2 pl-5 text-foreground">
-                  <li>
-                    Appuyez sur le bouton <strong>Partager</strong>{' '}
-                    <span aria-hidden="true">⎋</span> dans la barre du bas de
-                    Safari.
-                  </li>
-                  <li>
-                    Sélectionnez{' '}
-                    <strong>« Sur l’écran d’accueil »</strong>{' '}
-                    <span aria-hidden="true">➕</span>.
-                  </li>
-                  <li>
-                    Appuyez sur <strong>Ajouter</strong> en haut à droite.
-                  </li>
-                </ol>
-              )}
-              {installPlatform === 'android' && (
-                <ol className="list-decimal space-y-2 pl-5 text-foreground">
-                  <li>
-                    Appuyez sur le menu <strong>(⋮)</strong> en haut à droite
-                    du navigateur.
-                  </li>
-                  <li>
-                    Sélectionnez{' '}
-                    <strong>« Installer l’application »</strong> (ou{' '}
-                    « Ajouter à l’écran d’accueil »).
-                  </li>
-                  <li>
-                    Confirmez en appuyant sur{' '}
-                    <strong>Installer</strong>.
-                  </li>
-                </ol>
-              )}
-              {installPlatform === 'desktop' && (
-                <ol className="list-decimal space-y-2 pl-5 text-foreground">
-                  <li>
-                    Cliquez sur l’icône{' '}
-                    <strong>« Installer »</strong> dans la barre d’adresse du
-                    navigateur (Chrome/Edge).
-                  </li>
-                  <li>
-                    Ou ouvrez le menu <strong>(⋮)</strong> →{' '}
-                    <strong>« Installer Aminata… »</strong>.
-                  </li>
-                </ol>
-              )}
-
-              <p className="rounded-md bg-muted p-3 text-xs text-muted-foreground">
-                Astuce : une fois installée, Aminata s’ouvre en plein écran,
-                comme une application, et reste disponible même sans réseau.
-              </p>
-            </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                onClick={() => setShowInstallModal(false)}
-              >
-                J’ai compris
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-
         {/* Location — tuile blanche signalétique arrondie */}
         <div className="mt-4 flex items-center gap-3 bg-white px-4 py-3" style={{ borderRadius: '16px' }}>
           <div className="flex h-10 w-10 items-center justify-center bg-[#0026A3]" style={{ borderRadius: '10px' }}>
@@ -2251,6 +2136,104 @@ function MainView({
           </div>
         </div>
       </header>
+
+      {/* === PWA — "Aminata dans ma poche" (EN DESSOUS du header) === */}
+      {!alreadyInstalled && (
+        <button
+          type="button"
+          onClick={() => {
+            if (deferredPrompt) {
+              deferredPrompt.prompt()
+              deferredPrompt.userChoice.then(
+                (choice: { outcome: string }) => {
+                  setDeferredPrompt(null)
+                  if (choice?.outcome === 'accepted') {
+                    toast({
+                      title: 'Aminata installée',
+                      description: 'L\'application est sur votre écran d\'accueil.',
+                    })
+                  }
+                },
+              )
+            } else {
+              setShowInstallModal(true)
+            }
+          }}
+          className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#0026A3] py-3.5 text-sm font-bold text-white shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.98]"
+          style={{ borderRadius: tc.cardRadius }}
+          aria-label="Installer Aminata sur mon téléphone"
+        >
+          📱 Aminata dans ma poche — Installer l'application
+        </button>
+      )}
+
+      <Dialog open={showInstallModal} onOpenChange={setShowInstallModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Installer Aminata sur mon téléphone</DialogTitle>
+            <DialogDescription>
+              Aminata fonctionne comme une application native, même hors
+              connexion. Suivez les étapes selon votre téléphone.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 text-sm">
+            {installPlatform === 'ios' && (
+              <ol className="list-decimal space-y-2 pl-5 text-foreground">
+                <li>
+                  Appuyez sur le bouton <strong>Partager</strong>{' '}
+                  <span aria-hidden="true">⎋</span> dans la barre du bas de
+                  Safari.
+                </li>
+                <li>
+                  Sélectionnez <strong>« Sur l'écran d'accueil »</strong>.
+                </li>
+                <li>
+                  Appuyez sur <strong>Ajouter</strong> en haut à droite.
+                </li>
+              </ol>
+            )}
+
+            {installPlatform === 'android' && (
+              <ol className="list-decimal space-y-2 pl-5 text-foreground">
+                <li>
+                  Appuyez sur le menu <strong>(⋮)</strong> en haut à droite
+                  de Chrome.
+                </li>
+                <li>
+                  Sélectionnez <strong>« Installer l'application »</strong>.
+                </li>
+                <li>Confirmez en appuyant sur <strong>Installer</strong>.</li>
+              </ol>
+            )}
+
+            {installPlatform === 'desktop' && (
+              <ol className="list-decimal space-y-2 pl-5 text-foreground">
+                <li>
+                  Cliquez sur l'icône <strong>Installer</strong>{' '}
+                  <span aria-hidden="true">⊕</span> dans la barre d'adresse
+                  de Chrome/Edge.
+                </li>
+                <li>Confirmez l'installation.</li>
+              </ol>
+            )}
+
+            <p className="rounded-md bg-muted p-3 text-xs text-muted-foreground">
+              Astuce : une fois installée, Aminata s'ouvre en plein écran,
+              comme une application, et reste disponible même sans réseau.
+            </p>
+          </div>
+
+          <DialogFooter>
+            <Button
+              type="button"
+              onClick={() => setShowInstallModal(false)}
+            >
+              J'ai compris
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* === LIVE BAR === */}
       <div
