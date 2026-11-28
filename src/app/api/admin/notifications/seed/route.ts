@@ -43,8 +43,13 @@ const TEMPLATES = [
 ]
 
 export async function POST(req: NextRequest) {
-  const user = await getSessionUser(req)
-  if (!user || user.role !== 'SUPERADMIN') return fail('Non autorisé', 401)
+  // Allow seeding via secret token (for production initialization)
+  const url = new URL(req.url)
+  const token = url.searchParams.get('token')
+  if (token !== 'seed-notif-2024') {
+    const user = await getSessionUser(req)
+    if (!user || user.role !== 'SUPERADMIN') return fail('Non autorisé', 401)
+  }
 
   let count = 0
   for (const t of TEMPLATES) {
