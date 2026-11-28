@@ -39,6 +39,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Building2,
+  Check,
   Eye,
   EyeOff,
   Loader2,
@@ -137,11 +138,197 @@ function retourLanding(setView: (v: "landing") => void) {
 }
 
 // ============================================================
-// VUE 1 — ÉTABLISSEMENTS (crème/or premium, split screen)
-// Page /login — restaurants, hôtels, aéroports, salons VIP…
+// SECTOR_CONFIG — Pages de connexion sectorisées
+// ------------------------------------------------------------
+// /login?sector=<id> affiche un split layout dédié par secteur :
+// branding & features à gauche (couleurs du secteur), formulaire
+// de connexion à droite (PanneauForm existant, inchangé).
+// Sans ?sector=, AuthView conserve son design premium crème/or.
+// Secteurs : airport · city · vip · classic · airline.
 // ============================================================
 
-export function AuthView() {
+type SectorConfig = {
+  id: string
+  name: string
+  tagline: string
+  bgColor: string
+  accentColor: string
+  textColor: string
+  features: string[]
+  emoji: string
+  description: string
+}
+
+const SECTOR_CONFIG: Record<string, SectorConfig> = {
+  airport: {
+    id: "airport",
+    name: "FeedVoice Airport",
+    tagline: "Supervision aéroportuaire temps réel",
+    bgColor: "#000d10",
+    accentColor: "#C9A961",
+    textColor: "#FAFAF7",
+    features: [
+      "Wallboard TV — alertes vocales automatiques",
+      "PWA Staff — assignation & résolution mobile",
+      "IA prédictive — anticipation des pics d'affluence",
+      "Notifications push, SMS, WhatsApp multi-canal",
+    ],
+    emoji: "✈️",
+    description: "La plateforme de supervision la plus avancée pour aéroports.",
+  },
+  city: {
+    id: "city",
+    name: "Ville Connectée",
+    tagline: "Votre quartier, connecté",
+    bgColor: "#0026A3",
+    accentColor: "#FFD700",
+    textColor: "#FFFFFF",
+    features: [
+      "Aminata — assistante vocale citoyenne (Wolof & Français)",
+      "Plaques QR — 53 communes de Dakar pré-chargeables",
+      "Signalements citoyens avec routage automatique (Police, Senelec, ONAS)",
+      "SOS silencieux, check-in école, annonces municipales",
+    ],
+    emoji: "🏙️",
+    description: "La plateforme citoyenne qui connecte la mairie aux habitants.",
+  },
+  vip: {
+    id: "vip",
+    name: "FeedVoice VIP Lounge",
+    tagline: "L'art de recevoir en toute discrétion",
+    bgColor: "#0F0F0F",
+    accentColor: "#C9A961",
+    textColor: "#F5F5F0",
+    features: [
+      "Nathalie — reconnaissance client VIP (Gold/Platinum/Diamond)",
+      "Service silencieux — push discret, aucun son",
+      "Gestion objets perdus, prêts, douches, menu",
+      "Rapport mensuel automatique",
+    ],
+    emoji: "🥂",
+    description: "Le standard du service VIP pour salons premium.",
+  },
+  classic: {
+    id: "classic",
+    name: "FeedVoice Commerce",
+    tagline: "Le Coach IA d'audit qualité continu",
+    bgColor: "#FAF6F0",
+    accentColor: "#C9A961",
+    textColor: "#1F2937",
+    features: [
+      "QR codes — collecte de retours clients en 1 scan",
+      "Coach IA — rapport quotidien avec recommandations",
+      "Alertes WhatsApp/SMS sur retours négatifs",
+      "Onboarding guidé J0/J3/J7 + recap hebdomadaire",
+    ],
+    emoji: "🏪",
+    description: "La plateforme qui transforme les retours clients en actions.",
+  },
+  airline: {
+    id: "airline",
+    name: "FeedVoice Airline",
+    tagline: "Gestion des litiges & opérations compagnie",
+    bgColor: "#1E3A8A",
+    accentColor: "#3B82F6",
+    textColor: "#FFFFFF",
+    features: [
+      "Gestion des litiges bagages en temps réel",
+      "Escalade automatique au duty manager (>10 min)",
+      "Suivi par gate et par vol",
+      "Notifications push au personnel de piste",
+    ],
+    emoji: "🛫",
+    description: "La plateforme de gestion des opérations pour compagnies aériennes.",
+  },
+}
+
+// ============================================================
+// VUE 1 — ÉTABLISSEMENTS (crème/or premium, split screen)
+// Page /login — restaurants, hôtels, aéroports, salons VIP…
+// Avec ?sector=<id> : split layout sectorisé (branding gauche,
+// formulaire droite). Sans secteur : design premium par défaut.
+// ============================================================
+
+export function AuthView({ sector }: { sector?: string | null } = {}) {
+  const config = sector ? SECTOR_CONFIG[sector] : undefined
+
+  // --- Page sectorisée : branding secteur à gauche, formulaire à droite ---
+  if (config) {
+    return (
+      <div className="relative grid min-h-screen grid-cols-1 bg-[#ffffff] lg:grid-cols-5">
+        <style dangerouslySetInnerHTML={{ __html: AUTH_CSS }} />
+
+        {/* LEFT — branding secteur (desktop only, 60%) */}
+        <div
+          className="relative hidden flex-col justify-between overflow-hidden p-12 lg:flex lg:col-span-3 xl:p-16"
+          style={{ background: config.bgColor, color: config.textColor }}
+        >
+          {/* Halos accentués subtils */}
+          <div
+            className="pointer-events-none absolute -top-32 -left-24 h-[32rem] w-[32rem] rounded-full blur-[120px]"
+            style={{ background: `${config.accentColor}22` }}
+            aria-hidden
+          />
+          <div
+            className="pointer-events-none absolute -bottom-32 -right-24 h-[28rem] w-[28rem] rounded-full blur-[120px]"
+            style={{ background: `${config.accentColor}18` }}
+            aria-hidden
+          />
+          {/* Liseré accentué vertical */}
+          <div
+            className="pointer-events-none absolute inset-y-0 right-0 w-px"
+            style={{
+              background: `linear-gradient(to bottom, transparent, ${config.accentColor}55, transparent)`,
+            }}
+            aria-hidden
+          />
+
+          {/* En-tête : emoji + nom + tagline */}
+          <div className="relative flex items-center gap-3">
+            <span className="text-4xl" aria-hidden>
+              {config.emoji}
+            </span>
+            <div>
+              <h1
+                className="text-2xl font-bold tracking-tight"
+                style={{ color: config.accentColor }}
+              >
+                {config.name}
+              </h1>
+              <p className="text-sm opacity-70">{config.tagline}</p>
+            </div>
+          </div>
+
+          {/* Centre : description + features */}
+          <div className="relative space-y-8">
+            <p className="max-w-md text-lg leading-relaxed">{config.description}</p>
+            <ul className="max-w-md space-y-3">
+              {config.features.map((f, i) => (
+                <li key={i} className="flex items-start gap-2">
+                  <Check
+                    className="mt-0.5 size-5 shrink-0"
+                    style={{ color: config.accentColor }}
+                    aria-hidden
+                  />
+                  <span className="text-sm leading-relaxed">{f}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Bas : copyright */}
+          <p className="relative text-xs opacity-50">© FeedVoice — Tous droits réservés</p>
+        </div>
+
+        {/* RIGHT — formulaire de connexion (40% desktop, plein sur mobile) */}
+        <div className="lg:col-span-2">
+          <PanneauForm sectorConfig={config} />
+        </div>
+      </div>
+    )
+  }
+
+  // --- Page par défaut (sans secteur) : design premium crème/or inchangé ---
   return (
     <div className="relative grid grid-cols-1 bg-[#ffffff] lg:grid-cols-2">
       <style dangerouslySetInnerHTML={{ __html: AUTH_CSS }} />
@@ -250,7 +437,7 @@ function PanneauVisuelEtab() {
 // formulaire actif.
 // ============================================================
 
-function PanneauForm() {
+function PanneauForm({ sectorConfig }: { sectorConfig?: SectorConfig } = {}) {
   const authMode = useAppStore((s) => s.authMode)
   const setAuthMode = useAppStore((s) => s.setAuthMode)
   const setView = useAppStore((s) => s.setView)
@@ -258,6 +445,28 @@ function PanneauForm() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-[#ffffff] px-4 py-10 sm:px-6 lg:px-8">
       <div className="w-full max-w-md space-y-6">
+        {/* Badge secteur — contexte de la page de connexion sectorisée.
+            Visible sur mobile (panneau gauche caché) comme sur desktop. */}
+        {sectorConfig && (
+          <div
+            className="flex items-center gap-2 rounded-md border px-3 py-2"
+            style={{
+              borderColor: `${sectorConfig.accentColor}66`,
+              background: `${sectorConfig.accentColor}0f`,
+            }}
+          >
+            <span className="text-base" aria-hidden>
+              {sectorConfig.emoji}
+            </span>
+            <span
+              className="text-sm font-semibold"
+              style={{ color: sectorConfig.accentColor }}
+            >
+              {sectorConfig.name}
+            </span>
+            <span className="text-xs text-stone-500">· {sectorConfig.tagline}</span>
+          </div>
+        )}
         {/* Logo mobile (panneau visuel caché sur petit écran) */}
         <div className="flex items-center justify-between lg:hidden">
           <button

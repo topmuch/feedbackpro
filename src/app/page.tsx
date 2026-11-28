@@ -427,12 +427,22 @@ export default function Home() {
     },
   }
 
+  // SECTOR_LOGIN — ?sector=<id> sélectionne une page de connexion
+  // sectorisée (airport, city, vip, classic, airline) avec un split
+  // layout dédié. Sans secteur, AuthView conserve son design premium
+  // par défaut. Lu côté client uniquement (la vue "auth" n'est rendue
+  // qu'après boot, donc window est disponible — pas de mismatch SSR).
+  const sector =
+    typeof window !== "undefined"
+      ? new URLSearchParams(window.location.search).get("sector")
+      : null
+
   return (
     <ErrorBoundary>
     <div className="flex min-h-screen flex-col bg-background">
       <main className="flex-1 flex flex-col">
         {view === "landing" && <LandingView onLogin={nav.login} onSignup={nav.signup} />}
-        {view === "auth" && <AuthView />}
+        {view === "auth" && <AuthView sector={sector ?? undefined} />}
         {view === "auth-admin" && <AuthViewAdmin />}
         {view === "dashboard" &&
           (session?.user.role === "PRO" ? (
