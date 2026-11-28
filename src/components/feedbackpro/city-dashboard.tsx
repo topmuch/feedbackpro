@@ -1224,6 +1224,14 @@ export default function CityDashboard() {
               <Download className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Exporter rapport</span>
             </Button>
+            <Button
+              size="sm"
+              onClick={handleLogout}
+              className="bg-[#E30613] text-white hover:bg-[#c50511]"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">Déconnexion</span>
+            </Button>
           </div>
         </header>
 
