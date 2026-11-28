@@ -2133,7 +2133,9 @@ function MainView({
 
         {/* Greeting */}
         <h1 className="mt-5 text-2xl font-bold leading-tight text-white">
-          {qrConfig?.qrTitle ?? (isEvening ? `Bonsoir, je suis ${aminataName}.` : `Bonjour, je suis ${aminataName}.`)}
+          {qrConfig?.qrTitle && qrConfig.qrTitle !== 'Bonjour, je suis Aminata.'
+            ? qrConfig.qrTitle
+            : (isEvening ? `Bonsoir, je suis ${aminataName}.` : `Bonjour, je suis ${aminataName}.`)}
         </h1>
         <p className="mt-1 text-sm text-white/80">
           {isNight ? '🌙 Service nuit actif.' : (qrConfig?.qrSubtitle ?? 'Je suis là pour vous aider dans votre quartier.')}

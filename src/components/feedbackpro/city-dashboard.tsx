@@ -10113,9 +10113,17 @@ function AppointmentsView() {
             delete next[id]
             return next
           })
+          // Envoie l'email de notification avec tous les détails du RDV
+          try {
+            await fetch(`/api/city/appointments/${id}/notify`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ email: trimmed }),
+            })
+          } catch { /* non bloquant */ }
           toast({
             title: `RDV assigné à ${trimmed}`,
-            description: 'Email de notification envoyé à la personne assignée.',
+            description: 'Email envoyé avec le motif, le nom et les coordonnées du demandeur.',
           })
         } else {
           toast({
