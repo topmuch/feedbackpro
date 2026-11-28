@@ -9,7 +9,8 @@
 //                  isPremium?: boolean,
 //                  isSponsored?: boolean,
 //                  offerText?: string,
-//                  offerEndsAt?: string (ISO) }
+//                  offerEndsAt?: string (ISO),
+//                  active?: boolean }  // active=false → bloque toute activité
 //         Quand status → "approved", on force aussi verified=true.
 //         Retourne { ok: true, data: { business: {...} } }
 //
@@ -144,6 +145,7 @@ export async function PATCH(
     offerText?: string
     offerEndsAt?: string
     premiumFeatures?: string[]
+    active?: boolean
     // Premium features — JSON string sérialisé côté client
     menu?: string | null
     priceGrid?: string | null
@@ -190,6 +192,12 @@ export async function PATCH(
   // --- isSponsored ---
   if (typeof b.isSponsored === 'boolean') {
     data.isSponsored = b.isSponsored
+  }
+
+  // --- active (boolean) — bloque toute activité du commerce côté citoyen.
+  //     Utilisé par la mairie pour « Bloquer » un commerce sans le supprimer.
+  if (typeof b.active === 'boolean') {
+    data.active = b.active
   }
 
   // --- offerText (string optionnel, max 500) ---

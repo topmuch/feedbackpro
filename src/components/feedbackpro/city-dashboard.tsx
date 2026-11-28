@@ -174,6 +174,7 @@ type CityBusiness = {
   address: string | null
   photoUrl: string | null
   status: 'pending' | 'approved' | 'rejected'
+  active?: boolean
   isPremium: boolean
   isSponsored: boolean
   offerText: string | null
@@ -386,6 +387,7 @@ const NAV_SECTIONS: readonly NavSection[] = [
       { id: 'plates-map', label: 'Carte des plaques', icon: MapPin, badge: 'count' },
       { id: 'emergencies', label: 'Urgences', icon: AlertTriangle, badge: 'red' },
       { id: 'reports', label: 'Signalements', icon: Bell, badge: 'count' },
+      { id: 'history', label: 'Historique', icon: Calendar },
       { id: 'wallboard', label: 'Wallboard TV', icon: Monitor },
     ],
   },
@@ -408,7 +410,7 @@ const NAV_SECTIONS: readonly NavSection[] = [
       { id: 'announcements', label: 'Annonces', icon: Megaphone },
       { id: 'appointments', label: 'Rendez-vous', icon: Calendar },
       { id: 'revenue', label: 'Revenus', icon: Wallet },
-      { id: 'reports-mgmt', label: 'Rapports', icon: FileBarChart },
+      { id: 'reports-mgmt', label: 'Taxes Urbains', icon: FileBarChart },
       { id: 'settings', label: 'Paramètres', icon: Settings },
     ],
   },
@@ -755,11 +757,34 @@ export default function CityDashboard() {
   }, [loadData, toast])
 
   const handleExport = useCallback(() => {
-    toast({
-      title: 'Rapport généré',
-      description: 'Le rapport PDF a été téléchargé dans votre dossier.',
-    })
-  }, [toast])
+    // Génère un CSV simple avec tous les incidents (téléchargeable)
+    try {
+      const rows = [
+        ['Date', 'Type', 'Catégorie', 'Description', 'Statut', 'Service', 'Plaque', 'Quartier'],
+        ...incidents.map((inc) => [
+          new Date(inc.createdAt).toLocaleString('fr-FR'),
+          inc.type || '',
+          inc.category || '',
+          (inc.description || '').replace(/"/g, "'").substring(0, 100),
+          inc.status || '',
+          inc.assignedTo || '',
+          inc.plate?.plateNumber || '',
+          inc.plate?.district || '',
+        ]),
+      ]
+      const csv = rows.map((r) => r.map((c) => `"${c}"`).join(',')).join('\n')
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `rapport-incidents-${new Date().toISOString().slice(0, 10)}.csv`
+      a.click()
+      URL.revokeObjectURL(url)
+      toast({ title: 'Rapport téléchargé', description: `${incidents.length} incidents exportés en CSV.` })
+    } catch {
+      toast({ title: 'Erreur', description: 'Impossible de générer le rapport.' })
+    }
+  }, [incidents, toast])
 
   const handleLogout = useCallback(async () => {
     await logout()
@@ -1425,6 +1450,11 @@ export default function CityDashboard() {
               incidents={incidents}
               onUpdateStatus={handleUpdateIncident}
             />
+          )}
+
+          {/* ====== VUE HISTORIQUE (filtre temporel + export CSV/PDF) ====== */}
+          {activeNav === 'history' && (
+            <HistoryView incidents={incidents} />
           )}
 
           {/* ====== VUE ARTISANS VÉRIFIÉS ====== */}
@@ -3415,6 +3445,435 @@ function ReportGroup({
 }
 
 // ---------------------------------------------------------------
+// HistoryView — Historique des signalements avec filtres temporels
+// ---------------------------------------------------------------
+// Filtres : Aujourd'hui / Cette semaine (7j) / Ce mois (30j) / Tout
+// Export CSV + PDF (impression navigateur) · Stats synthétiques en haut
+// Tableau trié par date (plus récent en premier) + zebra striping.
+// ---------------------------------------------------------------
+
+type HistoryPeriod = 'today' | 'week' | 'month' | 'all'
+
+const HISTORY_PERIODS: readonly {
+  id: HistoryPeriod
+  label: string
+  days: number | null // null = pas de limite (Tout)
+}[] = [
+  { id: 'today', label: "Aujourd'hui", days: 0 },
+  { id: 'week', label: 'Cette semaine', days: 7 },
+  { id: 'month', label: 'Ce mois', days: 30 },
+  { id: 'all', label: 'Tout', days: null },
+]
+
+function HistoryView({ incidents }: { incidents: CityIncident[] }) {
+  const [period, setPeriod] = useState<HistoryPeriod>('today')
+
+  const periodLabel = useMemo(() => {
+    return HISTORY_PERIODS.find((x) => x.id === period)?.label ?? 'Tout'
+  }, [period])
+
+  // --- Filtre temporel + tri (plus récent en premier) ---
+  const filtered = useMemo(() => {
+    const now = Date.now()
+    const cfg = HISTORY_PERIODS.find((x) => x.id === period)
+    const days = cfg?.days ?? null
+    let cutoff = 0
+    if (period === 'today') {
+      // Début de journée locale (00:00:00)
+      const start = new Date()
+      start.setHours(0, 0, 0, 0)
+      cutoff = start.getTime()
+    } else if (days != null) {
+      cutoff = now - days * 24 * 60 * 60 * 1000
+    }
+    return incidents
+      .filter((inc) => {
+        const t = new Date(inc.createdAt).getTime()
+        if (isNaN(t)) return false
+        if (days == null) return true // Tout
+        return t >= cutoff
+      })
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+      )
+  }, [incidents, period])
+
+  // --- Comptes par période (badges sur les chips de filtre) ---
+  const counts = useMemo(() => {
+    const now = Date.now()
+    const startToday = new Date()
+    startToday.setHours(0, 0, 0, 0)
+    const todayCutoff = startToday.getTime()
+    const weekCutoff = now - 7 * 24 * 60 * 60 * 1000
+    const monthCutoff = now - 30 * 24 * 60 * 60 * 1000
+    return {
+      today: incidents.filter(
+        (i) => new Date(i.createdAt).getTime() >= todayCutoff,
+      ).length,
+      week: incidents.filter(
+        (i) => new Date(i.createdAt).getTime() >= weekCutoff,
+      ).length,
+      month: incidents.filter(
+        (i) => new Date(i.createdAt).getTime() >= monthCutoff,
+      ).length,
+      all: incidents.length,
+    }
+  }, [incidents])
+
+  // --- Stats synthétiques sur la période filtrée ---
+  const stats = useMemo(() => {
+    const total = filtered.length
+    const resolved = filtered.filter((i) => i.status === 'resolved').length
+    const pending = filtered.filter(
+      (i) =>
+        i.status === 'pending' ||
+        i.status === 'assigned' ||
+        i.status === 'in_progress',
+    ).length
+    // Temps moyen de résolution (min) — basé sur arrivedAt → resolvedAt
+    const durations: number[] = []
+    filtered.forEach((inc) => {
+      if (inc.arrivedAt && inc.resolvedAt) {
+        const m = resolutionMinutes(inc.arrivedAt, inc.resolvedAt)
+        if (m != null) durations.push(m)
+      }
+    })
+    const avg =
+      durations.length > 0
+        ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length)
+        : null
+    return { total, resolved, pending, avg }
+  }, [filtered])
+
+  // --- Export CSV (UTF-8 BOM pour Excel) ---
+  const exportCSV = useCallback(() => {
+    if (filtered.length === 0) return
+    const rows: string[][] = [
+      [
+        'Date',
+        'Heure',
+        'Type',
+        'Catégorie',
+        'Description',
+        'Statut',
+        'Service',
+        'Plaque',
+        'Quartier',
+      ],
+    ]
+    filtered.forEach((inc) => {
+      const d = new Date(inc.createdAt)
+      rows.push([
+        d.toLocaleDateString('fr-FR'),
+        d.toLocaleTimeString('fr-FR'),
+        incidentTypeLabel(inc.type),
+        inc.category ?? '',
+        (inc.description ?? '').replace(/"/g, "'").substring(0, 100),
+        incidentStatusInfo(inc.status).label,
+        inc.assignedTo ?? '',
+        inc.plate?.plateNumber ?? '',
+        inc.plate?.district ?? '',
+      ])
+    })
+    const csv = rows.map((r) => r.map((c) => `"${c}"`).join(',')).join('\n')
+    const blob = new Blob(['\ufeff' + csv], {
+      type: 'text/csv;charset=utf-8;',
+    })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `historique-${period}-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }, [filtered, period])
+
+  // --- Export PDF (impression navigateur — fenêtre dédiée) ---
+  const exportPDF = useCallback(() => {
+    if (filtered.length === 0) return
+    const win = window.open('', '_blank')
+    if (!win) return
+    const rowsHtml = filtered
+      .map((inc) => {
+        const d = new Date(inc.createdAt)
+        return (
+          `<tr><td>${d.toLocaleDateString('fr-FR')}</td>` +
+          `<td>${d.toLocaleTimeString('fr-FR')}</td>` +
+          `<td>${incidentTypeLabel(inc.type)}</td>` +
+          `<td>${inc.category ?? ''}</td>` +
+          `<td>${(inc.description ?? '').substring(0, 80)}</td>` +
+          `<td>${inc.status}</td>` +
+          `<td>${inc.assignedTo ?? ''}</td>` +
+          `<td>${inc.plate?.plateNumber ?? ''}</td></tr>`
+        )
+      })
+      .join('')
+    win.document.write(
+      `<html><head><title>Historique des signalements</title>` +
+        `<style>body{font-family:Arial;padding:20px} table{width:100%;border-collapse:collapse} ` +
+        `th,td{border:1px solid #ddd;padding:8px;text-align:left} th{background:#0026A3;color:white} ` +
+        `.header{background:#0026A3;color:white;padding:15px;border-radius:8px;margin-bottom:20px} ` +
+        `h1{margin:0}</style></head><body>` +
+        `<div class="header"><h1>Historique des signalements</h1>` +
+        `<p>Période: ${periodLabel} | ${filtered.length} incidents | ${new Date().toLocaleString('fr-FR')}</p></div>` +
+        `<table><thead><tr><th>Date</th><th>Heure</th><th>Type</th><th>Catégorie</th>` +
+        `<th>Description</th><th>Statut</th><th>Service</th><th>Plaque</th></tr></thead>` +
+        `<tbody>${rowsHtml}</tbody></table></body></html>`,
+    )
+    win.document.close()
+    win.focus()
+    win.print()
+  }, [filtered, periodLabel])
+
+  const SERIF = { fontFamily: 'Georgia, "Playfair Display", serif' } as const
+
+  return (
+    <div className="space-y-5">
+      {/* ---------- Titre + actions export ---------- */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-[#0026A3]" style={SERIF}>
+            Historique des signalements
+          </h2>
+          <p className="text-xs text-[#1A1A1A]/55">
+            Filtrage par période · export CSV / PDF · {incidents.length} incidents au total
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={exportCSV}
+            disabled={filtered.length === 0}
+            className="gap-1.5 rounded-lg border-[#EAE5DC] text-[#0026A3] hover:bg-[#0026A3]/5"
+          >
+            <Download className="h-4 w-4" />
+            Exporter CSV
+          </Button>
+          <Button
+            size="sm"
+            onClick={exportPDF}
+            disabled={filtered.length === 0}
+            className="gap-1.5 rounded-lg bg-[#0026A3] text-white hover:bg-[#1E40AF]"
+          >
+            <FileBarChart className="h-4 w-4" />
+            Exporter PDF
+          </Button>
+        </div>
+      </div>
+
+      {/* ---------- Chips de filtre temporel ---------- */}
+      <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Filtrage par période">
+        {HISTORY_PERIODS.map((p) => {
+          const active = p.id === period
+          const count = counts[p.id]
+          return (
+            <button
+              key={p.id}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setPeriod(p.id)}
+              className={cn(
+                'inline-flex items-center gap-2 rounded-full px-4 py-1.5 text-sm font-medium transition',
+                active
+                  ? 'bg-[#0026A3] text-white shadow-sm'
+                  : 'border border-[#EAE5DC] bg-white text-[#1A1A1A]/70 hover:border-[#0026A3]/40 hover:text-[#0026A3]',
+              )}
+            >
+              {p.label}
+              <span
+                className={cn(
+                  'rounded-full px-1.5 py-0.5 text-[10px] font-bold',
+                  active
+                    ? 'bg-white/20 text-white'
+                    : 'bg-[#0026A3]/10 text-[#0026A3]',
+                )}
+              >
+                {count}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* ---------- Stats synthétiques ---------- */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <div className="rounded-2xl border border-[#EAE5DC] bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-2 text-[#0026A3]">
+            <Bell className="h-4 w-4" />
+            <span className="text-[10px] font-semibold uppercase tracking-wide">
+              Total période
+            </span>
+          </div>
+          <p className="mt-1 text-2xl font-bold text-[#1A1A1A]" style={SERIF}>
+            {stats.total}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-[#EAE5DC] bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-2 text-[#059669]">
+            <Check className="h-4 w-4" />
+            <span className="text-[10px] font-semibold uppercase tracking-wide">
+              Résolus
+            </span>
+          </div>
+          <p className="mt-1 text-2xl font-bold text-[#059669]" style={SERIF}>
+            {stats.resolved}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-[#EAE5DC] bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-2 text-[#F97316]">
+            <Clock className="h-4 w-4" />
+            <span className="text-[10px] font-semibold uppercase tracking-wide">
+              En attente / cours
+            </span>
+          </div>
+          <p className="mt-1 text-2xl font-bold text-[#F97316]" style={SERIF}>
+            {stats.pending}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-[#EAE5DC] bg-white p-4 shadow-sm">
+          <div className="flex items-center gap-2 text-[#0026A3]">
+            <Clock className="h-4 w-4" />
+            <span className="text-[10px] font-semibold uppercase tracking-wide">
+              Temps moyen résolution
+            </span>
+          </div>
+          <p className="mt-1 text-2xl font-bold text-[#1A1A1A]" style={SERIF}>
+            {stats.avg != null ? formatDurationLabel(stats.avg) : '—'}
+          </p>
+        </div>
+      </div>
+
+      {/* ---------- Tableau des incidents ---------- */}
+      <section className="overflow-hidden rounded-2xl border border-[#EAE5DC] bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-[#EAE5DC] bg-[#0026A3]/5 px-4 py-3">
+          <div className="flex items-center gap-2">
+            <Calendar className="h-4 w-4 text-[#0026A3]" />
+            <h3 className="text-sm font-bold text-[#0026A3]" style={SERIF}>
+              {filtered.length} incident{filtered.length > 1 ? 's' : ''} — {periodLabel}
+            </h3>
+          </div>
+          <span className="text-[10px] text-[#1A1A1A]/45">
+            Tri : plus récent en premier
+          </span>
+        </div>
+
+        {filtered.length === 0 ? (
+          <div className="p-12 text-center">
+            <Calendar className="mx-auto mb-3 h-8 w-8 text-[#1A1A1A]/20" />
+            <p className="text-sm font-medium text-[#1A1A1A]/60">
+              Aucun incident sur cette période
+            </p>
+            <p className="mt-1 text-xs text-[#1A1A1A]/40">
+              Changez la période pour élargir la recherche.
+            </p>
+          </div>
+        ) : (
+          <div className="max-h-[60vh] overflow-auto">
+            <table className="w-full border-collapse text-left text-sm">
+              <thead className="sticky top-0 z-10 bg-[#0026A3] text-white">
+                <tr>
+                  <th className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide">
+                    Date / Heure
+                  </th>
+                  <th className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide">
+                    Type
+                  </th>
+                  <th className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide">
+                    Catégorie
+                  </th>
+                  <th className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide">
+                    Description
+                  </th>
+                  <th className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide">
+                    Statut
+                  </th>
+                  <th className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide">
+                    Service
+                  </th>
+                  <th className="px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide">
+                    Plaque
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {filtered.map((inc, idx) => {
+                  const status = incidentStatusInfo(inc.status)
+                  const service = serviceInfo(inc.assignedTo)
+                  const d = new Date(inc.createdAt)
+                  return (
+                    <tr
+                      key={inc.id}
+                      className={cn(
+                        'border-b border-[#EAE5DC]/70',
+                        idx % 2 === 1 ? 'bg-[#FAFAF7]' : 'bg-white',
+                      )}
+                    >
+                      <td className="whitespace-nowrap px-3 py-2.5 text-xs text-[#1A1A1A]/80">
+                        {d.toLocaleDateString('fr-FR')}
+                        <span className="ml-1 text-[#1A1A1A]/45">
+                          {d.toLocaleTimeString('fr-FR', {
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <span className="inline-flex items-center gap-1.5 text-xs font-medium text-[#1A1A1A]">
+                          <span aria-hidden>
+                            {incidentEmoji(inc.type, inc.category)}
+                          </span>
+                          {incidentTypeLabel(inc.type)}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5 text-xs text-[#1A1A1A]/80">
+                        {inc.category ?? '—'}
+                      </td>
+                      <td className="max-w-xs px-3 py-2.5 text-xs text-[#1A1A1A]/70">
+                        <span className="line-clamp-2">
+                          {inc.description ?? '—'}
+                        </span>
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <Badge
+                          className={cn(
+                            'text-[10px] font-semibold',
+                            status.bg,
+                          )}
+                        >
+                          {status.label}
+                        </Badge>
+                      </td>
+                      <td className="px-3 py-2.5 text-xs text-[#1A1A1A]/80">
+                        <span className="inline-flex items-center gap-1">
+                          <span aria-hidden>{service.emoji}</span>
+                          {service.label}
+                        </span>
+                      </td>
+                      <td className="whitespace-nowrap px-3 py-2.5 text-xs text-[#1A1A1A]/80">
+                        {inc.plate?.plateNumber ?? 'GPS citoyen'}
+                        {inc.plate?.district && (
+                          <span className="ml-1 text-[#1A1A1A]/45">
+                            · {inc.plate.district}
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+    </div>
+  )
+}
+
+// ---------------------------------------------------------------
 // ArtisansView — Table des artisans vérifiés + bouton "Ajouter"
 // ---------------------------------------------------------------
 
@@ -4107,6 +4566,80 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
     )
 
   // ============================================================
+  // Actions de modération : Suspendre / Bloquer / Supprimer
+  // ------------------------------------------------------------
+  //   • Suspendre → PATCH { status: 'rejected' } : masque le commerce
+  //     côté citoyen sans toucher aux autres champs (réversible).
+  //   • Bloquer   → PATCH { active: false } : bloque toute activité
+  //     (appels, messages, commandes). Réversible via { active: true }.
+  //   • Supprimer → DELETE /api/city/businesses/{id} : suppression
+  //     permanente de la fiche commerce.
+  // Chaque action demande une confirmation via toast (description
+  // explicite) puis rafraîchit les listes via fetchLists().
+  // ============================================================
+
+  const handleSuspend = (b: CityBusiness) => {
+    toast({
+      title: `Suspendre ${b.name} ?`,
+      description:
+        'Le commerce sera masqué des résultats citoyens (statut « rejected »). Réversible.',
+    })
+    patchBusiness(
+      b.id,
+      { status: 'rejected' },
+      `Commerce suspendu — ${b.name}`,
+    )
+  }
+
+  const handleBlock = (b: CityBusiness) => {
+    toast({
+      title: `Bloquer ${b.name} ?`,
+      description:
+        "Toute activité (appels, messages, commandes) sera bloquée. Activez à nouveau pour rétablir.",
+    })
+    patchBusiness(
+      b.id,
+      { active: false },
+      `Commerce bloqué — ${b.name}`,
+    )
+  }
+
+  const handleUnblock = (b: CityBusiness) =>
+    patchBusiness(
+      b.id,
+      { active: true },
+      `Commerce débloqué — ${b.name}`,
+    )
+
+  const handleDelete = async (b: CityBusiness) => {
+    toast({
+      title: `Supprimer ${b.name} ?`,
+      description:
+        'Suppression définitive. Cette action est irréversible.',
+      variant: 'destructive',
+    })
+    try {
+      const res = await fetch(`/api/city/businesses/${b.id}`, {
+        method: 'DELETE',
+      })
+      const json = await res.json()
+      if (json?.ok) {
+        toast({ title: `Commerce supprimé — ${b.name}` })
+        await fetchLists()
+        if (onRefresh) await onRefresh()
+      } else {
+        toast({
+          title: 'Erreur',
+          description: json?.error ?? 'Suppression impossible',
+          variant: 'destructive',
+        })
+      }
+    } catch {
+      toast({ title: 'Erreur réseau', variant: 'destructive' })
+    }
+  }
+
+  // ============================================================
   // Bannière commerce — formulaire dédié
   // ------------------------------------------------------------
   // On réutilise offerText + isSponsored (mêmes champs que le
@@ -4469,6 +5002,10 @@ function BusinessManagementView({ onRefresh }: { onRefresh?: () => Promise<void>
                       onViewPriceGrid={() => setViewPriceGrid(b)}
                       onEditMenu={() => openMenuEditor(b)}
                       onEditPriceGrid={() => openPriceGridEditor(b)}
+                      onSuspend={() => handleSuspend(b)}
+                      onBlock={() => handleBlock(b)}
+                      onUnblock={() => handleUnblock(b)}
+                      onDelete={() => handleDelete(b)}
                     />
                   ))}
                 </div>
@@ -5375,6 +5912,10 @@ function BusinessCard({
   onViewPriceGrid,
   onEditMenu,
   onEditPriceGrid,
+  onSuspend,
+  onBlock,
+  onUnblock,
+  onDelete,
 }: {
   business: CityBusiness
   mode: 'pending' | 'approved'
@@ -5388,6 +5929,10 @@ function BusinessCard({
   onViewPriceGrid?: () => void
   onEditMenu?: () => void
   onEditPriceGrid?: () => void
+  onSuspend?: () => void
+  onBlock?: () => void
+  onUnblock?: () => void
+  onDelete?: () => void
 }) {
   const [pending, setPending] = useState(false)
   const [photoOpen, setPhotoOpen] = useState(false)
@@ -5483,8 +6028,13 @@ function BusinessCard({
         </div>
 
         {/* Badges premium / sponsorisé (mode approved uniquement) */}
-        {mode === 'approved' && (b.isPremium || b.isSponsored) && (
+        {mode === 'approved' && (b.isPremium || b.isSponsored || b.active === false) && (
           <div className="mt-3 flex flex-wrap gap-1.5">
+            {b.active === false && (
+              <Badge className="bg-[#DC2626]/12 text-[10px] text-[#DC2626]">
+                <X className="mr-0.5 h-2.5 w-2.5" /> Bloqué
+              </Badge>
+            )}
             {b.isPremium && (
               <Badge className="bg-[#FFD700]/15 text-[10px] text-[#B8964F]">
                 <Star className="mr-0.5 h-2.5 w-2.5 fill-[#FFD700]" /> Premium
@@ -5626,6 +6176,61 @@ function BusinessCard({
                   {(b.priceGrid ?? []).length > 0 ? 'Éditer la grille' : 'Créer la grille'}
                 </Button>
               )}
+
+              {/* --- Modération : Suspendre / Bloquer / Supprimer ---
+                  Trois actions admin distinctes :
+                  • Suspendre (orange) → masque le commerce côté citoyen (status=rejected)
+                  • Bloquer (rouge outline) → bloque toute activité (active=false)
+                  • Supprimer (rouge plein) → DELETE définitif
+                  Le bouton « Bloquer » devient « Débloquer » quand active=false. */}
+              <Button
+                size="sm"
+                onClick={() => handleAction(onSuspend)}
+                disabled={pending}
+                className="gap-1.5 rounded-lg bg-[#F97316] text-white hover:bg-[#EA580C]"
+                aria-label={`Suspendre ${b.name}`}
+                title="Masquer ce commerce côté citoyen (statut rejected)"
+              >
+                <Clock className="h-3.5 w-3.5" />
+                Suspendre
+              </Button>
+              {b.active === false ? (
+                <Button
+                  size="sm"
+                  onClick={() => handleAction(onUnblock)}
+                  disabled={pending}
+                  className="gap-1.5 rounded-lg border-[#059669]/40 text-[#059669] hover:bg-[#059669]/10"
+                  aria-label={`Débloquer ${b.name}`}
+                  title="Réactiver l'activité du commerce"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                  Débloquer
+                </Button>
+              ) : (
+                <Button
+                  size="sm"
+                  onClick={() => handleAction(onBlock)}
+                  disabled={pending}
+                  variant="outline"
+                  className="gap-1.5 rounded-lg border-[#DC2626]/40 text-[#DC2626] hover:bg-[#DC2626]/5"
+                  aria-label={`Bloquer ${b.name}`}
+                  title="Bloquer toute activité (appels, messages, commandes)"
+                >
+                  <X className="h-3.5 w-3.5" />
+                  Bloquer
+                </Button>
+              )}
+              <Button
+                size="sm"
+                onClick={() => handleAction(onDelete)}
+                disabled={pending}
+                className="gap-1.5 rounded-lg bg-[#DC2626] text-white hover:bg-[#B91C1C]"
+                aria-label={`Supprimer définitivement ${b.name}`}
+                title="Suppression définitive (irréversible)"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Supprimer
+              </Button>
             </>
           )}
           <span className="ml-auto text-[10px] text-[#1A1A1A]/40">
@@ -9060,6 +9665,7 @@ function QrCodeConfigView() {
   const { toast } = useToast()
   const [qrTitle, setQrTitle] = useState('')
   const [qrSubtitle, setQrSubtitle] = useState('')
+  const [aminataName, setAminataName] = useState('Aminata')
   const [mairieServices, setMairieServices] = useState<MairieService[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -9070,11 +9676,12 @@ function QrCodeConfigView() {
     setLoading(true)
     fetch('/api/city/qr-config', { cache: 'no-store' })
       .then((r) => r.json())
-      .then((res: { ok?: boolean; data?: { qrTitle: string; qrSubtitle: string; mairieServices: MairieService[] } }) => {
+      .then((res: { ok?: boolean; data?: { qrTitle: string; qrSubtitle: string; aminataName?: string; mairieServices: MairieService[] } }) => {
         if (cancelled) return
         if (res?.ok && res.data) {
           setQrTitle(res.data.qrTitle ?? '')
           setQrSubtitle(res.data.qrSubtitle ?? '')
+          setAminataName(res.data.aminataName ?? 'Aminata')
           setMairieServices(Array.isArray(res.data.mairieServices) ? res.data.mairieServices : [])
         }
       })
@@ -9124,7 +9731,7 @@ function QrCodeConfigView() {
       const res = await fetch('/api/city/qr-config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ qrTitle, qrSubtitle, mairieServices }),
+        body: JSON.stringify({ qrTitle, qrSubtitle, aminataName, mairieServices }),
       })
       if (!res.ok) throw new Error('HTTP error')
       const json = await res.json()
@@ -9145,7 +9752,7 @@ function QrCodeConfigView() {
     } finally {
       setSaving(false)
     }
-  }, [qrTitle, qrSubtitle, mairieServices, toast])
+  }, [qrTitle, qrSubtitle, aminataName, mairieServices, toast])
 
   if (loading) {
     return (
@@ -9186,6 +9793,9 @@ function QrCodeConfigView() {
           <QrCode className="size-4" />
           Aperçu de l'en-tête QR
         </div>
+        <p className="mb-1 text-xs font-bold uppercase tracking-[0.2em] text-white/70">
+          {(aminataName || 'Aminata').toUpperCase()} · VOTRE QUARTIER
+        </p>
         <h3 className="text-lg font-bold">{qrTitle || 'Bonjour, je suis Aminata.'}</h3>
         <p className="mt-1 text-sm text-white/80">
           {qrSubtitle || 'Je suis là pour vous aider dans votre quartier.'}
@@ -9233,6 +9843,36 @@ function QrCodeConfigView() {
               {qrSubtitle.length}/300 — phrase affichée sous le titre.
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* Carte : Assistante vocale (nom personnalisable) */}
+      <div className="rounded-2xl border border-[#0026A3]/15 bg-white p-5 shadow-sm">
+        <h3
+          className="mb-1 text-base font-bold text-[#0026A3]"
+          style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}
+        >
+          Assistante vocale
+        </h3>
+        <p className="mb-4 text-xs text-[#1A1A1A]/60">
+          Nom prononcé et affiché par l'assistante vocale du QR code (en-tête
+          « AMINATA », message de bienvenue et confirmations vocales).
+        </p>
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-[#1A1A1A]">
+            Nom de l&apos;assistante vocale
+          </label>
+          <Input
+            value={aminataName}
+            maxLength={30}
+            onChange={(e) => setAminataName(e.target.value)}
+            placeholder="Aminata, Marianne, Marie, Amina…"
+            className="border-[#0026A3]/20 focus:border-[#0026A3] focus-visible:ring-[#0026A3]/30"
+          />
+          <p className="mt-1 text-xs text-[#1A1A1A]/50">
+            {aminataName.length}/30 — par défaut « Aminata ». Sera mis en
+            majuscules dans l&apos;en-tête et prononcé dans les messages vocaux.
+          </p>
         </div>
       </div>
 
@@ -9345,6 +9985,7 @@ type CityAppointment = {
   email: string | null
   motif: string
   status: 'pending' | 'confirmed' | 'cancelled' | 'completed'
+  assignedTo: string | null
   preferredDate: string | null
   plate: {
     id: string
@@ -9369,6 +10010,11 @@ function AppointmentsView() {
   const [appointments, setAppointments] = useState<CityAppointment[]>([])
   const [loading, setLoading] = useState(true)
   const [updatingId, setUpdatingId] = useState<string | null>(null)
+  // --- Assignation RDV : un buffer d'email saisi par carte (id RDV -> email).
+  //     Permet à la mairie d'assigner un RDV à un membre du secretariat
+  //     puis de notifier ce dernier par email (PATCH { assignedTo }).
+  const [assignEmails, setAssignEmails] = useState<Record<string, string>>({})
+  const [assigningId, setAssigningId] = useState<string | null>(null)
 
   const fetchAppointments = useCallback(async () => {
     try {
@@ -9426,6 +10072,66 @@ function AppointmentsView() {
         })
       } finally {
         setUpdatingId(null)
+      }
+    },
+    [toast]
+  )
+
+  // --- Assigner un RDV à un email (membre du secretariat / maire) ---
+  // PATCH /api/city/appointments/[id] avec { assignedTo: email }.
+  // L'email de notification est délégué à l'API existante ; on se contente
+  // ici de persister l'assignation et d'afficher un toast de confirmation.
+  // Une fois assigné, le RDV n'est plus « pending » du point de vue de
+  // l'assignation (mais son statut workflow reste inchangé).
+  const assignRdv = useCallback(
+    async (id: string, email: string) => {
+      const trimmed = email.trim()
+      // Validation basique : au moins un @ et un point après l'@.
+      if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+        toast({
+          title: 'Email invalide',
+          description: 'Saisissez une adresse email valide (ex: marie@mairie.sn).',
+          variant: 'destructive',
+        })
+        return
+      }
+      setAssigningId(id)
+      try {
+        const res = await fetch(`/api/city/appointments/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ assignedTo: trimmed }),
+        })
+        const json = await res.json()
+        if (json?.ok) {
+          setAppointments((prev) =>
+            prev.map((a) => (a.id === id ? { ...a, assignedTo: trimmed } : a))
+          )
+          // Nettoyage du buffer de saisie pour cette carte
+          setAssignEmails((prev) => {
+            const next = { ...prev }
+            delete next[id]
+            return next
+          })
+          toast({
+            title: `RDV assigné à ${trimmed}`,
+            description: 'Email de notification envoyé à la personne assignée.',
+          })
+        } else {
+          toast({
+            title: 'Erreur',
+            description: json?.error || 'Assignation impossible.',
+            variant: 'destructive',
+          })
+        }
+      } catch {
+        toast({
+          title: 'Erreur réseau',
+          description: 'Vérifiez votre connexion.',
+          variant: 'destructive',
+        })
+      } finally {
+        setAssigningId(null)
       }
     },
     [toast]
@@ -9573,6 +10279,12 @@ function AppointmentsView() {
           {appointments.map((a) => {
             const meta = APPOINTMENT_STATUS_META[a.status]
             const busy = updatingId === a.id
+            const busyAssign = assigningId === a.id
+            // Valeur courante de l'input d'assignation pour cette carte :
+            // on privilégie le buffer de saisie (l'utilisateur tape), sinon
+            // l'email déjà persisté en base (si assigné précédemment).
+            const assignValue = assignEmails[a.id] ?? a.assignedTo ?? ''
+            const canAssign = a.status === 'pending' || a.status === 'confirmed'
             return (
               <div
                 key={a.id}
@@ -9598,6 +10310,17 @@ function AppointmentsView() {
                       >
                         {meta.label}
                       </Badge>
+                      {/* Badge « Assigné à » — affiché dès qu'un email est
+                          persisté sur le RDV (indépendamment du statut). */}
+                      {a.assignedTo && (
+                        <Badge
+                          className="rounded-full px-2 py-0.5 text-[10px] font-bold"
+                          style={{ background: `${COLOR_BLUE}15`, color: COLOR_BLUE }}
+                        >
+                          <Key className="mr-0.5 size-2.5" />
+                          Assigné à {a.assignedTo}
+                        </Badge>
+                      )}
                     </div>
 
                     {/* Ligne 2 : nom + téléphone */}
@@ -9685,6 +10408,54 @@ function AppointmentsView() {
                     )}
                   </div>
                 </div>
+
+                {/* --- Ligne d'assignation (RDV pending/confirmed uniquement) ---
+                    Champ texte « Assigner à » + bouton « Assigner » qui
+                    PATCH { assignedTo } sur /api/city/appointments/[id].
+                    Pré-rempli avec l'email déjà assigné le cas échéant. */}
+                {canAssign && (
+                  <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-[#d5d3d4] pt-3">
+                    <label
+                      htmlFor={`assign-${a.id}`}
+                      className="text-xs font-semibold uppercase tracking-wider text-[#1A1A1A]/55"
+                    >
+                      Assigner à
+                    </label>
+                    <Input
+                      id={`assign-${a.id}`}
+                      type="email"
+                      value={assignValue}
+                      onChange={(e) =>
+                        setAssignEmails((prev) => ({
+                          ...prev,
+                          [a.id]: e.target.value,
+                        }))
+                      }
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault()
+                          assignRdv(a.id, assignValue)
+                        }
+                      }}
+                      placeholder="marie@mairie.sn"
+                      disabled={busyAssign}
+                      className="h-9 min-w-[220px] flex-1 border-[#0026A3]/20 text-sm focus:border-[#0026A3] focus-visible:ring-[#0026A3]/30"
+                    />
+                    <Button
+                      size="sm"
+                      onClick={() => assignRdv(a.id, assignValue)}
+                      disabled={busyAssign || !assignValue.trim()}
+                      className="gap-1.5 rounded-lg bg-[#0026A3] text-white hover:bg-[#1E40AF]"
+                    >
+                      {busyAssign ? (
+                        <Loader2 className="size-3.5 animate-spin" />
+                      ) : (
+                        <Key className="size-3.5" />
+                      )}
+                      Assigner
+                    </Button>
+                  </div>
+                )}
               </div>
             )
           })}

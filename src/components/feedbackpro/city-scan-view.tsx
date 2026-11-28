@@ -1203,6 +1203,7 @@ export function CityScanView({
   const [qrConfig, setQrConfig] = useState<{
     qrTitle: string
     qrSubtitle: string
+    aminataName: string
     mairieServices: Array<{ label: string; phone: string }>
   } | null>(null)
   useEffect(() => {
@@ -1214,6 +1215,7 @@ export function CityScanView({
           data?: {
             qrTitle?: string
             qrSubtitle?: string
+            aminataName?: string
             mairieServices?: Array<{ label: string; phone: string }>
           }
         }) => {
@@ -1221,6 +1223,7 @@ export function CityScanView({
             setQrConfig({
               qrTitle: d.data.qrTitle ?? '',
               qrSubtitle: d.data.qrSubtitle ?? '',
+              aminataName: d.data.aminataName ?? 'Aminata',
               mairieServices: Array.isArray(d.data.mairieServices)
                 ? d.data.mairieServices
                 : [],
@@ -1666,7 +1669,7 @@ export function CityScanView({
             Connexion à votre quartier…
           </p>
           <p className="text-sm text-[#1A1A1A]/50">
-            Aminata identifie votre plaque QR
+            {(qrConfig?.aminataName ?? 'Aminata')} identifie votre plaque QR
           </p>
         </div>
       </div>
@@ -1678,7 +1681,11 @@ export function CityScanView({
   // Style signalétique aéroport — harmonisé avec la page principale
   // ---------------------------------------------------------------
   if (phase === 'welcome' && plate) {
-    const welcomeText = `Bonjour, je suis Aminata, votre guide. Vous êtes à ${plate.label}${
+    // Nom de l'assistante vocale + salutation adaptée à l'heure :
+    // 06h-18h → "Bonjour", 18h-06h → "Bonsoir" (Task 4).
+    const welcomeName = qrConfig?.aminataName ?? 'Aminata'
+    const welcomeIsEvening = currentHour >= 18 || currentHour < 6
+    const welcomeText = `${welcomeIsEvening ? 'Bonsoir' : 'Bonjour'}, je suis ${welcomeName}, votre guide. Vous êtes à ${plate.label}${
       plate.district ? `, quartier ${plate.district}` : ''
     }. Cliquez sur les rubriques ci-dessous pour accéder aux services.`
 
@@ -1737,7 +1744,7 @@ export function CityScanView({
               className="mb-2 text-2xl font-bold text-[#1A1A1A]"
               style={{ fontFamily: 'Arial, Helvetica, sans-serif' }}
             >
-              Bonjour, je suis Aminata
+              {welcomeIsEvening ? 'Bonsoir' : 'Bonjour'}, je suis {welcomeName}
             </h1>
 
             {/* Sous-titre */}
@@ -1786,7 +1793,7 @@ export function CityScanView({
             >
               <span className="text-lg">📱</span>
               <p className="text-left text-xs text-[#1A1A1A]/60">
-                Activez le son de votre téléphone pour entendre Aminata vous accueillir.
+                Activez le son de votre téléphone pour entendre {welcomeName} vous accueillir.
               </p>
             </div>
           </div>
@@ -1972,6 +1979,7 @@ export function CityScanView({
           citizenPhone={citizenPhone}
           citizenName={citizenName}
           currentHour={currentHour}
+          aminataName={qrConfig?.aminataName ?? 'Aminata'}
           onEnsureCitizen={(mode) => ensureCitizen(mode)}
           onOpenFullMenu={openFullMenu}
         />
@@ -2026,10 +2034,18 @@ function MainView({
   qrConfig?: {
     qrTitle: string
     qrSubtitle: string
+    aminataName: string
     mairieServices: Array<{ label: string; phone: string }>
   } | null
 }) {
   const isNight = currentHour >= 22 || currentHour < 6
+  // --- Salutation adaptée à l'heure (Task 4) ---
+  //   • 06h-18h → "Bonjour" (matin / journée)
+  //   • 18h-22h → "Bonsoir" (soirée)
+  //   • 22h-06h → "Bonsoir" (nuit) + "🌙 Service nuit actif"
+  // isNight reste réservé au sous-titre « Service nuit actif » (22h-06h).
+  const isEvening = currentHour >= 18 || currentHour < 6
+  const aminataName = qrConfig?.aminataName ?? 'Aminata'
 
   // "Plus de services" — les 4 premiers modules sont toujours visibles,
   // les autres sont regroupés sous un bouton dépliable pour éviter
@@ -2107,7 +2123,7 @@ function MainView({
           </div>
           <div>
             <p className="text-sm font-bold uppercase tracking-wider text-white">
-              AMINATA
+              {aminataName.toUpperCase()}
             </p>
             <p className="text-[10px] uppercase tracking-[0.2em] text-white/60">
               Votre Quartier
@@ -2117,7 +2133,7 @@ function MainView({
 
         {/* Greeting */}
         <h1 className="mt-5 text-2xl font-bold leading-tight text-white">
-          {qrConfig?.qrTitle ?? (isNight ? 'Bonsoir, je suis Aminata.' : 'Bonjour, je suis Aminata.')}
+          {qrConfig?.qrTitle ?? (isEvening ? `Bonsoir, je suis ${aminataName}.` : `Bonjour, je suis ${aminataName}.`)}
         </h1>
         <p className="mt-1 text-sm text-white/80">
           {isNight ? '🌙 Service nuit actif.' : (qrConfig?.qrSubtitle ?? 'Je suis là pour vous aider dans votre quartier.')}
@@ -2137,35 +2153,6 @@ function MainView({
         </div>
       </header>
 
-      {/* === PWA — "Aminata dans ma poche" (EN DESSOUS du header) === */}
-      {!alreadyInstalled && (
-        <button
-          type="button"
-          onClick={() => {
-            if (deferredPrompt) {
-              deferredPrompt.prompt()
-              deferredPrompt.userChoice.then(
-                (choice: { outcome: string }) => {
-                  setDeferredPrompt(null)
-                  if (choice?.outcome === 'accepted') {
-                    toast({
-                      title: 'Aminata installée',
-                      description: 'L\'application est sur votre écran d\'accueil.',
-                    })
-                  }
-                },
-              )
-            } else {
-              setShowInstallModal(true)
-            }
-          }}
-          className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#0026A3] py-3.5 text-sm font-bold text-white shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.98]"
-          style={{ borderRadius: tc.cardRadius }}
-          aria-label="Installer Aminata sur mon téléphone"
-        >
-          📱 Aminata dans ma poche — Installer l'application
-        </button>
-      )}
 
       <Dialog open={showInstallModal} onOpenChange={setShowInstallModal}>
         <DialogContent className="sm:max-w-md">
@@ -2390,11 +2377,40 @@ function MainView({
       >
         <span className="text-sm">SOS</span>
       </button>
+      {/* === PWA — "Aminata dans ma poche" (en bas, après tous les modules) === */}
+      {!alreadyInstalled && (
+        <button
+          type="button"
+          onClick={() => {
+            if (deferredPrompt) {
+              deferredPrompt.prompt()
+              deferredPrompt.userChoice.then(
+                (choice: { outcome: string }) => {
+                  setDeferredPrompt(null)
+                  if (choice?.outcome === 'accepted') {
+                    toast({
+                      title: 'Aminata installée',
+                      description: 'L\'application est sur votre écran d\'accueil.',
+                    })
+                  }
+                },
+              )
+            } else {
+              setShowInstallModal(true)
+            }
+          }}
+          className="mx-auto mt-4 flex w-full items-center justify-center gap-2 rounded-2xl bg-[#0026A3] py-4 text-sm font-bold text-white shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl active:scale-[0.98]"
+          style={{ borderRadius: tc.cardRadius }}
+          aria-label="Installer Aminata sur mon téléphone"
+        >
+          📱 Aminata dans ma poche — Installer l'application
+        </button>
+      )}
 
       {/* === FOOTER === */}
       <footer className="px-4 pb-24 pt-5 text-center">
         <p className="text-xs font-bold uppercase tracking-wider text-[#1A1A1A]/40">
-          ✨ AMINATA — VOTRE QUARTIER CONNECTÉ
+          ✨ {aminataName.toUpperCase()} — VOTRE QUARTIER CONNECTÉ
         </p>
       </footer>
 
@@ -8945,6 +8961,7 @@ function SchoolCheckinView({
   citizenPhone,
   citizenName,
   currentHour,
+  aminataName,
   onEnsureCitizen,
   onOpenFullMenu,
 }: {
@@ -8952,6 +8969,7 @@ function SchoolCheckinView({
   citizenPhone: string | null
   citizenName: string | null
   currentHour: number
+  aminataName?: string
   onEnsureCitizen: (mode?: 'general' | 'school') => Promise<string | null>
   onOpenFullMenu: () => void
 }) {
@@ -8964,7 +8982,11 @@ function SchoolCheckinView({
     parentNotified: boolean
   } | null>(null)
 
-  const isNight = currentHour >= 22 || currentHour < 6
+  // Nom de l'assistante vocale (personnalisable par la mairie).
+  const voiceName = aminataName ?? 'Aminata'
+  // Salutation adaptée à l'heure : 18h-06h → "Bonsoir", sinon "Bonjour".
+  // (Task 4 — gestion unifiée avec la MainView.)
+  const isEvening = currentHour >= 18 || currentHour < 6
 
   /** Effectue un check-in école (POST /api/city/checkins). */
   const handleCheckin = async (status: 'arrived' | 'left' | 'sos') => {
@@ -8987,10 +9009,10 @@ function SchoolCheckinView({
     try {
       const msg =
         status === 'arrived'
-          ? `Aminata confirme votre arrivée à l'école ${plate.label}. Pointage enregistré. Le parent sera notifié à la prochaine synchronisation.`
+          ? `${voiceName} confirme votre arrivée à l'école ${plate.label}. Pointage enregistré. Le parent sera notifié à la prochaine synchronisation.`
           : status === 'left'
-            ? `Aminata confirme votre départ de l'école ${plate.label}. Bon retour à la maison.`
-            : `Aminata a transmis votre signalement à l'école ${plate.label}. Un responsable va vous contacter.`
+            ? `${voiceName} confirme votre départ de l'école ${plate.label}. Bon retour à la maison.`
+            : `${voiceName} a transmis votre signalement à l'école ${plate.label}. Un responsable va vous contacter.`
       parler(msg)
     } catch {
       /* ignore */
@@ -9029,6 +9051,7 @@ function SchoolCheckinView({
         time={lastCheckin.time}
         parentNotified={lastCheckin.parentNotified}
         citizenName={citizenName}
+        aminataName={voiceName}
         onContinue={() => setLocalPhase('actions')}
         onOpenFullMenu={onOpenFullMenu}
       />
@@ -9088,7 +9111,7 @@ function SchoolCheckinView({
         </div>
 
         <h1 className="mt-4 text-xl font-bold leading-tight text-white">
-          {isNight ? 'Bonsoir.' : 'Bonjour.'}
+          {isEvening ? 'Bonsoir.' : 'Bonjour.'}
         </h1>
         <p className="mt-1 text-sm text-white/80">
           {citizenPhone
@@ -9203,7 +9226,7 @@ function SchoolCheckinView({
       {/* Footer */}
       <footer className="px-4 pb-6 pt-2 text-center">
         <p className="text-xs font-bold uppercase tracking-wider text-[#1A1A1A]/40">
-          ✨ AMINATA — VOTRE ÉCOLE CONNECTÉE
+          ✨ {voiceName.toUpperCase()} — VOTRE ÉCOLE CONNECTÉE
         </p>
       </footer>
     </div>
@@ -9220,6 +9243,7 @@ function SchoolCheckinConfirmation({
   time,
   parentNotified,
   citizenName,
+  aminataName,
   onContinue,
   onOpenFullMenu,
 }: {
@@ -9228,9 +9252,11 @@ function SchoolCheckinConfirmation({
   time: string
   parentNotified: boolean
   citizenName?: string | null
+  aminataName?: string
   onContinue: () => void
   onOpenFullMenu: () => void
 }) {
+  const voiceName = aminataName ?? 'Aminata'
   const config = {
     arrived: {
       emoji: '✅',
@@ -9270,7 +9296,7 @@ function SchoolCheckinConfirmation({
 
       {/* Aminata confirme… */}
       <p className="mt-2 text-sm text-[#1A1A1A]/65">
-        Aminata confirme {citizenName ? `à ${citizenName}` : 'votre action'} à{' '}
+        {voiceName} confirme {citizenName ? `à ${citizenName}` : 'votre action'} à{' '}
         <strong className="font-semibold text-[#1A1A1A]">{plate.label}</strong>.
       </p>
 

@@ -410,6 +410,7 @@ const serialize = (
   status: a.status,
   isPremium: a.premium,
   isSponsored: a.isSponsored,
+  active: a.active,
   offerText: a.offerText,
   offerEndsAt: a.offerEndsAt ? a.offerEndsAt.toISOString() : null,
   rating: a.rating,

@@ -5,7 +5,7 @@
 // La mairie peut personnaliser le titre, sous-titre et services
 // affichés sur le QR code depuis le dashboard.
 //
-// GET  → { ok, data: { qrTitle, qrSubtitle, mairieServices } }
+// GET  → { ok, data: { qrTitle, qrSubtitle, mairieServices, aminataName } }
 // POST → sauvegarde la configuration
 // ============================================================
 
@@ -18,6 +18,7 @@ export const dynamic = 'force-dynamic'
 
 const DEFAULT_TITLE = 'Bonjour, je suis Aminata.'
 const DEFAULT_SUBTITLE = 'Je suis là pour vous aider dans votre quartier.'
+const DEFAULT_AMINATA_NAME = 'Aminata'
 const DEFAULT_SERVICES = JSON.stringify([
   { label: 'État civil', phone: '+221338000000' },
   { label: 'Permis de construire', phone: '+221338000001' },
@@ -28,6 +29,7 @@ const DEFAULT_SERVICES = JSON.stringify([
 export async function GET() {
   const qrTitle = await getSetting('city_qr_title', DEFAULT_TITLE)
   const qrSubtitle = await getSetting('city_qr_subtitle', DEFAULT_SUBTITLE)
+  const aminataName = await getSetting('city_aminata_name', DEFAULT_AMINATA_NAME)
   const mairieServicesRaw = await getSetting('city_mairie_services', DEFAULT_SERVICES)
 
   let mairieServices: Array<{ label: string; phone: string }> = []
@@ -37,7 +39,7 @@ export async function GET() {
     mairieServices = JSON.parse(DEFAULT_SERVICES)
   }
 
-  return ok({ qrTitle, qrSubtitle, mairieServices })
+  return ok({ qrTitle, qrSubtitle, mairieServices, aminataName })
 }
 
 export async function POST(req: NextRequest) {
@@ -52,6 +54,7 @@ export async function POST(req: NextRequest) {
     qrTitle?: string
     qrSubtitle?: string
     mairieServices?: Array<{ label: string; phone: string }>
+    aminataName?: string
   }
 
   if (typeof b.qrTitle === 'string' && b.qrTitle.trim().length > 0) {
@@ -59,6 +62,12 @@ export async function POST(req: NextRequest) {
   }
   if (typeof b.qrSubtitle === 'string') {
     await setSetting('city_qr_subtitle', b.qrSubtitle.trim().slice(0, 300))
+  }
+  if (typeof b.aminataName === 'string') {
+    // Nom de l'assistante vocale (ex: Aminata, Marianne, Marie, Amina…).
+    // On garde un fallback sur la valeur par défaut si la chaîne est vide.
+    const name = b.aminataName.trim()
+    await setSetting('city_aminata_name', name.length > 0 ? name.slice(0, 30) : DEFAULT_AMINATA_NAME)
   }
   if (Array.isArray(b.mairieServices)) {
     const clean = b.mairieServices
