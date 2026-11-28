@@ -839,19 +839,26 @@ model NotificationSetting {
 
 model NotificationTemplate {
   id          String   @id @default(cuid())
-  // Déclencheur : "new_incident" | "assigned" | "resolved" | "escalation_15min" | "escalation_30min"
+  // Déclencheur : "new_incident" | "assigned" | "resolved" | "escalation_15min" | "city_new_rdv" | etc.
   trigger     String   @unique
   // Nom affiché : "Nouvel Incident Assigné", "Escalade 15 min", etc.
   label       String
-  // Canaux actifs pour ce template : JSON string[] : ["sms_mtarget", "push_pwa", "whatsapp"]
+  // Projet/tenant : "airport" | "airline" | "vip_lounge" | "city" | "classic" | "platform"
+  tenantType  String   @default("airport")
+  // Canaux actifs pour ce template : JSON string[] : ["sms_mtarget", "push_pwa", "whatsapp", "email", "bell"]
   channels    String   @default("[]")
   // Template du message avec variables : {STAFF_NOM}, {INCIDENT_ID}, {ZONE}, {TYPE}, {LIEN_DIRECT}, {HEURE}, {TEMPS}
   template    String   @default("Incident {TYPE} a {ZONE}. Lien : {LIEN_DIRECT}")
-  // Destinataire : "assigned_staff" | "terminal_staff" | "supervisor"
+  // Destinataire : "assigned_staff" | "terminal_staff" | "supervisor" | "secretariat" | "citizen" | "manager" | "director"
   recipient   String   @default("assigned_staff")
+  // Description longue pour le centre de notification
+  description String?
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([tenantType])
+  @@index([active])
 }
 
 model NotificationLog {

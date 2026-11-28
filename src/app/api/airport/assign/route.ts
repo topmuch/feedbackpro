@@ -153,6 +153,20 @@ export async function POST(req: NextRequest) {
       where: { id: report.id },
       data: { assignedTo: phone },
     })
+    // Task N1 — Notification centrale : notifie le staff qu'un signalement
+    // vient de lui etre affecte. Fire-and-forget : ne doit jamais bloquer
+    // la reponse HTTP si le moteur de notification plante.
+    try {
+      const { dispatchNotification } = await import('@/lib/notification-engine')
+      await dispatchNotification('assigned', {
+        staffName: phone,
+        incidentId: report.id.slice(-6),
+        zone: report.zone?.nom ?? 'Zone inconnue',
+        link: `https://feedback.qrbags.com/aeroport/${report.zone?.code ?? ''}`,
+      })
+    } catch {
+      /* non bloquant */
+    }
     return ok({ method: 'whatsapp', phone, link, message: messageText })
   }
 
@@ -200,6 +214,19 @@ ${note ? `<p style="margin:0;font-size:14px;color:#1c1917;"><strong>Note manager
       where: { id: report.id },
       data: { assignedTo: email },
     })
+    // Task N1 — Notification centrale : notifie le staff qu'un signalement
+    // vient de lui etre affecte. Fire-and-forget.
+    try {
+      const { dispatchNotification } = await import('@/lib/notification-engine')
+      await dispatchNotification('assigned', {
+        staffName: email,
+        incidentId: report.id.slice(-6),
+        zone: report.zone?.nom ?? 'Zone inconnue',
+        link: `https://feedback.qrbags.com/aeroport/${report.zone?.code ?? ''}`,
+      })
+    } catch {
+      /* non bloquant */
+    }
     return ok({ method: 'email', email, sent, message: messageText })
   }
 
@@ -213,5 +240,18 @@ ${note ? `<p style="margin:0;font-size:14px;color:#1c1917;"><strong>Note manager
     where: { id: report.id },
     data: { assignedTo: 'push' },
   })
+  // Task N1 — Notification centrale : notifie le staff qu'un signalement
+  // vient de lui etre affecte. Fire-and-forget.
+  try {
+    const { dispatchNotification } = await import('@/lib/notification-engine')
+    await dispatchNotification('assigned', {
+      staffName: 'Staff push',
+      incidentId: report.id.slice(-6),
+      zone: report.zone?.nom ?? 'Zone inconnue',
+      link: `https://feedback.qrbags.com/aeroport/${report.zone?.code ?? ''}`,
+    })
+  } catch {
+    /* non bloquant */
+  }
   return ok({ method: 'push', sent: true, message: messageText })
 }

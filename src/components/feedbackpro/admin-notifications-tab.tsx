@@ -6,13 +6,14 @@
 // Onglet "Notifications" du dashboard Superadmin. Centralise :
 //   - Section A : Canaux de communication (Email, WhatsApp, SMS Mtarget, Push PWA)
 //                 avec toggle d'activation, dialog de config, bouton test
-//   - Section B : Templates & déclencheurs (5 triggers) — éditeur avec
-//                 variables {STAFF_NOM}, {ZONE}, … et sélection des canaux
+//   - Section B : Notifications par projet (6 onglets tenantType) — un switch
+//                 principal + 5 pills de canaux (email, push_pwa, whatsapp,
+//                 bell, sms_mtarget) par notification, mise à jour 1 clic
 //   - Section C : Historique des envois (NotificationLog) — table filtrable
 //
 // Contrats API :
 //   GET/POST /api/admin/notifications/settings  — canaux + config
-//   GET/POST /api/admin/notifications/templates — templates par trigger
+//   GET/PATCH /api/admin/notifications          — templates groupés par tenant
 //   GET      /api/admin/notifications/logs      — historique paginé
 //   POST     /api/admin/notifications/test      — envoi test d'un canal
 // ============================================================
@@ -33,16 +34,15 @@ import {
   Loader2,
   Save,
   Plus,
+  Volume2,
 } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Checkbox } from "@/components/ui/checkbox"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import {
   Dialog,
@@ -52,12 +52,6 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import {
-  Accordion,
-  AccordionItem,
-  AccordionTrigger,
-  AccordionContent,
-} from "@/components/ui/accordion"
 import {
   Table,
   TableBody,
@@ -81,14 +75,19 @@ type NotificationSettingApi = {
   updatedAt: string
 }
 
-type NotificationTemplateApi = {
+type NotificationTemplate = {
   id: string
   trigger: string
   label: string
+  // Array of canal keys, e.g. ["email","push_pwa"]. The API serializes
+  // the DB JSON column into a real array (see serializeTemplate / safeParseArray
+  // in /api/admin/notifications/route.ts) — never a raw JSON string on the client.
   channels: string[]
   template: string
-  recipient: "assigned_staff" | "terminal_staff" | "supervisor"
+  recipient: string
   active: boolean
+  tenantType?: string
+  description?: string
   updatedAt: string
 }
 
@@ -129,19 +128,10 @@ const TRIGGER_META: Record<
   escalation_30min: { label: "Escalade 30 min", desc: "Incident non résolu depuis 30 minutes (critique)", urgency: "critical" },
 }
 
-const VARIABLES = ["{STAFF_NOM}", "{INCIDENT_ID}", "{ZONE}", "{TYPE}", "{LIEN_DIRECT}", "{HEURE}", "{TEMPS}"] as const
-
 const RECIPIENT_LABELS: Record<string, string> = {
   assigned_staff: "Employé assigné",
   terminal_staff: "Staff terminal",
   supervisor: "Superviseur / Manager",
-}
-
-const URGENCY_COLOR: Record<string, string> = {
-  low: "bg-[#f3ddd2] text-[#8a4f3b] dark:bg-[#573125]/40 dark:text-[#dba28a]",
-  medium: "bg-[#f3ddd2] text-[#8a4f3b] dark:bg-[#573125]/40 dark:text-[#dba28a]",
-  high: "bg-[#f3ddd2] text-[#8a4f3b] dark:bg-[#573125]/40 dark:text-[#dba28a]",
-  critical: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
 }
 
 const STATUS_COLOR: Record<string, string> = {
@@ -190,7 +180,7 @@ export function AdminNotificationsTab() {
   return (
     <div className="space-y-6">
       <SectionCanaux />
-      <SectionTemplates />
+      <SectionNotifications />
       <SectionHistorique />
     </div>
   )
@@ -559,23 +549,77 @@ function DialogConfigCanal({
 }
 
 // ============================================================
-// Section B — Templates & Déclencheurs
+// Section B — Notifications par projet (per-project tabs)
+// ------------------------------------------------------------
+// Vue SuperAdmin : un onglet par tenantType (ville, aéroport,
+// salon VIP, commerce, compagnie, plateforme). Chaque projet
+// expose sa liste de notifications (trigger) avec :
+//   - un switch principal (active)
+//   - 5 pills de canaux (email, push_pwa, whatsapp, bell, sms_mtarget)
+//   - le destinataire affiché en pied de carte
+//
+// Contrats API :
+//   GET   /api/admin/notifications         → { templates, byTenant }
+//   PATCH /api/admin/notifications         → { trigger, active? | channels? }
 // ============================================================
 
-function SectionTemplates() {
-  const [templates, setTemplates] = useState<NotificationTemplateApi[] | null>(null)
+type TenantKey = "city" | "airport" | "vip_lounge" | "classic" | "airline" | "platform"
+
+const TENANT_META: Record<
+  TenantKey,
+  { label: string; emoji: string; color: string; desc: string }
+> = {
+  city: { label: "Ville Connectée", emoji: "🏛️", color: "#0026A3", desc: "Mairie, services urbains, voirie" },
+  airport: { label: "Aéroport", emoji: "✈️", color: "#059669", desc: "Terminal, sécurité, ops aéroportuaires" },
+  vip_lounge: { label: "Salon VIP", emoji: "🛋️", color: "#6B4C9A", desc: "Hospitalité, conciergerie, premium" },
+  classic: { label: "Commerce", emoji: "🍽️", color: "#F97316", desc: "Restaurants, boutiques, retail" },
+  airline: { label: "Compagnie", emoji: "🛩️", color: "#0891B2", desc: "Compagnie aérienne, équipage" },
+  platform: { label: "Plateforme", emoji: "🌐", color: "#1A1A1A", desc: "SuperAdmin, monitoring global" },
+}
+
+const TENANT_ORDER: TenantKey[] = [
+  "city",
+  "airport",
+  "vip_lounge",
+  "classic",
+  "airline",
+  "platform",
+]
+
+const CANAL_PILLS: {
+  key: string
+  label: string
+  icon: React.ComponentType<{ className?: string }>
+  color: string
+}[] = [
+  { key: "email", label: "Email", icon: Mail, color: "#3B82F6" },
+  { key: "push_pwa", label: "Push", icon: Smartphone, color: "#059669" },
+  { key: "whatsapp", label: "WhatsApp", icon: MessageCircle, color: "#25D366" },
+  { key: "bell", label: "Bell", icon: Bell, color: "#F59E0B" },
+  { key: "sms_mtarget", label: "SMS", icon: Volume2, color: "#8B5CF6" },
+]
+
+function SectionNotifications() {
+  const [templates, setTemplates] = useState<NotificationTemplate[]>([])
+  const [byTenant, setByTenant] = useState<Record<string, NotificationTemplate[]>>({})
+  const [activeTenant, setActiveTenant] = useState<string>("city")
   const [chargement, setChargement] = useState(true)
   const { toast } = useToast()
 
   const charger = useCallback(async () => {
     setChargement(true)
     try {
-      const res = await fetch("/api/admin/notifications/templates", { cache: "no-store" })
+      const res = await fetch("/api/admin/notifications", { cache: "no-store" })
       const json = await res.json()
-      if (json.ok) {
+      if (json?.ok) {
         setTemplates(json.data.templates)
+        setByTenant(json.data.byTenant)
       } else {
-        toast({ title: "Erreur", description: json.error ?? "Chargement impossible", variant: "destructive" })
+        toast({
+          title: "Erreur",
+          description: json?.error ?? "Chargement impossible",
+          variant: "destructive",
+        })
       }
     } catch {
       toast({ title: "Erreur", description: "Réseau injoignable", variant: "destructive" })
@@ -588,97 +632,185 @@ function SectionTemplates() {
     charger()
   }, [charger])
 
-  async function sauverTemplate(t: NotificationTemplateApi) {
-    try {
-      const res = await fetch("/api/admin/notifications/templates", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          trigger: t.trigger,
-          label: t.label,
-          channels: t.channels,
-          template: t.template,
-          recipient: t.recipient,
-          active: t.active,
-        }),
+  const updateTemplate = useCallback(
+    (trigger: string, patch: Partial<NotificationTemplate>) => {
+      setTemplates((prev) => prev.map((t) => (t.trigger === trigger ? { ...t, ...patch } : t)))
+      setByTenant((prev) => {
+        const next: Record<string, NotificationTemplate[]> = {}
+        for (const [k, arr] of Object.entries(prev)) {
+          next[k] = arr.map((t) => (t.trigger === trigger ? { ...t, ...patch } : t))
+        }
+        return next
       })
-      const json = await res.json()
-      if (json.ok) {
-        setTemplates((prev) =>
-          prev ? prev.map((p) => (p.trigger === t.trigger ? { ...p, ...t, updatedAt: json.data.template.updatedAt } : p)) : prev,
-        )
-        toast({ title: `Template « ${t.label} » enregistré`, description: `${t.channels.length} canal/canaux — destinataire: ${RECIPIENT_LABELS[t.recipient]}` })
-      } else {
-        toast({ title: "Erreur", description: json.error ?? "Échec sauvegarde", variant: "destructive" })
+    },
+    [],
+  )
+
+  const handleToggle = useCallback(
+    async (trigger: string, field: "active" | "channels", value: boolean | string[]) => {
+      // Optimistic update — `channels` is stored as a real array in state.
+      const patch: Partial<NotificationTemplate> =
+        field === "active"
+          ? { active: value as boolean }
+          : { channels: value as string[] }
+      updateTemplate(trigger, patch)
+
+      try {
+        const res = await fetch("/api/admin/notifications", {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ trigger, [field]: value }),
+        })
+        const json = await res.json()
+        if (!json?.ok) {
+          // Rollback via re-fetch
+          charger()
+          toast({
+            title: "Erreur",
+            description: json?.error ?? "Échec mise à jour",
+            variant: "destructive",
+          })
+        } else {
+          toast({ title: "Notification mise à jour" })
+        }
+      } catch {
+        charger()
+        toast({ title: "Erreur", description: "Réseau injoignable", variant: "destructive" })
       }
-    } catch {
-      toast({ title: "Erreur", description: "Réseau injoignable", variant: "destructive" })
-    }
-  }
+    },
+    [charger, toast, updateTemplate],
+  )
+
+  const toggleCanalInCard = useCallback(
+    (t: NotificationTemplate, canal: string) => {
+      const current = t.channels
+      const next = current.includes(canal)
+        ? current.filter((c) => c !== canal)
+        : [...current, canal]
+      handleToggle(t.trigger, "channels", next)
+    },
+    [handleToggle],
+  )
+
+  const activeTenantKey = (
+    TENANT_ORDER.includes(activeTenant as TenantKey) ? activeTenant : "city"
+  ) as TenantKey
+  const listeActive: NotificationTemplate[] = byTenant[activeTenantKey] ?? []
 
   return (
-    <section aria-labelledby="titre-templates" className="space-y-3">
+    <section aria-labelledby="titre-notifs" className="space-y-4">
       <div className="flex items-center justify-between gap-3">
         <div>
-          <h2 id="titre-templates" className="flex items-center gap-2 text-lg font-semibold text-foreground">
+          <h2
+            id="titre-notifs"
+            className="flex items-center gap-2 text-lg font-semibold text-foreground"
+          >
             <Bell className="h-5 w-5 text-primary" aria-hidden />
-            Templates & Déclencheurs
+            Notifications par projet
           </h2>
           <p className="text-sm text-muted-foreground">
-            Personnalisez le message, les canaux et le destinataire pour chaque type d&apos;événement (5 déclencheurs).
+            Activez et orchestrez les notifications pour chaque projet (ville, aéroport, salon
+            VIP…). Un clic par toggle.
           </p>
         </div>
-        <Button variant="ghost" size="icon" onClick={charger} aria-label="Rafraîchir les templates">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={charger}
+          aria-label="Rafraîchir les notifications"
+        >
           <RefreshCw className="h-4 w-4" aria-hidden />
         </Button>
       </div>
 
-      {chargement ? (
-        <div className="space-y-2">
-          <Skeleton className="h-16 rounded-2xl" />
-          <Skeleton className="h-16 rounded-2xl" />
-          <Skeleton className="h-16 rounded-2xl" />
+      {/* Onglets projets — chips scrollables horizontalement */}
+      <div role="tablist" aria-label="Projets" className="flex gap-2 overflow-x-auto px-1 pb-2">
+        {TENANT_ORDER.map((key) => {
+          const meta = TENANT_META[key]
+          const active = activeTenantKey === key
+          const count = byTenant[key]?.length ?? 0
+          return (
+            <button
+              key={key}
+              type="button"
+              role="tab"
+              aria-selected={active}
+              onClick={() => setActiveTenant(key)}
+              className={cn(
+                "flex shrink-0 items-center gap-2 rounded-full border px-3.5 py-1.5 text-sm font-medium transition-colors",
+                active
+                  ? "border-transparent text-white shadow-sm"
+                  : "border-border bg-background text-foreground hover:bg-muted/60",
+              )}
+              style={active ? { backgroundColor: meta.color } : undefined}
+            >
+              <span aria-hidden>{meta.emoji}</span>
+              <span>{meta.label}</span>
+              <span
+                className={cn(
+                  "rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                  active ? "bg-white/20 text-white" : "bg-muted text-muted-foreground",
+                )}
+              >
+                {count}
+              </span>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* Bandeau projet actif */}
+      <div
+        className="flex items-center gap-3 rounded-xl border p-3"
+        style={{
+          borderColor: `${TENANT_META[activeTenantKey].color}33`,
+          backgroundColor: `${TENANT_META[activeTenantKey].color}0D`,
+        }}
+      >
+        <div
+          className="flex h-9 w-9 items-center justify-center rounded-lg text-white"
+          style={{ backgroundColor: TENANT_META[activeTenantKey].color }}
+          aria-hidden
+        >
+          <span className="text-base">{TENANT_META[activeTenantKey].emoji}</span>
         </div>
-      ) : templates && templates.length > 0 ? (
-        <Card>
-          <CardContent className="p-2 sm:p-4">
-            <Accordion type="single" collapsible className="w-full">
-              {templates.map((t) => {
-                const meta = TRIGGER_META[t.trigger]
-                return (
-                  <AccordionItem key={t.trigger} value={t.trigger} className="border-b last:border-b-0">
-                    <AccordionTrigger className="hover:no-underline px-2">
-                      <div className="flex w-full items-center gap-3 pr-3">
-                        <Badge className={cn("shrink-0", URGENCY_COLOR[meta?.urgency ?? "medium"])}>{meta?.urgency ?? "—"}</Badge>
-                        <div className="min-w-0 flex-1 text-left">
-                          <p className="truncate text-sm font-semibold text-foreground">
-                            {t.label}
-                            {!t.active && <span className="ml-2 text-xs text-muted-foreground">(inactif)</span>}
-                          </p>
-                          <p className="truncate text-xs text-muted-foreground">{meta?.desc ?? t.trigger}</p>
-                        </div>
-                        <div className="hidden shrink-0 gap-1 sm:flex">
-                          {t.channels.map((c) => (
-                            <Badge key={c} variant="outline" className="text-[10px]">
-                              {CANAL_LABEL_COURT[c] ?? c}
-                            </Badge>
-                          ))}
-                        </div>
-                      </div>
-                    </AccordionTrigger>
-                    <AccordionContent className="px-2 pb-4">
-                      <TemplateEditor template={t} onSave={sauverTemplate} />
-                    </AccordionContent>
-                  </AccordionItem>
-                )
-              })}
-            </Accordion>
-          </CardContent>
-        </Card>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-semibold text-foreground">
+            {TENANT_META[activeTenantKey].label}
+          </p>
+          <p className="truncate text-xs text-muted-foreground">
+            {TENANT_META[activeTenantKey].desc} — {listeActive.length} notification(s)
+          </p>
+        </div>
+        <Badge variant="outline" className="text-[10px]">
+          {templates.length} total
+        </Badge>
+      </div>
+
+      {/* Cartes de notifications */}
+      {chargement ? (
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+          <Skeleton className="h-32 rounded-2xl" />
+          <Skeleton className="h-32 rounded-2xl" />
+          <Skeleton className="h-32 rounded-2xl" />
+          <Skeleton className="h-32 rounded-2xl" />
+        </div>
+      ) : listeActive.length > 0 ? (
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+          {listeActive.map((t) => (
+            <NotificationCard
+              key={t.id ?? t.trigger}
+              template={t}
+              tenantKey={activeTenantKey}
+              onToggleActive={(v) => handleToggle(t.trigger, "active", v)}
+              onToggleCanal={(canal) => toggleCanalInCard(t, canal)}
+            />
+          ))}
+        </div>
       ) : (
         <Card>
           <CardContent className="py-12 text-center text-sm text-muted-foreground">
-            Aucun template trouvé. Rechargez la page pour réinitialiser.
+            Aucune notification configurée pour ce projet.
           </CardContent>
         </Card>
       )}
@@ -686,154 +818,96 @@ function SectionTemplates() {
   )
 }
 
-// ---------- Éditeur de template (à l'intérieur d'un AccordionItem) ----------
+// ---------- Carte de notification (1 trigger, 1 projet) ----------
 
-function TemplateEditor({
+function NotificationCard({
   template,
-  onSave,
+  tenantKey,
+  onToggleActive,
+  onToggleCanal,
 }: {
-  template: NotificationTemplateApi
-  onSave: (t: NotificationTemplateApi) => void
+  template: NotificationTemplate
+  tenantKey: TenantKey
+  onToggleActive: (v: boolean) => void
+  onToggleCanal: (canal: string) => void
 }) {
-  const [label, setLabel] = useState(template.label)
-  const [recipient, setRecipient] = useState(template.recipient)
-  const [channels, setChannels] = useState<string[]>(template.channels)
-  const [texte, setTexte] = useState(template.template)
-  const [active, setActive] = useState(template.active)
-  const [enregistrement, setEnregistrement] = useState(false)
-
-  // Resync si le template change (ex: après refresh)
-  useEffect(() => {
-    setLabel(template.label)
-    setRecipient(template.recipient)
-    setChannels(template.channels)
-    setTexte(template.template)
-    setActive(template.active)
-  }, [template])
-
-  function toggleChannel(c: string) {
-    setChannels((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]))
-  }
-
-  function insererVariable(v: string) {
-    setTexte((prev) => prev + v)
-  }
-
-  async function enregistrer(e: React.FormEvent) {
-    e.preventDefault()
-    if (enregistrement) return
-    setEnregistrement(true)
-    onSave({
-      ...template,
-      label: label.trim() || template.label,
-      recipient,
-      channels,
-      template: texte,
-      active,
-    })
-    setEnregistrement(false)
-  }
+  const tenant = TENANT_META[tenantKey]
+  const channels = template.channels
+  const desc =
+    template.description?.trim() || TRIGGER_META[template.trigger]?.desc || template.trigger
+  const recipientLabel =
+    RECIPIENT_LABELS[template.recipient] ?? template.recipient ?? "—"
 
   return (
-    <form onSubmit={enregistrer} className="space-y-4">
-      {/* Ligne 1 : Label + Destinataire + Active */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="space-y-1.5">
-          <Label htmlFor={`tpl-label-${template.trigger}`} className="text-xs">Libellé affiché</Label>
-          <Input
-            id={`tpl-label-${template.trigger}`}
-            value={label}
-            onChange={(e) => setLabel(e.target.value)}
-          />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor={`tpl-recipient-${template.trigger}`} className="text-xs">Destinataire</Label>
-          <Select value={recipient} onValueChange={(v) => setRecipient(v as typeof recipient)}>
-            <SelectTrigger id={`tpl-recipient-${template.trigger}`}>
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="assigned_staff">Employé assigné</SelectItem>
-              <SelectItem value="terminal_staff">Staff terminal</SelectItem>
-              <SelectItem value="supervisor">Superviseur / Manager</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
-        <div className="flex items-end gap-2">
-          <div className="flex items-center gap-2 rounded-lg bg-muted/40 px-3 py-2">
+    <Card
+      className={cn(
+        "overflow-hidden border-l-4 transition-opacity",
+        template.active ? "" : "opacity-70",
+      )}
+      style={{ borderLeftColor: tenant.color }}
+    >
+      <CardContent className="space-y-3 p-4">
+        {/* Ligne 1 : Switch principal + label + description */}
+        <div className="flex items-start gap-3">
+          <div className="pt-0.5">
             <Switch
-              id={`tpl-active-${template.trigger}`}
-              checked={active}
-              onCheckedChange={setActive}
-              aria-label="Template actif"
+              id={`notif-active-${template.trigger}`}
+              checked={template.active}
+              onCheckedChange={onToggleActive}
+              aria-label={`Activer la notification ${template.label}`}
             />
-            <Label htmlFor={`tpl-active-${template.trigger}`} className="text-xs text-muted-foreground">
-              {active ? "Actif" : "Inactif"}
-            </Label>
+          </div>
+          <div className="min-w-0 flex-1">
+            <p
+              className="text-sm font-semibold leading-tight"
+              style={{ color: tenant.color }}
+            >
+              {template.label}
+            </p>
+            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{desc}</p>
           </div>
         </div>
-      </div>
 
-      {/* Ligne 2 : Canaux (checkboxes) */}
-      <div className="space-y-1.5">
-        <Label className="text-xs">Canaux utilisés pour ce template</Label>
-        <div className="flex flex-wrap gap-4 rounded-lg bg-muted/30 p-3">
-          {CANAL_ORDER.map((c) => (
-            <label key={c} className="flex cursor-pointer items-center gap-2 text-sm">
-              <Checkbox checked={channels.includes(c)} onCheckedChange={() => toggleChannel(c)} aria-label={`Canal ${c}`} />
-              <span className="text-foreground">{CANAL_META[c].label}</span>
-            </label>
-          ))}
+        {/* Ligne 2 : Pills de canaux */}
+        <div className="space-y-1.5">
+          <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+            Canaux
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {CANAL_PILLS.map((c) => {
+              const on = channels.includes(c.key)
+              const Icon = c.icon
+              return (
+                <button
+                  key={c.key}
+                  type="button"
+                  onClick={() => onToggleCanal(c.key)}
+                  aria-pressed={on}
+                  aria-label={`${c.label} ${on ? "activé" : "désactivé"}`}
+                  title={`${c.label} ${on ? "(activé)" : "(désactivé)"}`}
+                  className={cn(
+                    "flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium transition-all",
+                    on
+                      ? "border-transparent text-white shadow-sm"
+                      : "border-transparent bg-muted/40 text-muted-foreground hover:bg-muted",
+                  )}
+                  style={on ? { backgroundColor: c.color } : undefined}
+                >
+                  <Icon className="h-3.5 w-3.5" aria-hidden />
+                  <span>{c.label}</span>
+                </button>
+              )
+            })}
+          </div>
         </div>
-      </div>
 
-      {/* Ligne 3 : Variables (boutons) */}
-      <div className="space-y-1.5">
-        <Label className="text-xs">Variables disponibles (cliquez pour insérer)</Label>
-        <div className="flex flex-wrap gap-1.5">
-          {VARIABLES.map((v) => (
-            <Button
-              key={v}
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-7 px-2 text-[11px] font-mono"
-              onClick={() => insererVariable(v)}
-            >
-              {v}
-            </Button>
-          ))}
+        {/* Ligne 3 : Destinataire */}
+        <div className="flex items-center gap-1.5 pt-1 text-xs text-muted-foreground">
+          <span className="font-medium">Destinataire:</span>
+          <span>{recipientLabel}</span>
         </div>
-      </div>
-
-      {/* Ligne 4 : Template texte */}
-      <div className="space-y-1.5">
-        <Label htmlFor={`tpl-text-${template.trigger}`} className="text-xs">Message du template</Label>
-        <Textarea
-          id={`tpl-text-${template.trigger}`}
-          value={texte}
-          onChange={(e) => setTexte(e.target.value)}
-          rows={3}
-          className="font-mono text-sm"
-          placeholder="Incident {TYPE} a {ZONE}. Lien : {LIEN_DIRECT}"
-        />
-        <p className="text-xs text-muted-foreground">
-          Les variables non résolues sont remplacées par une chaîne vide.
-        </p>
-      </div>
-
-      {/* Ligne 5 : Save */}
-      <div className="flex justify-end gap-2 pt-1">
-        <Button type="submit" disabled={enregistrement} className="gap-1.5">
-          {enregistrement ? (
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-          ) : (
-            <Save className="h-4 w-4" aria-hidden />
-          )}
-          Enregistrer le template
-        </Button>
-      </div>
-    </form>
+      </CardContent>
+    </Card>
   )
 }
 

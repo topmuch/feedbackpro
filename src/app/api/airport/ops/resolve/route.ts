@@ -57,6 +57,11 @@ export async function POST(req: NextRequest) {
       zoneId: true,
       tagScanne: true,
       createdAt: true,
+      // Task N1 — on a besoin du nom de zone pour le template de
+      // notification "{ZONE}". Additif au select existant : ne casse
+      // aucun usage downstream (la reponse HTTP n'expose que les
+      // champs explicites ci-dessous).
+      zone: { select: { nom: true, code: true } },
     },
   })
   if (!existing) {
@@ -103,6 +108,21 @@ export async function POST(req: NextRequest) {
   }).catch((err) => {
     console.warn('[airport/ops/resolve] Webhook dispatch error:', err instanceof Error ? err.message : String(err))
   })
+
+  // --- Task N1 — Notification centrale : dispatch "resolved" ---
+  // Fire-and-forget : envoie le template de resolution via les canaux
+  // actifs (push/SMS/email…) configures dans le NotificationTemplate
+  // "resolved". Ne doit jamais bloquer la reponse HTTP.
+  try {
+    const { dispatchNotification } = await import('@/lib/notification-engine')
+    await dispatchNotification('resolved', {
+      incidentId: updated.id.slice(-6),
+      temps: resolutionMinutes != null ? `${resolutionMinutes} min` : '',
+      zone: existing.zone?.nom ?? 'Zone',
+    })
+  } catch {
+    /* non bloquant */
+  }
 
   return ok({
     reportId: updated.id,

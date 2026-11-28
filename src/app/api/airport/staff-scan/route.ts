@@ -105,6 +105,11 @@ export async function POST(req: NextRequest) {
     const report = await db.airportReport.update({
       where: { id: b.reportId },
       data: { statut: 'RESOLU', resolvedAt: now },
+      // Task N1 — on inclut la zone pour avoir le nom a disposition
+      // dans le template de notification {ZONE}. Additif au update :
+      // ne casse aucun usage downstream (les champs existants restent
+      // accessibles sur l'objet retourne).
+      include: { zone: { select: { nom: true, code: true } } },
     })
 
     // Calculer le temps de résolution
@@ -133,6 +138,22 @@ export async function POST(req: NextRequest) {
 
     // Le wallboard détectera la résolution via recently_resolved (poll 5s)
     // → son résolu + TTS "Signalement résolu. [zone]. [problème]. Bien fait."
+
+    // --- Task N1 — Notification centrale : dispatch "resolved" ---
+    // Fire-and-forget : envoie le template de resolution via les canaux
+    // actifs (push/SMS/email…) configures dans le NotificationTemplate
+    // "resolved". Ne doit jamais bloquer la reponse HTTP ni casser le
+    // flux staff-scan si le moteur de notification plante.
+    try {
+      const { dispatchNotification } = await import('@/lib/notification-engine')
+      await dispatchNotification('resolved', {
+        incidentId: report.id.slice(-6),
+        temps: `${elapsedMin} min`,
+        zone: report.zone?.nom ?? zoneCode ?? 'Zone',
+      })
+    } catch {
+      /* non bloquant */
+    }
   }
 
   if (b.action === 'REPORT_ISSUE') {
