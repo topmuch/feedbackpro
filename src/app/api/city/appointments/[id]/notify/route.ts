@@ -106,6 +106,6 @@ export async function POST(
     return ok({ sent: true, to: email, reference: appointment.reference })
   } catch (e) {
     console.error('[city-appointments-notify] Erreur envoi email:', e)
-    return fail('Erreur lors de l\\'envoi de l\\'email', 500)
+    return fail("Erreur lors de l'envoi de l'email", 500)
   }
 }
